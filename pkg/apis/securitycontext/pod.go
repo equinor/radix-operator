@@ -21,6 +21,12 @@ func WithPodSeccompProfile(secCompProfile corev1.SeccompProfileType) PodOption {
 	}
 }
 
+func WithPodRunAsNonRoot(runAsNonRoot *bool) PodOption {
+	return func(securityContext *corev1.PodSecurityContext) {
+		securityContext.RunAsNonRoot = runAsNonRoot
+	}
+}
+
 func Pod(options ...PodOption) *corev1.PodSecurityContext {
 	securityContext := &corev1.PodSecurityContext{
 		RunAsNonRoot: commonUtils.BoolPtr(true),

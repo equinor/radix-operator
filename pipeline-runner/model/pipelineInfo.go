@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"strings"
 	"time"
 
@@ -18,9 +19,6 @@ import (
 
 const (
 	multiComponentImageName = "multi-component"
-	runAsUser               = 1000
-	runAsGroup              = 1000
-	fsGroup                 = 1000
 )
 
 type componentType struct {
@@ -111,12 +109,12 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
-	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(fsGroup),
+	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
-		securitycontext.WithContainerRunAsGroup(runAsGroup),
-		securitycontext.WithContainerRunAsUser(runAsUser))
+		securitycontext.WithContainerRunAsGroup(defaults.SecurityContextRunAsGroup),
+		securitycontext.WithContainerRunAsUser(defaults.SecurityContextRunAsUser))
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext

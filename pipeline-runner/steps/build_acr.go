@@ -3,7 +3,7 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	"strings"
 	"time"
@@ -39,13 +39,18 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.ComponentImages)
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
 	annotations := map[string]string{}
-	for _, buildContainer := range buildContainers {
-		annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
-		annotations[fmt.Sprintf("container.seccomp.security.alpha.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
+	buildPodSecurityContext := &pipelineInfo.PipelineArguments.PodSecurityContext
+	if isUsingBuildKit(pipelineInfo) {
+		for _, buildContainer := range buildContainers {
+			annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
+			annotations[fmt.Sprintf("container.seccomp.security.alpha.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
+		}
+		buildPodSecurityContext = securitycontext.Pod(
+			securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
+			securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+			securitycontext.WithPodRunAsNonRoot(conditions.BoolPtr(false)),
+		)
 	}
-
-	//debug
-	pipelineInfo.PipelineArguments.PodSecurityContext.RunAsNonRoot = conditions.BoolPtr(false)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -75,7 +80,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 					RestartPolicy:   "Never",
 					InitContainers:  initContainers,
 					Containers:      buildContainers,
-					SecurityContext: &pipelineInfo.PipelineArguments.PodSecurityContext,
+					SecurityContext: buildPodSecurityContext,
 					Volumes: []corev1.Volume{
 						{
 							Name: git.BuildContextVolumeName,
@@ -116,27 +121,13 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
-
 	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
-	// imageBuilder := "radixdev.azurecr.io/radix-buildah-image-builder:buildah-latest"
+	buildContainerSecContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
 
-	// TODO: incrementally remove kernel capabilities, root user
-
-	// debug
-	securityContext := pipelineInfo.PipelineArguments.ContainerSecurityContext.DeepCopy()
-
-	securityContext.SeccompProfile = &corev1.SeccompProfile{
-		Type: corev1.SeccompProfileTypeUnconfined, // it's confirmed necessary to relax seccompprofile.
-		// we should ideally create a custom seccompprofile that allows the necessary syscalls, unshare and clone*
-		// https://github.com/containers/buildah/issues/4563#issuecomment-1576782236
-		// custom seccompprofile must be copied onto node filesystems by a daemonset we create
-		// same goes for custom apparmor profile
+	if isUsingBuildKit(pipelineInfo) {
+		imageBuilder = pipelineInfo.PipelineArguments.BuildKitImageBuilder
+		buildContainerSecContext = getBuildContainerSecContext()
 	}
-	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETUID")  // confirmed necessary
-	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETGID")  // confirmed necessary
-	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETFCAP") // confirmed necessary
-	securityContext.RunAsNonRoot = conditions.BoolPtr(false)
-	securityContext.RunAsUser = numbers.Int64Ptr(0) // either AllowPrivilegeEscalation or root user is necessary
 
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
 	clusterName := pipelineInfo.PipelineArguments.Clustername
@@ -159,9 +150,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	}
 	if !pipelineInfo.PipelineArguments.UseCache {
 		useCache = "--no-cache"
-	}
-	if pipelineInfo.RadixApplication.Spec.Build != nil && pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit {
-		useBuildKit = "1"
 	}
 	distinctBuildContainers := make(map[string]void)
 	for _, componentImage := range pipelineInfo.ComponentImages {
@@ -252,12 +240,12 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  defaults.RadixGitTagsEnvironmentVariable,
 				Value: gitTags,
 			},
-			// debug
+			// buildah specific env vars
 			{
 				Name: "BUILDAH_USERNAME",
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "radix-sp-buildah-azure"},
+						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
 						Key:                  "username",
 					},
 				},
@@ -266,13 +254,13 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name: "BUILDAH_PASSWORD",
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "radix-sp-buildah-azure"},
+						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
 						Key:                  "password",
 					},
 				},
 			},
 			{
-				Name:  "SECRET_ARGS",
+				Name:  "SECRET_ARGS", // TODO: rename to BUILDAH_SECRET_ARGS
 				Value: getSecretArgs(buildSecrets),
 			},
 		}
@@ -284,7 +272,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			// Command:         []string{"/bin/sh", "-c", "sleep infinity"},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      git.BuildContextVolumeName,
@@ -301,12 +288,30 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 					ReadOnly:  true,
 				},
 			},
-			SecurityContext: securityContext,
+			SecurityContext: buildContainerSecContext,
 		}
 		containers = append(containers, container)
 	}
 
 	return containers
+}
+
+func isUsingBuildKit(pipelineInfo *model.PipelineInfo) bool {
+	return pipelineInfo.RadixApplication.Spec.Build != nil && pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit
+}
+
+func getBuildContainerSecContext() *corev1.SecurityContext {
+	return securitycontext.Container(
+		securitycontext.WithContainerDropAllCapabilities(),
+		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
+		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeUnconfined), //"TODO: use custom seccomp profile added via daemon set
+		securitycontext.WithContainerRunAsNonRoot(utils.BoolPtr(false)),
+	)
+	// it's confirmed necessary to relax seccompprofile.
+	// we should ideally create a custom seccompprofile that allows the necessary syscalls, unshare and clone*
+	// https://github.com/containers/buildah/issues/4563#issuecomment-1576782236
+	// custom seccompprofile must be copied onto node filesystems by a daemonset we create
+	// same goes for custom apparmor profile
 }
 
 func getSecretArgs(buildSecrets []corev1.EnvVar) string {

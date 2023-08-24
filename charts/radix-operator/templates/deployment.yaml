@@ -125,6 +125,10 @@ spec:
             - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL
               value: {{ .Values.podSecurityStandard.enforce.level }}
             {{- end }}
+            {{- if .Values.podSecurityStandard.enforce.level }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_APP_NAMESPACE_ENFORCE_LEVEL
+              value: {{ .Values.podSecurityStandard.appNamespace.enforce.level }}
+            {{- end }}
             {{- if .Values.podSecurityStandard.enforce.version }}
             - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION
               value: {{ .Values.podSecurityStandard.enforce.version }}

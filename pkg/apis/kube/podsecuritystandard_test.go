@@ -13,7 +13,7 @@ func Test_NewPodSecurityStandardFromEnv_Enforce(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "anyversion")
 	defer os.Clearenv()
 
-	sut := NewPodSecurityStandardFromEnv()
+	sut := NewEnvNamespacePodSecurityStandardFromEnv()
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/enforce":         "anylevel",
@@ -27,7 +27,7 @@ func Test_NewPodSecurityStandardFromEnv_Audit(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable, "anyversion")
 	defer os.Clearenv()
 
-	sut := NewPodSecurityStandardFromEnv()
+	sut := NewEnvNamespacePodSecurityStandardFromEnv()
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/audit":         "anylevel",
@@ -41,7 +41,7 @@ func Test_NewPodSecurityStandardFromEnv_Warn(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "anyversion")
 	defer os.Clearenv()
 
-	sut := NewPodSecurityStandardFromEnv()
+	sut := NewEnvNamespacePodSecurityStandardFromEnv()
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/warn":         "anylevel",
@@ -59,7 +59,7 @@ func Test_NewPodSecurityStandardFromEnv_All(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "anyversion3")
 	defer os.Clearenv()
 
-	sut := NewPodSecurityStandardFromEnv()
+	sut := NewEnvNamespacePodSecurityStandardFromEnv()
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/enforce":         "anylevel1",

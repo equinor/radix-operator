@@ -116,6 +116,10 @@ oauthProxyImage: quay.io/oauth2-proxy/oauth2-proxy:v7.2.0
 
 # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
 podSecurityStandard:
+  appNamespace:
+    enforce:
+      level: privileged
+      version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
   enforce:
     level: "" # One of privileged, baseline, restricted
     version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"

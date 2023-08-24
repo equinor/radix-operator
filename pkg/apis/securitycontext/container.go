@@ -37,6 +37,20 @@ func WithContainerRunAsGroup(groupId int64) ContainerOption {
 	}
 }
 
+func WithContainerRunAsNonRoot(runAsNonRoot *bool) ContainerOption {
+	return func(securityContext *corev1.SecurityContext) {
+		securityContext.RunAsNonRoot = runAsNonRoot
+	}
+}
+
+func WithContainerCapabilities(capabilities []corev1.Capability) ContainerOption {
+	return func(securityContext *corev1.SecurityContext) {
+		securityContext.Capabilities = &corev1.Capabilities{
+			Add: capabilities,
+		}
+	}
+}
+
 func Container(options ...ContainerOption) *corev1.SecurityContext {
 	securityContext := &corev1.SecurityContext{
 		AllowPrivilegeEscalation: commonUtils.BoolPtr(false),

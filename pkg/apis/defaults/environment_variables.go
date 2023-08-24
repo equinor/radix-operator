@@ -70,6 +70,9 @@ const (
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 
+	// RadixBuildKitImageBuilderEnvironmentVariable Points to the image builder
+	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER"
+
 	// RadixImageBuilderEnvironmentVariable Points to the image builder
 	RadixImageBuilderEnvironmentVariable = "RADIX_IMAGE_BUILDER"
 
@@ -165,7 +168,10 @@ const (
 	// LogLevel Log level: ERROR, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
 
-	// PodSecurityStandardEnforceLevelEnvironmentVariable Pod Security Standard enforce level for app and environment namespaces
+	// PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable Pod Security Standard enforce level for app namespaces
+	PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_APP_NAMESPACE_ENFORCE_LEVEL"
+
+	// PodSecurityStandardEnforceLevelEnvironmentVariable Pod Security Standard enforce level for environment namespaces
 	PodSecurityStandardEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL"
 
 	// PodSecurityStandardEnforceVersionEnvironmentVariable Pod Security Standard enforce version for app and environment namespaces
