@@ -16,7 +16,7 @@ spec:
         - name: file-copy-container
           image: alpine
           command: ["sh", "-c"]
-          args: ["while true; do cp /configmap-data/allow-buildah-seccomp-profile.json /hostpath/; sleep 20; done"]
+          args: ["while true; do cp /configmap-data/{{ .Values.seccompProfile.fileNameOnNode }} /hostpath/; sleep 20; done"]
           volumeMounts:
             - name: hostpath-volume
               mountPath: /hostpath
