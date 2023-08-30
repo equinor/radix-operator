@@ -16,6 +16,7 @@ kubeClientRateLimitQPS: 5
 
 configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
+buildahImageBuilder: xx
 jobScheduler: radix-job-scheduler:main-latest
 radixTekton: radix-tekton:main-latest
 useImageBuilderCache: 0

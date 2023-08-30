@@ -70,9 +70,6 @@ const (
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 
-	// RadixBuildKitImageBuilderEnvironmentVariable Points to the image builder
-	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER"
-
 	// RadixImageBuilderEnvironmentVariable Points to the image builder
 	RadixImageBuilderEnvironmentVariable = "RADIX_IMAGE_BUILDER"
 
@@ -188,4 +185,10 @@ const (
 
 	// PodSecurityStandardWarnVersionEnvironmentVariable Pod Security Standard warn version for app and environment namespaces
 	PodSecurityStandardWarnVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION"
+
+	// SeccompProfileFileNameEnvironmentVariable Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory
+	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
+
+	// RadixBuildahImageBuilderEnvironmentVariable The container image used for running the buildah engine
+	RadixBuildahImageBuilderEnvironmentVariable = "RADIX_BUILDAH_IMAGE_BUILDER"
 )

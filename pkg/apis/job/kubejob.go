@@ -133,6 +133,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)),
 		fmt.Sprintf("--%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
+		fmt.Sprintf("--%s=%s", defaults.RadixBuildahImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixBuildahImageBuilderEnvironmentVariable)),
+		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),
 
 		// Used for tagging source of image
 		fmt.Sprintf("--%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),

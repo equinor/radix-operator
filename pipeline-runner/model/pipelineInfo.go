@@ -84,6 +84,8 @@ type PipelineArguments struct {
 	ImageBuilder string
 	// BuildKitImageBuilder Points to the BuildKit compliant image builder
 	BuildKitImageBuilder string
+	// SeccompProfileFileName Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node
+	SeccompProfileFileName string
 	// Used for tagging meta-information
 	Clustertype string
 	// RadixZone  The radix zone.

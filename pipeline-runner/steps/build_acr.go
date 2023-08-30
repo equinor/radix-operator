@@ -118,11 +118,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	pushImage := pipelineInfo.PipelineArguments.PushImage
 	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
 	buildContainerSecContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
-
-	if isUsingBuildKit(pipelineInfo) {
-		imageBuilder = pipelineInfo.PipelineArguments.BuildKitImageBuilder
-		buildContainerSecContext = getBuildContainerSecContext()
-	}
+	var containerCommand []string
 
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
 	clusterName := pipelineInfo.PipelineArguments.Clustername
@@ -131,6 +127,13 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
 	imageBuilderFullName := fmt.Sprintf("%s/%s", containerRegistry, imageBuilder)
+	secretMountsArgsString := ""
+
+	if isUsingBuildKit(pipelineInfo) {
+		imageBuilder = pipelineInfo.PipelineArguments.BuildKitImageBuilder
+		buildContainerSecContext = getBuildContainerSecContext()
+		secretMountsArgsString = getSecretArgs(buildSecrets)
+	}
 
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
@@ -255,10 +258,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 					},
 				},
 			},
-			{
-				Name:  "SECRET_ARGS", // TODO: rename to BUILDAH_SECRET_ARGS
-				Value: getSecretArgs(buildSecrets),
-			},
 		}
 
 		envVars = append(envVars, buildSecrets...)
@@ -286,10 +285,28 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			},
 			SecurityContext: buildContainerSecContext,
 		}
+		if isUsingBuildKit(pipelineInfo) {
+			containerCommand = getBuildahContainerCommand(containerRegistry, secretMountsArgsString,
+				componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath,
+				clusterTypeImage, clusterNameImage)
+			container.Command = containerCommand
+		}
 		containers = append(containers, container)
 	}
 
 	return containers
+}
+
+func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context,
+	dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string) []string {
+	return []string{
+		"/bin/bash",
+		"-c",
+		fmt.Sprintf("buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s.azurecr.io "+
+			"&& buildah build --storage-driver=vfs --isolation=chroot "+
+			"--jobs 0 %s --file %s%s --tag %s --tag %s --tag %s %s "+
+			"&& buildah push --storage-driver=vfs --all %s", containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, context, imageTag),
+	}
 }
 
 func isUsingBuildKit(pipelineInfo *model.PipelineInfo) bool {
