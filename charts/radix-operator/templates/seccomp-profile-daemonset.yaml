@@ -1,10 +1,16 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: "{{ .Values.seccompProfile.daemonSetName }}"
+  name: {{ .Values.seccompProfile.daemonSetName }}
   namespace: {{ .Release.Namespace | quote }}
 spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.seccompProfile.daemonSetName }}
   template:
+    metadata:
+      labels:
+        app: {{ .Values.seccompProfile.daemonSetName }}
     spec:
       containers:
         - name: file-copy-container
