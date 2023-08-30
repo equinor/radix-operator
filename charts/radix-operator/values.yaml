@@ -117,6 +117,7 @@ oauthProxyImage: quay.io/oauth2-proxy/oauth2-proxy:v7.2.0
 seccompProfile:
   configMapName: "seccomp-allow-buildah"
   daemonSetName: copy-seccomp-profile
+  fileNameOnNode: allow-buildah.json
 
 # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
 podSecurityStandard:

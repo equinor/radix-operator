@@ -6,7 +6,7 @@ metadata:
   annotations:
     description: "configmap with seccomp profile suitable for running buildah. It's a copy of the moby container runtime's default seccomp profile, but with the addition of two syscalls: clone3 and unshare. https://github.com/moby/moby/blob/b335e3d305be86bd28089a057d8be6a346445549/profiles/seccomp/default.json"
 data:
-  allow-buildah-seccomp-profile.json: |
+  {{ .Values.seccompProfile.fileNameOnNode }}: |
     {
       "defaultAction": "SCMP_ACT_ERRNO",
       "defaultErrnoRet": 1,

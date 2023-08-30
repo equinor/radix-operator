@@ -307,7 +307,7 @@ func getBuildContainerSecContext() *corev1.SecurityContext {
 		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
 		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: utils.StringPtr("allow-buildah-seccomp-profile.json"),
+			LocalhostProfile: utils.StringPtr("allow-buildah.json"),
 		}),
 		securitycontext.WithContainerRunAsNonRoot(utils.BoolPtr(false)),
 	)
