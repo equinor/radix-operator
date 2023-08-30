@@ -112,7 +112,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
-		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
 		securitycontext.WithContainerRunAsGroup(defaults.SecurityContextRunAsGroup),
 		securitycontext.WithContainerRunAsUser(defaults.SecurityContextRunAsUser))
 

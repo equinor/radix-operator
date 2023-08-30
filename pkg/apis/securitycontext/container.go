@@ -17,7 +17,13 @@ func WithContainerDropAllCapabilities() ContainerOption {
 	}
 }
 
-func WithContainerSeccompProfile(secCompProfile corev1.SeccompProfileType) ContainerOption {
+func WithContainerSeccompProfile(secCompProfile corev1.SeccompProfile) ContainerOption {
+	return func(securityContext *corev1.SecurityContext) {
+		securityContext.SeccompProfile = &secCompProfile
+	}
+}
+
+func WithContainerSeccompProfileType(secCompProfile corev1.SeccompProfileType) ContainerOption {
 	return func(securityContext *corev1.SecurityContext) {
 		securityContext.SeccompProfile = &corev1.SeccompProfile{
 			Type: secCompProfile,

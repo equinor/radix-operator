@@ -92,7 +92,7 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 							Args:            containerArguments,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithContainerDropAllCapabilities(),
-								securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
 								securitycontext.WithContainerRunAsGroup(runAsGroup),
 								securitycontext.WithContainerRunAsUser(runAsUser)),
 						},

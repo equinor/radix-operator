@@ -43,7 +43,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	if isUsingBuildKit(pipelineInfo) {
 		for _, buildContainer := range buildContainers {
 			annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
-			annotations[fmt.Sprintf("container.seccomp.security.alpha.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
+			// annotations[fmt.Sprintf("container.seccomp.security.alpha.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
 		}
 		buildPodSecurityContext = securitycontext.Pod(
 			securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
@@ -305,7 +305,10 @@ func getBuildContainerSecContext() *corev1.SecurityContext {
 	return securitycontext.Container(
 		securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
-		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeUnconfined), //"TODO: use custom seccomp profile added via daemon set
+		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfile{
+			Type:             corev1.SeccompProfileTypeLocalhost,
+			LocalhostProfile: utils.StringPtr("allow-buildah-seccomp-profile.json"),
+		}),
 		securitycontext.WithContainerRunAsNonRoot(utils.BoolPtr(false)),
 	)
 	// it's confirmed necessary to relax seccompprofile.
