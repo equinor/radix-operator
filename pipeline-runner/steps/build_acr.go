@@ -116,17 +116,16 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
-	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
 	buildContainerSecContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
 	var containerCommand []string
 
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
 	clusterName := pipelineInfo.PipelineArguments.Clustername
 	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
+	imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageBuilder)
 	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
-	imageBuilderFullName := fmt.Sprintf("%s/%s", containerRegistry, imageBuilder)
 	secretMountsArgsString := ""
 
 	if isUsingBuildKit(pipelineInfo) {
@@ -264,7 +263,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 
 		container := corev1.Container{
 			Name:            componentImage.ContainerName,
-			Image:           imageBuilderFullName,
+			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
 			VolumeMounts: []corev1.VolumeMount{
@@ -302,10 +301,10 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString, contex
 	return []string{
 		"/bin/bash",
 		"-c",
-		fmt.Sprintf("buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s.azurecr.io "+
-			"&& buildah build --storage-driver=vfs --isolation=chroot "+
+		fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s "+
+			"&& /usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
 			"--jobs 0 %s --file %s%s --tag %s --tag %s --tag %s %s "+
-			"&& buildah push --storage-driver=vfs --all %s", containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, context, imageTag),
+			"&& /usr/bin/buildah push --storage-driver=vfs --all %s", containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, context, imageTag),
 	}
 }
 
