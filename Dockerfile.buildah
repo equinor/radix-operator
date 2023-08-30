@@ -1,2 +1,0 @@
-FROM quay.io/buildah/stable:v1.30.0
-RUN yum install strace file procps vim util-linux -y
