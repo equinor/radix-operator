@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	"strings"
 	"time"
 
@@ -73,6 +74,8 @@ type PipelineArguments struct {
 	RadixConfigFile string
 	// Security context
 	PodSecurityContext corev1.PodSecurityContext
+	// Security context for image builder pods
+	BuildKitPodSecurityContext corev1.PodSecurityContext
 
 	ContainerSecurityContext corev1.SecurityContext
 	// Images used for copying radix config/building
@@ -111,6 +114,10 @@ func InitPipeline(pipelineType *pipeline.Definition,
 
 	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
+	buildPodSecContext := securitycontext.Pod(
+		securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
+		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithPodRunAsNonRoot(conditions.BoolPtr(false)))
 	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
 		securitycontext.WithContainerRunAsGroup(defaults.SecurityContextRunAsGroup),
@@ -118,6 +125,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
+	pipelineArguments.BuildKitPodSecurityContext = *buildPodSecContext
 
 	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	"strings"
 	"time"
 
@@ -45,11 +44,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 			annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
 			// annotations[fmt.Sprintf("container.seccomp.security.alpha.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
 		}
-		buildPodSecurityContext = securitycontext.Pod(
-			securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
-			securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
-			securitycontext.WithPodRunAsNonRoot(conditions.BoolPtr(false)),
-		)
+		buildPodSecurityContext = &pipelineInfo.PipelineArguments.BuildKitPodSecurityContext
 	}
 
 	job := batchv1.Job{
