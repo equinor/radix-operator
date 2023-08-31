@@ -14,7 +14,6 @@
         "--PIPELINE_TYPE=build-deploy",
         "--RADIX_TEKTON_IMAGE=radix-tekton:main-latest",
         "--RADIX_IMAGE_BUILDER=radix-image-builder:master-latest",
-        "--RADIX_BUILDKIT_IMAGE_BUILDER=radix-buildah-image-builder:master-latest",
         "--RADIX_CLUSTER_TYPE=development",
         "--RADIX_ZONE=dev",
         "--RADIX_CLUSTERNAME=weekly-12",
