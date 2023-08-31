@@ -99,11 +99,6 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 		return err
 	}
 
-	err = deploy.grantAppAdminAccessToRuntimeSecrets(deploy.radixDeployment.Namespace, deploy.registration, component, secretsToManage)
-	if err != nil {
-		return err
-	}
-
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
 	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
 		if !deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
@@ -125,7 +120,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	}
 	secretsToManage = append(secretsToManage, secretRefsSecretNames...)
 
-	err = deploy.grantAppAdminAccessToRuntimeSecrets(deploy.radixDeployment.Namespace, deploy.registration, component, secretsToManage)
+	err = deploy.grantAccessToRuntimeSecrets(component, secretsToManage)
 	if err != nil {
 		return fmt.Errorf("failed to grant app admin access to own secrets. %v", err)
 	}

@@ -79,6 +79,7 @@ func (s *syncerTestSuite) SetupTest() {
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "2000m")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "any-group")
 }
 
 func (s *syncerTestSuite) Test_RestoreStatus() {

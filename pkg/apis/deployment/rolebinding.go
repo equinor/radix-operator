@@ -2,16 +2,18 @@ package deployment
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	auth "k8s.io/api/rbac/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component radixv1.RadixCommonDeployComponent, secretNames []string) error {
+func (deploy *Deployment) grantAccessToRuntimeSecrets(component radixv1.RadixCommonDeployComponent, secretNames []string) error {
 	if len(secretNames) <= 0 {
 		err := deploy.garbageCollectRoleBindingsNoLongerInSpecForComponent(component)
 		if err != nil {
@@ -26,14 +28,36 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 		return nil
 	}
 
-	role := roleAppAdminSecrets(registration, component, secretNames)
-	err := deploy.kubeutil.ApplyRole(namespace, role)
+	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
+	extraLabels := labels.ForComponentName(component.GetName())
+
+	// App admin role and rolebinding
+	adminRoleName := fmt.Sprintf("radix-app-adm-%s", component.GetName())
+	adminGroups, err := utils.GetAdGroups(registration)
 	if err != nil {
 		return err
 	}
+	adminRole := kube.CreateManageSecretRole(registration.Name, adminRoleName, secretNames, extraLabels)
+	adminRoleBinding := roleBindingAppSecrets(registration, adminRole, adminGroups)
 
-	rolebinding := rolebindingAppAdminSecrets(registration, role)
-	return deploy.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	// App reader role and rolebinding
+	readerRoleName := fmt.Sprintf("radix-app-reader-%s", component.GetName())
+	readerRole := kube.CreateReadSecretRole(registration.Name, readerRoleName, secretNames, extraLabels)
+	readerRoleBinding := roleBindingAppSecrets(registration, readerRole, registration.Spec.ReaderAdGroups)
+
+	// Apply roles and rolebindings
+	for _, role := range []*rbacv1.Role{adminRole, readerRole} {
+		if err := deploy.kubeutil.ApplyRole(namespace, role); err != nil {
+			return err
+		}
+	}
+	for _, roleBinding := range []*rbacv1.RoleBinding{adminRoleBinding, readerRoleBinding} {
+		if err := deploy.kubeutil.ApplyRoleBinding(namespace, roleBinding); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {
@@ -79,14 +103,13 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 	return nil
 }
 
-func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
-	adGroups, _ := utils.GetAdGroups(registration)
+func roleBindingAppSecrets(registration *radixv1.RadixRegistration, role *rbacv1.Role, groups []string) *rbacv1.RoleBinding {
 	roleName := role.ObjectMeta.Name
-	subjects := kube.GetRoleBindingGroups(adGroups)
+	subjects := kube.GetRoleBindingGroups(groups)
 
 	// Add machine user to subjects
 	if registration.Spec.MachineUser {
-		subjects = append(subjects, auth.Subject{
+		subjects = append(subjects, rbacv1.Subject{
 			Kind:      "ServiceAccount",
 			Name:      defaults.GetMachineUserRoleName(registration.Name),
 			Namespace: utils.GetAppNamespace(registration.Name),

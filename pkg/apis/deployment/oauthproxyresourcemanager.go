@@ -499,7 +499,7 @@ func (o *oauthProxyResourceManager) mergeAuxComponentResourceLabels(object metav
 func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	roleName := o.getRoleAndRoleBindingName(component.GetName())
+	roleName := o.getAppAdminRoleAndRoleBindingName(component.GetName())
 	namespace := o.rd.Namespace
 
 	// create role
@@ -537,7 +537,7 @@ func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommon
 	return o.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(componentName string) string {
+func (o *oauthProxyResourceManager) getAppAdminRoleAndRoleBindingName(componentName string) string {
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
 	return fmt.Sprintf("radix-app-adm-%s", deploymentName)
 }
