@@ -142,7 +142,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
 	var push string
 	var useCache string
-	var useBuildKit string
 	if pushImage {
 		push = "--push"
 	}
@@ -216,10 +215,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  defaults.RadixZoneEnvironmentVariable,
 				Value: pipelineInfo.PipelineArguments.RadixZone,
-			},
-			{
-				Name:  defaults.UseBuildKitEnvironmentVariable,
-				Value: useBuildKit,
 			},
 			// Extra meta information
 			{
@@ -322,11 +317,6 @@ func getBuildContainerSecContext() *corev1.SecurityContext {
 		}),
 		securitycontext.WithContainerRunAsNonRoot(utils.BoolPtr(false)),
 	)
-	// it's confirmed necessary to relax seccompprofile.
-	// we should ideally create a custom seccompprofile that allows the necessary syscalls, unshare and clone*
-	// https://github.com/containers/buildah/issues/4563#issuecomment-1576782236
-	// custom seccompprofile must be copied onto node filesystems by a daemonset we create
-	// same goes for custom apparmor profile
 }
 
 func getSecretArgs(buildSecrets []corev1.EnvVar) string {
