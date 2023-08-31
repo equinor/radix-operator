@@ -673,7 +673,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 								},
 							},
 							ReadinessProbe:  readinessProbe,
-							SecurityContext: securitycontext.Container(securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
+							SecurityContext: securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault)),
 						},
 					},
 					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),

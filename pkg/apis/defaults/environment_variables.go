@@ -126,9 +126,6 @@ const (
 	// RadixUseCacheEnvironmentVariable Use cache for the built component
 	RadixUseCacheEnvironmentVariable = "USE_CACHE"
 
-	// UseBuildKitEnvironmentVariable Use Docker BuildKit in radix-image-builder
-	UseBuildKitEnvironmentVariable = "DOCKER_BUILDKIT"
-
 	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
 	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
 
@@ -165,7 +162,10 @@ const (
 	// LogLevel Log level: ERROR, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
 
-	// PodSecurityStandardEnforceLevelEnvironmentVariable Pod Security Standard enforce level for app and environment namespaces
+	// PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable Pod Security Standard enforce level for app namespaces
+	PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_APP_NAMESPACE_ENFORCE_LEVEL"
+
+	// PodSecurityStandardEnforceLevelEnvironmentVariable Pod Security Standard enforce level for environment namespaces
 	PodSecurityStandardEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL"
 
 	// PodSecurityStandardEnforceVersionEnvironmentVariable Pod Security Standard enforce version for app and environment namespaces
@@ -182,4 +182,10 @@ const (
 
 	// PodSecurityStandardWarnVersionEnvironmentVariable Pod Security Standard warn version for app and environment namespaces
 	PodSecurityStandardWarnVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION"
+
+	// SeccompProfileFileNameEnvironmentVariable Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory
+	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
+
+	// RadixBuildahImageBuilderEnvironmentVariable The container image used for running the buildah engine
+	RadixBuildahImageBuilderEnvironmentVariable = "RADIX_BUILDAH_IMAGE_BUILDER"
 )

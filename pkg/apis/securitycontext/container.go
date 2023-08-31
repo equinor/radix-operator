@@ -17,7 +17,13 @@ func WithContainerDropAllCapabilities() ContainerOption {
 	}
 }
 
-func WithContainerSeccompProfile(secCompProfile corev1.SeccompProfileType) ContainerOption {
+func WithContainerSeccompProfile(secCompProfile corev1.SeccompProfile) ContainerOption {
+	return func(securityContext *corev1.SecurityContext) {
+		securityContext.SeccompProfile = &secCompProfile
+	}
+}
+
+func WithContainerSeccompProfileType(secCompProfile corev1.SeccompProfileType) ContainerOption {
 	return func(securityContext *corev1.SecurityContext) {
 		securityContext.SeccompProfile = &corev1.SeccompProfile{
 			Type: secCompProfile,
@@ -34,6 +40,20 @@ func WithContainerRunAsUser(userId int64) ContainerOption {
 func WithContainerRunAsGroup(groupId int64) ContainerOption {
 	return func(securityContext *corev1.SecurityContext) {
 		securityContext.RunAsGroup = &groupId
+	}
+}
+
+func WithContainerRunAsNonRoot(runAsNonRoot *bool) ContainerOption {
+	return func(securityContext *corev1.SecurityContext) {
+		securityContext.RunAsNonRoot = runAsNonRoot
+	}
+}
+
+func WithContainerCapabilities(capabilities []corev1.Capability) ContainerOption {
+	return func(securityContext *corev1.SecurityContext) {
+		securityContext.Capabilities = &corev1.Capabilities{
+			Add: capabilities,
+		}
 	}
 }
 

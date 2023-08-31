@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Values.seccompProfile.daemonSetName }}
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.seccompProfile.daemonSetName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.seccompProfile.daemonSetName }}
+    spec:
+      containers:
+        - name: file-copy-container
+          image: alpine
+          command: ["sh", "-c"]
+          args: ["while true; do cp /configmap-data/{{ .Values.seccompProfile.fileNameOnNode }} /hostpath/; sleep 20; done"]
+          volumeMounts:
+            - name: hostpath-volume
+              mountPath: /hostpath
+            - name: configmap-volume
+              mountPath: /configmap-data
+              readOnly: true
+      volumes:
+        - name: hostpath-volume
+          hostPath:
+            path: /var/lib/kubelet/seccomp
+        - name: configmap-volume
+          configMap:
+            name: {{ .Values.seccompProfile.configMapName }}
