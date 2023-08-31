@@ -3,8 +3,6 @@ package utils
 import (
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"k8s.io/api/rbac/v1"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -110,16 +108,6 @@ func GrantAppAdminAccessToSecret(kubeutil *kube.Kube, registration *radixv1.Radi
 	}
 
 	subjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if registration.Spec.MachineUser {
-		subjects = append(subjects, v1.Subject{
-			Kind:      "ServiceAccount",
-			Name:      defaults.GetMachineUserRoleName(registration.Name),
-			Namespace: GetAppNamespace(registration.Name),
-		})
-	}
-
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }

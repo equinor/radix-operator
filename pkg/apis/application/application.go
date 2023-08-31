@@ -12,15 +12,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 var logger *log.Entry
-
-// GranterFunction Handle to granter function for granting access to service account token
-type GranterFunction func(kubeutil *kube.Kube, app *v1.RadixRegistration, namespace string, serviceAccount *corev1.ServiceAccount) error
 
 // Application Instance variables
 type Application struct {
@@ -47,13 +43,6 @@ func NewApplication(
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (app Application) OnSync() error {
-	// The grantAppAdminAccessToMachineUserToken cannot be a part of out automated tests as it assues the
-	// secret for the token is automatically created
-	return app.OnSyncWithGranterToMachineUserToken(GrantAppAdminAccessToMachineUserToken)
-}
-
-// OnSyncWithGranterToMachineUserToken OnSync where handler is passed in, as the granter function cannot be tested and has to be mocked
-func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGranter GranterFunction) error {
 	radixRegistration := app.registration
 	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName()})
 
@@ -62,21 +51,6 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 		logger.Errorf("Failed to create app namespace. %v", err)
 		return err
 	}
-
-	if app.registration.Spec.MachineUser {
-		_, err = app.applyMachineUserServiceAccount(machineUserTokenGranter)
-		if err != nil {
-			logger.Errorf("Failed to create machine user. %v", err)
-			return err
-		}
-	} else {
-		err := app.garbageCollectMachineUserNoLongerInSpec()
-		if err != nil {
-			logger.Errorf("Failed to perform garbage collection of machine user resources: %v", err)
-			return err
-		}
-	}
-
 	logger.Debugf("App namespace created")
 
 	err = app.createLimitRangeOnAppNamespace(utils.GetAppNamespace(radixRegistration.Name))
@@ -157,24 +131,4 @@ func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, 
 		}
 		return err
 	})
-}
-
-// Garbage collect machine user resources
-func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
-	err := app.garbageCollectMachineUserServiceAccount()
-	if err != nil {
-		logger.Errorf("Failed to perform garbage collection of service account: %v", err)
-		return err
-	}
-	err = app.removeMachineUserFromPlatformUserRole()
-	if err != nil {
-		logger.Errorf("Failed to remove machine user from platform user role: %v", err)
-		return err
-	}
-	err = app.removeAppAdminAccessToMachineUserToken()
-	if err != nil {
-		logger.Errorf("Failed to remove app admin access to machine user: %v", err)
-		return err
-	}
-	return nil
 }

@@ -31,7 +31,6 @@ type RadixRegistrationSpec struct {
 	ReaderAdGroups      []string `json:"readerAdGroups" yaml:"readerAdGroups"`
 	Creator             string   `json:"creator" yaml:"creator"`
 	Owner               string   `json:"owner" yaml:"owner"`
-	MachineUser         bool     `json:"machineUser" yaml:"machineUser"`
 	WBS                 string   `json:"wbs" yaml:"wbs"`
 	ConfigBranch        string   `json:"configBranch" yaml:"configBranch"`
 	RadixConfigFullName string   `json:"radixConfigFullName" yaml:"radixConfigFullName"`

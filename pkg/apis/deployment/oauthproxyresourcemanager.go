@@ -17,7 +17,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -523,16 +522,6 @@ func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommon
 	}
 
 	subjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if o.rr.Spec.MachineUser {
-		subjects = append(subjects, rbacv1.Subject{
-			Kind:      "ServiceAccount",
-			Name:      defaults.GetMachineUserRoleName(o.rr.Name),
-			Namespace: utils.GetAppNamespace(o.rr.Name),
-		})
-	}
-
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return o.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }

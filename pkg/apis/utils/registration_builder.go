@@ -22,7 +22,6 @@ type RegistrationBuilder interface {
 	WithOwner(string) RegistrationBuilder
 	WithCreator(string) RegistrationBuilder
 	WithEmptyStatus() RegistrationBuilder
-	WithMachineUser(bool) RegistrationBuilder
 	WithWBS(string) RegistrationBuilder
 	WithConfigBranch(string) RegistrationBuilder
 	WithRadixConfigFullName(string) RegistrationBuilder
@@ -45,7 +44,6 @@ type RegistrationBuilderStruct struct {
 	owner               string
 	creator             string
 	emptyStatus         bool
-	machineUser         bool
 	wbs                 string
 	configBranch        string
 	radixConfigFullName string
@@ -64,7 +62,6 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithPrivateKey(radixRegistration.Spec.DeployKey)
 	rb.WithOwner(radixRegistration.Spec.Owner)
 	rb.WithCreator(radixRegistration.Spec.Creator)
-	rb.WithMachineUser(radixRegistration.Spec.MachineUser)
 	rb.WithWBS(radixRegistration.Spec.WBS)
 	rb.WithRadixConfigFullName(radixRegistration.Spec.RadixConfigFullName)
 	rb.WithConfigurationItem(radixRegistration.Spec.ConfigurationItem)
@@ -143,12 +140,6 @@ func (rb *RegistrationBuilderStruct) WithEmptyStatus() RegistrationBuilder {
 	return rb
 }
 
-// WithMachineUser Indicates that a machine user service account should be created for this application
-func (rb *RegistrationBuilderStruct) WithMachineUser(machineUser bool) RegistrationBuilder {
-	rb.machineUser = machineUser
-	return rb
-}
-
 // WithWBS Sets WBS
 func (rb *RegistrationBuilderStruct) WithWBS(wbs string) RegistrationBuilder {
 	rb.wbs = wbs
@@ -205,7 +196,6 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			ReaderAdGroups:      rb.readerAdGroups,
 			Owner:               rb.owner,
 			Creator:             rb.creator,
-			MachineUser:         rb.machineUser,
 			WBS:                 rb.wbs,
 			ConfigBranch:        rb.configBranch,
 			RadixConfigFullName: rb.radixConfigFullName,

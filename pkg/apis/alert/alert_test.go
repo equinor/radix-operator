@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -105,7 +104,7 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 	appName, alertName, alertUID, namespace, adGroup := "any-app", "any-alert", types.UID("alert-uid"), "any-ns", "any-group"
 	rr := &radixv1.RadixRegistration{
 		ObjectMeta: metav1.ObjectMeta{Name: appName},
-		Spec:       radixv1.RadixRegistrationSpec{AdGroups: []string{adGroup}, MachineUser: true},
+		Spec:       radixv1.RadixRegistrationSpec{AdGroups: []string{adGroup}},
 	}
 	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	radixalert := &radixv1.RadixAlert{
@@ -224,8 +223,8 @@ func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 		Spec:       radixv1.RadixAlertSpec{},
 	}
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{AdGroups: []string{adGroup1, adGroup2}, MachineUser: true}}
-	rr, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{AdGroups: []string{adGroup1, adGroup2}}}
+	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
@@ -236,27 +235,14 @@ func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 	actualRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
 	s.Equal(actualRole.Name, actualRoleBinding.RoleRef.Name, "rolebinding role reference not as expected")
 	s.Equal("Role", actualRoleBinding.RoleRef.Kind, "rolebinding role kind not as expected")
-	s.Len(actualRoleBinding.Subjects, 3, "rolebinding subject count not as expected")
+	s.Len(actualRoleBinding.Subjects, 2, "rolebinding subject count not as expected")
 	actualSubject, found := s.getSubjectByName(actualRoleBinding.Subjects, adGroup1)
 	s.True(found, "group1 not found in rolebinding")
 	s.Equal(rbacv1.GroupKind, actualSubject.Kind, "incorrect kind for group1")
 	actualSubject, found = s.getSubjectByName(actualRoleBinding.Subjects, adGroup2)
 	s.True(found, "group2 not found in rolebinding")
 	s.Equal(rbacv1.GroupKind, actualSubject.Kind, "incorrect kind for group2")
-	actualSubject, found = s.getSubjectByName(actualRoleBinding.Subjects, defaults.GetMachineUserRoleName(appName))
-	s.True(found, "machineuser not found in rolebinding")
-	s.Equal(rbacv1.ServiceAccountKind, actualSubject.Kind, "incorrect kind for machineuser")
 
-	// Disable machine user and remove group2 from RR
-	rr.Spec.MachineUser = false
-	rr.Spec.AdGroups = []string{adGroup1}
-	s.radixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
-	err = sut.OnSync()
-	s.Nil(err)
-	actualRoleBinding, _ = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Len(actualRoleBinding.Subjects, 1, "rolebinding subject count not as expected")
-	actualSubject, found = s.getSubjectByName(actualRoleBinding.Subjects, adGroup1)
-	s.True(found, "group1 not found in rolebinding after updating RR")
 }
 
 func (s *alertTestSuite) Test_OnSync_Secret_RemoveOrphanedKeys() {
