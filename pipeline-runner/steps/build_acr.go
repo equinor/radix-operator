@@ -3,7 +3,6 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"strings"
 	"time"
 
@@ -11,10 +10,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -76,41 +77,50 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 					InitContainers:  initContainers,
 					Containers:      buildContainers,
 					SecurityContext: buildPodSecurityContext,
-					Volumes: []corev1.Volume{
-						{
-							Name: git.BuildContextVolumeName,
-						},
-						{
-							Name: git.GitSSHKeyVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName:  git.GitSSHKeyVolumeName,
-									DefaultMode: &defaultMode,
-								},
-							},
-						},
-						{
-							Name: defaults.AzureACRServicePrincipleSecretName,
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: defaults.AzureACRServicePrincipleSecretName,
-								},
-							},
-						},
-						{
-							Name: defaults.BuildSecretsName,
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: defaults.BuildSecretsName,
-								},
-							},
-						},
-					},
+					Volumes:         getACRBuildJobVolumes(&defaultMode, buildSecrets),
 				},
 			},
 		},
 	}
 	return &job, nil
+}
+
+func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []corev1.Volume {
+	volumes := []corev1.Volume{
+		{
+			Name: git.BuildContextVolumeName,
+		},
+		{
+			Name: git.GitSSHKeyVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  git.GitSSHKeyVolumeName,
+					DefaultMode: defaultMode,
+				},
+			},
+		},
+		{
+			Name: defaults.AzureACRServicePrincipleSecretName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: defaults.AzureACRServicePrincipleSecretName,
+				},
+			},
+		},
+	}
+	if len(buildSecrets) == 0 {
+		return volumes
+	}
+	volumes = append(volumes,
+		corev1.Volume{
+			Name: defaults.BuildSecretsName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: defaults.BuildSecretsName,
+				},
+			},
+		})
+	return volumes
 }
 
 func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
@@ -261,22 +271,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      git.BuildContextVolumeName,
-					MountPath: git.Workspace,
-				},
-				{
-					Name:      defaults.AzureACRServicePrincipleSecretName,
-					MountPath: azureServicePrincipleContext,
-					ReadOnly:  true,
-				},
-				{
-					Name:      defaults.BuildSecretsName,
-					MountPath: buildSecretsMountPath,
-					ReadOnly:  true,
-				},
-			},
+			VolumeMounts:    getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext, buildSecrets),
 			SecurityContext: buildContainerSecContext,
 		}
 		if isUsingBuildKit(pipelineInfo) {
@@ -284,11 +279,39 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath,
 				clusterTypeImage, clusterNameImage)
 			container.Command = containerCommand
+			resource := map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse("800M"),
+			}
+			container.Resources.Requests = resource
 		}
 		containers = append(containers, container)
 	}
 
 	return containers
+}
+
+func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, buildSecrets []corev1.EnvVar) []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      git.BuildContextVolumeName,
+			MountPath: git.Workspace,
+		},
+		{
+			Name:      defaults.AzureACRServicePrincipleSecretName,
+			MountPath: azureServicePrincipleContext,
+			ReadOnly:  true,
+		},
+	}
+	if len(buildSecrets) == 0 {
+		return volumeMounts
+	}
+	volumeMounts = append(volumeMounts,
+		corev1.VolumeMount{
+			Name:      defaults.BuildSecretsName,
+			MountPath: buildSecretsMountPath,
+			ReadOnly:  true,
+		})
+	return volumeMounts
 }
 
 func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context,
