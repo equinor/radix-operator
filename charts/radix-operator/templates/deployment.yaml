@@ -125,6 +125,10 @@ spec:
             - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL
               value: {{ .Values.podSecurityStandard.enforce.level }}
             {{- end }}
+            {{- if .Values.podSecurityStandard.enforce.level }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_APP_NAMESPACE_ENFORCE_LEVEL
+              value: {{ .Values.podSecurityStandard.appNamespace.enforce.level }}
+            {{- end }}
             {{- if .Values.podSecurityStandard.enforce.version }}
             - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION
               value: {{ .Values.podSecurityStandard.enforce.version }}
@@ -145,6 +149,10 @@ spec:
             - name: RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION
               value: {{ .Values.podSecurityStandard.warn.version }}
             {{- end }}
+            - name: SECCOMP_PROFILE_FILENAME
+              value: {{ .Values.seccompProfile.fileNameOnNode }}
+            - name: RADIX_BUILDAH_IMAGE_BUILDER
+              value: {{ .Values.buildahImageBuilder }}
           livenessProbe:
             httpGet:
               path: /healthz

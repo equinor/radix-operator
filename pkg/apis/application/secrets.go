@@ -26,7 +26,7 @@ func (app Application) applySecretsForPipelines() error {
 	}
 	err = app.applyServicePrincipalACRSecretToBuildNamespace(buildNamespace)
 	if err != nil {
-		log.Warnf("Failed to apply service principle acr secret (%s) to namespace %s", defaults.AzureACRServicePrincipleSecretName, buildNamespace)
+		log.Warnf("Failed to apply service principle acr secrets (%s, %s) to namespace %s", defaults.AzureACRServicePrincipleSecretName, defaults.AzureACRServicePrincipleBuildahSecretName, buildNamespace)
 	}
 	return nil
 }
@@ -104,13 +104,24 @@ func deriveKeyPairFromSecret(secret *corev1.Secret) (*utils.DeployKey, error) {
 }
 
 func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNamespace string) error {
-	servicePrincipalSecretForBuild, err := app.createNewServicePrincipalACRSecret(buildNamespace)
+	servicePrincipalSecretForBuild, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRServicePrincipleSecretName)
 	if err != nil {
 		return err
 	}
 
-	_, err = app.kubeutil.ApplySecret(buildNamespace, servicePrincipalSecretForBuild)
-	return err
+	servicePrincipalSecretForBuildahBuild, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRServicePrincipleBuildahSecretName)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild} {
+		_, err = app.kubeutil.ApplySecret(buildNamespace, secret)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (app Application) createNewGitDeployKey(namespace, deployKey string, registration *v1.RadixRegistration) (*corev1.Secret, error) {
@@ -136,21 +147,25 @@ func (app Application) createNewGitDeployKey(namespace, deployKey string, regist
 	return &secret, nil
 }
 
-func (app Application) createNewServicePrincipalACRSecret(namespace string) (*corev1.Secret, error) {
-	servicePrincipalSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, defaults.AzureACRServicePrincipleSecretName)
+func (app Application) createNewServicePrincipalACRSecret(namespace, secretName string) (*corev1.Secret, error) {
+	servicePrincipalSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, secretName)
 	if err != nil {
-		log.Errorf("Failed to get %s secret from default. %v", defaults.AzureACRServicePrincipleSecretName, err)
+		log.Errorf("Failed to get %s secret from default. %v", secretName, err)
 		return nil, err
 	}
+
+	data := map[string][]byte{}
+	for key := range servicePrincipalSecret.Data {
+		data[key] = servicePrincipalSecret.Data[key]
+	}
+
 	secret := corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.AzureACRServicePrincipleSecretName,
+			Name:      secretName,
 			Namespace: namespace,
 		},
-		Data: map[string][]byte{
-			"sp_credentials.json": servicePrincipalSecret.Data["sp_credentials.json"],
-		},
+		Data: data,
 	}
 	return &secret, nil
 }

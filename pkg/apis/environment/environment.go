@@ -139,7 +139,7 @@ func (env *Environment) ApplyNamespace(name string) error {
 		kube.RadixAppLabel:             env.config.Spec.AppName,
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
 	}
-	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewPodSecurityStandardFromEnv().Labels()))
+	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels()))
 	return env.kubeutil.ApplyNamespace(name, nsLabels, env.AsOwnerReference())
 }
 

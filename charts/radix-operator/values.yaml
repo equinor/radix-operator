@@ -16,6 +16,7 @@ kubeClientRateLimitQPS: 5
 
 configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
+buildahImageBuilder: xx
 jobScheduler: radix-job-scheduler:main-latest
 radixTekton: radix-tekton:main-latest
 useImageBuilderCache: 0
@@ -114,8 +115,17 @@ logLevel: "INFO"
 oauthProxyDefaultIssuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
 oauthProxyImage: quay.io/oauth2-proxy/oauth2-proxy:v7.2.0
 
+seccompProfile:
+  configMapName: "seccomp-allow-buildah"
+  daemonSetName: copy-seccomp-profile
+  fileNameOnNode: allow-buildah.json
+
 # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
 podSecurityStandard:
+  appNamespace:
+    enforce:
+      level: privileged
+      version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
   enforce:
     level: "" # One of privileged, baseline, restricted
     version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"

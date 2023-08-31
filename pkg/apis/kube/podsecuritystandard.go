@@ -21,15 +21,34 @@ const (
 	podSecurityStandardLabelPrefix = "pod-security.kubernetes.io/"
 )
 
-// NewPodSecurityStandardFromEnv builds pod security standard from environment variables
-func NewPodSecurityStandardFromEnv() *PodSecurityStandard {
-	pss := &PodSecurityStandard{}
+// NewAppNamespacePodSecurityStandardFromEnv builds pod security standard for app namespaces from environment variables
+func NewAppNamespacePodSecurityStandardFromEnv() *PodSecurityStandard {
+	pss := newPodSecurityStandardFromEnv()
+
+	// Set Enforce level
+	if level := os.Getenv(defaults.PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable); len(level) > 0 {
+		version := os.Getenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable)
+		pss.Enforce(PodSecurityLevel(level), version)
+	}
+
+	return pss
+}
+
+// NewEnvNamespacePodSecurityStandardFromEnv builds pod security standard for env namespaces from environment variables
+func NewEnvNamespacePodSecurityStandardFromEnv() *PodSecurityStandard {
+	pss := newPodSecurityStandardFromEnv()
 
 	// Set Enforce level
 	if level := os.Getenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable); len(level) > 0 {
 		version := os.Getenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable)
 		pss.Enforce(PodSecurityLevel(level), version)
 	}
+
+	return pss
+}
+
+func newPodSecurityStandardFromEnv() *PodSecurityStandard {
+	pss := &PodSecurityStandard{}
 
 	// Set Audit level
 	if level := os.Getenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable); len(level) > 0 {

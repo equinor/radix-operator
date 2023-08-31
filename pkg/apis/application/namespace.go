@@ -16,7 +16,7 @@ func (app Application) createAppNamespace() error {
 		kube.RadixEnvLabel:          utils.AppNamespaceEnvName,
 		"snyk-service-account-sync": "radix-snyk-service-account",
 	}
-	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewPodSecurityStandardFromEnv().Labels()))
+	nsLabels = labels.Merge(nsLabels, kube.NewAppNamespacePodSecurityStandardFromEnv().Labels())
 
 	ownerRef := app.getOwnerReference()
 	err := app.kubeutil.ApplyNamespace(name, nsLabels, ownerRef)
