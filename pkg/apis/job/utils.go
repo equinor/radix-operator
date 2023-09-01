@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"sort"
+	"time"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -53,7 +54,10 @@ func deleteJobPodIfExistsAndNotCompleted(client kubernetes.Interface, namespace,
 	if pods.Items[0].Status.Phase == corev1.PodSucceeded || pods.Items[0].Status.Phase == corev1.PodFailed {
 		return nil
 	}
-	err = client.CoreV1().Pods(namespace).Delete(context.Background(), pods.Items[0].Name, metav1.DeleteOptions{})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = client.CoreV1().Pods(namespace).Delete(ctx, pods.Items[0].Name, metav1.DeleteOptions{})
 	if err != nil && !k8sErrors.IsNotFound(err) {
 		return err
 	}
