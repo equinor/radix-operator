@@ -165,6 +165,7 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
 	defer os.Clearenv()
+	os.Setenv(defaults.PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable, "enforceAppNsLvl")
 	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
 	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "enforceVer")
 	os.Setenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable, "auditLvl")
@@ -188,7 +189,7 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 		kube.RadixAppLabel:                           appName,
 		kube.RadixEnvLabel:                           utils.AppNamespaceEnvName,
 		"snyk-service-account-sync":                  "radix-snyk-service-account",
-		"pod-security.kubernetes.io/enforce":         "enforceLvl",
+		"pod-security.kubernetes.io/enforce":         "enforceAppNsLvl",
 		"pod-security.kubernetes.io/enforce-version": "enforceVer",
 		"pod-security.kubernetes.io/audit":           "auditLvl",
 		"pod-security.kubernetes.io/audit-version":   "auditVer",

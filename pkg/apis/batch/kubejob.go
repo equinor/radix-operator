@@ -233,7 +233,7 @@ func (s *syncer) getContainers(rd *radixv1.RadixDeployment, jobComponent *radixv
 		Env:             environmentVariables,
 		Ports:           ports,
 		VolumeMounts:    volumeMounts,
-		SecurityContext: securitycontext.Container(securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
+		SecurityContext: securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault)),
 		Resources:       resources,
 	}
 

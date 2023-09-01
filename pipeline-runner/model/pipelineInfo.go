@@ -2,6 +2,8 @@ package model
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	"strings"
 	"time"
 
@@ -18,9 +20,6 @@ import (
 
 const (
 	multiComponentImageName = "multi-component"
-	runAsUser               = 1000
-	runAsGroup              = 1000
-	fsGroup                 = 1000
 )
 
 type componentType struct {
@@ -75,12 +74,18 @@ type PipelineArguments struct {
 	RadixConfigFile string
 	// Security context
 	PodSecurityContext corev1.PodSecurityContext
+	// Security context for image builder pods
+	BuildKitPodSecurityContext corev1.PodSecurityContext
 
 	ContainerSecurityContext corev1.SecurityContext
 	// Images used for copying radix config/building
 	TektonPipeline string
 	// ImageBuilder Points to the image builder
 	ImageBuilder string
+	// BuildKitImageBuilder Points to the BuildKit compliant image builder
+	BuildKitImageBuilder string
+	// SeccompProfileFileName Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node
+	SeccompProfileFileName string
 	// Used for tagging meta-information
 	Clustertype string
 	// RadixZone  The radix zone.
@@ -109,15 +114,20 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
-	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(fsGroup),
+	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
+	buildPodSecContext := securitycontext.Pod(
+		securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
+		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithPodRunAsNonRoot(conditions.BoolPtr(false)))
 	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
-		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
-		securitycontext.WithContainerRunAsGroup(runAsGroup),
-		securitycontext.WithContainerRunAsUser(runAsUser))
+		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithContainerRunAsGroup(defaults.SecurityContextRunAsGroup),
+		securitycontext.WithContainerRunAsUser(defaults.SecurityContextRunAsUser))
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
+	pipelineArguments.BuildKitPodSecurityContext = *buildPodSecContext
 
 	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
