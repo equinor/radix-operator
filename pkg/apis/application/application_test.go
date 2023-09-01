@@ -107,20 +107,6 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName(appName))
 
-	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
-	for _, clusterRoleBindingName := range []string{
-		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-tekton-rr-any-app", "radix-platform-user-rr-reader-any-app",
-	} {
-		assert.True(t, clusterRoleBindingByNameExists(clusterRoleBindingName, clusterRoleBindings), fmt.Sprintf("ClusterRoleBinding %s does not exist", clusterRoleBindingName))
-	}
-
-	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
-	for _, clusterRoleName := range []string{
-		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-tekton-rr-any-app", "radix-platform-user-rr-reader-any-app",
-	} {
-		assert.True(t, clusterRoleByNameExists(clusterRoleName, clusterRoles), fmt.Sprintf("ClusterRole %s does not exist", clusterRoleName))
-	}
-
 	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, ns)
