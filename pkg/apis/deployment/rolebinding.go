@@ -14,7 +14,7 @@ import (
 )
 
 func (deploy *Deployment) grantAccessToRuntimeSecrets(component radixv1.RadixCommonDeployComponent, secretNames []string) error {
-	if len(secretNames) <= 0 {
+	if len(secretNames) == 0 {
 		err := deploy.garbageCollectRoleBindingsNoLongerInSpecForComponent(component)
 		if err != nil {
 			return err

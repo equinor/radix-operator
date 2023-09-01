@@ -290,7 +290,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoles.Items, 1)
-	s.Equal(sut.getAppAdminRoleAndRoleBindingName(componentName), actualRoles.Items[0].Name)
+	s.Equal(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoles.Items[0].Name)
 	s.Equal(expectedLabels, actualRoles.Items[0].Labels)
 	s.Len(actualRoles.Items[0].Rules, 2)
 	s.ElementsMatch([]string{""}, actualRoles.Items[0].Rules[0].APIGroups)
@@ -305,7 +305,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 
 	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoleBindings.Items, 1)
-	s.Equal(sut.getAppAdminRoleAndRoleBindingName(componentName), actualRoleBindings.Items[0].Name)
+	s.Equal(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoleBindings.Items[0].Name)
 	s.Equal(expectedLabels, actualRoleBindings.Items[0].Labels)
 	s.Equal(actualRoles.Items[0].Name, actualRoleBindings.Items[0].RoleRef.Name)
 	s.Len(actualRoleBindings.Items[0].Subjects, 3)
@@ -603,10 +603,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	s.Equal(utils.GetAuxiliaryComponentSecretName(component1Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualSecrets.Items[0].Name)
 	actualRoles, _ = s.kubeClient.RbacV1().Roles(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoles.Items, 1)
-	s.Equal(sut.getAppAdminRoleAndRoleBindingName(component1Name), actualRoles.Items[0].Name)
+	s.Equal(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(component1Name, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoles.Items[0].Name)
 	actualRoleBindings, _ = s.kubeClient.RbacV1().RoleBindings(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoleBindings.Items, 1)
-	s.Equal(sut.getAppAdminRoleAndRoleBindingName(component1Name), actualRoleBindings.Items[0].Name)
+	s.Equal(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(component1Name, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoleBindings.Items[0].Name)
 	actualIngresses, _ = s.kubeClient.NetworkingV1().Ingresses(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualIngresses.Items, 4)
 	var actualIngressNames []string
@@ -620,12 +620,6 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GetOwnerReferenceOfIngress() {
 	sut := &oauthProxyResourceManager{}
 	actualOwnerReferences := sut.getOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
 	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: "networking.k8s.io/v1", Kind: "Ingress", Name: "anyingress", UID: "anyuid", Controller: utils.BoolPtr(true)}}, actualOwnerReferences)
-}
-
-func (s *OAuthProxyResourceManagerTestSuite) Test_GetRoleAndRoleBindingName() {
-	sut := &oauthProxyResourceManager{}
-	actualRoleName := sut.getAppAdminRoleAndRoleBindingName("component")
-	s.Equal(fmt.Sprintf("radix-app-adm-component-%s", defaults.OAuthProxyAuxiliaryComponentSuffix), actualRoleName)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetIngressName() {

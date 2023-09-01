@@ -17,7 +17,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -231,6 +230,10 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 
 func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
 	if err := o.createOrUpdateSecret(component); err != nil {
+		return err
+	}
+
+	if err := o.createOrUpdateRbac(component); err != nil {
 		return err
 	}
 
@@ -485,21 +488,26 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommo
 		}
 	}
 
-	if _, err := o.kubeutil.ApplySecret(o.rd.Namespace, secret); err != nil {
-		return err
-	}
-
-	return o.grantAccessToSecret(component)
+	_, err = o.kubeutil.ApplySecret(o.rd.Namespace, secret)
+	return err
 }
 
 func (o *oauthProxyResourceManager) mergeAuxComponentResourceLabels(object metav1.Object, component v1.RadixCommonDeployComponent) {
 	object.SetLabels(labels.Merge(object.GetLabels(), o.getLabelsForAuxComponent(component)))
 }
 
-func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) createOrUpdateRbac(component v1.RadixCommonDeployComponent) error {
+	if err := o.createOrUpdateAppAdminRbac(component); err != nil {
+		return err
+	}
+
+	return o.createOrUpdateAppReaderRbac(component)
+}
+
+func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	roleName := o.getAppAdminRoleAndRoleBindingName(component.GetName())
+	roleName := o.getRoleAndRoleBindingName("radix-app-adm", component.GetName())
 	namespace := o.rd.Namespace
 
 	// create role
@@ -523,23 +531,37 @@ func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommon
 	}
 
 	subjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if o.rr.Spec.MachineUser {
-		subjects = append(subjects, rbacv1.Subject{
-			Kind:      "ServiceAccount",
-			Name:      defaults.GetMachineUserRoleName(o.rr.Name),
-			Namespace: utils.GetAppNamespace(o.rr.Name),
-		})
-	}
-
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return o.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (o *oauthProxyResourceManager) getAppAdminRoleAndRoleBindingName(componentName string) string {
+func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(component v1.RadixCommonDeployComponent) error {
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	roleName := o.getRoleAndRoleBindingName("radix-app-reader", component.GetName())
+	namespace := o.rd.Namespace
+
+	// create role
+	role := kube.CreateAppRole(
+		o.rd.Spec.AppName,
+		roleName,
+		o.getLabelsForAuxComponent(component),
+		kube.ReadSecretsRule([]string{secretName}),
+	)
+
+	err := o.kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	// create rolebinding
+	subjects := kube.GetRoleBindingGroups(o.rr.Spec.ReaderAdGroups)
+	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
+	return o.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(suffix, componentName string) string {
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
-	return fmt.Sprintf("radix-app-adm-%s", deploymentName)
+	return fmt.Sprintf("%s-%s", suffix, deploymentName)
 }
 
 func (o *oauthProxyResourceManager) getIngressName(sourceIngressName string) string {
