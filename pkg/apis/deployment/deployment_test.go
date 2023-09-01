@@ -91,8 +91,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
 
 		t.Run("Test Suite", func(t *testing.T) {
-			aRadixRegistrationBuilder := utils.ARadixRegistration().
-				WithMachineUser(true)
+			aRadixRegistrationBuilder := utils.ARadixRegistration()
 			aRadixApplicationBuilder := utils.ARadixApplication().
 				WithRadixRegistration(aRadixRegistrationBuilder)
 			environment := "test"
@@ -404,8 +403,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
 				assert.True(t, roleBindingByNameExists("radix-app-adm-radixquote", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
-				assert.Equal(t, 2, len(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
-				assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects[1].Name)
+				assert.Equal(t, 1, len(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
 
 				// Exists due to external DNS, even though this is not acive cluster
 				assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
@@ -432,8 +430,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 		os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, jobSchedulerImage)
 
 		t.Run("Test Suite", func(t *testing.T) {
-			aRadixRegistrationBuilder := utils.ARadixRegistration().
-				WithMachineUser(true)
+			aRadixRegistrationBuilder := utils.ARadixRegistration()
 			aRadixApplicationBuilder := utils.ARadixApplication().
 				WithRadixRegistration(aRadixRegistrationBuilder)
 			environment := "test"
@@ -650,8 +647,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
 				assert.True(t, roleBindingByNameExists("radix-app-adm-job", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
-				assert.Equal(t, 2, len(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
-				assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects[1].Name)
+				assert.Equal(t, 1, len(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
 
 				// Exists due to being job-scheduler
 				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler to be there to access secrets, RadixBatches, etc")

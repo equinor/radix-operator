@@ -151,16 +151,6 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 	}
 
 	adminSubjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if env.regConfig.Spec.MachineUser {
-		adminSubjects = append(adminSubjects, rbac.Subject{
-			Kind:      k8s.KindServiceAccount,
-			Name:      defaults.GetMachineUserRoleName(env.config.Spec.AppName),
-			Namespace: utils.GetAppNamespace(env.regConfig.Name),
-		})
-	}
-
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adminSubjects)
 	adminRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
