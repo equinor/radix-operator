@@ -57,6 +57,13 @@ type PipelineInfo struct {
 	SourceDeploymentGitBranch     string
 }
 
+// Builder Holds info about the builder arguments
+type Builder struct {
+	ResourcesLimitsMemory   string
+	ResourcesRequestsCPU    string
+	ResourcesRequestsMemory string
+}
+
 // PipelineArguments Holds arguments for the pipeline
 type PipelineArguments struct {
 	PipelineType string
@@ -102,6 +109,7 @@ type PipelineArguments struct {
 	ImageTagNames map[string]string
 	LogLevel      string
 	AppName       string
+	Builder       Builder
 }
 
 // InitPipeline Initialize pipeline with step implementations

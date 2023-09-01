@@ -129,6 +129,9 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, defaults.GetResourcesLimitsMemoryForAppBuilderNamespace()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, defaults.GetResourcesRequestsCPUForAppBuilderNamespace()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, defaults.GetResourcesRequestsMemoryForAppBuilderNamespace()),
 
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)),

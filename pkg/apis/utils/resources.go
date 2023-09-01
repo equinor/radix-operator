@@ -13,7 +13,6 @@ func GetResourceRequirements(deployComponent v1.RadixCommonDeployComponent) core
 
 func BuildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRequirements {
 	defaultLimits := map[corev1.ResourceName]resource.Quantity{
-		corev1.ResourceName("cpu"):    *defaults.GetDefaultCPULimit(),
 		corev1.ResourceName("memory"): *defaults.GetDefaultMemoryLimit(),
 	}
 
@@ -36,6 +35,9 @@ func BuildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRe
 			requests[resName], _ = resource.ParseQuantity(req)
 
 			if _, hasLimit := limits[resName]; !hasLimit {
+				if _, ok := defaultLimits[resName]; !ok {
+					continue // No default limit for this resource
+				}
 				// There is no defined limit, but there is a request
 				reqQuantity := requests[resName]
 				if reqQuantity.Cmp(defaultLimits[resName]) == 1 {
