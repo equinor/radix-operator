@@ -187,6 +187,7 @@ func Test_Create_LimitRange(t *testing.T) {
 
 	t.Run("Received correct limitrange values", func(t *testing.T) {
 		limits := limitranges.Items[0].Spec.Limits[0]
+		assert.True(t, limits.Default.Cpu().IsZero())
 		assert.Equal(t, limitDefaultReqestCPU, limits.DefaultRequest.Cpu().String())
 		assert.Equal(t, limitDefaultMemory, limits.Default.Memory().String())
 		assert.Equal(t, limitDefaultReqestMemory, limits.DefaultRequest.Memory().String())
