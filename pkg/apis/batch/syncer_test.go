@@ -1524,15 +1524,6 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	s.NotNil(batch.Status.JobStatuses[0].EndTime)
 }
 
-func (s *syncerTestSuite) getNodeSelectorRequirementByKeyForTest(requirements []corev1.NodeSelectorRequirement, key string) *corev1.NodeSelectorRequirement {
-	for _, requirement := range requirements {
-		if requirement.Key == key {
-			return &requirement
-		}
-	}
-	return nil
-}
-
 func (s *syncerTestSuite) updateKubeJobStatus(jobName, namespace string) func(updater func(status *batchv1.JobStatus)) {
 	job, err := s.kubeClient.BatchV1().Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	if err != nil {
