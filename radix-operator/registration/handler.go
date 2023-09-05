@@ -30,25 +30,20 @@ type Handler struct {
 	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
 	hasSynced   common.HasSynced
-
-	// Function for granting access to machine user cannot be tested
-	granter application.GranterFunction
 }
 
-//NewHandler creates a handler which deals with RadixRegistration resources
+// NewHandler creates a handler which deals with RadixRegistration resources
 func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	hasSynced common.HasSynced,
-	granter application.GranterFunction) Handler {
+	hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
 		hasSynced:   hasSynced,
-		granter:     granter,
 	}
 
 	return handler
@@ -71,7 +66,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncRegistration := registration.DeepCopy()
 	logger.Debugf("Sync registration %s", syncRegistration.Name)
 	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
-	err = application.OnSyncWithGranterToMachineUserToken(t.granter)
+	err = application.OnSync()
 	if err != nil {
 		// Put back on queue.
 		return err

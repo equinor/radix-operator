@@ -5,7 +5,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -49,8 +48,4 @@ func (app Application) rrClusterRole(clusterroleName string, verbs []string) *au
 	logger.Debugf("Done - creating clusterrole config %s", clusterroleName)
 
 	return clusterrole
-}
-
-func roleAppAdminMachineUserToken(appName string, serviceAccount *corev1.ServiceAccount) *auth.Role {
-	return kube.CreateManageSecretRole(appName, fmt.Sprintf("%s-%s", serviceAccount.Name, "token"), []string{serviceAccount.Secrets[0].Name}, nil)
 }

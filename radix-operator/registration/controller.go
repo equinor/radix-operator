@@ -135,13 +135,6 @@ func NewController(client kubernetes.Interface,
 				logger.Error(err)
 				return
 			}
-			appName := namespace.Labels[kube.RadixAppLabel]
-
-			if isMachineUserToken(appName, secret) {
-				// Resync, as token is deleted. Resync is triggered on namespace, since RR not directly own the
-				// secret
-				controller.HandleObject(namespace, "RadixRegistration", getObject)
-			}
 			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {
 				// Resync, as deploy key is deleted. Resync is triggered on namespace, since RR not directly own the
 				// secret
@@ -155,11 +148,6 @@ func NewController(client kubernetes.Interface,
 
 func isGitDeployKey(secret *corev1.Secret) bool {
 	return secret.Name == defaults.GitPrivateKeySecretName
-}
-
-func isMachineUserToken(appName string, secret *corev1.Secret) bool {
-	machineUserServiceAccount := defaults.GetMachineUserRoleName(appName)
-	return secret.Annotations[corev1.ServiceAccountNameKey] == machineUserServiceAccount
 }
 
 func deepEqual(old, new *v1.RadixRegistration) bool {

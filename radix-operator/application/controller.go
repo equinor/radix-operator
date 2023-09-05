@@ -93,10 +93,10 @@ func NewController(client kubernetes.Interface,
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
 
-			// If neither ad group did change, nor the machine user, this
+			// If neither admin or reader AD groups change, this
 			// does not affect the deployment
 			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
-				newRr.Spec.MachineUser == oldRr.Spec.MachineUser {
+				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) {
 				return
 			}
 			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).Get(context.TODO(), newRr.Name, metav1.GetOptions{})
@@ -104,7 +104,7 @@ func NewController(client kubernetes.Interface,
 				logger.Errorf("cannot get Radix Application object by name %s: %v", newRr.Name, err)
 				return
 			}
-			logger.Debugf("update Radix Application due to changed AAD group or machine user")
+			logger.Debugf("update Radix Application due to changed admin or reader AD groups")
 			controller.Enqueue(ra)
 			metrics.CustomResourceUpdated(crType)
 		},

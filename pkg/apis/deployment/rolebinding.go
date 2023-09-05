@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -83,15 +82,5 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 	adGroups, _ := utils.GetAdGroups(registration)
 	roleName := role.ObjectMeta.Name
 	subjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if registration.Spec.MachineUser {
-		subjects = append(subjects, auth.Subject{
-			Kind:      "ServiceAccount",
-			Name:      defaults.GetMachineUserRoleName(registration.Name),
-			Namespace: utils.GetAppNamespace(registration.Name),
-		})
-	}
-
 	return kube.GetRolebindingToRoleForSubjectsWithLabels(registration.Name, roleName, subjects, role.Labels)
 }

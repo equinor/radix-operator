@@ -13,7 +13,6 @@ import (
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
-	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -117,9 +116,6 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 		kubeUtil,
 		radixClient,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
-
-		// Pass the default granter function to grant access to the service account token
-		applicationAPI.GrantAppAdminAccessToMachineUserToken,
 	)
 
 	waitForChildrenToSync := true

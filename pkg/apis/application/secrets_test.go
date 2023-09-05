@@ -25,8 +25,7 @@ func TestOnSync_PublicKeyCmExists_NothingChanges(t *testing.T) {
 	// Test
 	appName := "any-app"
 	rr := utils.ARadixRegistration().
-		WithName(appName).
-		WithMachineUser(true)
+		WithName(appName)
 
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
 	assert.NoError(t, err)
@@ -69,8 +68,7 @@ func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 	// Test
 	appName := "any-app"
 	rr := utils.ARadixRegistration().
-		WithName(appName).
-		WithMachineUser(true)
+		WithName(appName)
 
 	// check public key cm does not exist
 	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
@@ -109,7 +107,6 @@ func TestOnSync_PublicKeyCmDoesNotExist_KeyIsCopiedFromRR(t *testing.T) {
 	appName := "any-app"
 	rr := utils.ARadixRegistration().
 		WithName(appName).
-		WithMachineUser(true).
 		WithPublicKey(somePublicKey).
 		WithPrivateKey(somePrivateKey)
 
@@ -145,7 +142,6 @@ func TestOnSync_PublicKeyInCmIsEmpty_KeyIsCopiedFromRR(t *testing.T) {
 	appName := "any-app"
 	rr := utils.ARadixRegistration().
 		WithName(appName).
-		WithMachineUser(true).
 		WithPublicKey(somePublicKey).
 		WithPrivateKey(somePrivateKey)
 
@@ -192,7 +188,6 @@ func TestOnSync_PrivateKeySecretIsUpdatedManually_PublicKeyIsUpdated(t *testing.
 	appName := "any-app"
 	rr := utils.ARadixRegistration().
 		WithName(appName).
-		WithMachineUser(true).
 		WithPublicKey(somePublicKey).
 		WithPrivateKey(somePrivateKey)
 

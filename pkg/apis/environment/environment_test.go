@@ -174,14 +174,6 @@ func Test_Create_RoleBinding(t *testing.T) {
 		assert.Len(t, subjects, 1)
 		assert.Equal(t, readerAdGroupName, subjects[0].Name)
 	})
-	t.Run("It contains machine-user", func(t *testing.T) {
-		rr.Spec.MachineUser = true
-		sync(t, &env)
-		rolebindings, _ = client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), meta.ListOptions{})
-		subjects := rolebindings.Items[0].Subjects
-		assert.Len(t, subjects, 2)
-		assert.Equal(t, "testapp-machine-user", subjects[1].Name)
-	})
 }
 
 func Test_Create_LimitRange(t *testing.T) {
