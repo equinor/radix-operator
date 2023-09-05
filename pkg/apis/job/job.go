@@ -316,6 +316,11 @@ func (job *Job) getStoppedSteps(isRunning bool) (*[]v1.RadixJobStep, error) {
 		return nil, err
 	}
 
+	err = deleteJobPodIfExistsAndNotCompleted(job.kubeclient, job.radixJob.Namespace, job.radixJob.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	err = job.deleteStepJobs()
 	if err != nil {
 		return nil, err
@@ -342,9 +347,16 @@ func (job *Job) deleteStepJobs() error {
 
 	if len(jobs.Items) > 0 {
 		for _, kubernetesJob := range jobs.Items {
-			// Delete jobs
-			err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), kubernetesJob.Name, metav1.DeleteOptions{})
+			if kubernetesJob.Status.CompletionTime != nil {
+				continue
+			}
 
+			err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), kubernetesJob.Name, metav1.DeleteOptions{})
+			if err != nil && !k8sErrors.IsNotFound(err) {
+				return err
+			}
+
+			err = deleteJobPodIfExistsAndNotCompleted(job.kubeclient, job.radixJob.Namespace, kubernetesJob.Name)
 			if err != nil {
 				return err
 			}

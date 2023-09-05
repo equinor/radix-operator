@@ -58,6 +58,9 @@ func NewConfig() *Config {
 		PipelineJobConfig: &job.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
 			DeploymentsHistoryLimitPerEnvironment: getDeploymentsHistoryLimitPerEnvironment(),
+			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
+			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
+			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
 		},
 	}
 }

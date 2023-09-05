@@ -11,20 +11,17 @@ import (
 const (
 	OperatorDefaultUserGroupEnvironmentVariable             = "RADIXOPERATOR_DEFAULT_USER_GROUP"
 	OperatorEnvLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY"
-	OperatorEnvLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU"
 	OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"
-	OperatorEnvLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
+	OperatorEnvLimitDefaultRequestCPUEnvironmentVariable    = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
 
 	OperatorAppLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY"
-	OperatorAppLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU"
 	OperatorAppLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY"
-	OperatorAppLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU"
-)
+	OperatorAppLimitDefaultRequestCPUEnvironmentVariable    = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU"
 
-// GetDefaultCPULimitForAppNamespace Gets the default container CPU limit for app namespaces defined as an environment variable
-func GetDefaultCPULimitForAppNamespace() *resource.Quantity {
-	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultCPUEnvironmentVariable)
-}
+	OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable   = "RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY"
+	OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable = "RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY"
+	OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable    = "RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU"
+)
 
 // GetDefaultMemoryLimitForAppNamespace Gets the default container memory limit for app namespaces defined as an environment variable
 func GetDefaultMemoryLimitForAppNamespace() *resource.Quantity {
@@ -33,17 +30,12 @@ func GetDefaultMemoryLimitForAppNamespace() *resource.Quantity {
 
 // GetDefaultCPURequestForAppNamespace Gets the default container CPU request for app namespaces defined as an environment variable
 func GetDefaultCPURequestForAppNamespace() *resource.Quantity {
-	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultReqestCPUEnvironmentVariable)
+	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultRequestCPUEnvironmentVariable)
 }
 
 // GetDefaultMemoryRequestForAppNamespace Gets the default container memory request for app namespaces defined as an environment variable
 func GetDefaultMemoryRequestForAppNamespace() *resource.Quantity {
 	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultRequestMemoryEnvironmentVariable)
-}
-
-// GetDefaultCPULimit Gets the default container CPU limit defined as an environment variable
-func GetDefaultCPULimit() *resource.Quantity {
-	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultCPUEnvironmentVariable)
 }
 
 // GetDefaultMemoryLimit Gets the default container memory limit defined as an environment variable
@@ -53,12 +45,27 @@ func GetDefaultMemoryLimit() *resource.Quantity {
 
 // GetDefaultCPURequest Gets the default container CPU request defined as an environment variable
 func GetDefaultCPURequest() *resource.Quantity {
-	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable)
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultRequestCPUEnvironmentVariable)
 }
 
 // GetDefaultMemoryRequest Gets the default container memory request defined as an environment variable
 func GetDefaultMemoryRequest() *resource.Quantity {
 	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable)
+}
+
+// GetResourcesLimitsMemoryForAppBuilderNamespace Gets the default container memory limit for builder job in app namespaces defined as an environment variable
+func GetResourcesLimitsMemoryForAppBuilderNamespace() *resource.Quantity {
+	return getQuantityFromEnvironmentVariable(OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable)
+}
+
+// GetResourcesRequestsCPUForAppBuilderNamespace Gets the default container CPU request for builder job in app namespaces defined as an environment variable
+func GetResourcesRequestsCPUForAppBuilderNamespace() *resource.Quantity {
+	return getQuantityFromEnvironmentVariable(OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable)
+}
+
+// GetResourcesRequestsMemoryForAppBuilderNamespace Gets the default container memory request for builder job in app namespaces defined as an environment variable
+func GetResourcesRequestsMemoryForAppBuilderNamespace() *resource.Quantity {
+	return getQuantityFromEnvironmentVariable(OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable)
 }
 
 func getQuantityFromEnvironmentVariable(envName string) *resource.Quantity {

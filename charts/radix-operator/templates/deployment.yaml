@@ -54,8 +54,6 @@ spec:
             # For configuring limit ranges on app namespaces
             - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
               value: {{ .Values.app.limitrange.default.memory | quote }}
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU
-              value: {{ .Values.app.limitrange.default.cpu | quote }}
             - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY
               value: {{ .Values.app.limitrange.defaultRequest.memory | quote }}
             - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU
@@ -63,12 +61,17 @@ spec:
             # For configuring limit ranges on env namespaces
             - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY
               value: {{ .Values.app.env.limitrange.default.memory | quote }}
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU
-              value: {{ .Values.app.env.limitrange.default.cpu | quote }}
             - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY
               value: {{ .Values.app.env.limitrange.defaultRequest.memory | quote }}
             - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU
               value: {{ .Values.app.env.limitrange.defaultRequest.cpu | quote }}
+            # For configuring limit ranges on app namespaces
+            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY
+              value: {{ .Values.app.builder.resources.limits.memory | quote }}
+            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY
+              value: {{ .Values.app.builder.resources.requests.memory | quote }}
+            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU
+              value: {{ .Values.app.builder.resources.requests.cpu | quote }}
             # For configuring readiness probe
             - name: RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS
               value: {{ .Values.app.readinessProbe.initialDelaySeconds | quote }}
