@@ -78,6 +78,8 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 					Containers:      buildContainers,
 					SecurityContext: buildPodSecurityContext,
 					Volumes:         getACRBuildJobVolumes(&defaultMode, buildSecrets),
+					Affinity:        utils.GetPodSpecAffinity(nil, appName, "", false, true),
+					Tolerations:     utils.GetPodSpecTolerations(nil, false, true),
 				},
 			},
 		},

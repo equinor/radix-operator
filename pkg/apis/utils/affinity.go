@@ -12,46 +12,51 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GetPodSpecAffinity(node *v1.RadixNode, appName string, componentName string) *corev1.Affinity {
-
+func GetPodSpecAffinity(node *v1.RadixNode, appName string, componentName string, isScheduledJob bool, isPipelineJob bool) *corev1.Affinity {
 	affinity := &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
 			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 				{
-					Weight: 1,
-					PodAffinityTerm: corev1.PodAffinityTerm{
-						LabelSelector: &metav1.LabelSelector{
-							MatchExpressions: []metav1.LabelSelectorRequirement{
-								{
-									Key:      kube.RadixAppLabel,
-									Operator: metav1.LabelSelectorOpIn,
-									Values:   []string{appName},
-								},
-								{
-									Key:      kube.RadixComponentLabel,
-									Operator: metav1.LabelSelectorOpIn,
-									Values:   []string{componentName},
-								},
-							},
-						},
-						TopologyKey: corev1.LabelHostname,
-					},
+					Weight:          1,
+					PodAffinityTerm: getPodAffinityTerm(appName, componentName),
 				},
 			},
 		},
 	}
 
-	if node != nil {
-		nodeAffinity := &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
-		}
-		addGpuNodeSelectorTerms(node, nodeAffinity)
-		if len(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
-			affinity.NodeAffinity = nodeAffinity
-		}
+	nodeAffinity := &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
+	}
+	addGpuNodeSelectorTerms(node, nodeAffinity)
+	addJobNodeSelectorTerms(nodeAffinity, isScheduledJob, isPipelineJob)
+	if len(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
+		affinity.NodeAffinity = nodeAffinity
 	}
 
 	return affinity
+}
+
+func getPodAffinityTerm(appName string, componentName string) corev1.PodAffinityTerm {
+	matchExpressions := []metav1.LabelSelectorRequirement{
+		{
+			Key:      kube.RadixAppLabel,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   []string{appName},
+		},
+	}
+	if len(componentName) > 0 {
+		matchExpressions = append(matchExpressions, metav1.LabelSelectorRequirement{
+			Key:      kube.RadixComponentLabel,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   []string{componentName},
+		})
+	}
+	return corev1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchExpressions: matchExpressions,
+		},
+		TopologyKey: corev1.LabelHostname,
+	}
 }
 
 func addGpuNodeSelectorTerms(node *v1.RadixNode, nodeAffinity *corev1.NodeAffinity) {
@@ -93,6 +98,41 @@ func addNodeSelectorRequirementForGpuCount(gpuCount string, nodeSelectorTerm *co
 	}
 	values := strconv.Itoa(gpuCountValue - 1)
 	addNodeSelectorRequirement(nodeSelectorTerm, kube.RadixGpuCountLabel, corev1.NodeSelectorOpGt, values)
+}
+
+func addJobNodeSelectorTerms(nodeAffinity *corev1.NodeAffinity, isScheduledJob bool, isPipelineJob bool) {
+	var matchExpressions []corev1.NodeSelectorRequirement
+	if !isScheduledJob && !isPipelineJob {
+		matchExpressions = append(matchExpressions, []corev1.NodeSelectorRequirement{
+			{
+				Key:      kube.RadixNodePipelineJobLabel,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+			},
+			{
+				Key:      kube.RadixNodeScheduledJobLabel,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+			},
+		}...,
+		)
+	}
+	if isPipelineJob {
+		matchExpressions = append(matchExpressions, corev1.NodeSelectorRequirement{
+			Key:      kube.RadixNodePipelineJobLabel,
+			Operator: corev1.NodeSelectorOpExists,
+		})
+	}
+	if isScheduledJob {
+		matchExpressions = append(matchExpressions, corev1.NodeSelectorRequirement{
+			Key:      kube.RadixNodeScheduledJobLabel,
+			Operator: corev1.NodeSelectorOpExists,
+		})
+	}
+	if len(matchExpressions) <= 0 {
+		return
+	}
+	nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, corev1.NodeSelectorTerm{
+		MatchExpressions: matchExpressions,
+	})
 }
 
 func getGpuLists(nodeGpuList []string) ([]string, []string) {

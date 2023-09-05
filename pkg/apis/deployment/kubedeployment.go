@@ -233,7 +233,7 @@ func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixComm
 	)
 }
 
-func (deploy *Deployment) getDeploymentAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 	branch, _ := deploy.getRadixBranchAndCommitId()
 	return radixannotations.ForRadixBranch(branch)
 }
@@ -244,7 +244,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
 	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 	desiredDeployment.ObjectMeta.Labels = deploy.getDeploymentLabels(deployComponent)
-	desiredDeployment.ObjectMeta.Annotations = deploy.getDeploymentAnnotations(deployComponent)
+	desiredDeployment.ObjectMeta.Annotations = deploy.getDeploymentAnnotations()
 
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
 	desiredDeployment.Spec.Replicas = getDesiredComponentReplicas(deployComponent)
@@ -266,8 +266,8 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	spec := NewServiceAccountSpec(deploy.radixDeployment, deployComponent)
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
 	desiredDeployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
-	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode(), appName, componentName)
-	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetPodSpecTolerations(deployComponent.GetNode())
+	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode(), appName, componentName, false, false)
+	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetPodSpecTolerations(deployComponent.GetNode(), false, false)
 
 	volumes, err := deploy.GetVolumesForComponent(deployComponent)
 	if err != nil {
