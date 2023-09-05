@@ -76,7 +76,6 @@ func (s *syncerTestSuite) SetupTest() {
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
-	s.T().Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "2000m")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 }

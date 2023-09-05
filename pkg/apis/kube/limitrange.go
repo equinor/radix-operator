@@ -68,16 +68,14 @@ func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.Limit
 }
 
 // BuildLimitRange Builds a limit range spec
-func (kubeutil *Kube) BuildLimitRange(namespace, name, appName string,
-	defaultResourceCPU, defaultResourceMemory, defaultRequestCPU, defaultRequestMemory resource.Quantity) *corev1.LimitRange {
+func (kubeutil *Kube) BuildLimitRange(namespace, name, appName string, defaultResourceMemory, defaultRequestCPU, defaultRequestMemory *resource.Quantity) *corev1.LimitRange {
 
 	defaultResources := make(corev1.ResourceList)
-	defaultResources[corev1.ResourceCPU] = defaultResourceCPU
-	defaultResources[corev1.ResourceMemory] = defaultResourceMemory
+	defaultResources[corev1.ResourceMemory] = *defaultResourceMemory
 
 	defaultRequest := make(corev1.ResourceList)
-	defaultRequest[corev1.ResourceCPU] = defaultRequestCPU
-	defaultRequest[corev1.ResourceMemory] = defaultRequestMemory
+	defaultRequest[corev1.ResourceCPU] = *defaultRequestCPU
+	defaultRequest[corev1.ResourceMemory] = *defaultRequestMemory
 
 	limitRange := &corev1.LimitRange{
 		TypeMeta: metav1.TypeMeta{
