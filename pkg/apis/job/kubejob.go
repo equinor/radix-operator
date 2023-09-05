@@ -10,6 +10,7 @@ import (
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -98,6 +99,8 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 						},
 					},
 					RestartPolicy: "Never",
+					Affinity:      utils.GetPodSpecAffinity(nil, appName, "", false, true),
+					Tolerations:   utils.GetPodSpecTolerations(nil, false, true),
 				},
 			},
 		},
