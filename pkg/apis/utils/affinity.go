@@ -101,37 +101,14 @@ func addNodeSelectorRequirementForGpuCount(gpuCount string, nodeSelectorTerm *co
 }
 
 func addJobNodeSelectorTerms(nodeAffinity *corev1.NodeAffinity, isScheduledJob bool, isPipelineJob bool) {
-	var matchExpressions []corev1.NodeSelectorRequirement
-	if !isScheduledJob && !isPipelineJob {
-		matchExpressions = append(matchExpressions, []corev1.NodeSelectorRequirement{
-			{
-				Key:      kube.RadixNodePipelineJobLabel,
-				Operator: corev1.NodeSelectorOpDoesNotExist,
-			},
-			{
-				Key:      kube.RadixNodeScheduledJobLabel,
-				Operator: corev1.NodeSelectorOpDoesNotExist,
-			},
-		}...,
-		)
-	}
-	if isPipelineJob {
-		matchExpressions = append(matchExpressions, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
-			Operator: corev1.NodeSelectorOpExists,
-		})
-	}
-	if isScheduledJob {
-		matchExpressions = append(matchExpressions, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpExists,
-		})
-	}
-	if len(matchExpressions) <= 0 {
-		return
+	requirement := corev1.NodeSelectorRequirement{Key: kube.RadixJobNodeLabel}
+	if isPipelineJob || isScheduledJob {
+		requirement.Operator = corev1.NodeSelectorOpExists
+	} else {
+		requirement.Operator = corev1.NodeSelectorOpDoesNotExist
 	}
 	nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, corev1.NodeSelectorTerm{
-		MatchExpressions: matchExpressions,
+		MatchExpressions: []corev1.NodeSelectorRequirement{requirement},
 	})
 }
 

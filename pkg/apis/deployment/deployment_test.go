@@ -2972,13 +2972,9 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 			Values:   []string{gpuNvidiaV100},
 		}, nodeSelectorTerms[0].MatchExpressions[0])
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[1].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[1].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 1)
@@ -2998,13 +2994,9 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 			Values:   []string{gpuNvidiaV100, gpuNvidiaP100},
 		}, nodeSelectorTerms[0].MatchExpressions[0])
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[1].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[1].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 1)
@@ -3024,13 +3016,9 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 			Values:   []string{gpuNvidiaV100, gpuNvidiaP100},
 		}, nodeSelectorTerms[0].MatchExpressions[0])
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[1].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[1].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 1)
@@ -3045,13 +3033,9 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, nodeSelectorTerms, 1)
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[0].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -3064,15 +3048,11 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
 		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, nodeSelectorTerms, 1)
-		assert.Len(t, nodeSelectorTerms[0].MatchExpressions, 2)
+		assert.Len(t, nodeSelectorTerms[0].MatchExpressions, 1)
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[0].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -3253,13 +3233,9 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 			Values:   []string{"0"},
 		}, nodeSelectorTerms[0].MatchExpressions[0])
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[1].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[1].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0) // missing node.gpu
@@ -3279,13 +3255,9 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 			Values:   []string{"9"},
 		}, nodeSelectorTerms[0].MatchExpressions[0])
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[1].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[1].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0) // missing node.gpu
@@ -3299,13 +3271,9 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, nodeSelectorTerms, 1)
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[0].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -3319,13 +3287,9 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, nodeSelectorTerms, 1)
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[0].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -3339,13 +3303,9 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, nodeSelectorTerms, 1)
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[0].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -3359,13 +3319,9 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, nodeSelectorTerms, 1)
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[0].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -3379,13 +3335,9 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, nodeSelectorTerms, 1)
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[0].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -3450,13 +3402,9 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 			Values:   []string{"9"},
 		}, nodeSelectorTerms[0].MatchExpressions[2])
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[1].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[1].MatchExpressions[1])
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 1)
@@ -3471,15 +3419,11 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
 		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 		assert.Len(t, nodeSelectorTerms, 1)
-		assert.Len(t, nodeSelectorTerms[0].MatchExpressions, 2)
+		assert.Len(t, nodeSelectorTerms[0].MatchExpressions, 1)
 		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodePipelineJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpDoesNotExist,
 		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		}, nodeSelectorTerms[0].MatchExpressions[1])
 
 		assert.Len(t, tolerations, 0)
 	})

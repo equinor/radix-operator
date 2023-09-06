@@ -12,14 +12,8 @@ import (
 func GetPodSpecTolerations(node *v1.RadixNode, isScheduledJob bool, isPipelineJob bool) []corev1.Toleration {
 	var tolerations []corev1.Toleration
 	tolerations = append(tolerations, getGpuNodeTolerations(node)...)
-	if !isPipelineJob && !isScheduledJob {
-		return tolerations
-	}
-	if isScheduledJob {
-		tolerations = append(tolerations, getJobComponentNodeToleration())
-	}
-	if isPipelineJob {
-		tolerations = append(tolerations, getPipelineJobNodeToleration())
+	if isPipelineJob || isScheduledJob {
+		return append(tolerations, getJobNodeToleration())
 	}
 	return tolerations
 }
@@ -39,12 +33,8 @@ func getGpuNodeTolerations(node *v1.RadixNode) []corev1.Toleration {
 	}
 }
 
-func getJobComponentNodeToleration() corev1.Toleration {
-	return getNodeTolerationExists(kube.NodeTaintScheduledKey)
-}
-
-func getPipelineJobNodeToleration() corev1.Toleration {
-	return getNodeTolerationExists(kube.NodeTaintPipelineKey)
+func getJobNodeToleration() corev1.Toleration {
+	return getNodeTolerationExists(kube.NodeTaintJobsKey)
 }
 
 func getNodeTolerationExists(key string) corev1.Toleration {

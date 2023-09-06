@@ -491,12 +491,12 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(utils.BoolPtr(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
 		s.Len(kubejob.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, 1)
 		s.Equal(corev1.NodeSelectorRequirement{
-			Key:      kube.RadixNodeScheduledJobLabel,
+			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpExists,
 		}, kubejob.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0])
 		s.Len(kubejob.Spec.Template.Spec.Tolerations, 1)
 		s.Equal(corev1.Toleration{
-			Key:      kube.NodeTaintScheduledKey,
+			Key:      kube.NodeTaintJobsKey,
 			Operator: corev1.TolerationOpExists,
 			Effect:   corev1.TaintEffectNoSchedule,
 		}, kubejob.Spec.Template.Spec.Tolerations[0])
@@ -1045,14 +1045,14 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 		Values:   []string{"3"},
 	}, job1NodeSelectorTerms[0].MatchExpressions[1])
 	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixNodeScheduledJobLabel,
+		Key:      kube.RadixJobNodeLabel,
 		Operator: corev1.NodeSelectorOpExists,
 	}, job1NodeSelectorTerms[1].MatchExpressions[0])
 
 	tolerations := job1.Spec.Template.Spec.Tolerations
 	s.Len(tolerations, 2)
 	s.Equal(corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
-	s.Equal(corev1.Toleration{Key: kube.NodeTaintScheduledKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[1])
+	s.Equal(corev1.Toleration{Key: kube.NodeTaintJobsKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[1])
 
 	job2 := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
 	job2NodeSelectorTerms := job2.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
@@ -1068,7 +1068,7 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 		Values:   []string{"7"},
 	}, job2NodeSelectorTerms[0].MatchExpressions[1])
 	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixNodeScheduledJobLabel,
+		Key:      kube.RadixJobNodeLabel,
 		Operator: corev1.NodeSelectorOpExists,
 	}, job2NodeSelectorTerms[1].MatchExpressions[0])
 }

@@ -56,8 +56,7 @@ const (
 	RadixVolumeMountNameLabel          = "radix-volume-mount-name"
 	RadixGpuLabel                      = "radix-node-gpu"
 	RadixGpuCountLabel                 = "radix-node-gpu-count"
-	RadixNodePipelineJobLabel          = "radix-pipeline"
-	RadixNodeScheduledJobLabel         = "radix-scheduler"
+	RadixJobNodeLabel                  = "nodepooltasks"
 	RadixNamespace                     = "radix-namespace"
 	RadixConfigMapTypeLabel            = "radix-config-map-type"
 	RadixSecretTypeLabel               = "radix-secret-type"
@@ -73,9 +72,8 @@ const (
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
-	NodeTaintGpuCountKey  = "radix-node-gpu-count"
-	NodeTaintPipelineKey  = "radix-pipeline"
-	NodeTaintScheduledKey = "radix-scheduler"
+	NodeTaintGpuCountKey = "radix-node-gpu-count"
+	NodeTaintJobsKey     = "nodepooltasks"
 
 	// RadixBranchDeprecated Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
