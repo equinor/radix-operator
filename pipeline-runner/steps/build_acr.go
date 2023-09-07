@@ -279,10 +279,13 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath,
 				clusterTypeImage, clusterNameImage)
 			container.Command = containerCommand
-			resource := map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse("800M"),
+			container.Resources.Requests = map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceCPU:    resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsCPU),
+				corev1.ResourceMemory: resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsMemory),
 			}
-			container.Resources.Requests = resource
+			container.Resources.Limits = map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceMemory: resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesLimitsMemory),
+			}
 		}
 		containers = append(containers, container)
 	}

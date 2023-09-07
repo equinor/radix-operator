@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -16,6 +17,7 @@ import (
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -72,7 +74,10 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
 
 	pipelineJobConfig := &jobs.Config{
-		PipelineJobsHistoryLimit: 3,
+		PipelineJobsHistoryLimit:          3,
+		AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
+		AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
+		AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
 	}
 
 	jobHandler := NewHandler(

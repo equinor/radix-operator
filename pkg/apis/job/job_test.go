@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -14,7 +16,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclient "k8s.io/client-go/kubernetes"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
@@ -89,9 +94,7 @@ type RadixJobTestSuite struct {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
-	config := &Config{
-		PipelineJobsHistoryLimit: 3,
-	}
+	config := getConfigWithPipelineJobsHistoryLimit(3)
 
 	appName := "anyApp"
 	completedJobStatus := utils.ACompletedJobStatus()
@@ -111,9 +114,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
-	config := &Config{
-		PipelineJobsHistoryLimit: 3,
-	}
+	config := getConfigWithPipelineJobsHistoryLimit(3)
 	// Setup
 	firstJob, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
 	s.Require().NoError(err)
@@ -134,9 +135,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
-	config := &Config{
-		PipelineJobsHistoryLimit: 3,
-	}
+	config := getConfigWithPipelineJobsHistoryLimit(3)
 	// Setup
 	firstJob, err := s.testUtils.ApplyJob(utils.ARadixBuildDeployJob().WithStatus(utils.NewJobStatusBuilder().WithCondition(v1.JobWaiting)).WithJobName("FirstJob").WithBranch("master"))
 	s.Require().NoError(err)
@@ -157,9 +156,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplication() {
-	config := &Config{
-		PipelineJobsHistoryLimit: 3,
-	}
+	config := getConfigWithPipelineJobsHistoryLimit(3)
 	// Setup
 	firstJob, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithRadixApplication(nil).WithJobName("FirstJob").WithBranch("master"))
 	s.Require().NoError(err)
@@ -185,9 +182,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning() {
-	config := &Config{
-		PipelineJobsHistoryLimit: 3,
-	}
+	config := getConfigWithPipelineJobsHistoryLimit(3)
 	// Setup
 	_, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
 	s.Require().NoError(err)
@@ -513,9 +508,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 		s.T().Run(scenario.name, func(t *testing.T) {
 			defer s.teardownTest()
 			s.setupTest()
-			config := &Config{
-				PipelineJobsHistoryLimit: scenario.jobsHistoryLimit,
-			}
+			config := getConfigWithPipelineJobsHistoryLimit(scenario.jobsHistoryLimit)
 			testTime := time.Now().Add(time.Hour * -100)
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -652,7 +645,7 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 		s.Run(scenario.name, func() {
 			defer s.teardownTest()
 			s.setupTest()
-			config := &Config{PipelineJobsHistoryLimit: 10}
+			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
 			raBuilder := scenario.raBuilder.WithAppName(appName)
 			s.testUtils.ApplyApplication(raBuilder)
@@ -730,9 +723,7 @@ func (s *RadixJobTestSuite) applyJobWithSyncFor(raBuilder utils.ApplicationBuild
 }
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentIsSetWhenRadixApplicationExist() {
-	config := &Config{
-		PipelineJobsHistoryLimit: 3,
-	}
+	config := getConfigWithPipelineJobsHistoryLimit(3)
 
 	expectedEnvs := []string{"test"}
 	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"), config)
@@ -743,9 +734,7 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentIsSetWhenRadixApplicationExist(
 }
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissing() {
-	config := &Config{
-		PipelineJobsHistoryLimit: 3,
-	}
+	config := getConfigWithPipelineJobsHistoryLimit(3)
 
 	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("test").WithBranch("master"), config)
 	s.Require().NoError(err)
@@ -771,5 +760,100 @@ func (s *RadixJobTestSuite) assertStatusEqual(expectedStatus, actualStatus v1.Ra
 		s.Equal(getTimestamp(expectedStep.Ended.Time), getTimestamp(actualStatus.Steps[index].Ended.Time))
 		s.Equal(expectedStep.Components, actualStatus.Steps[index].Components)
 		s.Equal(expectedStep.PodName, actualStatus.Steps[index].PodName)
+	}
+}
+
+func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
+	scenarios := []struct {
+		name                                      string
+		config                                    *Config
+		expectedAppBuilderResourcesRequestsCPU    string
+		expectedAppBuilderResourcesRequestsMemory string
+		expectedAppBuilderResourcesLimitsMemory   string
+		expectedError                             string
+	}{
+		{
+			name: "Configured AppBuilderResources",
+			config: &Config{
+				PipelineJobsHistoryLimit:          3,
+				AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
+				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+				AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+			},
+			expectedError:                             "",
+			expectedAppBuilderResourcesRequestsCPU:    "123m",
+			expectedAppBuilderResourcesRequestsMemory: "1234Mi",
+			expectedAppBuilderResourcesLimitsMemory:   "2345Mi",
+		},
+		{
+			name: "Missing config for ResourcesRequestsCPU",
+			config: &Config{
+				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+				AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+			},
+			expectedError: "invalid or missing app builder resources",
+		},
+		{
+			name: "Missing config for ResourcesRequestsMemory",
+			config: &Config{
+				AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
+				AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
+			},
+			expectedError: "invalid or missing app builder resources",
+		},
+		{
+			name: "Missing config for ResourcesLimitsMemory",
+			config: &Config{
+				AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
+				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+			},
+			expectedError: "invalid or missing app builder resources",
+		},
+	}
+	for _, scenario := range scenarios {
+		s.setupTest()
+		_, err := s.applyJobWithSync(utils.ARadixBuildDeployJobWithAppBuilder(func(m utils.ApplicationBuilder) {
+			m.WithBuildKit(pointers.Ptr(true))
+		}).WithJobName("job1").WithBranch("master"), scenario.config)
+		switch {
+		case len(scenario.expectedError) > 0 && err == nil:
+			assert.Fail(s.T(), fmt.Sprintf("Missing expected error '%s'", scenario.expectedError))
+			continue
+		case len(scenario.expectedError) == 0 && err != nil:
+			assert.Fail(s.T(), fmt.Sprintf("Unexpected error %v", err))
+			continue
+		case len(scenario.expectedError) > 0 && err != nil:
+			assert.Equal(s.T(), scenario.expectedError, err.Error(), fmt.Sprintf("Expected error '%s' but got '%s'", scenario.expectedError, err.Error()))
+			continue
+		}
+		s.Require().NoError(err)
+
+		jobList, err := s.testUtils.GetKubeUtil().ListJobs(utils.GetAppNamespace("some-app"))
+		s.Require().NoError(err)
+
+		assert.Len(s.T(), jobList, 1)
+		job := jobList[0]
+		assert.Equal(s.T(), scenario.expectedAppBuilderResourcesRequestsCPU, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable), "Invalid or missing AppBuilderResourcesRequestsCPU")
+		assert.Equal(s.T(), scenario.expectedAppBuilderResourcesRequestsMemory, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable), "Invalid or missing AppBuilderResourcesRequestsMemory")
+		assert.Equal(s.T(), scenario.expectedAppBuilderResourcesLimitsMemory, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable), "Invalid or missing AppBuilderResourcesLimitsMemory")
+	}
+}
+
+func getJobContainerArgument(container corev1.Container, variableName string) string {
+	for _, arg := range container.Args {
+		argPrefix := fmt.Sprintf("--%s=", variableName)
+		if strings.HasPrefix(arg, argPrefix) {
+			return arg[len(argPrefix):]
+		}
+	}
+	return ""
+}
+
+func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *Config {
+	return &Config{
+		PipelineJobsHistoryLimit:          historyLimit,
+		AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
+		AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
+		AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
 	}
 }

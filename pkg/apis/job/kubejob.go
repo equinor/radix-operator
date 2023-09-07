@@ -124,11 +124,20 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		return nil, err
 	}
 
+	if job.config.AppBuilderResourcesRequestsMemory == nil || job.config.AppBuilderResourcesRequestsMemory.IsZero() ||
+		job.config.AppBuilderResourcesRequestsCPU == nil || job.config.AppBuilderResourcesRequestsCPU.IsZero() ||
+		job.config.AppBuilderResourcesLimitsMemory == nil || job.config.AppBuilderResourcesLimitsMemory.IsZero() {
+		return nil, fmt.Errorf("invalid or missing app builder resources")
+	}
+
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.AppBuilderResourcesRequestsMemory.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.AppBuilderResourcesRequestsCPU.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.AppBuilderResourcesLimitsMemory.String()),
 
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)),
