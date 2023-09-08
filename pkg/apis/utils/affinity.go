@@ -13,15 +13,17 @@ import (
 )
 
 func GetPodSpecAffinity(node *v1.RadixNode, appName string, componentName string, isScheduledJob bool, isPipelineJob bool) *corev1.Affinity {
-	affinity := &corev1.Affinity{
-		PodAntiAffinity: &corev1.PodAntiAffinity{
+	affinity := &corev1.Affinity{}
+
+	if !isScheduledJob && !isPipelineJob {
+		affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
 			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 				{
 					Weight:          1,
 					PodAffinityTerm: getPodAffinityTerm(appName, componentName),
 				},
 			},
-		},
+		}
 	}
 
 	nodeAffinity := &corev1.NodeAffinity{
