@@ -99,7 +99,9 @@
         "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION": "v1.23",
         "RADIX_ZONE": "dev",
         "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT": "10",
-        "RADIX_PIPELINE_JOBS_HISTORY_LIMIT": "5"
+        "RADIX_PIPELINE_JOBS_HISTORY_LIMIT": "5",
+        "SECCOMP_PROFILE_FILENAME": "allow-buildah.json",
+        "RADIX_BUILDAH_IMAGE_BUILDER": "quay.io/buildah/stable:v1.31"
       },
       "args": ["--useOutClusterClient=false"]
     },
