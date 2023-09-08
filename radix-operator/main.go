@@ -18,7 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	radixinformers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/alert"
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/batch"
@@ -70,13 +70,16 @@ func main() {
 
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
 
-	go startRegistrationController(client, radixClient, eventRecorder, stop, secretProviderClient, registrationControllerThreads)
-	go startApplicationController(client, radixClient, eventRecorder, stop, secretProviderClient, applicationControllerThreads)
-	go startEnvironmentController(client, radixClient, eventRecorder, stop, secretProviderClient, environmentControllerThreads)
-	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, deploymentControllerThreads)
-	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads, cfg.PipelineJobConfig)
-	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, alertControllerThreads)
-	go startBatchController(client, radixClient, eventRecorder, stop, secretProviderClient, 1)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := radixinformers.NewSharedInformerFactory(radixClient, resyncPeriod)
+
+	go startRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop, secretProviderClient, registrationControllerThreads)
+	go startApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop, secretProviderClient, applicationControllerThreads)
+	go startEnvironmentController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop, secretProviderClient, environmentControllerThreads)
+	go startDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop, secretProviderClient, deploymentControllerThreads)
+	go startJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop, secretProviderClient, jobControllerThreads, cfg.PipelineJobConfig)
+	go startAlertController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop, secretProviderClient, alertControllerThreads)
+	go startBatchController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop, secretProviderClient, 1)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -98,11 +101,7 @@ func getInitParams() (int, int, int, int, int, int, int, float32, error) {
 	return registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, errCat
 }
 
-func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-
+func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -136,11 +135,7 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	}
 }
 
-func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-
+func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -173,11 +168,7 @@ func startApplicationController(client kubernetes.Interface, radixClient radixcl
 	}
 }
 
-func startEnvironmentController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-
+func startEnvironmentController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -211,11 +202,7 @@ func startEnvironmentController(client kubernetes.Interface, radixClient radixcl
 	}
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -266,10 +253,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	}
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int, config *jobUtil.Config) {
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int, config *jobUtil.Config) {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -291,10 +275,7 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 	}
 }
 
-func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-
+func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -327,10 +308,7 @@ func startAlertController(client kubernetes.Interface, radixClient radixclient.I
 	}
 }
 
-func startBatchController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-
+func startBatchController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
