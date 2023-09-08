@@ -734,45 +734,53 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 		}
 	}
 	for _, component := range app.Spec.Components {
-		if err := validateRadixComponentSecrets(&component); err != nil {
+		if err := validateRadixComponentSecrets(&component, app); err != nil {
 			return err
 		}
 	}
 	for _, job := range app.Spec.Jobs {
-		if err := validateRadixComponentSecrets(&job); err != nil {
+		if err := validateRadixComponentSecrets(&job, app); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validateRadixComponentSecrets(component radixv1.RadixCommonComponent) error {
+func validateRadixComponentSecrets(component radixv1.RadixCommonComponent, app *radixv1.RadixApplication) error {
 	if err := validateSecretNames("secret name", component.GetSecrets()); err != nil {
 		return err
 	}
 
 	envsEnvVarsMap := make(map[string]map[string]bool)
-	for _, env := range component.GetEnvironmentConfig() {
-		envsEnvVarsMap[env.GetEnvironment()] = getEnvVarNameMap(component.GetVariables(), env.GetVariables())
+
+	for _, env := range app.Spec.Environments {
+		var envEnvVars radixv1.EnvVarsMap
+		if envConfig := component.GetEnvironmentConfigByName(env.Name); envConfig != radixv1.RadixCommonEnvironmentConfig(nil) {
+			envEnvVars = envConfig.GetVariables()
+		}
+		envsEnvVarsMap[env.Name] = getEnvVarNameMap(component.GetVariables(), envEnvVars)
 	}
 
 	if err := validateConflictingEnvironmentAndSecretNames(component.GetName(), component.GetSecrets(), envsEnvVarsMap); err != nil {
 		return err
 	}
+
 	for _, env := range component.GetEnvironmentConfig() {
-		envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.GetEnvironment()]
+		envsEnvVarsWithSecretsMap, ok := envsEnvVarsMap[env.GetEnvironment()]
+		if !ok {
+			continue
+		}
 		for _, secret := range component.GetSecrets() {
 			envsEnvVarsWithSecretsMap[secret] = true
 		}
 		envsEnvVarsMap[env.GetEnvironment()] = envsEnvVarsWithSecretsMap
 	}
+
 	if err := validateRadixComponentSecretRefs(component); err != nil {
 		return err
 	}
-	if err := validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap); err != nil {
-		return err
-	}
-	return nil
+
+	return validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap)
 }
 
 func getEnvVarNameMap(componentEnvVarsMap radixv1.EnvVarsMap, envsEnvVarsMap radixv1.EnvVarsMap) map[string]bool {
