@@ -8,14 +8,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// GetPodSpecTolerations returns tolerations required to schedule the pod on nodes defined by RadixNode
-func GetPodSpecTolerations(node *v1.RadixNode) []corev1.Toleration {
-	if node == nil {
-		return nil
-	}
-
+// GetPodSpecTolerations returns tolerations required to schedule the pod on nodes
+func GetPodSpecTolerations(node *v1.RadixNode, isScheduledJob bool, isPipelineJob bool) []corev1.Toleration {
 	var tolerations []corev1.Toleration
 	tolerations = append(tolerations, getGpuNodeTolerations(node)...)
+	if isPipelineJob || isScheduledJob {
+		return append(tolerations, getJobNodeToleration())
+	}
 	return tolerations
 }
 
@@ -29,9 +28,15 @@ func getGpuNodeTolerations(node *v1.RadixNode) []corev1.Toleration {
 		return nil
 	}
 
-	tolerations := []corev1.Toleration{
-		{Key: kube.NodeTaintGpuCountKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
+	return []corev1.Toleration{
+		getNodeTolerationExists(kube.NodeTaintGpuCountKey),
 	}
+}
 
-	return tolerations
+func getJobNodeToleration() corev1.Toleration {
+	return getNodeTolerationExists(kube.NodeTaintJobsKey)
+}
+
+func getNodeTolerationExists(key string) corev1.Toleration {
+	return corev1.Toleration{Key: key, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}
 }
