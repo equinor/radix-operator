@@ -594,33 +594,40 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 		mountOptions = append(mountOptions, "-o ro")
 	}
 	if radixVolumeMount.BlobFuse2 != nil {
-		if radixVolumeMount.BlobFuse2.Streaming != nil {
-			streaming := radixVolumeMount.BlobFuse2.Streaming
-			if streaming.Enabled == nil || *streaming.Enabled {
-				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true))
-				if streaming.StreamCache != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingCacheMountOption, *streaming.StreamCache))
-				}
-				if streaming.BlockSize != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBlockSizeMountOption, *streaming.BlockSize))
-				}
-				if streaming.BufferSize != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBufferSizeMountOption, *streaming.BufferSize))
-				}
-				if streaming.MaxBuffers != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBuffersMountOption, *streaming.MaxBuffers))
-				}
-				if streaming.MaxBlocksPerFile != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *streaming.MaxBlocksPerFile))
-				}
-				if streaming.FileCaching != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingFileCachingMountOption, *streaming.FileCaching))
-				}
-			}
-		}
+		mountOptions = append(mountOptions, getStreamingMountOptions(radixVolumeMount.BlobFuse2.Streaming)...)
 		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassUseAdlsMountOption, radixVolumeMount.BlobFuse2.UseAdls != nil && *radixVolumeMount.BlobFuse2.UseAdls))
 	}
 	return mountOptions, nil
+}
+
+func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []string {
+	var mountOptions []string
+	if streaming == nil || streaming.Enabled == nil {
+		return []string{fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true)} // By default streaming is enabled
+	}
+	if !*streaming.Enabled {
+		return nil
+	}
+	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true))
+	if streaming.StreamCache != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingCacheMountOption, *streaming.StreamCache))
+	}
+	if streaming.BlockSize != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBlockSizeMountOption, *streaming.BlockSize))
+	}
+	if streaming.BufferSize != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBufferSizeMountOption, *streaming.BufferSize))
+	}
+	if streaming.MaxBuffers != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBuffersMountOption, *streaming.MaxBuffers))
+	}
+	if streaming.MaxBlocksPerFile != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *streaming.MaxBlocksPerFile))
+	}
+	if streaming.FileCaching != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingFileCachingMountOption, *streaming.FileCaching))
+	}
+	return mountOptions
 }
 
 func getRadixBlobFuse2VolumeMountAccessMode(radixVolumeMount *radixv1.RadixVolumeMount) string {
