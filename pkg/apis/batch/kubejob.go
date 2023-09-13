@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/labels"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/numbers"
@@ -62,9 +63,9 @@ func (s *syncer) validatePayloadSecretReference(batchJob *radixv1.RadixBatchJob,
 	if err != nil {
 		return err
 	}
-	// if !radixlabels.GetRadixBatchDescendantsSelector(jobComponent.GetName()).Matches(labels.Set(payloadSecret.GetLabels())) {
-	// 	return fmt.Errorf("secret %s, referenced in the job %s of the batch %s is not valid payload secret", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName())
-	// }
+	if !radixlabels.GetRadixBatchDescendantsSelector(jobComponent.GetName()).Matches(labels.Set(payloadSecret.GetLabels())) {
+		return fmt.Errorf("secret %s, referenced in the job %s of the batch %s is not valid payload secret", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName())
+	}
 	if payloadSecret.Data == nil || len(payloadSecret.Data) == 0 {
 		return fmt.Errorf("payload secret %s, in the job %s of the batch %s is empty", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName())
 	}
