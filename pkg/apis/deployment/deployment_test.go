@@ -398,9 +398,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 				assert.ElementsMatch(t, []string{"radix-app-adm-radixquote", "radix-app-adm-app", "radix-app-reader-radixquote", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
 				assert.Equal(t, 1, len(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
-
-				// Exists due to external DNS, even though this is not acive cluster
-				assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
@@ -638,9 +635,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.ElementsMatch(t, []string{"radix-app-adm-job", "radix-app-reader-job", defaults.RadixJobSchedulerRoleName}, getRoleBindingNames(rolebindings))
 				assert.Equal(t, 1, len(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
-
-				// Exists due to being job-scheduler
-				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler to be there to access secrets, RadixBatches, etc")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
