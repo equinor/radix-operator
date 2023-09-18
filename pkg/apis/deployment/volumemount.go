@@ -602,13 +602,13 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 
 func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []string {
 	var mountOptions []string
-	if streaming == nil || streaming.Enabled == nil {
-		return []string{fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true)} // By default streaming is enabled
-	}
-	if !*streaming.Enabled {
+	if streaming != nil && streaming.Enabled != nil && !*streaming.Enabled {
 		return nil
 	}
 	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true))
+	if streaming == nil {
+		return mountOptions
+	}
 	if streaming.StreamCache != nil {
 		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingCacheMountOption, *streaming.StreamCache))
 	}
