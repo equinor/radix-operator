@@ -8,7 +8,7 @@ import (
 )
 
 func (deploy *Deployment) garbageCollectRolesNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {
-	labelSelector := getLabelSelectorForComponent(component)
+	labelSelector := getComponentSecretRbaclabels(deploy.registration.Name, component.GetName()).String()
 	roles, err := deploy.kubeutil.ListRolesWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 	if err != nil {
 		return err

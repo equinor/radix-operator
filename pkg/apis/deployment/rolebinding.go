@@ -10,7 +10,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
+
+func getComponentSecretRbaclabels(appName, componentName string) kubelabels.Set {
+	return labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(componentName))
+}
 
 func (deploy *Deployment) grantAccessToRuntimeSecrets(component radixv1.RadixCommonDeployComponent, secretNames []string) error {
 	if len(secretNames) == 0 {
@@ -28,7 +33,7 @@ func (deploy *Deployment) grantAccessToRuntimeSecrets(component radixv1.RadixCom
 	}
 
 	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
-	extraLabels := labels.ForComponentName(component.GetName())
+	extraLabels := getComponentSecretRbaclabels(registration.Name, component.GetName())
 
 	// App admin role and rolebinding
 	adminRoleName := fmt.Sprintf("radix-app-adm-%s", component.GetName())
@@ -60,7 +65,7 @@ func (deploy *Deployment) grantAccessToRuntimeSecrets(component radixv1.RadixCom
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {
-	labelSelector := getLabelSelectorForComponent(component)
+	labelSelector := getComponentSecretRbaclabels(deploy.registration.Name, component.GetName()).String()
 	roleBindings, err := deploy.kubeutil.ListRoleBindingsWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 
 	if err != nil {
