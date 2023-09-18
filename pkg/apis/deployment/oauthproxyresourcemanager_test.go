@@ -51,7 +51,6 @@ func (*OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
 	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
@@ -66,7 +65,6 @@ func (*OAuthProxyResourceManagerTestSuite) TearDownSuite() {
 	os.Unsetenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
@@ -250,7 +248,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCr
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
 
-	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).WithMachineUser(true).BuildRR()
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).BuildRR()
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
@@ -274,7 +272,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
 
-	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).WithMachineUser(true).BuildRR()
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).BuildRR()
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
@@ -308,9 +306,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	s.Equal(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoleBindings.Items[0].Name)
 	s.Equal(expectedLabels, actualRoleBindings.Items[0].Labels)
 	s.Equal(actualRoles.Items[0].Name, actualRoleBindings.Items[0].RoleRef.Name)
-	s.Len(actualRoleBindings.Items[0].Subjects, 3)
+	s.Len(actualRoleBindings.Items[0].Subjects, 2)
 	expectedSubjects := []rbacv1.Subject{
-		{Kind: k8s.KindServiceAccount, Name: fmt.Sprintf("%s-machine-user", appName), Namespace: utils.GetAppNamespace(appName)},
 		{Kind: k8s.KindGroup, APIGroup: k8s.RbacApiGroup, Name: "ad1"},
 		{Kind: k8s.KindGroup, APIGroup: k8s.RbacApiGroup, Name: "ad2"},
 	}

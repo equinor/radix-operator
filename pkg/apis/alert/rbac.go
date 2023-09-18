@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -83,16 +81,6 @@ func (syncer *alertSyncer) grantAccessToAlertConfigSecret(rr *radixv1.RadixRegis
 	}
 
 	subjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if rr.Spec.MachineUser {
-		subjects = append(subjects, rbacv1.Subject{
-			Kind:      "ServiceAccount",
-			Name:      defaults.GetMachineUserRoleName(rr.Name),
-			Namespace: utils.GetAppNamespace(rr.Name),
-		})
-	}
-
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	rolebinding.OwnerReferences = syncer.getOwnerReference()
 	return syncer.kubeUtil.ApplyRoleBinding(namespace, rolebinding)

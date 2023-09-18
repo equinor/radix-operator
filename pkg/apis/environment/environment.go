@@ -151,16 +151,6 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 	}
 
 	adminSubjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if env.regConfig.Spec.MachineUser {
-		adminSubjects = append(adminSubjects, rbac.Subject{
-			Kind:      k8s.KindServiceAccount,
-			Name:      defaults.GetMachineUserRoleName(env.config.Spec.AppName),
-			Namespace: utils.GetAppNamespace(env.regConfig.Name),
-		})
-	}
-
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adminSubjects)
 	adminRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
@@ -242,26 +232,19 @@ const limitRangeName = "mem-cpu-limit-range-env"
 // ApplyLimitRange sets resource usage limits to provided namespace
 func (env *Environment) ApplyLimitRange(namespace string) error {
 
-	defaultCPULimit := defaults.GetDefaultCPULimit()
 	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
 	defaultCPURequest := defaults.GetDefaultCPURequest()
 	defaultMemoryRequest := defaults.GetDefaultMemoryRequest()
 
 	// if not all limits are defined, then don't put any limits on namespace
-	if defaultCPULimit == nil ||
-		defaultMemoryLimit == nil ||
+	if defaultMemoryLimit == nil ||
 		defaultCPURequest == nil ||
 		defaultMemoryRequest == nil {
 		env.logger.Warningf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
 		return nil
 	}
 
-	limitRange := env.kubeutil.BuildLimitRange(namespace,
-		limitRangeName, env.config.Spec.AppName,
-		*defaultCPULimit,
-		*defaultMemoryLimit,
-		*defaultCPURequest,
-		*defaultMemoryRequest)
+	limitRange := env.kubeutil.BuildLimitRange(namespace, limitRangeName, env.config.Spec.AppName, defaultMemoryLimit, defaultCPURequest, defaultMemoryRequest)
 	limitRange.SetOwnerReferences(env.AsOwnerReference())
 
 	return env.kubeutil.ApplyLimitRange(namespace, limitRange)

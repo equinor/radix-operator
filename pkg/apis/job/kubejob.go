@@ -10,6 +10,7 @@ import (
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -98,6 +99,8 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 						},
 					},
 					RestartPolicy: "Never",
+					Affinity:      utils.GetPodSpecAffinity(nil, appName, "", false, true),
+					Tolerations:   utils.GetPodSpecTolerations(nil, false, true),
 				},
 			},
 		},
@@ -124,11 +127,20 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		return nil, err
 	}
 
+	if job.config.AppBuilderResourcesRequestsMemory == nil || job.config.AppBuilderResourcesRequestsMemory.IsZero() ||
+		job.config.AppBuilderResourcesRequestsCPU == nil || job.config.AppBuilderResourcesRequestsCPU.IsZero() ||
+		job.config.AppBuilderResourcesLimitsMemory == nil || job.config.AppBuilderResourcesLimitsMemory.IsZero() {
+		return nil, fmt.Errorf("invalid or missing app builder resources")
+	}
+
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.AppBuilderResourcesRequestsMemory.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.AppBuilderResourcesRequestsCPU.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.AppBuilderResourcesLimitsMemory.String()),
 
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)),

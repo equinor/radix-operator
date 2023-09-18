@@ -20,7 +20,7 @@ const (
 	podLabelsFileName   = "labels"
 )
 
-//CreateActionPipelineJob Create action pipeline job
+// CreateActionPipelineJob Create action pipeline job
 func CreateActionPipelineJob(containerName string, action string, pipelineInfo *model.PipelineInfo, appName string, initContainers []corev1.Container, envVars *[]corev1.EnvVar) *batchv1.Job {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
@@ -56,6 +56,8 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 					},
 					Volumes:       getJobVolumes(),
 					RestartPolicy: "Never",
+					Affinity:      utils.GetPodSpecAffinity(nil, appName, "", false, true),
+					Tolerations:   utils.GetPodSpecTolerations(nil, false, true),
 				},
 			},
 		},

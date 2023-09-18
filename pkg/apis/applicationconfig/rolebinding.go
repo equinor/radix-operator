@@ -19,20 +19,8 @@ func rolebindingAppReaderToBuildSecrets(registration *radixv1.RadixRegistration,
 }
 func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := utils.GetAdGroups(registration)
-
 	subjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if registration.Spec.MachineUser {
-		subjects = append(subjects, auth.Subject{
-			Kind:      "ServiceAccount",
-			Name:      defaults.GetMachineUserRoleName(registration.Name),
-			Namespace: utils.GetAppNamespace(registration.Name),
-		})
-	}
-
 	roleName := role.ObjectMeta.Name
-
 	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 }
 

@@ -102,6 +102,9 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: /workspace/radixconfig.yaml")
 	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
 	cmd.Flags().StringVar(&pipelineArgs.LogLevel, defaults.LogLevel, "INFO", "Log level: ERROR, INFO (default), DEBUG")
+	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsMemory, defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, "500M", "Image builder resource limit memory")
+	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsCPU, defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, "200m", "Image builder resource requests CPU")
+	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, "2000M", "Image builder resource requests memory")
 	var useCache string
 	cmd.Flags().StringVar(&useCache, defaults.RadixUseCacheEnvironmentVariable, "0", "Use cache")
 	var pushImage string

@@ -1,7 +1,5 @@
 package defaults
 
-import "fmt"
-
 const (
 	// RadixGithubWebhookRoleName Name of the cluster role with RBAC for radix-github-webhook service account
 	RadixGithubWebhookRoleName = "radix-github-webhook"
@@ -45,9 +43,6 @@ const (
 	// RadixTektonEnvRoleName Role of user to get app environment data for prepare pipeline job
 	RadixTektonEnvRoleName = "radix-tekton-env"
 
-	// MachineUserPostfix Role (service account) of machine user will be <appName--machine-user> in default namespace
-	MachineUserPostfix = "machine-user"
-
 	// PlatformUserRoleName Name of platform user cluster role
 	PlatformUserRoleName = "radix-platform-user"
 
@@ -57,8 +52,3 @@ const (
 	// RadixJobSchedulerServiceName Name of the service account representing the Radix Job Scheduler
 	RadixJobSchedulerServiceName = "radix-job-scheduler"
 )
-
-// GetMachineUserRoleName Gets the name of the machine user for an app
-func GetMachineUserRoleName(appName string) string {
-	return fmt.Sprintf("%s-%s", appName, MachineUserPostfix)
-}

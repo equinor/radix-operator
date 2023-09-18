@@ -2,9 +2,10 @@ package radixvalidators_test
 
 import (
 	"fmt"
-	"github.com/equinor/radix-common/utils/pointers"
 	"strings"
 	"testing"
+
+	"github.com/equinor/radix-common/utils/pointers"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/errors"
@@ -181,6 +182,11 @@ func Test_invalid_ra(t *testing.T) {
 		{"conflicting common variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable(validRASecondComponentName, conflictingVariableName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Variables[conflictingVariableName] = "Any value"
 			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
+		}},
+		{"conflicting common variable and secret name when not environment config", radixvalidators.SecretNameConflictsWithEnvironmentVariable(validRASecondComponentName, conflictingVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].Variables[conflictingVariableName] = "Any value"
+			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
+			ra.Spec.Components[1].EnvironmentConfig = nil
 		}},
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1

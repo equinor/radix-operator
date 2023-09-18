@@ -98,10 +98,10 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			// If neither ad group did change, nor the machine user, this
+			// If neither admin or reader AD groups change, this
 			// does not affect the alert
 			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
-				newRr.Spec.MachineUser == oldRr.Spec.MachineUser {
+				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) {
 				return
 			}
 

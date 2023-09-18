@@ -255,7 +255,6 @@ func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
 	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
@@ -358,12 +357,12 @@ func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(rd *v1.RadixDeployment, deploy
 	return desiredConfigMap
 }
 
-//GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType
+// GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType
 func GetRadixAzureKeyVaultObjectTypePtr(objectType v1.RadixAzureKeyVaultObjectType) *v1.RadixAzureKeyVaultObjectType {
 	return &objectType
 }
 
-//GetAzureKeyVaultTypeSecrets Gets secrets with kube.RadixSecretRefTypeLabel and value v1.RadixSecretRefTypeAzureKeyVault
+// GetAzureKeyVaultTypeSecrets Gets secrets with kube.RadixSecretRefTypeLabel and value v1.RadixSecretRefTypeAzureKeyVault
 func GetAzureKeyVaultTypeSecrets(secrets *corev1.SecretList) *corev1.SecretList {
 	var azureKeyVaultSecrets []corev1.Secret
 	for _, secret := range secrets.Items {

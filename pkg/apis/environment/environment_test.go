@@ -33,7 +33,6 @@ const (
 	namespaceName               = "testapp-testenv"
 	egressIps                   = "0.0.0.0"
 
-	limitDefaultCPU          = "432m" // 0.432
 	limitDefaultReqestCPU    = "234m" // 0.234
 	limitDefaultMemory       = "321M" // 321'000'000
 	limitDefaultReqestMemory = "123M" // 123'000'000
@@ -47,8 +46,7 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, egressIps)
 
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, limitDefaultCPU)
-	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, limitDefaultReqestCPU)
+	os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
 	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
 
@@ -174,14 +172,6 @@ func Test_Create_RoleBinding(t *testing.T) {
 		assert.Len(t, subjects, 1)
 		assert.Equal(t, readerAdGroupName, subjects[0].Name)
 	})
-	t.Run("It contains machine-user", func(t *testing.T) {
-		rr.Spec.MachineUser = true
-		sync(t, &env)
-		rolebindings, _ = client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), meta.ListOptions{})
-		subjects := rolebindings.Items[0].Subjects
-		assert.Len(t, subjects, 2)
-		assert.Equal(t, "testapp-machine-user", subjects[1].Name)
-	})
 }
 
 func Test_Create_LimitRange(t *testing.T) {
@@ -197,7 +187,7 @@ func Test_Create_LimitRange(t *testing.T) {
 
 	t.Run("Received correct limitrange values", func(t *testing.T) {
 		limits := limitranges.Items[0].Spec.Limits[0]
-		assert.Equal(t, limitDefaultCPU, limits.Default.Cpu().String())
+		assert.True(t, limits.Default.Cpu().IsZero())
 		assert.Equal(t, limitDefaultReqestCPU, limits.DefaultRequest.Cpu().String())
 		assert.Equal(t, limitDefaultMemory, limits.Default.Memory().String())
 		assert.Equal(t, limitDefaultReqestMemory, limits.DefaultRequest.Memory().String())

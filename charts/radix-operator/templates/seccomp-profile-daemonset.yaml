@@ -12,6 +12,14 @@ spec:
       labels:
         app: {{ .Values.seccompProfile.daemonSetName }}
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "nodepool-type"
+                operator: NotIn
+                values: ["system"]
       containers:
         - name: file-copy-container
           image: alpine
@@ -30,3 +38,5 @@ spec:
         - name: configmap-volume
           configMap:
             name: {{ .Values.seccompProfile.configMapName }}
+      tolerations:
+        - operator: Exists

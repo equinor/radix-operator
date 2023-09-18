@@ -8,4 +8,3 @@ spec:
   cloneURL: "git@github.com:equinor/testapp"
   adGroups: ["Tardis"]
   readerAdGroups: ["ReaderAdGroupsTest"]
-  machineUser: false
