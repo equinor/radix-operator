@@ -120,7 +120,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	}
 	secretsToManage = append(secretsToManage, secretRefsSecretNames...)
 
-	err = deploy.grantAccessToRuntimeSecrets(component, secretsToManage)
+	err = deploy.grantAccessToComponentRuntimeSecrets(component, secretsToManage)
 	if err != nil {
 		return fmt.Errorf("failed to grant app admin access to own secrets. %v", err)
 	}

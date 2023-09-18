@@ -17,7 +17,7 @@ func getComponentSecretRbaclabels(appName, componentName string) kubelabels.Set 
 	return labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(componentName))
 }
 
-func (deploy *Deployment) grantAccessToRuntimeSecrets(component radixv1.RadixCommonDeployComponent, secretNames []string) error {
+func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(component radixv1.RadixCommonDeployComponent, secretNames []string) error {
 	if len(secretNames) == 0 {
 		err := deploy.garbageCollectRoleBindingsNoLongerInSpecForComponent(component)
 		if err != nil {
