@@ -126,7 +126,7 @@ func ManageSecretsRule(secretNames []string) RuleBuilder {
 			APIGroups:     []string{""},
 			Resources:     []string{"secrets"},
 			ResourceNames: secretNames,
-			Verbs:         []string{"get", "update", "patch"},
+			Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
 		}
 	}
 }
@@ -137,7 +137,7 @@ func ReadSecretsRule(secretNames []string) RuleBuilder {
 			APIGroups:     []string{""},
 			Resources:     []string{"secrets"},
 			ResourceNames: secretNames,
-			Verbs:         []string{"get"},
+			Verbs:         []string{"get", "list", "watch"},
 		}
 	}
 }
