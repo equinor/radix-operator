@@ -30,6 +30,7 @@ func GetSupportedPipelines() []Definition {
 		}},
 		{v1.Promote, []StepType{
 			PreparePipelinesStep,
+			ApplyConfigStep,
 			RunPipelinesStep,
 			PromoteStep}},
 		{v1.Deploy, []StepType{
