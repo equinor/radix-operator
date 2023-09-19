@@ -43,6 +43,16 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 	}
 }
 
+func configureRbacForRadixAPIAccessValidation(deploy *Deployment) ConfigureDeploymentRbacFunc {
+	// ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
+
+	return func() error {
+		// TODO
+		return nil
+		// return deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-api", serviceAccount, ownerReference)
+	}
+}
+
 func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentRbacFunc {
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
 

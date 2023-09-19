@@ -10,6 +10,9 @@ const (
 	// RadixAPIRoleName Name of the cluster role with RBAC for radix-api service account
 	RadixAPIRoleName = "radix-api"
 
+	// RadixAPIAccessValidationRoleName Name of the cluster role with RBAC for radix-api access validation
+	RadixAPIAccessValidationRoleName = "radix-api-access-validation"
+
 	// RadixAPIServiceAccountName Name of the service account representing the Radix API
 	RadixAPIServiceAccountName = "radix-api"
 
