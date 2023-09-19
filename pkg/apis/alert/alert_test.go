@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -16,7 +17,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
@@ -101,10 +101,10 @@ func (s *alertTestSuite) Test_New() {
 }
 
 func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
-	appName, alertName, alertUID, namespace, adGroup := "any-app", "any-alert", types.UID("alert-uid"), "any-ns", "any-group"
+	appName, alertName, alertUID, namespace := "any-app", "any-alert", types.UID("alert-uid"), "any-ns"
 	rr := &radixv1.RadixRegistration{
 		ObjectMeta: metav1.ObjectMeta{Name: appName},
-		Spec:       radixv1.RadixRegistrationSpec{AdGroups: []string{adGroup}},
+		Spec:       radixv1.RadixRegistrationSpec{AdGroups: []string{"admin"}, ReaderAdGroups: []string{"reader"}},
 	}
 	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	radixalert := &radixv1.RadixAlert{
@@ -118,10 +118,10 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 	s.Nil(err)
 	_, err = s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Nil(err, "secret not found")
-	_, err = s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Nil(err, "role not found")
-	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Nil(err, "roleBinding not found")
+	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
+	s.ElementsMatch([]string{"any-alert-alert-config-admin", "any-alert-alert-config-reader"}, s.getRoleNames(actualRoles))
+	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
+	s.ElementsMatch([]string{"any-alert-alert-config-admin", "any-alert-alert-config-reader"}, s.getRoleBindingNames(actualRoleBindings))
 	_, err = s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(radixalert.Name), metav1.GetOptions{})
 	s.Nil(err, "alertmanagerConfig not found")
 }
@@ -137,10 +137,10 @@ func (s *alertTestSuite) Test_OnSync_Rbac_SkipCreateOnMissingRR() {
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
 	s.Nil(err)
-	_, err = s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.True(errors.IsNotFound(err), "expected role to not exist")
-	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.True(errors.IsNotFound(err), "expected rolebinding to not exist")
+	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoles.Items, 0)
+	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoleBindings.Items, 0)
 }
 
 func (s *alertTestSuite) Test_OnSync_Rbac_DeleteExistingOnMissingRR() {
@@ -150,18 +150,22 @@ func (s *alertTestSuite) Test_OnSync_Rbac_DeleteExistingOnMissingRR() {
 		Spec:       radixv1.RadixAlertSpec{},
 	}
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
-	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretRoleName(alertName)}}, metav1.CreateOptions{})
+	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretAdminRoleName(alertName)}}, metav1.CreateOptions{})
 	s.Nil(err)
-	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretRoleName(alertName)}}, metav1.CreateOptions{})
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretAdminRoleName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	_, err = s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretReaderRoleName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretReaderRoleName(alertName)}}, metav1.CreateOptions{})
 	s.Nil(err)
 
 	sut := s.createAlertSyncer(radixalert)
 	err = sut.OnSync()
 	s.Nil(err)
-	_, err = s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.True(errors.IsNotFound(err), "expected role to be deleted")
-	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.True(errors.IsNotFound(err), "expected rolebinding to be deleted")
+	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoles.Items, 0)
+	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoleBindings.Items, 0)
 }
 
 func (s *alertTestSuite) Test_OnSync_Rbac_CreateWithOwnerReference() {
@@ -179,12 +183,18 @@ func (s *alertTestSuite) Test_OnSync_Rbac_CreateWithOwnerReference() {
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
 	s.Nil(err)
-	actualRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Len(actualRole.OwnerReferences, 1, "role ownerReference length not as expected")
-	s.Equal(expectedAlertOwnerRef, actualRole.OwnerReferences[0], "role ownerReference not as expected")
-	actualRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Len(actualRoleBinding.OwnerReferences, 1, "rolebinding ownerReference length not as expected")
-	s.Equal(expectedAlertOwnerRef, actualRoleBinding.OwnerReferences[0], "rolebinding ownerReference not as expected")
+	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoles.Items, 2)
+	for _, actualRole := range actualRoles.Items {
+		s.Len(actualRole.OwnerReferences, 1, "role ownerReference length not as expected")
+		s.Equal(expectedAlertOwnerRef, actualRole.OwnerReferences[0], "role ownerReference not as expected")
+	}
+	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoleBindings.Items, 2)
+	for _, actualRoleBinding := range actualRoleBindings.Items {
+		s.Len(actualRoleBinding.OwnerReferences, 1, "rolebinding ownerReference length not as expected")
+		s.Equal(expectedAlertOwnerRef, actualRoleBinding.OwnerReferences[0], "rolebinding ownerReference not as expected")
+	}
 }
 
 func (s *alertTestSuite) Test_OnSync_Rbac_UpdateWithOwnerReference() {
@@ -197,52 +207,69 @@ func (s *alertTestSuite) Test_OnSync_Rbac_UpdateWithOwnerReference() {
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
 	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}
 	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretRoleName(alertName)}}, metav1.CreateOptions{})
+	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretAdminRoleName(alertName)}}, metav1.CreateOptions{})
 	s.Nil(err)
-	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretRoleName(alertName)}}, metav1.CreateOptions{})
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretAdminRoleName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	_, err = s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretReaderRoleName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretReaderRoleName(alertName)}}, metav1.CreateOptions{})
 	s.Nil(err)
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
 	sut := s.createAlertSyncer(radixalert)
 	err = sut.OnSync()
 	s.Nil(err)
-	actualRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Len(actualRole.OwnerReferences, 1, "role ownerReference length not as expected")
-	s.Equal(expectedAlertOwnerRef, actualRole.OwnerReferences[0], "role ownerReference not as expected")
-	actualRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Len(actualRoleBinding.OwnerReferences, 1, "rolebinding ownerReference length not as expected")
-	s.Equal(expectedAlertOwnerRef, actualRoleBinding.OwnerReferences[0], "rolebinding ownerReference not as expected")
+	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoles.Items, 2)
+	for _, actualRole := range actualRoles.Items {
+		s.Len(actualRole.OwnerReferences, 1, "role ownerReference length not as expected")
+		s.Equal(expectedAlertOwnerRef, actualRole.OwnerReferences[0], "role ownerReference not as expected")
+	}
+	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoleBindings.Items, 2)
+	for _, actualRoleBinding := range actualRoleBindings.Items {
+		s.Len(actualRoleBinding.OwnerReferences, 1, "rolebinding ownerReference length not as expected")
+		s.Equal(expectedAlertOwnerRef, actualRoleBinding.OwnerReferences[0], "rolebinding ownerReference not as expected")
+	}
 }
 
 func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 	namespace, appName := "any-ns", "any-app"
-	adGroup1, adGroup2 := "group1", "group2"
+	adminGroups, readerGroups := []string{"admin1", "admin2"}, []string{"reader1", "reader2"}
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
 		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
 		Spec:       radixv1.RadixAlertSpec{},
 	}
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{AdGroups: []string{adGroup1, adGroup2}}}
+	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{AdGroups: adminGroups, ReaderAdGroups: readerGroups}}
 	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
 	s.Nil(err)
-	actualRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Len(actualRole.Rules, 1, "role rules not as expected")
-	s.ElementsMatch([]string{GetAlertSecretName(alertName)}, actualRole.Rules[0].ResourceNames, "role rule resource names not as expected")
-	actualRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
-	s.Equal(actualRole.Name, actualRoleBinding.RoleRef.Name, "rolebinding role reference not as expected")
-	s.Equal("Role", actualRoleBinding.RoleRef.Kind, "rolebinding role kind not as expected")
-	s.Len(actualRoleBinding.Subjects, 2, "rolebinding subject count not as expected")
-	actualSubject, found := s.getSubjectByName(actualRoleBinding.Subjects, adGroup1)
-	s.True(found, "group1 not found in rolebinding")
-	s.Equal(rbacv1.GroupKind, actualSubject.Kind, "incorrect kind for group1")
-	actualSubject, found = s.getSubjectByName(actualRoleBinding.Subjects, adGroup2)
-	s.True(found, "group2 not found in rolebinding")
-	s.Equal(rbacv1.GroupKind, actualSubject.Kind, "incorrect kind for group2")
+	actualAdminRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretAdminRoleName(alertName), metav1.GetOptions{})
+	s.Len(actualAdminRole.Rules, 1, "role rules not as expected")
+	s.ElementsMatch([]string{GetAlertSecretName(alertName)}, actualAdminRole.Rules[0].ResourceNames, "role rule resource names not as expected")
+	s.ElementsMatch([]string{"secrets"}, actualAdminRole.Rules[0].Resources, "role rule resources not as expected")
+	s.ElementsMatch([]string{""}, actualAdminRole.Rules[0].APIGroups, "role rule API groups not as expected")
+	s.ElementsMatch([]string{"get", "list", "watch", "update", "patch", "delete"}, actualAdminRole.Rules[0].Verbs, "role rule verbs not as expected")
+	actualAdminRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretAdminRoleName(alertName), metav1.GetOptions{})
+	s.Equal(actualAdminRole.Name, actualAdminRoleBinding.RoleRef.Name, "rolebinding role reference not as expected")
+	s.Equal("Role", actualAdminRoleBinding.RoleRef.Kind, "rolebinding role kind not as expected")
+	s.ElementsMatch([]rbacv1.Subject{{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "admin1"}, {APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "admin2"}}, actualAdminRoleBinding.Subjects)
 
+	actualReaderRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretReaderRoleName(alertName), metav1.GetOptions{})
+	s.Len(actualReaderRole.Rules, 1, "role rules not as expected")
+	s.ElementsMatch([]string{GetAlertSecretName(alertName)}, actualReaderRole.Rules[0].ResourceNames, "role rule resource names not as expected")
+	s.ElementsMatch([]string{"secrets"}, actualReaderRole.Rules[0].Resources, "role rule resources not as expected")
+	s.ElementsMatch([]string{""}, actualReaderRole.Rules[0].APIGroups, "role rule API groups not as expected")
+	s.ElementsMatch([]string{"get", "list", "watch"}, actualReaderRole.Rules[0].Verbs, "role rule verbs not as expected")
+	actualReaderRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretReaderRoleName(alertName), metav1.GetOptions{})
+	s.Equal(actualReaderRole.Name, actualReaderRoleBinding.RoleRef.Name, "rolebinding role reference not as expected")
+	s.Equal("Role", actualReaderRoleBinding.RoleRef.Kind, "rolebinding role kind not as expected")
+	s.ElementsMatch([]rbacv1.Subject{{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "reader1"}, {APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "reader2"}}, actualReaderRoleBinding.Subjects)
 }
 
 func (s *alertTestSuite) Test_OnSync_Secret_RemoveOrphanedKeys() {
@@ -562,18 +589,6 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	s.Len(actualAmr.Spec.Route.Routes, 2)
 }
 
-func (s *alertTestSuite) getSubjectByName(subjects []rbacv1.Subject, name string) (subject rbacv1.Subject, found bool) {
-	for _, s := range subjects {
-		if s.Name == name {
-			subject = s
-			found = true
-			return
-		}
-	}
-
-	return
-}
-
 func (s *alertTestSuite) getAlertManagerReceiverByName(subjects []v1alpha1.Receiver, name string) (receiver v1alpha1.Receiver, found bool) {
 	for _, s := range subjects {
 		if s.Name == name {
@@ -584,4 +599,18 @@ func (s *alertTestSuite) getAlertManagerReceiverByName(subjects []v1alpha1.Recei
 	}
 
 	return
+}
+
+func (s *alertTestSuite) getRoleNames(roles *rbacv1.RoleList) []string {
+	if roles == nil {
+		return nil
+	}
+	return slice.Map(roles.Items, func(r rbacv1.Role) string { return r.GetName() })
+}
+
+func (s *alertTestSuite) getRoleBindingNames(roleBindings *rbacv1.RoleBindingList) []string {
+	if roleBindings == nil {
+		return nil
+	}
+	return slice.Map(roleBindings.Items, func(r rbacv1.RoleBinding) string { return r.GetName() })
 }
