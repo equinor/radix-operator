@@ -579,7 +579,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 
 	err = deploy.createOrUpdateHPA(component)
 	if err != nil {
-		return fmt.Errorf("failed to create deployment: %w", err)
+		return fmt.Errorf("failed to create hpa: %w", err)
 	}
 
 	err = deploy.createOrUpdateService(component)

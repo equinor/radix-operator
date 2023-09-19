@@ -48,10 +48,10 @@ app:
     # Limit range on builder job in app namespace
     resources:
       limits:
-        memory: 5000M
+        memory: 2000M
       requests:
-        memory: 800M
-        cpu: 800m
+        memory: 500M
+        cpu: 200m
   # Readiness probe parameters
   readinessProbe:
     initialDelaySeconds: 5

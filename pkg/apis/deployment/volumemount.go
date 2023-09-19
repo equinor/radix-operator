@@ -16,6 +16,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -593,33 +594,40 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 		mountOptions = append(mountOptions, "-o ro")
 	}
 	if radixVolumeMount.BlobFuse2 != nil {
-		if radixVolumeMount.BlobFuse2.Streaming != nil {
-			streaming := radixVolumeMount.BlobFuse2.Streaming
-			if streaming.Enabled == nil || *streaming.Enabled {
-				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true))
-				if streaming.StreamCache != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingCacheMountOption, *streaming.StreamCache))
-				}
-				if streaming.BlockSize != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBlockSizeMountOption, *streaming.BlockSize))
-				}
-				if streaming.BufferSize != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBufferSizeMountOption, *streaming.BufferSize))
-				}
-				if streaming.MaxBuffers != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBuffersMountOption, *streaming.MaxBuffers))
-				}
-				if streaming.MaxBlocksPerFile != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *streaming.MaxBlocksPerFile))
-				}
-				if streaming.FileCaching != nil {
-					mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingFileCachingMountOption, *streaming.FileCaching))
-				}
-			}
-		}
+		mountOptions = append(mountOptions, getStreamingMountOptions(radixVolumeMount.BlobFuse2.Streaming)...)
 		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassUseAdlsMountOption, radixVolumeMount.BlobFuse2.UseAdls != nil && *radixVolumeMount.BlobFuse2.UseAdls))
 	}
 	return mountOptions, nil
+}
+
+func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []string {
+	var mountOptions []string
+	if streaming != nil && streaming.Enabled != nil && !*streaming.Enabled {
+		return nil
+	}
+	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true))
+	if streaming == nil {
+		return mountOptions
+	}
+	if streaming.StreamCache != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingCacheMountOption, *streaming.StreamCache))
+	}
+	if streaming.BlockSize != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBlockSizeMountOption, *streaming.BlockSize))
+	}
+	if streaming.BufferSize != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBufferSizeMountOption, *streaming.BufferSize))
+	}
+	if streaming.MaxBuffers != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBuffersMountOption, *streaming.MaxBuffers))
+	}
+	if streaming.MaxBlocksPerFile != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *streaming.MaxBlocksPerFile))
+	}
+	if streaming.FileCaching != nil {
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingFileCachingMountOption, *streaming.FileCaching))
+	}
+	return mountOptions
 }
 
 func getRadixBlobFuse2VolumeMountAccessMode(radixVolumeMount *radixv1.RadixVolumeMount) string {
@@ -792,7 +800,10 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(desiredDeploymen
 		return err
 	}
 	err = deploy.garbageCollectOrphanedCsiAzurePersistentVolumes(actualPvcNames)
-	return err
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1.StorageClassList, excludeStorageClassName []string) error {
