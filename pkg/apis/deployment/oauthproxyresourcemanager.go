@@ -559,9 +559,9 @@ func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(component v1.Rad
 	return o.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(suffix, componentName string) string {
+func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(prefix, componentName string) string {
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
-	return fmt.Sprintf("%s-%s", suffix, deploymentName)
+	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
 func (o *oauthProxyResourceManager) getIngressName(sourceIngressName string) string {
