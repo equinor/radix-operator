@@ -119,7 +119,7 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(radixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment)
+	err = mergeWithRadixApplication(radixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.ComponentImages)
 	if err != nil {
 		return err
 	}
@@ -160,22 +160,22 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 	return nil
 }
 
-func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
+func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, componentImages map[string]pipeline.ComponentImage) error {
 	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
-	if err := mergeComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars); err != nil {
+	if err := mergeComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
 		return err
 	}
 
-	if err := mergeJobComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars); err != nil {
+	if err := mergeJobComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap) error {
+func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages map[string]pipeline.ComponentImage) error {
 	newEnvJobs, err := deployment.
-		NewJobComponentsBuilder(radixConfig, environment, make(map[string]pipeline.ComponentImage), defaultEnvVars).
+		NewJobComponentsBuilder(radixConfig, environment, componentImages, defaultEnvVars).
 		JobComponents()
 	if err != nil {
 		return err
@@ -190,7 +190,7 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 		if !found {
 			return NonExistingComponentName(radixConfig.GetName(), job.Name)
 		}
-		//Environment variables, SecretRefs are taken from current configuration
+		// Environment variables, SecretRefs are taken from current configuration
 		newEnvJob.Secrets = job.Secrets
 		newEnvJob.Image = job.Image
 		radixDeployment.Spec.Jobs[idx] = newEnvJob
@@ -199,10 +199,10 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 	return nil
 }
 
-func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, make(map[string]pipeline.ComponentImage), defaultEnvVars)
+func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages map[string]pipeline.ComponentImage) error {
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, componentImages, defaultEnvVars)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	newEnvComponentsMap := make(map[string]v1.RadixDeployComponent)
@@ -215,7 +215,7 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 		if !found {
 			return NonExistingComponentName(radixConfig.GetName(), component.Name)
 		}
-		//Environment variables, SecretRefs are taken from current configuration
+		// Environment variables, SecretRefs are taken from current configuration
 		newEnvComponent.Secrets = component.Secrets
 		newEnvComponent.Image = component.Image
 		radixDeployment.Spec.Components[idx] = newEnvComponent

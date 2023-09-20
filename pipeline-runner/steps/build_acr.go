@@ -43,7 +43,6 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	if isUsingBuildKit(pipelineInfo) {
 		for _, buildContainer := range buildContainers {
 			annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
-			// annotations[fmt.Sprintf("container.seccomp.security.alpha.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
 		}
 		buildPodSecurityContext = &pipelineInfo.PipelineArguments.BuildKitPodSecurityContext
 	}
@@ -326,8 +325,16 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString, contex
 		"-c",
 		fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s "+
 			"&& /usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
-			"--jobs 0 %s --file %s%s --tag %s --tag %s --tag %s %s "+
-			"&& /usr/bin/buildah push --storage-driver=vfs --all %s", containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, context, imageTag),
+			"--jobs 0 %s --file %s%s "+
+			"--tag %s --tag %s --tag %s "+
+			"%s "+
+			"&& /usr/bin/buildah push --storage-driver=vfs --all %s "+
+			"&& /usr/bin/buildah push --storage-driver=vfs --all %s "+
+			"&& /usr/bin/buildah push --storage-driver=vfs --all %s ",
+			containerImageRegistry, secretArgsString, context, dockerFileName,
+			imageTag, clusterTypeImageTag, clusterNameImageTag,
+			context,
+			imageTag, clusterTypeImageTag, clusterNameImageTag),
 	}
 }
 

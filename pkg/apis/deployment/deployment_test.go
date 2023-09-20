@@ -389,24 +389,15 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
 				t.Parallel()
 				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-
-				assert.Equal(t, 2, len(roles.Items), "Number of roles was not expected")
-				assert.True(t, roleByNameExists("radix-app-adm-radixquote", roles), "Expected role radix-app-adm-radixquote to be there to access secret")
-
-				// Exists due to external DNS, even though this is not acive cluster
-				assert.True(t, roleByNameExists("radix-app-adm-app", roles), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
+				assert.ElementsMatch(t, []string{"radix-app-adm-radixquote", "radix-app-adm-app", "radix-app-reader-radixquote", "radix-app-reader-app"}, getRoleNames(roles))
 			})
 
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
 				t.Parallel()
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
-				assert.True(t, roleBindingByNameExists("radix-app-adm-radixquote", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+				assert.ElementsMatch(t, []string{"radix-app-adm-radixquote", "radix-app-adm-app", "radix-app-reader-radixquote", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
 				assert.Equal(t, 1, len(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
-
-				// Exists due to external DNS, even though this is not acive cluster
-				assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
@@ -637,19 +628,13 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
 				t.Parallel()
 				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-
-				assert.Equal(t, 1, len(roles.Items), "Number of roles was not expected")
+				assert.ElementsMatch(t, []string{"radix-app-adm-job", "radix-app-reader-job"}, getRoleNames(roles))
 			})
 
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
-
-				assert.True(t, roleBindingByNameExists("radix-app-adm-job", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+				assert.ElementsMatch(t, []string{"radix-app-adm-job", "radix-app-reader-job", defaults.RadixJobSchedulerRoleName}, getRoleBindingNames(rolebindings))
 				assert.Equal(t, 1, len(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
-
-				// Exists due to being job-scheduler
-				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler to be there to access secrets, RadixBatches, etc")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
@@ -753,6 +738,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("edcradix").
 		WithEnvironment("test").
+		WithJobComponents().
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app").
@@ -822,7 +808,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "radixquote", quoteActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, roleByNameExists("radix-app-adm-app", roles), "Expected role radix-app-adm-app to be there to access secrets for TLS certificates")
+	assert.ElementsMatch(t, []string{"radix-app-adm-app", "radix-app-reader-app"}, getRoleNames(roles))
 
 	appAdmAppRole := getRoleByName("radix-app-adm-app", roles)
 	assert.Equal(t, "secrets", appAdmAppRole.Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
@@ -837,7 +823,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("another.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
 
 	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
+	assert.ElementsMatch(t, []string{"radix-app-adm-app", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
 }
 
 func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
@@ -1822,10 +1808,16 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 	})
 
+	t.Run("validate roles", func(t *testing.T) {
+		t.Parallel()
+		roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleNames(roles))
+	})
+
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleBindingNames(rolebindings))
 	})
 }
 
@@ -2173,11 +2165,8 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
 
-	assert.Equal(t, 1, len(roles.Items), "Environment should have one role for TLS cert")
-	assert.True(t, roleByNameExists("radix-app-adm-frontend", roles), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
-
-	assert.Equal(t, 1, len(rolebindings.Items), "Environment should have one rolebinding for TLS cert")
-	assert.True(t, roleBindingByNameExists("radix-app-adm-frontend", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
+	assert.ElementsMatch(t, []string{"radix-app-adm-frontend", "radix-app-reader-frontend"}, getRoleNames(roles))
+	assert.ElementsMatch(t, []string{"radix-app-adm-frontend", "radix-app-reader-frontend"}, getRoleBindingNames(rolebindings))
 
 	assert.Equal(t, 1, len(secrets.Items), "Environment should have one secret for TLS cert")
 	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
@@ -4256,8 +4245,11 @@ func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
 	return nil
 }
 
-func roleByNameExists(name string, roles *rbacv1.RoleList) bool {
-	return getRoleByName(name, roles) != nil
+func getRoleNames(roles *rbacv1.RoleList) []string {
+	if roles == nil {
+		return nil
+	}
+	return slice.Map(roles.Items, func(r rbacv1.Role) string { return r.GetName() })
 }
 
 func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
@@ -4284,8 +4276,11 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 	return nil
 }
 
-func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
-	return getRoleBindingByName(name, roleBindings) != nil
+func getRoleBindingNames(roleBindings *rbacv1.RoleBindingList) []string {
+	if roleBindings == nil {
+		return nil
+	}
+	return slice.Map(roleBindings.Items, func(r rbacv1.RoleBinding) string { return r.GetName() })
 }
 
 func getPortByName(name string, ports []corev1.ContainerPort) *corev1.ContainerPort {
