@@ -185,3 +185,10 @@ func ForRadixSecretType(secretType kube.RadixSecretType) kubelabels.Set {
 		kube.RadixSecretTypeLabel: string(secretType),
 	}
 }
+
+// ForAccessValidation returns labels indicating that an object is used for access validation
+func ForAccessValidation() kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAccessValidationLabel: "true",
+	}
+}

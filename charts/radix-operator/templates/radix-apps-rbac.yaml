@@ -131,7 +131,7 @@ kind: ClusterRole
 metadata:
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
-  name: radix-api-access-validation
+  name: radix-access-validation
 rules:
 - apiGroups:
   - '*'
