@@ -146,5 +146,5 @@ rules:
   resources:
   - configmaps
   verbs:
-  - update
+  - get
 ---
