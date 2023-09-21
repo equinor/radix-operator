@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
@@ -39,13 +40,13 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix api. %v", err)
 		}
-		err = deploy.kubeutil.ApplyClusterRoleToServiceAccount(defaults.RadixAPIRoleName, serviceAccount, ownerReference)
+		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(defaults.RadixAPIRoleName, serviceAccount, ownerReference)
 		if err != nil {
 			return fmt.Errorf("error applying cluster role %s to service account for radix api. %v", defaults.RadixAPIRoleName, err)
 		}
-		err = deploy.kubeutil.ApplyClusterRoleToServiceAccount(defaults.RadixAccessValidationRoleName, serviceAccount, ownerReference)
+		err = deploy.kubeutil.ApplyRoleBindingToServiceAccount(k8s.KindClusterRole, defaults.RadixAccessValidationRoleName, deploy.radixDeployment.Namespace, serviceAccount, ownerReference)
 		if err != nil {
-			return fmt.Errorf("error applying cluster role %s to service account for radix api. %v", defaults.RadixAccessValidationRoleName, err)
+			return fmt.Errorf("error applying role %s to service account for radix api. %v", defaults.RadixAccessValidationRoleName, err)
 		}
 		return nil
 	}
@@ -59,7 +60,7 @@ func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentR
 		if err != nil {
 			return fmt.Errorf("service account for running radix github webhook not made. %v", err)
 		}
-		err = deploy.kubeutil.ApplyClusterRoleToServiceAccount(defaults.RadixGithubWebhookRoleName, serviceAccount, ownerReference)
+		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(defaults.RadixGithubWebhookRoleName, serviceAccount, ownerReference)
 		if err != nil {
 			return fmt.Errorf("error applying cluster role %s to service account for radix github webhook. %v", defaults.RadixGithubWebhookRoleName, err)
 		}
