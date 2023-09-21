@@ -51,4 +51,5 @@ func TestMatchesPattern(t *testing.T) {
 	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1q.0.2"))
 	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1..2"))
 	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1.2"))
+	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+\\.*", "v1.2.20-asdf"))
 }
