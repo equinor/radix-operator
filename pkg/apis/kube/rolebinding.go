@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
@@ -226,8 +227,8 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *rbacv1.Cluster
 	return nil
 }
 
-// ApplyClusterRoleToServiceAccount Creates cluster-role-binding as a link between role and service account
-func (kubeutil *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
+// ApplyClusterRoleBindingToServiceAccount Creates cluster-role-binding as a link between cluster role and service account
+func (kubeutil *Kube) ApplyClusterRoleBindingToServiceAccount(roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
 	rolebinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: k8s.RbacApiVersion,
@@ -251,6 +252,34 @@ func (kubeutil *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceA
 		},
 	}
 	return kubeutil.ApplyClusterRoleBinding(rolebinding)
+}
+
+// ApplyRoleBindingToServiceAccount Creates role-binding as a link between role and service account
+func (kubeutil *Kube) ApplyRoleBindingToServiceAccount(roleKind, roleName, namespace string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
+	rolebinding := &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: k8s.RbacApiVersion,
+			Kind:       k8s.KindRoleBinding,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            fmt.Sprintf("%s-%s-%s", roleName, strings.ToLower(roleKind), serviceAccount.Name),
+			Namespace:       namespace,
+			OwnerReferences: ownerReference,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: k8s.RbacApiGroup,
+			Kind:     roleKind,
+			Name:     roleName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      k8s.KindServiceAccount,
+				Name:      serviceAccount.Name,
+				Namespace: serviceAccount.Namespace,
+			},
+		},
+	}
+	return kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
 // GetRoleBinding Gets rolebinding

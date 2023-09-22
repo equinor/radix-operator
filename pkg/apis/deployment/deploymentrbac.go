@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
@@ -24,7 +25,7 @@ func GetDeploymentRbacConfigurators(deploy *Deployment) []ConfigureDeploymentRba
 		rbac = append(rbac, configureRbacForRadixGithubWebhook(deploy))
 	}
 
-	if hasJobcomponent(deploy.radixDeployment) {
+	if hasJobComponent(deploy.radixDeployment) {
 		rbac = append(rbac, configureRbacForRadixJobComponents(deploy))
 	}
 
@@ -39,7 +40,15 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix api. %v", err)
 		}
-		return deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-api", serviceAccount, ownerReference)
+		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(defaults.RadixAPIRoleName, serviceAccount, ownerReference)
+		if err != nil {
+			return fmt.Errorf("error applying cluster role %s to service account for radix api. %v", defaults.RadixAPIRoleName, err)
+		}
+		err = deploy.kubeutil.ApplyRoleBindingToServiceAccount(k8s.KindClusterRole, defaults.RadixAccessValidationRoleName, deploy.radixDeployment.Namespace, serviceAccount, ownerReference)
+		if err != nil {
+			return fmt.Errorf("error applying role %s to service account for radix api. %v", defaults.RadixAccessValidationRoleName, err)
+		}
+		return nil
 	}
 }
 
@@ -47,11 +56,15 @@ func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentR
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
 
 	return func() error {
-		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(deploy.radixDeployment.Namespace, defaults.RadixGithubWebhookRoleName)
+		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(deploy.radixDeployment.Namespace, defaults.RadixGithubWebhookServiceAccountName)
 		if err != nil {
 			return fmt.Errorf("service account for running radix github webhook not made. %v", err)
 		}
-		return deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-webhook", serviceAccount, ownerReference)
+		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(defaults.RadixGithubWebhookRoleName, serviceAccount, ownerReference)
+		if err != nil {
+			return fmt.Errorf("error applying cluster role %s to service account for radix github webhook. %v", defaults.RadixGithubWebhookRoleName, err)
+		}
+		return err
 	}
 }
 
@@ -84,6 +97,6 @@ func isRadixWebHook(rd *v1.RadixDeployment) bool {
 	return rd.Spec.AppName == "radix-github-webhook"
 }
 
-func hasJobcomponent(rd *v1.RadixDeployment) bool {
+func hasJobComponent(rd *v1.RadixDeployment) bool {
 	return len(rd.Spec.Jobs) > 0
 }

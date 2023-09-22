@@ -106,6 +106,12 @@ func Test_ForJobScheduleJobType(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func Test_ForAccessValidation(t *testing.T) {
+	actual := ForAccessValidation()
+	expected := kubelabels.Set{kube.RadixAccessValidationLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
 func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
 	actual := requirementRadixBatchNameLabelExists()
 	expected := kubelabels.Set{kube.RadixBatchNameLabel: "anyname"}
