@@ -276,7 +276,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			SecurityContext: buildContainerSecContext,
 		}
 		if isUsingBuildKit(pipelineInfo) {
-			containerCommand = getBuildahContainerCommand(containerRegistry, secretMountsArgsString,
+			containerCommand = getBuildahContainerCommand(pipelineInfo, containerRegistry, secretMountsArgsString,
 				componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath,
 				clusterTypeImage, clusterNameImage)
 			container.Command = containerCommand
@@ -318,19 +318,21 @@ func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, bu
 	return volumeMounts
 }
 
-func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context,
-	dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string) []string {
+func getBuildahContainerCommand(pipelineInfo *model.PipelineInfo, containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string) []string {
 	return []string{
 		"/bin/bash",
 		"-c",
-		fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s "+
-			"&& /usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
+		fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && "+
+			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
 			"--jobs 0 %s --file %s%s "+
-			"--tag %s --tag %s --tag %s "+
-			"%s "+
-			"&& /usr/bin/buildah push --storage-driver=vfs --all %s "+
-			"&& /usr/bin/buildah push --storage-driver=vfs --all %s "+
-			"&& /usr/bin/buildah push --storage-driver=vfs --all %s ",
+			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" "+
+			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" "+
+			"--build-arg BRANCH=\"${BRANCH}\" "+
+			"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" "+
+			"--tag %s --tag %s --tag %s %s && "+
+			"/usr/bin/buildah push --storage-driver=vfs %s && "+
+			"/usr/bin/buildah push --storage-driver=vfs %s && "+
+			"/usr/bin/buildah push --storage-driver=vfs %s",
 			containerImageRegistry, secretArgsString, context, dockerFileName,
 			imageTag, clusterTypeImageTag, clusterNameImageTag,
 			context,
