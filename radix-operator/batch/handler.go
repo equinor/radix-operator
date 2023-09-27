@@ -1,7 +1,6 @@
 package batch
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/batch"
@@ -10,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -69,7 +67,7 @@ func NewHandler(
 }
 
 func (h *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	radixBatch, err := h.kubeutil.GetRadixBatch(namespace, name)
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
 		// processing.

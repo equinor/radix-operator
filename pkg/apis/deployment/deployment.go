@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-common/utils/slice"
 	"os"
 	"sort"
 	"strconv"
@@ -545,20 +546,40 @@ func (deploy *Deployment) maintainHistoryLimit() {
 		log.Warnf("failed to get all Radix deployments. Error was %v", err)
 		return
 	}
-
 	numToDelete := len(deployments) - limit
 	if numToDelete <= 0 {
 		return
 	}
 
+	radixDeploymentsReferencedByJobs, err := deploy.getRadixDeploymentsReferencedByJobs(err)
+	if err != nil {
+		log.Warnf("failed to get all Radix batches. Error was %v", err)
+		return
+	}
 	deployments = sortRDsByActiveFromTimestampAsc(deployments)
 	for i := 0; i < numToDelete; i++ {
+		if _, ok := radixDeploymentsReferencedByJobs[deployments[i].Name]; ok {
+			log.Infof("Not deleting deployment %s as it is referenced by scheduled jobs", deployments[i].Name)
+			continue
+		}
 		log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
 		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(context.TODO(), deployments[i].Name, metav1.DeleteOptions{})
 		if err != nil {
 			log.Warnf("failed to delete old deployment %s: %v", deployments[i].Name, err)
 		}
 	}
+}
+
+func (deploy *Deployment) getRadixDeploymentsReferencedByJobs(err error) (map[string]bool, error) {
+	radixBatches, err := deploy.kubeutil.ListRadixBatches(deploy.getNamespace())
+	if err != nil {
+		return nil, err
+	}
+	radixDeploymentsReferencedByJobs := slice.Reduce(radixBatches, make(map[string]bool), func(acc map[string]bool, radixBatch *v1.RadixBatch) map[string]bool {
+		acc[radixBatch.Spec.RadixDeploymentJobRef.Name] = true
+		return acc
+	})
+	return radixDeploymentsReferencedByJobs, nil
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {

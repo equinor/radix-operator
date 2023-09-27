@@ -11,12 +11,11 @@ import (
 	"testing"
 	"time"
 
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
-
 	radixutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
+	stringsUtils "github.com/equinor/radix-common/utils/strings"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -34,6 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -1649,6 +1649,44 @@ func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
 	assert.Nil(t, comp1.Spec.RevisionHistoryLimit)
 	comp2, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
 	assert.Equal(t, pointers.Ptr(int32(0)), comp2.Spec.RevisionHistoryLimit)
+}
+
+func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *testing.T) {
+	type scenario struct {
+		name                    string
+		deploymentNames         []string
+		expectedDeploymentNames []string
+	}
+	scenarios := []scenario{
+		{name: "no jobs", deploymentNames: []string{"d1", "d2"}, expectedDeploymentNames: []string{"d1", "d2"}},
+	}
+
+	os.Setenv(defaults.DeploymentsHistoryLimitEnvironmentVariable, strconv.Itoa(2))
+
+	for _, ts := range scenarios {
+		t.Run(ts.name, func(tt *testing.T) {
+			tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+			defer teardownTest()
+			envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+			radixApplication := utils.ARadixApplication()
+			for _, deploymentName := range ts.deploymentNames {
+				applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.NewDeploymentBuilder().
+					WithRadixApplication(radixApplication).
+					WithDeploymentName(deploymentName).
+					WithAppName("anyapp").
+					WithEnvironment("test").
+					WithJobComponents(
+						utils.NewDeployJobComponentBuilder().WithName("job1"),
+					))
+			}
+
+			rdList, err := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			assert.NoError(tt, err)
+
+			assert.(tt, stringsUtils... len(ts.expectedDeploymentNames), len(rdList.Items.Map))
+		})
+	}
 }
 
 func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {
