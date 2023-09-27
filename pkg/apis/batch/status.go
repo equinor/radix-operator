@@ -26,13 +26,6 @@ func isJobStatusDone(jobStatus radixv1.RadixBatchJobStatus) bool {
 }
 
 func (s *syncer) syncStatus(reconcileError error) error {
-	if status := reconcileStatus(nil); errors.As(reconcileError, &status) {
-		if err := s.updateStatus(func(currStatus *radixv1.RadixBatchStatus) { currStatus.Condition = status.Status() }); err != nil {
-			return err
-		}
-		return reconcileError
-	}
-
 	jobStatuses, err := s.buildJobStatuses()
 	if err != nil {
 		return err
@@ -74,6 +67,18 @@ func (s *syncer) syncStatus(reconcileError error) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	if status := reconcileStatus(nil); errors.As(reconcileError, &status) {
+		// Do not return an error if reconcileError indicates
+		// invalid RadixDeployment reference as long as all jobs are in a done state
+		if status.Status().Reason == invalidDeploymentReferenceReason && slice.All(jobStatuses, isJobStatusDone) {
+			return nil
+		}
+
+		if err := s.updateStatus(func(currStatus *radixv1.RadixBatchStatus) { currStatus.Condition = status.Status() }); err != nil {
+			return err
+		}
 	}
 
 	return reconcileError
