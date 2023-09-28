@@ -123,7 +123,7 @@ func waitForNamespace(client kubernetes.Interface, namespace string) error {
 	timoutContext, cancel := context.WithTimeout(context.Background(), waitTimeout)
 	defer cancel()
 
-	return wait.PollImmediateUntilWithContext(timoutContext, time.Second, func(ctx context.Context) (done bool, err error) {
+	return wait.PollUntilContextCancel(timoutContext, time.Second, true, func(ctx context.Context) (done bool, err error) {
 		ns, err := client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 		if err != nil {
 			if k8errs.IsNotFound(err) || k8errs.IsForbidden(err) {
