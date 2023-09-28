@@ -12,10 +12,10 @@ import (
 	"time"
 
 	radixutils "github.com/equinor/radix-common/utils"
+	radixerrors "github.com/equinor/radix-common/utils/errors"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
-	stringsUtils "github.com/equinor/radix-common/utils/strings"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -62,7 +62,11 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	radixClient := radix.NewSimpleClientset()
 	prometheusClient := prometheusfake.NewSimpleClientset()
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(kubeclient, radixClient, secretProviderClient)
+	kubeUtil, _ := kube.New(
+		kubeclient,
+		radixClient,
+		secretProviderClient,
+	)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretProviderClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, egressIps)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, prometheusClient, secretProviderClient
@@ -1653,40 +1657,88 @@ func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
 
 func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *testing.T) {
 	type scenario struct {
-		name                    string
-		deploymentNames         []string
-		expectedDeploymentNames []string
+		name                        string
+		deploymentNames             []string
+		deploymentsReferencedInJobs map[string][]string
+		expectedDeploymentNames     []string
 	}
 	scenarios := []scenario{
-		{name: "no jobs", deploymentNames: []string{"d1", "d2"}, expectedDeploymentNames: []string{"d1", "d2"}},
+		{name: "no jobs, no history cleanup",
+			deploymentNames: []string{"d1", "d2"}, expectedDeploymentNames: []string{"d1", "d2"}},
+		{name: "no jobs, rd, deleted by history cleanup",
+			deploymentNames: []string{"d1", "d2", "d3"}, expectedDeploymentNames: []string{"d2", "d3"}},
+		{name: "one oldest rd, referenced by a job, not deleted by history cleanup",
+			deploymentNames: []string{"d1", "d2", "d3"}, deploymentsReferencedInJobs: map[string][]string{"d1": {"j1"}}, expectedDeploymentNames: []string{"d1", "d2", "d3"}},
+		{name: "one intermediate rd, referenced by a job, not deleted by history cleanup",
+			deploymentNames: []string{"d1", "d2", "d3"}, deploymentsReferencedInJobs: map[string][]string{"d2": {"j1"}}, expectedDeploymentNames: []string{"d2", "d3"}},
+		{name: "multiple rds, referenced by multiple jobs, not deleted by history cleanup",
+			deploymentNames: []string{"d1", "d2", "d3", "d4"}, deploymentsReferencedInJobs: map[string][]string{"d1": {"j1", "j2"}, "d2": {"j3", "j4"}}, expectedDeploymentNames: []string{"d1", "d2", "d3", "d4"}},
+		{name: "multiple rds, referenced by multiple jobs, not referenced deleted by history cleanup",
+			deploymentNames: []string{"d1", "d2", "d3", "d4"}, deploymentsReferencedInJobs: map[string][]string{"d1": {"j1", "j2"}, "d3": {"j3", "j4"}}, expectedDeploymentNames: []string{"d1", "d3", "d4"}},
+		{name: "multiple rds, referenced by multiple jobs, not referenced deleted by history cleanup",
+			deploymentNames: []string{"d1", "d2", "d3", "d4", "d5"}, deploymentsReferencedInJobs: map[string][]string{"d1": {"j1", "j2"}, "d3": {"j3", "j4"}}, expectedDeploymentNames: []string{"d1", "d3", "d4", "d5"}},
 	}
-
-	os.Setenv(defaults.DeploymentsHistoryLimitEnvironmentVariable, strconv.Itoa(2))
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(tt *testing.T) {
+			os.Setenv(defaults.DeploymentsHistoryLimitEnvironmentVariable, strconv.Itoa(2))
 			tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 			defer teardownTest()
 			envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 			radixApplication := utils.ARadixApplication()
+			now := time.Now()
+			timeShift := 1
+			rdList, err := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			assert.NoError(tt, err)
+			rbList, err := radixclient.RadixV1().RadixBatches(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			assert.NoError(tt, err)
+			assert.NotNil(tt, rbList)
 			for _, deploymentName := range ts.deploymentNames {
 				applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.NewDeploymentBuilder().
 					WithRadixApplication(radixApplication).
 					WithDeploymentName(deploymentName).
 					WithAppName("anyapp").
+					WithCreated(now.Add(time.Duration(timeShift)*time.Minute)).
 					WithEnvironment("test").
 					WithJobComponents(
 						utils.NewDeployJobComponentBuilder().WithName("job1"),
 					))
+				err := addRadixBatches(radixclient, envNamespace, deploymentName, ts.deploymentsReferencedInJobs[deploymentName])
+				assert.NoError(tt, err)
+				timeShift++
 			}
 
-			rdList, err := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			rdList, err = radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 			assert.NoError(tt, err)
+			rbList, err = radixclient.RadixV1().RadixBatches(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			assert.NoError(tt, err)
+			assert.NotNil(tt, rbList)
 
-			assert.(tt, stringsUtils... len(ts.expectedDeploymentNames), len(rdList.Items.Map))
+			foundRdNames := slice.Map(rdList.Items, func(rd v1.RadixDeployment) string { return rd.GetName() })
+			assert.True(tt, radixutils.EqualStringLists(ts.expectedDeploymentNames, foundRdNames), fmt.Sprintf("expected %v, got %v", ts.expectedDeploymentNames, foundRdNames))
 		})
 	}
+}
+
+func addRadixBatches(radixclient radixclient.Interface, envNamespace string, deploymentName string, jobNames []string) error {
+	var errs []error
+	for _, jobName := range jobNames {
+		_, err := radixclient.RadixV1().RadixBatches(envNamespace).Create(context.TODO(), &v1.RadixBatch{
+			ObjectMeta: metav1.ObjectMeta{Name: deploymentName + jobName},
+			Spec: v1.RadixBatchSpec{
+				RadixDeploymentJobRef: v1.RadixDeploymentJobComponentSelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: deploymentName},
+					Job:                  jobName,
+				},
+				Jobs: []v1.RadixBatchJob{{Name: radixutils.RandString(5)}},
+			},
+		}, metav1.CreateOptions{})
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return radixerrors.Concat(errs)
 }
 
 func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {

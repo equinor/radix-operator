@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-common/utils/slice"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/equinor/radix-common/utils/slice"
 
 	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -557,15 +558,15 @@ func (deploy *Deployment) maintainHistoryLimit() {
 		return
 	}
 	deployments = sortRDsByActiveFromTimestampAsc(deployments)
-	for i := 0; i < numToDelete; i++ {
-		if _, ok := radixDeploymentsReferencedByJobs[deployments[i].Name]; ok {
-			log.Infof("Not deleting deployment %s as it is referenced by scheduled jobs", deployments[i].Name)
+	for _, deployment := range deployments[:numToDelete] {
+		if _, ok := radixDeploymentsReferencedByJobs[deployment.Name]; ok {
+			log.Infof("Not deleting deployment %s as it is referenced by scheduled jobs", deployment.Name)
 			continue
 		}
-		log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
-		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(context.TODO(), deployments[i].Name, metav1.DeleteOptions{})
+		log.Infof("Removing deployment %s from %s", deployment.Name, deployment.Namespace)
+		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
 		if err != nil {
-			log.Warnf("failed to delete old deployment %s: %v", deployments[i].Name, err)
+			log.Warnf("failed to delete old deployment %s: %v", deployment.Name, err)
 		}
 	}
 }
