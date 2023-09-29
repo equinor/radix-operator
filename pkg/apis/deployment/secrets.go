@@ -457,5 +457,10 @@ func (deploy *Deployment) GarbageCollectSecrets(secrets []*v1.Secret, excludeSec
 
 func (deploy *Deployment) deleteSecret(secret *v1.Secret) error {
 	log.Debugf("Delete secret %s", secret.Name)
-	return deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
+	err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	log.Infof("Deleted secret: %s in namespace %s", secret.GetName(), deploy.radixDeployment.GetNamespace())
+	return nil
 }
