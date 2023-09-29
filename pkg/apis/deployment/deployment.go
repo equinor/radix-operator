@@ -544,7 +544,7 @@ func (deploy *Deployment) maintainHistoryLimit(deploymentHistoryLimit int) {
 		return
 	}
 
-	radixDeploymentsReferencedByJobs, err := deploy.getRadixDeploymentsReferencedByJobs(err)
+	radixDeploymentsReferencedByJobs, err := deploy.getRadixDeploymentsReferencedByJobs()
 	if err != nil {
 		log.Warnf("failed to get all Radix batches. Error was %v", err)
 		return
@@ -563,7 +563,7 @@ func (deploy *Deployment) maintainHistoryLimit(deploymentHistoryLimit int) {
 	}
 }
 
-func (deploy *Deployment) getRadixDeploymentsReferencedByJobs(err error) (map[string]bool, error) {
+func (deploy *Deployment) getRadixDeploymentsReferencedByJobs() (map[string]bool, error) {
 	radixBatches, err := deploy.kubeutil.ListRadixBatches(deploy.getNamespace())
 	if err != nil {
 		return nil, err

@@ -1687,11 +1687,6 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 			radixApplication := utils.ARadixApplication()
 			now := time.Now()
 			timeShift := 1
-			rdList, err := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-			assert.NoError(tt, err)
-			rbList, err := radixclient.RadixV1().RadixBatches(envNamespace).List(context.TODO(), metav1.ListOptions{})
-			assert.NoError(tt, err)
-			assert.NotNil(tt, rbList)
 			for _, deploymentName := range ts.deploymentNames {
 				applyDeploymentWithModifiedSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.NewDeploymentBuilder().
 					WithRadixApplication(radixApplication).
@@ -1711,9 +1706,9 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 				timeShift++
 			}
 
-			rdList, err = radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			rdList, err := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 			assert.NoError(tt, err)
-			rbList, err = radixclient.RadixV1().RadixBatches(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			rbList, err := radixclient.RadixV1().RadixBatches(envNamespace).List(context.TODO(), metav1.ListOptions{})
 			assert.NoError(tt, err)
 			assert.NotNil(tt, rbList)
 
