@@ -241,6 +241,7 @@ func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployCompon
 		return err
 	}
 
+	//TODO: Do we need ingress?
 	if err := o.createOrUpdateIngresses(component); err != nil {
 		return err
 	}
@@ -376,7 +377,7 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 	}
 
 	for _, ingress := range ingresses.Items {
-		auxIngress, err := o.buildOAuthProxyIngressForComponentIngress(component, ingress)
+		auxIngress, err := o.buildOAuthProxyIngressForComponentIngress(component, ingress, o.rd.Namespace)
 		if err != nil {
 			return err
 		}
@@ -390,7 +391,7 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 	return nil
 }
 
-func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(component v1.RadixCommonDeployComponent, componentIngress networkingv1.Ingress) (*networkingv1.Ingress, error) {
+func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(component v1.RadixCommonDeployComponent, componentIngress networkingv1.Ingress, namespace string) (*networkingv1.Ingress, error) {
 	if len(componentIngress.Spec.Rules) == 0 {
 		return nil, nil
 	}
@@ -399,7 +400,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 	annotations := map[string]string{}
 
 	for _, ia := range o.ingressAnnotationProviders {
-		providedAnnotations, err := ia.GetAnnotations(component)
+		providedAnnotations, err := ia.GetAnnotations(component, namespace)
 		if err != nil {
 			return nil, err
 		}

@@ -336,7 +336,7 @@ func (deploy *Deployment) getIngressConfig(
 	annotations := map[string]string{}
 
 	for _, ia := range deploy.ingressAnnotationProviders {
-		providedAnnotations, err := ia.GetAnnotations(component)
+		providedAnnotations, err := ia.GetAnnotations(component, namespace)
 		if err != nil {
 			return nil, err
 		}
