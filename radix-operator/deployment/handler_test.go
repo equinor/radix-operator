@@ -194,6 +194,18 @@ func Test_WithKubernetesApiPortFromEnvVar(t *testing.T) {
 	os.Clearenv()
 }
 
+func Test_WithDeploymentHistoryLimitFromEnvVar(t *testing.T) {
+	os.Clearenv()
+	deploymentHistoryLimit := int(7)
+	os.Setenv("RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT", strconv.Itoa(int(deploymentHistoryLimit)))
+
+	h := &Handler{}
+	WithDeploymentHistoryLimitFromEnvVar("RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT")(h)
+	assert.Equal(t, deploymentHistoryLimit, h.deploymentHistoryLimit)
+
+	os.Clearenv()
+}
+
 func Test_WithDeploymentSyncerFactory(t *testing.T) {
 	factory := deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer)
 	h := &Handler{}

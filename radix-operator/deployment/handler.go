@@ -58,6 +58,14 @@ func WithKubernetesApiPortFromEnvVar(envVarName string) HandlerConfigOption {
 	}
 }
 
+// WithDeploymentHistoryLimitFromEnvVar configures deploymentHistoryLimit for Handler from an environment variable
+func WithDeploymentHistoryLimitFromEnvVar(envVarName string) HandlerConfigOption {
+	return func(h *Handler) {
+		deploymentHistoryLimit, _ := strconv.ParseInt(os.Getenv(envVarName), 10, 0)
+		h.deploymentHistoryLimit = int(deploymentHistoryLimit)
+	}
+}
+
 // WithOAuth2DefaultConfig configures default OAuth2 settings
 func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
 	return func(h *Handler) {

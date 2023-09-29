@@ -79,7 +79,6 @@ func teardownTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
-	os.Unsetenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
