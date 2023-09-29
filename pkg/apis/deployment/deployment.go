@@ -530,7 +530,7 @@ func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeploy
 }
 
 func (deploy *Deployment) maintainHistoryLimit(deploymentHistoryLimit int) {
-	if deploymentHistoryLimit == 0 {
+	if deploymentHistoryLimit <= 0 {
 		return
 	}
 
