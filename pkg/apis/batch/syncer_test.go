@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -1155,19 +1156,20 @@ func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 	s.Equal(err, newReconcileRadixDeploymentJobSpecNotFoundError(rdName, missingComponentName))
 	var target reconcileStatus
 	s.ErrorAs(err, &target)
+	batch, _ = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
 	s.Equal(invalidDeploymentReferenceReason, batch.Status.Condition.Reason)
 	s.Equal(err.Error(), batch.Status.Condition.Message)
 }
 
 func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
-	batchName, namespace, rdName, missingComponentName := "any-batch", "any-ns", "any-rd", "incorrect-job"
+	batchName, namespace, missingRdName, anyJobComponentName := "any-batch", "any-ns", "missing-rd", "any-job"
 	batch := &radixv1.RadixBatch{
 		ObjectMeta: metav1.ObjectMeta{Name: batchName},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-				Job:                  missingComponentName,
+				LocalObjectReference: radixv1.LocalObjectReference{Name: missingRdName},
+				Job:                  anyJobComponentName,
 			},
 			Jobs: []radixv1.RadixBatchJob{{Name: "any-job-name"}},
 		},
@@ -1177,12 +1179,111 @@ func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
 	err = sut.OnSync()
-	s.Equal(err, newReconcileRadixDeploymentNotFoundError(rdName))
+	s.Equal(err, newReconcileRadixDeploymentNotFoundError(missingRdName))
 	var target reconcileStatus
 	s.ErrorAs(err, &target)
+	batch, _ = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
 	s.Equal(invalidDeploymentReferenceReason, batch.Status.Condition.Reason)
-	s.Equal(err.Error(), batch.Status.Condition.Message)
+}
+
+func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
+	batchName, namespace, missingRdName, anyJobComponentName := "any-batch", "any-ns", "missing-rd", "any-job"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: missingRdName},
+				Job:                  anyJobComponentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: "job1"},
+				{Name: "job2"},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	type expectedJobStatusSpec struct {
+		name  string
+		phase radixv1.RadixBatchJobPhase
+	}
+	type scenarioSpec struct {
+		testName                  string
+		stopStatus                map[string]bool
+		expectedSyncErr           error
+		expectedType              radixv1.RadixBatchConditionType
+		expectedReason            string
+		expectedMessage           string
+		expectedJobStatuses       []expectedJobStatusSpec
+		expectedCompletionTimeSet bool
+	}
+
+	scenarios := []scenarioSpec{
+		{
+			testName:                  "stop flag not set",
+			expectedSyncErr:           newReconcileRadixDeploymentNotFoundError(missingRdName),
+			expectedType:              radixv1.BatchConditionTypeWaiting,
+			expectedReason:            invalidDeploymentReferenceReason,
+			expectedMessage:           newReconcileRadixDeploymentNotFoundError(missingRdName).Error(),
+			expectedCompletionTimeSet: false,
+			expectedJobStatuses:       []expectedJobStatusSpec{{name: "job1", phase: radixv1.BatchJobPhaseWaiting}, {name: "job2", phase: radixv1.BatchJobPhaseWaiting}},
+		},
+		{
+			testName:                  "stop flag set to false for both jobs",
+			stopStatus:                map[string]bool{"job1": false, "job2": false},
+			expectedSyncErr:           newReconcileRadixDeploymentNotFoundError(missingRdName),
+			expectedType:              radixv1.BatchConditionTypeWaiting,
+			expectedReason:            invalidDeploymentReferenceReason,
+			expectedMessage:           newReconcileRadixDeploymentNotFoundError(missingRdName).Error(),
+			expectedCompletionTimeSet: false,
+			expectedJobStatuses:       []expectedJobStatusSpec{{name: "job1", phase: radixv1.BatchJobPhaseWaiting}, {name: "job2", phase: radixv1.BatchJobPhaseWaiting}},
+		},
+		{
+			testName:                  "stop flag set to true for job1",
+			stopStatus:                map[string]bool{"job1": true, "job2": false},
+			expectedSyncErr:           newReconcileRadixDeploymentNotFoundError(missingRdName),
+			expectedType:              radixv1.BatchConditionTypeWaiting,
+			expectedReason:            invalidDeploymentReferenceReason,
+			expectedMessage:           newReconcileRadixDeploymentNotFoundError(missingRdName).Error(),
+			expectedCompletionTimeSet: false,
+			expectedJobStatuses:       []expectedJobStatusSpec{{name: "job1", phase: radixv1.BatchJobPhaseStopped}, {name: "job2", phase: radixv1.BatchJobPhaseWaiting}},
+		},
+		{
+			testName:                  "stop flag set to true for both jobs",
+			stopStatus:                map[string]bool{"job1": true, "job2": true},
+			expectedSyncErr:           nil,
+			expectedType:              radixv1.BatchConditionTypeCompleted,
+			expectedReason:            "",
+			expectedMessage:           "",
+			expectedCompletionTimeSet: true,
+			expectedJobStatuses:       []expectedJobStatusSpec{{name: "job1", phase: radixv1.BatchJobPhaseStopped}, {name: "job2", phase: radixv1.BatchJobPhaseStopped}},
+		},
+	}
+
+	for _, scenario := range scenarios {
+		scenario := scenario
+		s.Run(scenario.testName, func() {
+			for jobName, stop := range scenario.stopStatus {
+				i := slice.FindIndex(batch.Spec.Jobs, func(j radixv1.RadixBatchJob) bool { return j.Name == jobName })
+				batch.Spec.Jobs[i].Stop = pointers.Ptr(stop)
+			}
+			sut := s.createSyncer(batch)
+			err = sut.OnSync()
+			s.Equal(scenario.expectedSyncErr, err)
+			batch, _ = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+			s.Equal(scenario.expectedType, batch.Status.Condition.Type)
+			s.Equal(scenario.expectedReason, batch.Status.Condition.Reason)
+			s.Equal(scenario.expectedMessage, batch.Status.Condition.Message)
+			s.Equal(scenario.expectedCompletionTimeSet, batch.Status.Condition.CompletionTime != nil)
+			actualJobStatus := slice.Map(batch.Status.JobStatuses, func(s radixv1.RadixBatchJobStatus) expectedJobStatusSpec {
+				return expectedJobStatusSpec{name: s.Name, phase: s.Phase}
+			})
+			s.ElementsMatch(scenario.expectedJobStatuses, actualJobStatus)
+		})
+	}
+
 }
 
 func (s *syncerTestSuite) Test_BatchStatusCondition() {
