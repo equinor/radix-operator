@@ -57,6 +57,7 @@ func (s *handlerSuite) Test_NewHandler_ConfigOptionsCalled() {
 }
 
 func (s *handlerSuite) Test_Sync() {
+	const testDeploymentHistoryLimit = 7
 	nonExistingRdName, inactiveRdName, activeRdMissingRrName, activeRdName := "nonexisting-rd", "inactive-rd", "missingrr-rd", "active-rd"
 	appName := "any-app"
 	namespace := "any-ns"
@@ -90,7 +91,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(namespace, nonExistingRdName, s.eventRecorder)
@@ -102,7 +103,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(namespace, inactiveRdName, s.eventRecorder)
@@ -114,7 +115,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(namespace, activeRdMissingRrName, s.eventRecorder)
@@ -140,10 +141,10 @@ func (s *handlerSuite) Test_Sync() {
 		}
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, rr, activeRd, "1234", int32(543), gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources)).
+			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, rr, activeRd, "1234", int32(543), testDeploymentHistoryLimit, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources)).
 			Return(syncer).
 			Times(1)
-		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, prometheusperatorclient: s.promClient, deploymentSyncerFactory: factory, tenantId: "1234", kubernetesApiPort: int32(543), oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }}
+		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, prometheusperatorclient: s.promClient, deploymentSyncerFactory: factory, tenantId: "1234", kubernetesApiPort: int32(543), deploymentHistoryLimit: testDeploymentHistoryLimit, oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }}
 		err := h.Sync(namespace, activeRdName, s.eventRecorder)
 		s.NoError(err)
 		s.True(callbackExecuted)
@@ -156,7 +157,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(syncer).
 			Times(1)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil, deploymentSyncerFactory: factory}
@@ -194,7 +195,7 @@ func Test_WithKubernetesApiPortFromEnvVar(t *testing.T) {
 }
 
 func Test_WithDeploymentSyncerFactory(t *testing.T) {
-	factory := deployment.DeploymentSyncerFactoryFunc(deployment.NewDeployment)
+	factory := deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer)
 	h := &Handler{}
 	WithDeploymentSyncerFactory(factory)(h)
 	assert.NotNil(t, h.deploymentSyncerFactory) // HACK Currently no way to compare function pointers

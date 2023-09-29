@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +53,7 @@ const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 const egressIps = "0.0.0.0"
 const testTenantId = "123456789"
+const testRadixDeploymentHistoryLimit = 10
 const testKubernetesApiPort = 543
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface, secretProvider.Interface) {
@@ -1675,13 +1675,12 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 			deploymentNames: []string{"d1", "d2", "d3", "d4"}, deploymentsReferencedInJobs: map[string][]string{"d1": {"j1", "j2"}, "d2": {"j3", "j4"}}, expectedDeploymentNames: []string{"d1", "d2", "d3", "d4"}},
 		{name: "multiple rds, referenced by multiple jobs, not referenced deleted by history cleanup",
 			deploymentNames: []string{"d1", "d2", "d3", "d4"}, deploymentsReferencedInJobs: map[string][]string{"d1": {"j1", "j2"}, "d3": {"j3", "j4"}}, expectedDeploymentNames: []string{"d1", "d3", "d4"}},
-		{name: "multiple rds, referenced by multiple jobs, not referenced deleted by history cleanup",
+		{name: "many rds, referenced by multiple jobs, not referenced deleted by history cleanup",
 			deploymentNames: []string{"d1", "d2", "d3", "d4", "d5"}, deploymentsReferencedInJobs: map[string][]string{"d1": {"j1", "j2"}, "d3": {"j3", "j4"}}, expectedDeploymentNames: []string{"d1", "d3", "d4", "d5"}},
 	}
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(tt *testing.T) {
-			os.Setenv(defaults.DeploymentsHistoryLimitEnvironmentVariable, strconv.Itoa(2))
 			tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 			defer teardownTest()
 			envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
@@ -1695,7 +1694,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 			assert.NoError(tt, err)
 			assert.NotNil(tt, rbList)
 			for _, deploymentName := range ts.deploymentNames {
-				applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.NewDeploymentBuilder().
+				applyDeploymentWithModifiedSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.NewDeploymentBuilder().
 					WithRadixApplication(radixApplication).
 					WithDeploymentName(deploymentName).
 					WithAppName("anyapp").
@@ -1703,7 +1702,11 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 					WithEnvironment("test").
 					WithJobComponents(
 						utils.NewDeployJobComponentBuilder().WithName("job1"),
-					))
+					), func(syncer DeploymentSyncer) {
+					if s, ok := syncer.(*Deployment); ok {
+						s.deploymentHistoryLimit = 2
+					}
+				})
 				err := addRadixBatches(radixclient, envNamespace, deploymentName, ts.deploymentsReferencedInJobs[deploymentName])
 				assert.NoError(tt, err)
 				timeShift++
@@ -2617,10 +2620,13 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	tu, client, kubeUtils, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Current cluster is active cluster
-	os.Setenv(defaults.DeploymentsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
-
+	deploymentHistoryLimitSetter := func(syncer DeploymentSyncer) {
+		if s, ok := syncer.(*Deployment); ok {
+			s.deploymentHistoryLimit = anyLimit
+		}
+	}
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	applyDeploymentWithSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("firstdeployment").
 			WithAppName(anyAppName).
@@ -2629,9 +2635,10 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(anyComponentName).
 					WithPort("http", 8080).
-					WithPublicPort("http")))
+					WithPublicPort("http")),
+		deploymentHistoryLimitSetter)
 
-	applyDeploymentWithSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("seconddeployment").
 			WithAppName(anyAppName).
@@ -2640,9 +2647,10 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(anyComponentName).
 					WithPort("http", 8080).
-					WithPublicPort("http")))
+					WithPublicPort("http")),
+		deploymentHistoryLimitSetter)
 
-	applyDeploymentWithSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("thirddeployment").
 			WithAppName(anyAppName).
@@ -2651,9 +2659,10 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(anyComponentName).
 					WithPort("http", 8080).
-					WithPublicPort("http")))
+					WithPublicPort("http")),
+		deploymentHistoryLimitSetter)
 
-	applyDeploymentWithSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("fourthdeployment").
 			WithAppName(anyAppName).
@@ -2662,7 +2671,8 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(anyComponentName).
 					WithPort("http", 8080).
-					WithPublicPort("http")))
+					WithPublicPort("http")),
+		deploymentHistoryLimitSetter)
 
 	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
@@ -2672,7 +2682,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
 	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
 
-	applyDeploymentWithSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("fifthdeployment").
 			WithAppName(anyAppName).
@@ -2681,7 +2691,8 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(anyComponentName).
 					WithPort("http", 8080).
-					WithPublicPort("http")))
+					WithPublicPort("http")),
+		deploymentHistoryLimitSetter)
 
 	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
@@ -4147,6 +4158,12 @@ func applyDeploymentWithSyncForTestEnv(testEnv *testEnvProps, deploymentBuilder 
 
 func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, prometheusclient prometheusclient.Interface, deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
+	return applyDeploymentWithModifiedSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, deploymentBuilder, func(syncer DeploymentSyncer) {})
+}
+
+func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
+	radixclient radixclient.Interface, prometheusclient prometheusclient.Interface, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*v1.RadixDeployment, error) {
+
 	rd, err := tu.ApplyDeployment(deploymentBuilder)
 	if err != nil {
 		return nil, err
@@ -4157,8 +4174,9 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 		return nil, err
 	}
 
-	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, nil, nil)
-	err = deployment.OnSync()
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil)
+	modifySyncer(deploymentSyncer)
+	err = deploymentSyncer.OnSync()
 	if err != nil {
 		return nil, err
 	}
@@ -4179,7 +4197,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, nil, nil)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil)
 	err = deployment.OnSync()
 	if err != nil {
 		return err

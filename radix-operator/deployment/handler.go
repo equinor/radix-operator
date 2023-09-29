@@ -95,6 +95,7 @@ type Handler struct {
 	hasSynced               common.HasSynced
 	tenantId                string
 	kubernetesApiPort       int32
+	deploymentHistoryLimit  int
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
 	ingressConfiguration    deployment.IngressConfiguration
@@ -169,7 +170,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, ingressAnnotations, auxResourceManagers)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue
@@ -185,7 +186,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 }
 
 func configureDefaultDeploymentSyncerFactory(h *Handler) {
-	WithDeploymentSyncerFactory(deployment.DeploymentSyncerFactoryFunc(deployment.NewDeployment))(h)
+	WithDeploymentSyncerFactory(deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer))(h)
 }
 
 func configureDefaultHasSynced(h *Handler) {

@@ -33,7 +33,7 @@ func getPipelineJobsHistoryLimit() int {
 
 // Gets radix deployment history limit per application environment
 func getDeploymentsHistoryLimitPerEnvironment() int {
-	return getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
+	return getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 10)
 }
 
 func getIntFromEnvVar(envVarName string, defaultValue int) int {
