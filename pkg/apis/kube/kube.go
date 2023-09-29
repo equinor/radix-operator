@@ -119,6 +119,7 @@ type Kube struct {
 	RrLister                 v1Lister.RadixRegistrationLister
 	ReLister                 v1Lister.RadixEnvironmentLister
 	RdLister                 v1Lister.RadixDeploymentLister
+	RbLister                 v1Lister.RadixBatchLister
 	RadixAlertLister         v1Lister.RadixAlertLister
 	NamespaceLister          coreListers.NamespaceLister
 	SecretLister             coreListers.SecretLister
@@ -164,6 +165,7 @@ func NewWithListers(client kubernetes.Interface,
 		RrLister:                 radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
 		ReLister:                 radixInformerFactory.Radix().V1().RadixEnvironments().Lister(),
 		RdLister:                 radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		RbLister:                 radixInformerFactory.Radix().V1().RadixBatches().Lister(),
 		RadixAlertLister:         radixInformerFactory.Radix().V1().RadixAlerts().Lister(),
 		NamespaceLister:          kubeInformerFactory.Core().V1().Namespaces().Lister(),
 		SecretLister:             kubeInformerFactory.Core().V1().Secrets().Lister(),

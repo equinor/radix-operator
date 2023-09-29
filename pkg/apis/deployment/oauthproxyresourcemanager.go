@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -118,6 +119,7 @@ func (o *oauthProxyResourceManager) garbageCollectDeployment() error {
 			if err != nil && !errors.IsNotFound(err) {
 				return err
 			}
+			log.Infof("Deleted deployment: %s in namespace %s", deployment.GetName(), deployment.Namespace)
 		}
 	}
 
@@ -136,6 +138,7 @@ func (o *oauthProxyResourceManager) garbageCollectSecrets() error {
 			if err != nil && !errors.IsNotFound(err) {
 				return err
 			}
+			log.Infof("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
 		}
 	}
 
@@ -331,6 +334,7 @@ func (o *oauthProxyResourceManager) deleteSecrets(component v1.RadixCommonDeploy
 		if err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
+		log.Infof("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
 	}
 
 	return nil
