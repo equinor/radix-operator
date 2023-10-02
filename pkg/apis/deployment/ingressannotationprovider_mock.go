@@ -35,16 +35,16 @@ func (m *MockIngressAnnotationProvider) EXPECT() *MockIngressAnnotationProviderM
 }
 
 // GetAnnotations mocks base method.
-func (m *MockIngressAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (m *MockIngressAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAnnotations", component)
+	ret := m.ctrl.Call(m, "GetAnnotations", component, namespace)
 	ret0, _ := ret[0].(map[string]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAnnotations indicates an expected call of GetAnnotations.
-func (mr *MockIngressAnnotationProviderMockRecorder) GetAnnotations(component interface{}) *gomock.Call {
+func (mr *MockIngressAnnotationProviderMockRecorder) GetAnnotations(component, namespace interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAnnotations", reflect.TypeOf((*MockIngressAnnotationProvider)(nil).GetAnnotations), component)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAnnotations", reflect.TypeOf((*MockIngressAnnotationProvider)(nil).GetAnnotations), component, namespace)
 }

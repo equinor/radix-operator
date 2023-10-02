@@ -11,7 +11,7 @@ import (
 )
 
 type IngressAnnotationProvider interface {
-	GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error)
+	GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error)
 }
 
 func NewForceSslRedirectAnnotationProvider() IngressAnnotationProvider {
@@ -20,7 +20,7 @@ func NewForceSslRedirectAnnotationProvider() IngressAnnotationProvider {
 
 type forceSslRedirectAnnotationProvider struct{}
 
-func (forceSslRedirectAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (forceSslRedirectAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
 	return map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}, nil
 }
 
@@ -32,7 +32,7 @@ type ingressConfigurationAnnotationProvider struct {
 	config IngressConfiguration
 }
 
-func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
 	allAnnotations := make(map[string]string)
 
 	for _, configuration := range component.GetIngressConfiguration() {
@@ -63,7 +63,7 @@ type clientCertificateAnnotationProvider struct {
 	namespace string
 }
 
-func (provider *clientCertificateAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (provider *clientCertificateAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
 	result := make(map[string]string)
 	if auth := component.GetAuthentication(); auth != nil {
 		if clientCert := auth.ClientCertificate; clientCert != nil {
@@ -88,7 +88,7 @@ type oauth2AnnotationProvider struct {
 	oauth2DefaultConfig defaults.OAuth2Config
 }
 
-func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
@@ -97,9 +97,13 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommo
 			return nil, err
 		}
 
-		rootPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
-		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", rootPath)
-		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", rootPath)
+		svcName := utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+
+		// Documentation for Oauth2 proxy auth-request: https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/overview#configuring-for-use-with-the-nginx-auth_request-directive
+		hostPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
+		servicePath := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d%s", svcName, namespace, oauthProxyPortNumber, oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
+		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", servicePath)
+		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", hostPath)
 
 		var authResponseHeaders []string
 		if oauth.SetXAuthRequestHeaders != nil && *oauth.SetXAuthRequestHeaders {

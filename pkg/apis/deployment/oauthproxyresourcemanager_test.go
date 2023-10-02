@@ -478,11 +478,11 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	expectedIngServerCall := rd.Spec.Components[0].DeepCopy()
 	expectedIngServerCall.Authentication.OAuth2.ProxyPrefix = "auth1"
 	expectedIngServerAnnotations := map[string]string{"annotation1-1": "val1-1", "annotation1-2": "val1-2"}
-	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngServerCall).Times(1).Return(expectedIngServerAnnotations, nil)
+	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngServerCall, rd.Namespace).Times(1).Return(expectedIngServerAnnotations, nil)
 	expectedIngWebCall := rd.Spec.Components[1].DeepCopy()
 	expectedIngWebCall.Authentication.OAuth2.ProxyPrefix = "auth2"
 	expectedIngWebAnnotations := map[string]string{"annotation2-1": "val2-1", "annotation2-2": "val2-2"}
-	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall).Times(2).Return(expectedIngWebAnnotations, nil)
+	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall, rd.Namespace).Times(2).Return(expectedIngWebAnnotations, nil)
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{s.ingressAnnotationProvider}, s.oauth2Config, ""}
 	err := sut.Sync()
 	s.Nil(err)
