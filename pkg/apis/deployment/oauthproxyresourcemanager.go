@@ -241,7 +241,6 @@ func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployCompon
 		return err
 	}
 
-	//TODO: Do we need ingress?
 	if err := o.createOrUpdateIngresses(component); err != nil {
 		return err
 	}
