@@ -19,6 +19,7 @@ type DeploymentSyncerFactoryFunc func(
 	radixDeployment *v1.RadixDeployment,
 	tenantId string,
 	kubernetesApiPort int32,
+	deploymentHistoryLimit int,
 	ingressAnnotationProviders []IngressAnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 ) DeploymentSyncer
@@ -32,13 +33,14 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	radixDeployment *v1.RadixDeployment,
 	tenantId string,
 	kubernetesApiPort int32,
+	deploymentHistoryLimit int,
 	ingressAnnotationProviders []IngressAnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, ingressAnnotationProviders, auxResourceManagers)
+	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, deploymentHistoryLimit, ingressAnnotationProviders, auxResourceManagers)
 }
 
-//DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
+// DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
 type DeploymentSyncerFactory interface {
 	CreateDeploymentSyncer(
 		kubeclient kubernetes.Interface,
@@ -49,6 +51,7 @@ type DeploymentSyncerFactory interface {
 		radixDeployment *v1.RadixDeployment,
 		tenantId string,
 		kubernetesApiPort int32,
+		deploymentHistoryLimit int,
 		ingressAnnotationProviders []IngressAnnotationProvider,
 		auxResourceManagers []AuxiliaryResourceManager,
 	) DeploymentSyncer

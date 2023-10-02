@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -51,13 +50,14 @@ type Deployment struct {
 	ingressAnnotationProviders []IngressAnnotationProvider
 	tenantId                   string
 	kubernetesApiPort          int32
+	deploymentHistoryLimit     int
 }
 
-// Test if NewDeployment implements DeploymentSyncerFactory
-var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeployment)
+// Test if NewDeploymentSyncer implements DeploymentSyncerFactory
+var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
-// NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
+// NewDeploymentSyncer Constructor
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
@@ -69,6 +69,7 @@ func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixcl
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		tenantId:                   tenantId,
 		kubernetesApiPort:          kubernetesApiPort,
+		deploymentHistoryLimit:     deploymentHistoryLimit,
 	}
 }
 
@@ -137,7 +138,7 @@ func (deploy *Deployment) OnSync() error {
 		return err
 	}
 
-	deploy.maintainHistoryLimit()
+	deploy.maintainHistoryLimit(deploy.deploymentHistoryLimit)
 	metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
 	return nil
 }
@@ -528,15 +529,8 @@ func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeploy
 	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobFuse2FuseCsiAzure), string(v1.MountTypeBlobFuse2Fuse2CsiAzure), string(v1.MountTypeBlobFuse2NfsCsiAzure), string(v1.MountTypeAzureFileCsiAzure))
 }
 
-func (deploy *Deployment) maintainHistoryLimit() {
-	historyLimit := strings.TrimSpace(os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable))
-	if historyLimit == "" {
-		return
-	}
-
-	limit, err := strconv.Atoi(historyLimit)
-	if err != nil {
-		log.Warnf("%s is not set to a proper number, %s, and cannot be parsed.", defaults.DeploymentsHistoryLimitEnvironmentVariable, historyLimit)
+func (deploy *Deployment) maintainHistoryLimit(deploymentHistoryLimit int) {
+	if deploymentHistoryLimit <= 0 {
 		return
 	}
 
@@ -545,20 +539,40 @@ func (deploy *Deployment) maintainHistoryLimit() {
 		log.Warnf("failed to get all Radix deployments. Error was %v", err)
 		return
 	}
-
-	numToDelete := len(deployments) - limit
+	numToDelete := len(deployments) - deploymentHistoryLimit
 	if numToDelete <= 0 {
 		return
 	}
 
+	radixDeploymentsReferencedByJobs, err := deploy.getRadixDeploymentsReferencedByJobs()
+	if err != nil {
+		log.Warnf("failed to get all Radix batches. Error was %v", err)
+		return
+	}
 	deployments = sortRDsByActiveFromTimestampAsc(deployments)
-	for i := 0; i < numToDelete; i++ {
-		log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
-		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(context.TODO(), deployments[i].Name, metav1.DeleteOptions{})
+	for _, deployment := range deployments[:numToDelete] {
+		if _, ok := radixDeploymentsReferencedByJobs[deployment.Name]; ok {
+			log.Infof("Not deleting deployment %s as it is referenced by scheduled jobs", deployment.Name)
+			continue
+		}
+		log.Infof("Removing deployment %s from %s", deployment.Name, deployment.Namespace)
+		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
 		if err != nil {
-			log.Warnf("failed to delete old deployment %s: %v", deployments[i].Name, err)
+			log.Warnf("failed to delete old deployment %s: %v", deployment.Name, err)
 		}
 	}
+}
+
+func (deploy *Deployment) getRadixDeploymentsReferencedByJobs() (map[string]bool, error) {
+	radixBatches, err := deploy.kubeutil.ListRadixBatches(deploy.getNamespace())
+	if err != nil {
+		return nil, err
+	}
+	radixDeploymentsReferencedByJobs := slice.Reduce(radixBatches, make(map[string]bool), func(acc map[string]bool, radixBatch *v1.RadixBatch) map[string]bool {
+		acc[radixBatch.Spec.RadixDeploymentJobRef.Name] = true
+		return acc
+	})
+	return radixDeploymentsReferencedByJobs, nil
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {

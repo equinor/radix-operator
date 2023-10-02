@@ -52,7 +52,11 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 	oldSecret, err := kubeutil.GetSecret(namespace, secretName)
 	if err != nil && errors.IsNotFound(err) {
 		savedSecret, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
-		return savedSecret, err
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Created secret: %s in namespace %s", secret.GetName(), namespace)
+		return savedSecret, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get Secret object: %w", err)
 	}
@@ -86,7 +90,7 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 			return nil, fmt.Errorf("failed to update secret object: %w", err)
 		}
 
-		log.Debugf("Updated secret: %s ", patchedSecret.Name)
+		log.Infof("Updated secret: %s in namespace %s", patchedSecret.GetName(), namespace)
 		return patchedSecret, nil
 
 	}
@@ -157,6 +161,7 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 	if err != nil {
 		return err
 	}
+	log.Infof("Deleted secret: %s in namespace %s", secretName, namespace)
 	return nil
 }
 
