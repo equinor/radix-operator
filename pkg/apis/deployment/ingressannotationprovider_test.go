@@ -172,7 +172,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_ComponentOAuthPassedToOAuth2Config() {
 func (s *OAuth2AnnotationsTestSuite) Test_AuthSigninAndUrlAnnotations() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{ProxyPrefix: "/anypath"}, nil)
 	expected := map[string]string{
-		"nginx.ingress.kubernetes.io/auth-signin": "http://oauth-test-aux-oauth.appname-namespace.svc.cluster.local:4180/anypath/start?rd=$escaped_request_uri",
+		"nginx.ingress.kubernetes.io/auth-signin": "https://$host/anypath/start?rd=$escaped_request_uri",
 		"nginx.ingress.kubernetes.io/auth-url":    "http://oauth-test-aux-oauth.appname-namespace.svc.cluster.local:4180/anypath/auth",
 	}
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}

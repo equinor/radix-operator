@@ -99,9 +99,11 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommo
 
 		svcName := utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
-		rootPath := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d%s", svcName, namespace, oauthProxyPortNumber, oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
-		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", rootPath)
-		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", rootPath)
+		// Documentation for Oauth2 proxy auth-request: https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/overview#configuring-for-use-with-the-nginx-auth_request-directive
+		hostPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
+		servicePath := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d%s", svcName, namespace, oauthProxyPortNumber, oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
+		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", servicePath)
+		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", hostPath)
 
 		var authResponseHeaders []string
 		if oauth.SetXAuthRequestHeaders != nil && *oauth.SetXAuthRequestHeaders {
