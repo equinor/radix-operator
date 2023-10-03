@@ -125,6 +125,13 @@ seccompProfile:
   configMapName: "seccomp-allow-buildah"
   daemonSetName: copy-seccomp-profile
   fileNameOnNode: allow-buildah.json
+  resources:
+    limits:
+      cpu: 10m
+      memory: 10Mi
+    requests:
+      cpu: 10m
+      memory: 10Mi
 
 # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
 podSecurityStandard:
