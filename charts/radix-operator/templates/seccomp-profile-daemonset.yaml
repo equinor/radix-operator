@@ -31,6 +31,10 @@ spec:
             - name: configmap-volume
               mountPath: /configmap-data
               readOnly: true
+          {{- if .Values.seccompProfile.resources }}
+          resources:
+            {{- toYaml .Values.seccompProfile.resources | nindent 12 }}
+          {{- end}}
       volumes:
         - name: hostpath-volume
           hostPath:
