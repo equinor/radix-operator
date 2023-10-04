@@ -935,10 +935,12 @@ func getVolumeAccessMode(modeValue string) corev1.PersistentVolumeAccessMode {
 	switch strings.ToLower(modeValue) {
 	case strings.ToLower(string(corev1.ReadWriteOnce)):
 		return corev1.ReadWriteOnce
-	case strings.ToLower(string(corev1.ReadOnlyMany)):
-		return corev1.ReadOnlyMany
+	case strings.ToLower(string(corev1.ReadWriteMany)):
+		return corev1.ReadWriteMany
+	case strings.ToLower(string(corev1.ReadWriteOncePod)):
+		return corev1.ReadWriteOncePod
 	}
-	return corev1.ReadWriteMany // default access mode
+	return corev1.ReadOnlyMany // default access mode
 }
 
 func sortPvcsByCreatedTimestampDesc(persistentVolumeClaims []corev1.PersistentVolumeClaim) []corev1.PersistentVolumeClaim {
