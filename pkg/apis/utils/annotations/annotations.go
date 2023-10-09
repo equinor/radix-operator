@@ -1,6 +1,8 @@
 package annotations
 
 import (
+	"fmt"
+
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -8,6 +10,7 @@ import (
 
 const (
 	azureWorkloadIdentityClientIdAnnotation = "azure.workload.identity/client-id"
+	clusterAutoscaleSafeToEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 )
 
 // Merge multiple maps into one
@@ -39,6 +42,14 @@ func ForServiceAccountWithRadixIdentity(identity *radixv1.Identity) map[string]s
 	}
 
 	return annotations
+}
+
+// ForClusterAutoscalerSafeToEvict returns annotation used by cluster autoscaler to determine if a Pod
+// can be evicted from a node in case of scale down.
+// safeToEvict=false: The pod can not be evicted, and the Pod's node cannot be removed until Pod is completed
+// safeToEvict=true: The pod can be evicted, and the Pod's node can be removed in scale-down scenario
+func ForClusterAutoscalerSafeToEvict(safeToEvict bool) map[string]string {
+	return map[string]string{clusterAutoscaleSafeToEvictAnnotation: fmt.Sprint(safeToEvict)}
 }
 
 func forAzureWorkloadIdentityClientId(clientId string) map[string]string {
