@@ -48,6 +48,7 @@ func ForServiceAccountWithRadixIdentity(identity *radixv1.Identity) map[string]s
 // can be evicted from a node in case of scale down.
 // safeToEvict=false: The pod can not be evicted, and the Pod's node cannot be removed until Pod is completed
 // safeToEvict=true: The pod can be evicted, and the Pod's node can be removed in scale-down scenario
+// Cluster Autoscaler docs: https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#what-are-the-parameters-to-ca
 func ForClusterAutoscalerSafeToEvict(safeToEvict bool) map[string]string {
 	return map[string]string{clusterAutoscaleSafeToEvictAnnotation: fmt.Sprint(safeToEvict)}
 }
