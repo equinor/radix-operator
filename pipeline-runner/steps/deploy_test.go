@@ -3,8 +3,9 @@ package steps
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"testing"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -18,14 +19,12 @@ import (
 )
 
 const (
-	anyClusterName       = "AnyClusterName"
 	anyContainerRegistry = "any.container.registry"
 	anyAppName           = "any-app"
 	anyJobName           = "any-job-name"
 	anyImageTag          = "anytag"
 	anyCommitID          = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
 	anyGitTags           = "some tags go here"
-	egressIps            = "0.0.0.0"
 )
 
 // FakeNamespaceWatcher Unit tests doesn't handle muliti-threading well
