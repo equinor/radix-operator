@@ -14,8 +14,12 @@ type JobBuilder interface {
 	WithRadixApplication(ApplicationBuilder) JobBuilder
 	WithJobName(string) JobBuilder
 	WithAppName(string) JobBuilder
-	WithPipeline(v1.RadixPipelineType) JobBuilder
+	WithPipelineImageTag(string) JobBuilder
+	WithPipelineType(v1.RadixPipelineType) JobBuilder
 	WithBranch(string) JobBuilder
+	WithCommitID(string) JobBuilder
+	WithPushImage(bool) JobBuilder
+	WithImageTag(string) JobBuilder
 	WithDeploymentName(string) JobBuilder
 	WithStatusOnAnnotation(JobStatusBuilder) JobBuilder
 	WithEmptyStatus() JobBuilder
@@ -36,9 +40,11 @@ type JobBuilderStruct struct {
 	status             v1.RadixJobStatus
 	branch             string
 	deploymentName     string
-	buildSpec          v1.RadixBuildSpec
-	promoteSpec        v1.RadixPromoteSpec
+	commitID           string
+	imageTag           string
 	created            time.Time
+	pipelineImageTag   string
+	pushImage          bool
 }
 
 // WithRadixApplication Links to RA builder
@@ -64,31 +70,45 @@ func (jb *JobBuilderStruct) WithAppName(name string) JobBuilder {
 	return jb
 }
 
-// WithPipeline Sets pipeline
-func (jb *JobBuilderStruct) WithPipeline(pipeline v1.RadixPipelineType) JobBuilder {
+// WithPipelineType Sets pipeline
+func (jb *JobBuilderStruct) WithPipelineType(pipeline v1.RadixPipelineType) JobBuilder {
 	jb.pipeline = pipeline
+	return jb
+}
+
+// WithPipelineImageTag Sets the pipeline image tag
+func (jb *JobBuilderStruct) WithPipelineImageTag(imageTag string) JobBuilder {
+	jb.pipelineImageTag = imageTag
 	return jb
 }
 
 // WithBranch Sets branch
 func (jb *JobBuilderStruct) WithBranch(branch string) JobBuilder {
 	jb.branch = branch
+	return jb
+}
 
-	jb.buildSpec = v1.RadixBuildSpec{
-		Branch: branch,
-	}
+// WithCommitID Sets commit ID
+func (jb *JobBuilderStruct) WithCommitID(commitID string) JobBuilder {
+	jb.commitID = commitID
+	return jb
+}
 
+// WithPushImage Sets push image
+func (jb *JobBuilderStruct) WithPushImage(push bool) JobBuilder {
+	jb.pushImage = push
+	return jb
+}
+
+// WithCommitID Sets commit ID
+func (jb *JobBuilderStruct) WithImageTag(imageTag string) JobBuilder {
+	jb.imageTag = imageTag
 	return jb
 }
 
 // WithDeploymentName Sets deployment name
 func (jb *JobBuilderStruct) WithDeploymentName(deploymentName string) JobBuilder {
 	jb.deploymentName = deploymentName
-
-	jb.promoteSpec = v1.RadixPromoteSpec{
-		DeploymentName: deploymentName,
-	}
-
 	return jb
 }
 
@@ -128,8 +148,6 @@ func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 
 // BuildRJ Builds RJ structure based on set variables
 func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
-	anyPipelineImageVersion := "any-latest"
-
 	radixJob := &v1.RadixJob{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "radix.equinor.com/v1",
@@ -150,9 +168,16 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 		Spec: v1.RadixJobSpec{
 			AppName:       jb.appName,
 			PipeLineType:  jb.pipeline,
-			PipelineImage: anyPipelineImageVersion,
-			Build:         jb.buildSpec,
-			Promote:       jb.promoteSpec,
+			PipelineImage: jb.pipelineImageTag,
+			Build: v1.RadixBuildSpec{
+				Branch:    jb.branch,
+				ImageTag:  jb.imageTag,
+				CommitID:  jb.commitID,
+				PushImage: jb.pushImage,
+			},
+			Promote: v1.RadixPromoteSpec{
+				DeploymentName: jb.deploymentName,
+			},
 		},
 	}
 
@@ -185,7 +210,7 @@ func ARadixBuildDeployJobWithAppBuilder(builderModifier func(builder Application
 			appBuilder).
 		WithAppName("some-app").
 		WithJobName("job1").
-		WithPipeline(v1.BuildDeploy).
+		WithPipelineType(v1.BuildDeploy).
 		WithBranch("master")
 
 	return builder
