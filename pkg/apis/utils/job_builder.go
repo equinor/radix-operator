@@ -100,7 +100,7 @@ func (jb *JobBuilderStruct) WithPushImage(push bool) JobBuilder {
 	return jb
 }
 
-// WithCommitID Sets commit ID
+// WithImageTag Sets image tag
 func (jb *JobBuilderStruct) WithImageTag(imageTag string) JobBuilder {
 	jb.imageTag = imageTag
 	return jb
