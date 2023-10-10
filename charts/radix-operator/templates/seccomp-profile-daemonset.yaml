@@ -24,7 +24,7 @@ spec:
         - name: file-copy-container
           image: alpine
           command: ["sh", "-c"]
-          args: ["while true; do if ! diff -q /configmap-data/{{ .Values.seccompProfile.fileNameOnNode }} /hostpath/{{ .Values.seccompProfile.fileNameOnNode }} > /dev/null 2>&1; then echo "$(date ''+%H:%M'') - Changes" && cp /configmap-data/{{ .Values.seccompProfile.fileNameOnNode }} /hostpath/; else echo "$(date ''+%H:%M'') - No changes"; fi; sleep 60; done"]
+          args: ["while true; do if ! diff -q /configmap-data/{{ .Values.seccompProfile.fileNameOnNode }} /hostpath/{{ .Values.seccompProfile.fileNameOnNode }} > /dev/null 2>&1; then echo \"$(date ''+%H:%M'') - Changes\" && cp /configmap-data/{{ .Values.seccompProfile.fileNameOnNode }} /hostpath/; else echo \"$(date ''+%H:%M'') - No changes\"; fi; sleep 60; done"]
           volumeMounts:
             - name: hostpath-volume
               mountPath: /hostpath
