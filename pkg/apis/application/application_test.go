@@ -24,10 +24,6 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-const (
-	dnsZone = "dev.radix.equinor.com"
-)
-
 func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
