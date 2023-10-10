@@ -2,17 +2,19 @@ package utils
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
-	"time"
 )
 
 const (
@@ -40,6 +42,9 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
+				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.RadixTektonServiceAccountName,
 					SecurityContext:    &pipelineInfo.PipelineArguments.PodSecurityContext,

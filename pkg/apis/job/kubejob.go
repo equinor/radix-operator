@@ -8,9 +8,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -33,13 +34,11 @@ const (
 func (job *Job) createPipelineJob() error {
 	namespace := job.radixJob.Namespace
 
-	ownerReference := GetOwnerReference(job.radixJob)
 	jobConfig, err := job.getPipelineJobConfig()
 	if err != nil {
 		return err
 	}
 
-	jobConfig.OwnerReferences = ownerReference
 	_, err = job.kubeclient.BatchV1().Jobs(namespace).Create(context.TODO(), jobConfig, metav1.CreateOptions{})
 	if err != nil {
 		return err
@@ -69,6 +68,7 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	jobCfg := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   jobName,
@@ -76,10 +76,14 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation: job.radixJob.Spec.Build.Branch,
 			},
+			OwnerReferences: GetOwnerReference(job.radixJob),
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
+				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.PipelineServiceAccountName,
 					SecurityContext: securitycontext.Pod(

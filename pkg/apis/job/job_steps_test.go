@@ -403,7 +403,7 @@ func (s *RadixJobStepTestSuite) getBuildDeployJob(jobName, appName string) utils
 	jb := utils.NewJobBuilder().
 		WithJobName(jobName).
 		WithAppName(appName).
-		WithPipeline(v1.BuildDeploy).
+		WithPipelineType(v1.BuildDeploy).
 		WithStatus(
 			utils.NewJobStatusBuilder().
 				WithCondition(v1.JobRunning),

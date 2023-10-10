@@ -14,19 +14,13 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-const (
-	deployTestFilePath = "./testdata/radixconfig.variable.yaml"
-	clusterName        = "AnyClusterName"
-	egressIps          = "0.0.0.0"
-)
-
 func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, *secretproviderfake.Clientset, commonTest.Utils) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
-	testUtils.CreateClusterPrerequisites(clusterName, egressIps)
+	testUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	return kubeclient, radixclient, secretproviderclient, testUtils
 }
 

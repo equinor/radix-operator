@@ -3,8 +3,9 @@ package batch
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/labels"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
@@ -14,6 +15,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -127,6 +129,7 @@ func (s *syncer) buildJob(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1
 		jobLabels,
 		radixlabels.ForPodWithRadixIdentity(jobComponent.Identity),
 	)
+	podAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
 
 	volumes, err := s.getVolumes(rd.GetNamespace(), rd.Spec.Environment, batchJob, jobComponent, rd.Name)
 	if err != nil {
@@ -169,7 +172,8 @@ func (s *syncer) buildJob(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1
 			BackoffLimit: backoffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: podLabels,
+					Labels:      podLabels,
+					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					Containers:                   containers,
