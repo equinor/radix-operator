@@ -468,6 +468,8 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(expectedJobLabels, kubejob.Labels, "job labels")
 		expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
 		s.Equal(expectedPodLabels, kubejob.Spec.Template.Labels, "pod labels")
+		expectedPodAnnotations := map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
+		s.Equal(expectedPodAnnotations, kubejob.Spec.Template.Annotations)
 		s.Equal(ownerReference(batch), kubejob.OwnerReferences)
 		s.Equal(numbers.Int32Ptr(0), kubejob.Spec.BackoffLimit)
 		s.Equal(corev1.RestartPolicyNever, kubejob.Spec.Template.Spec.RestartPolicy)

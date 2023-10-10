@@ -48,10 +48,10 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-const clusterName = "AnyClusterName"
+const testClusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
-const egressIps = "0.0.0.0"
+const testEgressIps = "0.0.0.0"
 const testTenantId = "123456789"
 const testRadixDeploymentHistoryLimit = 10
 const testKubernetesApiPort = 543
@@ -68,7 +68,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 		secretProviderClient,
 	)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretProviderClient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, egressIps)
+	handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid")
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, prometheusClient, secretProviderClient
 }
 
@@ -238,7 +238,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.CanonicalEndpointEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixAppEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, componentNameApp, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixComponentEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, egressIps, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixActiveClusterEgressIpsEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, testEgressIps, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixActiveClusterEgressIpsEnvironmentVariable, componentNameApp, deployments))
 
 				if !componentsExist {
 					assert.Equal(t, "(8080)", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, componentNameApp, deployments))
@@ -548,7 +548,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "300M", getEnvVariableByNameOnDeployment(kubeclient, defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, "("+defaults.RadixJobSchedulerPortName+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortNamesEnvironmentVariable, jobName, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, egressIps, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixActiveClusterEgressIpsEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, testEgressIps, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixActiveClusterEgressIpsEnvironmentVariable, jobName, deployments))
 
 				if jobsExist {
 					assert.Equal(t, "("+fmt.Sprint(schedulerPortUpdate)+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, jobName, deployments))
@@ -735,7 +735,7 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupportingObjects(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 
 	// Test
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1250,7 +1250,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, templateSpecEnv))
 		assert.Equal(t, anyContainerRegistry, getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv, nil))
 		assert.Equal(t, dnsZone, getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))
-		assert.Equal(t, clusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv, cm))
+		assert.Equal(t, testClusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, "app", getEnvVariableByName(defaults.RadixAppEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, "component", getEnvVariableByName(defaults.RadixComponentEnvironmentVariable, templateSpecEnv, cm))
@@ -1773,7 +1773,7 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Setup
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("any-app").
 		WithEnvironment("dev").
@@ -2229,7 +2229,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Setup
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
@@ -2292,7 +2292,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Setup
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
@@ -2423,22 +2423,22 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 				WithPublicPort("http"))
 
 	// Current cluster is active cluster
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
 	activeClusterIngress := getIngressByName(getActiveClusterIngressName(anyComponentName), ingresses)
-	assert.False(t, strings.Contains(activeClusterIngress.Spec.Rules[0].Host, clusterName))
+	assert.False(t, strings.Contains(activeClusterIngress.Spec.Rules[0].Host, testClusterName))
 	defaultIngress := getIngressByName(getDefaultIngressName(anyComponentName), ingresses)
-	assert.True(t, strings.Contains(defaultIngress.Spec.Rules[0].Host, clusterName))
+	assert.True(t, strings.Contains(defaultIngress.Spec.Rules[0].Host, testClusterName))
 
 	// Current cluster is not active cluster
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "newClusterName")
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Environment should have one ingresses")
-	assert.True(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, clusterName))
+	assert.True(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, testClusterName))
 }
 
 func TestNewDeploymentStatus(t *testing.T) {
@@ -3738,7 +3738,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 func Test_IngressAnnotations_Called(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 	defer os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithDNSAppAlias(true)).BuildRD()
@@ -3886,7 +3886,7 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Setup
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
 		utils.NewDeploymentBuilder().
@@ -3921,7 +3921,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Setup
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
 		utils.NewDeploymentBuilder().
@@ -3957,7 +3957,7 @@ func Test_ComponentSynced_SecretRefs(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Setup
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
 		utils.NewDeploymentBuilder().
@@ -3997,7 +3997,7 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Setup
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
 		utils.NewDeploymentBuilder().

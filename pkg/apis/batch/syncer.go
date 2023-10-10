@@ -73,7 +73,9 @@ func (s *syncer) reconcile() error {
 		}
 
 		if i%syncStatusForEveryNumberOfBatchJobsReconciled == 0 {
-			s.syncStatus(nil)
+			if err := s.syncStatus(nil); err != nil {
+				return err
+			}
 		}
 	}
 
