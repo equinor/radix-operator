@@ -9,11 +9,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// PollRESTClientUntilSuccessfulConnection tries a GET request to root with the RESTClient returned by clientFactory.
+// PollUntilRESTClientSuccessfulConnection tries a GET request to root with the RESTClient returned by clientFactory.
 // clientFactory will be invoked on `interval` for each connection attempt until the request returns no error,
 // the error is not `net/http: TLS handshake timeout` or `ctx` is cancelled or hits a deadline.
 // Polling will terminate after `duration` defined in timeout.
-func PollRESTClientUntilSuccessfulConnection[T interface{ RESTClient() rest.Interface }](ctx context.Context, timeout time.Duration, interval time.Duration, clientFactory func() (T, error)) (T, error) {
+func PollUntilRESTClientSuccessfulConnection[T interface{ RESTClient() rest.Interface }](ctx context.Context, timeout time.Duration, interval time.Duration, clientFactory func() (T, error)) (T, error) {
 	var client T
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

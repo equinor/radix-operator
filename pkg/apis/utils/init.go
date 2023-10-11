@@ -55,28 +55,28 @@ func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kuberne
 		o(config)
 	}
 
-	client, err := PollRESTClientUntilSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kubernetes.Clientset, error) {
+	client, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kubernetes.Clientset, error) {
 		return kubernetes.NewForConfig(config)
 	})
 	if err != nil {
 		log.Fatalf("getClusterConfig k8s client: %v", err)
 	}
 
-	radixClient, err := PollRESTClientUntilSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*radixclient.Clientset, error) {
+	radixClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*radixclient.Clientset, error) {
 		return radixclient.NewForConfig(config)
 	})
 	if err != nil {
 		log.Fatalf("getClusterConfig radix client: %v", err)
 	}
 
-	prometheusOperatorClient, err := PollRESTClientUntilSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*monitoring.Clientset, error) {
+	prometheusOperatorClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*monitoring.Clientset, error) {
 		return monitoring.NewForConfig(config)
 	})
 	if err != nil {
 		log.Fatalf("getClusterConfig prometheus-operator client: %v", err)
 	}
 
-	secretProviderClient, err := PollRESTClientUntilSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*secretProviderClient.Clientset, error) {
+	secretProviderClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*secretProviderClient.Clientset, error) {
 		return secretProviderClient.NewForConfig(config)
 	})
 	if err != nil {
