@@ -12,6 +12,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,7 +39,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 
 	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.ComponentImages)
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-	annotations := map[string]string{}
+	annotations := radixannotations.ForClusterAutoscalerSafeToEvict(false)
 	buildPodSecurityContext := &pipelineInfo.PipelineArguments.PodSecurityContext
 	if isUsingBuildKit(pipelineInfo) {
 		for _, buildContainer := range buildContainers {

@@ -26,11 +26,6 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-const (
-	clusterName = "AnyClusterName"
-	egressIps   = "0.0.0.0"
-)
-
 type jobTestSuite struct {
 	suite.Suite
 	promClient *prometheusfake.Clientset
@@ -51,7 +46,7 @@ func (s *jobTestSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(fake.NewSimpleClientset(), fakeradix.NewSimpleClientset(), secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), secretProviderClient)
-	s.tu.CreateClusterPrerequisites(clusterName, egressIps)
+	s.tu.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 }
 
 func (s *jobTestSuite) TearDownTest() {

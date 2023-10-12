@@ -100,7 +100,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 		})
 		//goland:noinspection GoUnhandledErrorResult
 		testEnv.kubeUtil.CreateConfigMap(corev1.NamespaceDefault, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "radix-config"}, Data: map[string]string{
-			"clustername": clusterName,
+			"clustername": testClusterName,
 		}})
 
 		envVars, err := GetEnvironmentVariablesForRadixOperator(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
@@ -119,7 +119,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 			envVar := envVar
 			resultEnvVarsMap[envVar.Name] = envVar
 		}
-		assert.Equal(t, clusterName, resultEnvVarsMap["RADIX_CLUSTERNAME"].Value)
+		assert.Equal(t, testClusterName, resultEnvVarsMap["RADIX_CLUSTERNAME"].Value)
 		assert.NotNil(t, envVarsConfigMapMetadata)
 	})
 }
