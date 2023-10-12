@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"context"
 	"net/http"
 	"os"
+	"time"
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -34,6 +36,8 @@ func WithKubernetesClientRateLimiter(rateLimiter flowcontrol.RateLimiter) Kubern
 
 // GetKubernetesClient Gets clients to talk to the API
 func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface) {
+	ctx := context.Background()
+	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 
@@ -51,22 +55,30 @@ func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kuberne
 		o(config)
 	}
 
-	client, err := kubernetes.NewForConfig(config)
+	client, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kubernetes.Clientset, error) {
+		return kubernetes.NewForConfig(config)
+	})
 	if err != nil {
 		log.Fatalf("getClusterConfig k8s client: %v", err)
 	}
 
-	radixClient, err := radixclient.NewForConfig(config)
+	radixClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*radixclient.Clientset, error) {
+		return radixclient.NewForConfig(config)
+	})
 	if err != nil {
 		log.Fatalf("getClusterConfig radix client: %v", err)
 	}
 
-	prometheusOperatorClient, err := monitoring.NewForConfig(config)
+	prometheusOperatorClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*monitoring.Clientset, error) {
+		return monitoring.NewForConfig(config)
+	})
 	if err != nil {
 		log.Fatalf("getClusterConfig prometheus-operator client: %v", err)
 	}
 
-	secretProviderClient, err := secretProviderClient.NewForConfig(config)
+	secretProviderClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*secretProviderClient.Clientset, error) {
+		return secretProviderClient.NewForConfig(config)
+	})
 	if err != nil {
 		log.Fatalf("secretProvider secret provider client client: %v", err)
 	}
