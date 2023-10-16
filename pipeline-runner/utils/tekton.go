@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +44,7 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
+					Labels:      radixlabels.ForPipelineJobName(jobName),
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{
