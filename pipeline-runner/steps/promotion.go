@@ -108,10 +108,15 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	radixDeployment = rd.DeepCopy()
 	radixDeployment.Name = utils.GetDeploymentName(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 
+	if radixDeployment.GetAnnotations() == nil {
+		radixDeployment.ObjectMeta.Annotations = make(map[string]string)
+	}
 	if _, isRestored := radixDeployment.Annotations[kube.RestoredStatusAnnotation]; isRestored {
 		// RA-817: Promotion reuses annotation - RD get inactive status
 		radixDeployment.Annotations[kube.RestoredStatusAnnotation] = ""
 	}
+	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromDeploymentAnnotation] = rd.GetName()
+	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation] = pipelineInfo.PipelineArguments.FromEnvironment
 
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs

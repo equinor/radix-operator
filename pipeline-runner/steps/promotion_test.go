@@ -464,8 +464,9 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 							),
 					)))
 
-	// Create prod environment without any deployments
+	// Create environments
 	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+	test.CreateEnvNamespace(kubeclient, anyApp, anyDevEnvironment)
 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
@@ -490,7 +491,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
@@ -788,4 +789,66 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 		})
 
 	}
+}
+
+func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
+	srcDeploymentName := "deployment-1"
+	anyImageTag := "abcdef"
+	anyBuildDeployJobName := "any-build-deploy-job"
+	anyPromoteJobName := "any-promote-job"
+	dstEnv := "test"
+	srcEnv := "dev"
+	srcDeploymentCommitID := "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
+
+	// Setup
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
+
+	commonTestUtils.ApplyDeployment(
+		utils.NewDeploymentBuilder().
+			WithRadixApplication(
+				utils.NewRadixApplicationBuilder().
+					WithRadixRegistration(utils.ARadixRegistration()).
+					WithAppName(anyAppName).
+					WithEnvironment(srcEnv, "dev-branch").
+					WithEnvironment(dstEnv, "test-branch").
+					WithComponent(utils.NewApplicationComponentBuilder().WithName("comp1"))).
+			WithAppName(anyAppName).
+			WithDeploymentName(srcDeploymentName).
+			WithEnvironment(srcEnv).
+			WithImageTag(anyImageTag).
+			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
+			WithLabel(kube.RadixCommitLabel, srcDeploymentCommitID))
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyAppName, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyAppName)).Get(context.TODO(), anyAppName, metav1.GetOptions{})
+
+	cli := NewPromoteStep()
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: srcEnv,
+			ToEnvironment:   dstEnv,
+			DeploymentName:  srcDeploymentName,
+			JobName:         anyPromoteJobName,
+			ImageTag:        anyImageTag,
+			CommitID:        anyCommitID,
+		},
+	}
+
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+	err := cli.Run(pipelineInfo)
+	require.NoError(t, err)
+
+	rds, err := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyAppName, dstEnv)).List(context.TODO(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, rds.Items, 1)
+	promotedRD := rds.Items[0]
+	assert.Equal(t, srcEnv, promotedRD.GetAnnotations()[kube.RadixDeploymentPromotedFromEnvironmentAnnotation])
+	assert.Equal(t, srcDeploymentName, promotedRD.GetAnnotations()[kube.RadixDeploymentPromotedFromDeploymentAnnotation])
+	assert.Equal(t, srcDeploymentCommitID, promotedRD.GetLabels()[kube.RadixCommitLabel])
 }

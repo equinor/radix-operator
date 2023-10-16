@@ -142,14 +142,23 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 
 // ApplyDeployment Will help persist a deployment
 func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
+	envs := make(map[string]struct{})
 	if deploymentBuilder.GetApplicationBuilder() != nil {
-		tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
+		ra, _ := tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
+		for _, env := range ra.Spec.Environments {
+			envs[env.Name] = struct{}{}
+		}
 	}
 
 	rd := deploymentBuilder.BuildRD()
 	log.Debugf("%s", rd.GetObjectMeta().GetCreationTimestamp())
+	envs[rd.Namespace] = struct{}{}
+	for env, _ := range envs {
+		CreateEnvNamespace(tu.client, rd.Spec.AppName, env)
+	}
 
-	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
+	envNamespace := rd.Namespace
+
 	tu.applyRadixDeploymentEnvVarsConfigMaps(rd)
 	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(context.TODO(), rd, metav1.CreateOptions{})
 	if err != nil {
