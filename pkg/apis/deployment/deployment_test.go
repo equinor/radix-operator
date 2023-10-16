@@ -2132,6 +2132,25 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	assert.False(t, rd.Spec.Components[1].AlwaysPullImageOnDeploy)
 }
 
+func TestConstructForTargetEnvironment_GetCommitID(t *testing.T) {
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "dev").
+		WithComponents(utils.AnApplicationComponent().WithName("app")).
+		BuildRA()
+
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: "anyImage", ImagePath: "anyImagePath"}
+
+	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "commit-abc"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap)
+	require.NoError(t, err)
+
+	assert.Equal(t, "commit-abc", rd.ObjectMeta.Labels[kube.RadixCommitLabel])
+}
+
 func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()

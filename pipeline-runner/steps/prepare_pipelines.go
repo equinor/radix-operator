@@ -3,8 +3,6 @@ package steps
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
@@ -12,7 +10,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
@@ -57,7 +57,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 	namespace := utils.GetAppNamespace(appName)
 	log.Infof("Prepare pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
-	if v1.RadixPipelineType(pipelineInfo.PipelineArguments.PipelineType) == v1.Promote {
+	if radixv1.RadixPipelineType(pipelineInfo.PipelineArguments.PipelineType) == radixv1.Promote {
 		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := cli.getSourceDeploymentGitInfo(appName, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
 		if err != nil {
 			return err
@@ -159,7 +159,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		},
 		{
 			Name:  defaults.RadixGithubWebhookCommitId,
-			Value: pipelineInfo.PipelineArguments.CommitID,
+			Value: getWebhookCommitID(pipelineInfo),
 		},
 	}
 	sshURL := registration.Spec.CloneURL
@@ -167,6 +167,13 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 
 	return pipelineUtils.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
+}
+
+func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
+	if pipelineInfo.PipelineArguments.PipelineType == string(radixv1.BuildDeploy) {
+		return pipelineInfo.PipelineArguments.CommitID
+	}
+	return ""
 }
 
 func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipelineInfo *model.PipelineInfo, configBranch, sshURL string) []corev1.Container {
