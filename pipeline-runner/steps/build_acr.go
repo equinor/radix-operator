@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -67,9 +68,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						kube.RadixJobNameLabel: jobName,
-					},
+					Labels:      radixlabels.ForPipelineJobName(jobName),
 					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{
