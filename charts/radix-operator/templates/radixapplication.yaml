@@ -742,11 +742,6 @@ spec:
                                           description: Enable streaming mode. Default
                                             true.
                                           type: boolean
-                                        fileCaching:
-                                          description: Optional. File name based caching.
-                                            Default is false which specifies file
-                                            handle based caching.
-                                          type: boolean
                                         maxBlocksPerFile:
                                           description: Optional. The maximum number
                                             of blocks to be cached in memory.
@@ -1598,11 +1593,6 @@ spec:
                                         enabled:
                                           description: Enable streaming mode. Default
                                             true.
-                                          type: boolean
-                                        fileCaching:
-                                          description: Optional. File name based caching.
-                                            Default is false which specifies file
-                                            handle based caching.
                                           type: boolean
                                         maxBlocksPerFile:
                                           description: Optional. The maximum number

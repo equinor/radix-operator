@@ -3,9 +3,10 @@ package deployment
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-common/utils/pointers"
 	"strings"
 	"testing"
+
+	"github.com/equinor/radix-common/utils/pointers"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -1068,7 +1069,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 							BufferSize:       pointers.Ptr(uint64(103)),
 							MaxBuffers:       pointers.Ptr(uint64(104)),
 							MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-							FileCaching:      pointers.Ptr(true),
 						}
 					}),
 				},
@@ -1096,7 +1096,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 							"--buffer-size-mb=103",
 							"--max-buffers=104",
 							"--max-blocks-per-file=105",
-							"--file-caching=true",
 							"--use-adls=false",
 						}
 					}),
@@ -1122,7 +1121,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 							BufferSize:       pointers.Ptr(uint64(103)),
 							MaxBuffers:       pointers.Ptr(uint64(104)),
 							MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-							FileCaching:      pointers.Ptr(true),
 						}
 					}),
 				},
