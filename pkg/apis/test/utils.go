@@ -153,7 +153,7 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) (*v1
 	rd := deploymentBuilder.BuildRD()
 	log.Debugf("%s", rd.GetObjectMeta().GetCreationTimestamp())
 	envs[rd.Namespace] = struct{}{}
-	for env, _ := range envs {
+	for env := range envs {
 		CreateEnvNamespace(tu.client, rd.Spec.AppName, env)
 	}
 
