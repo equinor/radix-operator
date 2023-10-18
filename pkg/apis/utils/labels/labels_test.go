@@ -112,6 +112,30 @@ func Test_ForAccessValidation(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func Test_ForPipelineJobName(t *testing.T) {
+	actual := ForPipelineJobName("anypipelinejobname")
+	expected := kubelabels.Set{kube.RadixJobNameLabel: "anypipelinejobname"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForPipelineJobType(t *testing.T) {
+	actual := ForPipelineJobType()
+	expected := kubelabels.Set{kube.RadixJobTypeLabel: kube.RadixJobTypeJob}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForPipelineJobPipelineType(t *testing.T) {
+	actual := ForPipelineJobPipelineType("anypipelinetype")
+	expected := kubelabels.Set{kube.RadixPipelineTypeLabels: "anypipelinetype"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForRadixImageTag(t *testing.T) {
+	actual := ForRadixImageTag("anyimagetag")
+	expected := kubelabels.Set{kube.RadixImageTagLabel: "anyimagetag"}
+	assert.Equal(t, expected, actual)
+}
+
 func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
 	actual := requirementRadixBatchNameLabelExists()
 	expected := kubelabels.Set{kube.RadixBatchNameLabel: "anyname"}

@@ -17,11 +17,13 @@ import (
 
 // Radix Annotations
 const (
-	RadixBranchAnnotation          = "radix-branch"
-	RadixGitTagsAnnotation         = "radix.equinor.com/radix-git-tags"
-	RadixCommitAnnotation          = "radix.equinor.com/radix-commit"
-	RadixComponentImagesAnnotation = "radix-component-images"
-	RadixDeploymentNameAnnotation  = "radix-deployment-name"
+	RadixBranchAnnotation                            = "radix-branch"
+	RadixGitTagsAnnotation                           = "radix.equinor.com/radix-git-tags"
+	RadixCommitAnnotation                            = "radix.equinor.com/radix-commit"
+	RadixComponentImagesAnnotation                   = "radix-component-images"
+	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
+	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"
+	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
 
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
@@ -70,6 +72,7 @@ const (
 	RadixBatchJobNameLabel             = "radix-batch-job-name"
 	RadixBatchTypeLabel                = "radix-batch-type"
 	RadixAccessValidationLabel         = "radix-access-validation"
+	RadixPipelineTypeLabels            = "radix-pipeline"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
