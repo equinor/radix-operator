@@ -12,6 +12,7 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -68,7 +69,7 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	}
 
 	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	radixJobList, err := radixclient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Empty(t, radixJobList.Items)

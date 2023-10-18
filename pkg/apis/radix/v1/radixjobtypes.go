@@ -15,7 +15,7 @@ type RadixJob struct {
 	Status             RadixJobStatus `json:"status" yaml:"status"`
 }
 
-//RadixJobStatus is the status for a Radix job
+// RadixJobStatus is the status for a Radix job
 type RadixJobStatus struct {
 	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
 	Created    *meta_v1.Time     `json:"created" yaml:"created"`
@@ -45,7 +45,7 @@ const (
 	JobStoppedNoChanges RadixJobCondition = "StoppedNoChanges"
 )
 
-//RadixJobSpec is the spec for a job
+// RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
 	AppName             string            `json:"appName" yaml:"appName"`
 	CloneURL            string            `json:"cloneURL" yaml:"cloneURL"`
@@ -70,40 +70,76 @@ const (
 	Deploy      RadixPipelineType = "deploy"
 )
 
-//RadixBuildSpec is the spec for a build job
+// RadixBuildSpec is the spec for a build job
 type RadixBuildSpec struct {
-	ImageTag  string `json:"imageTag" yaml:"imageTag"`
-	Branch    string `json:"branch" yaml:"branch"`
-	CommitID  string `json:"commitID" yaml:"commitID"`
-	PushImage bool   `json:"pushImage" yaml:"pushImage"`
+	// Tag of the built image
+	//
+	// required: true
+	ImageTag string `json:"imageTag" yaml:"imageTag"`
+
+	// Branch, from which the image to be built
+	//
+	// required: true
+	Branch string `json:"branch" yaml:"branch"`
+
+	// CommitID, from which the image to be built
+	//
+	// required: false
+	CommitID string `json:"commitID" yaml:"commitID"`
+
+	// Is the built image need to be pushed to the container registry repository
+	//
+	// required: false
+	PushImage bool `json:"pushImage" yaml:"pushImage"`
 }
 
-//RadixPromoteSpec is the spec for a promote job
+// RadixPromoteSpec is the spec for a promote job
 type RadixPromoteSpec struct {
-	DeploymentName  string `json:"deploymentName" yaml:"deploymentName"`
+	// Name of the Radix deployment to be promoted
+	//
+	// required: false
+	DeploymentName string `json:"deploymentName" yaml:"deploymentName"`
+
+	// Environment name, from which the Radix deployment is being promoted
+	//
+	// required: true
+
 	FromEnvironment string `json:"fromEnvironment" yaml:"fromEnvironment"`
-	ToEnvironment   string `json:"toEnvironment" yaml:"toEnvironment"`
+	// Environment name, to which the Radix deployment is being promoted
+	//
+	// required: true
+	ToEnvironment string `json:"toEnvironment" yaml:"toEnvironment"`
 }
 
-//RadixDeploySpec is the spec for a deploy job
+// RadixDeploySpec is the spec for a deploy job
 type RadixDeploySpec struct {
 	// Target environment for deploy
+	//
+	// required: true
 	ToEnvironment string `json:"toEnvironment" yaml:"toEnvironment"`
+
 	// Image tags names for components - if empty will use default logic
+	//
+	// required: false
 	// Example: component1: tag1,component2: tag2
 	ImageTagNames map[string]string `json:"imageTagNames" yaml:"imageTagNames"`
+
+	// Commit ID connected to the deployment
+	//
+	// required: false
+	CommitID string `json:"commitID" yaml:"commitID"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//RadixJobList is a list of Radix jobs
+// RadixJobList is a list of Radix jobs
 type RadixJobList struct {
 	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
 	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
 	Items            []RadixJob `json:"items" yaml:"items"`
 }
 
-//RadixJobStep holds status for a single step
+// RadixJobStep holds status for a single step
 type RadixJobStep struct {
 	Name       string            `json:"name" yaml:"name"`
 	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
@@ -121,7 +157,7 @@ const (
 	RadixJobResultStoppedNoChanges RadixJobResultType = "stoppedNoChanges"
 )
 
-//RadixJobResult is returned by Radix pipeline jobs via ConfigMap
+// RadixJobResult is returned by Radix pipeline jobs via ConfigMap
 type RadixJobResult struct {
 	Result  RadixJobResultType `json:"result" yaml:"result"`
 	Message string             `json:"message" yaml:"message"`

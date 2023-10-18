@@ -9,7 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,6 +82,9 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		return fmt.Errorf("failed to retrieve default env vars for RadixDeployment in app  %s. %v", appName, err)
 	}
 
+	if commitID, ok := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]; !ok || len(commitID) == 0 {
+		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
+	}
 	radixDeployment, err := deployment.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
 		pipelineInfo.PipelineArguments.JobName,
@@ -109,11 +112,11 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	return nil
 }
 
-func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) (v1.EnvVarsMap, error) {
+func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) (radixv1.EnvVarsMap, error) {
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 
-	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
 
