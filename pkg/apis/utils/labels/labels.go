@@ -158,6 +158,32 @@ func ForJobScheduleJobType() kubelabels.Set {
 	return ForJobType(kube.RadixJobTypeJobSchedule)
 }
 
+// ForPipelineJobName returns labels describing the name of a pipeline job
+func ForPipelineJobName(jobName string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixJobNameLabel: jobName,
+	}
+}
+
+// ForPipelineJobType returns labels describing the pipeline-job type
+func ForPipelineJobType() kubelabels.Set {
+	return ForJobType(kube.RadixJobTypeJob)
+}
+
+// ForPipelineJobPipelineType returns label describing the pipeline-job pipeline type, e.g. build-deploy, promote, deploy-only
+func ForPipelineJobPipelineType(pipeline v1.RadixPipelineType) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixPipelineTypeLabels: string(pipeline),
+	}
+}
+
+// ForRadixImageTag returns labels describing that image tag used by pipeline job in a build-deploy scenario
+func ForRadixImageTag(imageTag string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixImageTagLabel: imageTag,
+	}
+}
+
 func forAzureWorkloadUseIdentity() kubelabels.Set {
 	return kubelabels.Set{
 		azureWorkloadIdentityUseLabel: "true",
