@@ -229,6 +229,11 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			},
 		},
 	}
+
+	expectedPodLabels := map[string]string{kube.RadixJobNameLabel: jobName}
+	s.Equal(expectedPodLabels, podTemplate.Labels)
+	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
+	s.Equal(expectedPodAnnotations, podTemplate.Annotations)
 	expectedPodSpec := corev1.PodSpec{
 		RestartPolicy:      corev1.RestartPolicyNever,
 		Tolerations:        expectedTolerations,
