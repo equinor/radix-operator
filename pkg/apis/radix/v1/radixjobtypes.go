@@ -103,12 +103,17 @@ type RadixPromoteSpec struct {
 	// Environment name, from which the Radix deployment is being promoted
 	//
 	// required: true
-
 	FromEnvironment string `json:"fromEnvironment" yaml:"fromEnvironment"`
+
 	// Environment name, to which the Radix deployment is being promoted
 	//
 	// required: true
 	ToEnvironment string `json:"toEnvironment" yaml:"toEnvironment"`
+
+	// CommitID of the promoted deployment
+	//
+	// required: false
+	CommitID string `json:"commitID" yaml:"commitID"`
 }
 
 // RadixDeploySpec is the spec for a deploy job
