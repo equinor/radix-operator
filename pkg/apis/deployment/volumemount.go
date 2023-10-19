@@ -53,7 +53,6 @@ const (
 	csiStorageClassStreamingMaxBuffersMountOption       = "max-buffers"                                     // The total number of buffers to be cached in memory (in MB).
 	csiStorageClassStreamingBlockSizeMountOption        = "block-size-mb"                                   // The size of each block to be cached in memory (in MB).
 	csiStorageClassStreamingBufferSizeMountOption       = "buffer-size-mb"                                  // The size of each buffer to be cached in memory (in MB).
-	csiStorageClassStreamingFileCachingMountOption      = "file-caching"                                    // File name based caching. Default is false which specifies file handle based caching.
 	csiStorageClassProtocolParameter                    = "protocol"                                        // Protocol
 	csiStorageClassProtocolParameterFuse                = "fuse"                                            // Protocol "blobfuse"
 	csiStorageClassProtocolParameterFuse2               = "fuse2"                                           // Protocol "blobfuse2"
@@ -623,9 +622,6 @@ func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []st
 	}
 	if streaming.MaxBlocksPerFile != nil {
 		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *streaming.MaxBlocksPerFile))
-	}
-	if streaming.FileCaching != nil {
-		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingFileCachingMountOption, *streaming.FileCaching))
 	}
 	return mountOptions
 }

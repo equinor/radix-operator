@@ -852,9 +852,6 @@ type RadixVolumeMountStreaming struct {
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	MaxBlocksPerFile *uint64 `json:"maxBlocksPerFile,omitempty"`
-	// Optional. File name based caching. Default is false which specifies file handle based caching.
-	// +optional
-	FileCaching *bool `json:"fileCaching,omitempty"`
 }
 
 // MountType Holds types of mount

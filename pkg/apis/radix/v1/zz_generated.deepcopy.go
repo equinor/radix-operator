@@ -2333,11 +2333,6 @@ func (in *RadixVolumeMountStreaming) DeepCopyInto(out *RadixVolumeMountStreaming
 		*out = new(uint64)
 		**out = **in
 	}
-	if in.FileCaching != nil {
-		in, out := &in.FileCaching, &out.FileCaching
-		*out = new(bool)
-		**out = **in
-	}
 	return
 }
 
