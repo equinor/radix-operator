@@ -31,18 +31,21 @@ type mockRateLimitingQueue struct {
 func (m *mockRateLimitingQueue) AddRateLimited(item interface{}) { m.Called(item) }
 func (m *mockRateLimitingQueue) Forget(item interface{})         { m.Called(item) }
 func (m *mockRateLimitingQueue) NumRequeues(item interface{}) int {
-	args := m.Called(item)
-	return args.Int(0)
+	return m.Called(item).Int(0)
 }
-func (m *mockRateLimitingQueue) AddAfter(item interface{}, duration time.Duration) {}
-func (m *mockRateLimitingQueue) Add(item interface{})                              {}
-func (m *mockRateLimitingQueue) Len() int                                          { return 0 }
+func (m *mockRateLimitingQueue) AddAfter(item interface{}, duration time.Duration) {
+	m.Called(item, duration)
+}
+func (m *mockRateLimitingQueue) Add(item interface{}) { m.Called(item) }
+func (m *mockRateLimitingQueue) Len() int {
+	return m.Called().Int(0)
+}
 func (m *mockRateLimitingQueue) Get() (item interface{}, shutdown bool) {
 	return <-m.getCh, <-m.shutdownCh
 }
 func (m *mockRateLimitingQueue) Done(item interface{}) { m.Called(item) }
-func (m *mockRateLimitingQueue) ShutDown()             {}
-func (m *mockRateLimitingQueue) ShutDownWithDrain()    {}
+func (m *mockRateLimitingQueue) ShutDown()             { m.Called() }
+func (m *mockRateLimitingQueue) ShutDownWithDrain()    { m.Called() }
 func (m *mockRateLimitingQueue) ShuttingDown() bool    { return m.Called().Bool(0) }
 
 type commonControllerTestSuite struct {
@@ -357,7 +360,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 	item := "ns/item"
 	locker.On("TryGetLock", "ns").Return(false).Times(1)
 	queue.On("ShuttingDown").Return(false).Times(1)
-	queue.On("AddRateLimited", item).Times(1)
+	queue.On("AddAfter", item, 100*time.Millisecond).Times(1)
 	queue.On("Done", item).Times(1).Run(func(args mock.Arguments) { close(doneCh) })
 	queue.getCh <- item
 	queue.shutdownCh <- false
