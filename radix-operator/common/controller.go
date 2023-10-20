@@ -131,7 +131,8 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 
 		if !locker.TryGetLock(lockKey) {
 			c.Log.Debugf("Lock for %s was busy, requeuing %s", lockKey, identifier)
-			c.WorkQueue.AddRateLimited(identifier)
+			// Use AddAfter instead of AddRateLimited. AddRateLimited can potentially cause a delay of 1000 seconds
+			c.WorkQueue.AddAfter(identifier, 100*time.Millisecond)
 			return nil
 		}
 		defer func() {
