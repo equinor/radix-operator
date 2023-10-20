@@ -174,7 +174,7 @@ func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 }
 
 func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
-	errs := []error{}
+	var errs []error
 	alias := app.Spec.DNSAppAlias
 	if alias.Component == "" && alias.Environment == "" {
 		return errs
@@ -190,7 +190,7 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 }
 
 func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
-	errs := []error{}
+	var errs []error
 
 	distinctAlias := make(map[string]bool)
 
@@ -1385,7 +1385,7 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 }
 
 func validateComponentName(componentName, componentType string) error {
-	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName); err != nil {
+	if err := validateResourceNameByRegex(fmt.Sprintf("%s name", componentType), componentName, `^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`); err != nil {
 		return err
 	}
 

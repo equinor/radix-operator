@@ -872,7 +872,7 @@
                 "description": "Name of the component.",
                 "maxLength": 253,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
               "node": {
@@ -1083,6 +1083,46 @@
           ],
           "x-kubernetes-list-type": "map"
         },
+        "dnsAlias": {
+          "description": "List of DNS names and which component and environment incoming requests shall be routed to. More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias",
+          "items": {
+            "description": "DNSAlias defines mapping between an DNS alias and a component and environment.",
+            "properties": {
+              "component": {
+                "description": "Name of the component that shall receive the incoming requests.",
+                "maxLength": 63,
+                "minLength": 1,
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
+                "type": "string"
+              },
+              "domain": {
+                "description": "Domain name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com",
+                "maxLength": 63,
+                "minLength": 1,
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
+                "type": "string"
+              },
+              "environment": {
+                "description": "Name of the environment for the component.",
+                "maxLength": 63,
+                "minLength": 1,
+                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "component",
+              "domain",
+              "environment"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "x-kubernetes-list-map-keys": [
+            "domain"
+          ],
+          "x-kubernetes-list-type": "map"
+        },
         "dnsAppAlias": {
           "description": "Configure a component and environment to be linked to the app alias DNS record. More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsappalias",
           "properties": {
@@ -1090,7 +1130,7 @@
               "description": "Name of the component that shall receive the incoming requests.",
               "maxLength": 63,
               "minLength": 1,
-              "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+              "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
               "type": "string"
             },
             "environment": {
@@ -1119,7 +1159,7 @@
                 "description": "Name of the component that shall receive the incoming requests.",
                 "maxLength": 63,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
               "environment": {
@@ -1752,7 +1792,7 @@
                 "description": "Name of the environment which the settings applies to.",
                 "maxLength": 253,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
               "node": {

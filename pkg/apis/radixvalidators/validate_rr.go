@@ -120,6 +120,10 @@ func validateConfigurationItem(value string) error {
 }
 
 func validateRequiredResourceName(resourceName, value string) error {
+	return validateResourceNameByRegex(resourceName, value, `^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$`)
+}
+
+func validateResourceNameByRegex(resourceName string, value string, expression string) error {
 	if len(value) > 253 {
 		return InvalidStringValueMaxLengthError(resourceName, value, 253)
 	}
@@ -128,7 +132,7 @@ func validateRequiredResourceName(resourceName, value string) error {
 		return ResourceNameCannotBeEmptyError(resourceName)
 	}
 
-	re := regexp.MustCompile(`^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$`)
+	re := regexp.MustCompile(expression)
 
 	isValid := re.MatchString(value)
 	if !isValid {
@@ -229,7 +233,7 @@ func validateConfigBranch(name string) error {
 // ValidateRadixConfigFullName Validates the radixconfig file name and path
 func ValidateRadixConfigFullName(radixConfigFullName string) error {
 	if len(radixConfigFullName) == 0 {
-		return nil //for empty radixConfigFullName it is used default radixconfig.yaml file name
+		return nil // for empty radixConfigFullName it is used default radixconfig.yaml file name
 	}
 	matched, err := regexp.Match(radixConfigFullNamePattern, []byte(radixConfigFullName))
 	if err != nil {

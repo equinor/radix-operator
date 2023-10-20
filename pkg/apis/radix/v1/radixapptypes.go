@@ -66,6 +66,13 @@ type RadixApplicationSpec struct {
 	// +optional
 	DNSExternalAlias []ExternalAlias `json:"dnsExternalAlias,omitempty"`
 
+	// List of DNS names and which component and environment incoming requests shall be routed to.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias
+	// +listType=map
+	// +listMapKey=domain
+	// +optional
+	DNSAlias []DNSAlias `json:"dnsAlias,omitempty"`
+
 	// Defines protected container registries used by components or jobs.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#privateimagehubs
 	// +optional
@@ -185,7 +192,7 @@ type AppAlias struct {
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Component string `json:"component,omitempty"`
 }
 
@@ -206,7 +213,28 @@ type ExternalAlias struct {
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Component string `json:"component"`
+}
+
+// DNSAlias defines mapping between an DNS alias and a component and environment.
+type DNSAlias struct {
+	// Domain name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
+	Domain string `json:"domain"`
+
+	// Name of the environment for the component.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	Environment string `json:"environment"`
+
+	// Name of the component that shall receive the incoming requests.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Component string `json:"component"`
 }
 
@@ -246,7 +274,7 @@ type RadixComponent struct {
 	// Name of the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Path to the Dockerfile that builds the component.
@@ -427,7 +455,7 @@ type RadixJobComponent struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Path to the Dockerfile that builds the job.

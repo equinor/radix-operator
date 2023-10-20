@@ -31,6 +31,7 @@ type RadixV1Interface interface {
 	RadixAlertsGetter
 	RadixApplicationsGetter
 	RadixBatchesGetter
+	RadixDNSAliasesGetter
 	RadixDeploymentsGetter
 	RadixEnvironmentsGetter
 	RadixJobsGetter
@@ -52,6 +53,10 @@ func (c *RadixV1Client) RadixApplications(namespace string) RadixApplicationInte
 
 func (c *RadixV1Client) RadixBatches(namespace string) RadixBatchInterface {
 	return newRadixBatches(c, namespace)
+}
+
+func (c *RadixV1Client) RadixDNSAliases(namespace string) RadixDNSAliasInterface {
+	return newRadixDNSAliases(c, namespace)
 }
 
 func (c *RadixV1Client) RadixDeployments(namespace string) RadixDeploymentInterface {
