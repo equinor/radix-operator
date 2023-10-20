@@ -31,8 +31,9 @@ type RadixDNSAliasLister interface {
 	// List lists all RadixDNSAliases in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixDNSAlias, err error)
-	// RadixDNSAliases returns an object that can list and get RadixDNSAliases.
-	RadixDNSAliases(namespace string) RadixDNSAliasNamespaceLister
+	// Get retrieves the RadixDNSAlias from the index for a given name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*v1.RadixDNSAlias, error)
 	RadixDNSAliasListerExpansion
 }
 
@@ -54,41 +55,9 @@ func (s *radixDNSAliasLister) List(selector labels.Selector) (ret []*v1.RadixDNS
 	return ret, err
 }
 
-// RadixDNSAliases returns an object that can list and get RadixDNSAliases.
-func (s *radixDNSAliasLister) RadixDNSAliases(namespace string) RadixDNSAliasNamespaceLister {
-	return radixDNSAliasNamespaceLister{indexer: s.indexer, namespace: namespace}
-}
-
-// RadixDNSAliasNamespaceLister helps list and get RadixDNSAliases.
-// All objects returned here must be treated as read-only.
-type RadixDNSAliasNamespaceLister interface {
-	// List lists all RadixDNSAliases in the indexer for a given namespace.
-	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixDNSAlias, err error)
-	// Get retrieves the RadixDNSAlias from the indexer for a given namespace and name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.RadixDNSAlias, error)
-	RadixDNSAliasNamespaceListerExpansion
-}
-
-// radixDNSAliasNamespaceLister implements the RadixDNSAliasNamespaceLister
-// interface.
-type radixDNSAliasNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all RadixDNSAliases in the indexer for a given namespace.
-func (s radixDNSAliasNamespaceLister) List(selector labels.Selector) (ret []*v1.RadixDNSAlias, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixDNSAlias))
-	})
-	return ret, err
-}
-
-// Get retrieves the RadixDNSAlias from the indexer for a given namespace and name.
-func (s radixDNSAliasNamespaceLister) Get(name string) (*v1.RadixDNSAlias, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+// Get retrieves the RadixDNSAlias from the index for a given name.
+func (s *radixDNSAliasLister) Get(name string) (*v1.RadixDNSAlias, error) {
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}

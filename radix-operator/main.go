@@ -10,11 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
-
 	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
+	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -25,6 +24,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
+	dnsalias "github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
@@ -60,8 +60,8 @@ func main() {
 	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(kubeClientRateLimitQPS, kubeClientRateLimitBurst))
 	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient(rateLimitConfig)
 
-	activeclusternameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
-	logger.Printf("Active cluster name: %v", activeclusternameEnvVar)
+	activeClusterNameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
+	logger.Printf("Active cluster name: %v", activeClusterNameEnvVar)
 
 	stop := make(chan struct{})
 	defer close(stop)
@@ -80,6 +80,7 @@ func main() {
 	startController(createJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.PipelineJobConfig), jobControllerThreads, stop)
 	startController(createAlertController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), alertControllerThreads, stop)
 	startController(createBatchController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), 1, stop)
+	startController(createDNSAliasesController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), environmentControllerThreads, stop)
 
 	// Start informers when all controllers are running
 	kubeInformerFactory.Start(stop)
@@ -129,7 +130,7 @@ func createRegistrationController(client kubernetes.Interface, radixClient radix
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
-	waitForChildrenToSync := true
+	const waitForChildrenToSync = true
 	return registration.NewController(
 		client,
 		radixClient,
@@ -155,7 +156,7 @@ func createApplicationController(client kubernetes.Interface, radixClient radixc
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
 	)
 
-	waitForChildrenToSync := true
+	const waitForChildrenToSync = true
 	return application.NewController(
 		client,
 		radixClient,
@@ -182,8 +183,35 @@ func createEnvironmentController(client kubernetes.Interface, radixClient radixc
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
-	waitForChildrenToSync := true
+	const waitForChildrenToSync = true
 	return environment.NewController(
+		client,
+		radixClient,
+		&handler,
+		kubeInformerFactory,
+		radixInformerFactory,
+		waitForChildrenToSync,
+		recorder)
+}
+
+func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+	kubeUtil, _ := kube.NewWithListers(
+		client,
+		radixClient,
+		secretProviderClient,
+		kubeInformerFactory,
+		radixInformerFactory,
+	)
+
+	handler := dnsalias.NewHandler(
+		client,
+		kubeUtil,
+		radixClient,
+		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+	)
+
+	const waitForChildrenToSync = true
+	return dnsalias.NewController(
 		client,
 		radixClient,
 		&handler,
@@ -227,7 +255,7 @@ func createDeploymentController(client kubernetes.Interface, radixClient radixcl
 		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
 	)
 
-	waitForChildrenToSync := true
+	const waitForChildrenToSync = true
 	return deployment.NewController(
 		client,
 		radixClient,
@@ -249,7 +277,7 @@ func createJobController(client kubernetes.Interface, radixClient radixclient.In
 
 	handler := job.NewHandler(client, kubeUtil, radixClient, config, func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 
-	waitForChildrenToSync := true
+	const waitForChildrenToSync = true
 	return job.NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, recorder)
 }
 
@@ -268,7 +296,7 @@ func createAlertController(client kubernetes.Interface, radixClient radixclient.
 		prometheusOperatorClient,
 	)
 
-	waitForChildrenToSync := true
+	const waitForChildrenToSync = true
 	return alert.NewController(
 		client,
 		radixClient,
@@ -294,7 +322,7 @@ func createBatchController(client kubernetes.Interface, radixClient radixclient.
 		radixClient,
 	)
 
-	waitForChildrenToSync := true
+	const waitForChildrenToSync = true
 	return batch.NewController(
 		client,
 		radixClient,
@@ -306,17 +334,17 @@ func createBatchController(client kubernetes.Interface, radixClient radixclient.
 }
 
 func loadIngressConfigFromMap(kubeutil *kube.Kube) (deploymentAPI.IngressConfiguration, error) {
-	config := deploymentAPI.IngressConfiguration{}
+	ingressConfig := deploymentAPI.IngressConfiguration{}
 	configMap, err := kubeutil.GetConfigMap(metav1.NamespaceDefault, ingressConfigurationMap)
 	if err != nil {
-		return config, err
+		return ingressConfig, err
 	}
 
-	err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &config)
+	err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &ingressConfig)
 	if err != nil {
-		return config, err
+		return ingressConfig, err
 	}
-	return config, nil
+	return ingressConfig, nil
 }
 
 func startMetricsServer(stop <-chan struct{}) {
@@ -342,7 +370,7 @@ type HealthStatus struct {
 }
 
 // Healthz The health endpoint
-func Healthz(writer http.ResponseWriter, r *http.Request) {
+func Healthz(writer http.ResponseWriter, _ *http.Request) {
 	health := HealthStatus{
 		Status: http.StatusOK,
 	}
@@ -355,7 +383,7 @@ func Healthz(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(writer, "%s", response)
+	_, _ = fmt.Fprintf(writer, "%s", response)
 }
 
 func setLogLevel(logLevel string) {

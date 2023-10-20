@@ -46,10 +46,6 @@ type RadixBatchNamespaceListerExpansion interface{}
 // RadixDNSAliasLister.
 type RadixDNSAliasListerExpansion interface{}
 
-// RadixDNSAliasNamespaceListerExpansion allows custom methods to be added to
-// RadixDNSAliasNamespaceLister.
-type RadixDNSAliasNamespaceListerExpansion interface{}
-
 // RadixDeploymentListerExpansion allows custom methods to be added to
 // RadixDeploymentLister.
 type RadixDeploymentListerExpansion interface{}

@@ -42,33 +42,32 @@ type RadixDNSAliasInformer interface {
 type radixDNSAliasInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
-	namespace        string
 }
 
 // NewRadixDNSAliasInformer constructs a new informer for RadixDNSAlias type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewRadixDNSAliasInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredRadixDNSAliasInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewRadixDNSAliasInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredRadixDNSAliasInformer(client, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredRadixDNSAliasInformer constructs a new informer for RadixDNSAlias type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredRadixDNSAliasInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredRadixDNSAliasInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixDNSAliases(namespace).List(context.TODO(), options)
+				return client.RadixV1().RadixDNSAliases().List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixDNSAliases(namespace).Watch(context.TODO(), options)
+				return client.RadixV1().RadixDNSAliases().Watch(context.TODO(), options)
 			},
 		},
 		&radixv1.RadixDNSAlias{},
@@ -78,7 +77,7 @@ func NewFilteredRadixDNSAliasInformer(client versioned.Interface, namespace stri
 }
 
 func (f *radixDNSAliasInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredRadixDNSAliasInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewFilteredRadixDNSAliasInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *radixDNSAliasInformer) Informer() cache.SharedIndexInformer {

@@ -33,7 +33,7 @@ import (
 // RadixDNSAliasesGetter has a method to return a RadixDNSAliasInterface.
 // A group's client should implement this interface.
 type RadixDNSAliasesGetter interface {
-	RadixDNSAliases(namespace string) RadixDNSAliasInterface
+	RadixDNSAliases() RadixDNSAliasInterface
 }
 
 // RadixDNSAliasInterface has methods to work with RadixDNSAlias resources.
@@ -53,14 +53,12 @@ type RadixDNSAliasInterface interface {
 // radixDNSAliases implements RadixDNSAliasInterface
 type radixDNSAliases struct {
 	client rest.Interface
-	ns     string
 }
 
 // newRadixDNSAliases returns a RadixDNSAliases
-func newRadixDNSAliases(c *RadixV1Client, namespace string) *radixDNSAliases {
+func newRadixDNSAliases(c *RadixV1Client) *radixDNSAliases {
 	return &radixDNSAliases{
 		client: c.RESTClient(),
-		ns:     namespace,
 	}
 }
 
@@ -68,7 +66,6 @@ func newRadixDNSAliases(c *RadixV1Client, namespace string) *radixDNSAliases {
 func (c *radixDNSAliases) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixDNSAlias, err error) {
 	result = &v1.RadixDNSAlias{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -85,7 +82,6 @@ func (c *radixDNSAliases) List(ctx context.Context, opts metav1.ListOptions) (re
 	}
 	result = &v1.RadixDNSAliasList{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -102,7 +98,6 @@ func (c *radixDNSAliases) Watch(ctx context.Context, opts metav1.ListOptions) (w
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -113,7 +108,6 @@ func (c *radixDNSAliases) Watch(ctx context.Context, opts metav1.ListOptions) (w
 func (c *radixDNSAliases) Create(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.CreateOptions) (result *v1.RadixDNSAlias, err error) {
 	result = &v1.RadixDNSAlias{}
 	err = c.client.Post().
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixDNSAlias).
@@ -126,7 +120,6 @@ func (c *radixDNSAliases) Create(ctx context.Context, radixDNSAlias *v1.RadixDNS
 func (c *radixDNSAliases) Update(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.UpdateOptions) (result *v1.RadixDNSAlias, err error) {
 	result = &v1.RadixDNSAlias{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		Name(radixDNSAlias.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -141,7 +134,6 @@ func (c *radixDNSAliases) Update(ctx context.Context, radixDNSAlias *v1.RadixDNS
 func (c *radixDNSAliases) UpdateStatus(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.UpdateOptions) (result *v1.RadixDNSAlias, err error) {
 	result = &v1.RadixDNSAlias{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		Name(radixDNSAlias.Name).
 		SubResource("status").
@@ -155,7 +147,6 @@ func (c *radixDNSAliases) UpdateStatus(ctx context.Context, radixDNSAlias *v1.Ra
 // Delete takes name of the radixDNSAlias and deletes it. Returns an error if one occurs.
 func (c *radixDNSAliases) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		Name(name).
 		Body(&opts).
@@ -170,7 +161,6 @@ func (c *radixDNSAliases) DeleteCollection(ctx context.Context, opts metav1.Dele
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -183,7 +173,6 @@ func (c *radixDNSAliases) DeleteCollection(ctx context.Context, opts metav1.Dele
 func (c *radixDNSAliases) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixDNSAlias, err error) {
 	result = &v1.RadixDNSAlias{}
 	err = c.client.Patch(pt).
-		Namespace(c.ns).
 		Resource("radixdnsaliases").
 		Name(name).
 		SubResource(subresources...).

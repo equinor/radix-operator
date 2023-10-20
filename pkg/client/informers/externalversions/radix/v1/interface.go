@@ -70,7 +70,7 @@ func (v *version) RadixBatches() RadixBatchInformer {
 
 // RadixDNSAliases returns a RadixDNSAliasInformer.
 func (v *version) RadixDNSAliases() RadixDNSAliasInformer {
-	return &radixDNSAliasInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+	return &radixDNSAliasInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // RadixDeployments returns a RadixDeploymentInformer.
