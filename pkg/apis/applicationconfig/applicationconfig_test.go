@@ -12,6 +12,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -671,8 +672,13 @@ type testIngress struct {
 }
 
 func Test_DNSAliases(t *testing.T) {
-	appName := "any-app1"
-
+	const (
+		appName              = "any-app1"
+		envDev               = "dev"
+		componentNameServer1 = "server1"
+		server1Anyapp1DevDns = "server1-any-app1-dev.radix.equinor.com"
+		port                 = 8080
+	)
 	var testScenarios = []struct {
 		name                    string
 		dnsAliases              []radixv1.DNSAlias
@@ -682,7 +688,27 @@ func Test_DNSAliases(t *testing.T) {
 		expectedIngress         map[string]testIngress
 	}{
 		{
-			name: "no aliases, no additional radix aliases, no additional ingresses",
+			name: "no aliases, no existing RDA, no existing ingresses, no additional radix aliases, no additional ingresses",
+		},
+		{
+			name:            "no aliases, no existing RDA, exist ingresses, no additional radix aliases, no additional ingresses",
+			existingIngress: []testIngress{{appName: appName, envName: envDev, name: componentNameServer1, host: server1Anyapp1DevDns, component: componentNameServer1, port: port}},
+			expectedIngress: map[string]testIngress{componentNameServer1: {appName: appName, envName: envDev, name: componentNameServer1, host: server1Anyapp1DevDns, component: componentNameServer1, port: port}},
+		},
+		{
+			name: "multiple aliases, no existing RDA, no existing ingresses, additional radix aliases, additional ingresses",
+			dnsAliases: []radixv1.DNSAlias{
+				{Domain: "domain1", Environment: envDev, Component: componentNameServer1},
+				{Domain: "domain2", Environment: envDev, Component: componentNameServer1},
+			},
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				"domain1": {AppName: appName, Environment: envDev, Component: componentNameServer1},
+				"domain2": {AppName: appName, Environment: envDev, Component: componentNameServer1},
+			},
+			expectedIngress: map[string]testIngress{
+				"server1.domain1.custom-domain": {appName: appName, envName: envDev, name: "server1.domain1.custom-domain", host: "domain1.custom-domain.radix.equinor.com", component: componentNameServer1, port: port},
+				"server1.domain2.custom-domain": {appName: appName, envName: envDev, name: "server1.domain2.custom-domain", host: "domain2.custom-domain.radix.equinor.com", component: componentNameServer1, port: port},
+			},
 		},
 	}
 	tu, kubeClient, kubeUtil, radixClient := setupTest()
@@ -701,36 +727,40 @@ func Test_DNSAliases(t *testing.T) {
 
 			// assert RadixDNSAlias-es
 			if ts.expectedRadixDNSAliases == nil {
-				require.Len(t, radixDNSAliases.Items, 0, "not expected Radix DNS aliases")
+				assert.Len(t, radixDNSAliases.Items, 0, "not expected Radix DNS aliases")
 			} else {
-				require.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "expected Radix DNS aliases count")
-				for _, radixDNSAlias := range radixDNSAliases.Items {
-					if expectedDNSAlias, ok := ts.expectedRadixDNSAliases[radixDNSAlias.Name]; ok {
-						assert.Equal(t, expectedDNSAlias.AppName, radixDNSAlias.Spec.AppName, "app name")
-						assert.Equal(t, expectedDNSAlias.Environment, radixDNSAlias.Spec.Environment, "environment")
-						assert.Equal(t, expectedDNSAlias.Component, radixDNSAlias.Spec.Component, "component")
-					} else {
-						assert.Failf(t, "found not expected RadixDNSAlias %s: env %s, component %s, appName %s", radixDNSAlias.GetName(), radixDNSAlias.Spec.Environment, radixDNSAlias.Spec.Component, radixDNSAlias.Spec.AppName)
+				assert.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "not matching expected Radix DNS aliases count")
+				if len(radixDNSAliases.Items) == len(ts.expectedRadixDNSAliases) {
+					for _, radixDNSAlias := range radixDNSAliases.Items {
+						if expectedDNSAlias, ok := ts.expectedRadixDNSAliases[radixDNSAlias.Name]; ok {
+							assert.Equal(t, expectedDNSAlias.AppName, radixDNSAlias.Spec.AppName, "app name")
+							assert.Equal(t, expectedDNSAlias.Environment, radixDNSAlias.Spec.Environment, "environment")
+							assert.Equal(t, expectedDNSAlias.Component, radixDNSAlias.Spec.Component, "component")
+						} else {
+							assert.Failf(t, "found not expected RadixDNSAlias %s: env %s, component %s, appName %s", radixDNSAlias.GetName(), radixDNSAlias.Spec.Environment, radixDNSAlias.Spec.Component, radixDNSAlias.Spec.AppName)
+						}
 					}
 				}
 			}
 			// assert ingresses
 			if ts.expectedIngress == nil {
-				require.Len(t, ingresses.Items, 0, "not expected ingresses")
+				assert.Len(t, ingresses.Items, 0, "not expected ingresses")
 			} else {
-				require.Len(t, ingresses.Items, len(ts.expectedIngress), "expected ingresses count")
-				for _, ingress := range ingresses.Items {
-					if expectedIngress, ok := ts.expectedIngress[ingress.Name]; ok {
-						require.Len(t, ingress.Spec.Rules, 1, "rules count")
-						assert.Equal(t, expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
-						assert.Equal(t, utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
-						assert.Equal(t, expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
-						assert.Equal(t, expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
-						assert.Equal(t, "/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
-						assert.Equal(t, expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend component name")
-						assert.Equal(t, expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port, "rule backend component port")
-					} else {
-						assert.Failf(t, "found not expected ingress %s: appName %s, host %s, service %s, port %d", ingress.GetName(), ingress.GetLabels()[kube.RadixAppLabel], ingress.Spec.Rules[0].Host, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, &ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port)
+				assert.Len(t, ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
+				if len(ingresses.Items) == len(ts.expectedIngress) {
+					for _, ingress := range ingresses.Items {
+						if expectedIngress, ok := ts.expectedIngress[ingress.Name]; ok {
+							require.Len(t, ingress.Spec.Rules, 1, "rules count")
+							assert.Equal(t, expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
+							assert.Equal(t, utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
+							assert.Equal(t, expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
+							assert.Equal(t, expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
+							assert.Equal(t, "/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
+							assert.Equal(t, expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend service name")
+							assert.Equal(t, expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "rule backend service port")
+						} else {
+							assert.Failf(t, "found not expected ingress %s: appName %s, host %s, service %s, port %d", ingress.GetName(), ingress.GetLabels()[kube.RadixAppLabel], ingress.Spec.Rules[0].Host, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, &ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port)
+						}
 					}
 				}
 			}
@@ -745,7 +775,7 @@ func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses []
 			&networkingv1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   ing.name,
-					Labels: map[string]string{kube.RadixAppLabel: ing.appName},
+					Labels: labels.Merge(labels.ForApplicationName(ing.appName), labels.ForComponentName(ing.component)),
 				},
 				Spec: networkingv1.IngressSpec{
 					TLS: []networkingv1.IngressTLS{

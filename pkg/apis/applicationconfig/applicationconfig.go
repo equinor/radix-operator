@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -73,7 +74,7 @@ func GetComponent(ra *v1.RadixApplication, name string) v1.RadixCommonComponent 
 	return nil
 }
 
-// GetComponentEnvironmentConfig Gets environment config of component
+// GetComponentEnvironmentConfig Gets environment config of component. This method is used by radix-api
 func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) v1.RadixCommonEnvironmentConfig {
 	// TODO: Add interface for RA + EnvConfig
 	return GetEnvironment(GetComponent(ra, componentName), envName)
@@ -157,37 +158,26 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 // It compares the actual state with the desired, and attempts to
 // converge the two
 func (app *ApplicationConfig) OnSync() error {
-	err := app.createEnvironments()
-	if err != nil {
+	if err := app.createEnvironments(); err != nil {
 		log.Errorf("Failed to create namespaces for app environments %s. %v", app.config.Name, err)
 		return err
 	}
-
-	err = app.syncPrivateImageHubSecrets()
-	if err != nil {
+	if err := app.syncPrivateImageHubSecrets(); err != nil {
 		log.Errorf("Failed to create private image hub secrets. %v", err)
 		return err
 	}
-
-	err = utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
-	if err != nil {
+	if err := utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName); err != nil {
 		log.Warnf("failed to grant reader access to private image hub secret %v", err)
 	}
-
-	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
-	if err != nil {
+	if err := utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName); err != nil {
 		log.Warnf("failed to grant access to private image hub secret %v", err)
 		return err
 	}
-
-	err = app.syncBuildSecrets()
-	if err != nil {
+	if err := app.syncBuildSecrets(); err != nil {
 		log.Errorf("Failed to create build secrets. %v", err)
 		return err
 	}
-
-	err = app.createOrUpdateDNSAliases()
-	if err != nil {
+	if err := app.createOrUpdateDNSAliases(); err != nil {
 		return fmt.Errorf("failed to process DNS aliases: %w", err)
 	}
 	return nil
@@ -195,9 +185,9 @@ func (app *ApplicationConfig) OnSync() error {
 
 // createEnvironments Will create environments defined in the radix config
 func (app *ApplicationConfig) createEnvironments() error {
-
+	var errs []error
 	for _, env := range app.config.Spec.Environments {
-		app.applyEnvironment(utils.NewEnvironmentBuilder().
+		err := app.applyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(app.config.Name).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
@@ -209,9 +199,11 @@ func (app *ApplicationConfig) createEnvironments() error {
 			// Only an explicit call to UpdateStatus can update status object, and this is only done by the RadixEnvironment controller.
 			WithOrphaned(false).
 			BuildRE())
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
-
-	return nil
+	return commonErrors.Concat(errs)
 }
 
 func getTargetEnvironmentsAsMap(branchToBuild string, radixApplication *v1.RadixApplication) map[string]bool {
