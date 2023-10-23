@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -660,44 +661,135 @@ func Test_IsConfigBranch(t *testing.T) {
 	})
 }
 
+type testIngress struct {
+	appName   string
+	envName   string
+	name      string
+	host      string
+	component string
+	port      int32
+}
+
 func Test_DNSAliases(t *testing.T) {
 	appName := "any-app1"
+
 	var testScenarios = []struct {
 		name                    string
 		dnsAliases              []radixv1.DNSAlias
 		existingRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
 		expectedRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
+		existingIngress         []testIngress
+		expectedIngress         map[string]testIngress
 	}{
 		{
-			name: "no aliases",
+			name: "no aliases, no additional radix aliases, no additional ingresses",
 		},
 	}
-	tu, client, kubeUtil, radixClient := setupTest()
+	tu, kubeClient, kubeUtil, radixClient := setupTest()
 
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
 			ra := utils.ARadixApplication().WithAppName(appName).WithDNSAlias(ts.dnsAliases...)
-			applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra)
+			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ra), "register radix application")
+			require.NoError(t, registerExistingRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
+			require.NoError(t, registerExistingIngresses(kubeClient, ts.existingIngress), "create existing ingresses")
 
 			radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{})
 			require.NoError(t, err)
+			ingresses, err := kubeClient.NetworkingV1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
+			require.NoError(t, err)
 
+			// assert RadixDNSAlias-es
 			if ts.expectedRadixDNSAliases == nil {
 				require.Len(t, radixDNSAliases.Items, 0, "not expected Radix DNS aliases")
-				return
+			} else {
+				require.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "expected Radix DNS aliases count")
+				for _, radixDNSAlias := range radixDNSAliases.Items {
+					if expectedDNSAlias, ok := ts.expectedRadixDNSAliases[radixDNSAlias.Name]; ok {
+						assert.Equal(t, expectedDNSAlias.AppName, radixDNSAlias.Spec.AppName, "app name")
+						assert.Equal(t, expectedDNSAlias.Environment, radixDNSAlias.Spec.Environment, "environment")
+						assert.Equal(t, expectedDNSAlias.Component, radixDNSAlias.Spec.Component, "component")
+					} else {
+						assert.Failf(t, "found not expected RadixDNSAlias %s: env %s, component %s, appName %s", radixDNSAlias.GetName(), radixDNSAlias.Spec.Environment, radixDNSAlias.Spec.Component, radixDNSAlias.Spec.AppName)
+					}
+				}
 			}
-			require.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "expected Radix DNS aliases count")
-			for _, radixDNSAlias := range radixDNSAliases.Items {
-				if expectedDNSAlias, ok := ts.expectedRadixDNSAliases[radixDNSAlias.Name]; ok {
-					assert.Equal(t, expectedDNSAlias.AppName, radixDNSAlias.Spec.AppName, "app name")
-					assert.Equal(t, expectedDNSAlias.Environment, radixDNSAlias.Spec.Environment, "environment")
-					assert.Equal(t, expectedDNSAlias.Component, radixDNSAlias.Spec.Component, "component")
-				} else {
-					assert.Failf(t, "found not expected RadixDNSAlias %s: env %s, component %s, appName %s", radixDNSAlias.GetName(), radixDNSAlias.Spec.Environment, radixDNSAlias.Spec.Component, radixDNSAlias.Spec.AppName)
+			// assert ingresses
+			if ts.expectedIngress == nil {
+				require.Len(t, ingresses.Items, 0, "not expected ingresses")
+			} else {
+				require.Len(t, ingresses.Items, len(ts.expectedIngress), "expected ingresses count")
+				for _, ingress := range ingresses.Items {
+					if expectedIngress, ok := ts.expectedIngress[ingress.Name]; ok {
+						require.Len(t, ingress.Spec.Rules, 1, "rules count")
+						assert.Equal(t, expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
+						assert.Equal(t, utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
+						assert.Equal(t, expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
+						assert.Equal(t, expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
+						assert.Equal(t, "/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
+						assert.Equal(t, expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend component name")
+						assert.Equal(t, expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port, "rule backend component port")
+					} else {
+						assert.Failf(t, "found not expected ingress %s: appName %s, host %s, service %s, port %d", ingress.GetName(), ingress.GetLabels()[kube.RadixAppLabel], ingress.Spec.Rules[0].Host, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, &ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port)
+					}
 				}
 			}
 		})
 	}
+}
+
+func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses []testIngress) error {
+	for _, ing := range testIngresses {
+		pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
+		_, err := kubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(ing.appName, ing.envName)).Create(context.TODO(),
+			&networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   ing.name,
+					Labels: map[string]string{kube.RadixAppLabel: ing.appName},
+				},
+				Spec: networkingv1.IngressSpec{
+					TLS: []networkingv1.IngressTLS{
+						{
+							Hosts:      []string{ing.host},
+							SecretName: "radix-wildcard-tls-cert",
+						},
+					},
+					Rules: []networkingv1.IngressRule{
+						{
+							Host: ing.host,
+							IngressRuleValue: networkingv1.IngressRuleValue{
+								HTTP: &networkingv1.HTTPIngressRuleValue{Paths: []networkingv1.HTTPIngressPath{
+									{Path: "/", PathType: &pathTypeImplementationSpecific, Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{Name: ing.component, Port: networkingv1.ServiceBackendPort{
+											Number: ing.port,
+										}},
+									}}},
+								}},
+						},
+					},
+				}}, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func registerExistingRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]radixv1.RadixDNSAliasSpec) error {
+	for domain, rdaSpec := range radixDNSAliasesMap {
+		_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.TODO(),
+			&radixv1.RadixDNSAlias{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   domain,
+					Labels: map[string]string{kube.RadixAppLabel: rdaSpec.AppName},
+				},
+				Spec: rdaSpec,
+			}, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
