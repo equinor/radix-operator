@@ -14,10 +14,10 @@ var SchemeGroupVersion = schema.GroupVersion{
 	Version: "v1",
 }
 var (
-	//SchemeBuilder builds a scheme
+	// SchemeBuilder builds a scheme
 	SchemeBuilder      runtime.SchemeBuilder
 	localSchemeBuilder = &SchemeBuilder
-	//AddToScheme adds to scheme
+	// AddToScheme adds to scheme
 	AddToScheme = localSchemeBuilder.AddToScheme
 )
 
@@ -31,7 +31,7 @@ func Resource(resource string) schema.GroupResource {
 }
 
 // addKnownTypes adds our types to the API scheme by registering
-// RadixApplication, RadixApplicationList, RadixDeployment and RadixDeploymentList
+// RadixApplication, RadixApplicationList, RadixDeployment, RadixDeploymentList, etc.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(
 		SchemeGroupVersion,
@@ -49,6 +49,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&RadixAlertList{},
 		&RadixBatch{},
 		&RadixBatchList{},
+		&RadixDNSAlias{},
+		&RadixDNSAliasList{},
 	)
 
 	// register the type in the scheme

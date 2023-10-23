@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixTypes "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
 	log "github.com/sirupsen/logrus"
@@ -187,6 +186,10 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
+	err = app.createOrUpdateDNSAliases()
+	if err != nil {
+		return fmt.Errorf("failed to process DNS aliases: %w", err)
+	}
 	return nil
 }
 
