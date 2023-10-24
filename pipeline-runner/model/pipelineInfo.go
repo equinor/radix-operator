@@ -2,10 +2,11 @@ package model
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	"strings"
 	"time"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 
 	"github.com/equinor/radix-common/utils/maps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -47,6 +48,7 @@ type PipelineInfo struct {
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
+
 	// Prepare pipeline job build context
 	PrepareBuildContext *PrepareBuildContext
 	StopPipeline        bool

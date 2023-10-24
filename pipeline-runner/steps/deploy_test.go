@@ -1,4 +1,4 @@
-package steps
+package steps_test
 
 import (
 	"context"
@@ -6,9 +6,13 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
+	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/require"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,6 +21,7 @@ import (
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
 const (
@@ -26,6 +31,18 @@ const (
 	anyCommitID = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
 	anyGitTags  = "some tags go here"
 )
+
+func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils) {
+	// Setup
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
+	testUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
+
+	return kubeclient, kubeUtil, radixclient, testUtils
+}
 
 // FakeNamespaceWatcher Unit tests doesn't handle muliti-threading well
 type FakeNamespaceWatcher struct {
@@ -56,7 +73,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 				WithName(anyComponentName)).
 		BuildRA()
 
-	cli := NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
@@ -162,7 +179,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli := NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
@@ -278,7 +295,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli := NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)

@@ -4,33 +4,48 @@ import (
 	"context"
 	"fmt"
 
+	pipelineinternal "github.com/equinor/radix-operator/pipeline-runner/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
+	pipelinewait "github.com/equinor/radix-operator/pipeline-runner/wait"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // PreparePipelinesStepImplementation Step to prepare radixconfig and Tekton pipelines
 type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
+	jobWaiter pipelinewait.JobCompletionWaiter
 }
 
-// NewPreparePipelinesStep Constructor
-func NewPreparePipelinesStep() model.Step {
+// NewPreparePipelinesStep Constructor.
+// jobWaiter is optional and will be set by Init(...) function if nil.
+func NewPreparePipelinesStep(jobWaiter pipelinewait.JobCompletionWaiter) model.Step {
 	return &PreparePipelinesStepImplementation{
-		stepType: pipeline.PreparePipelinesStep,
+		stepType:  pipeline.PreparePipelinesStep,
+		jobWaiter: jobWaiter,
+	}
+}
+
+func (step *PreparePipelinesStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+	if step.jobWaiter == nil {
+		step.jobWaiter = pipelinewait.NewJobCompletionWaiter(kubeclient)
 	}
 }
 
@@ -83,7 +98,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 		return err
 	}
 
-	return cli.GetKubeutil().WaitForCompletionOf(job)
+	return cli.jobWaiter.Wait(job)
 }
 
 func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
@@ -165,7 +180,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 	sshURL := registration.Spec.CloneURL
 	initContainers := cli.getInitContainerCloningRepo(pipelineInfo, configBranch, sshURL)
 
-	return pipelineUtils.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
+	return pipelineinternal.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
 }
 
