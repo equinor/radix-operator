@@ -4,12 +4,14 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/sirupsen/logrus"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -20,7 +22,6 @@ import (
 
 const (
 	controllerAgentName = "dns-alias-controller"
-	crType              = "RadixDNSAlias"
 )
 
 var logger *logrus.Entry
@@ -30,7 +31,7 @@ func init() {
 }
 
 // NewController creates a new controller that handles RadixDNSAlias
-func NewController(client kubernetes.Interface,
+func NewController(kubeClient kubernetes.Interface,
 	radixClient radixclient.Interface,
 	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -39,19 +40,16 @@ func NewController(client kubernetes.Interface,
 	recorder record.EventRecorder) *common.Controller {
 
 	dnsAliasInformer := radixInformerFactory.Radix().V1().RadixDNSAliases()
-	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
-	environmentInformer := radixInformerFactory.Radix().V1().RadixEnvironments()
-	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 	ingressInformer := kubeInformerFactory.Networking().V1().Ingresses()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
-		HandlerOf:             crType,
-		KubeClient:            client,
+		HandlerOf:             defaults.RadixDNSAliasKind,
+		KubeClient:            kubeClient,
 		RadixClient:           radixClient,
 		Informer:              dnsAliasInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), defaults.RadixDNSAliasKind),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -64,7 +62,7 @@ func NewController(client kubernetes.Interface,
 	dnsAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			controller.Enqueue(cur)
-			metrics.CustomResourceAdded(crType)
+			metrics.CustomResourceAdded(defaults.RadixDNSAliasKind)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRDA := cur.(*v1.RadixDNSAlias)
@@ -72,82 +70,45 @@ func NewController(client kubernetes.Interface,
 
 			if deepEqual(oldRDA, newRDA) {
 				logger.Debugf("RadixDNSAlias object is equal to old for %s. Do nothing", newRDA.GetName())
-				metrics.CustomResourceUpdatedButSkipped(crType)
+				metrics.CustomResourceUpdatedButSkipped(defaults.RadixDNSAliasKind)
 				return
 			}
 
 			controller.Enqueue(cur)
-			metrics.CustomResourceUpdated(crType)
+			metrics.CustomResourceUpdated(defaults.RadixDNSAliasKind)
 		},
 		DeleteFunc: func(obj interface{}) {
-			// TODO delete ingresses
-			// radixDNSAlias, converted := obj.(*v1.RadixDNSAlias)
-			_, converted := obj.(*v1.RadixDNSAlias)
+			radixDNSAlias, converted := obj.(*v1.RadixDNSAlias)
 			if !converted {
 				logger.Errorf("RadixDNSAlias object cast failed during deleted event received.")
 				return
 			}
-			// key, err := cache.MetaNamespaceKeyFunc(radixDNSAlias)
-			// if err != nil {
-			// 	logger.Errorf("RadixDNSAlias object deleted event received for %s. Do nothing", key)
-			// }
-			metrics.CustomResourceDeleted(crType)
-		},
-	})
-
-	environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
-			// TODO alert in events if missing ns
-		},
-	})
-
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
-			// TODO alert in events if missing ns
+			key, err := cache.MetaNamespaceKeyFunc(radixDNSAlias)
+			if err != nil {
+				logger.Errorf("error on RadixDNSAlias object deleted event received for %s: %v", key, err)
+			}
+			metrics.CustomResourceDeleted(defaults.RadixDNSAliasKind)
 		},
 	})
 
 	ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldMeta := oldObj.(metav1.Object)
+			newMeta := newObj.(metav1.Object)
+			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
+				return
+			}
+			controller.HandleObject(newObj, defaults.RadixDNSAliasKind, getOwner)
+		},
 		DeleteFunc: func(obj interface{}) {
-			// TODO restore ingress if missing
-		},
-	})
-
-	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
-			newRa := cur.(*v1.RadixApplication)
-			oldRa := old.(*v1.RadixApplication)
-			if newRa.ResourceVersion == oldRa.ResourceVersion {
-				return
-			}
-			// TODO update SNS aliases
-			// dnsAliasesToResync := getAddedOrDroppedDNSAliasDomains(oldRa, newRa)
-			// for _, domain := range dnsAliasesToResync {
-			// 	uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
-			// 	re, err := radixClient.RadixV1().RadixDNSAliases().Get(context.TODO(), uniqueName, metav1.GetOptions{})
-			// 	if err == nil {
-			// 		controller.Enqueue(re)
-			// 	}
-			// }
-		},
-		DeleteFunc: func(cur interface{}) {
-			// TODO delete DNS aliases
-			// radixApplication, converted := cur.(*v1.RadixApplication)
-			_, converted := cur.(*v1.RadixApplication)
+			ing, converted := obj.(*networkingv1.Ingress)
 			if !converted {
-				logger.Errorf("RadixApplication object cast failed during deleted event received.")
+				logger.Errorf("Ingress object cast failed during deleted event received.")
 				return
 			}
-			// for _, env := range radixApplication.Spec.Environments {
-			// 	uniqueName := utils.GetEnvironmentNamespace(radixApplication.Name, env.Name)
-			// 	re, err := radixClient.RadixV1().RadixDNSAliases().Get(context.TODO(), uniqueName, metav1.GetOptions{})
-			// 	if err == nil {
-			// 		controller.Enqueue(re)
-			// 	}
-			// }
+			controller.HandleObject(ing, defaults.RadixDNSAliasKind, getOwner)
 		},
 	})
-
 	return controller
 }
 
@@ -161,7 +122,7 @@ func deepEqual(old, new *v1.RadixDNSAlias) bool {
 	return true
 }
 
-func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getOwner(radixClient radixclient.Interface, _, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixDNSAliases().Get(context.TODO(), name, metav1.GetOptions{})
 }
 

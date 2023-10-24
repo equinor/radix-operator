@@ -183,7 +183,6 @@ func (app *ApplicationConfig) OnSync() error {
 	return nil
 }
 
-// createEnvironments Will create environments defined in the radix config
 func (app *ApplicationConfig) createEnvironments() error {
 	var errs []error
 	for _, env := range app.config.Spec.Environments {

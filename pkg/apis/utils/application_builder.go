@@ -120,6 +120,7 @@ func (ap *ApplicationBuilderStruct) WithDNSAlias(dnsAliases ...radixv1.DNSAlias)
 		foundExistingAlias := false
 		for i := 0; i < len(ap.dnsAliases); i++ {
 			if strings.EqualFold(dnsAlias.Domain, ap.dnsAliases[i].Domain) {
+				ap.dnsAliases[i].Domain = dnsAlias.Domain
 				ap.dnsAliases[i].Environment = dnsAlias.Environment
 				ap.dnsAliases[i].Component = dnsAlias.Component
 				foundExistingAlias = true
@@ -130,6 +131,7 @@ func (ap *ApplicationBuilderStruct) WithDNSAlias(dnsAliases ...radixv1.DNSAlias)
 			continue
 		}
 		dnsAliasesToAppend = append(dnsAliasesToAppend, radixv1.DNSAlias{
+			Domain:      dnsAlias.Domain,
 			Environment: dnsAlias.Environment,
 			Component:   dnsAlias.Component,
 		})

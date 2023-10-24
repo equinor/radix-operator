@@ -12,10 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	dnsAliasIngressNameTemplate = "%s.%s.custom-domain" // <component-name>.<dns0alias-domain>.custom-domain
-)
-
 func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 	appName := app.registration.Name
 	var errs []error

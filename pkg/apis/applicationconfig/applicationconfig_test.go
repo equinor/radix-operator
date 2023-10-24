@@ -1,4 +1,4 @@
-package applicationconfig
+package applicationconfig_test
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"log"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -46,9 +47,9 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }
 
-func getApplication(ra *radixv1.RadixApplication) *ApplicationConfig {
+func getApplication(ra *radixv1.RadixApplication) *applicationconfig.ApplicationConfig {
 	// The other arguments are not relevant for this test
-	application, _ := NewApplicationConfig(nil, nil, nil, nil, ra)
+	application, _ := applicationconfig.NewApplicationConfig(nil, nil, nil, nil, ra)
 	return application
 }
 
@@ -57,11 +58,11 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
-	app, _ := NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp)
+	app, _ := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
-		err := app.createEnvironments()
+		err := app.OnSync()
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.TODO(),
@@ -72,7 +73,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
-		err := app.createEnvironments()
+		err := app.OnSync()
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.TODO(),
@@ -118,11 +119,11 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	app, _ := NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	app, _ := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
-	app.createEnvironments()
+	app.OnSync()
 	environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 		context.TODO(),
 		metav1.ListOptions{
@@ -247,32 +248,27 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 }
 
 func TestIsTargetEnvsEmpty_noEntry(t *testing.T) {
-	targetEnvs := map[string]bool{}
-	assert.Equal(t, true, isTargetEnvsEmpty(targetEnvs))
+	ra := utils.NewRadixApplicationBuilder().BuildRA()
+	hasEnvToDeploy, _ := applicationconfig.IsThereAnythingToDeployForRadixApplication("main", ra)
+	assert.False(t, hasEnvToDeploy)
 }
 
 func TestIsTargetEnvsEmpty_twoEntriesWithBranchMapping(t *testing.T) {
-	targetEnvs := map[string]bool{
-		"qa":   true,
-		"prod": true,
-	}
-	assert.Equal(t, false, isTargetEnvsEmpty(targetEnvs))
+	ra := utils.NewRadixApplicationBuilder().WithEnvironment("qa", "main").WithEnvironment("qa", "main").BuildRA()
+	hasEnvToDeploy, _ := applicationconfig.IsThereAnythingToDeployForRadixApplication("main", ra)
+	assert.True(t, hasEnvToDeploy)
 }
 
 func TestIsTargetEnvsEmpty_twoEntriesWithNoMapping(t *testing.T) {
-	targetEnvs := map[string]bool{
-		"qa":   false,
-		"prod": false,
-	}
-	assert.Equal(t, true, isTargetEnvsEmpty(targetEnvs))
+	ra := utils.NewRadixApplicationBuilder().WithEnvironment("qa", "main").WithEnvironment("prod", "release").BuildRA()
+	hasEnvToDeploy, _ := applicationconfig.IsThereAnythingToDeployForRadixApplication("test", ra)
+	assert.False(t, hasEnvToDeploy)
 }
 
 func TestIsTargetEnvsEmpty_twoEntriesWithOneMapping(t *testing.T) {
-	targetEnvs := map[string]bool{
-		"qa":   true,
-		"prod": false,
-	}
-	assert.Equal(t, false, isTargetEnvsEmpty(targetEnvs))
+	ra := utils.NewRadixApplicationBuilder().WithEnvironment("qa", "main").WithEnvironment("prod", "release").BuildRA()
+	hasEnvToDeploy, _ := applicationconfig.IsThereAnythingToDeployForRadixApplication("main", ra)
+	assert.True(t, hasEnvToDeploy)
 }
 
 func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
@@ -633,7 +629,7 @@ func Test_GetConfigBranch_notSet(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().
 		BuildRR()
 
-	assert.Equal(t, ConfigBranchFallback, GetConfigBranch(rr))
+	assert.Equal(t, applicationconfig.ConfigBranchFallback, applicationconfig.GetConfigBranch(rr))
 }
 
 func Test_GetConfigBranch_set(t *testing.T) {
@@ -643,7 +639,7 @@ func Test_GetConfigBranch_set(t *testing.T) {
 		WithConfigBranch(configBranch).
 		BuildRR()
 
-	assert.Equal(t, configBranch, GetConfigBranch(rr))
+	assert.Equal(t, configBranch, applicationconfig.GetConfigBranch(rr))
 }
 
 func Test_IsConfigBranch(t *testing.T) {
@@ -654,11 +650,11 @@ func Test_IsConfigBranch(t *testing.T) {
 		BuildRR()
 
 	t.Run("Branch is configBranch", func(t *testing.T) {
-		assert.True(t, IsConfigBranch(configBranch, rr))
+		assert.True(t, applicationconfig.IsConfigBranch(configBranch, rr))
 	})
 
 	t.Run("Branch is not configBranch", func(t *testing.T) {
-		assert.False(t, IsConfigBranch(otherBranch, rr))
+		assert.False(t, applicationconfig.IsConfigBranch(otherBranch, rr))
 	})
 }
 
@@ -835,7 +831,7 @@ func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	}
 }
 
-func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *ApplicationConfig, error) {
+func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *applicationconfig.ApplicationConfig, error) {
 	tu, client, kubeUtil, radixClient := setupTest()
 	appBuilder := utils.ARadixApplication().
 		WithAppName("any-app").
@@ -852,11 +848,11 @@ func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEn
 	return client, appConfig, err
 }
 
-func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) (*ApplicationConfig, error) {
+func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) (*applicationconfig.ApplicationConfig, error) {
 	ra := applicationBuilder.BuildRA()
 	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
 
-	return NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
+	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
 }
 
 func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
@@ -872,7 +868,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationconfig, err := NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
+	applicationconfig, err := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
 	if err != nil {
 		return err
 	}

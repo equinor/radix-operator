@@ -27,10 +27,6 @@ type AnnotationConfiguration struct {
 	Annotations map[string]string
 }
 
-const (
-	TLSSecretName = "radix-wildcard-tls-cert"
-)
-
 func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	clustername, err := deploy.kubeutil.GetClusterName()
@@ -230,7 +226,7 @@ func (deploy *Deployment) getAppAliasIngressConfig(appName string, ownerReferenc
 	}
 
 	hostname := fmt.Sprintf("%s.%s", appName, appAlias)
-	ingressSpec := getIngressSpec(hostname, component.GetName(), TLSSecretName, publicPortNumber)
+	ingressSpec := getIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 
 	return deploy.getIngressConfig(appName, component, getAppAliasIngressName(appName), ownerReference, true, false, false, ingressSpec, namespace)
 }
@@ -250,7 +246,7 @@ func (deploy *Deployment) getActiveClusterAliasIngressConfig(
 	if hostname == "" {
 		return nil, nil
 	}
-	ingressSpec := getIngressSpec(hostname, component.GetName(), TLSSecretName, publicPortNumber)
+	ingressSpec := getIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 	ingressName := getActiveClusterIngressName(component.GetName())
 
 	return deploy.getIngressConfig(appName, component, ingressName, ownerReference, false, false, true, ingressSpec, namespace)
@@ -272,7 +268,7 @@ func (deploy *Deployment) getDefaultIngressConfig(
 		return nil, nil
 	}
 	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
-	ingressSpec := getIngressSpec(hostname, component.GetName(), TLSSecretName, publicPortNumber)
+	ingressSpec := getIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 
 	return deploy.getIngressConfig(appName, component, getDefaultIngressName(component.GetName()), ownerReference, false, false, false, ingressSpec, namespace)
 }
