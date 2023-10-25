@@ -16,7 +16,6 @@ import (
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
@@ -126,7 +125,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
-						WithReplicas(test.IntPtr(4)),
+						WithReplicas(commonTest.IntPtr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithAuthentication(
@@ -137,7 +136,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 								},
 							},
 						).
-						WithReplicas(test.IntPtr(4))),
+						WithReplicas(commonTest.IntPtr(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
 				WithPublicPort("").
