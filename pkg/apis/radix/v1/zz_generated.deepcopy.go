@@ -120,6 +120,11 @@ func (in *BuildSpec) DeepCopyInto(out *BuildSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.UseBuildCache != nil {
+		in, out := &in.UseBuildCache, &out.UseBuildCache
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
