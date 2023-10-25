@@ -5,11 +5,10 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	"github.com/stretchr/testify/suite"
@@ -37,19 +36,15 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	const (
 		appName1       = "any-app1"
 		appName2       = "any-app2"
-		aliasName      = "alias-1"
+		aliasName      = "alias-domain-1"
 		envName1       = "env1"
 		envName2       = "env2"
 		componentName1 = "server1"
 		componentName2 = "server2"
+		dnsZone        = "test.radix.equinor.com"
 	)
-	alias := &v1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: aliasName,
-		Labels: labels.Merge(labels.ForApplicationName(appName1), labels.ForComponentName(componentName1))},
-		Spec: v1.RadixDNSAliasSpec{
-			AppName:     appName1,
-			Environment: envName1,
-			Component:   componentName1,
-		}}
+	config := &config.ClusterConfig{DNSZone: dnsZone}
+	alias := internal.BuildRadixDNSAlias(appName1, componentName1, envName1, aliasName)
 
 	// Adding a RadixDNSAlias should trigger sync
 	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
@@ -85,8 +80,8 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
 
 	// Add Kubernetes Job with ownerreference to RadixDNSAlias should not trigger sync
-	ingress := internal.BuildRadixDNSAliasIngress(alias.Spec.AppName, alias.GetName(), alias.Spec.Component, int32(8080))
-	ingress.ObjectMeta.OwnerReferences = []metav1.OwnerReference{{APIVersion: defaults.RadixAPIVersion, Kind: defaults.RadixDNSAliasKind, Name: aliasName, Controller: pointers.Ptr(true)}}
+	ingress := internal.BuildRadixDNSAliasIngress(alias.Spec.AppName, alias.GetName(), alias.Spec.Component, int32(8080), config)
+	ingress.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	namespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	ingress, err = internal.CreateRadixDNSAliasIngress(s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ingress)

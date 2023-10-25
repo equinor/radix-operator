@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -94,7 +95,7 @@ func NewController(client kubernetes.Interface,
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixRegistration", getObject)
+			controller.HandleObject(obj, radix.KindRadixRegistration, getObject)
 		},
 	})
 
@@ -116,7 +117,7 @@ func NewController(client kubernetes.Interface,
 			if isGitDeployKey(newSecret) && newSecret.Namespace != "" {
 				// Resync, as deploy key is updated. Resync is triggered on namespace, since RR not directly own the
 				// secret
-				controller.HandleObject(namespace, "RadixRegistration", getObject)
+				controller.HandleObject(namespace, radix.KindRadixRegistration, getObject)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -138,7 +139,7 @@ func NewController(client kubernetes.Interface,
 			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {
 				// Resync, as deploy key is deleted. Resync is triggered on namespace, since RR not directly own the
 				// secret
-				controller.HandleObject(namespace, "RadixRegistration", getObject)
+				controller.HandleObject(namespace, radix.KindRadixRegistration, getObject)
 			}
 		},
 	})

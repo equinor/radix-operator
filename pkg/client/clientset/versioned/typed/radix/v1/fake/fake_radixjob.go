@@ -21,8 +21,9 @@ package fake
 import (
 	"context"
 
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,9 +37,9 @@ type FakeRadixJobs struct {
 	ns   string
 }
 
-var radixjobsResource = schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixjobs"}
+var radixjobsResource = schema.GroupVersionResource{Group: radix.GroupName, Version: radix.Version, Resource: "radixjobs"}
 
-var radixjobsKind = schema.GroupVersionKind{Group: "radix.equinor.com", Version: "v1", Kind: "RadixJob"}
+var radixjobsKind = schema.GroupVersionKind{Group: radix.GroupName, Version: radix.Version, Kind: radix.KindRadixJob}
 
 // Get takes name of the radixJob, and returns the corresponding radixJob object, and an error if there is any.
 func (c *FakeRadixJobs) Get(ctx context.Context, name string, options v1.GetOptions) (result *radixv1.RadixJob, err error) {

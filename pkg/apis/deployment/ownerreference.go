@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
@@ -9,8 +10,8 @@ import (
 
 func getOwnerReferenceOfDeployment(radixDeployment *v1.RadixDeployment) metav1.OwnerReference {
 	return metav1.OwnerReference{
-		APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-		Kind:       "RadixDeployment",
+		APIVersion: radix.APIVersion,
+		Kind:       radix.KindRadixDeployment,
 		Name:       radixDeployment.Name,
 		UID:        radixDeployment.UID,
 		Controller: utils.BoolPtr(true),
@@ -23,7 +24,7 @@ func getOwnerReferenceOfSecretProviderClass(secretProviderClass *secretsstorev1.
 		Kind:       "SecretProviderClass",
 		Name:       secretProviderClass.Name,
 		UID:        secretProviderClass.UID,
-		//Controller is not set due too only one OwnerReference's controller can be set as `true`
+		// Controller is not set due too only one OwnerReference's controller can be set as `true`
 	}
 }
 

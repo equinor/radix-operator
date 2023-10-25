@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -90,10 +91,10 @@ func NewController(client kubernetes.Interface,
 			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
 				return
 			}
-			controller.HandleObject(newObj, "RadixBatch", getOwner)
+			controller.HandleObject(newObj, radix.KindRadixBatch, getOwner)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixBatch", getOwner)
+			controller.HandleObject(obj, radix.KindRadixBatch, getOwner)
 		},
 	})
 

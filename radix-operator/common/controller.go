@@ -3,21 +3,16 @@ package common
 import (
 	"errors"
 	"fmt"
-
 	"time"
-
-	"golang.org/x/sync/errgroup"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-
 	log "github.com/sirupsen/logrus"
-
+	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"

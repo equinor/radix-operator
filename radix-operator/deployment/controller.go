@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -120,10 +121,10 @@ func NewController(client kubernetes.Interface,
 			if newService.ResourceVersion == oldService.ResourceVersion {
 				return
 			}
-			controller.HandleObject(cur, "RadixDeployment", getObject)
+			controller.HandleObject(cur, radix.KindRadixDeployment, getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixDeployment", getObject)
+			controller.HandleObject(obj, radix.KindRadixDeployment, getObject)
 		},
 	})
 

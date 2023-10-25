@@ -6,6 +6,7 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -15,7 +16,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-//AlertSyncer defines interface for syncing a RadixAlert
+// AlertSyncer defines interface for syncing a RadixAlert
 type AlertSyncer interface {
 	OnSync() error
 }
@@ -109,8 +110,8 @@ func (syncer *alertSyncer) updateRadixAlertStatus(changeStatusFunc func(currStat
 func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixAlert",
+			APIVersion: radix.APIVersion,
+			Kind:       radix.KindRadixAlert,
 			Name:       syncer.radixAlert.Name,
 			UID:        syncer.radixAlert.UID,
 			Controller: commonUtils.BoolPtr(true),

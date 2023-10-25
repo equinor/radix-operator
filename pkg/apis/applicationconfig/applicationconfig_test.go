@@ -10,20 +10,19 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -38,8 +37,8 @@ func init() {
 }
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
-	kubeClient := fake.NewSimpleClientset()
-	radixClient := radix.NewSimpleClientset()
+	kubeClient := kubefake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, secretproviderclient)
@@ -672,24 +671,18 @@ func Test_DNSAliases(t *testing.T) {
 		appName              = "any-app1"
 		envDev               = "dev"
 		componentNameServer1 = "server1"
-		server1Anyapp1DevDns = "server1-any-app1-dev.radix.equinor.com"
-		port                 = 8080
 	)
 	var testScenarios = []struct {
 		name                    string
 		dnsAliases              []radixv1.DNSAlias
 		existingRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
 		expectedRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
-		existingIngress         []testIngress
-		expectedIngress         map[string]testIngress
 	}{
 		{
 			name: "no aliases, no existing RDA, no existing ingresses, no additional radix aliases, no additional ingresses",
 		},
 		{
-			name:            "no aliases, no existing RDA, exist ingresses, no additional radix aliases, no additional ingresses",
-			existingIngress: []testIngress{{appName: appName, envName: envDev, name: componentNameServer1, host: server1Anyapp1DevDns, component: componentNameServer1, port: port}},
-			expectedIngress: map[string]testIngress{componentNameServer1: {appName: appName, envName: envDev, name: componentNameServer1, host: server1Anyapp1DevDns, component: componentNameServer1, port: port}},
+			name: "no aliases, no existing RDA, exist ingresses, no additional radix aliases, no additional ingresses",
 		},
 		{
 			name: "multiple aliases, no existing RDA, no existing ingresses, additional radix aliases, additional ingresses",
@@ -701,10 +694,6 @@ func Test_DNSAliases(t *testing.T) {
 				"domain1": {AppName: appName, Environment: envDev, Component: componentNameServer1},
 				"domain2": {AppName: appName, Environment: envDev, Component: componentNameServer1},
 			},
-			expectedIngress: map[string]testIngress{
-				"server1.domain1.custom-domain": {appName: appName, envName: envDev, name: "server1.domain1.custom-domain", host: "domain1.custom-domain.radix.equinor.com", component: componentNameServer1, port: port},
-				"server1.domain2.custom-domain": {appName: appName, envName: envDev, name: "server1.domain2.custom-domain", host: "domain2.custom-domain.radix.equinor.com", component: componentNameServer1, port: port},
-			},
 		},
 	}
 	tu, kubeClient, kubeUtil, radixClient := setupTest()
@@ -714,11 +703,8 @@ func Test_DNSAliases(t *testing.T) {
 			ra := utils.ARadixApplication().WithAppName(appName).WithDNSAlias(ts.dnsAliases...)
 			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ra), "register radix application")
 			require.NoError(t, registerExistingRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
-			require.NoError(t, registerExistingIngresses(kubeClient, ts.existingIngress), "create existing ingresses")
 
 			radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{})
-			require.NoError(t, err)
-			ingresses, err := kubeClient.NetworkingV1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
 			require.NoError(t, err)
 
 			// assert RadixDNSAlias-es
@@ -738,67 +724,8 @@ func Test_DNSAliases(t *testing.T) {
 					}
 				}
 			}
-			// assert ingresses
-			if ts.expectedIngress == nil {
-				assert.Len(t, ingresses.Items, 0, "not expected ingresses")
-			} else {
-				assert.Len(t, ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
-				if len(ingresses.Items) == len(ts.expectedIngress) {
-					for _, ingress := range ingresses.Items {
-						if expectedIngress, ok := ts.expectedIngress[ingress.Name]; ok {
-							require.Len(t, ingress.Spec.Rules, 1, "rules count")
-							assert.Equal(t, expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
-							assert.Equal(t, utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
-							assert.Equal(t, expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
-							assert.Equal(t, expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
-							assert.Equal(t, "/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
-							assert.Equal(t, expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend service name")
-							assert.Equal(t, expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "rule backend service port")
-						} else {
-							assert.Failf(t, "found not expected ingress %s: appName %s, host %s, service %s, port %d", ingress.GetName(), ingress.GetLabels()[kube.RadixAppLabel], ingress.Spec.Rules[0].Host, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, &ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port)
-						}
-					}
-				}
-			}
 		})
 	}
-}
-
-func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses []testIngress) error {
-	for _, ing := range testIngresses {
-		pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
-		_, err := kubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(ing.appName, ing.envName)).Create(context.TODO(),
-			&networkingv1.Ingress{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   ing.name,
-					Labels: labels.Merge(labels.ForApplicationName(ing.appName), labels.ForComponentName(ing.component)),
-				},
-				Spec: networkingv1.IngressSpec{
-					TLS: []networkingv1.IngressTLS{
-						{
-							Hosts:      []string{ing.host},
-							SecretName: "radix-wildcard-tls-cert",
-						},
-					},
-					Rules: []networkingv1.IngressRule{
-						{
-							Host: ing.host,
-							IngressRuleValue: networkingv1.IngressRuleValue{
-								HTTP: &networkingv1.HTTPIngressRuleValue{Paths: []networkingv1.HTTPIngressPath{
-									{Path: "/", PathType: &pathTypeImplementationSpecific, Backend: networkingv1.IngressBackend{
-										Service: &networkingv1.IngressServiceBackend{Name: ing.component, Port: networkingv1.ServiceBackendPort{
-											Number: ing.port,
-										}},
-									}}},
-								}},
-						},
-					},
-				}}, metav1.CreateOptions{})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func registerExistingRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]radixv1.RadixDNSAliasSpec) error {
@@ -822,8 +749,8 @@ func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixRegistration",
+			APIVersion: radix.APIVersion,
+			Kind:       radix.KindRadixRegistration,
 			Name:       rr.Name,
 			UID:        rr.UID,
 			Controller: &trueVar,

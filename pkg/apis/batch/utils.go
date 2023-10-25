@@ -5,6 +5,7 @@ import (
 
 	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,8 +53,8 @@ func isBatchJobDone(batch *radixv1.RadixBatch, batchJobName string) bool {
 func ownerReference(job *radixv1.RadixBatch) []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixBatch",
+			APIVersion: radix.APIVersion,
+			Kind:       radix.KindRadixBatch,
 			Name:       job.Name,
 			UID:        job.UID,
 			Controller: utils.BoolPtr(true),

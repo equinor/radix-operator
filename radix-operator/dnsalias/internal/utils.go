@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -16,18 +18,33 @@ const (
 	dnsAliasIngressNameTemplate = "%s.%s.custom-domain" // <component-name>.<dns-alias-domain>.custom-domain
 )
 
+// BuildRadixDNSAlias Build a RadixDNSAlias
+func BuildRadixDNSAlias(appName, componentName, envName, domain string) *radixv1.RadixDNSAlias {
+	return &radixv1.RadixDNSAlias{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   domain,
+			Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(componentName)),
+		},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     appName,
+			Environment: envName,
+			Component:   componentName,
+		}}
+}
+
 // CreateRadixDNSAliasIngress Create an Ingress for a RadixDNSAlias
 func CreateRadixDNSAliasIngress(kubeClient kubernetes.Interface, appName, envName string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
 	return kubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), ingress, metav1.CreateOptions{})
 }
 
 // BuildRadixDNSAliasIngress Build an Ingress for a RadixDNSAlias
-func BuildRadixDNSAliasIngress(appName, domain, service string, port int32) *networkingv1.Ingress {
+func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, config *config.ClusterConfig) *networkingv1.Ingress {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
-	host := fmt.Sprintf(dnsAliasIngressNameTemplate, service, domain)
+	name := fmt.Sprintf(dnsAliasIngressNameTemplate, service, domain)
+	host := GetDNSAliasHost(domain, config.DNSZone)
 	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   domain,
+			Name:   name,
 			Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(service)),
 		},
 		Spec: networkingv1.IngressSpec{
@@ -51,4 +68,10 @@ func BuildRadixDNSAliasIngress(appName, domain, service string, port int32) *net
 				},
 			},
 		}}
+}
+
+// GetDNSAliasHost Gets DNS alias domain host.
+// Example for the domain "my-app" and the cluster "Playground": my-app.playground.radix.equinor.com
+func GetDNSAliasHost(domain string, dnsZone string) string {
+	return fmt.Sprintf("%s.%s", domain, dnsZone)
 }

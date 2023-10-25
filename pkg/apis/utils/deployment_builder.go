@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -246,8 +246,8 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 
 	radixDeployment := &v1.RadixDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixDeployment",
+			APIVersion: radix.APIVersion,
+			Kind:       radix.KindRadixDeployment,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              deployName,

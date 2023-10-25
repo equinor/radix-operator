@@ -5,6 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +39,7 @@ func (app Application) rrClusterRole(clusterroleName string, verbs []string) *au
 		},
 		Rules: []auth.PolicyRule{
 			{
-				APIGroups:     []string{"radix.equinor.com"},
+				APIGroups:     []string{radix.GroupName},
 				Resources:     []string{"radixregistrations"},
 				ResourceNames: []string{appName},
 				Verbs:         verbs,

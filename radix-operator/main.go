@@ -80,7 +80,7 @@ func main() {
 	startController(createJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.PipelineJobConfig), jobControllerThreads, stop)
 	startController(createAlertController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), alertControllerThreads, stop)
 	startController(createBatchController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), 1, stop)
-	startController(createDNSAliasesController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), environmentControllerThreads, stop)
+	startController(createDNSAliasesController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.ClusterConfig), environmentControllerThreads, stop)
 
 	// Start informers when all controllers are running
 	kubeInformerFactory.Start(stop)
@@ -194,7 +194,7 @@ func createEnvironmentController(client kubernetes.Interface, radixClient radixc
 		recorder)
 }
 
-func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface, clusterConfig *config.ClusterConfig) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -207,6 +207,7 @@ func createDNSAliasesController(client kubernetes.Interface, radixClient radixcl
 		client,
 		kubeUtil,
 		radixClient,
+		clusterConfig,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
@@ -214,7 +215,7 @@ func createDNSAliasesController(client kubernetes.Interface, radixClient radixcl
 	return dnsalias.NewController(
 		client,
 		radixClient,
-		&handler,
+		handler,
 		kubeInformerFactory,
 		radixInformerFactory,
 		waitForChildrenToSync,
@@ -324,6 +325,28 @@ func createBatchController(client kubernetes.Interface, radixClient radixclient.
 
 	const waitForChildrenToSync = true
 	return batch.NewController(
+		client,
+		radixClient,
+		handler,
+		kubeInformerFactory,
+		radixInformerFactory,
+		waitForChildrenToSync,
+		recorder)
+}
+
+func createDNSAliasController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+	kubeUtil, _ := kube.NewWithListers(
+		client,
+		radixClient,
+		secretProviderClient,
+		kubeInformerFactory,
+		radixInformerFactory,
+	)
+
+	handler := dnsalias.NewHandler(client, kubeUtil, radixClient, nil, func(syncedOk bool) {})
+
+	const waitForChildrenToSync = true
+	return dnsalias.NewController(
 		client,
 		radixClient,
 		handler,

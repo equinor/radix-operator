@@ -4,8 +4,8 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -44,12 +44,12 @@ func NewController(kubeClient kubernetes.Interface,
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
-		HandlerOf:             defaults.RadixDNSAliasKind,
+		HandlerOf:             radix.KindRadixDNSAlias,
 		KubeClient:            kubeClient,
 		RadixClient:           radixClient,
 		Informer:              dnsAliasInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), defaults.RadixDNSAliasKind),
+		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), radix.KindRadixDNSAlias),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -62,7 +62,7 @@ func NewController(kubeClient kubernetes.Interface,
 	dnsAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			controller.Enqueue(cur)
-			metrics.CustomResourceAdded(defaults.RadixDNSAliasKind)
+			metrics.CustomResourceAdded(radix.KindRadixDNSAlias)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRDA := cur.(*v1.RadixDNSAlias)
@@ -70,12 +70,12 @@ func NewController(kubeClient kubernetes.Interface,
 
 			if deepEqual(oldRDA, newRDA) {
 				logger.Debugf("RadixDNSAlias object is equal to old for %s. Do nothing", newRDA.GetName())
-				metrics.CustomResourceUpdatedButSkipped(defaults.RadixDNSAliasKind)
+				metrics.CustomResourceUpdatedButSkipped(radix.KindRadixDNSAlias)
 				return
 			}
 
 			controller.Enqueue(cur)
-			metrics.CustomResourceUpdated(defaults.RadixDNSAliasKind)
+			metrics.CustomResourceUpdated(radix.KindRadixDNSAlias)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixDNSAlias, converted := obj.(*v1.RadixDNSAlias)
@@ -87,7 +87,7 @@ func NewController(kubeClient kubernetes.Interface,
 			if err != nil {
 				logger.Errorf("error on RadixDNSAlias object deleted event received for %s: %v", key, err)
 			}
-			metrics.CustomResourceDeleted(defaults.RadixDNSAliasKind)
+			metrics.CustomResourceDeleted(radix.KindRadixDNSAlias)
 		},
 	})
 
@@ -98,7 +98,7 @@ func NewController(kubeClient kubernetes.Interface,
 			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
 				return
 			}
-			controller.HandleObject(newObj, defaults.RadixDNSAliasKind, getOwner)
+			controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner)
 		},
 		DeleteFunc: func(obj interface{}) {
 			ing, converted := obj.(*networkingv1.Ingress)
@@ -106,7 +106,7 @@ func NewController(kubeClient kubernetes.Interface,
 				logger.Errorf("Ingress object cast failed during deleted event received.")
 				return
 			}
-			controller.HandleObject(ing, defaults.RadixDNSAliasKind, getOwner)
+			controller.HandleObject(ing, radix.KindRadixDNSAlias, getOwner)
 		},
 	})
 	return controller

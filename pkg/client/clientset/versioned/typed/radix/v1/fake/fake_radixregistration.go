@@ -21,6 +21,7 @@ package fake
 import (
 	"context"
 
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -35,9 +36,9 @@ type FakeRadixRegistrations struct {
 	Fake *FakeRadixV1
 }
 
-var radixregistrationsResource = schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixregistrations"}
+var radixregistrationsResource = schema.GroupVersionResource{Group: radix.GroupName, Version: radix.Version, Resource: "radixregistrations"}
 
-var radixregistrationsKind = schema.GroupVersionKind{Group: "radix.equinor.com", Version: "v1", Kind: "RadixRegistration"}
+var radixregistrationsKind = schema.GroupVersionKind{Group: radix.GroupName, Version: radix.Version, Kind: radix.KindRadixRegistration}
 
 // Get takes name of the radixRegistration, and returns the corresponding radixRegistration object, and an error if there is any.
 func (c *FakeRadixRegistrations) Get(ctx context.Context, name string, options v1.GetOptions) (result *radixv1.RadixRegistration, err error) {

@@ -15,12 +15,12 @@ import (
 
 // DNSAlias is the aggregate-root for manipulating RadixDNSAliases
 type DNSAlias struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
-	config      *radixv1.RadixDNSAlias
-	appConfig   *radixv1.RadixApplication
-	logger      *logrus.Entry
+	kubeclient    kubernetes.Interface
+	radixclient   radixclient.Interface
+	kubeutil      *kube.Kube
+	radixDNSAlias *radixv1.RadixDNSAlias
+	appConfig     *radixv1.RadixApplication
+	logger        *logrus.Entry
 }
 
 // NewDNSAlias is the constructor for DNSAlias
@@ -46,30 +46,31 @@ func NewDNSAlias(
 func (dnsAlias *DNSAlias) OnSync(time metav1.Time) error {
 
 	// TODO
-	err := dnsAlias.updateRadixDNSAliasStatus(dnsAlias.config, func(currStatus *radixv1.RadixDNSAliasStatus) {
+	err := dnsAlias.updateRadixDNSAliasStatus(dnsAlias.radixDNSAlias, func(currStatus *radixv1.RadixDNSAliasStatus) {
 		// time is parameterized for testability
 		currStatus.Reconciled = time
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update status on DNS alias %s: %v", dnsAlias.config.GetName(), err)
+		return fmt.Errorf("failed to update status on DNS alias %s: %v", dnsAlias.radixDNSAlias.GetName(), err)
 	}
-	dnsAlias.logger.Debugf("DNSAlias %s reconciled", dnsAlias.config.GetName())
+	dnsAlias.logger.Debugf("DNSAlias %s reconciled", dnsAlias.radixDNSAlias.GetName())
 	return nil
 }
 
 func (dnsAlias *DNSAlias) updateRadixDNSAliasStatus(rEnv *radixv1.RadixDNSAlias, changeStatusFunc func(currStatus *radixv1.RadixDNSAliasStatus)) error {
 	radixDNSAliasInterface := dnsAlias.radixclient.RadixV1().RadixDNSAliases()
+	ctx := context.Background()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentEnv, err := radixDNSAliasInterface.Get(context.TODO(), rEnv.GetName(), metav1.GetOptions{})
+		currentEnv, err := radixDNSAliasInterface.Get(ctx, rEnv.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentEnv.Status)
-		_, err = radixDNSAliasInterface.UpdateStatus(context.TODO(), currentEnv, metav1.UpdateOptions{})
-		if err == nil && dnsAlias.config.GetName() == rEnv.GetName() {
-			currentEnv, err = radixDNSAliasInterface.Get(context.TODO(), rEnv.GetName(), metav1.GetOptions{})
+		_, err = radixDNSAliasInterface.UpdateStatus(ctx, currentEnv, metav1.UpdateOptions{})
+		if err == nil && dnsAlias.radixDNSAlias.GetName() == rEnv.GetName() {
+			currentEnv, err = radixDNSAliasInterface.Get(ctx, rEnv.GetName(), metav1.GetOptions{})
 			if err == nil {
-				dnsAlias.config = currentEnv
+				dnsAlias.radixDNSAlias = currentEnv
 			}
 		}
 		return err
@@ -77,5 +78,5 @@ func (dnsAlias *DNSAlias) updateRadixDNSAliasStatus(rEnv *radixv1.RadixDNSAlias,
 }
 
 func (dnsAlias *DNSAlias) GetConfig() *radixv1.RadixDNSAlias {
-	return dnsAlias.config
+	return dnsAlias.radixDNSAlias
 }

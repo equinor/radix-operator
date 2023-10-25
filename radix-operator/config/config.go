@@ -36,6 +36,15 @@ func getDeploymentsHistoryLimitPerEnvironment() int {
 	return getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
 }
 
+// Gets DNS zone
+func getDNSZone() string {
+	envVar, err := defaults.GetEnvVar(defaults.OperatorDNSZoneEnvironmentVariable)
+	if err != nil {
+		panic(err)
+	}
+	return envVar
+}
+
 func getIntFromEnvVar(envVarName string, defaultValue int) int {
 	val, err := strconv.Atoi(viper.GetString(envVarName))
 	if err != nil {
@@ -47,6 +56,7 @@ func getIntFromEnvVar(envVarName string, defaultValue int) int {
 // Config from environment variables
 type Config struct {
 	LogLevel          string
+	ClusterConfig     *ClusterConfig
 	PipelineJobConfig *job.Config
 }
 
@@ -55,6 +65,9 @@ func NewConfig() *Config {
 	viper.AutomaticEnv()
 	return &Config{
 		LogLevel: getLogLevel(),
+		ClusterConfig: &ClusterConfig{
+			DNSZone: getDNSZone(),
+		},
 		PipelineJobConfig: &job.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
 			DeploymentsHistoryLimitPerEnvironment: getDeploymentsHistoryLimitPerEnvironment(),

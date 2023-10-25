@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,54 +30,47 @@ const (
 
 // Handler Handler for radix dns aliases
 type Handler struct {
-	kubeclient  kubernetes.Interface
-	kubeutil    *kube.Kube
-	radixclient radixclient.Interface
+	kubeClient  kubernetes.Interface
+	kubeUtil    *kube.Kube
+	radixClient radixclient.Interface
 	hasSynced   common.HasSynced
+	config      *config.ClusterConfig
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
-func NewHandler(
-	kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	hasSynced common.HasSynced) Handler {
+func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, config *config.ClusterConfig, hasSynced common.HasSynced) *Handler {
 
-	handler := Handler{
-		kubeclient:  kubeclient,
-		kubeutil:    kubeutil,
-		radixclient: radixclient,
+	return &Handler{
+		kubeClient:  kubeclient,
+		kubeUtil:    kubeutil,
+		radixClient: radixclient,
+		config:      config,
 		hasSynced:   hasSynced,
 	}
-
-	return handler
 }
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
-// and collects components and determines whether state must be reconciled.
-func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixDNSAlias, err := t.radixclient.RadixV1().RadixDNSAliases().Get(context.TODO(), name, metav1.GetOptions{})
+func (h *Handler) Sync(_, name string, eventRecorder record.EventRecorder) error {
+	radixDNSAlias, err := h.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
-		// The RadixDNSAlias resource may no longer exist, in which case we stop
-		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix DNS alias %s in work queue no longer exists", name))
+			utilruntime.HandleError(fmt.Errorf("RadixDNSAlias %s in work queue no longer exists", name))
 			return nil
 		}
 		return err
 	}
 
 	syncDNSAlias := radixDNSAlias.DeepCopy()
-	logger.Debugf("Sync DNS alias %s", name)
+	logger.Debugf("Sync RadixDNSAlias %s", name)
 
 	appName := syncDNSAlias.Spec.AppName
-	radixApplication, err := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).
-		Get(context.TODO(), appName, metav1.GetOptions{})
+	radixApplication, err := h.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).
+		Get(context.Background(), appName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	dnsAlias, err := dnsalias.NewDNSAlias(t.kubeclient, t.kubeutil, t.radixclient, syncDNSAlias, radixApplication, logger)
+	dnsAlias, err := dnsalias.NewDNSAlias(h.kubeClient, h.kubeUtil, h.radixClient, syncDNSAlias, radixApplication, logger)
 	if err != nil {
 		return err
 	}
@@ -86,7 +80,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	t.hasSynced(true)
+	h.hasSynced(true)
 	eventRecorder.Event(dnsAlias.GetConfig(), corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/stretchr/testify/suite"
@@ -56,7 +57,7 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 		Namespace:       namespace,
 		ResourceVersion: "1",
 		OwnerReferences: []metav1.OwnerReference{
-			{APIVersion: "radix.equinor.com/v1", Kind: "RadixBatch", Name: batchName, Controller: utils.BoolPtr(true)},
+			{APIVersion: radix.APIVersion, Kind: radix.KindRadixBatch, Name: batchName, Controller: utils.BoolPtr(true)},
 		},
 	}}
 	s.Handler.EXPECT().Sync(namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
