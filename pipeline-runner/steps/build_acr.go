@@ -15,6 +15,7 @@ import (
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/radix-operator/common/appender"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -319,26 +320,55 @@ func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, bu
 	return volumeMounts
 }
 
-func getBuildahContainerCommand(pipelineInfo *model.PipelineInfo, containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string, pushImage bool) []string {
-	cmd := fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && "+
-		"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
-		"--jobs 0 %s --file %s%s "+
-		"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" "+
-		"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" "+
-		"--build-arg BRANCH=\"${BRANCH}\" "+
-		"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" "+
-		"--tag %s --tag %s --tag %s %s",
-		containerImageRegistry, secretArgsString, context, dockerFileName,
-		imageTag, clusterTypeImageTag, clusterNameImageTag,
-		context)
+func getBuildahContainerCommand(pipelineInfo *model.PipelineInfo, containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string) []string {
 
-	if pushImage {
-		cmd = fmt.Sprintf("%s && "+
-			"/usr/bin/buildah push --storage-driver=vfs %s && "+
-			"/usr/bin/buildah push --storage-driver=vfs %s && "+
-			"/usr/bin/buildah push --storage-driver=vfs %s",
-			cmd, imageTag, clusterTypeImageTag, clusterNameImageTag)
+	loginCmd := fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", containerImageRegistry)
+	buildCmd := appender.NewContainer().
+		Addf("/usr/bin/buildah build").
+		Addf("--storage-driver=vfs").
+		Addf("--isolation=chroot").
+		Addf("--jobs 0 %s --file %s%s", secretArgsString, context, dockerFileName).
+		Addf("--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\"").
+		Addf("--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\"").
+		Addf("--build-arg BRANCH=\"${BRANCH}\"").
+		Addf("--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\"").
+		Addf("--tag %s --tag %s --tag %s %s &&", imageTag, clusterTypeImageTag, clusterNameImageTag, context).
+		Join(" ")
+
+	cmd := appender.NewContainer().
+		Addf(loginCmd).
+		Addf(buildCmd).
+		Addf("/usr/bin/buildah push --storage-driver=vfs %s", imageTag).
+		Addf("/usr/bin/buildah push --storage-driver=vfs %s", clusterTypeImageTag).
+		Addf("/usr/bin/buildah push --storage-driver=vfs %s", clusterNameImageTag).
+		Join(" && ")
+
+	/*
+
+	func getBuildahContainerCommand(pipelineInfo *model.PipelineInfo, containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string, pushImage bool) []string {
+		cmd := fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && "+
+			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
+			"--jobs 0 %s --file %s%s "+
+			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" "+
+			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" "+
+			"--build-arg BRANCH=\"${BRANCH}\" "+
+			"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" "+
+			"--tag %s --tag %s --tag %s %s",
+			containerImageRegistry, secretArgsString, context, dockerFileName,
+			imageTag, clusterTypeImageTag, clusterNameImageTag,
+			context)
+
+		if pushImage {
+			cmd = fmt.Sprintf("%s && "+
+				"/usr/bin/buildah push --storage-driver=vfs %s && "+
+				"/usr/bin/buildah push --storage-driver=vfs %s && "+
+				"/usr/bin/buildah push --storage-driver=vfs %s",
+				cmd, imageTag, clusterTypeImageTag, clusterNameImageTag)
+		}
+
+		return []string{"/bin/bash", "-c", cmd}
 	}
+	 */
 
 	return []string{"/bin/bash", "-c", cmd}
 }
