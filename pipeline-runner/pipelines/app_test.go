@@ -1,9 +1,10 @@
-package onpush
+package pipelines_test
 
 import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/pipelines"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -27,7 +28,7 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, *secretpr
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	kubeclient, radixclient, secretproviderclient, _ := setupTest(t)
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	cli := InitRunner(kubeclient, radixclient, &monitoring.Clientset{}, secretproviderclient, pipelineDefinition, "any-app")
+	cli := pipelines.InitRunner(kubeclient, radixclient, &monitoring.Clientset{}, secretproviderclient, pipelineDefinition, "any-app")
 
 	err := cli.PrepareRun(&model.PipelineArguments{})
 	assert.Error(t, err)

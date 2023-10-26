@@ -1,4 +1,4 @@
-package onpush
+package pipelines
 
 import (
 	"context"

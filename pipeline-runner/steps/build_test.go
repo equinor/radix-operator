@@ -454,6 +454,68 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 			fmt.Sprintf("--tag %s/%s-%s:%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
 			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
 			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
+			"/workspace/path2/",
+		},
+		"",
+	)
+	expectedCommand := []string{"/bin/bash", "-c", expectedBuildCmd}
+	s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
+}
+
+func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
+	appName, rjName, compName, sourceFolder, dockerFile := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile"
+	prepareConfigMapName := "preparecm"
+	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithBuildKit(pointers.Ptr(true)).
+		WithEnvironment("dev", "main").
+		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName).WithDockerfileName(dockerFile).WithSourceFolder(sourceFolder)).
+		BuildRA()
+	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra))
+	pipeline := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			Branch:               "main",
+			JobName:              rjName,
+			BuildKitImageBuilder: "anybuildkitimage:tag",
+			ImageTag:             "anyimagetag",
+			ContainerRegistry:    "anyregistry",
+			Clustertype:          "anyclustertype",
+			Clustername:          "anyclustername",
+			PushImage:            true,
+			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+		},
+		RadixConfigMapName: prepareConfigMapName,
+	}
+	jobWaiter := pipelinewait.NewMockJobCompletionWaiter(s.ctrl)
+	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
+
+	applyStep := steps.NewApplyConfigStep()
+	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	s.Require().NoError(applyStep.Run(&pipeline))
+	s.Require().NoError(buildStep.Run(&pipeline))
+	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 1)
+	job := jobs.Items[0]
+	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
+	s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
+	expectedBuildCmd := strings.Join(
+		[]string{
+			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
+			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0  ",
+			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
+			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
+			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
+			"--build-arg BRANCH=\"${BRANCH}\" ",
+			"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" ",
+			fmt.Sprintf("--tag %s/%s-%s:%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
 			"/workspace/path2/ && ",
 			fmt.Sprintf("/usr/bin/buildah push --storage-driver=vfs %s/%s-%s:%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
 			fmt.Sprintf("/usr/bin/buildah push --storage-driver=vfs %s/%s-%s:%s-%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
@@ -531,10 +593,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 			fmt.Sprintf("--tag %s/%s-%s:%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
 			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
 			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
-			"/workspace/path2/ && ",
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=vfs %s/%s-%s:%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=vfs %s/%s-%s:%s-%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=vfs %s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
+			"/workspace/path2/",
 		},
 		"",
 	)
