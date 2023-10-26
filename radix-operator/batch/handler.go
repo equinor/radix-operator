@@ -81,16 +81,16 @@ func (h *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	syncRSC := radixBatch.DeepCopy()
-	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncRSC)
+	syncBatch := radixBatch.DeepCopy()
+	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncBatch)
 	err = syncer.OnSync()
 	if err != nil {
-		eventRecorder.Event(syncRSC, corev1.EventTypeWarning, SyncFailed, err.Error())
+		eventRecorder.Event(syncBatch, corev1.EventTypeWarning, SyncFailed, err.Error())
 		// Put back on queue
 		return err
 	}
 
-	eventRecorder.Event(syncRSC, corev1.EventTypeNormal, Synced, MessageResourceSynced)
+	eventRecorder.Event(syncBatch, corev1.EventTypeNormal, Synced, MessageResourceSynced)
 	return nil
 }
 

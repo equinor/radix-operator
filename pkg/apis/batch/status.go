@@ -86,14 +86,14 @@ func (s *syncer) syncStatus(reconcileError error) error {
 
 func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixBatchStatus)) error {
 	changeStatusFunc(&s.batch.Status)
-	updatedJob, err := s.radixclient.
+	updatedRadixBatch, err := s.radixclient.
 		RadixV1().
 		RadixBatches(s.batch.GetNamespace()).
 		UpdateStatus(context.TODO(), s.batch, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	s.batch = updatedJob
+	s.batch = updatedRadixBatch
 	return nil
 }
 

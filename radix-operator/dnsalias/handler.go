@@ -70,17 +70,17 @@ func (h *Handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 		return err
 	}
 
-	dnsAlias, err := dnsalias.NewDNSAlias(h.kubeClient, h.kubeUtil, h.radixClient, syncDNSAlias, radixApplication, logger)
+	syncer, err := dnsalias.NewDNSAliasSyncer(h.kubeClient, h.kubeUtil, h.radixClient, syncDNSAlias, radixApplication, logger)
 	if err != nil {
 		return err
 	}
 
-	err = dnsAlias.OnSync(metav1.NewTime(time.Now().UTC()))
+	err = syncer.OnSync(metav1.NewTime(time.Now().UTC()))
 	if err != nil {
 		return err
 	}
 
 	h.hasSynced(true)
-	eventRecorder.Event(dnsAlias.GetConfig(), corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	eventRecorder.Event(syncer.GetRadixDNSAlias(), corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
