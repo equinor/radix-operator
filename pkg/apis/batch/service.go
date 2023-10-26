@@ -14,7 +14,7 @@ func (s *syncer) reconcileService(batchJob *radixv1.RadixBatchJob, rd *radixv1.R
 		return nil
 	}
 
-	if isBatchJobStopRequested(batchJob) || isBatchJobDone(s.batch, batchJob.Name) {
+	if isBatchJobStopRequested(batchJob) || isBatchJobDone(s.radixBatch, batchJob.Name) {
 		return nil
 	}
 
@@ -23,18 +23,18 @@ func (s *syncer) reconcileService(batchJob *radixv1.RadixBatchJob, rd *radixv1.R
 	}
 
 	service := s.buildService(batchJob.Name, rd.Spec.AppName, jobComponent.GetPorts())
-	return s.kubeutil.ApplyService(s.batch.GetNamespace(), service)
+	return s.kubeUtil.ApplyService(s.radixBatch.GetNamespace(), service)
 }
 
 func (s *syncer) buildService(batchJobName, appName string, componentPorts []radixv1.ComponentPort) *corev1.Service {
-	serviceName := getKubeServiceName(s.batch.GetName(), batchJobName)
+	serviceName := getKubeServiceName(s.radixBatch.GetName(), batchJobName)
 	labels := s.batchJobIdentifierLabel(batchJobName, appName)
 	selector := s.batchJobIdentifierLabel(batchJobName, appName)
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
 			Labels:          labels,
-			OwnerReferences: ownerReference(s.batch),
+			OwnerReferences: ownerReference(s.radixBatch),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,

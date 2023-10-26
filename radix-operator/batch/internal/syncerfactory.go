@@ -1,35 +1,36 @@
-package batch
+package internal
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/batch"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 )
 
-// SyncerFactory defines a factory to create a DeploymentSyncer
+// SyncerFactory defines a factory to create a RadixBatches Syncer
 type SyncerFactory interface {
 	CreateSyncer(
 		kubeclient kubernetes.Interface,
 		kubeutil *kube.Kube,
 		radixclient radixclient.Interface,
-		batch *v1.RadixBatch) Syncer
+		radixBatch *radixv1.RadixBatch) batch.Syncer
 }
 
-// AlertSyncerFactoryFunc is an adapter that can be used to convert
-// a function into a DeploymentSyncerFactory
+// SyncerFactoryFunc is an adapter that can be used to convert
+// a function into a SyncerFactory
 type SyncerFactoryFunc func(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	batch *v1.RadixBatch,
-) Syncer
+	radixBatch *radixv1.RadixBatch,
+) batch.Syncer
 
 func (f SyncerFactoryFunc) CreateSyncer(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	batch *v1.RadixBatch,
-) Syncer {
-	return f(kubeclient, kubeutil, radixclient, batch)
+	radixBatch *radixv1.RadixBatch,
+) batch.Syncer {
+	return f(kubeclient, kubeutil, radixclient, radixBatch)
 }

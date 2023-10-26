@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -61,29 +62,29 @@ func NewController(kubeClient kubernetes.Interface,
 
 	dnsAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
+			alias := cur.(*v1.RadixDNSAlias)
+			logger.Debugf("added RadixDNSAlias %s. Do nothing", alias.GetName())
 			controller.Enqueue(cur)
 			metrics.CustomResourceAdded(radix.KindRadixDNSAlias)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			newRDA := cur.(*v1.RadixDNSAlias)
-			oldRDA := old.(*v1.RadixDNSAlias)
-
-			if deepEqual(oldRDA, newRDA) {
-				logger.Debugf("RadixDNSAlias object is equal to old for %s. Do nothing", newRDA.GetName())
+			newAlias := cur.(*v1.RadixDNSAlias)
+			oldAlias := old.(*v1.RadixDNSAlias)
+			if deepEqual(oldAlias, newAlias) {
+				logger.Debugf("RadixDNSAlias object is equal to old for %s. Do nothing", newAlias.GetName())
 				metrics.CustomResourceUpdatedButSkipped(radix.KindRadixDNSAlias)
 				return
 			}
-
 			controller.Enqueue(cur)
 			metrics.CustomResourceUpdated(radix.KindRadixDNSAlias)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixDNSAlias, converted := obj.(*v1.RadixDNSAlias)
+			alias, converted := obj.(*v1.RadixDNSAlias)
 			if !converted {
 				logger.Errorf("RadixDNSAlias object cast failed during deleted event received.")
 				return
 			}
-			key, err := cache.MetaNamespaceKeyFunc(radixDNSAlias)
+			key, err := cache.MetaNamespaceKeyFunc(alias)
 			if err != nil {
 				logger.Errorf("error on RadixDNSAlias object deleted event received for %s: %v", key, err)
 			}
@@ -93,12 +94,14 @@ func NewController(kubeClient kubernetes.Interface,
 
 	ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			oldMeta := oldObj.(metav1.Object)
-			newMeta := newObj.(metav1.Object)
-			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
+			oldIng := oldObj.(metav1.Object)
+			newIng := newObj.(metav1.Object)
+			if oldIng.GetResourceVersion() == newIng.GetResourceVersion() {
 				return
 			}
-			controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner)
+			if radixDNSAliasName, managedByRadixDNSAlias := newIng.GetAnnotations()[kube.ManagedByRadixDNSAliasIngressAnnotation]; managedByRadixDNSAlias && len(radixDNSAliasName) > 0 {
+				controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			ing, converted := obj.(*networkingv1.Ingress)
@@ -106,46 +109,46 @@ func NewController(kubeClient kubernetes.Interface,
 				logger.Errorf("Ingress object cast failed during deleted event received.")
 				return
 			}
-			controller.HandleObject(ing, radix.KindRadixDNSAlias, getOwner)
+			radixDNSAliasName, managedByRadixDNSAlias := ing.GetAnnotations()[kube.ManagedByRadixDNSAliasIngressAnnotation]
+			if !managedByRadixDNSAlias || len(radixDNSAliasName) == 0 {
+				return
+			}
+			controller.Enqueue(radixDNSAliasName) // validate if ingress was deleted manually, but it should be restored
 		},
 	})
 	return controller
 }
 
 func deepEqual(old, new *v1.RadixDNSAlias) bool {
-	if !reflect.DeepEqual(new.Spec, old.Spec) ||
-		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
-		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
-		return false
-	}
-
-	return true
+	return reflect.DeepEqual(new.Spec, old.Spec) &&
+		reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) &&
+		reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations)
 }
 
 func getOwner(radixClient radixclient.Interface, _, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixDNSAliases().Get(context.TODO(), name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), name, metav1.GetOptions{})
 }
 
-func getAddedOrDroppedDNSAliasDomains(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {
-	var dnsAliasDomains []string
-	dnsAliasDomains = append(dnsAliasDomains, getMissingDNSAliasDomains(oldRa.Spec.DNSAlias, newRa.Spec.DNSAlias)...)
-	dnsAliasDomains = append(dnsAliasDomains, getMissingDNSAliasDomains(newRa.Spec.DNSAlias, oldRa.Spec.DNSAlias)...)
-	return dnsAliasDomains
-}
-
-// getMissingDNSAliasDomains returns dnsAlias domains that exists in source list but not in target list
-func getMissingDNSAliasDomains(source []v1.DNSAlias, target []v1.DNSAlias) []string {
-	droppedDomains := make([]string, 0)
-	for _, oldDNSAlias := range source {
-		dropped := true
-		for _, newDnsAlias := range target {
-			if oldDNSAlias.Domain == newDnsAlias.Domain {
-				dropped = false
-			}
-		}
-		if dropped {
-			droppedDomains = append(droppedDomains, oldDNSAlias.Domain)
-		}
-	}
-	return droppedDomains
-}
+// func getAddedOrDroppedDNSAliasDomains(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {
+// 	var dnsAliasDomains []string
+// 	dnsAliasDomains = append(dnsAliasDomains, getMissingDNSAliasDomains(oldRa.Spec.DNSAlias, newRa.Spec.DNSAlias)...)
+// 	dnsAliasDomains = append(dnsAliasDomains, getMissingDNSAliasDomains(newRa.Spec.DNSAlias, oldRa.Spec.DNSAlias)...)
+// 	return dnsAliasDomains
+// }
+//
+// // getMissingDNSAliasDomains returns dnsAlias domains that exists in source list but not in target list
+// func getMissingDNSAliasDomains(source []v1.DNSAlias, target []v1.DNSAlias) []string {
+// 	droppedDomains := make([]string, 0)
+// 	for _, oldDNSAlias := range source {
+// 		dropped := true
+// 		for _, newDnsAlias := range target {
+// 			if oldDNSAlias.Domain == newDnsAlias.Domain {
+// 				dropped = false
+// 			}
+// 		}
+// 		if dropped {
+// 			droppedDomains = append(droppedDomains, oldDNSAlias.Domain)
+// 		}
+// 	}
+// 	return droppedDomains
+// }

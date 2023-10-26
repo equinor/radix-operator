@@ -3,14 +3,12 @@ package dnsalias
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/equinor/radix-operator/radix-operator/config"
+	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,28 +27,46 @@ const (
 )
 
 // Handler Handler for radix dns aliases
-type Handler struct {
-	kubeClient  kubernetes.Interface
-	kubeUtil    *kube.Kube
-	radixClient radixclient.Interface
-	hasSynced   common.HasSynced
-	config      *config.ClusterConfig
+type handler struct {
+	kubeClient    kubernetes.Interface
+	kubeUtil      *kube.Kube
+	radixClient   radixclient.Interface
+	syncerFactory internal.SyncerFactory
+	hasSynced     common.HasSynced
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
-func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, config *config.ClusterConfig, hasSynced common.HasSynced) *Handler {
-
-	return &Handler{
-		kubeClient:  kubeclient,
-		kubeUtil:    kubeutil,
-		radixClient: radixclient,
-		config:      config,
+func NewHandler(
+	kubeClient kubernetes.Interface,
+	kubeUtil *kube.Kube,
+	radixClient radixclient.Interface,
+	hasSynced common.HasSynced,
+	options ...HandlerConfigOption) common.Handler {
+	h := &handler{
+		kubeClient:  kubeClient,
+		kubeUtil:    kubeUtil,
+		radixClient: radixClient,
 		hasSynced:   hasSynced,
+	}
+	configureDefaultSyncerFactory(h)
+	for _, option := range options {
+		option(h)
+	}
+	return h
+}
+
+// HandlerConfigOption defines a configuration function used for additional configuration of handler
+type HandlerConfigOption func(*handler)
+
+// WithSyncerFactory configures the SyncerFactory for the handler
+func WithSyncerFactory(factory internal.SyncerFactory) HandlerConfigOption {
+	return func(h *handler) {
+		h.syncerFactory = factory
 	}
 }
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
-func (h *Handler) Sync(_, name string, eventRecorder record.EventRecorder) error {
+func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error {
 	radixDNSAlias, err := h.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -60,27 +76,20 @@ func (h *Handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 		return err
 	}
 
-	syncDNSAlias := radixDNSAlias.DeepCopy()
+	syncingAlias := radixDNSAlias.DeepCopy()
 	logger.Debugf("Sync RadixDNSAlias %s", name)
 
-	appName := syncDNSAlias.Spec.AppName
-	radixApplication, err := h.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).
-		Get(context.Background(), appName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	syncer, err := dnsalias.NewDNSAliasSyncer(h.kubeClient, h.kubeUtil, h.radixClient, syncDNSAlias, radixApplication, logger)
-	if err != nil {
-		return err
-	}
-
-	err = syncer.OnSync(metav1.NewTime(time.Now().UTC()))
+	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, syncingAlias)
+	err = syncer.OnSync()
 	if err != nil {
 		return err
 	}
 
 	h.hasSynced(true)
-	eventRecorder.Event(syncer.GetRadixDNSAlias(), corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	eventRecorder.Event(syncingAlias, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
+}
+
+func configureDefaultSyncerFactory(h *handler) {
+	WithSyncerFactory(internal.SyncerFactoryFunc(dnsalias.NewSyncer))(h)
 }

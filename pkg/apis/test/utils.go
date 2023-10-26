@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"os"
+	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -10,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -381,4 +383,17 @@ func GetAzureKeyVaultTypeSecrets(secrets *corev1.SecretList) *corev1.SecretList 
 		}
 	}
 	return &corev1.SecretList{Items: azureKeyVaultSecrets}
+}
+
+func AssertError(t *testing.T, expectedError string, err error) {
+	switch {
+	case len(expectedError) > 0 && err == nil:
+		t.Errorf("missing expected OnSync() error %s", expectedError)
+		return
+	case len(expectedError) == 0 && err != nil:
+		t.Errorf("unexpected OnSync() error = %v", err)
+		return
+	case len(expectedError) > 0 && err != nil:
+		require.Equal(t, expectedError, err.Error())
+	}
 }

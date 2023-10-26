@@ -95,7 +95,9 @@ mocks:
 	mockgen -source ./pkg/apis/alert/alert.go -destination ./pkg/apis/alert/alert_mock.go -package alert
 	mockgen -source ./pkg/apis/alert/alertfactory.go -destination ./pkg/apis/alert/alertfactory_mock.go -package alert
 	mockgen -source ./pkg/apis/batch/syncer.go -destination ./pkg/apis/batch/syncer_mock.go -package batch
-	mockgen -source ./pkg/apis/batch/syncerfactory.go -destination ./pkg/apis/batch/syncerfactory_mock.go -package batch
+	mockgen -source ./radix-operator/batch/internal/syncerfactory.go -destination ./radix-operator/batch/internal/syncerfactory_mock.go -package internal
+	mockgen -source ./pkg/apis/dnsalias/syncer.go -destination ./pkg/apis/dnsalias/syncer_mock.go -package dnsalias
+	mockgen -source ./radix-operator/dnsalias/internal/syncerfactory.go -destination ./radix-operator/dnsalias/internal/syncerfactory_mock.go -package internal
 	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
 
 .PHONY: build-pipeline

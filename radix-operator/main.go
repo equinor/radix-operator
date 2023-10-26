@@ -207,7 +207,6 @@ func createDNSAliasesController(client kubernetes.Interface, radixClient radixcl
 		client,
 		kubeUtil,
 		radixClient,
-		clusterConfig,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
@@ -343,7 +342,7 @@ func createDNSAliasController(client kubernetes.Interface, radixClient radixclie
 		radixInformerFactory,
 	)
 
-	handler := dnsalias.NewHandler(client, kubeUtil, radixClient, nil, func(syncedOk bool) {})
+	handler := dnsalias.NewHandler(client, kubeUtil, radixClient, func(syncedOk bool) {})
 
 	const waitForChildrenToSync = true
 	return dnsalias.NewController(

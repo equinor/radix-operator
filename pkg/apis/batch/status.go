@@ -85,15 +85,15 @@ func (s *syncer) syncStatus(reconcileError error) error {
 }
 
 func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixBatchStatus)) error {
-	changeStatusFunc(&s.batch.Status)
-	updatedRadixBatch, err := s.radixclient.
+	changeStatusFunc(&s.radixBatch.Status)
+	updatedRadixBatch, err := s.radixClient.
 		RadixV1().
-		RadixBatches(s.batch.GetNamespace()).
-		UpdateStatus(context.TODO(), s.batch, metav1.UpdateOptions{})
+		RadixBatches(s.radixBatch.GetNamespace()).
+		UpdateStatus(context.TODO(), s.radixBatch, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	s.batch = updatedRadixBatch
+	s.radixBatch = updatedRadixBatch
 	return nil
 }
 
@@ -106,12 +106,12 @@ func isJobStatusCondition(conditionType batchv1.JobConditionType) func(batchv1.J
 func (s *syncer) buildJobStatuses() ([]radixv1.RadixBatchJobStatus, error) {
 	var jobStatuses []radixv1.RadixBatchJobStatus
 
-	jobs, err := s.kubeutil.ListJobsWithSelector(s.batch.GetNamespace(), s.batchIdentifierLabel().String())
+	jobs, err := s.kubeUtil.ListJobsWithSelector(s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
 	if err != nil {
 		return nil, err
 	}
 
-	for _, batchJob := range s.batch.Spec.Jobs {
+	for _, batchJob := range s.radixBatch.Spec.Jobs {
 		jobStatuses = append(jobStatuses, s.buildBatchJobStatus(&batchJob, jobs))
 	}
 
@@ -119,7 +119,7 @@ func (s *syncer) buildJobStatuses() ([]radixv1.RadixBatchJobStatus, error) {
 }
 
 func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []*batchv1.Job) radixv1.RadixBatchJobStatus {
-	currentStatus := slice.FindAll(s.batch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
+	currentStatus := slice.FindAll(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
 		return jobStatus.Name == batchJob.Name
 	})
 	if len(currentStatus) > 0 && isBatchJobPhaseDone(currentStatus[0].Phase) {
@@ -174,12 +174,12 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 }
 
 func (s *syncer) restoreStatus() error {
-	if restoredStatus, ok := s.batch.Annotations[kube.RestoredStatusAnnotation]; ok && len(restoredStatus) > 0 {
-		if reflect.ValueOf(s.batch.Status).IsZero() {
+	if restoredStatus, ok := s.radixBatch.Annotations[kube.RestoredStatusAnnotation]; ok && len(restoredStatus) > 0 {
+		if reflect.ValueOf(s.radixBatch.Status).IsZero() {
 			var status radixv1.RadixBatchStatus
 
 			if err := json.Unmarshal([]byte(restoredStatus), &status); err != nil {
-				return fmt.Errorf("unable to restore status for batch %s.%s from annotation: %w", s.batch.GetNamespace(), s.batch.GetName(), err)
+				return fmt.Errorf("unable to restore status for batch %s.%s from annotation: %w", s.radixBatch.GetNamespace(), s.radixBatch.GetName(), err)
 			}
 
 			return s.updateStatus(func(currStatus *radixv1.RadixBatchStatus) {
