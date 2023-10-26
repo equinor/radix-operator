@@ -32,8 +32,8 @@ type PipelineRunner struct {
 	pipelineInfo             *model.PipelineInfo
 }
 
-// InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+// NewRunner constructor
+func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
 		definition:               definition,
