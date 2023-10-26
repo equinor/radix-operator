@@ -109,18 +109,19 @@ func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []c
 			},
 		},
 	}
-	if len(buildSecrets) == 0 {
-		return volumes
-	}
-	volumes = append(volumes,
-		corev1.Volume{
-			Name: defaults.BuildSecretsName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: defaults.BuildSecretsName,
+
+	if len(buildSecrets) > 0 {
+		volumes = append(volumes,
+			corev1.Volume{
+				Name: defaults.BuildSecretsName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: defaults.BuildSecretsName,
+					},
 				},
-			},
-		})
+			})
+	}
+
 	return volumes
 }
 

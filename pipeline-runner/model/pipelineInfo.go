@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -353,10 +354,6 @@ func getDockerfileName(name string) string {
 }
 
 func getContext(sourceFolder string) string {
-	sourceFolder = strings.Trim(sourceFolder, ".")
-	sourceFolder = strings.Trim(sourceFolder, "/")
-	if sourceFolder == "" {
-		return fmt.Sprintf("%s/", git.Workspace)
-	}
-	return fmt.Sprintf("%s/%s/", git.Workspace, sourceFolder)
+	sourceRoot := filepath.Join("/", sourceFolder)
+	return fmt.Sprintf("%s/", filepath.Join(git.Workspace, sourceRoot))
 }
