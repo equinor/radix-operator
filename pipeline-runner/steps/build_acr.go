@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -15,7 +16,6 @@ import (
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/equinor/radix-operator/radix-operator/common/commandbuilder"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
