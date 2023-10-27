@@ -229,7 +229,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "app", pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 				assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
-				assert.Equal(t, 13, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 14, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
@@ -269,7 +269,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.Equal(t, int32(1), *getDeploymentByName(componentNameRedis, deployments).Spec.Replicas, "number of replicas was unexpected")
 				}
 
-				assert.Equal(t, 12, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 13, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.True(t, envVariableByNameExistOnDeployment("a_variable", componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRedis, deployments))
@@ -537,7 +537,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, int32(1), *getDeploymentByName(jobName, deployments).Spec.Replicas, "number of replicas was unexpected")
 
 				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
-				assert.Equal(t, 14, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 15, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, "a_value", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", jobName, deployments))
 				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
@@ -1239,7 +1239,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		cm, _ := client.CoreV1().ConfigMaps(envNamespace).Get(context.TODO(), kube.GetEnvVarsConfigMapName(container.Name), metav1.GetOptions{})
 
 		templateSpecEnv := container.Env
-		assert.Equal(t, 9, len(templateSpecEnv), "Should only have default environment variables")
+		assert.Equal(t, 10, len(templateSpecEnv), "Should only have default environment variables")
 		assert.True(t, envVariableByNameExist(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.ClusternameEnvironmentVariable, templateSpecEnv))

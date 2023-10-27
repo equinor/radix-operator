@@ -214,6 +214,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_ZONE=%s", s.config.radixZone),
 				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config.clusterName),
 				fmt.Sprintf("--RADIX_CONTAINER_REGISTRY=%s", s.config.registry),
+				fmt.Sprintf("--RADIX_CACHE_CONTAINER_REGISTRY=%s", s.config.cacheRegistry),
 				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
