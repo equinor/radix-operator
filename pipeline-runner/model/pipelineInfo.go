@@ -2,10 +2,12 @@ package model
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 
 	"github.com/equinor/radix-common/utils/maps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -47,6 +49,7 @@ type PipelineInfo struct {
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
+
 	// Prepare pipeline job build context
 	PrepareBuildContext *PrepareBuildContext
 	StopPipeline        bool
@@ -351,10 +354,6 @@ func getDockerfileName(name string) string {
 }
 
 func getContext(sourceFolder string) string {
-	sourceFolder = strings.Trim(sourceFolder, ".")
-	sourceFolder = strings.Trim(sourceFolder, "/")
-	if sourceFolder == "" {
-		return fmt.Sprintf("%s/", git.Workspace)
-	}
-	return fmt.Sprintf("%s/%s/", git.Workspace, sourceFolder)
+	sourceRoot := filepath.Join("/", sourceFolder)
+	return fmt.Sprintf("%s/", filepath.Join(git.Workspace, sourceRoot))
 }
