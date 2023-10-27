@@ -5,23 +5,41 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	pipelinewait "github.com/equinor/radix-operator/pipeline-runner/wait"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // BuildStepImplementation Step to build docker image
 type BuildStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
+	jobWaiter pipelinewait.JobCompletionWaiter
 }
 
-// NewBuildStep Constructor
-func NewBuildStep() model.Step {
-	return &BuildStepImplementation{
-		stepType: pipeline.BuildStep,
+// NewBuildStep Constructor.
+// jobWaiter is optional and will be set by Init(...) function if nil.
+func NewBuildStep(jobWaiter pipelinewait.JobCompletionWaiter) model.Step {
+	step := &BuildStepImplementation{
+		stepType:  pipeline.BuildStep,
+		jobWaiter: jobWaiter,
+	}
+
+	return step
+}
+
+func (step *BuildStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+	if step.jobWaiter == nil {
+		step.jobWaiter = pipelinewait.NewJobCompletionWaiter(kubeclient)
 	}
 }
 
@@ -84,7 +102,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	return cli.GetKubeutil().WaitForCompletionOf(job)
+	return cli.jobWaiter.Wait(job)
 }
 
 func needToBuildComponents(componentImages map[string]pipeline.ComponentImage) bool {

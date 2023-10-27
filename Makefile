@@ -99,6 +99,7 @@ mocks:
 	mockgen -source ./pkg/apis/dnsalias/syncer.go -destination ./pkg/apis/dnsalias/syncer_mock.go -package dnsalias
 	mockgen -source ./radix-operator/dnsalias/internal/syncerfactory.go -destination ./radix-operator/dnsalias/internal/syncerfactory_mock.go -package internal
 	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
+	mockgen -source ./pipeline-runner/wait/job.go -destination ./pipeline-runner/wait/job_mock.go -package wait
 
 .PHONY: build-pipeline
 build-pipeline:

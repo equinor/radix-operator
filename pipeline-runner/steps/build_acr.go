@@ -109,18 +109,19 @@ func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []c
 			},
 		},
 	}
-	if len(buildSecrets) == 0 {
-		return volumes
-	}
-	volumes = append(volumes,
-		corev1.Volume{
-			Name: defaults.BuildSecretsName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: defaults.BuildSecretsName,
+
+	if len(buildSecrets) > 0 {
+		volumes = append(volumes,
+			corev1.Volume{
+				Name: defaults.BuildSecretsName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: defaults.BuildSecretsName,
+					},
 				},
-			},
-		})
+			})
+	}
+
 	return volumes
 }
 
@@ -278,7 +279,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		if isUsingBuildKit(pipelineInfo) {
 			containerCommand = getBuildahContainerCommand(pipelineInfo, containerRegistry, secretMountsArgsString,
 				componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath,
-				clusterTypeImage, clusterNameImage)
+				clusterTypeImage, clusterNameImage, pushImage)
 			container.Command = containerCommand
 			container.Resources.Requests = map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceCPU:    resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsCPU),
@@ -318,26 +319,28 @@ func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, bu
 	return volumeMounts
 }
 
-func getBuildahContainerCommand(pipelineInfo *model.PipelineInfo, containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string) []string {
-	return []string{
-		"/bin/bash",
-		"-c",
-		fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && "+
-			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
-			"--jobs 0 %s --file %s%s "+
-			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" "+
-			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" "+
-			"--build-arg BRANCH=\"${BRANCH}\" "+
-			"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" "+
-			"--tag %s --tag %s --tag %s %s && "+
+func getBuildahContainerCommand(pipelineInfo *model.PipelineInfo, containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string, pushImage bool) []string {
+	cmd := fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && "+
+		"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
+		"--jobs 0 %s --file %s%s "+
+		"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" "+
+		"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" "+
+		"--build-arg BRANCH=\"${BRANCH}\" "+
+		"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" "+
+		"--tag %s --tag %s --tag %s %s",
+		containerImageRegistry, secretArgsString, context, dockerFileName,
+		imageTag, clusterTypeImageTag, clusterNameImageTag,
+		context)
+
+	if pushImage {
+		cmd = fmt.Sprintf("%s && "+
 			"/usr/bin/buildah push --storage-driver=vfs %s && "+
 			"/usr/bin/buildah push --storage-driver=vfs %s && "+
 			"/usr/bin/buildah push --storage-driver=vfs %s",
-			containerImageRegistry, secretArgsString, context, dockerFileName,
-			imageTag, clusterTypeImageTag, clusterNameImageTag,
-			context,
-			imageTag, clusterTypeImageTag, clusterNameImageTag),
+			cmd, imageTag, clusterTypeImageTag, clusterNameImageTag)
 	}
+
+	return []string{"/bin/bash", "-c", cmd}
 }
 
 func isUsingBuildKit(pipelineInfo *model.PipelineInfo) bool {
