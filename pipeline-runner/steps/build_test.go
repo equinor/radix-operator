@@ -361,6 +361,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("client-component-3").WithEnabled(false).WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile"),
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("client-component-4").WithSourceFolder("./client2/").WithDockerfileName("client.Dockerfile"),
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("client-component-5").WithEnabled(false).WithSourceFolder("./client2/").WithDockerfileName("client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("client-component-6").WithEnabled(false).WithSourceFolder("./client3/").WithDockerfileName("client.Dockerfile").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("client-component-7").WithEnabled(true).WithSourceFolder("./client4/").WithDockerfileName("client.Dockerfile").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
 		).
 		WithJobComponents(
 			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-1").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
@@ -368,6 +372,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-3").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
 			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-4").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc2/"),
 			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-5").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc2/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-6").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc3/").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-7").WithEnabled(true).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc4/").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
 		).
 		BuildRA()
 	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra))
@@ -414,7 +422,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 		{Name: "build-multi-component", Docker: "client.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("multi-component")},
 		{Name: "build-multi-component-1", Docker: "calc.Dockerfile", Context: "/workspace/calc/", Image: imageNameFunc("multi-component-1")},
 		{Name: "build-client-component-4", Docker: "client.Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("client-component-4")},
+		{Name: "build-client-component-6", Docker: "client.Dockerfile", Context: "/workspace/client3/", Image: imageNameFunc("client-component-6")},
 		{Name: "build-calc-4", Docker: "calc.Dockerfile", Context: "/workspace/calc2/", Image: imageNameFunc("calc-4")},
+		{Name: "build-calc-6", Docker: "calc.Dockerfile", Context: "/workspace/calc3/", Image: imageNameFunc("calc-6")},
 	}
 	actualJobContainers := slice.Map(job.Spec.Template.Spec.Containers, func(c corev1.Container) jobContainerSpec {
 		getEnv := func(env string) string {
@@ -444,6 +454,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 		{Name: "client-component-1", Image: imageNameFunc("multi-component")},
 		{Name: "client-component-2", Image: imageNameFunc("multi-component")},
 		{Name: "client-component-4", Image: imageNameFunc("client-component-4")},
+		{Name: "client-component-6", Image: imageNameFunc("client-component-6")},
 	}
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
@@ -453,6 +464,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 		{Name: "calc-1", Image: imageNameFunc("multi-component-1")},
 		{Name: "calc-2", Image: imageNameFunc("multi-component-1")},
 		{Name: "calc-4", Image: imageNameFunc("calc-4")},
+		{Name: "calc-6", Image: imageNameFunc("calc-6")},
 	}
 	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
