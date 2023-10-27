@@ -30,7 +30,7 @@
         "--IMAGE_TAG_NAME=server2=1.22.1-alpine-perl"
       ]
     },
-    { 
+    {
       "name": "Launch-promote-pipeline",
       "type": "go",
       "request": "launch",
@@ -78,6 +78,7 @@
         "RADIX_TEKTON_IMAGE": "radix-tekton:main-latest",
         "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler:main-latest",
         "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
+        "RADIX_CACHE_CONTAINER_REGISTRY": "radixdevcache.azurecr.io",
         "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL": "https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0",
         "RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.2.0",
         "RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",

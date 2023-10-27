@@ -102,6 +102,8 @@ spec:
               value: {{ .Values.logLevel }}
             - name: RADIX_CONTAINER_REGISTRY
               value: {{ .Values.containerRegistry }}
+            - name: RADIX_CACHE_CONTAINER_REGISTRY
+              value: {{ .Values.cacheContainerRegistry }}
             - name: RADIXOPERATOR_TENANT_ID
               value: {{ .Values.tenantId }}
             - name: RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL
