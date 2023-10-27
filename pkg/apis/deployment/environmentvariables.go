@@ -17,6 +17,7 @@ import (
 type environmentVariablesSourceDecorator interface {
 	getClusterName() (string, error)
 	getContainerRegistry() (string, error)
+	getCacheContainerRegistry() (string, error)
 	getDnsZone() (string, error)
 	getClusterType() (string, error)
 	getClusterActiveEgressIps() (string, error)
@@ -33,6 +34,9 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClu
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getContainerRegistry() (string, error) {
 	return defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
+}
+func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getCacheContainerRegistry() (string, error) {
+	return defaults.GetEnvVar(defaults.CacheContainerRegistryEnvironmentVariable)
 }
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getDnsZone() (string, error) {
@@ -59,6 +63,13 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getContai
 	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
 	if err != nil {
 		return "", fmt.Errorf("failed to get container registry from ConfigMap: %v", err)
+	}
+	return containerRegistry, nil
+}
+func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCacheContainerRegistry() (string, error) {
+	containerRegistry, err := defaults.GetEnvVar(defaults.CacheContainerRegistryEnvironmentVariable)
+	if err != nil {
+		return "", fmt.Errorf("failed to get cache container registry from ConfigMap: %v", err)
 	}
 	return containerRegistry, nil
 }
@@ -202,6 +213,13 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, containerRegistry)
+
+	cacheContainerRegistry, err := envVarsSource.getCacheContainerRegistry()
+	if err != nil {
+		log.Error(err)
+		return envVarSet.Items()
+	}
+	envVarSet.Add(defaults.CacheContainerRegistryEnvironmentVariable, cacheContainerRegistry)
 	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, dnsZone)
 	clusterName, err := envVarsSource.getClusterName()
 	if err != nil {

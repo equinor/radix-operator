@@ -273,6 +273,7 @@ func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
 	os.Setenv(defaults.ContainerRegistryEnvironmentVariable, "any.container.registry")
+	os.Setenv(defaults.CacheContainerRegistryEnvironmentVariable, "any.cache.container.registry")
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot

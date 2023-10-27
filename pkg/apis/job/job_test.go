@@ -43,6 +43,7 @@ type RadixJobTestSuiteBase struct {
 		radixZone      string
 		clusterType    string
 		registry       string
+		cacheRegistry  string
 		subscriptionID string
 	}
 }
@@ -58,6 +59,7 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		radixZone      string
 		clusterType    string
 		registry       string
+		cacheRegistry  string
 		subscriptionID string
 	}{
 		clusterName:    "AnyClusterName",
@@ -69,6 +71,7 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		radixZone:      "anyzone",
 		clusterType:    "anyclustertype",
 		registry:       "anyregistry",
+		cacheRegistry:  "anyCacheRegistry",
 		subscriptionID: "anysubid",
 	}
 }
@@ -94,6 +97,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, s.config.clusterType)
 	s.T().Setenv(defaults.RadixZoneEnvironmentVariable, s.config.radixZone)
 	s.T().Setenv(defaults.ContainerRegistryEnvironmentVariable, s.config.registry)
+	s.T().Setenv(defaults.CacheContainerRegistryEnvironmentVariable, s.config.cacheRegistry)
 	s.T().Setenv(defaults.RadixTektonPipelineImageEnvironmentVariable, s.config.tektonImage)
 	s.T().Setenv(defaults.RadixImageBuilderEnvironmentVariable, s.config.builderImage)
 	s.T().Setenv(defaults.RadixBuildahImageBuilderEnvironmentVariable, s.config.buildahImage)

@@ -15,7 +15,7 @@ import (
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/equinor/radix-operator/radix-operator/common/appender"
+	"github.com/equinor/radix-operator/radix-operator/common/commandbuilder"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -265,6 +265,24 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 					},
 				},
 			},
+			{
+				Name: "BUILDAH_CACHE_USERNAME",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahCacheSecretName},
+						Key:                  "username",
+					},
+				},
+			},
+			{
+				Name: "BUILDAH_CACHE_PASSWORD",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahCacheSecretName},
+						Key:                  "password",
+					},
+				},
+			},
 		}
 
 		envVars = append(envVars, buildSecrets...)
@@ -278,9 +296,11 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			SecurityContext: buildContainerSecContext,
 		}
 		if isUsingBuildKit(pipelineInfo) {
-			containerCommand = getBuildahContainerCommand(pipelineInfo, containerRegistry, secretMountsArgsString,
-				componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath,
-				clusterTypeImage, clusterNameImage, pushImage)
+			cacheImagePath := utils.GetImagePathWithoutTag(pipelineInfo.PipelineArguments.CacheContainerRegistry, pipelineInfo.RadixApplication.Name, container.Name)
+			useBuildCache := pipelineInfo.RadixApplication.Spec.Build.UseBuildCache == nil || *pipelineInfo.RadixApplication.Spec.Build.UseBuildCache
+			cacheContainerRegistry := pipelineInfo.PipelineArguments.CacheContainerRegistry
+
+			containerCommand = getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath, clusterTypeImage, clusterNameImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pushImage)
 			container.Command = containerCommand
 			container.Resources.Requests = map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceCPU:    resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsCPU),
@@ -320,57 +340,48 @@ func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, bu
 	return volumeMounts
 }
 
-func getBuildahContainerCommand(pipelineInfo *model.PipelineInfo, containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string) []string {
+func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache bool) []string {
 
-	loginCmd := fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", containerImageRegistry)
-	buildCmd := appender.NewContainer().
-		Addf("/usr/bin/buildah build").
-		Addf("--storage-driver=vfs").
-		Addf("--isolation=chroot").
-		Addf("--jobs 0 %s --file %s%s", secretArgsString, context, dockerFileName).
-		Addf("--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\"").
-		Addf("--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\"").
-		Addf("--build-arg BRANCH=\"${BRANCH}\"").
-		Addf("--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\"").
-		Addf("--tag %s --tag %s --tag %s %s &&", imageTag, clusterTypeImageTag, clusterNameImageTag, context).
-		Join(" ")
+	commandList := commandbuilder.NewCommandList()
 
-	cmd := appender.NewContainer().
-		Addf(loginCmd).
-		Addf(buildCmd).
-		Addf("/usr/bin/buildah push --storage-driver=vfs %s", imageTag).
-		Addf("/usr/bin/buildah push --storage-driver=vfs %s", clusterTypeImageTag).
-		Addf("/usr/bin/buildah push --storage-driver=vfs %s", clusterNameImageTag).
-		Join(" && ")
-
-	/*
-
-	func getBuildahContainerCommand(pipelineInfo *model.PipelineInfo, containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag string, pushImage bool) []string {
-		cmd := fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && "+
-			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot "+
-			"--jobs 0 %s --file %s%s "+
-			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" "+
-			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" "+
-			"--build-arg BRANCH=\"${BRANCH}\" "+
-			"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" "+
-			"--tag %s --tag %s --tag %s %s",
-			containerImageRegistry, secretArgsString, context, dockerFileName,
-			imageTag, clusterTypeImageTag, clusterNameImageTag,
-			context)
-
-		if pushImage {
-			cmd = fmt.Sprintf("%s && "+
-				"/usr/bin/buildah push --storage-driver=vfs %s && "+
-				"/usr/bin/buildah push --storage-driver=vfs %s && "+
-				"/usr/bin/buildah push --storage-driver=vfs %s",
-				cmd, imageTag, clusterTypeImageTag, clusterNameImageTag)
-		}
-
-		return []string{"/bin/bash", "-c", cmd}
+	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", containerImageRegistry)
+	if useBuildCache {
+		commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s", cacheContainerImageRegistry)
 	}
-	 */
 
-	return []string{"/bin/bash", "-c", cmd}
+	buildah := commandbuilder.NewCommand("/usr/bin/buildah build")
+	commandList.AddCmd(buildah)
+
+	buildah.
+		AddArgf("--storage-driver=vfs").
+		AddArgf("--isolation=chroot").
+		AddArgf("--jobs 0").
+		AddArgf(secretArgsString).
+		AddArgf("--file %s%s", context, dockerFileName).
+		AddArgf("--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\"").
+		AddArgf("--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\"").
+		AddArgf("--build-arg BRANCH=\"${BRANCH}\"").
+		AddArgf("--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\"")
+
+	if useBuildCache {
+		buildah.
+			AddArgf("--layers").
+			AddArgf("--cache-to=%s", cacheImagePath).
+			AddArgf("--cache-from=%s", cacheImagePath)
+	}
+
+	buildah.
+		AddArgf("--tag %s", imageTag).
+		AddArgf("--tag %s", clusterTypeImageTag).
+		AddArgf("--tag %s", clusterNameImageTag).
+		AddArgf(context)
+
+	commandList.
+		AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", imageTag).
+		AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", clusterTypeImageTag).
+		AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", clusterNameImageTag)
+
+	return []string{"/bin/bash", "-c", commandList.String()}
 }
 
 func isUsingBuildKit(pipelineInfo *model.PipelineInfo) bool {

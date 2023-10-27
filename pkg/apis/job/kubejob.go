@@ -128,6 +128,10 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	if err != nil {
 		return nil, err
 	}
+	cacheContainerRegistry, err := defaults.GetEnvVar(defaults.CacheContainerRegistryEnvironmentVariable)
+	if err != nil {
+		return nil, err
+	}
 	subscriptionId, err := job.kubeutil.GetSubscriptionId()
 	if err != nil {
 		return nil, err
@@ -159,6 +163,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("--%s=%s", defaults.RadixZoneEnvironmentVariable, radixZone),
 		fmt.Sprintf("--%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
 		fmt.Sprintf("--%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
+		fmt.Sprintf("--%s=%s", defaults.CacheContainerRegistryEnvironmentVariable, cacheContainerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
 	}
 

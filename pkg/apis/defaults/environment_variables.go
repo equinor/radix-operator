@@ -22,6 +22,9 @@ const (
 	// ContainerRegistryEnvironmentVariable The name of the container registry
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
 
+	// CacheContainerRegistryEnvironmentVariable The name of the cache container registry
+	CacheContainerRegistryEnvironmentVariable = "RADIX_CACHE_CONTAINER_REGISTRY"
+
 	// AzureSubscriptionIdEnvironmentVariable The Azure subscription ID
 	AzureSubscriptionIdEnvironmentVariable = "AZURE_SUBSCRIPTION_ID"
 
@@ -110,7 +113,7 @@ const (
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
 
 	// RadixTektonPipelineImageEnvironmentVariable Points to the utility image for preparing radixconfig copying
-	///config/file to/map and preparing Tekton resources
+	// /config/file to/map and preparing Tekton resources
 	RadixTektonPipelineImageEnvironmentVariable = "RADIX_TEKTON_IMAGE"
 
 	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
