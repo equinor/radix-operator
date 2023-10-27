@@ -650,7 +650,7 @@ type RadixPrivateImageHubCredential struct {
 	Username string `json:"username"`
 
 	// The email address linked to the username.
-	// +kubebuilder:validation:MinLength=3
+	// +optional
 	Email string `json:"email"`
 }
 

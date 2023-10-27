@@ -1995,7 +1995,6 @@
             "properties": {
               "email": {
                 "description": "The email address linked to the username.",
-                "minLength": 3,
                 "type": "string"
               },
               "username": {
@@ -2005,7 +2004,6 @@
               }
             },
             "required": [
-              "email",
               "username"
             ],
             "type": "object"
