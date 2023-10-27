@@ -4,29 +4,45 @@ import (
 	"context"
 	"fmt"
 
+	pipelineinternal "github.com/equinor/radix-operator/pipeline-runner/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
+	pipelinewait "github.com/equinor/radix-operator/pipeline-runner/wait"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // RunPipelinesStepImplementation Step to run Tekton pipelines
 type RunPipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
+	jobWaiter pipelinewait.JobCompletionWaiter
 }
 
-// NewRunPipelinesStep Constructor
-func NewRunPipelinesStep() model.Step {
+// NewRunPipelinesStep Constructor.
+// jobWaiter is optional and will be set by Init(...) function if nil.
+func NewRunPipelinesStep(jobWaiter pipelinewait.JobCompletionWaiter) model.Step {
 	return &RunPipelinesStepImplementation{
-		stepType: pipeline.RunPipelinesStep,
+		stepType:  pipeline.RunPipelinesStep,
+		jobWaiter: jobWaiter,
+	}
+}
+
+func (step *RunPipelinesStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+	if step.jobWaiter == nil {
+		step.jobWaiter = pipelinewait.NewJobCompletionWaiter(kubeclient)
 	}
 }
 
@@ -75,7 +91,7 @@ func (cli *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo)
 		return err
 	}
 
-	return cli.GetKubeutil().WaitForCompletionOf(job)
+	return cli.jobWaiter.Wait(job)
 }
 
 func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
@@ -128,5 +144,5 @@ func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipeli
 			Value: pipelineInfo.PipelineArguments.LogLevel,
 		},
 	}
-	return pipelineUtils.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
+	return pipelineinternal.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
 }
