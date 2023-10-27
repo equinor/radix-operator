@@ -2,8 +2,10 @@ package dnsalias_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -24,10 +26,11 @@ import (
 
 type syncerTestSuite struct {
 	suite.Suite
-	kubeClient  *kubefake.Clientset
-	radixClient *radixfake.Clientset
-	kubeUtil    *kube.Kube
-	promClient  *prometheusfake.Clientset
+	kubeClient    *kubefake.Clientset
+	radixClient   *radixfake.Clientset
+	kubeUtil      *kube.Kube
+	promClient    *prometheusfake.Clientset
+	clusterConfig *config.ClusterConfig
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -38,11 +41,12 @@ func (s *syncerTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
+	s.clusterConfig = &config.ClusterConfig{DNSZone: "test.radix.equinor.com"}
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
-	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, radixDNSAlias)
+	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.clusterConfig, radixDNSAlias)
 }
 
 type testIngress struct {
@@ -54,15 +58,18 @@ type testIngress struct {
 	port      int32
 }
 
+type modifyComponentBuilderFunc func(builder utils.RadixApplicationComponentBuilder) (utils.RadixApplicationComponentBuilder, bool)
+
 type scenario struct {
-	name                    string
-	expectedError           string
-	missingRadixApplication bool
-	dnsAlias                radixv1.DNSAlias
-	dnsZone                 string
-	existingRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
-	existingIngress         []testIngress
-	expectedIngress         map[string]testIngress
+	name                        string
+	expectedError               string
+	missingRadixApplication     bool
+	dnsAlias                    radixv1.DNSAlias
+	dnsZone                     string
+	existingRadixDNSAliases     map[string]radixv1.RadixDNSAliasSpec
+	existingIngress             []testIngress
+	expectedIngress             map[string]testIngress
+	applicationComponentBuilder utils.RadixApplicationComponentBuilder
 }
 
 func (s *syncerTestSuite) Test_syncer_OnSync() {
@@ -76,19 +83,22 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		port8080   = 8080
 		dnsZone1   = "test.radix.equinor.com"
 	)
+
 	scenarios := []scenario{
 		{
-			name:                    "no radix application",
-			missingRadixApplication: true,
-			expectedError:           "not found the Radix application app1 for the DNS alias domain1",
-			dnsAlias:                radixv1.DNSAlias{Domain: "domain1", Environment: envName1, Component: component1},
+			name:                        "no radix application",
+			missingRadixApplication:     true,
+			applicationComponentBuilder: getRandomComponentBuilder(),
+			expectedError:               "not found the Radix application app1 for the DNS alias domain1",
+			dnsAlias:                    radixv1.DNSAlias{Domain: "domain1", Environment: envName1, Component: component1},
 		},
 		{
-			name:     "created an ingress",
-			dnsAlias: radixv1.DNSAlias{Domain: domain1, Environment: envName1, Component: component1},
-			dnsZone:  dnsZone1,
+			name:                        "created an ingress",
+			dnsAlias:                    radixv1.DNSAlias{Domain: domain1, Environment: envName1, Component: component1},
+			dnsZone:                     dnsZone1,
+			applicationComponentBuilder: utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portHttp, port8080).WithPublicPort(portHttp),
 			expectedIngress: map[string]testIngress{
-				"server1.domain1.custom-domain": {appName: appName1, envName: envName1, name: "component1.domain1.custom-domain", host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, name: "component1.domain1.custom-domain", host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
 			},
 		},
 		// {
@@ -96,8 +106,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		// 	dnsAlias:                radixv1.DNSAlias{Domain: domain1, Environment: envName1, Component: component1},
 		// 	dnsZone:                 dnsZone1,
 		// 	expectedIngress: map[string]testIngress{
-		// 		"server1.domain1.custom-domain": {appName: appName1, envName: envName1, name: "server1.domain1.custom-domain", host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
-		// 		"server1.domain2.custom-domain": {appName: appName1, envName: envName1, name: "server1.domain2.custom-domain", host: internal.GetDNSAliasHost(domain2, dnsZone1), component: component1, port: port8080},
+		// 		"component1.domain1.custom-domain": {appName: appName1, envName: envName1, name: "component1.domain1.custom-domain", host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+		// 		"component1.domain2.custom-domain": {appName: appName1, envName: envName1, name: "component1.domain2.custom-domain", host: internal.GetDNSAliasHost(domain2, dnsZone1), component: component1, port: port8080},
 		// 	},
 		// },
 	}
@@ -106,7 +116,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			// s.SetupTest()
 			if !ts.missingRadixApplication {
 				ra := utils.NewRadixApplicationBuilder().WithAppName(appName1).WithEnvironment(envName1, "master").
-					WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portHttp, port8080).WithPublicPort(portHttp)).BuildRA()
+					WithComponents(ts.applicationComponentBuilder, getRandomComponentBuilder()).BuildRA()
 				_, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName1)).Create(context.Background(), ra, metav1.CreateOptions{})
 				s.NoError(err)
 			}
@@ -123,36 +133,44 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 
 			// assert ingresses
 			if ts.expectedIngress == nil {
-				assert.Len(t, ingresses.Items, 0, "not expected ingresses")
-			} else {
-				assert.Len(t, ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
-				if len(ingresses.Items) == len(ts.expectedIngress) {
-					for _, ingress := range ingresses.Items {
-						if expectedIngress, ok := ts.expectedIngress[ingress.Name]; ok {
-							require.Len(t, ingress.Spec.Rules, 1, "rules count")
-							assert.Equal(t, expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
-							assert.Equal(t, utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
-							assert.Equal(t, expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
-							assert.Equal(t, expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
-							assert.Equal(t, "/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
-							assert.Equal(t, expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend service name")
-							assert.Equal(t, expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "rule backend service port")
-						} else {
-							assert.Failf(t, "found not expected ingress %s: appName %s, host %s, service %s, port %d", ingress.GetName(), ingress.GetLabels()[kube.RadixAppLabel], ingress.Spec.Rules[0].Host, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, &ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port)
-						}
+				require.Len(t, ingresses.Items, 0, "not expected ingresses")
+				return
+			}
+
+			require.Len(t, ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
+			if len(ingresses.Items) == len(ts.expectedIngress) {
+				for _, ingress := range ingresses.Items {
+					if expectedIngress, ok := ts.expectedIngress[ingress.Name]; ok {
+						require.Len(t, ingress.Spec.Rules, 1, "rules count")
+						assert.Equal(t, expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
+						assert.Equal(t, utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
+						assert.Equal(t, expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
+						assert.Equal(t, expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
+						assert.Equal(t, "/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
+						assert.Equal(t, expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend service name")
+						assert.Equal(t, expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "rule backend service port")
+						continue
 					}
+					assert.Fail(t, fmt.Sprintf("found not expected ingress %s for: appName %s, host %s, service %s, port %d",
+						ingress.GetName(), ingress.GetLabels()[kube.RadixAppLabel], ingress.Spec.Rules[0].Host, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name,
+						&ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number))
 				}
 			}
+
 		})
 	}
 }
 
 func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses []testIngress, config *config.ClusterConfig) error {
 	for _, ing := range testIngresses {
-		_, err := internal.CreateRadixDNSAliasIngress(kubeClient, ing.appName, ing.envName, internal.BuildRadixDNSAliasIngress(ing.appName, ing.name, ing.component, ing.port, config))
+		_, err := internal.CreateRadixDNSAliasIngress(kubeClient, ing.appName, ing.envName, internal.BuildRadixDNSAliasIngress(ing.appName, ing.name, ing.component, ing.port, nil, config))
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func getRandomComponentBuilder() utils.RadixApplicationComponentBuilder {
+	return utils.NewApplicationComponentBuilder().WithName(commonUtils.RandString(20)).WithPort("p", 9000).WithPublicPort("s")
 }

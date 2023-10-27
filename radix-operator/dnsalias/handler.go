@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,6 +34,7 @@ type handler struct {
 	radixClient   radixclient.Interface
 	syncerFactory internal.SyncerFactory
 	hasSynced     common.HasSynced
+	clusterConfig *config.ClusterConfig
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
@@ -40,13 +42,15 @@ func NewHandler(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
+	clusterConfig *config.ClusterConfig,
 	hasSynced common.HasSynced,
 	options ...HandlerConfigOption) common.Handler {
 	h := &handler{
-		kubeClient:  kubeClient,
-		kubeUtil:    kubeUtil,
-		radixClient: radixClient,
-		hasSynced:   hasSynced,
+		kubeClient:    kubeClient,
+		kubeUtil:      kubeUtil,
+		radixClient:   radixClient,
+		hasSynced:     hasSynced,
+		clusterConfig: clusterConfig,
 	}
 	configureDefaultSyncerFactory(h)
 	for _, option := range options {
@@ -79,7 +83,7 @@ func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 	syncingAlias := radixDNSAlias.DeepCopy()
 	logger.Debugf("Sync RadixDNSAlias %s", name)
 
-	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, syncingAlias)
+	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.clusterConfig, syncingAlias)
 	err = syncer.OnSync()
 	if err != nil {
 		return err

@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	"github.com/stretchr/testify/require"
@@ -37,13 +38,14 @@ func (s *handlerTestSuite) TearDownTest() {
 	s.MockCtrl.Finish()
 }
 
-func (s *handlerTestSuite) Test_IngressesForRadixDNSAliases() {
+func (s *handlerTestSuite) Test_RadixDNSAliases() {
 	const (
 		appName        = "any-app1"
 		env1           = "env1"
 		componentPort1 = 8080
 		component1     = "component1"
 	)
+	clusterConfig := &config.ClusterConfig{DNSZone: "test.radix.equinor.com"}
 	var testScenarios = []struct {
 		name                    string
 		dnsAlias                radixv1.DNSAlias
@@ -70,7 +72,7 @@ func (s *handlerTestSuite) Test_IngressesForRadixDNSAliases() {
 				map[string]radixv1.RadixDNSAliasSpec{ts.dnsAlias.Domain: internal.BuildRadixDNSAlias(appName, ts.dnsAlias.Component, ts.dnsAlias.Environment, ts.dnsAlias.Domain).Spec}),
 				"create new or updated RadixDNSAlias")
 			handlerSynced := false
-			handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient,
+			handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, clusterConfig,
 				func(synced bool) { handlerSynced = synced }, dnsalias.WithSyncerFactory(s.syncerFactory))
 			err = handler.Sync("", ts.dnsAlias.Domain, s.EventRecorder)
 			require.NoError(s.T(), err)

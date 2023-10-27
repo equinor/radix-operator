@@ -11,6 +11,7 @@ import (
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	config "github.com/equinor/radix-operator/radix-operator/config"
 	gomock "github.com/golang/mock/gomock"
 	kubernetes "k8s.io/client-go/kubernetes"
 )
@@ -39,15 +40,15 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, radixDNSAlias *v1.RadixDNSAlias) dnsalias.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, clusterConfig *config.ClusterConfig, radixDNSAlias *v1.RadixDNSAlias) dnsalias.Syncer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateSyncer", kubeClient, kubeUtil, radixClient, radixDNSAlias)
+	ret := m.ctrl.Call(m, "CreateSyncer", kubeClient, kubeUtil, radixClient, clusterConfig, radixDNSAlias)
 	ret0, _ := ret[0].(dnsalias.Syncer)
 	return ret0
 }
 
 // CreateSyncer indicates an expected call of CreateSyncer.
-func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeClient, kubeUtil, radixClient, radixDNSAlias interface{}) *gomock.Call {
+func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeClient, kubeUtil, radixClient, clusterConfig, radixDNSAlias interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), kubeClient, kubeUtil, radixClient, radixDNSAlias)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), kubeClient, kubeUtil, radixClient, clusterConfig, radixDNSAlias)
 }

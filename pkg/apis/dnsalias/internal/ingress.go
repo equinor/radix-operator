@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/radix-operator/config"
@@ -13,23 +14,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const (
-	dnsAliasIngressNameTemplate = "%s.%s.custom-domain" // <component-name>.<dns-alias-domain>.custom-domain
-)
-
 // CreateRadixDNSAliasIngress Create an Ingress for a RadixDNSAlias
 func CreateRadixDNSAliasIngress(kubeClient kubernetes.Interface, appName, envName string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
 	return kubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), ingress, metav1.CreateOptions{})
 }
 
 // BuildRadixDNSAliasIngress Build an Ingress for a RadixDNSAlias
-func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, config *config.ClusterConfig) *networkingv1.Ingress {
+func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owner *v1.RadixDNSAlias, config *config.ClusterConfig) *networkingv1.Ingress {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
-	name := fmt.Sprintf(dnsAliasIngressNameTemplate, service, domain)
+	ingressName := GetDNSAliasIngressName(service, domain)
 	host := GetDNSAliasHost(domain, config.DNSZone)
-	return &networkingv1.Ingress{
+	ingress := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
+			Name:   ingressName,
 			Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(service)),
 		},
 		Spec: networkingv1.IngressSpec{
@@ -53,6 +50,15 @@ func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, conf
 				},
 			},
 		}}
+	if owner != nil {
+		ingress.SetOwnerReferences([]metav1.OwnerReference{GetOwnerReference(owner)})
+	}
+	return &ingress
+}
+
+// GetDNSAliasIngressName Gets name of the ingress for the custom DNS alias
+func GetDNSAliasIngressName(service string, domain string) string {
+	return fmt.Sprintf("%s.%s.custom-domain", service, domain)
 }
 
 // GetDNSAliasHost Gets DNS alias domain host.
