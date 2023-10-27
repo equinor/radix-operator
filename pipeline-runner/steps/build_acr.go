@@ -269,7 +269,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name: "BUILDAH_CACHE_USERNAME",
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahCacheSecretName},
+						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordBuildahCacheSecretName},
 						Key:                  "username",
 					},
 				},
@@ -278,7 +278,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name: "BUILDAH_CACHE_PASSWORD",
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahCacheSecretName},
+						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordBuildahCacheSecretName},
 						Key:                  "password",
 					},
 				},
