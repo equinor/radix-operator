@@ -730,7 +730,7 @@ func Test_DNSAliases(t *testing.T) {
 
 func registerExistingRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]radixv1.RadixDNSAliasSpec) error {
 	for domain, rdaSpec := range radixDNSAliasesMap {
-		_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.TODO(),
+		_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.Background(),
 			&radixv1.RadixDNSAlias{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   domain,

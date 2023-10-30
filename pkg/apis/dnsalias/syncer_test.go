@@ -12,6 +12,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/radix-operator/config"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
@@ -113,7 +114,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 	}
 	for _, ts := range scenarios {
 		s.T().Run(ts.name, func(t *testing.T) {
-			// s.SetupTest()
+			s.SetupTest()
 			if !ts.missingRadixApplication {
 				ra := utils.NewRadixApplicationBuilder().WithAppName(appName1).WithEnvironment(envName1, "master").
 					WithComponents(ts.applicationComponentBuilder, getRandomComponentBuilder()).BuildRA()
@@ -123,6 +124,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			config := &config.ClusterConfig{DNSZone: ts.dnsZone}
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Domain},
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
+			require.NoError(t, registerExistingRadixDNSAlias(s.radixClient, radixDNSAlias), "create existing alias")
 			require.NoError(t, registerExistingIngresses(s.kubeClient, ts.existingIngress, config), "create existing ingresses")
 			syncer := s.createSyncer(radixDNSAlias)
 			err := syncer.OnSync()
@@ -173,4 +175,10 @@ func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses []
 
 func getRandomComponentBuilder() utils.RadixApplicationComponentBuilder {
 	return utils.NewApplicationComponentBuilder().WithName(commonUtils.RandString(20)).WithPort("p", 9000).WithPublicPort("s")
+}
+
+func registerExistingRadixDNSAlias(radixClient radixclient.Interface, radixDNSAlias *radixv1.RadixDNSAlias) error {
+	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.TODO(),
+		radixDNSAlias, metav1.CreateOptions{})
+	return err
 }
