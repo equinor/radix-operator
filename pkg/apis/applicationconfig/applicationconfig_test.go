@@ -670,12 +670,16 @@ type testIngress struct {
 func Test_DNSAliases(t *testing.T) {
 	const (
 		appName    = "any-app1"
-		env1       = "dev"
+		env1       = "env1"
+		env2       = "env2"
 		component1 = "server1"
+		component2 = "server2"
 		branch1    = "branch1"
+		branch2    = "branch2"
 		portA      = "port-a"
 		port8080   = 8080
 		domain1    = "domain1"
+		domain2    = "domain2"
 	)
 	var testScenarios = []struct {
 		name                    string
@@ -695,6 +699,38 @@ func Test_DNSAliases(t *testing.T) {
 				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
 			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
 				domain1: {AppName: appName, Environment: env1, Component: component1},
+			},
+		},
+		{
+			name: "aliases for multiple components, no existing RDA",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName).WithEnvironment(env1, branch1).
+				WithDNSAlias(
+					radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1},
+					radixv1.DNSAlias{Domain: domain2, Environment: env1, Component: component2},
+				).
+				WithComponents(
+					utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA),
+					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port8080).WithPublicPort(portA),
+				),
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName, Environment: env1, Component: component1},
+				domain2: {AppName: appName, Environment: env1, Component: component2},
+			},
+		},
+		{
+			name: "aliases for multiple environments, no existing RDA",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
+				WithDNSAlias(
+					radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1},
+					radixv1.DNSAlias{Domain: domain2, Environment: env2, Component: component1},
+				).
+				WithComponents(
+					utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA),
+					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port8080).WithPublicPort(portA),
+				),
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName, Environment: env1, Component: component1},
+				domain2: {AppName: appName, Environment: env2, Component: component1},
 			},
 		},
 	}
