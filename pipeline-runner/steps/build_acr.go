@@ -340,7 +340,7 @@ func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, bu
 	return volumeMounts
 }
 
-func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache bool) []string {
+func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool) []string {
 
 	commandList := commandbuilder.NewCommandList()
 
@@ -370,16 +370,21 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString, contex
 			AddArgf("--cache-from=%s", cacheImagePath)
 	}
 
-	buildah.
-		AddArgf("--tag %s", imageTag).
-		AddArgf("--tag %s", clusterTypeImageTag).
-		AddArgf("--tag %s", clusterNameImageTag).
-		AddArgf(context)
+	if pushImage {
+		buildah.
+			AddArgf("--tag %s", imageTag).
+			AddArgf("--tag %s", clusterTypeImageTag).
+			AddArgf("--tag %s", clusterNameImageTag)
+	}
 
-	commandList.
-		AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", imageTag).
-		AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", clusterTypeImageTag).
-		AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", clusterNameImageTag)
+	buildah.AddArgf(context)
+
+	if pushImage {
+		commandList.
+			AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", imageTag).
+			AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", clusterTypeImageTag).
+			AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", clusterNameImageTag)
+	}
 
 	return []string{"/bin/bash", "-c", commandList.String()}
 }
