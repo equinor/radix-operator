@@ -104,8 +104,8 @@ type PipelineArguments struct {
 	Clustername string
 	// ContainerRegistry The name of the container registry
 	ContainerRegistry string
-	// CacheContainerRegistry the name of the container registry
-	CacheContainerRegistry string
+	// AppContainerRegistry the name of the app container registry
+	AppContainerRegistry string
 	// SubscriptionId Azure subscription ID
 	SubscriptionId string
 	// Used to indicate debugging session

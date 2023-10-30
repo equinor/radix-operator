@@ -269,7 +269,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name: "BUILDAH_CACHE_USERNAME",
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordBuildahCacheSecretName},
+						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
 						Key:                  "username",
 					},
 				},
@@ -278,7 +278,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name: "BUILDAH_CACHE_PASSWORD",
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordBuildahCacheSecretName},
+						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
 						Key:                  "password",
 					},
 				},
@@ -296,9 +296,9 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			SecurityContext: buildContainerSecContext,
 		}
 		if isUsingBuildKit(pipelineInfo) {
-			cacheImagePath := utils.GetImageCachePath(pipelineInfo.PipelineArguments.CacheContainerRegistry, pipelineInfo.RadixApplication.Name)
+			cacheImagePath := utils.GetImageCachePath(pipelineInfo.PipelineArguments.AppContainerRegistry, pipelineInfo.RadixApplication.Name)
 			useBuildCache := pipelineInfo.RadixApplication.Spec.Build.UseBuildCache == nil || *pipelineInfo.RadixApplication.Spec.Build.UseBuildCache
-			cacheContainerRegistry := pipelineInfo.PipelineArguments.CacheContainerRegistry
+			cacheContainerRegistry := pipelineInfo.PipelineArguments.AppContainerRegistry // Store application cache in the App Registry
 
 			containerCommand = getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath, clusterTypeImage, clusterNameImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pushImage)
 			container.Command = containerCommand

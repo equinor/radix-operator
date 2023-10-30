@@ -25,7 +25,7 @@ appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 containerRegistry: radixdev.azurecr.io
-cacheContainerRegistry: radixdevcache.azurecr.io
+appContainerRegistry: radixdevapp.azurecr.io
 tenantId: xx
 subscriptionId: xx
 

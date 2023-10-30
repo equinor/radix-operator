@@ -114,13 +114,12 @@ func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNames
 		return err
 	}
 
-	tokenSecretForBuildahCacheRegistry, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRTokenPasswordBuildahCacheSecretName)
+	tokenSecretForAppRegistry, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRTokenPasswordAppRegistrySecretName)
 	if err != nil {
 		return err
 	}
 
-	// TODO: Ask @Nils: When does Radix Operator sync the secrets? Only on restart?
-	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild, tokenSecretForBuildahCacheRegistry} {
+	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild, tokenSecretForAppRegistry} {
 		_, err = app.kubeutil.ApplySecret(buildNamespace, secret)
 		if err != nil {
 			return err

@@ -22,8 +22,8 @@ const (
 	// ContainerRegistryEnvironmentVariable The name of the container registry
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
 
-	// CacheContainerRegistryEnvironmentVariable The name of the cache container registry
-	CacheContainerRegistryEnvironmentVariable = "RADIX_CACHE_CONTAINER_REGISTRY"
+	// AppContainerRegistryEnvironmentVariable The name of the app container registry
+	AppContainerRegistryEnvironmentVariable = "RADIX_APP_CONTAINER_REGISTRY"
 
 	// AzureSubscriptionIdEnvironmentVariable The Azure subscription ID
 	AzureSubscriptionIdEnvironmentVariable = "AZURE_SUBSCRIPTION_ID"
