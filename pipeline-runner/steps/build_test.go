@@ -68,7 +68,9 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 				WithName(anyComponentName)).
 		BuildRA()
 
-	cli := steps.NewBuildStep(nil)
+	jobWaiter := pipelinewait.NewMockJobCompletionWaiter(s.ctrl)
+	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
+	cli := steps.NewBuildStep(jobWaiter)
 	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	applicationConfig, _ := application.NewApplicationConfig(s.kubeClient, s.kubeUtil, s.radixClient, rr, ra)
@@ -196,6 +198,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: "RADIX_GIT_TAGS", Value: gitTags},
 		{Name: "BUILDAH_USERNAME", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "username", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName}}}},
 		{Name: "BUILDAH_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "password", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName}}}},
+		{Name: "BUILDAH_CACHE_USERNAME", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "username", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordBuildahCacheSecretName}}}},
+		{Name: "BUILDAH_CACHE_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "password", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordBuildahCacheSecretName}}}},
 	}
 	s.ElementsMatch(expectedEnv, job.Spec.Template.Spec.Containers[0].Env)
 
@@ -681,14 +685,15 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:               "main",
-			JobName:              rjName,
-			BuildKitImageBuilder: "anybuildkitimage:tag",
-			ImageTag:             "anyimagetag",
-			ContainerRegistry:    "anyregistry",
-			Clustertype:          "anyclustertype",
-			Clustername:          "anyclustername",
-			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			Branch:                 "main",
+			JobName:                rjName,
+			BuildKitImageBuilder:   "anybuildkitimage:tag",
+			ImageTag:               "anyimagetag",
+			ContainerRegistry:      "anyregistry",
+			CacheContainerRegistry: "anycacheregistry",
+			Clustertype:            "anyclustertype",
+			Clustername:            "anyclustername",
+			Builder:                model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -709,15 +714,16 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	expectedBuildCmd := strings.Join(
 		[]string{
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
-			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0  ",
+			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.CacheContainerRegistry),
+			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
 			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
 			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
 			"--build-arg BRANCH=\"${BRANCH}\" ",
 			"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" ",
-			fmt.Sprintf("--tag %s/%s-%s:%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
+			"--layers ",
+			fmt.Sprintf("--cache-to=%s/%s/cache ", pipeline.PipelineArguments.CacheContainerRegistry, appName),
+			fmt.Sprintf("--cache-from=%s/%s/cache ", pipeline.PipelineArguments.CacheContainerRegistry, appName),
 			"/workspace/path2/",
 		},
 		"",
@@ -742,15 +748,16 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:               "main",
-			JobName:              rjName,
-			BuildKitImageBuilder: "anybuildkitimage:tag",
-			ImageTag:             "anyimagetag",
-			ContainerRegistry:    "anyregistry",
-			Clustertype:          "anyclustertype",
-			Clustername:          "anyclustername",
-			PushImage:            true,
-			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			Branch:                 "main",
+			JobName:                rjName,
+			BuildKitImageBuilder:   "anybuildkitimage:tag",
+			ImageTag:               "anyimagetag",
+			ContainerRegistry:      "anyregistry",
+			CacheContainerRegistry: "anycacheregistry",
+			Clustertype:            "anyclustertype",
+			Clustername:            "anyclustername",
+			PushImage:              true,
+			Builder:                model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -771,12 +778,16 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	expectedBuildCmd := strings.Join(
 		[]string{
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
-			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0  ",
+			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.CacheContainerRegistry),
+			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
 			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
 			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
 			"--build-arg BRANCH=\"${BRANCH}\" ",
 			"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" ",
+			"--layers ",
+			fmt.Sprintf("--cache-to=%s/%s/cache ", pipeline.PipelineArguments.CacheContainerRegistry, appName),
+			fmt.Sprintf("--cache-from=%s/%s/cache ", pipeline.PipelineArguments.CacheContainerRegistry, appName),
 			fmt.Sprintf("--tag %s/%s-%s:%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
 			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
 			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
@@ -847,6 +858,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	expectedBuildCmd := strings.Join(
 		[]string{
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
+			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.CacheContainerRegistry),
 			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 ",
 			"--secret id=SECRET1,src=/build-secrets/SECRET1 --secret id=SECRET2,src=/build-secrets/SECRET2 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
@@ -854,9 +866,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
 			"--build-arg BRANCH=\"${BRANCH}\" ",
 			"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" ",
-			fmt.Sprintf("--tag %s/%s-%s:%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
+			"--layers ",
+			fmt.Sprintf("--cache-to=%s/%s/cache ", pipeline.PipelineArguments.CacheContainerRegistry, appName),
+			fmt.Sprintf("--cache-from=%s/%s/cache ", pipeline.PipelineArguments.CacheContainerRegistry, appName),
 			"/workspace/path2/",
 		},
 		"",

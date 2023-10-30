@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/internal"
-	pipelineinternal "github.com/equinor/radix-operator/pipeline-runner/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	pipelineinternal "github.com/equinor/radix-operator/pipeline-runner/utils"
 	pipelinewait "github.com/equinor/radix-operator/pipeline-runner/wait"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
