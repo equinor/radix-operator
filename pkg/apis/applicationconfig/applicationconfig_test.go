@@ -7,6 +7,7 @@ import (
 	"log"
 	"testing"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -668,31 +669,32 @@ type testIngress struct {
 
 func Test_DNSAliases(t *testing.T) {
 	const (
-		appName              = "any-app1"
-		envDev               = "dev"
-		componentNameServer1 = "server1"
+		appName    = "any-app1"
+		env1       = "dev"
+		component1 = "server1"
+		branch1    = "branch1"
+		portA      = "port-a"
+		port8080   = 8080
+		domain1    = "domain1"
 	)
 	var testScenarios = []struct {
 		name                    string
-		dnsAliases              []radixv1.DNSAlias
+		applicationBuilder      utils.ApplicationBuilder
 		existingRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
 		expectedRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
 	}{
 		{
-			name: "no aliases, no existing RDA, no existing ingresses, no additional radix aliases, no additional ingresses",
+			name: "no aliases, no existing RDA, no expected RDA",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName).WithEnvironment(env1, branch1).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
 		},
 		{
-			name: "no aliases, no existing RDA, exist ingresses, no additional radix aliases, no additional ingresses",
-		},
-		{
-			name: "multiple aliases, no existing RDA, no existing ingresses, additional radix aliases, additional ingresses",
-			dnsAliases: []radixv1.DNSAlias{
-				{Domain: "domain1", Environment: envDev, Component: componentNameServer1},
-				{Domain: "domain2", Environment: envDev, Component: componentNameServer1},
-			},
+			name: "one alias, no existing RDA, one expected RDA",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
 			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
-				"domain1": {AppName: appName, Environment: envDev, Component: componentNameServer1},
-				"domain2": {AppName: appName, Environment: envDev, Component: componentNameServer1},
+				domain1: {AppName: appName, Environment: env1, Component: component1},
 			},
 		},
 	}
@@ -700,9 +702,8 @@ func Test_DNSAliases(t *testing.T) {
 
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			ra := utils.ARadixApplication().WithAppName(appName).WithDNSAlias(ts.dnsAliases...)
-			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ra), "register radix application")
 			require.NoError(t, registerExistingRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
+			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder), "register radix application")
 
 			radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{})
 			require.NoError(t, err)
@@ -848,4 +849,14 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
 	return getRoleBindingByName(name, roleBindings) != nil
+}
+
+func getRandomComponentBuilder() utils.RadixApplicationComponentBuilder {
+	return utils.NewApplicationComponentBuilder().WithName(commonUtils.RandString(20)).WithPort("p", 9000).WithPublicPort("s")
+}
+
+func registerExistingRadixDNSAlias(radixClient radixclient.Interface, radixDNSAlias *radixv1.RadixDNSAlias) error {
+	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.TODO(),
+		radixDNSAlias, metav1.CreateOptions{})
+	return err
 }
