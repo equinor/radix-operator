@@ -15,14 +15,19 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
+// GetIngress Gets an ingress by its name
+func (kubeutil *Kube) GetIngress(namespace, name string) (*networkingv1.Ingress, error) {
+	return kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
+}
+
 // ApplyIngress Will create or update ingress in provided namespace
 func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingress) error {
 	ingressName := ingress.GetName()
 	log.Debugf("Creating Ingress object %s in namespace %s", ingressName, namespace)
 
-	oldIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), ingressName, metav1.GetOptions{})
+	oldIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.Background(), ingressName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
-		_, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.TODO(), ingress, metav1.CreateOptions{})
+		_, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create Ingress object: %v", err)
 		}
@@ -37,7 +42,12 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingre
 	newIngress.ObjectMeta.Annotations = ingress.ObjectMeta.Annotations
 	newIngress.ObjectMeta.OwnerReferences = ingress.ObjectMeta.OwnerReferences
 	newIngress.Spec = ingress.Spec
+	return kubeutil.PatchIngress(namespace, oldIngress, newIngress)
+}
 
+// PatchIngress Patches an ingress, if there are changes
+func (kubeutil *Kube) PatchIngress(namespace string, oldIngress *networkingv1.Ingress, newIngress *networkingv1.Ingress) error {
+	ingressName := oldIngress.GetName()
 	oldIngressJSON, err := json.Marshal(oldIngress)
 	if err != nil {
 		return fmt.Errorf("failed to marshal old Ingress object: %v", err)
@@ -54,7 +64,7 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingre
 	}
 
 	if !IsEmptyPatch(patchBytes) {
-		patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(context.TODO(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(context.Background(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to patch Ingress object: %v", err)
 		}
@@ -90,7 +100,7 @@ func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorS
 			LabelSelector: labelSelectorString,
 		}
 
-		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.TODO(), listOptions)
+		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), listOptions)
 		if err != nil {
 			return nil, err
 		}

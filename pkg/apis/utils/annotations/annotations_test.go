@@ -50,3 +50,9 @@ func Test_ForClusterAutoscalerSafeToEvict(t *testing.T) {
 	expected = map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
 	assert.Equal(t, expected, actual)
 }
+
+func Test_ForManagedByRadixDNSAliasIngress(t *testing.T) {
+	actual := ForManagedByRadixDNSAliasIngress("test-alias")
+	expected := map[string]string{"radix.equinor.com/managed-by-radix-dns-alias": "test-alias"}
+	assert.Equal(t, expected, actual)
+}

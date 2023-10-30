@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/config"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -58,7 +59,7 @@ func (s *syncer) syncAlias() error {
 	aliasSpec := s.radixDNSAlias.Spec
 	appName := aliasSpec.AppName
 	domainName := s.radixDNSAlias.GetName()
-	radixApplication, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).
+	ra, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).
 		Get(context.Background(), appName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -68,29 +69,42 @@ func (s *syncer) syncAlias() error {
 	}
 	envNamespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	ingressName := internal.GetDNSAliasIngressName(aliasSpec.Component, domainName)
-	ingress, err := s.kubeClient.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), ingressName, metav1.GetOptions{})
+	existingIngress, err := s.kubeUtil.GetIngress(envNamespace, ingressName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return s.createIngress(radixApplication)
+			return s.createIngress(ra)
 		}
 		return err
 	}
-	// TODO
-	fmt.Println(radixApplication.GetName())
-	fmt.Println(ingress.GetName())
+	updatedIngress, err := s.buildIngress(ra)
+	if err != nil {
+		return err
+	}
+	err = s.kubeUtil.PatchIngress(envNamespace, existingIngress, updatedIngress)
+	if err != nil {
+		return fmt.Errorf("failed to patch an ingress %s: %w", ingressName, err)
+	}
 	return nil
 }
 
 func (s *syncer) createIngress(ra *radixv1.RadixApplication) error {
-	aliasSpec := s.radixDNSAlias.Spec
-	portNumber, err := getComponentPublicPortNumber(ra, aliasSpec.Component)
+	ingress, err := s.buildIngress(ra)
 	if err != nil {
 		return err
 	}
-	domain := s.radixDNSAlias.GetName()
-	_, err = internal.CreateRadixDNSAliasIngress(s.kubeClient, aliasSpec.AppName, aliasSpec.Environment,
-		internal.BuildRadixDNSAliasIngress(aliasSpec.AppName, domain, aliasSpec.Component, portNumber, s.radixDNSAlias, s.clusterConfig))
+	aliasSpec := s.radixDNSAlias.Spec
+	_, err = internal.CreateRadixDNSAliasIngress(s.kubeClient, aliasSpec.AppName, aliasSpec.Environment, ingress)
 	return err
+}
+
+func (s *syncer) buildIngress(ra *radixv1.RadixApplication) (*networkingv1.Ingress, error) {
+	aliasSpec := s.radixDNSAlias.Spec
+	portNumber, err := getComponentPublicPortNumber(ra, aliasSpec.Component)
+	if err != nil {
+		return nil, err
+	}
+	domain := s.radixDNSAlias.GetName()
+	return internal.BuildRadixDNSAliasIngress(aliasSpec.AppName, domain, aliasSpec.Component, portNumber, s.radixDNSAlias, s.clusterConfig), nil
 }
 
 func getComponentPublicPortNumber(ra *radixv1.RadixApplication, componentName string) (int32, error) {

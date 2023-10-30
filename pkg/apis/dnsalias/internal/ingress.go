@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/radix-operator/config"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -26,8 +27,9 @@ func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owne
 	host := GetDNSAliasHost(domain, config.DNSZone)
 	ingress := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   ingressName,
-			Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(service)),
+			Name:        ingressName,
+			Labels:      labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(service)),
+			Annotations: annotations.ForManagedByRadixDNSAliasIngress(domain),
 		},
 		Spec: networkingv1.IngressSpec{
 			TLS: []networkingv1.IngressTLS{
