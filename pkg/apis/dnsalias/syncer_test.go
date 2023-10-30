@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -179,13 +180,21 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 				for _, ingress := range ingresses.Items {
 					if expectedIngress, ok := ts.expectedIngress[ingress.Name]; ok {
 						s.Require().Len(ingress.Spec.Rules, 1, "rules count")
-						assert.Equal(t, expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
-						assert.Equal(t, utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
-						assert.Equal(t, expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
-						assert.Equal(t, expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
-						assert.Equal(t, "/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
-						assert.Equal(t, expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend service name")
-						assert.Equal(t, expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "rule backend service port")
+						s.Assert().Equal(expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
+						s.Assert().Equal(utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
+						s.Assert().Equal(expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
+						s.Assert().Equal(expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
+						s.Assert().Equal("/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
+						s.Assert().Equal(expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend service name")
+						s.Assert().Equal(expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "rule backend service port")
+						if len(ingress.ObjectMeta.OwnerReferences) > 0 {
+							ownerRef := ingress.ObjectMeta.OwnerReferences[0]
+							s.Assert().Equal(radix.APIVersion, ownerRef.APIVersion, "ownerRef.APIVersion")
+							s.Assert().Equal(radix.KindRadixDNSAlias, ownerRef.Kind, "ownerRef.Kind")
+							s.Assert().Equal(radixDNSAlias.GetName(), ownerRef.Name, "ownerRef.Name")
+							s.Assert().Equal(radixDNSAlias.GetUID(), ownerRef.UID, "ownerRef.UID")
+							s.Assert().True(ownerRef.Controller != nil && *ownerRef.Controller, "ownerRef.Controller")
+						}
 						continue
 					}
 					assert.Fail(t, fmt.Sprintf("found not expected ingress %s for: appName %s, host %s, service %s, port %d",
