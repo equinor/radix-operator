@@ -296,7 +296,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			SecurityContext: buildContainerSecContext,
 		}
 		if isUsingBuildKit(pipelineInfo) {
-			cacheImagePath := utils.GetImagePathWithoutTag(pipelineInfo.PipelineArguments.CacheContainerRegistry, pipelineInfo.RadixApplication.Name, container.Name)
+			cacheImagePath := utils.GetImageCachePath(pipelineInfo.PipelineArguments.CacheContainerRegistry, pipelineInfo.RadixApplication.Name)
 			useBuildCache := pipelineInfo.RadixApplication.Spec.Build.UseBuildCache == nil || *pipelineInfo.RadixApplication.Spec.Build.UseBuildCache
 			cacheContainerRegistry := pipelineInfo.PipelineArguments.CacheContainerRegistry
 
