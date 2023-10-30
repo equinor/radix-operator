@@ -79,45 +79,37 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
 
-	// Add Kubernetes Job with ownerreference to RadixDNSAlias should not trigger sync
+	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
 	ingress := internal.BuildRadixDNSAliasIngress(alias.Spec.AppName, alias.GetName(), alias.Spec.Component, int32(8080), config)
 	ingress.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	namespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	ingress, err = internal.CreateRadixDNSAliasIngress(s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ingress)
 	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should not be called when adding k8s ingress")
-	/*
-		// Sync should not trigger on ingress update if resource version is unchanged
-		s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-		ingress, err = s.KubeClient.BatchV1().Jobs(namespace).Update(context.Background(), ingress, metav1.UpdateOptions{})
-		s.Require().NoError(err)
-		s.WaitForNotSynced("Sync should not be called on k8s ingress update with no resource version change")
+	s.WaitForNotSynced("Sync should not be called when adding ingress")
 
-		// Sync should trigger on ingress update if resource version is changed
-		ingress.ResourceVersion = "2"
-		s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-		_, err = s.KubeClient.BatchV1().Jobs(namespace).Update(context.Background(), ingress, metav1.UpdateOptions{})
-		s.Require().NoError(err)
-		s.WaitForSynced("Sync should be called on k8s ingress update with changed resource version")
-
-		// Sync should trigger when deleting ingress
-		s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-		err = s.KubeClient.BatchV1().Jobs(namespace).Delete(context.Background(), jobName, metav1.DeleteOptions{})
-		s.Require().NoError(err)
-		s.WaitForSynced("Sync should be called on k8s ingress deletion")
-
-		// Sync should not trigger when deleting alias
-		s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-		err = s.RadixClient.RadixV1().RadixDNSAliases(namespace).Delete(context.Background(), aliasName, metav1.DeleteOptions{})
-		s.Require().NoError(err)
-		s.WaitForNotSynced("Sync should not be called on alias deletion")
-
-	*/
-	// Delete the RadixDNSAlias should trigger a sync
+	// Delete the RadixDNSAlias should not trigger a sync
 	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	err = s.RadixClient.RadixV1().RadixDNSAliases().Delete(context.TODO(), alias.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
 
+	// Sync should not trigger on ingress update if resource version is unchanged
+	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
+	ingress, err = s.KubeClient.NetworkingV1().Ingresses(namespace).Update(context.Background(), ingress, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForNotSynced("Sync should not be called on ingress update with no resource version change")
+
+	// Sync should not trigger on ingress update if resource version is changed
+	ingress.ResourceVersion = "2"
+	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
+	_, err = s.KubeClient.NetworkingV1().Ingresses(namespace).Update(context.Background(), ingress, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForNotSynced("Sync should not be called on k8s ingress update with changed resource version")
+
+	// Sync should not trigger when deleting ingress
+	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
+	err = s.KubeClient.NetworkingV1().Ingresses(namespace).Delete(context.Background(), ingress.GetName(), metav1.DeleteOptions{})
+	s.Require().NoError(err)
+	s.WaitForNotSynced("Sync should be called on ingress deletion")
 }
