@@ -22,13 +22,10 @@ func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 		if radixDNSAlias, ok := radixDNSAliasesMap[dnsAlias.Domain]; ok {
 			switch {
 			case !strings.EqualFold(appName, radixDNSAlias.Spec.AppName):
-				// TODO test
 				errs = append(errs, fmt.Errorf("existing DNS alias domain %s is used by the application %s", dnsAlias.Domain, radixDNSAlias.Spec.AppName))
 			case strings.EqualFold(dnsAlias.Environment, radixDNSAlias.Spec.Environment) && strings.EqualFold(dnsAlias.Component, radixDNSAlias.Spec.Component):
-				// TODO test
-				// Do nothing
+				// No changes
 			default:
-				// TODO test
 				if err = app.updateRadixDNSAlias(radixDNSAlias, dnsAlias); err != nil {
 					errs = append(errs, err)
 				}
