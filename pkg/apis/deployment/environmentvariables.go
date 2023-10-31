@@ -202,7 +202,6 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, containerRegistry)
-
 	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, dnsZone)
 	clusterName, err := envVarsSource.getClusterName()
 	if err != nil {
