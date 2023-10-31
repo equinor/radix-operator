@@ -715,7 +715,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 		[]string{
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
-			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 ",
+			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
 			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
 			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
@@ -779,7 +779,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 		[]string{
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
-			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 ",
+			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
 			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
 			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
@@ -792,9 +792,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
 			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
 			"/workspace/path2/ && ",
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=vfs %s/%s-%s:%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=vfs %s/%s-%s:%s-%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=vfs %s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s:%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s:%s-%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
 		},
 		"",
 	)
@@ -859,7 +859,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 		[]string{
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
-			"/usr/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 ",
+			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
 			"--secret id=SECRET1,src=/build-secrets/SECRET1 --secret id=SECRET2,src=/build-secrets/SECRET2 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
 			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",

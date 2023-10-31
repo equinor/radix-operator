@@ -353,15 +353,15 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString, contex
 	commandList.AddCmd(buildah)
 
 	buildah.
-		AddArgf("--storage-driver=vfs").
+		AddArgf("--storage-driver=overlay").
 		AddArgf("--isolation=chroot").
 		AddArgf("--jobs 0").
 		AddArgf(secretArgsString).
 		AddArgf("--file %s%s", context, dockerFileName).
-		AddArgf("--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\"").
-		AddArgf("--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\"").
-		AddArgf("--build-arg BRANCH=\"${BRANCH}\"").
-		AddArgf("--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\"")
+		AddArgf(`--build-arg RADIX_GIT_COMMIT_HASH="${RADIX_GIT_COMMIT_HASH}"`).
+		AddArgf(`--build-arg RADIX_GIT_TAGS="${RADIX_GIT_TAGS}"`).
+		AddArgf(`--build-arg BRANCH="${BRANCH}"`).
+		AddArgf(`--build-arg TARGET_ENVIRONMENTS="${TARGET_ENVIRONMENTS}"`)
 
 	if useBuildCache {
 		buildah.
@@ -381,9 +381,9 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString, contex
 
 	if pushImage {
 		commandList.
-			AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", imageTag).
-			AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", clusterTypeImageTag).
-			AddStrCmd("/usr/bin/buildah push --storage-driver=vfs %s", clusterNameImageTag)
+			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", imageTag).
+			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", clusterTypeImageTag).
+			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", clusterNameImageTag)
 	}
 
 	return []string{"/bin/bash", "-c", commandList.String()}
