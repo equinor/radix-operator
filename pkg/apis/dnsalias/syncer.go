@@ -1,11 +1,8 @@
 package dnsalias
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -13,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/config"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -57,26 +53,17 @@ func (s *syncer) OnSync() error {
 
 func (s *syncer) syncAlias() error {
 	aliasSpec := s.radixDNSAlias.Spec
-	appName := aliasSpec.AppName
 	domainName := s.radixDNSAlias.GetName()
-	ra, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).
-		Get(context.Background(), appName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return fmt.Errorf("not found the Radix application %s for the DNS alias %s", appName, domainName)
-		}
-		return err
-	}
 	envNamespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	ingressName := internal.GetDNSAliasIngressName(aliasSpec.Component, domainName)
+	ingressName := GetDNSAliasIngressName(aliasSpec.Component, domainName)
 	existingIngress, err := s.kubeUtil.GetIngress(envNamespace, ingressName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return s.createIngress(ra)
+			return s.createIngress()
 		}
 		return err
 	}
-	updatedIngress, err := s.buildIngress(ra)
+	updatedIngress, err := s.buildIngress()
 	if err != nil {
 		return err
 	}
@@ -87,39 +74,18 @@ func (s *syncer) syncAlias() error {
 	return nil
 }
 
-func (s *syncer) createIngress(ra *radixv1.RadixApplication) error {
-	ingress, err := s.buildIngress(ra)
+func (s *syncer) createIngress() error {
+	ingress, err := s.buildIngress()
 	if err != nil {
 		return err
 	}
 	aliasSpec := s.radixDNSAlias.Spec
-	_, err = internal.CreateRadixDNSAliasIngress(s.kubeClient, aliasSpec.AppName, aliasSpec.Environment, ingress)
+	_, err = CreateRadixDNSAliasIngress(s.kubeClient, aliasSpec.AppName, aliasSpec.Environment, ingress)
 	return err
 }
 
-func (s *syncer) buildIngress(ra *radixv1.RadixApplication) (*networkingv1.Ingress, error) {
+func (s *syncer) buildIngress() (*networkingv1.Ingress, error) {
 	aliasSpec := s.radixDNSAlias.Spec
-	portNumber, err := getComponentPublicPortNumber(ra, aliasSpec.Component)
-	if err != nil {
-		return nil, err
-	}
 	domain := s.radixDNSAlias.GetName()
-	return internal.BuildRadixDNSAliasIngress(aliasSpec.AppName, domain, aliasSpec.Component, portNumber, s.radixDNSAlias, s.clusterConfig), nil
-}
-
-func getComponentPublicPortNumber(ra *radixv1.RadixApplication, componentName string) (int32, error) {
-	component, componentExists := slice.FindFirst(ra.Spec.Components, func(c radixv1.RadixComponent) bool {
-		return c.Name == componentName
-	})
-	if !componentExists {
-		return 0, fmt.Errorf("not found component %s in the application %s for the DNS alias", componentName, ra.GetName())
-	}
-	componentPort, publicPortExists := slice.FindFirst(component.Ports, func(p radixv1.ComponentPort) bool {
-		return p.Name == component.PublicPort
-	})
-	if !publicPortExists {
-		return 0, fmt.Errorf("not found component %s in the application %s for the DNS alias", componentName, ra.GetName())
-	}
-
-	return componentPort.Port, nil
+	return BuildRadixDNSAliasIngress(aliasSpec.AppName, domain, aliasSpec.Component, aliasSpec.Port, s.radixDNSAlias, s.clusterConfig), nil
 }

@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -30,8 +31,8 @@ type ApplicationConfig struct {
 	kubeclient   kubernetes.Interface
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
-	registration *v1.RadixRegistration
-	config       *v1.RadixApplication
+	registration *radixv1.RadixRegistration
+	config       *radixv1.RadixApplication
 }
 
 // NewApplicationConfig Constructor
@@ -39,8 +40,8 @@ func NewApplicationConfig(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	registration *v1.RadixRegistration,
-	config *v1.RadixApplication) (*ApplicationConfig, error) {
+	registration *radixv1.RadixRegistration,
+	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
 	return &ApplicationConfig{
 		kubeclient,
 		radixclient,
@@ -50,17 +51,17 @@ func NewApplicationConfig(
 }
 
 // GetRadixApplicationConfig returns the provided config
-func (app *ApplicationConfig) GetRadixApplicationConfig() *v1.RadixApplication {
+func (app *ApplicationConfig) GetRadixApplicationConfig() *radixv1.RadixApplication {
 	return app.config
 }
 
 // GetRadixRegistration returns the provided radix registration
-func (app *ApplicationConfig) GetRadixRegistration() *v1.RadixRegistration {
+func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration {
 	return app.registration
 }
 
 // GetComponent Gets the component for a provided name
-func GetComponent(ra *v1.RadixApplication, name string) v1.RadixCommonComponent {
+func GetComponent(ra *radixv1.RadixApplication, name string) radixv1.RadixCommonComponent {
 	for _, component := range ra.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
 			return &component
@@ -75,13 +76,13 @@ func GetComponent(ra *v1.RadixApplication, name string) v1.RadixCommonComponent 
 }
 
 // GetComponentEnvironmentConfig Gets environment config of component. This method is used by radix-api
-func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) v1.RadixCommonEnvironmentConfig {
+func GetComponentEnvironmentConfig(ra *radixv1.RadixApplication, envName, componentName string) radixv1.RadixCommonEnvironmentConfig {
 	// TODO: Add interface for RA + EnvConfig
 	return GetEnvironment(GetComponent(ra, componentName), envName)
 }
 
 // GetEnvironment Gets environment config of component
-func GetEnvironment(component v1.RadixCommonComponent, envName string) v1.RadixCommonEnvironmentConfig {
+func GetEnvironment(component radixv1.RadixCommonComponent, envName string) radixv1.RadixCommonEnvironmentConfig {
 	if component == nil {
 		return nil
 	}
@@ -95,12 +96,12 @@ func GetEnvironment(component v1.RadixCommonComponent, envName string) v1.RadixC
 }
 
 // GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
-func GetConfigBranch(rr *v1.RadixRegistration) string {
+func GetConfigBranch(rr *radixv1.RadixRegistration) string {
 	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
 }
 
 // IsConfigBranch Checks if given branch is where radix config lives
-func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
+func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
@@ -110,7 +111,7 @@ func (app *ApplicationConfig) IsThereAnythingToDeploy(branch string) (bool, map[
 }
 
 // IsThereAnythingToDeployForRadixApplication Checks if given branch requires deployment to environments
-func IsThereAnythingToDeployForRadixApplication(branch string, ra *v1.RadixApplication) (bool, map[string]bool) {
+func IsThereAnythingToDeployForRadixApplication(branch string, ra *radixv1.RadixApplication) (bool, map[string]bool) {
 	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
 	if isTargetEnvsEmpty(targetEnvs) {
 		return false, targetEnvs
@@ -205,7 +206,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 	return commonErrors.Concat(errs)
 }
 
-func getTargetEnvironmentsAsMap(branchToBuild string, radixApplication *v1.RadixApplication) map[string]bool {
+func getTargetEnvironmentsAsMap(branchToBuild string, radixApplication *radixv1.RadixApplication) map[string]bool {
 	targetEnvs := make(map[string]bool)
 	for _, env := range radixApplication.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
@@ -235,7 +236,7 @@ func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
 }
 
 // applyEnvironment creates an environment or applies changes if it exists
-func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error {
+func (app *ApplicationConfig) applyEnvironment(newRe *radixv1.RadixEnvironment) error {
 	logger := log.WithFields(log.Fields{"environment": newRe.ObjectMeta.Name})
 	logger.Debugf("Apply environment %s", newRe.Name)
 
@@ -267,8 +268,28 @@ func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error
 	return nil
 }
 
+func (app *ApplicationConfig) getPortForDNSAlias(dnsAlias radixv1.DNSAlias) (int32, error) {
+	component, componentFound := slice.FindFirst(app.config.Spec.Components, func(c radixv1.RadixComponent) bool {
+		return c.Name == dnsAlias.Component
+	})
+	if !componentFound {
+		// TODO test
+		return 0, fmt.Errorf("component %s does not exist in the application %s", dnsAlias.Component, app.config.GetName())
+	}
+	if !component.GetEnabledForAnyEnvironment([]string{dnsAlias.Environment}) {
+		// TODO test
+		return 0, fmt.Errorf("component %s is not enabled for the environment %s in the application %s", dnsAlias.Component, dnsAlias.Environment, app.config.GetName())
+	}
+	componentPublicPort := getComponentPublicPort(&component)
+	if componentPublicPort == nil {
+		// TODO test
+		return 0, fmt.Errorf("component %s does not have public port in the application %s", dnsAlias.Component, app.config.GetName())
+	}
+	return componentPublicPort.Port, nil
+}
+
 // patchDifference creates a mergepatch, comparing old and new RadixEnvironments and issues the patch to radix
-func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.RadixEnvironment, newRe *v1.RadixEnvironment, logger *log.Entry) error {
+func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *radixv1.RadixEnvironment, newRe *radixv1.RadixEnvironment, logger *log.Entry) error {
 	radixEnvironment := oldRe.DeepCopy()
 	radixEnvironment.ObjectMeta.Labels = newRe.ObjectMeta.Labels
 	radixEnvironment.ObjectMeta.OwnerReferences = newRe.ObjectMeta.OwnerReferences
@@ -286,7 +307,7 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.
 		return fmt.Errorf("failed to marshal new RadixEnvironment object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, v1.RadixEnvironment{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, radixv1.RadixEnvironment{})
 	if err != nil {
 		return fmt.Errorf("failed to create patch document for RadixEnvironment object: %v", err)
 	}

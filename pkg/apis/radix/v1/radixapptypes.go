@@ -1309,6 +1309,7 @@ type RadixCommonComponent interface {
 	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
 	// GetEnvironmentConfigByName  Gets component environment configuration by its name
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
+	// GetEnabledForAnyEnvironment Gets status Enabled of the component for any environment from the environment name list
 	GetEnabledForAnyEnvironment(environments []string) bool
 }
 

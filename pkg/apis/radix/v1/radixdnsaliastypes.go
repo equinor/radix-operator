@@ -43,6 +43,11 @@ type RadixDNSAliasSpec struct {
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Component string `json:"component" yaml:"component"`
+
+	// Port number.
+	// +kubebuilder:validation:Minimum=1024
+	// +kubebuilder:validation:Maximum=65535
+	Port int32 `json:"port"`
 }
 
 // RadixDNSAliasStatus is the status for an RadixDNSAlias

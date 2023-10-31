@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -16,12 +14,11 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/radix-operator/config"
-	"github.com/google/uuid"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -60,17 +57,21 @@ type testIngress struct {
 	component string
 	port      int32
 }
+type testDNSAlias struct {
+	Domain      string
+	Environment string
+	Component   string
+	Port        int32
+}
 
 type scenario struct {
-	name                        string
-	expectedError               string
-	missingRadixApplication     bool
-	dnsAlias                    radixv1.DNSAlias
-	dnsZone                     string
-	existingRadixDNSAliases     map[string]radixv1.RadixDNSAliasSpec
-	existingIngress             []testIngress
-	expectedIngress             map[string]testIngress
-	applicationComponentBuilder utils.RadixApplicationComponentBuilder
+	name                    string
+	expectedError           string
+	dnsAlias                testDNSAlias
+	dnsZone                 string
+	existingRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
+	existingIngress         []testIngress
+	expectedIngress         map[string]testIngress
 }
 
 func (s *syncerTestSuite) Test_syncer_OnSync() {
@@ -81,8 +82,6 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		component2 = "component2"
 		domain1    = "domain1"
 		domain2    = "domain2"
-		portHttp   = "http"
-		portAbc    = "abc"
 		port8080   = 8080
 		port9090   = 9090
 		dnsZone1   = "test.radix.equinor.com"
@@ -90,75 +89,54 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 
 	scenarios := []scenario{
 		{
-			name:                        "no radix application",
-			missingRadixApplication:     true,
-			applicationComponentBuilder: getRandomComponentBuilder(),
-			expectedError:               "not found the Radix application app1 for the DNS alias domain1",
-			dnsAlias:                    radixv1.DNSAlias{Domain: domain1, Environment: envName1, Component: component1},
-		},
-		{
-			name:                        "created an ingress",
-			dnsAlias:                    radixv1.DNSAlias{Domain: domain1, Environment: envName1, Component: component1},
-			dnsZone:                     dnsZone1,
-			applicationComponentBuilder: utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portHttp, port8080).WithPublicPort(portHttp),
+			name:     "created an ingress",
+			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port8080},
+			dnsZone:  dnsZone1,
 			expectedIngress: map[string]testIngress{
-				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
 			},
 		},
 		{
-			name:                        "created additional ingress for another component",
-			dnsAlias:                    radixv1.DNSAlias{Domain: domain1, Environment: envName1, Component: component1},
-			dnsZone:                     dnsZone1,
-			applicationComponentBuilder: utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portHttp, port8080).WithPublicPort(portHttp),
+			name:     "created additional ingress for another component",
+			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port8080},
+			dnsZone:  dnsZone1,
 			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain2, host: internal.GetDNSAliasHost(domain2, dnsZone1), component: component2, port: port8080},
+				{appName: appName1, envName: envName1, domain: domain2, host: dnsalias.GetDNSAliasHost(domain2, dnsZone1), component: component2, port: port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
-				"component2.domain2.custom-domain": {appName: appName1, envName: envName1, domain: domain2, host: internal.GetDNSAliasHost(domain2, dnsZone1), component: component2, port: port8080},
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+				"component2.domain2.custom-domain": {appName: appName1, envName: envName1, domain: domain2, host: dnsalias.GetDNSAliasHost(domain2, dnsZone1), component: component2, port: port8080},
 			},
 		},
 		{
 			name:     "changed public port on component changes port in existing ingress",
-			dnsAlias: radixv1.DNSAlias{Domain: domain1, Environment: envName1, Component: component1},
+			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port9090},
 			dnsZone:  dnsZone1,
-			applicationComponentBuilder: utils.NewApplicationComponentBuilder().WithName(component1).WithPorts([]radixv1.ComponentPort{
-				{Name: portHttp, Port: port8080},
-				{Name: portAbc, Port: port9090},
-			}).WithPublicPort(portAbc),
 			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain1, host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+				{appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port9090},
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port9090},
 			},
 		},
 		{
-			name:                        "created additional ingress on another domain for the same component",
-			dnsAlias:                    radixv1.DNSAlias{Domain: domain2, Environment: envName1, Component: component1},
-			dnsZone:                     dnsZone1,
-			applicationComponentBuilder: utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portHttp, port8080).WithPublicPort(portHttp),
+			name:     "created additional ingress on another domain for the same component",
+			dnsAlias: testDNSAlias{Domain: domain2, Environment: envName1, Component: component1, Port: port8080},
+			dnsZone:  dnsZone1,
 			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain1, host: internal.GetDNSAliasHost(domain2, dnsZone1), component: component1, port: port8080},
+				{appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain2, dnsZone1), component: component1, port: port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: internal.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
-				"component1.domain2.custom-domain": {appName: appName1, envName: envName1, domain: domain2, host: internal.GetDNSAliasHost(domain2, dnsZone1), component: component1, port: port8080},
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+				"component1.domain2.custom-domain": {appName: appName1, envName: envName1, domain: domain2, host: dnsalias.GetDNSAliasHost(domain2, dnsZone1), component: component1, port: port8080},
 			},
 		},
 	}
 	for _, ts := range scenarios {
 		s.T().Run(ts.name, func(t *testing.T) {
 			s.SetupTest()
-			if !ts.missingRadixApplication {
-				s.Require().NotNil(ts.applicationComponentBuilder)
-				ra := utils.NewRadixApplicationBuilder().WithAppName(appName1).WithEnvironment(envName1, "master").
-					WithComponents(ts.applicationComponentBuilder, getRandomComponentBuilder()).BuildRA()
-				_, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName1)).Create(context.Background(), ra, metav1.CreateOptions{})
-				s.NoError(err)
-			}
-			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Domain, UID: getUuid()},
-				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
+			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Domain, UID: uuid.NewUUID()},
+				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component, Port: ts.dnsAlias.Port}}
 			s.Require().NoError(registerExistingRadixDNSAlias(s.radixClient, radixDNSAlias), "create existing alias")
 			cfg := &config.ClusterConfig{DNSZone: ts.dnsZone}
 			s.Require().NoError(registerExistingIngresses(s.kubeClient, ts.existingIngress, cfg), "create existing ingresses")
@@ -207,23 +185,14 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 	}
 }
 
-func getUuid() types.UID {
-	newUUID, _ := uuid.NewUUID()
-	return types.UID(newUUID.String())
-}
-
 func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses []testIngress, config *config.ClusterConfig) error {
 	for _, ing := range testIngresses {
-		_, err := internal.CreateRadixDNSAliasIngress(kubeClient, ing.appName, ing.envName, internal.BuildRadixDNSAliasIngress(ing.appName, ing.domain, ing.component, ing.port, nil, config))
+		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, ing.appName, ing.envName, dnsalias.BuildRadixDNSAliasIngress(ing.appName, ing.domain, ing.component, ing.port, nil, config))
 		if err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func getRandomComponentBuilder() utils.RadixApplicationComponentBuilder {
-	return utils.NewApplicationComponentBuilder().WithName(commonUtils.RandString(20)).WithPort("p", 9000).WithPublicPort("s")
 }
 
 func registerExistingRadixDNSAlias(radixClient radixclient.Interface, radixDNSAlias *radixv1.RadixDNSAlias) error {

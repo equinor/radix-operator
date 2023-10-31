@@ -37,6 +37,12 @@ spec:
           spec:
             description: RadixDNSAliasSpec is the spec for an RadixDNSAlias
             properties:
+              appName:
+                description: Name of the application the DNS alias used in.
+                maxLength: 253
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                type: string
               component:
                 description: Name of the component that shall receive the incoming
                   requests.
@@ -50,9 +56,17 @@ spec:
                 minLength: 1
                 pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                 type: string
+              port:
+                description: Port number.
+                format: int32
+                maximum: 65535
+                minimum: 1024
+                type: integer
             required:
+            - appName
             - component
             - environment
+            - port
             type: object
           status:
             description: RadixDNSAliasStatus is the status for an RadixDNSAlias

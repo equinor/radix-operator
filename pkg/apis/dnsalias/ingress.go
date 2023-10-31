@@ -1,10 +1,11 @@
-package internal
+package dnsalias
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -53,7 +54,7 @@ func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owne
 			},
 		}}
 	if owner != nil {
-		ingress.SetOwnerReferences([]metav1.OwnerReference{GetOwnerReference(owner)})
+		ingress.SetOwnerReferences([]metav1.OwnerReference{internal.GetOwnerReference(owner)})
 	}
 	return &ingress
 }

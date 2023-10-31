@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -99,9 +98,7 @@ func NewController(kubeClient kubernetes.Interface,
 			if oldIng.GetResourceVersion() == newIng.GetResourceVersion() {
 				return
 			}
-			if radixDNSAliasName, managedByRadixDNSAlias := newIng.GetAnnotations()[kube.ManagedByRadixDNSAliasIngressAnnotation]; managedByRadixDNSAlias && len(radixDNSAliasName) > 0 {
-				controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner)
-			}
+			controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
 		},
 		DeleteFunc: func(obj interface{}) {
 			ing, converted := obj.(*networkingv1.Ingress)
@@ -109,11 +106,7 @@ func NewController(kubeClient kubernetes.Interface,
 				logger.Errorf("Ingress object cast failed during deleted event received.")
 				return
 			}
-			radixDNSAliasName, managedByRadixDNSAlias := ing.GetAnnotations()[kube.ManagedByRadixDNSAliasIngressAnnotation]
-			if !managedByRadixDNSAlias || len(radixDNSAliasName) == 0 {
-				return
-			}
-			controller.Enqueue(radixDNSAliasName) // validate if ingress was deleted manually, but it should be restored
+			controller.HandleObject(ing, radix.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
 		},
 	})
 	return controller

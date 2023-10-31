@@ -174,17 +174,31 @@ func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 }
 
 func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
-	var errs []error
 	alias := app.Spec.DNSAppAlias
-	if alias.Component == "" && alias.Environment == "" {
+	return validateComponentAndEnvironmentAvailable(app, alias.Component, alias.Environment)
+}
+
+func validateDNSAlias(app *radixv1.RadixApplication) []error {
+	dnsAliases := app.Spec.DNSAlias
+	var errs []error
+	for _, dnsAlias := range dnsAliases {
+		if err := validateComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
+			errs = append(errs, err...)
+		}
+	}
+	return errs
+}
+
+func validateComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) []error {
+	var errs []error
+	if component == "" && environment == "" {
 		return errs
 	}
-
-	if !doesEnvExist(app, alias.Environment) {
-		errs = append(errs, EnvForDNSAppAliasNotDefinedError(alias.Environment))
+	if !doesEnvExist(app, environment) {
+		errs = append(errs, EnvForDNSAppAliasNotDefinedError(environment))
 	}
-	if !doesComponentExistInEnvironment(app, alias.Component, alias.Environment) {
-		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(alias.Component))
+	if !doesComponentExistInEnvironment(app, component, environment) {
+		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(component))
 	}
 	return errs
 }

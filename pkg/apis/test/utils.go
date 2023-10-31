@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
@@ -95,7 +96,7 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 
 		return ra, err
 	}
-
+	ra.ObjectMeta.UID = uuid.NewUUID() // imitate new UID, assigned by Kubernetes
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
 		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().

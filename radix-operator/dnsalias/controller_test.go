@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -31,7 +32,12 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	sut := dnsalias.NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
-	go sut.Run(5, s.Stop)
+	go func() {
+		err := sut.Run(5, s.Stop)
+		if err != nil {
+			panic(err)
+		}
+	}()
 
 	const (
 		appName1       = "any-app1"
@@ -43,7 +49,6 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 		componentName2 = "server2"
 		dnsZone        = "test.radix.equinor.com"
 	)
-	config := &config.ClusterConfig{DNSZone: dnsZone}
 	alias := internal.BuildRadixDNSAlias(appName1, componentName1, envName1, aliasName)
 
 	// Adding a RadixDNSAlias should trigger sync
@@ -80,19 +85,14 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
 
 	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
-	ingress := internal.BuildRadixDNSAliasIngress(alias.Spec.AppName, alias.GetName(), alias.Spec.Component, int32(8080), config)
+	cfg := &config.ClusterConfig{DNSZone: dnsZone}
+	ingress := dnsaliasapi.BuildRadixDNSAliasIngress(alias.Spec.AppName, alias.GetName(), alias.Spec.Component, int32(8080), alias, cfg)
 	ingress.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	namespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	ingress, err = internal.CreateRadixDNSAliasIngress(s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ingress)
+	ingress, err = dnsaliasapi.CreateRadixDNSAliasIngress(s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ingress)
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when adding ingress")
-
-	// Delete the RadixDNSAlias should not trigger a sync
-	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	err = s.RadixClient.RadixV1().RadixDNSAliases().Delete(context.TODO(), alias.GetName(), metav1.DeleteOptions{})
-	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
 
 	// Sync should not trigger on ingress update if resource version is unchanged
 	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
@@ -100,16 +100,22 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called on ingress update with no resource version change")
 
-	// Sync should not trigger on ingress update if resource version is changed
+	// Sync should trigger on ingress update if resource version is changed
 	ingress.ResourceVersion = "2"
-	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
+	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	_, err = s.KubeClient.NetworkingV1().Ingresses(namespace).Update(context.Background(), ingress, metav1.UpdateOptions{})
 	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should not be called on k8s ingress update with changed resource version")
+	s.WaitForSynced("Sync should be called on k8s ingress update with changed resource version")
 
-	// Sync should not trigger when deleting ingress
-	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
+	// Sync should trigger when deleting ingress
+	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	err = s.KubeClient.NetworkingV1().Ingresses(namespace).Delete(context.Background(), ingress.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should be called on ingress deletion")
+	s.WaitForSynced("Sync should be called on ingress deletion")
+
+	// Delete the RadixDNSAlias should not trigger a sync
+	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
+	err = s.RadixClient.RadixV1().RadixDNSAliases().Delete(context.TODO(), alias.GetName(), metav1.DeleteOptions{})
+	s.Require().NoError(err)
+	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
 }
