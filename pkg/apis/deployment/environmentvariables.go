@@ -17,7 +17,6 @@ import (
 type environmentVariablesSourceDecorator interface {
 	getClusterName() (string, error)
 	getContainerRegistry() (string, error)
-	getAppContainerRegistry() (string, error)
 	getDnsZone() (string, error)
 	getClusterType() (string, error)
 	getClusterActiveEgressIps() (string, error)
@@ -34,9 +33,6 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClu
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getContainerRegistry() (string, error) {
 	return defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
-}
-func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getAppContainerRegistry() (string, error) {
-	return defaults.GetEnvVar(defaults.AppContainerRegistryEnvironmentVariable)
 }
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getDnsZone() (string, error) {
@@ -65,13 +61,6 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getContai
 		return "", fmt.Errorf("failed to get container registry from ConfigMap: %v", err)
 	}
 	return containerRegistry, nil
-}
-func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getAppContainerRegistry() (string, error) {
-	registry, err := defaults.GetEnvVar(defaults.AppContainerRegistryEnvironmentVariable)
-	if err != nil {
-		return "", fmt.Errorf("failed to get cache container registry from ConfigMap: %v", err)
-	}
-	return registry, nil
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getDnsZone() (string, error) {
@@ -213,13 +202,6 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, containerRegistry)
-
-	appContainerRegistry, err := envVarsSource.getAppContainerRegistry()
-	if err != nil {
-		log.Error(err)
-		return envVarSet.Items()
-	}
-	envVarSet.Add(defaults.AppContainerRegistryEnvironmentVariable, appContainerRegistry)
 
 	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, dnsZone)
 	clusterName, err := envVarsSource.getClusterName()
