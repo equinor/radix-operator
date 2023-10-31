@@ -7,7 +7,6 @@ import (
 	"log"
 	"testing"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -669,7 +668,8 @@ type testIngress struct {
 
 func Test_DNSAliases(t *testing.T) {
 	const (
-		appName    = "any-app1"
+		appName1   = "any-app1"
+		appName2   = "any-app2"
 		env1       = "env1"
 		env2       = "env2"
 		component1 = "server1"
@@ -680,6 +680,8 @@ func Test_DNSAliases(t *testing.T) {
 		port8080   = 8080
 		domain1    = "domain1"
 		domain2    = "domain2"
+		domain3    = "domain3"
+		domain4    = "domain4"
 	)
 	var testScenarios = []struct {
 		name                    string
@@ -688,22 +690,23 @@ func Test_DNSAliases(t *testing.T) {
 		expectedRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
 	}{
 		{
-			name: "no aliases, no existing RDA, no expected RDA",
-			applicationBuilder: utils.ARadixApplication().WithAppName(appName).WithEnvironment(env1, branch1).
+			name: "no aliases",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
 				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{},
 		},
 		{
-			name: "one alias, no existing RDA, one expected RDA",
-			applicationBuilder: utils.ARadixApplication().WithAppName(appName).WithEnvironment(env1, branch1).
+			name: "one alias",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
 				WithDNSAlias(radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1}).
 				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
 			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
-				domain1: {AppName: appName, Environment: env1, Component: component1},
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
 			},
 		},
 		{
-			name: "aliases for multiple components, no existing RDA",
-			applicationBuilder: utils.ARadixApplication().WithAppName(appName).WithEnvironment(env1, branch1).
+			name: "aliases for multiple components",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
 				WithDNSAlias(
 					radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1},
 					radixv1.DNSAlias{Domain: domain2, Environment: env1, Component: component2},
@@ -713,13 +716,13 @@ func Test_DNSAliases(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port8080).WithPublicPort(portA),
 				),
 			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
-				domain1: {AppName: appName, Environment: env1, Component: component1},
-				domain2: {AppName: appName, Environment: env1, Component: component2},
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+				domain2: {AppName: appName1, Environment: env1, Component: component2},
 			},
 		},
 		{
-			name: "aliases for multiple environments, no existing RDA",
-			applicationBuilder: utils.ARadixApplication().WithAppName(appName).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
+			name: "aliases for multiple environments",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
 				WithDNSAlias(
 					radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1},
 					radixv1.DNSAlias{Domain: domain2, Environment: env2, Component: component1},
@@ -729,36 +732,146 @@ func Test_DNSAliases(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port8080).WithPublicPort(portA),
 				),
 			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
-				domain1: {AppName: appName, Environment: env1, Component: component1},
-				domain2: {AppName: appName, Environment: env2, Component: component1},
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+				domain2: {AppName: appName1, Environment: env2, Component: component1},
+			},
+		},
+		{
+			name: "multiple aliases for one component and enironment",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(
+					radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1},
+					radixv1.DNSAlias{Domain: domain2, Environment: env1, Component: component1},
+				).
+				WithComponents(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+				domain2: {AppName: appName1, Environment: env1, Component: component1},
+			},
+		},
+		{
+			name: "aliases for multiple components in different environments",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
+				WithDNSAlias(
+					radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1},
+					radixv1.DNSAlias{Domain: domain2, Environment: env2, Component: component2},
+				).
+				WithComponents(
+					utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA),
+					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port8080).WithPublicPort(portA),
+				),
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+				domain2: {AppName: appName1, Environment: env2, Component: component2},
+			},
+		},
+		{
+			name: "one alias, exist other RDA, two expected RDA",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain2: {AppName: appName2, Environment: env1, Component: component1},
+			},
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain2: {AppName: appName2, Environment: env1, Component: component1},
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+			},
+		},
+		{
+			name: "change env and component for existing RDA",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
+				WithDNSAlias(radixv1.DNSAlias{Domain: domain1, Environment: env2, Component: component2}).
+				WithComponents(
+					utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA),
+					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port8080).WithPublicPort(portA),
+				),
+			existingRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+			},
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env2, Component: component2},
+			},
+		},
+		{
+			name: "swap env and component for existing RDA-s",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
+				WithDNSAlias(
+					radixv1.DNSAlias{Domain: domain1, Environment: env2, Component: component2},
+					radixv1.DNSAlias{Domain: domain2, Environment: env1, Component: component1},
+				).
+				WithComponents(
+					utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA),
+					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port8080).WithPublicPort(portA),
+				),
+			existingRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+				domain2: {AppName: appName1, Environment: env2, Component: component2},
+			},
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env2, Component: component2},
+				domain2: {AppName: appName1, Environment: env1, Component: component1},
+			},
+		},
+		{
+			name: "remove single alias",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
+				WithComponents(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+			},
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{},
+		},
+		{
+			name: "remove multiple aliases, keep other",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
+				WithDNSAlias(
+					radixv1.DNSAlias{Domain: domain1, Environment: env1, Component: component1},
+					radixv1.DNSAlias{Domain: domain3, Environment: env2, Component: component1},
+				).
+				WithComponents(
+					utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA),
+					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port8080).WithPublicPort(portA),
+				),
+			existingRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+				domain2: {AppName: appName1, Environment: env1, Component: component2},
+				domain3: {AppName: appName1, Environment: env2, Component: component1},
+				domain4: {AppName: appName2, Environment: env1, Component: component1},
+			},
+			expectedRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: appName1, Environment: env1, Component: component1},
+				domain3: {AppName: appName1, Environment: env2, Component: component1},
+				domain4: {AppName: appName2, Environment: env1, Component: component1},
 			},
 		},
 	}
-	tu, kubeClient, kubeUtil, radixClient := setupTest()
 
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
+			tu, kubeClient, kubeUtil, radixClient := setupTest()
+
 			require.NoError(t, registerExistingRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
 			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder), "register radix application")
 
 			radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{})
 			require.NoError(t, err)
 
-			// assert RadixDNSAlias-es
 			if ts.expectedRadixDNSAliases == nil {
-				assert.Len(t, radixDNSAliases.Items, 0, "not expected Radix DNS aliases")
-			} else {
-				assert.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "not matching expected Radix DNS aliases count")
-				if len(radixDNSAliases.Items) == len(ts.expectedRadixDNSAliases) {
-					for _, radixDNSAlias := range radixDNSAliases.Items {
-						if expectedDNSAlias, ok := ts.expectedRadixDNSAliases[radixDNSAlias.Name]; ok {
-							assert.Equal(t, expectedDNSAlias.AppName, radixDNSAlias.Spec.AppName, "app name")
-							assert.Equal(t, expectedDNSAlias.Environment, radixDNSAlias.Spec.Environment, "environment")
-							assert.Equal(t, expectedDNSAlias.Component, radixDNSAlias.Spec.Component, "component")
-						} else {
-							assert.Failf(t, "found not expected RadixDNSAlias %s: env %s, component %s, appName %s", radixDNSAlias.GetName(), radixDNSAlias.Spec.Environment, radixDNSAlias.Spec.Component, radixDNSAlias.Spec.AppName)
-						}
+				require.Len(t, radixDNSAliases.Items, 0, "not expected Radix DNS aliases")
+				return
+			}
+
+			require.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "not matching expected Radix DNS aliases count")
+			if len(radixDNSAliases.Items) == len(ts.expectedRadixDNSAliases) {
+				for _, radixDNSAlias := range radixDNSAliases.Items {
+					if expectedDNSAlias, ok := ts.expectedRadixDNSAliases[radixDNSAlias.Name]; ok {
+						assert.Equal(t, expectedDNSAlias.AppName, radixDNSAlias.Spec.AppName, "app name")
+						assert.Equal(t, expectedDNSAlias.Environment, radixDNSAlias.Spec.Environment, "environment")
+						assert.Equal(t, expectedDNSAlias.Component, radixDNSAlias.Spec.Component, "component")
+						continue
 					}
+					assert.Fail(t, fmt.Sprintf("found not expected RadixDNSAlias %s: env %s, component %s, appName %s", radixDNSAlias.GetName(), radixDNSAlias.Spec.Environment, radixDNSAlias.Spec.Component, radixDNSAlias.Spec.AppName))
 				}
 			}
 		})
@@ -832,12 +945,12 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationconfig, err := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
+	applicationConfig, err := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
 	if err != nil {
 		return err
 	}
 
-	err = applicationconfig.OnSync()
+	err = applicationConfig.OnSync()
 	if err != nil {
 		return err
 	}
@@ -885,14 +998,4 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
 	return getRoleBindingByName(name, roleBindings) != nil
-}
-
-func getRandomComponentBuilder() utils.RadixApplicationComponentBuilder {
-	return utils.NewApplicationComponentBuilder().WithName(commonUtils.RandString(20)).WithPort("p", 9000).WithPublicPort("s")
-}
-
-func registerExistingRadixDNSAlias(radixClient radixclient.Interface, radixDNSAlias *radixv1.RadixDNSAlias) error {
-	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.TODO(),
-		radixDNSAlias, metav1.CreateOptions{})
-	return err
 }

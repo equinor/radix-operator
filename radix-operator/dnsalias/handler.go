@@ -1,7 +1,6 @@
 package dnsalias
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
@@ -12,7 +11,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -71,7 +69,7 @@ func WithSyncerFactory(factory internal.SyncerFactory) HandlerConfigOption {
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
 func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error {
-	radixDNSAlias, err := h.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), name, metav1.GetOptions{})
+	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			utilruntime.HandleError(fmt.Errorf("RadixDNSAlias %s in work queue no longer exists", name))
