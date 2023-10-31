@@ -2,8 +2,9 @@ package deployment
 
 import (
 	"fmt"
-	"github.com/equinor/radix-common/utils/pointers"
 	"testing"
+
+	"github.com/equinor/radix-common/utils/pointers"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 

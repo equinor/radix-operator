@@ -1275,13 +1275,16 @@ type RadixCommonComponent interface {
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
 	// GetEnvironmentConfigsMap Get component environment configuration as map by names
 	GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig
-	// getEnabled Gets the component status if it is enabled in the application
-	getEnabled() bool
+	// GetEnabled Gets the component status if it is enabled in the application
+	GetEnabled() bool
 	// GetEnabledForEnv Gets the component status if it is enabled in the application for an environment
 	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
 	// GetEnvironmentConfigByName  Gets component environment configuration by its name
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
+	// GetEnabledForAnyEnvironment Checks if the component is enabled for any of the environments
 	GetEnabledForAnyEnvironment(environments []string) bool
+	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
+	GetEnabledForEnvironment(environment string) bool
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1328,7 +1331,7 @@ func (component *RadixComponent) GetIdentity() *Identity {
 	return component.Identity
 }
 
-func (component *RadixComponent) getEnabled() bool {
+func (component *RadixComponent) GetEnabled() bool {
 	return component.Enabled == nil || *component.Enabled
 }
 
@@ -1365,15 +1368,19 @@ func (component *RadixComponent) GetEnabledForAnyEnvironment(environments []stri
 	return getEnabledForAnyEnvironment(component, environments)
 }
 
+func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
+	return getEnabledForAnyEnvironment(component, []string{environment})
+}
+
 func (component *RadixJobComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
 	return getEnabled(component, envConfig)
 }
 
 func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) bool {
-	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil {
-		return component.getEnabled()
+	if commonUtils.IsNil(envConfig) || envConfig.GetEnabled() == nil {
+		return component.GetEnabled()
 	}
-	return *envConfig.getEnabled()
+	return *envConfig.GetEnabled()
 }
 
 func (component *RadixJobComponent) GetName() string {
@@ -1425,7 +1432,7 @@ func (component *RadixJobComponent) GetNotifications() *Notifications {
 	return component.Notifications
 }
 
-func (component *RadixJobComponent) getEnabled() bool {
+func (component *RadixJobComponent) GetEnabled() bool {
 	return component.Enabled == nil || *component.Enabled
 }
 
@@ -1458,6 +1465,10 @@ func (component *RadixJobComponent) GetEnabledForAnyEnvironment(environments []s
 	return getEnabledForAnyEnvironment(component, environments)
 }
 
+func (component *RadixJobComponent) GetEnabledForEnvironment(environment string) bool {
+	return getEnabledForAnyEnvironment(component, []string{environment})
+}
+
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
 	for _, environmentConfig := range environmentConfigs {
 		if strings.EqualFold(environment, environmentConfig.GetEnvironment()) {
@@ -1470,7 +1481,7 @@ func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCo
 func getEnabledForAnyEnvironment(component RadixCommonComponent, environments []string) bool {
 	environmentConfigsMap := component.GetEnvironmentConfigsMap()
 	if len(environmentConfigsMap) == 0 {
-		return component.getEnabled()
+		return component.GetEnabled()
 	}
 	for _, envName := range environments {
 		if component.GetEnabledForEnv(environmentConfigsMap[envName]) {

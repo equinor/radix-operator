@@ -14,7 +14,7 @@ type RadixCommonEnvironmentConfig interface {
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetReplicas() *int
 	GetIdentity() *Identity
-	getEnabled() *bool
+	GetEnabled() *bool
 }
 
 func (config RadixEnvironmentConfig) GetEnvironment() string {
@@ -53,7 +53,7 @@ func (config RadixEnvironmentConfig) GetIdentity() *Identity {
 	return config.Identity
 }
 
-func (config RadixEnvironmentConfig) getEnabled() *bool {
+func (config RadixEnvironmentConfig) GetEnabled() *bool {
 	return config.Enabled
 }
 
@@ -93,11 +93,11 @@ func (config RadixJobComponentEnvironmentConfig) GetIdentity() *Identity {
 	return config.Identity
 }
 
-//GetNotifications Get job component notifications
+// GetNotifications Get job component notifications
 func (config RadixJobComponentEnvironmentConfig) GetNotifications() *Notifications {
 	return config.Notifications
 }
 
-func (config RadixJobComponentEnvironmentConfig) getEnabled() *bool {
+func (config RadixJobComponentEnvironmentConfig) GetEnabled() *bool {
 	return config.Enabled
 }

@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -58,7 +59,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	}
 
 	// Read build context info from configmap
-	pipelineInfo.PrepareBuildContext, err = getPrepareBuildContextContent(configMap)
+	pipelineInfo.PrepareBuildContext, err = getPrepareBuildContext(configMap)
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,11 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
-	if pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
+	if err := cli.setBuildAndDeployImages(pipelineInfo); err != nil {
+		return err
+	}
+
+	if pipelineInfo.PipelineArguments.PipelineType == string(radixv1.BuildDeploy) {
 		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
 		err = validate.GitTagsContainIllegalChars(gitTags)
 		if err != nil {
@@ -101,7 +106,133 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	return nil
 }
 
-func getPrepareBuildContextContent(configMap *corev1.ConfigMap) (*model.PrepareBuildContext, error) {
+type componentName string
+type environmentName string
+
+type componentContainersMap map[componentName]containerImageSpec
+type environmentComponentsMap map[environmentName]componentContainersMap
+
+type containerImageSource int
+
+const (
+	fromBuild containerImageSource = iota
+	fromImage
+	fromDeployment
+)
+
+type containerImageSpec struct {
+	ContainerName string
+	Context       string
+	DockerFile    string
+	ImageName     string
+	ImagePath     string
+	Source        containerImageSource
+}
+
+func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *model.PipelineInfo) error {
+
+	appComponents := getCommonComponents(pipelineInfo.RadixApplication)
+	env := make(environmentComponentsMap)
+
+	getContainerImage := func(comp radixv1.RadixCommonComponent) containerImageSpec {
+		if len(comp.GetImage()) > 0 {
+			return containerImageSpec{ImagePath: comp.GetImage(), Source: fromImage}
+		}
+
+		return containerImageSpec{}
+	}
+
+	for envName, isMapped := range pipelineInfo.TargetEnvironments {
+		if !isMapped {
+			continue
+		}
+
+		currentRd, err := cli.GetKubeutil().GetActiveDeployment(utils.GetEnvironmentNamespace(pipelineInfo.RadixApplication.GetName(), envName))
+		if err != nil {
+			return err
+		}
+
+		enabledComponents := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
+		components := make(componentContainersMap)
+
+		for _, comp := range enabledComponents {
+			components[componentName(comp.GetName())] = getContainerImage(comp)
+		}
+
+		env[environmentName(envName)] = components
+	}
+
+	fmt.Println(env)
+
+	// appBuildComponents := getBuildCommonComponents(pipelineInfo.RadixApplication)
+	// componentsToBuild := make(map[componentName]radixv1.RadixCommonComponent)
+
+	// for envName, isMapped := range pipelineInfo.TargetEnvironments {
+	// 	if !isMapped {
+	// 		continue
+	// 	}
+
+	// 	currentRd, err := cli.GetKubeutil().GetActiveDeployment(utils.GetEnvironmentNamespace(pipelineInfo.RadixApplication.GetName(), envName))
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	envBuildComponents := slice.FindAll(appBuildComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
+	// 	envMustBuildComponents := filterComponentsForEnvironmentByRequireBuild(envBuildComponents, envName, pipelineInfo.PrepareBuildContext, currentRd)
+
+	// 	for _, comp := range envMustBuildComponents {
+	// 		componentsToBuild[componentName(comp.GetName())] = comp
+	// 	}
+	// }
+
+	return nil
+}
+
+func filterComponentsForEnvironmentByRequireBuild(sourceComponents []radixv1.RadixCommonComponent, envName string, prepareBuildCtx *model.PrepareBuildContext, currentRd *radixv1.RadixDeployment) []radixv1.RadixCommonComponent {
+	// Build all components if radixconfig.yaml is changed or current RD is nil
+	if prepareBuildCtx == nil || prepareBuildCtx.ChangedRadixConfig || currentRd == nil {
+		return sourceComponents
+	}
+
+	environmentBuildComponentInfo, found := slice.FindFirst(prepareBuildCtx.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == envName })
+	// Build all components if prepare-pipeline does not have build spec for environment
+	if !found {
+		return sourceComponents
+	}
+
+	var componentsToBuild []radixv1.RadixCommonComponent
+	deployComponents := getDeploymentCommonComponents(currentRd)
+
+	for _, sourceComponent := range sourceComponents {
+		hasCodeChange := slice.Any(environmentBuildComponentInfo.Components, func(s string) bool { return sourceComponent.GetName() == s })
+		existInDeployment := slice.Any(deployComponents, func(rcdc radixv1.RadixCommonDeployComponent) bool { return sourceComponent.GetName() == rcdc.GetName() })
+
+		// Build component if it has code changes or it does not exist in current RadixDeployment
+		if hasCodeChange || !existInDeployment {
+			componentsToBuild = append(componentsToBuild, sourceComponent)
+		}
+	}
+
+	return componentsToBuild
+}
+
+func getBuildCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComponent {
+	return slice.FindAll(getCommonComponents(ra), func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetImage() == "" })
+}
+
+func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComponent {
+	commonComponents := slice.Map(ra.Spec.Components, func(c radixv1.RadixComponent) radixv1.RadixCommonComponent { return &c })
+	commonComponents = append(commonComponents, slice.Map(ra.Spec.Jobs, func(c radixv1.RadixJobComponent) radixv1.RadixCommonComponent { return &c })...)
+	return commonComponents
+}
+
+func getDeploymentCommonComponents(rd *radixv1.RadixDeployment) []radixv1.RadixCommonDeployComponent {
+	commonComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) radixv1.RadixCommonDeployComponent { return &c })
+	commonComponents = append(commonComponents, slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) radixv1.RadixCommonDeployComponent { return &c })...)
+	return commonComponents
+}
+
+func getPrepareBuildContext(configMap *corev1.ConfigMap) (*model.PrepareBuildContext, error) {
 	prepareBuildContextContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapBuildContext]
 	if !ok {
 		log.Debug("Prepare Build Context does not exist in the ConfigMap")
@@ -177,8 +308,8 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipel
 
 // CreateRadixApplication Create RadixApplication from radixconfig.yaml content
 func CreateRadixApplication(radixClient radixclient.Interface,
-	configFileContent string) (*v1.RadixApplication, error) {
-	ra := &v1.RadixApplication{}
+	configFileContent string) (*radixv1.RadixApplication, error) {
+	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
 	// This package supports encoding and decoding of yaml for CRD struct types using the json tag.

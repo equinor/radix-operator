@@ -40,7 +40,7 @@ type PipelineInfo struct {
 	// Temporary data
 	RadixConfigMapName string
 	GitConfigMapName   string
-	TargetEnvironments map[string]bool
+	TargetEnvironments map[string]bool // TODO: Change this to []string
 	BranchIsMapped     bool
 	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.
 	// not to be confused with PipelineInfo.PipelineArguments.CommitID
