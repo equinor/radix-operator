@@ -70,7 +70,7 @@ type scenario struct {
 	dnsAlias                testDNSAlias
 	dnsZone                 string
 	existingRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
-	existingIngress         []testIngress
+	existingIngress         map[string]testIngress
 	expectedIngress         map[string]testIngress
 }
 
@@ -102,8 +102,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			name:     "created additional ingress for another component",
 			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port8080},
 			dnsZone:  dnsZone1,
-			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain2, host: dnsalias.GetDNSAliasHost(domain2, dnsZone1), component: component2, port: port8080},
+			existingIngress: map[string]testIngress{
+				"component2.domain2.custom-domain": {appName: appName1, envName: envName1, domain: domain2, host: dnsalias.GetDNSAliasHost(domain2, dnsZone1), component: component2, port: port8080},
 			},
 			expectedIngress: map[string]testIngress{
 				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
@@ -114,8 +114,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			name:     "changed port changes port in existing ingress",
 			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port9090},
 			dnsZone:  dnsZone1,
-			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+			existingIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
 			},
 			expectedIngress: map[string]testIngress{
 				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port9090},
@@ -125,8 +125,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			name:     "created additional ingress on another domain for the same component",
 			dnsAlias: testDNSAlias{Domain: domain2, Environment: envName1, Component: component1, Port: port8080},
 			dnsZone:  dnsZone1,
-			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain2, dnsZone1), component: component1, port: port8080},
+			existingIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain2, dnsZone1), component: component1, port: port8080},
 			},
 			expectedIngress: map[string]testIngress{
 				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
@@ -134,11 +134,33 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			},
 		},
 		{
+			name:     "manually changed appName repaired",
+			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port8080},
+			dnsZone:  dnsZone1,
+			existingIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName2, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component2, port: port8080},
+			},
+			expectedIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+			},
+		},
+		{
+			name:     "manually changed envName repaired",
+			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port8080},
+			dnsZone:  dnsZone1,
+			existingIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName2, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component2, port: port8080},
+			},
+			expectedIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
+			},
+		},
+		{
 			name:     "manually changed component repaired",
 			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port8080},
 			dnsZone:  dnsZone1,
-			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component2, port: port8080},
+			existingIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component2, port: port8080},
 			},
 			expectedIngress: map[string]testIngress{
 				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
@@ -148,8 +170,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			name:     "manually changed port repaired",
 			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port8080},
 			dnsZone:  dnsZone1,
-			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port9090},
+			existingIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port9090},
 			},
 			expectedIngress: map[string]testIngress{
 				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
@@ -159,8 +181,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			name:     "manually changed host repaired",
 			dnsAlias: testDNSAlias{Domain: domain1, Environment: envName1, Component: component1, Port: port8080},
 			dnsZone:  dnsZone1,
-			existingIngress: []testIngress{
-				{appName: appName1, envName: envName1, domain: domain1, host: "/manually/edited/host", component: component1, port: port8080},
+			existingIngress: map[string]testIngress{
+				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: "/manually/edited/host", component: component1, port: port8080},
 			},
 			expectedIngress: map[string]testIngress{
 				"component1.domain1.custom-domain": {appName: appName1, envName: envName1, domain: domain1, host: dnsalias.GetDNSAliasHost(domain1, dnsZone1), component: component1, port: port8080},
@@ -174,7 +196,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component, Port: ts.dnsAlias.Port}}
 			s.Require().NoError(registerExistingRadixDNSAlias(s.radixClient, radixDNSAlias), "create existing alias")
 			cfg := &config.ClusterConfig{DNSZone: ts.dnsZone}
-			s.Require().NoError(registerExistingIngresses(s.kubeClient, ts.existingIngress, cfg), "create existing ingresses")
+			s.Require().NoError(registerExistingIngresses(s.kubeClient, ts.existingIngress, appName1, envName1, cfg), "create existing ingresses")
 			syncer := s.createSyncer(radixDNSAlias)
 			err := syncer.OnSync()
 			test.AssertError(s.T(), ts.expectedError, err)
@@ -220,9 +242,11 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 	}
 }
 
-func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses []testIngress, config *config.ClusterConfig) error {
-	for _, ing := range testIngresses {
-		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, ing.appName, ing.envName, dnsalias.BuildRadixDNSAliasIngress(ing.appName, ing.domain, ing.component, ing.port, nil, config))
+func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress, appNameForNamespace, envNameForNamespace string, config *config.ClusterConfig) error {
+	for name, ing := range testIngresses {
+		ingress := dnsalias.BuildRadixDNSAliasIngress(ing.appName, ing.domain, ing.component, ing.port, nil, config)
+		ingress.SetName(name) // override built name with expected name for test purpose
+		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, appNameForNamespace, envNameForNamespace, ingress)
 		if err != nil {
 			return err
 		}
