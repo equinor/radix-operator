@@ -151,13 +151,10 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 }
 
 func validatePrivateImageHubs(app *radixv1.RadixApplication) []error {
-	errs := []error{}
+	var errs []error
 	for server, config := range app.Spec.PrivateImageHubs {
 		if config.Username == "" {
 			errs = append(errs, MissingPrivateImageHubUsernameError(server))
-		}
-		if config.Email == "" {
-			errs = append(errs, MissingPrivateImageHubEmailError(server))
 		}
 	}
 	return errs

@@ -15,6 +15,7 @@ type ApplicationBuilder interface {
 	WithAppName(appName string) ApplicationBuilder
 	WithBuildSecrets(buildSecrets ...string) ApplicationBuilder
 	WithBuildKit(useBuildKit *bool) ApplicationBuilder
+	WithBuildCache(*bool) ApplicationBuilder
 	WithEnvironment(environment, buildFrom string) ApplicationBuilder
 	WithEnvironmentNoBranch(environment string) ApplicationBuilder
 	WithComponent(components RadixApplicationComponentBuilder) ApplicationBuilder
@@ -35,6 +36,7 @@ type ApplicationBuilderStruct struct {
 	appName             string
 	buildSecrets        []string
 	useBuildKit         *bool
+	useBuildCache       *bool
 	environments        []radixv1.Environment
 	components          []RadixApplicationComponentBuilder
 	jobComponents       []RadixApplicationJobComponentBuilder
@@ -46,6 +48,10 @@ type ApplicationBuilderStruct struct {
 
 func (ap *ApplicationBuilderStruct) WithBuildKit(useBuildKit *bool) ApplicationBuilder {
 	ap.useBuildKit = useBuildKit
+	return ap
+}
+func (ap *ApplicationBuilderStruct) WithBuildCache(useBuilCache *bool) ApplicationBuilder {
+	ap.useBuildCache = useBuilCache
 	return ap
 }
 
@@ -208,6 +214,7 @@ func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
 		build = &radixv1.BuildSpec{
 			Secrets:     ap.buildSecrets,
 			UseBuildKit: ap.useBuildKit,
+			UseBuildCache: ap.useBuildCache,
 		}
 	}
 

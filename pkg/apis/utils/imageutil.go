@@ -9,6 +9,12 @@ func GetImagePath(containerRegistry, appName, componentName, imageTag string) st
 	return imageName
 }
 
+// GetImageCachePath Returns a container image path given container registry, app, component
+func GetImageCachePath(containerRegistry, appName string) string {
+	imageName := fmt.Sprintf("%s/%s/cache", containerRegistry, appName)
+	return imageName
+}
+
 // GetRepositoryName Returns a container registry repository name given
 func GetRepositoryName(appName, componentName string) string {
 	repositoryName := fmt.Sprintf("%s-%s", appName, componentName)
