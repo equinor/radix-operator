@@ -25,6 +25,7 @@ appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 containerRegistry: radixdev.azurecr.io
+appContainerRegistry: radixdevapp.azurecr.io
 tenantId: xx
 subscriptionId: xx
 
@@ -78,7 +79,7 @@ serviceAccount:
   # If not set, a name is generated using the fullname template
   name: ""
 
-resources: 
+resources:
   limits:
     memory: 1Gi
   requests:
