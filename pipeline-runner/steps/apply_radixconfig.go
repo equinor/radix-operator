@@ -2,6 +2,7 @@ package steps
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
@@ -10,15 +11,21 @@ import (
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	yamlk8s "sigs.k8s.io/yaml"
+)
+
+const (
+	multiComponentImageName = "multi-component"
 )
 
 // ApplyConfigStepImplementation Step to apply RA
@@ -106,42 +113,76 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	return nil
 }
 
-type componentName string
-type environmentName string
-
-type componentContainersMap map[componentName]containerImageSpec
-type environmentComponentsMap map[environmentName]componentContainersMap
-
-type containerImageSource int
+type containerImageSourceEnum int
 
 const (
-	fromBuild containerImageSource = iota
-	fromImage
+	fromBuild containerImageSourceEnum = iota
+	fromImagePath
 	fromDeployment
 )
 
-type containerImageSpec struct {
-	ContainerName string
-	Context       string
-	DockerFile    string
-	ImageName     string
-	ImagePath     string
-	Source        containerImageSource
+type componentImageSource struct {
+	ComponentName string
+	ImageSource   containerImageSourceEnum
+}
+
+type environmentComponentSource struct {
+	RadixApplication *radixv1.RadixApplication
+	RadixDeployment  *radixv1.RadixDeployment
+	Components       []componentImageSource
+}
+
+type environmentComponentSourceMap map[string]environmentComponentSource
+
+type componentDockerFile struct {
+	ComponentName      string
+	DockerFileFullPath string
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *model.PipelineInfo) error {
-
 	appComponents := getCommonComponents(pipelineInfo.RadixApplication)
-	env := make(environmentComponentsMap)
 
-	getContainerImage := func(comp radixv1.RadixCommonComponent) containerImageSpec {
-		if len(comp.GetImage()) > 0 {
-			return containerImageSpec{ImagePath: comp.GetImage(), Source: fromImage}
+	isRadixConfigModifiedSinceDeploymentFunc := func(rd *radixv1.RadixDeployment, pipelineInfo *model.PipelineInfo) bool {
+		if rd == nil {
+			return true
 		}
-
-		return containerImageSpec{}
+		currentRdConfigHash := rd.GetAnnotations()[kube.RadixConfigHash]
+		if len(currentRdConfigHash) == 0 {
+			return true
+		}
+		return currentRdConfigHash != pipelineInfo.RadixApplicationHash()
 	}
 
+	buildComponentFactoryFunc := func(environmentName string, pipelineInfo *model.PipelineInfo, currentRd *radixv1.RadixDeployment) func(comp radixv1.RadixCommonComponent) bool {
+		isRadixConfigModified := isRadixConfigModifiedSinceDeploymentFunc(currentRd, pipelineInfo)
+		var (
+			buildContextDefined    bool
+			buildContextComponents []string
+		)
+
+		if pipelineInfo.PrepareBuildContext != nil {
+			envBuildContext, found := slice.FindFirst(pipelineInfo.PrepareBuildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == environmentName })
+			if found {
+				buildContextDefined = true
+				buildContextComponents = envBuildContext.Components
+			}
+		}
+
+		return func(comp radixv1.RadixCommonComponent) bool {
+			if isRadixConfigModified {
+				return true
+			}
+			if buildContextDefined {
+				return slice.Any(buildContextComponents, func(s string) bool { return s == comp.GetName() })
+			}
+
+			return true
+		}
+	}
+
+	environmentComponents := make(environmentComponentSourceMap)
+
+	// Generate map of environments and components, and where each componenet should get image from
 	for envName, isMapped := range pipelineInfo.TargetEnvironments {
 		if !isMapped {
 			continue
@@ -153,82 +194,128 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 		}
 
 		enabledComponents := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
-		components := make(componentContainersMap)
+		buildComponentFunc := buildComponentFactoryFunc(envName, pipelineInfo, currentRd)
+		componentSource := make([]componentImageSource, 0)
 
 		for _, comp := range enabledComponents {
-			components[componentName(comp.GetName())] = getContainerImage(comp)
+			var source containerImageSourceEnum
+			switch {
+			case len(comp.GetImage()) > 0:
+				source = fromImagePath
+			case buildComponentFunc(comp):
+				source = fromBuild
+			default:
+				source = fromDeployment
+			}
+			componentSource = append(componentSource, componentImageSource{ComponentName: comp.GetName(), ImageSource: source})
 		}
 
-		env[environmentName(envName)] = components
+		environmentComponents[envName] = environmentComponentSource{
+			RadixApplication: pipelineInfo.RadixApplication,
+			RadixDeployment:  currentRd,
+			Components:       componentSource,
+		}
 	}
 
-	fmt.Println(env)
+	// Generate list of distinct components to build across all environments
+	var distinctComponentsToBuild []componentDockerFile
+	for _, envCompSource := range environmentComponents {
+		distinctComponentsToBuild = slice.Reduce(envCompSource.Components, distinctComponentsToBuild, func(acc []componentDockerFile, cis componentImageSource) []componentDockerFile {
+			if cis.ImageSource == fromBuild {
+				if !slice.Any(acc, func(c componentDockerFile) bool { return c.ComponentName == cis.ComponentName }) {
+					cc := pipelineInfo.RadixApplication.GetCommonComponentByName(cis.ComponentName)
+					acc = append(acc, componentDockerFile{ComponentName: cis.ComponentName, DockerFileFullPath: getDockerfile(cc.GetSourceFolder(), cc.GetDockerfileName())})
+				}
+			}
+			return acc
+		})
+	}
 
-	// appBuildComponents := getBuildCommonComponents(pipelineInfo.RadixApplication)
-	// componentsToBuild := make(map[componentName]radixv1.RadixCommonComponent)
+	// Generate list of DockerFileFullPath from distinctComponentsToBuild pointing to multiple components
+	multiComponentDockerfile := slice.Reduce(distinctComponentsToBuild, []string{}, func(acc []string, cdf componentDockerFile) []string {
+		dockerFileCount := len(slice.FindAll(distinctComponentsToBuild, func(c componentDockerFile) bool { return c.DockerFileFullPath == cdf.DockerFileFullPath }))
+		if dockerFileCount > 1 && !slice.Any(acc, func(s string) bool { return s == cdf.DockerFileFullPath }) {
+			acc = append(acc, cdf.DockerFileFullPath)
+		}
+		return acc
+	})
 
-	// for envName, isMapped := range pipelineInfo.TargetEnvironments {
-	// 	if !isMapped {
-	// 		continue
-	// 	}
+	// Generate BuildComponentImages list for build-acr step
+	buildComponentImages := slice.Reduce(distinctComponentsToBuild, make(pipeline.BuildComponentImages), func(acc pipeline.BuildComponentImages, c componentDockerFile) pipeline.BuildComponentImages {
+		cc := pipelineInfo.RadixApplication.GetCommonComponentByName(c.ComponentName)
+		imageName := c.ComponentName
+		if multiComponentIdx := slice.FindIndex(multiComponentDockerfile, func(s string) bool { return s == c.DockerFileFullPath }); multiComponentIdx >= 0 {
+			var suffix string
+			if multiComponentIdx > 0 {
+				suffix = fmt.Sprintf("-%d", multiComponentIdx)
+			}
+			imageName = fmt.Sprintf("%s%s", multiComponentImageName, suffix)
 
-	// 	currentRd, err := cli.GetKubeutil().GetActiveDeployment(utils.GetEnvironmentNamespace(pipelineInfo.RadixApplication.GetName(), envName))
-	// 	if err != nil {
-	// 		return err
-	// 	}
+		}
+		acc[c.ComponentName] = pipeline.BuildComponentImage{
+			ContainerName: fmt.Sprintf("build-%s", imageName),
+			Context:       getContext(cc.GetSourceFolder()),
+			Dockerfile:    getDockerfileName(cc.GetDockerfileName()),
+			ImageName:     imageName,
+			ImagePath:     utils.GetImagePath(pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.RadixApplication.GetName(), imageName, pipelineInfo.PipelineArguments.ImageTag),
+		}
+		return acc
+	})
 
-	// 	envBuildComponents := slice.FindAll(appBuildComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
-	// 	envMustBuildComponents := filterComponentsForEnvironmentByRequireBuild(envBuildComponents, envName, pipelineInfo.PrepareBuildContext, currentRd)
+	pipelineInfo.BuildComponentImages = buildComponentImages
 
-	// 	for _, comp := range envMustBuildComponents {
-	// 		componentsToBuild[componentName(comp.GetName())] = comp
-	// 	}
-	// }
+	deployCompImg := make(pipeline.EnvironmentDeployComponentImages)
+	// Generate
+	for envName, c := range environmentComponents {
+		deployCompImg[envName] = slice.Reduce(c.Components, make(pipeline.DeployComponentImages), func(acc pipeline.DeployComponentImages, cis componentImageSource) pipeline.DeployComponentImages {
+			var imagePath string
+			switch cis.ImageSource {
+			case fromBuild:
+				imagePath = buildComponentImages[cis.ComponentName].ImagePath
+			case fromDeployment:
+				imagePath = c.RadixDeployment.GetCommonComponentByName(cis.ComponentName).GetImage()
+			case fromImagePath:
+				imagePath = c.RadixApplication.GetCommonComponentByName(cis.ComponentName).GetImage()
+			}
+
+			acc[cis.ComponentName] = pipeline.DeployComponentImage{
+				ImagePath:    imagePath,
+				ImageTagName: pipelineInfo.PipelineArguments.ImageTagNames[cis.ComponentName],
+				Build:        cis.ImageSource == fromBuild,
+			}
+			return acc
+		})
+
+	}
+
+	pipelineInfo.EnvironmentDeployComponentImages = deployCompImg
 
 	return nil
 }
 
-func filterComponentsForEnvironmentByRequireBuild(sourceComponents []radixv1.RadixCommonComponent, envName string, prepareBuildCtx *model.PrepareBuildContext, currentRd *radixv1.RadixDeployment) []radixv1.RadixCommonComponent {
-	// Build all components if radixconfig.yaml is changed or current RD is nil
-	if prepareBuildCtx == nil || prepareBuildCtx.ChangedRadixConfig || currentRd == nil {
-		return sourceComponents
-	}
+func getDockerfile(sourceFolder, dockerfileName string) string {
+	context := getContext(sourceFolder)
+	dockerfileName = getDockerfileName(dockerfileName)
 
-	environmentBuildComponentInfo, found := slice.FindFirst(prepareBuildCtx.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == envName })
-	// Build all components if prepare-pipeline does not have build spec for environment
-	if !found {
-		return sourceComponents
-	}
-
-	var componentsToBuild []radixv1.RadixCommonComponent
-	deployComponents := getDeploymentCommonComponents(currentRd)
-
-	for _, sourceComponent := range sourceComponents {
-		hasCodeChange := slice.Any(environmentBuildComponentInfo.Components, func(s string) bool { return sourceComponent.GetName() == s })
-		existInDeployment := slice.Any(deployComponents, func(rcdc radixv1.RadixCommonDeployComponent) bool { return sourceComponent.GetName() == rcdc.GetName() })
-
-		// Build component if it has code changes or it does not exist in current RadixDeployment
-		if hasCodeChange || !existInDeployment {
-			componentsToBuild = append(componentsToBuild, sourceComponent)
-		}
-	}
-
-	return componentsToBuild
+	return fmt.Sprintf("%s%s", context, dockerfileName)
 }
 
-func getBuildCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComponent {
-	return slice.FindAll(getCommonComponents(ra), func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetImage() == "" })
+func getDockerfileName(name string) string {
+	if name == "" {
+		name = "Dockerfile"
+	}
+
+	return name
+}
+
+func getContext(sourceFolder string) string {
+	sourceRoot := filepath.Join("/", sourceFolder)
+	return fmt.Sprintf("%s/", filepath.Join(git.Workspace, sourceRoot))
 }
 
 func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComponent {
 	commonComponents := slice.Map(ra.Spec.Components, func(c radixv1.RadixComponent) radixv1.RadixCommonComponent { return &c })
 	commonComponents = append(commonComponents, slice.Map(ra.Spec.Jobs, func(c radixv1.RadixJobComponent) radixv1.RadixCommonComponent { return &c })...)
-	return commonComponents
-}
-
-func getDeploymentCommonComponents(rd *radixv1.RadixDeployment) []radixv1.RadixCommonDeployComponent {
-	commonComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) radixv1.RadixCommonDeployComponent { return &c })
-	commonComponents = append(commonComponents, slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) radixv1.RadixCommonDeployComponent { return &c })...)
 	return commonComponents
 }
 

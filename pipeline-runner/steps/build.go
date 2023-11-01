@@ -68,7 +68,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return nil
 	}
 
-	if !needToBuildComponents(pipelineInfo.ComponentImages) {
+	if len(pipelineInfo.BuildComponentImages) == 0 {
 		log.Infof("No component in app %s requires building", cli.GetAppName())
 		return nil
 	}
@@ -103,13 +103,4 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	}
 
 	return cli.jobWaiter.Wait(job)
-}
-
-func needToBuildComponents(componentImages map[string]pipeline.ComponentImage) bool {
-	for _, componentImage := range componentImages {
-		if componentImage.Build {
-			return true
-		}
-	}
-	return false
 }

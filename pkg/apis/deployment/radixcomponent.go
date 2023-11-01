@@ -11,7 +11,7 @@ var (
 	authTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
-func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage, defaultEnvVars v1.EnvVarsMap) ([]v1.RadixDeployComponent, error) {
+func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars v1.EnvVarsMap) ([]v1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	var components []v1.RadixDeployComponent
 
@@ -49,7 +49,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		}
 
 		componentImage := componentImages[componentName]
-		deployComponent.Image, err = getImagePath(componentName, &componentImage, environmentSpecificConfig)
+		deployComponent.Image, err = getImagePath(componentName, componentImage, environmentSpecificConfig)
 		if err != nil {
 			return nil, err
 		}

@@ -20,6 +20,7 @@ const (
 	RadixBranchAnnotation                            = "radix-branch"
 	RadixGitTagsAnnotation                           = "radix.equinor.com/radix-git-tags"
 	RadixCommitAnnotation                            = "radix.equinor.com/radix-commit"
+	RadixConfigHash                                  = "radix.equinor.com/radix-config-hash"
 	RadixComponentImagesAnnotation                   = "radix-component-images"
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
 	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"

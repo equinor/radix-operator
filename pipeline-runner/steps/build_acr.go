@@ -38,7 +38,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 
-	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.ComponentImages)
+	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.BuildComponentImages)
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
 	annotations := radixannotations.ForClusterAutoscalerSafeToEvict(false)
 	buildPodSecurityContext := &pipelineInfo.PipelineArguments.PodSecurityContext
@@ -161,12 +161,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		useCache = "--no-cache"
 	}
 	distinctBuildContainers := make(map[string]void)
-	for _, componentImage := range pipelineInfo.ComponentImages {
-		if !componentImage.Build {
-			// Nothing to build
-			continue
-		}
-
+	for _, componentImage := range pipelineInfo.BuildComponentImages {
 		if _, exists := distinctBuildContainers[componentImage.ContainerName]; exists {
 			// We already have a container for this multi-component
 			continue

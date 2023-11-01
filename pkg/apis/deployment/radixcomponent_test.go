@@ -187,8 +187,8 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("http", 80).
 				WithPort("https", 443)).BuildRA()
 
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -243,8 +243,8 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAliases(t *testing.T) {
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -276,8 +276,8 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 }
 
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *testing.T) {
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -335,8 +335,8 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 }
 
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *testing.T) {
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -399,8 +399,8 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 }
 
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEnvConfig(t *testing.T) {
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -452,8 +452,8 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEn
 func TestGetRadixComponentsForEnv_Monitoring(t *testing.T) {
 	envs := [2]string{"prod", "dev"}
 
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -510,8 +510,8 @@ func TestGetRadixComponentsForEnv_Monitoring(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -557,8 +557,8 @@ func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 }
 
 func Test_GetRadixComponents_NodeName(t *testing.T) {
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -615,8 +615,8 @@ func Test_GetRadixComponents_NodeName(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledComponents(t *testing.T) {
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -683,8 +683,8 @@ func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledComponents(t *testing.T)
 }
 
 func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledJobComponents(t *testing.T) {
-	componentImages := make(map[string]pipeline.ComponentImage)
-	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
@@ -788,7 +788,7 @@ func Test_GetRadixComponentsForEnv_Identity(t *testing.T) {
 			}
 			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
 			sut := GetRadixComponentsForEnv
-			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(radixv1.EnvVarsMap))
+			components, err := sut(ra, envName, make(pipeline.DeployComponentImages), make(radixv1.EnvVarsMap))
 			require.NoError(t, err)
 			assert.Equal(t, scenario.expected, components[0].Identity)
 		})
@@ -887,10 +887,10 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			componentImages := make(map[string]pipeline.ComponentImage)
+			componentImages := make(pipeline.DeployComponentImages)
 			var componentBuilders []utils.RadixApplicationComponentBuilder
 			for _, componentName := range []string{componentName1, componentName2} {
-				componentImages[componentName] = pipeline.ComponentImage{ImageName: ts.componentImages[componentName], ImagePath: ts.componentImages[componentName], ImageTagName: ts.externalImageTagNames[componentName]}
+				componentImages[componentName] = pipeline.DeployComponentImage{ImagePath: ts.componentImages[componentName], ImageTagName: ts.externalImageTagNames[componentName]}
 				componentBuilder := utils.NewApplicationComponentBuilder()
 				componentBuilder.WithName(componentName).WithImage(ts.componentImages[componentName]).
 					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(ts.environmentConfigImageTagNames[componentName]))

@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"reflect"
 	"strings"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 

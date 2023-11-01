@@ -202,6 +202,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(rds.Items, 1)
 	rd := rds.Items[0]
+	s.Equal(pipeline.RadixApplicationHash(), rd.GetAnnotations()[kube.RadixConfigHash])
+	s.Greater(len(rd.GetAnnotations()[kube.RadixConfigHash]), 0)
 	s.Require().Len(rd.Spec.Components, 1)
 	s.Equal(compName, rd.Spec.Components[0].Name)
 	s.Equal(fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag), rd.Spec.Components[0].Image)
