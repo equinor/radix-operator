@@ -141,3 +141,7 @@ spec:
   dnsAppAlias:
     environment: prod
     component: app
+  dnsAlias:
+  - environment: prod
+    component: app
+    domain: my-domain

@@ -90,7 +90,7 @@ func Test_invalid_ra(t *testing.T) {
 	noReleatedRRAppName := "no related rr"
 	noExistingEnvironment := "nonexistingenv"
 	invalidUpperCaseResourceName := "invalidUPPERCASE.resourcename"
-	nonExistingComponent := "non existing"
+	nonExistingComponent := "nonexisting"
 	unsupportedResource := "unsupportedResource"
 	invalidResourceValue := "asdfasd"
 	conflictingVariableName := "some-variable"
@@ -200,11 +200,35 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long branch name", radixvalidators.InvalidStringValueMaxLengthError("branch from", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = wayTooLongName
 		}},
-		{"dns alias non existing component", radixvalidators.ComponentForDNSAppAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
+		{"dns app alias non existing component", radixvalidators.ComponentForDNSAppAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAppAlias.Component = nonExistingComponent
 		}},
-		{"dns alias non existing env", radixvalidators.EnvForDNSAppAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
+		{"dns app alias non existing env", radixvalidators.EnvForDNSAppAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAppAlias.Environment = noExistingEnvironment
+		}},
+		{"dns alias is empty", radixvalidators.ResourceNameCannotBeEmptyError("dnsAlias component"), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Component = ""
+		}},
+		{"dns alias is empty", radixvalidators.ResourceNameCannotBeEmptyError("dnsAlias environment"), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Environment = ""
+		}},
+		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("dnsAlias component", "component.abc"), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Component = "component.abc"
+		}},
+		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("dnsAlias environment", "environment.abc"), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Environment = "environment.abc"
+		}},
+		{"dns alias non existing component", radixvalidators.ComponentForDNSAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Component = nonExistingComponent
+		}},
+		{"dns alias non existing env", radixvalidators.EnvForDNSAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Environment = noExistingEnvironment
+		}},
+		{"dns alias domain is empty", radixvalidators.ResourceNameCannotBeEmptyError("dnsAlias domain"), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Domain = ""
+		}},
+		{"dns alias domain is invalid", radixvalidators.DomainForDNSAliasNotDefinedError(), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Domain = "my.domain"
 		}},
 		{"dns external alias non existing component", radixvalidators.ComponentForDNSExternalAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{

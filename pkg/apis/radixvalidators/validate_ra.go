@@ -31,6 +31,7 @@ const (
 	maximumPortNumber          = 65535
 	cpuRegex                   = "^[0-9]+m$"
 	azureClientIdResourceName  = "identity.azure.clientId"
+	componentNameTemplate      = `^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
 )
 
 var (
@@ -114,6 +115,10 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
+	if dnsAliasErrs := validateDNSAlias(app); len(dnsAliasErrs) > 0 {
+		errs = append(errs, dnsAliasErrs...)
+	}
+
 	dnsErrors := validateDNSAppAlias(app)
 	if len(dnsErrors) > 0 {
 		errs = append(errs, dnsErrors...)
@@ -172,21 +177,34 @@ func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 
 func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	alias := app.Spec.DNSAppAlias
-	return validateComponentAndEnvironmentAvailable(app, alias.Component, alias.Environment)
+	return validateDNSAppAliasComponentAndEnvironmentAvailable(app, alias.Component, alias.Environment)
 }
 
 func validateDNSAlias(app *radixv1.RadixApplication) []error {
-	dnsAliases := app.Spec.DNSAlias
 	var errs []error
-	for _, dnsAlias := range dnsAliases {
-		if err := validateComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
-			errs = append(errs, err...)
+	for _, dnsAlias := range app.Spec.DNSAlias {
+		if err := validateResourceNameByRegex("dnsAlias domain", dnsAlias.Domain, componentNameTemplate); err != nil {
+			errs = append(errs, err)
+		}
+		componentNameIsValid, environmentNameIsValid := true, true
+		if err := validateResourceNameByRegex("dnsAlias component", dnsAlias.Component, componentNameTemplate); err != nil {
+			errs = append(errs, err)
+			componentNameIsValid = false
+		}
+		if err := validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment); err != nil {
+			errs = append(errs, err)
+			environmentNameIsValid = false
+		}
+		if componentNameIsValid && environmentNameIsValid {
+			if err := validateDNSAliasComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
+				errs = append(errs, err...)
+			}
 		}
 	}
 	return errs
 }
 
-func validateComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) []error {
+func validateDNSAppAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) []error {
 	var errs []error
 	if component == "" && environment == "" {
 		return errs
@@ -196,6 +214,17 @@ func validateComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, com
 	}
 	if !doesComponentExistInEnvironment(app, component, environment) {
 		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(component))
+	}
+	return errs
+}
+
+func validateDNSAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) []error {
+	var errs []error
+	if !doesEnvExist(app, environment) {
+		errs = append(errs, EnvForDNSAliasNotDefinedError(environment))
+	}
+	if !doesComponentExistInEnvironment(app, component, environment) {
+		errs = append(errs, ComponentForDNSAliasNotDefinedError(component))
 	}
 	return errs
 }
@@ -1396,7 +1425,7 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 }
 
 func validateComponentName(componentName, componentType string) error {
-	if err := validateResourceNameByRegex(fmt.Sprintf("%s name", componentType), componentName, `^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`); err != nil {
+	if err := validateResourceNameByRegex(fmt.Sprintf("%s name", componentType), componentName, componentNameTemplate); err != nil {
 		return err
 	}
 

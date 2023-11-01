@@ -13,12 +13,27 @@ func MissingPrivateImageHubUsernameError(server string) error {
 	return fmt.Errorf("username is required for private image hub %s", server)
 }
 
+// DomainForDNSAliasNotDefinedError Error when domain is not valid
+func DomainForDNSAliasNotDefinedError() error {
+	return fmt.Errorf("invalid or missing domain for dnsAlias")
+}
+
+// EnvForDNSAliasNotDefinedError Error when env not defined
+func EnvForDNSAliasNotDefinedError(env string) error {
+	return fmt.Errorf("environment %s referred to by dnsAlias is not defined", env)
+}
+
+// ComponentForDNSAliasNotDefinedError Error when component not defined
+func ComponentForDNSAliasNotDefinedError(component string) error {
+	return fmt.Errorf("component %s referred to by dnsAlias is not defined", component)
+}
+
 // EnvForDNSAppAliasNotDefinedError Error when env not defined
 func EnvForDNSAppAliasNotDefinedError(env string) error {
 	return fmt.Errorf("env %s referred to by dnsAppAlias is not defined", env)
 }
 
-// ComponentForDNSAppAliasNotDefinedError Error when env not defined
+// ComponentForDNSAppAliasNotDefinedError Error when component not defined
 func ComponentForDNSAppAliasNotDefinedError(component string) error {
 	return fmt.Errorf("component %s referred to by dnsAppAlias is not defined", component)
 }
