@@ -212,8 +212,8 @@ func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
 		build = nil
 	} else {
 		build = &radixv1.BuildSpec{
-			Secrets:     ap.buildSecrets,
-			UseBuildKit: ap.useBuildKit,
+			Secrets:       ap.buildSecrets,
+			UseBuildKit:   ap.useBuildKit,
 			UseBuildCache: ap.useBuildCache,
 		}
 	}
@@ -252,7 +252,7 @@ func ARadixApplication() ApplicationBuilder {
 		WithRadixRegistration(ARadixRegistration()).
 		WithAppName("anyapp").
 		WithEnvironment("test", "master").
-		WithComponent(AnApplicationComponent()).
+		WithComponent(AnApplicationComponent().WithPort("http", 8080).WithPublicPort("http")).
 		WithJobComponent(
 			AnApplicationJobComponent().
 				WithSchedulerPort(numbers.Int32Ptr(8888)),

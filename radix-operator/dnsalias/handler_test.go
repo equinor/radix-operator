@@ -1,21 +1,17 @@
 package dnsalias_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type handlerTestSuite struct {
@@ -59,7 +55,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	clusterConfig := &config.ClusterConfig{DNSZone: "test.radix.equinor.com"}
-	s.Require().NoError(registerExistingRadixDNSAliases(s.RadixClient, appName1, env1, component1, domain1), "create existing RadixDNSAlias")
+	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, domain1, 8080), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, clusterConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	expectedError := fmt.Errorf("some error")
@@ -72,7 +68,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	clusterConfig := &config.ClusterConfig{DNSZone: "test.radix.equinor.com"}
-	s.Require().NoError(registerExistingRadixDNSAliases(s.RadixClient, appName1, env1, component1, domain1), "create existing RadixDNSAlias")
+	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, domain1, 8080), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, clusterConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), clusterConfig, gomock.Any()).Return(s.syncer).Times(1)
@@ -80,20 +76,4 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 
 	err := handler.Sync("", domain1, s.EventRecorder)
 	s.Require().Nil(err)
-}
-
-func registerExistingRadixDNSAliases(radixClient radixclient.Interface, appName, envName, component, domain string) error {
-	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.Background(),
-		&radixv1.RadixDNSAlias{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   domain,
-				Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(component)),
-			},
-			Spec: radixv1.RadixDNSAliasSpec{
-				AppName:     appName,
-				Environment: envName,
-				Component:   component,
-			},
-		}, metav1.CreateOptions{})
-	return err
 }

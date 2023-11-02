@@ -9,9 +9,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
+	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/radix-operator/config"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
@@ -65,13 +64,12 @@ type testDNSAlias struct {
 }
 
 type scenario struct {
-	name                    string
-	expectedError           string
-	dnsAlias                testDNSAlias
-	dnsZone                 string
-	existingRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
-	existingIngress         map[string]testIngress
-	expectedIngress         map[string]testIngress
+	name            string
+	expectedError   string
+	dnsAlias        testDNSAlias
+	dnsZone         string
+	existingIngress map[string]testIngress
+	expectedIngress map[string]testIngress
 }
 
 func (s *syncerTestSuite) Test_syncer_OnSync() {
@@ -194,12 +192,12 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			s.SetupTest()
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Domain, UID: uuid.NewUUID()},
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component, Port: ts.dnsAlias.Port}}
-			s.Require().NoError(registerExistingRadixDNSAlias(s.radixClient, radixDNSAlias), "create existing alias")
+			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Domain, radixDNSAlias.Spec), "create existing alias")
 			cfg := &config.ClusterConfig{DNSZone: ts.dnsZone}
 			s.Require().NoError(registerExistingIngresses(s.kubeClient, ts.existingIngress, appName1, envName1, cfg), "create existing ingresses")
 			syncer := s.createSyncer(radixDNSAlias)
 			err := syncer.OnSync()
-			test.AssertError(s.T(), ts.expectedError, err)
+			commonTest.AssertError(s.T(), ts.expectedError, err)
 
 			ingresses, err := s.kubeClient.NetworkingV1().Ingresses("").List(context.Background(), metav1.ListOptions{})
 			s.Require().NoError(err)
@@ -252,10 +250,4 @@ func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses ma
 		}
 	}
 	return nil
-}
-
-func registerExistingRadixDNSAlias(radixClient radixclient.Interface, radixDNSAlias *radixv1.RadixDNSAlias) error {
-	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.TODO(),
-		radixDNSAlias, metav1.CreateOptions{})
-	return err
 }

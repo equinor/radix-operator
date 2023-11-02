@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -237,7 +238,7 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 		t.Run(ts.name, func(t *testing.T) {
 			tu, kubeClient, kubeUtil, radixClient := setupTest()
 
-			require.NoError(t, registerExistingRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
+			require.NoError(t, commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
 			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder), "register radix application")
 
 			radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{})
@@ -303,19 +304,75 @@ func Test_DNSAliases_FileOndInvalidAppName(t *testing.T) {
 	require.Error(t, err, "register radix application")
 }
 
-func registerExistingRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]radixv1.RadixDNSAliasSpec) error {
-	for domain, aliasesSpec := range radixDNSAliasesMap {
-		_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.Background(),
-			&radixv1.RadixDNSAlias{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   domain,
-					Labels: map[string]string{kube.RadixAppLabel: aliasesSpec.AppName},
-				},
-				Spec: aliasesSpec,
-			}, metav1.CreateOptions{})
-		if err != nil {
-			return err
-		}
+func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
+	const (
+		raAppName         = "anyapp"
+		otherAppName      = "anyapp2"
+		raEnv             = "test"
+		raComponentName   = "app"
+		raPublicPort      = 8080
+		someEnv           = "dev"
+		someComponentName = "component-abc"
+		somePort          = 9090
+		domain1           = "domain1"
+		domain2           = "domain2"
+	)
+	var testScenarios = []struct {
+		name                    string
+		applicationBuilder      utils.ApplicationBuilder
+		existingRadixDNSAliases map[string]radixv1.RadixDNSAliasSpec
+		expectedValidationError error
+	}{
+		{
+			name:                    "No dns aliases",
+			applicationBuilder:      utils.ARadixApplication(),
+			expectedValidationError: nil,
+		},
+		{
+			name:                    "Added dns aliases",
+			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Domain: domain1, Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: nil,
+		},
+		{
+			name:               "Existing dns aliases for the app",
+			applicationBuilder: utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Domain: domain1, Environment: raEnv, Component: raComponentName}),
+			existingRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: raAppName, Environment: raEnv, Component: raComponentName, Port: raPublicPort},
+			},
+			expectedValidationError: nil,
+		},
+		{
+			name:               "Existing dns aliases for the app and another app",
+			applicationBuilder: utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Domain: domain1, Environment: raEnv, Component: raComponentName}),
+			existingRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: raAppName, Environment: raEnv, Component: raComponentName, Port: raPublicPort},
+				domain2: {AppName: otherAppName, Environment: someEnv, Component: someComponentName, Port: somePort},
+			},
+			expectedValidationError: nil,
+		},
+		{
+			name:               "Same domain exists in dns alias for another app",
+			applicationBuilder: utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Domain: domain1, Environment: raEnv, Component: raComponentName}),
+			existingRadixDNSAliases: map[string]radixv1.RadixDNSAliasSpec{
+				domain1: {AppName: otherAppName, Environment: someEnv, Component: someComponentName, Port: somePort},
+			},
+			expectedValidationError: applicationconfig.RadixDNSAliasAlreadyUsedByAnotherApplicationError(domain1),
+		},
 	}
-	return nil
+
+	for _, ts := range testScenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			_, kubeClient, kubeUtil, radixClient := setupTest()
+			err := commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases)
+			require.NoError(t, err)
+			rr := ts.applicationBuilder.GetRegistrationBuilder().BuildRR()
+			ra := ts.applicationBuilder.BuildRA()
+			applicationConfig, err := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+			require.NoError(t, err)
+
+			actualValidationErr := applicationConfig.ValidateApplicationCanBeApplied()
+
+			require.Equal(t, ts.expectedValidationError, actualValidationErr)
+		})
+	}
 }

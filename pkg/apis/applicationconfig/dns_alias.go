@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -13,7 +14,7 @@ import (
 
 func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 	appName := app.registration.Name
-	radixDNSAliasesMap, err := app.getRadixDNSAliasesMap(appName)
+	radixDNSAliasesMap, err := app.getRadixDNSAliasesMapForAppName(appName)
 	if err != nil {
 		return err
 	}
@@ -83,13 +84,25 @@ func (app *ApplicationConfig) createRadixDNSAlias(appName string, dnsAlias radix
 	return app.kubeutil.CreateRadixDNSAlias(&radixDNSAlias)
 }
 
-func (app *ApplicationConfig) getRadixDNSAliasesMap(appName string) (map[string]*radixv1.RadixDNSAlias, error) {
-	dnsAliases, err := app.kubeutil.ListRadixDNSAliasWithSelector(labels.ForApplicationName(appName).String())
+func (app *ApplicationConfig) getRadixDNSAliasesMapForAppName(appName string) (map[string]*radixv1.RadixDNSAlias, error) {
+	radixDNSAliasList, err := app.kubeutil.ListRadixDNSAliasWithSelector(labels.ForApplicationName(appName).String())
 	if err != nil {
 		return nil, err
 	}
+	return getRadixDNSAliasMap(radixDNSAliasList), err
+}
+
+func (app *ApplicationConfig) getAllRadixDNSAliasesMap() (map[string]*radixv1.RadixDNSAlias, error) {
+	radixDNSAliasList, err := app.kubeutil.RadixClient().RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return getRadixDNSAliasMap(slice.PointersOf(radixDNSAliasList.Items).([]*radixv1.RadixDNSAlias)), nil
+}
+
+func getRadixDNSAliasMap(dnsAliases []*radixv1.RadixDNSAlias) map[string]*radixv1.RadixDNSAlias {
 	return slice.Reduce(dnsAliases, make(map[string]*radixv1.RadixDNSAlias), func(acc map[string]*radixv1.RadixDNSAlias, dnsAlias *radixv1.RadixDNSAlias) map[string]*radixv1.RadixDNSAlias {
 		acc[dnsAlias.Name] = dnsAlias
 		return acc
-	}), err
+	})
 }

@@ -137,21 +137,24 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		return fmt.Errorf("failed to get radix application. %v", err)
 	}
 
-	// Update RA if different
 	log.Debugf("RadixApplication %s exists in namespace %s", app.config.Name, appNamespace)
-	if !reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
-		log.Debugf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
-		// For an update, ResourceVersion of the new object must be the same with the old object
-		app.config.SetResourceVersion(existingRA.GetResourceVersion())
-		_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), app.config, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update existing radix application. %v", err)
-		}
-		log.Infof("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
-	} else {
+	if reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
 		log.Infof("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
+		return nil
 	}
 
+	if err = app.ValidateApplicationCanBeApplied(); err != nil {
+		return err
+	}
+	// Update RA if different
+	log.Debugf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
+	// For an update, ResourceVersion of the new object must be the same with the old object
+	app.config.SetResourceVersion(existingRA.GetResourceVersion())
+	_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), app.config, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update existing radix application. %v", err)
+	}
+	log.Infof("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
 	return nil
 }
 
@@ -286,6 +289,24 @@ func (app *ApplicationConfig) getPortForDNSAlias(dnsAlias radixv1.DNSAlias) (int
 		return 0, fmt.Errorf("component %s does not have public port in the application %s", dnsAlias.Component, app.config.GetName())
 	}
 	return componentPublicPort.Port, nil
+}
+
+// ValidateApplicationCanBeApplied Validate that the RadixApplication can be applied
+func (app *ApplicationConfig) ValidateApplicationCanBeApplied() error {
+	return app.validateDNSAliases()
+}
+
+func (app *ApplicationConfig) validateDNSAliases() error {
+	radixDNSAliasMap, err := app.getAllRadixDNSAliasesMap()
+	if err != nil {
+		return err
+	}
+	for _, dnsAlias := range app.config.Spec.DNSAlias {
+		if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Domain]; ok && radixDNSAlias.Spec.AppName != app.config.Name {
+			return RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Domain)
+		}
+	}
+	return nil
 }
 
 // patchDifference creates a mergepatch, comparing old and new RadixEnvironments and issues the patch to radix
