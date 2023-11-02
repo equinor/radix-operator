@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	InvalidRadixConfigFullNameError = errors2.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
+	ErrInvalidRadixConfigFullName = errors2.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
 
 	requiredRadixRegistrationValidators []RadixRegistrationValidator = []RadixRegistrationValidator{
 		validateRadixRegistrationAppName,
@@ -237,7 +237,7 @@ func ValidateRadixConfigFullName(radixConfigFullName string) error {
 		return err
 	}
 	if !matched {
-		return InvalidRadixConfigFullNameError
+		return ErrInvalidRadixConfigFullName
 	}
 	return nil
 }

@@ -220,7 +220,7 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"dns external alias non existing alias", radixvalidators.ExternalAliasCannotBeEmptyError, func(ra *v1.RadixApplication) {
+		{"dns external alias non existing alias", radixvalidators.ErrExternalAliasCannotBeEmpty, func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
 				{
 					Component:   ra.Spec.Components[0].Name,

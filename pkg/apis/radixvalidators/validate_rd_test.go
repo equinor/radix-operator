@@ -6,11 +6,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
 func Test_valid_rd_returns_true(t *testing.T) {
@@ -96,12 +92,4 @@ func createValidRD() *v1.RadixDeployment {
 	validRD, _ := utils.GetRadixDeployFromFile("testdata/radixdeploy.yaml")
 
 	return validRD
-}
-
-func validRDSetup() (kubernetes.Interface, radixclient.Interface) {
-	validRR, _ := utils.GetRadixRegistrationFromFile("testdata/radixregistration.yaml")
-	kubeclient := kubefake.NewSimpleClientset()
-	client := radixfake.NewSimpleClientset(validRR)
-
-	return kubeclient, client
 }

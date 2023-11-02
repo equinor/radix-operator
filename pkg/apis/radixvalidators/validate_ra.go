@@ -161,7 +161,7 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) error {
 		distinctAlias[externalAlias.Alias] = true
 
 		if externalAlias.Alias == "" {
-			errs = append(errs, ExternalAliasCannotBeEmptyError)
+			errs = append(errs, ErrExternalAliasCannotBeEmpty)
 		}
 
 		if !doesEnvExist(app, externalAlias.Environment) {
