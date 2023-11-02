@@ -158,6 +158,8 @@ spec:
               value: {{ .Values.seccompProfile.fileNameOnNode }}
             - name: RADIX_BUILDAH_IMAGE_BUILDER
               value: {{ .Values.buildahImageBuilder }}
+            - name: RADIX_DNS_ALIAS_WHITELISTED
+              value: {{ .Values.dnsAliasWhitelisted }}
           livenessProbe:
             httpGet:
               path: /healthz
