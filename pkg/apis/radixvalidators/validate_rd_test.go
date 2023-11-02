@@ -15,11 +15,9 @@ import (
 
 func Test_valid_rd_returns_true(t *testing.T) {
 	validRD := createValidRD()
-	_, radixclient := validRDSetup()
-	isValid, err := radixvalidators.CanRadixDeploymentBeInserted(radixclient, validRD)
+	err := radixvalidators.CanRadixDeploymentBeInserted(validRD)
 
-	assert.True(t, isValid)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 type updateRDFunc func(rr *v1.RadixDeployment)
@@ -69,16 +67,13 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 		}},
 	}
 
-	_, client := validRRSetup()
-
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRD := createValidRD()
 			testcase.updateRD(validRD)
-			isValid, err := radixvalidators.CanRadixDeploymentBeInserted(client, validRD)
+			err := radixvalidators.CanRadixDeploymentBeInserted(validRD)
 
-			assert.False(t, isValid)
-			assert.NotNil(t, err)
+			assert.Error(t, err)
 		})
 	}
 }
