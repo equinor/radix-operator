@@ -106,7 +106,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long app name", radixvalidators.InvalidAppNameLengthError(wayTooLongName), func(ra *v1.RadixApplication) {
 			ra.Name = wayTooLongName
 		}},
-		{"invalid app name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("app name", invalidResourceName), func(ra *v1.RadixApplication) {
+		{"invalid app name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("app name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Name = invalidResourceName
 		}},
 		{"empty name", radixvalidators.AppNameCannotBeEmptyError(), func(ra *v1.RadixApplication) {
@@ -122,10 +122,10 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"invalid component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("component name", invalidResourceName), func(ra *v1.RadixApplication) {
+		{"invalid component name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("component name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Name = invalidResourceName
 		}},
-		{"uppercase component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("component name", invalidUpperCaseResourceName), func(ra *v1.RadixApplication) {
+		{"uppercase component name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("component name", invalidUpperCaseResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Name = invalidUpperCaseResourceName
 		}},
 		{"duplicate component name", radixvalidators.DuplicateComponentOrJobNameError([]string{validRAFirstComponentName}), func(ra *v1.RadixApplication) {
@@ -140,7 +140,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid port specification. Empty value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Ports = []v1.ComponentPort{}
 		}},
-		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("port name", invalidResourceName), func(ra *v1.RadixApplication) {
+		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("port name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Ports[0].Name = invalidResourceName
 		}},
 		{"too long port name", radixvalidators.InvalidPortNameLengthError(tooLongPortName), func(ra *v1.RadixApplication) {
@@ -191,7 +191,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
 		}},
-		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("env name", invalidResourceName), func(ra *v1.RadixApplication) {
+		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("env name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Name = invalidResourceName
 		}},
 		{"invalid branch name", radixvalidators.InvalidBranchNameError(invalidBranchName), func(ra *v1.RadixApplication) {
@@ -212,10 +212,10 @@ func Test_invalid_ra(t *testing.T) {
 		{"dns alias is empty", radixvalidators.ResourceNameCannotBeEmptyError("dnsAlias environment"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Environment = ""
 		}},
-		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("dnsAlias component", "component.abc"), func(ra *v1.RadixApplication) {
+		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("dnsAlias component", "component.abc"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Component = "component.abc"
 		}},
-		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("dnsAlias environment", "environment.abc"), func(ra *v1.RadixApplication) {
+		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("dnsAlias environment", "environment.abc"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Environment = "environment.abc"
 		}},
 		{"dns alias non existing component", radixvalidators.ComponentForDNSAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
@@ -227,7 +227,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"dns alias domain is empty", radixvalidators.ResourceNameCannotBeEmptyError("dnsAlias domain"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Domain = ""
 		}},
-		{"dns alias domain is invalid", radixvalidators.DomainForDNSAliasNotDefinedError(), func(ra *v1.RadixApplication) {
+		{"dns alias domain is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("dnsAlias domain", "my.domain"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Domain = "my.domain"
 		}},
 		{"dns external alias non existing component", radixvalidators.ComponentForDNSExternalAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
@@ -661,12 +661,11 @@ func Test_invalid_ra(t *testing.T) {
 			if testcase.expectedError != nil {
 				assert.False(t, isValid)
 				assert.NotNil(t, errs)
-
-				assert.Truef(t, errors.Contains(errs, testcase.expectedError), "Expected error is not contained in list of errors")
-			} else {
-				assert.True(t, isValid)
-				assert.Nil(t, errs)
+				assert.Truef(t, errors.Contains(errs, testcase.expectedError), fmt.Sprintf("Expected error is not contained in list of errors. \n Expected:\n'%s'\n Actual:\n%s", testcase.expectedError, errors.Concat(errs)))
+				return
 			}
+			assert.True(t, isValid)
+			assert.Nil(t, errs)
 		})
 	}
 }

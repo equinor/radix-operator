@@ -41,7 +41,7 @@ spec:
                 description: Name of the application the DNS alias used in.
                 maxLength: 253
                 minLength: 1
-                pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                 type: string
               component:
                 description: Name of the component that shall receive the incoming
@@ -54,7 +54,7 @@ spec:
                 description: Name of the environment for the component.
                 maxLength: 63
                 minLength: 1
-                pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                 type: string
               port:
                 description: Port number.

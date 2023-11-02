@@ -18,6 +18,11 @@ func DomainForDNSAliasNotDefinedError() error {
 	return fmt.Errorf("invalid or missing domain for dnsAlias")
 }
 
+// DuplicateDomainForDNSAliasError Error when domains are duplicate
+func DuplicateDomainForDNSAliasError(domain string) error {
+	return fmt.Errorf("duplicate domains %s in dnsAlias-es are not allowed", domain)
+}
+
 // EnvForDNSAliasNotDefinedError Error when env not defined
 func EnvForDNSAliasNotDefinedError(env string) error {
 	return fmt.Errorf("environment %s referred to by dnsAlias is not defined", env)
@@ -30,7 +35,7 @@ func ComponentForDNSAliasNotDefinedError(component string) error {
 
 // EnvForDNSAppAliasNotDefinedError Error when env not defined
 func EnvForDNSAppAliasNotDefinedError(env string) error {
-	return fmt.Errorf("env %s referred to by dnsAppAlias is not defined", env)
+	return fmt.Errorf("environment %s referred to by dnsAppAlias is not defined", env)
 }
 
 // ComponentForDNSAppAliasNotDefinedError Error when component not defined
@@ -265,12 +270,12 @@ func InvalidEmailError(resourceName, email string) error {
 
 // InvalidResourceNameError Invalid resource name
 func InvalidResourceNameError(resourceName, value string) error {
-	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
+	return fmt.Errorf("%s %s can only consist of alphanumeric characters and '-'", resourceName, value)
 }
 
-// InvalidLowerCaseAlphaNumericDotDashResourceNameError Invalid lower case alpha-numeric, dot, dash resource name error
-func InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value string) error {
-	return fmt.Errorf("%s %s can only consist of lower case alphanumeric characters, '.' and '-'", resourceName, value)
+// InvalidLowerCaseAlphaNumericDashResourceNameError Invalid lower case alpha-numeric, dot, dash resource name error
+func InvalidLowerCaseAlphaNumericDashResourceNameError(resourceName, value string) error {
+	return fmt.Errorf("%s %s can only consist of lower case alphanumeric characters and '-'", resourceName, value)
 }
 
 // NoRegistrationExistsForApplicationError No registration exists

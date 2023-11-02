@@ -374,7 +374,7 @@ spec:
                               applies to.
                             maxLength: 63
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           horizontalScaling:
                             description: 'Configuration for automatic horizontal scaling
@@ -880,7 +880,7 @@ spec:
                           description: Defines which port in the ports list where
                             metrics is served.
                           maxLength: 15
-                          pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     name:
@@ -910,7 +910,7 @@ spec:
                             description: Name of the port.
                             maxLength: 15
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           port:
                             description: Port number.
@@ -934,7 +934,7 @@ spec:
                       description: 'Defines which port (name) from the ports list
                         that shall be accessible from the internet. More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport'
                       maxLength: 15
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     resources:
                       description: 'Configures CPU and memory resources for the component.
@@ -1104,7 +1104,7 @@ spec:
                       description: Name of the environment for the component.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                   required:
                   - component
@@ -1130,7 +1130,7 @@ spec:
                     description: Name of the environment for the component.
                     maxLength: 63
                     minLength: 1
-                    pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                    pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                     type: string
                 type: object
               dnsExternalAlias:
@@ -1157,7 +1157,7 @@ spec:
                       description: Name of the environment for the component.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                   required:
                   - alias
@@ -1246,7 +1246,7 @@ spec:
                       description: Name of the environment.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                   required:
                   - name
@@ -1300,7 +1300,7 @@ spec:
                               applies to.
                             maxLength: 63
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           identity:
                             description: 'Environment specific configuration for workload
@@ -1762,7 +1762,7 @@ spec:
                           description: Defines which port in the ports list where
                             metrics is served.
                           maxLength: 15
-                          pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     name:
@@ -1815,7 +1815,7 @@ spec:
                             description: Name of the port.
                             maxLength: 15
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           port:
                             description: Port number.

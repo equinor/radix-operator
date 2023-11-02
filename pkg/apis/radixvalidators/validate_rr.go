@@ -120,10 +120,6 @@ func validateConfigurationItem(value string) error {
 }
 
 func validateRequiredResourceName(resourceName, value string) error {
-	return validateResourceNameByRegex(resourceName, value, `^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$`)
-}
-
-func validateResourceNameByRegex(resourceName string, value string, expression string) error {
 	if len(value) > 253 {
 		return InvalidStringValueMaxLengthError(resourceName, value, 253)
 	}
@@ -132,11 +128,11 @@ func validateResourceNameByRegex(resourceName string, value string, expression s
 		return ResourceNameCannotBeEmptyError(resourceName)
 	}
 
-	re := regexp.MustCompile(expression)
+	re := regexp.MustCompile(resourceNameTemplate)
 
 	isValid := re.MatchString(value)
 	if !isValid {
-		return InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value)
+		return InvalidLowerCaseAlphaNumericDashResourceNameError(resourceName, value)
 	}
 
 	return nil

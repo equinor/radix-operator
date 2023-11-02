@@ -361,7 +361,7 @@
                       "description": "Name of the environment which the settings applies to.",
                       "maxLength": 63,
                       "minLength": 1,
-                      "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "horizontalScaling": {
@@ -866,7 +866,7 @@
                   "portName": {
                     "description": "Defines which port in the ports list where metrics is served.",
                     "maxLength": 15,
-                    "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },
@@ -902,7 +902,7 @@
                       "description": "Name of the port.",
                       "maxLength": 15,
                       "minLength": 1,
-                      "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "port": {
@@ -933,7 +933,7 @@
               "publicPort": {
                 "description": "Defines which port (name) from the ports list that shall be accessible from the internet. More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport",
                 "maxLength": 15,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
               "resources": {
@@ -1110,7 +1110,7 @@
                 "description": "Name of the environment for the component.",
                 "maxLength": 63,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               }
             },
@@ -1141,7 +1141,7 @@
               "description": "Name of the environment for the component.",
               "maxLength": 63,
               "minLength": 1,
-              "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+              "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
               "type": "string"
             }
           },
@@ -1170,7 +1170,7 @@
                 "description": "Name of the environment for the component.",
                 "maxLength": 63,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               }
             },
@@ -1279,7 +1279,7 @@
                 "description": "Name of the environment.",
                 "maxLength": 63,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               }
             },
@@ -1333,7 +1333,7 @@
                       "description": "Name of the environment which the settings applies to.",
                       "maxLength": 63,
                       "minLength": 1,
-                      "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "identity": {
@@ -1786,7 +1786,7 @@
                   "portName": {
                     "description": "Defines which port in the ports list where metrics is served.",
                     "maxLength": 15,
-                    "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },
@@ -1848,7 +1848,7 @@
                       "description": "Name of the port.",
                       "maxLength": 15,
                       "minLength": 1,
-                      "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "port": {

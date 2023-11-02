@@ -26,12 +26,7 @@ import (
 
 const (
 	maximumNumberOfEgressRules = 1000
-	maxPortNameLength          = 15
-	minimumPortNumber          = 1024
-	maximumPortNumber          = 65535
-	cpuRegex                   = "^[0-9]+m$"
 	azureClientIdResourceName  = "identity.azure.clientId"
-	componentNameTemplate      = `^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
 )
 
 var (
@@ -182,12 +177,18 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 
 func validateDNSAlias(app *radixv1.RadixApplication) []error {
 	var errs []error
+	domainSet := make(map[string]struct{})
 	for _, dnsAlias := range app.Spec.DNSAlias {
-		if err := validateResourceNameByRegex("dnsAlias domain", dnsAlias.Domain, componentNameTemplate); err != nil {
-			errs = append(errs, err)
+		if _, ok := domainSet[dnsAlias.Domain]; ok {
+			errs = append(errs, DuplicateDomainForDNSAliasError(dnsAlias.Domain))
+		} else {
+			if err := validateRequiredResourceName("dnsAlias domain", dnsAlias.Domain); err != nil {
+				errs = append(errs, err)
+			}
 		}
+		domainSet[dnsAlias.Domain] = struct{}{}
 		componentNameIsValid, environmentNameIsValid := true, true
-		if err := validateResourceNameByRegex("dnsAlias component", dnsAlias.Component, componentNameTemplate); err != nil {
+		if err := validateRequiredResourceName("dnsAlias component", dnsAlias.Component); err != nil {
 			errs = append(errs, err)
 			componentNameIsValid = false
 		}
@@ -1425,7 +1426,7 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 }
 
 func validateComponentName(componentName, componentType string) error {
-	if err := validateResourceNameByRegex(fmt.Sprintf("%s name", componentType), componentName, componentNameTemplate); err != nil {
+	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName); err != nil {
 		return err
 	}
 
