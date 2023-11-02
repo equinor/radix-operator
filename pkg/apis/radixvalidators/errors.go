@@ -13,11 +13,6 @@ func MissingPrivateImageHubUsernameError(server string) error {
 	return fmt.Errorf("username is required for private image hub %s", server)
 }
 
-// MissingPrivateImageHubEmailError Error when email for private image hubs is not defined
-func MissingPrivateImageHubEmailError(server string) error {
-	return fmt.Errorf("email is required for private image hub %s", server)
-}
-
 // EnvForDNSAppAliasNotDefinedError Error when env not defined
 func EnvForDNSAppAliasNotDefinedError(env string) error {
 	return fmt.Errorf("env %s referred to by dnsAppAlias is not defined", env)
