@@ -79,6 +79,7 @@ func Test_invalid_ra(t *testing.T) {
 	validRAFirstComponentName := "app"
 	validRAFirstJobName := "job"
 	validRASecondComponentName := "redis"
+	validRAComponentNameApp2 := "app2"
 
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
 	tooLongPortName := "abcdefghijklmnop"
@@ -229,6 +230,18 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"dns alias domain is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("dnsAlias domain", "my.domain"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Domain = "my.domain"
+		}},
+		{"dns alias domain is invalid", radixvalidators.DuplicateDomainForDNSAliasError("my-domain"), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias = append(ra.Spec.DNSAlias, ra.Spec.DNSAlias[0])
+		}},
+		{"dns alias with no public port", radixvalidators.ComponentForDNSAliasIsNotMarkedAsPublicError(validRAComponentNameApp2), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[3].PublicPort = ""
+			ra.Spec.Components[3].Public = false
+			ra.Spec.DNSAlias[0] = v1.DNSAlias{
+				Domain:      "my-domain",
+				Component:   ra.Spec.Components[3].Name,
+				Environment: ra.Spec.Environments[0].Name,
+			}
 		}},
 		{"dns external alias non existing component", radixvalidators.ComponentForDNSExternalAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{

@@ -196,10 +196,15 @@ func validateDNSAlias(app *radixv1.RadixApplication) []error {
 			errs = append(errs, err)
 			environmentNameIsValid = false
 		}
-		if componentNameIsValid && environmentNameIsValid {
-			if err := validateDNSAliasComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
-				errs = append(errs, err...)
-			}
+		if !componentNameIsValid || !environmentNameIsValid {
+			continue
+		}
+		if err := validateDNSAliasComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
+			errs = append(errs, err...)
+			continue
+		}
+		if !doesComponentHaveAPublicPort(app, dnsAlias.Component) {
+			errs = append(errs, ComponentForDNSAliasIsNotMarkedAsPublicError(dnsAlias.Component))
 		}
 	}
 	return errs

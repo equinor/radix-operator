@@ -33,6 +33,11 @@ func ComponentForDNSAliasNotDefinedError(component string) error {
 	return fmt.Errorf("component %s referred to by dnsAlias is not defined", component)
 }
 
+// ComponentForDNSAliasIsNotMarkedAsPublicError Component is not marked as public
+func ComponentForDNSAliasIsNotMarkedAsPublicError(component string) error {
+	return fmt.Errorf("component %s referred to by dnsAlias is not marked as public", component)
+}
+
 // EnvForDNSAppAliasNotDefinedError Error when env not defined
 func EnvForDNSAppAliasNotDefinedError(env string) error {
 	return fmt.Errorf("environment %s referred to by dnsAppAlias is not defined", env)

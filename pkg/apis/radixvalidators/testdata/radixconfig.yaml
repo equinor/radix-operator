@@ -87,6 +87,12 @@ spec:
       ports:
         - name: http
           port: 8090
+    - name: app2
+      src: .
+      ports:
+      - name: http
+        port: 8080
+      publicPort: http
   jobs:
     - name: job
       src: job/
@@ -143,5 +149,5 @@ spec:
     component: app
   dnsAlias:
   - environment: prod
-    component: app
+    component: app2
     domain: my-domain
