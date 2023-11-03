@@ -192,6 +192,9 @@ const (
 	// RadixBuildahImageBuilderEnvironmentVariable The container image used for running the buildah engine
 	RadixBuildahImageBuilderEnvironmentVariable = "RADIX_BUILDAH_IMAGE_BUILDER"
 
-	// RadixDNSAliasWhitelistedEnvironmentVariable The list of DNS aliases, which cannot be used by Radix applications
-	RadixDNSAliasWhitelistedEnvironmentVariable = "RADIX_DNS_ALIAS_WHITELISTED"
+	// RadixDNSAliasAppReservedEnvironmentVariable The list of DNS aliases, reserved for Radix platform Radix application
+	RadixDNSAliasAppReservedEnvironmentVariable = "RADIX_DNS_ALIAS_APP_RESERVED"
+
+	// RadixDNSAliasReservedEnvironmentVariable The list of DNS aliases, reserved for Radix platform services
+	RadixDNSAliasReservedEnvironmentVariable = "RADIX_DNS_ALIAS_RESERVED"
 )

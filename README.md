@@ -30,6 +30,10 @@ The `radix-pipeline` never gets deployed to cluster, but rather is invoked by th
 - `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, Github actions build will create a will create a `radix-pipeline:master-latest` image available in ACR of the subscription
 - `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster, we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless there are breaking changes which needs to be coordinated with release of our other components. When the `master` branch is merged to the `release` branch, Github actions build will create a `radix-pipeline:release-latest` image available in ACR of the subscription.
 
+Test modification of Helm chart and its values (important option `--dry-run`!)
+```bash
+helm upgrade radix-operator <path to radix-operator>/charts/radix-operator -n default  --dry-run
+```
 ### Dependencies management
 
 As of 2019-10-28, radix-operator uses go modules. See [Using go modules](https://blog.golang.org/using-go-modules) for more information and guidelines.

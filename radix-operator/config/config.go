@@ -2,6 +2,7 @@ package config
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/job"
@@ -36,13 +37,29 @@ func getDeploymentsHistoryLimitPerEnvironment() int {
 	return getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
 }
 
-// Gets DNS zone
 func getDNSZone() string {
-	envVar, err := defaults.GetEnvVar(defaults.OperatorDNSZoneEnvironmentVariable)
-	if err != nil {
-		panic(err)
+	return viper.GetString(defaults.OperatorDNSZoneEnvironmentVariable)
+}
+
+func getDNSAliasAppReserved() map[string]string {
+	return convertToMap(viper.GetString(defaults.RadixDNSAliasAppReservedEnvironmentVariable))
+}
+
+func convertToMap(keyValuePairs string) map[string]string {
+	pair := strings.Split(keyValuePairs, ",")
+	keyValues := make(map[string]string)
+	for _, part := range pair {
+		kv := strings.Split(part, "=")
+		if len(kv) == 2 {
+			keyValues[kv[0]] = kv[1]
+		}
 	}
-	return envVar
+	return keyValues
+}
+
+func getDNSAliasReserved() []string {
+	envVar := viper.GetString(defaults.RadixDNSAliasReservedEnvironmentVariable)
+	return strings.Split(envVar, ",")
 }
 
 func getIntFromEnvVar(envVarName string, defaultValue int) int {
@@ -66,7 +83,9 @@ func NewConfig() *Config {
 	return &Config{
 		LogLevel: getLogLevel(),
 		ClusterConfig: &ClusterConfig{
-			DNSZone: getDNSZone(),
+			DNSZone:             getDNSZone(),
+			DNSAliasAppReserved: getDNSAliasAppReserved(),
+			DNSAliasReserved:    getDNSAliasReserved(),
 		},
 		PipelineJobConfig: &job.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),

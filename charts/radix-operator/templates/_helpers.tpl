@@ -56,3 +56,19 @@ Create the name of the service account to use
 {{- define "radix-operator.serviceAccountName" -}}
 {{- default (include "radix-operator.fullname" .) .Values.serviceAccount.name }}
 {{- end }}
+
+{{/*
+Utility function to take list to comma separated string
+*/}}
+{{- define "helm-toolkit.utils.joinListWithComma" -}}
+{{- $local := dict "first" true -}}
+{{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{- $v -}}{{- $_ := set $local "first" false -}}{{- end -}}
+{{- end -}}
+
+{{/*
+Utility function to take list to comma separated dictionary
+*/}}
+{{- define "helm-toolkit.utils.joinMapWithComma" -}}
+{{- $local := dict "first" true -}}
+{{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{ $k }}={{ $v }}{{- $_ := set $local "first" false -}}{{- end -}}
+{{- end -}}

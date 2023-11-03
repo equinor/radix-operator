@@ -158,8 +158,10 @@ spec:
               value: {{ .Values.seccompProfile.fileNameOnNode }}
             - name: RADIX_BUILDAH_IMAGE_BUILDER
               value: {{ .Values.buildahImageBuilder }}
-            - name: RADIX_DNS_ALIAS_WHITELISTED
-              value: {{ .Values.dnsAliasWhitelisted }}
+            - name: RADIX_DNS_ALIAS_APP_RESERVED
+              value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.dnsAliasAppReserved | quote }}
+            - name: RADIX_DNS_ALIAS_RESERVED
+              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.dnsAliasReserved | quote }}
           livenessProbe:
             httpGet:
               path: /healthz
