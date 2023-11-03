@@ -358,6 +358,16 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 			},
 			expectedValidationError: applicationconfig.RadixDNSAliasAlreadyUsedByAnotherApplicationError(domain1),
 		},
+		{
+			name:                    "Reserved domain api for another app",
+			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Domain: "api", Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: applicationconfig.RadixDNSAliasIsReservedForRadixPlatformApplicationError("api"),
+		},
+		{
+			name:                    "Reserved domain api for another app",
+			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Domain: "api", Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: applicationconfig.RadixDNSAliasIsReservedForRadixPlatformApplicationError("api"),
+		},
 	}
 
 	for _, ts := range testScenarios {
