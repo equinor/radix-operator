@@ -3,24 +3,94 @@ on:
   pull_request:
     branches:
     - master
+
+permissions:
+  id-token: write
+
 jobs:
   build-operator:
     name: Build-operator
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Build operator image
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - uses: azure/login@v1
+      with:
+        client-id: 6e96429a-3ad5-40ee-b961-6de864d878fc
+        tenant-id: 3aa4a235-b6e2-48d5-9195-7fcf05b459b0
+        subscription-id: 16ede44b-1f74-40a5-b428-46cca9a5741b
+
+    - name: ACR Login
+      run: 'az acr login --name radixdev --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}'
+
+    - name: ACR Login
+      run: 'az acr login --name radixplayground --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}'
+
+    - name: Create tag
+      id: tag
       env:
-        REF: ${{ github. sha }}
-        DOCKER_BUILDKIT: 1
-      run: docker build -t radix-operator:${REF##*/} -f operator.Dockerfile .
+        GITHUB_SHA: ${{github.sha}}
+      run: |
+        sha=${GITHUB_SHA::8}
+        ts=$(date +%s)
+        build_id=${GITHUB_REF_NAME}-${sha}-${ts}
+        
+        echo "IMAGE_TAG=$build_id" >> $GITHUB_OUTPUTS
+
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v5
+      with:
+        push: true
+        file: operator.Dockerfile
+        tags: |
+          radixdev.azurecr.io/radix-operator-test:${{ steps.tag.outputs.IMAGE_TAG }}
+          radixplayground.azurecr.io/radix-operator-test:${{ steps.tag.outputs.IMAGE_TAG }}
+        cache-from: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache
+        cache-to: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache,mode=max
+
+
   build-pipeline:
     name: Build-pipeline
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Build pipeline image
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - uses: azure/login@v1
+      with:
+        client-id: 6e96429a-3ad5-40ee-b961-6de864d878fc
+        tenant-id: 3aa4a235-b6e2-48d5-9195-7fcf05b459b0
+        subscription-id: 16ede44b-1f74-40a5-b428-46cca9a5741b
+
+    - name: ACR Login
+      run: 'az acr login --name radixdev --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}'
+
+    - name: ACR Login
+      run: 'az acr login --name radixplayground --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}'
+
+    - name: Create tag
+      id: tag
       env:
-        REF: ${{ github. sha }}
-        DOCKER_BUILDKIT: 1
-      run: docker build -t radix-operator:${REF##*/} -f pipeline.Dockerfile .
+        GITHUB_SHA: ${{github.sha}}
+      run: |
+        sha=${GITHUB_SHA::8}
+        ts=$(date +%s)
+        build_id=${GITHUB_REF_NAME}-${sha}-${ts}
+        
+        echo "IMAGE_TAG=$build_id" >> $GITHUB_OUTPUTS
+
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v5
+      with:
+        push: true
+        file: pipeline.Dockerfile
+        tags: |
+          radixdev.azurecr.io/radix-pipeline-test:${{ steps.tag.outputs.IMAGE_TAG }}
+          radixplayground.azurecr.io/radix-pipeline-test:${{ steps.tag.outputs.IMAGE_TAG }}
+        cache-from: type=registry,ref=radixdev.azurecr.io/radix-pipeline-test:buildcache
+        cache-to: type=registry,ref=radixdev.azurecr.io/radix-pipeline-test:buildcache,mode=max

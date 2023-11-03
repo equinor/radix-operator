@@ -8,25 +8,25 @@ WORKDIR /go/src/github.com/equinor/radix-operator/
 
 # Install project dependencies
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,id=cache,target=/root/.cache go mod download
 # Copy project code
 COPY ./radix-operator ./radix-operator
 COPY ./pkg ./pkg
 
 FROM base as run-staticcheck
-RUN go install honnef.co/go/tools/cmd/staticcheck@2023.1.3
-RUN staticcheck `go list ./... | grep -v "pkg/client"` && touch /staticcheck.done
+RUN --mount=type=cache,id=cache,target=/root/.cache go install honnef.co/go/tools/cmd/staticcheck@2023.1.3
+RUN --mount=type=cache,id=cache,target=/root/.cache staticcheck `go list ./... | grep -v "pkg/client"` && touch /staticcheck.done
 
 FROM base as tester
 # Run tests
-RUN go vet `go list ./... | grep -v "pkg/client"` && \
+RUN --mount=type=cache,id=cache,target=/root/.cache go vet `go list ./... | grep -v "pkg/client"` && \
     CGO_ENABLED=0 GOOS=linux go test `go list ./... | grep -v "pkg/client"` && \
     touch /tests.done
 
 FROM base as builder
 # Build
 WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator
+RUN --mount=type=cache,id=cache,target=/root/.cache CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator
 RUN addgroup -S -g 1000 radix-operator
 RUN adduser -S -u 1000 -G radix-operator radix-operator
 
