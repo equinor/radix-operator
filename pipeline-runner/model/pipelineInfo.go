@@ -36,6 +36,9 @@ type PipelineInfo struct {
 	GitCommitHash string
 	GitTags       string
 
+	// Hash of build secrets data
+	BuildSecretsHash string
+
 	// Holds information about components to be built
 	BuildComponentImages pipeline.BuildComponentImages
 

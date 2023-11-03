@@ -1,6 +1,9 @@
 package steps
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -23,6 +26,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	yamlk8s "sigs.k8s.io/yaml"
 )
 
@@ -92,8 +97,11 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
+
+	if err := cli.setBuildSecretsHash(pipelineInfo); err != nil {
+		return err
+	}
 
 	if err := cli.setBuildAndDeployImages(pipelineInfo); err != nil {
 		return err
@@ -115,6 +123,29 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
 	}
 
+	return nil
+}
+
+func (cli *ApplyConfigStepImplementation) setBuildSecretsHash(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.RadixApplication.Spec.Build == nil || len(pipelineInfo.RadixApplication.Spec.Build.Secrets) == 0 {
+		return nil
+	}
+
+	secret, err := cli.GetKubeclient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
+	if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	b, err := yamlk8s.Marshal(secret.Data)
+	if err != nil {
+		return err
+	}
+
+	hashBytes := sha256.Sum256(b)
+	pipelineInfo.BuildSecretsHash = fmt.Sprintf("sha256=%s", hex.EncodeToString(hashBytes[:]))
 	return nil
 }
 
@@ -268,12 +299,21 @@ func isRadixConfigModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineI
 	return currentRdConfigHash != pipelineInfo.RadixApplicationHash()
 }
 
+func isBuildSecretModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineInfo *model.PipelineInfo) bool {
+	var currentRdConfigHash string
+	if rd != nil {
+		currentRdConfigHash = rd.GetAnnotations()[kube.RadixBuildSecretHash]
+	}
+	return currentRdConfigHash != pipelineInfo.BuildSecretsHash
+}
+
 func mustBuildComponentFactory(environmentName string, pipelineInfo *model.PipelineInfo, currentRd *radixv1.RadixDeployment) func(comp radixv1.RadixCommonComponent) bool {
-	isRadixConfigModified := isRadixConfigModifiedSinceDeployment(currentRd, pipelineInfo)
 	var (
 		buildContextIsDefined  bool
 		buildContextComponents []string
 	)
+	isRadixConfigModified := isRadixConfigModifiedSinceDeployment(currentRd, pipelineInfo)
+	isBuildSecretsModified := isBuildSecretModifiedSinceDeployment(currentRd, pipelineInfo)
 
 	if pipelineInfo.PrepareBuildContext != nil {
 		envBuildContext, found := slice.FindFirst(pipelineInfo.PrepareBuildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == environmentName })
@@ -288,7 +328,7 @@ func mustBuildComponentFactory(environmentName string, pipelineInfo *model.Pipel
 	}
 
 	return func(comp radixv1.RadixCommonComponent) bool {
-		if isRadixConfigModified {
+		if isRadixConfigModified || isBuildSecretsModified {
 			return true
 		}
 

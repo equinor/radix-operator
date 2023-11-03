@@ -220,6 +220,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.Require().Len(rds.Items, 1)
 	rd := rds.Items[0]
 	s.Equal(pipeline.RadixApplicationHash(), rd.GetAnnotations()[kube.RadixConfigHash])
+	s.Empty(rd.GetAnnotations()[kube.RadixBuildSecretHash])
 	s.Greater(len(rd.GetAnnotations()[kube.RadixConfigHash]), 0)
 	s.Require().Len(rd.Spec.Components, 1)
 	s.Equal(compName, rd.Spec.Components[0].Name)
@@ -636,6 +637,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
+		WithBuildSecrets("SECRET1").
 		WithEnvironment(envName, buildBranch).
 		WithComponents(
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp").WithDockerfileName("comp.Dockerfile"),
@@ -644,6 +646,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job").WithDockerfileName("job.Dockerfile"),
 		).
 		BuildRA()
+	buildSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName}, Data: map[string][]byte{"SECRET1": []byte("anydata")}}
 	radixDeploymentFactory := func(annotations map[string]string, condition radixv1.RadixDeployCondition, componentBuilders []utils.DeployComponentBuilder, jobBuilders []utils.DeployJobComponentBuilder) *radixv1.RadixDeployment {
 		builder := utils.NewDeploymentBuilder().
 			WithDeploymentName("currentrd").
@@ -687,9 +690,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 	}
 	tests := []testSpec{
 		{
-			name: "radixconfig hash unchanged, component changed, job changed - build all",
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component changed, job changed - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra)},
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-changed-current:anytag")},
@@ -707,9 +710,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
 		},
 		{
-			name: "radixconfig hash unchanged, component changed - build component",
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component changed - build component",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra)},
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -727,9 +730,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: "job-current:anytag"}},
 		},
 		{
-			name: "radixconfig hash unchanged, job changed - build job",
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, job changed - build job",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra)},
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -747,9 +750,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
 		},
 		{
-			name: "radixconfig hash unchanged, component unchanged, job unchanged - no build job",
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged - no build job",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra)},
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -767,9 +770,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: "job-current:anytag"}},
 		},
 		{
-			name: "radixconfig hash unchanged, missing prepare context for environment - build all",
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, missing prepare context for environment - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra)},
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -787,9 +790,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
 		},
 		{
-			name: "radixconfig hash unchanged, component unchanged, job unchanged - no build job",
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged - no build job",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra)},
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -807,9 +810,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: "job-current:anytag"}},
 		},
 		{
-			name: "radixconfig hash changed, component unchanged, job unchanged - build all",
+			name: "radixconfig hash changed, buildsecret hash unchanged, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: "sha256=0000000000000000000000000000000000000000000000000000000000000000"},
+				map[string]string{kube.RadixConfigHash: "sha256=0000000000000000000000000000000000000000000000000000000000000000", kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -827,9 +830,49 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
 		},
 		{
-			name: "radixconfig hash missing, component unchanged, job unchanged - build all",
+			name: "radixconfig hash missing, buildsecret hash unchanged, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				nil,
+				map[string]string{kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedJobContainers:    []string{"build-comp", "build-job"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash changed, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: "sha256=0000000000000000000000000000000000000000000000000000000000000000"},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedJobContainers:    []string{"build-comp", "build-job"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash missing, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -863,7 +906,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "no current RD, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra)},
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: s.getBuildSecretHash(buildSecret)},
 				radixv1.DeploymentInactive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -885,6 +928,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 	for _, test := range tests {
 
 		s.Run(test.name, func() {
+			_, _ = s.kubeClient.CoreV1().Secrets(utils.GetAppNamespace(appName)).Create(context.Background(), buildSecret, metav1.CreateOptions{})
 			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 			_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
 			if test.existingRd != nil {
@@ -1161,7 +1205,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithSourceFolder() {
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
-	appName, rjName, compName := "anyapp", "anyrj", "c1"
+	appName, envName, rjName, compName := "anyapp", "dev", "anyrj", "c1"
 	prepareConfigMapName := "preparecm"
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -1170,7 +1214,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
 		WithBuildSecrets("SECRET1", "SECRET2").
-		WithEnvironment("dev", "main").
+		WithEnvironment(envName, "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName)).
 		BuildRA()
 	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
@@ -1189,8 +1233,11 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(&pipeline))
 	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(deployStep.Run(&pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1205,6 +1252,11 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
 	}
 	s.Subset(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
+	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(rds.Items, 1)
+	rd := rds.Items[0]
+	s.NotEmpty(rd.GetAnnotations()[kube.RadixBuildSecretHash])
+
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
@@ -1463,6 +1515,16 @@ func (s *buildTestSuite) createBuildSecret(appName string, data map[string][]byt
 
 func (s *buildTestSuite) getRadixApplicationHash(ra *radixv1.RadixApplication) string {
 	b, err := yamlk8s.Marshal(&ra.Spec)
+	if err != nil {
+		return ""
+	}
+
+	hashBytes := sha256.Sum256(b)
+	return fmt.Sprintf("sha256=%s", hex.EncodeToString(hashBytes[:]))
+}
+
+func (s *buildTestSuite) getBuildSecretHash(secret *corev1.Secret) string {
+	b, err := yamlk8s.Marshal(&secret.Data)
 	if err != nil {
 		return ""
 	}
