@@ -1039,6 +1039,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						sc.MountOptions = []string{
 							"--file-cache-timeout-in-seconds=120",
 							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
 							"-o allow_other",
 							"-o attr_timeout=120",
 							"-o entry_timeout=120",
@@ -1085,6 +1086,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						sc.MountOptions = []string{
 							"--file-cache-timeout-in-seconds=120",
 							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
 							"-o allow_other",
 							"-o attr_timeout=120",
 							"-o entry_timeout=120",
@@ -1137,6 +1139,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						sc.MountOptions = []string{
 							"--file-cache-timeout-in-seconds=120",
 							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
 							"-o allow_other",
 							"-o attr_timeout=120",
 							"-o entry_timeout=120",
@@ -1577,6 +1580,7 @@ func createExpectedStorageClass(props expectedPvcScProperties, modify func(class
 	mountOptions := []string{
 		"--file-cache-timeout-in-seconds=120",
 		"--use-attr-cache=true",
+		"--cancel-list-on-mount-seconds=0",
 		"-o allow_other",
 		"-o attr_timeout=120",
 		"-o entry_timeout=120",
