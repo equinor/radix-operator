@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -83,11 +84,8 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	}
 
 	// Apply RA to cluster
-	applicationConfig, err := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
+	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
 		cli.GetRadixclient(), cli.GetRegistration(), ra)
-	if err != nil {
-		return err
-	}
 
 	err = applicationConfig.ApplyConfigToApplicationNamespace()
 	if err != nil {
@@ -101,7 +99,13 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	if pipelineInfo.PipelineArguments.PipelineType == string(radixv1.BuildDeploy) {
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) {
+		if len(pipelineInfo.BuildComponentImages) > 0 {
+			return errors.New("deploy pipeline does not support building components and jobs")
+		}
+	}
+
+	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
 		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
 		err = validate.GitTagsContainIllegalChars(gitTags)
 		if err != nil {

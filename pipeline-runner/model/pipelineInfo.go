@@ -12,7 +12,7 @@ import (
 
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +22,7 @@ import (
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
 	Definition        *pipeline.Definition
-	RadixApplication  *v1.RadixApplication
+	RadixApplication  *radixv1.RadixApplication
 	PipelineArguments PipelineArguments
 	Steps             []Step
 
@@ -198,7 +198,7 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	branchIsMapped, targetEnvironments := applicationConfig.IsThereAnythingToDeploy(info.PipelineArguments.Branch)
 
 	// For deploy-only pipeline
-	if info.IsDeployOnlyPipeline() {
+	if info.IsPipelineType(radixv1.Deploy) {
 		targetEnvironments[info.PipelineArguments.ToEnvironment] = true
 		branchIsMapped = true
 	}
@@ -214,6 +214,6 @@ func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
 }
 
 // IsDeployOnlyPipeline Determines if the pipeline is deploy-only
-func (info *PipelineInfo) IsDeployOnlyPipeline() bool {
-	return info.PipelineArguments.ToEnvironment != "" && info.PipelineArguments.FromEnvironment == ""
+func (info *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
+	return info.PipelineArguments.PipelineType == string(pipelineType)
 }

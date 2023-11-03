@@ -71,7 +71,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 	namespace := utils.GetAppNamespace(appName)
 	log.Infof("Prepare pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
-	if radixv1.RadixPipelineType(pipelineInfo.PipelineArguments.PipelineType) == radixv1.Promote {
+	if pipelineInfo.IsPipelineType(radixv1.Promote) {
 		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := cli.getSourceDeploymentGitInfo(appName, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
 		if err != nil {
 			return err
@@ -184,7 +184,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 }
 
 func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
-	if pipelineInfo.PipelineArguments.PipelineType == string(radixv1.BuildDeploy) {
+	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
 		return pipelineInfo.PipelineArguments.CommitID
 	}
 	return ""

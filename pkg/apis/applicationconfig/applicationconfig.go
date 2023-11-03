@@ -41,13 +41,13 @@ func NewApplicationConfig(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	registration *v1.RadixRegistration,
-	config *v1.RadixApplication) (*ApplicationConfig, error) {
+	config *v1.RadixApplication) *ApplicationConfig {
 	return &ApplicationConfig{
 		kubeclient,
 		radixclient,
 		kubeutil,
 		registration,
-		config}, nil
+		config}
 }
 
 // GetRadixApplicationConfig returns the provided config
