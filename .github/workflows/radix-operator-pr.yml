@@ -26,9 +26,6 @@ jobs:
     - name: ACR Login
       run: 'az acr login --name radixdev --subscription 16ede44b-1f74-40a5-b428-46cca9a5741b'
 
-    - name: ACR Login
-      run: 'az acr login --name radixplayground --subscription 16ede44b-1f74-40a5-b428-46cca9a5741b'
-
     - name: Create tag
       id: tag
       env:
@@ -45,9 +42,7 @@ jobs:
       with:
         push: true
         file: operator.Dockerfile
-        tags: |
-          radixdev.azurecr.io/radix-operator-test:${{ steps.tag.outputs.IMAGE_TAG }}
-          radixplayground.azurecr.io/radix-operator-test:${{ steps.tag.outputs.IMAGE_TAG }}
+        tags:  radixdev.azurecr.io/radix-operator-test:${{ steps.tag.outputs.IMAGE_TAG }}
         cache-from: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache
         cache-to: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache,mode=max
 
@@ -70,9 +65,6 @@ jobs:
     - name: ACR Login
       run: 'az acr login --name radixdev --subscription 16ede44b-1f74-40a5-b428-46cca9a5741b'
 
-    - name: ACR Login
-      run: 'az acr login --name radixplayground --subscription 16ede44b-1f74-40a5-b428-46cca9a5741b'
-
     - name: Create tag
       id: tag
       env:
@@ -91,6 +83,5 @@ jobs:
         file: pipeline.Dockerfile
         tags: |
           radixdev.azurecr.io/radix-pipeline-test:${{ steps.tag.outputs.IMAGE_TAG }}
-          radixplayground.azurecr.io/radix-pipeline-test:${{ steps.tag.outputs.IMAGE_TAG }}
         cache-from: type=registry,ref=radixdev.azurecr.io/radix-pipeline-test:buildcache
         cache-to: type=registry,ref=radixdev.azurecr.io/radix-pipeline-test:buildcache,mode=max
