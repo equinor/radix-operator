@@ -1,8 +1,6 @@
 package model
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -16,13 +14,13 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
-	yamlk8s "sigs.k8s.io/yaml"
 )
 
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
 	Definition        *pipeline.Definition
 	RadixApplication  *radixv1.RadixApplication
+	BuildSecret       *corev1.Secret
 	PipelineArguments PipelineArguments
 	Steps             []Step
 
@@ -35,9 +33,6 @@ type PipelineInfo struct {
 	// not to be confused with PipelineInfo.PipelineArguments.CommitID
 	GitCommitHash string
 	GitTags       string
-
-	// Hash of build secrets data
-	BuildSecretsHash string
 
 	// Holds information about components to be built
 	BuildComponentImages pipeline.BuildComponentImages
@@ -149,20 +144,6 @@ func InitPipeline(pipelineType *pipeline.Definition,
 		RadixConfigMapName: radixConfigMapName,
 		GitConfigMapName:   gitConfigFileName,
 	}, nil
-}
-
-func (pi *PipelineInfo) RadixApplicationHash() string {
-	if pi.RadixApplication == nil {
-		return ""
-	}
-
-	b, err := yamlk8s.Marshal(&pi.RadixApplication.Spec)
-	if err != nil {
-		return ""
-	}
-
-	hashBytes := sha256.Sum256(b)
-	return fmt.Sprintf("sha256=%s", hex.EncodeToString(hashBytes[:]))
 }
 
 func getStepStepImplementationsFromType(pipelineType *pipeline.Definition, allStepImplementations ...Step) ([]Step, error) {

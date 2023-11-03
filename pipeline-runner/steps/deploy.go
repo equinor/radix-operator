@@ -85,6 +85,15 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	if commitID, ok := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]; !ok || len(commitID) == 0 {
 		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
+	radixApplicationHash, err := getRadixApplicationHash(pipelineInfo)
+	if err != nil {
+		return err
+	}
+	buildSecretHash, err := getBuildSecretHash(pipelineInfo)
+	if err != nil {
+		return err
+	}
+
 	radixDeployment, err := deployment.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
 		pipelineInfo.PipelineArguments.JobName,
@@ -93,8 +102,8 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		pipelineInfo.EnvironmentDeployComponentImages[env],
 		env,
 		defaultEnvVars,
-		pipelineInfo.RadixApplicationHash(),
-		pipelineInfo.BuildSecretsHash,
+		radixApplicationHash,
+		buildSecretHash,
 	)
 
 	if err != nil {

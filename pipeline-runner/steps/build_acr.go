@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/commandbuilder"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"

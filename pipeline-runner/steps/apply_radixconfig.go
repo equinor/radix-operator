@@ -2,8 +2,6 @@ package steps
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -99,7 +97,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
-	if err := cli.setBuildSecretsHash(pipelineInfo); err != nil {
+	if err := cli.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}
 
@@ -126,7 +124,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	return nil
 }
 
-func (cli *ApplyConfigStepImplementation) setBuildSecretsHash(pipelineInfo *model.PipelineInfo) error {
+func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.RadixApplication.Spec.Build == nil || len(pipelineInfo.RadixApplication.Spec.Build.Secrets) == 0 {
 		return nil
 	}
@@ -138,14 +136,7 @@ func (cli *ApplyConfigStepImplementation) setBuildSecretsHash(pipelineInfo *mode
 		}
 		return err
 	}
-
-	b, err := yamlk8s.Marshal(secret.Data)
-	if err != nil {
-		return err
-	}
-
-	hashBytes := sha256.Sum256(b)
-	pipelineInfo.BuildSecretsHash = fmt.Sprintf("sha256=%s", hex.EncodeToString(hashBytes[:]))
+	pipelineInfo.BuildSecret = secret
 	return nil
 }
 
@@ -192,7 +183,10 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 		}
 
 		enabledComponents := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
-		mustBuildComponent := mustBuildComponentFactory(envName, pipelineInfo, currentRd)
+		mustBuildComponent, err := mustBuildComponentFactory(envName, pipelineInfo, currentRd)
+		if err != nil {
+			return err
+		}
 		componentSource := make([]componentImageSource, 0)
 
 		for _, comp := range enabledComponents {
@@ -288,32 +282,46 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	return nil
 }
 
-func isRadixConfigModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineInfo *model.PipelineInfo) bool {
+func isRadixConfigModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineInfo *model.PipelineInfo) (bool, error) {
 	if rd == nil {
-		return true
+		return true, nil
 	}
 	currentRdConfigHash := rd.GetAnnotations()[kube.RadixConfigHash]
 	if len(currentRdConfigHash) == 0 {
-		return true
+		return true, nil
 	}
-	return currentRdConfigHash != pipelineInfo.RadixApplicationHash()
+	targetHash, err := getRadixApplicationHash(pipelineInfo)
+	if err != nil {
+		return false, err
+	}
+	return currentRdConfigHash != targetHash, nil
 }
 
-func isBuildSecretModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineInfo *model.PipelineInfo) bool {
-	var currentRdConfigHash string
+func isBuildSecretModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineInfo *model.PipelineInfo) (bool, error) {
+	var sourceHash string
 	if rd != nil {
-		currentRdConfigHash = rd.GetAnnotations()[kube.RadixBuildSecretHash]
+		sourceHash = rd.GetAnnotations()[kube.RadixBuildSecretHash]
 	}
-	return currentRdConfigHash != pipelineInfo.BuildSecretsHash
+	targetHash, err := getBuildSecretHash(pipelineInfo)
+	if err != nil {
+		return false, err
+	}
+	return sourceHash != targetHash, nil
 }
 
-func mustBuildComponentFactory(environmentName string, pipelineInfo *model.PipelineInfo, currentRd *radixv1.RadixDeployment) func(comp radixv1.RadixCommonComponent) bool {
+func mustBuildComponentFactory(environmentName string, pipelineInfo *model.PipelineInfo, currentRd *radixv1.RadixDeployment) (func(comp radixv1.RadixCommonComponent) bool, error) {
 	var (
 		buildContextIsDefined  bool
 		buildContextComponents []string
 	)
-	isRadixConfigModified := isRadixConfigModifiedSinceDeployment(currentRd, pipelineInfo)
-	isBuildSecretsModified := isBuildSecretModifiedSinceDeployment(currentRd, pipelineInfo)
+	isRadixConfigModified, err := isRadixConfigModifiedSinceDeployment(currentRd, pipelineInfo)
+	if err != nil {
+		return nil, err
+	}
+	isBuildSecretsModified, err := isBuildSecretModifiedSinceDeployment(currentRd, pipelineInfo)
+	if err != nil {
+		return nil, err
+	}
 
 	if pipelineInfo.PrepareBuildContext != nil {
 		envBuildContext, found := slice.FindFirst(pipelineInfo.PrepareBuildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == environmentName })
@@ -337,7 +345,7 @@ func mustBuildComponentFactory(environmentName string, pipelineInfo *model.Pipel
 		}
 
 		return true
-	}
+	}, nil
 }
 
 func getDockerfile(sourceFolder, dockerfileName string) string {
