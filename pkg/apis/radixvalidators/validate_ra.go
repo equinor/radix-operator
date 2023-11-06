@@ -182,35 +182,35 @@ func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixAppli
 	if err != nil {
 		return []error{err}
 	}
-	domainSet := make(map[string]struct{})
+	uniqueDomainNames := make(map[string]struct{})
 	for _, dnsAlias := range app.Spec.DNSAlias {
-		if _, ok := domainSet[dnsAlias.Domain]; ok {
+		if _, ok := uniqueDomainNames[dnsAlias.Domain]; ok {
 			errs = append(errs, DuplicateDomainForDNSAliasError(dnsAlias.Domain))
-		} else {
-			if err := validateRequiredResourceName("dnsAlias domain", dnsAlias.Domain); err != nil {
-				errs = append(errs, err)
-			}
+		} else if err = validateRequiredResourceName("dnsAlias domain", dnsAlias.Domain); err != nil {
+			errs = append(errs, err)
 		}
-		domainSet[dnsAlias.Domain] = struct{}{}
+		uniqueDomainNames[dnsAlias.Domain] = struct{}{}
 		componentNameIsValid, environmentNameIsValid := true, true
-		if err := validateRequiredResourceName("dnsAlias component", dnsAlias.Component); err != nil {
+		if err = validateRequiredResourceName("dnsAlias component", dnsAlias.Component); err != nil {
 			errs = append(errs, err)
 			componentNameIsValid = false
 		}
-		if err := validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment); err != nil {
+		if err = validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment); err != nil {
 			errs = append(errs, err)
 			environmentNameIsValid = false
 		}
 		if !componentNameIsValid || !environmentNameIsValid {
 			continue
 		}
-		if err := validateDNSAliasComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
-			errs = append(errs, err...)
+		if err = validateDNSAliasComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
+			errs = append(errs, err)
 			continue
 		}
 		if !doesComponentHaveAPublicPort(app, dnsAlias.Component) {
 			errs = append(errs, ComponentForDNSAliasIsNotMarkedAsPublicError(dnsAlias.Component))
-		} else if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Domain]; ok && radixDNSAlias.Spec.AppName != app.Name {
+			continue
+		}
+		if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Domain]; ok && radixDNSAlias.Spec.AppName != app.Name {
 			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Domain))
 		}
 	}
@@ -231,15 +231,14 @@ func validateDNSAppAliasComponentAndEnvironmentAvailable(app *radixv1.RadixAppli
 	return errs
 }
 
-func validateDNSAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) []error {
-	var errs []error
+func validateDNSAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) error {
 	if !doesEnvExist(app, environment) {
-		errs = append(errs, EnvForDNSAliasNotDefinedError(environment))
+		return EnvForDNSAliasNotDefinedError(environment)
 	}
 	if !doesComponentExistInEnvironment(app, component, environment) {
-		errs = append(errs, ComponentForDNSAliasNotDefinedError(component))
+		return ComponentForDNSAliasNotDefinedError(component)
 	}
-	return errs
+	return nil
 }
 
 func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {

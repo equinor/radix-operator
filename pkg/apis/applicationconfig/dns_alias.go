@@ -14,7 +14,7 @@ import (
 
 func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 	appName := app.registration.Name
-	radixDNSAliasesMap, err := kube.GetRadixDNSAliasMapWithSelector(app.radixclient)
+	radixDNSAliasesMap, err := kube.GetRadixDNSAliasMapWithSelector(app.radixclient, "")
 	if err != nil {
 		return err
 	}
