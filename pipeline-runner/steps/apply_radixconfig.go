@@ -131,7 +131,9 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 
 	secret, err := cli.GetKubeclient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
 	if err != nil {
-		if kubeerrors.IsNotFound(err) {
+		// For new applications, or when buildsecrets is first added to radixconfig, the secret
+		// or role bindings may not be synced yet by radix-operator
+		if kubeerrors.IsNotFound(err) || kubeerrors.IsForbidden(err) {
 			return nil
 		}
 		return err
