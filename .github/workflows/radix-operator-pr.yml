@@ -27,9 +27,9 @@ jobs:
       id: github_public_ip
       run: echo "ipv4=$(curl 'https://ifconfig.me/ip')" >> $GITHUB_OUTPUT
 
-    - name: Add GitHub IP to StorageAccount
+    - name: Add GitHub IP to ACR
       id: update_firewall
-      run: az acr network-rule add --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState
+      run: az acr network-rule add --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState && sleep 2
 
     - name: ACR Login
       run: 'az acr login --name radixdev --subscription 16ede44b-1f74-40a5-b428-46cca9a5741b'
