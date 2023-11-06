@@ -29,26 +29,26 @@ const ConfigBranchFallback = "master"
 
 // ApplicationConfig Instance variables
 type ApplicationConfig struct {
-	kubeclient   kubernetes.Interface
-	radixclient  radixclient.Interface
-	kubeutil     *kube.Kube
-	registration *radixv1.RadixRegistration
-	config       *radixv1.RadixApplication
+	kubeclient          kubernetes.Interface
+	radixclient         radixclient.Interface
+	kubeutil            *kube.Kube
+	registration        *radixv1.RadixRegistration
+	config              *radixv1.RadixApplication
+	dnsAliasAppReserved map[string]string
+	dnsAliasReserved    []string
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(
-	kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	registration *radixv1.RadixRegistration,
-	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) (*ApplicationConfig, error) {
 	return &ApplicationConfig{
-		kubeclient,
-		radixclient,
-		kubeutil,
-		registration,
-		config}, nil
+		kubeclient:          kubeclient,
+		radixclient:         radixclient,
+		kubeutil:            kubeutil,
+		registration:        registration,
+		config:              config,
+		dnsAliasAppReserved: dnsAliasAppReserved,
+		dnsAliasReserved:    dnsAliasReserved,
+	}, nil
 }
 
 // GetRadixApplicationConfig returns the provided config
@@ -128,7 +128,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Debugf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
-			if _, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(app.radixclient, app.config); len(errs) > 0 {
+			if _, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(app.radixclient, app.config, app.dnsAliasAppReserved, app.dnsAliasReserved); len(errs) > 0 {
 				return commonErrors.Concat(errs)
 			}
 			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), app.config, metav1.CreateOptions{})
@@ -147,7 +147,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		return nil
 	}
 
-	if _, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(app.radixclient, app.config); len(errs) > 0 {
+	if _, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(app.radixclient, app.config, app.dnsAliasAppReserved, app.dnsAliasReserved); len(errs) > 0 {
 		return commonErrors.Concat(errs)
 	}
 

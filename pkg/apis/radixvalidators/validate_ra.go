@@ -38,7 +38,7 @@ var (
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
 func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication) (bool, error) {
-	isValid, errs := CanRadixApplicationBeInsertedErrors(client, app)
+	isValid, errs := CanRadixApplicationBeInsertedErrors(client, app, nil, nil)
 	if isValid {
 		return true, nil
 	}
@@ -63,7 +63,7 @@ func duplicatePathForAzureKeyVault(path, azureKeyVaultName, component string) er
 }
 
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
-func CanRadixApplicationBeInsertedErrors(radixClient radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
+func CanRadixApplicationBeInsertedErrors(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) (bool, []error) {
 	errs := []error{}
 	err := validateAppName(app.Name)
 	if err != nil {

@@ -75,7 +75,8 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 
 	// Apply RA to cluster
 	applicationConfig, err := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
-		cli.GetRadixclient(), cli.GetRegistration(), ra)
+		cli.GetRadixclient(), cli.GetRegistration(), ra,
+		pipelineInfo.PipelineArguments.DNSAliasAppReserved, pipelineInfo.PipelineArguments.DNSAliasReserved)
 	if err != nil {
 		return err
 	}
@@ -198,7 +199,7 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 		ra.Name = strings.ToLower(ra.Name)
 	}
 
-	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(radixClient, ra)
+	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(radixClient, ra, nil, nil)
 	if !isRAValid {
 		log.Errorf("Radix config not valid.")
 		return nil, errorUtils.Concat(errs)

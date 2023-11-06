@@ -47,7 +47,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 
 func getApplication(ra *radixv1.RadixApplication) *applicationconfig.ApplicationConfig {
 	// The other arguments are not relevant for this test
-	application, _ := applicationconfig.NewApplicationConfig(nil, nil, nil, nil, ra)
+	application, _ := applicationconfig.NewApplicationConfig(nil, nil, nil, nil, ra, nil, nil)
 	return application
 }
 
@@ -56,7 +56,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
-	app, _ := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp)
+	app, _ := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp, nil, nil)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
@@ -117,7 +117,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	app, _ := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	app, _ := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil, nil)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
@@ -690,7 +690,7 @@ func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient 
 	ra := applicationBuilder.BuildRA()
 	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
 
-	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
+	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil, nil)
 }
 
 func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
@@ -706,7 +706,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationConfig, err := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
+	applicationConfig, err := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil, nil)
 	if err != nil {
 		return err
 	}

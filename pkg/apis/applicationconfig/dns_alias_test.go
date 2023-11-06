@@ -317,6 +317,11 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		domain1           = "domain1"
 		domain2           = "domain2"
 	)
+	dnsAliasAppReserved := map[string]string{
+		"api":     "radix-api",
+		"console": "radix-web-console",
+	}
+	dnsAliasReserved := []string{"grafana"}
 	var testScenarios = []struct {
 		name                    string
 		applicationBuilder      utils.ApplicationBuilder
@@ -364,9 +369,14 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 			expectedValidationError: applicationconfig.RadixDNSAliasIsReservedForRadixPlatformApplicationError("api"),
 		},
 		{
-			name:                    "Reserved domain api for another app",
-			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Domain: "api", Environment: raEnv, Component: raComponentName}),
-			expectedValidationError: applicationconfig.RadixDNSAliasIsReservedForRadixPlatformApplicationError("api"),
+			name:                    "Reserved domain api for another service",
+			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Domain: "grafana", Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: applicationconfig.RadixDNSAliasIsReservedForRadixPlatformServiceError("grafana"),
+		},
+		{
+			name:                    "Reserved domain api for this app",
+			applicationBuilder:      utils.ARadixApplication().WithAppName("radix-api").WithDNSAlias(radixv1.DNSAlias{Domain: "api", Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: nil,
 		},
 	}
 
@@ -379,7 +389,8 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 			_, err = radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 			require.NoError(t, err)
 			ra := ts.applicationBuilder.BuildRA()
-			applicationConfig, err := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+			applicationConfig, err := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra,
+				dnsAliasAppReserved, dnsAliasReserved)
 			require.NoError(t, err)
 
 			actualValidationErr := applicationConfig.ApplyConfigToApplicationNamespace()

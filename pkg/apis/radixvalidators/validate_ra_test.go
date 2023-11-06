@@ -669,7 +669,7 @@ func Test_invalid_ra(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			isValid, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(client, validRA)
+			isValid, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(client, validRA, nil, nil)
 
 			if testcase.expectedError != nil {
 				assert.False(t, isValid)

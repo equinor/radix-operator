@@ -111,10 +111,12 @@ type PipelineArguments struct {
 	// Used to indicate debugging session
 	Debug bool
 	// Image tag names for components: component-name:image-tag
-	ImageTagNames map[string]string
-	LogLevel      string
-	AppName       string
-	Builder       Builder
+	ImageTagNames       map[string]string
+	LogLevel            string
+	AppName             string
+	Builder             Builder
+	DNSAliasAppReserved map[string]string
+	DNSAliasReserved    []string
 }
 
 // InitPipeline Initialize pipeline with step implementations
