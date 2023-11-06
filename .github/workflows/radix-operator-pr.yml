@@ -55,7 +55,7 @@ jobs:
         cache-to: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache,mode=max
 
     - name: Revoke GitHub IP on StorageAccount
-      if: ${{ failure() && steps.update_firewall.conclusion == "success" }}
+      if: success() || steps.update_firewall.conclusion == 'success'
       run: az acr network-rule remove --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState
 
 
