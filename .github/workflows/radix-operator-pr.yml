@@ -48,7 +48,7 @@ jobs:
         sha=${GITHUB_SHA:0:8}
         ts=$(date +%s)
         build_id=nightly-${sha}-${ts}
-        echo "image_tag=${build_id}" >> "$GITHUB_OUTPUTS"
+        echo "image_tag=${build_id}" >> "$GITHUB_OUTPUT"
 
     - name: Build and push Docker images
       uses: docker/build-push-action@v5
