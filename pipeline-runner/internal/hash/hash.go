@@ -1,40 +1,42 @@
 package hash
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"hash"
 	"strings"
-
-	yamlk8s "sigs.k8s.io/yaml"
 )
 
 type Algorithm string
 
 const (
-	SHA256              Algorithm = "sha256"
-	hashStringSeparator string    = "="
+	hashStringSeparator string = "="
 )
 
-var hashers map[Algorithm]hash.Hash = map[Algorithm]hash.Hash{}
+type sumFunc func(in []byte) []byte
 
-func register(alg Algorithm, hasher hash.Hash) {
-	hashers[alg] = hasher
+var sumProviders map[Algorithm]sumFunc = map[Algorithm]sumFunc{}
+
+func registerProvider(alg Algorithm, provider sumFunc) {
+	sumProviders[alg] = provider
 }
 
 func ToHashString(alg Algorithm, source any) (string, error) {
-	hasher, found := hashers[alg]
+	sum, found := sumProviders[alg]
 	if !found {
 		return "", fmt.Errorf("hash algorithm %s not found", alg)
 	}
 
-	b, err := yamlk8s.Marshal(source)
+	encode, err := getEncoder(source)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
-	hashBytes := hasher.Sum(b)
+	b, err := encode(source)
+	if err != nil {
+		return "", err
+	}
+
+	hashBytes := sum(b)
 	return joinToHashString(alg, hex.EncodeToString(hashBytes)), nil
 }
 
@@ -57,8 +59,4 @@ func extractAlgorithmFromHashString(hashString string) Algorithm {
 		return ""
 	}
 	return Algorithm(parts[0])
-}
-
-func init() {
-	register(SHA256, sha256.New())
 }

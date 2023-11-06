@@ -290,23 +290,21 @@ func isRadixConfigModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineI
 	if len(currentRdConfigHash) == 0 {
 		return true, nil
 	}
-	targetHash, err := getRadixApplicationHash(pipelineInfo)
-	if err != nil {
-		return false, err
-	}
-	return currentRdConfigHash != targetHash, nil
+	hashEqual, err := compareRadixApplicationHash(currentRdConfigHash, pipelineInfo.RadixApplication)
+	return !hashEqual, err
 }
 
 func isBuildSecretModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineInfo *model.PipelineInfo) (bool, error) {
-	var sourceHash string
+	var targetHash string
 	if rd != nil {
-		sourceHash = rd.GetAnnotations()[kube.RadixBuildSecretHash]
+		targetHash = rd.GetAnnotations()[kube.RadixBuildSecretHash]
 	}
-	targetHash, err := getBuildSecretHash(pipelineInfo)
-	if err != nil {
-		return false, err
+	buildSecret := pipelineInfo.BuildSecret
+	if buildSecret == nil || len(targetHash) == 0 {
+		return buildSecret != nil || len(targetHash) > 0, nil
 	}
-	return sourceHash != targetHash, nil
+	hashEqual, err := compareBuildSecretHash(targetHash, *buildSecret)
+	return !hashEqual, err
 }
 
 func mustBuildComponentFactory(environmentName string, pipelineInfo *model.PipelineInfo, currentRd *radixv1.RadixDeployment) (func(comp radixv1.RadixCommonComponent) bool, error) {
