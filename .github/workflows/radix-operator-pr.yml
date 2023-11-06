@@ -29,7 +29,7 @@ jobs:
 
     - name: Add GitHub IP to ACR
       id: update_firewall
-      run: az acr network-rule add --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState && sleep 60
+      run: az acr network-rule add --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState
 
     - uses: azure/login@v1
       with:
@@ -48,15 +48,14 @@ jobs:
         sha=${GITHUB_SHA::8}
         ts=$(date +%s)
         build_id=nightly-${sha}-${ts}
-        
-        echo "tag=${build_id}" >> $GITHUB_OUTPUTS
+        echo "image_tag=${build_id}" >> "$GITHUB_OUTPUTS"
 
     - name: Build and push Docker images
       uses: docker/build-push-action@v5
       with:
         push: true
         file: operator.Dockerfile
-        tags:  radixdev.azurecr.io/radix-operator-test:${{ steps.tag.outputs.tag }}
+        tags:  radixdev.azurecr.io/radix-operator-test:${{ steps.tag.outputs.image_tag }}
         cache-from: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache
         cache-to: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache,mode=max
 
