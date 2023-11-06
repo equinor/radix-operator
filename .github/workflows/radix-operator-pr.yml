@@ -28,6 +28,7 @@ jobs:
       run: echo "ipv4=$(curl 'https://ifconfig.me/ip')" >> $GITHUB_OUTPUT
 
     - name: Add GitHub IP to StorageAccount
+      id: update_firewall
       run: az acr network-rule add --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState
 
     - name: ACR Login
@@ -54,7 +55,9 @@ jobs:
         cache-to: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache,mode=max
 
     - name: Revoke GitHub IP on StorageAccount
+      if: ${{ failure() && steps.update_firewall.conclusion == "success" }}
       run: az acr network-rule remove --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState
+
 
   build-pipeline:
     name: Build-pipeline
