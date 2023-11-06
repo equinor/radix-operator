@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -127,6 +128,9 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Debugf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
+			if _, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(app.radixclient, app.config); len(errs) > 0 {
+				return commonErrors.Concat(errs)
+			}
 			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), app.config, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create radix application. %v", err)
@@ -141,6 +145,10 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	if reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
 		log.Infof("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
 		return nil
+	}
+
+	if _, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(app.radixclient, app.config); len(errs) > 0 {
+		return commonErrors.Concat(errs)
 	}
 
 	// Update RA if different

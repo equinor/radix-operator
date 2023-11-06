@@ -376,11 +376,13 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 			err := commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases)
 			require.NoError(t, err)
 			rr := ts.applicationBuilder.GetRegistrationBuilder().BuildRR()
+			_, err = radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			require.NoError(t, err)
 			ra := ts.applicationBuilder.BuildRA()
 			applicationConfig, err := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
 			require.NoError(t, err)
 
-			actualValidationErr := applicationConfig.ValidateApplicationCanBeApplied()
+			actualValidationErr := applicationConfig.ApplyConfigToApplicationNamespace()
 
 			require.Equal(t, ts.expectedValidationError, actualValidationErr)
 		})
