@@ -53,6 +53,8 @@ func main() {
 	cfg := config.NewConfig()
 	setLogLevel(cfg.LogLevel)
 
+	print("hello world")
+
 	registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, err := getInitParams()
 	if err != nil {
 		panic(err)
