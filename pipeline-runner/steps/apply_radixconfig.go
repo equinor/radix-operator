@@ -177,13 +177,26 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 			continue
 		}
 
-		currentRd, err := cli.GetKubeutil().GetActiveDeployment(operatorutils.GetEnvironmentNamespace(pipelineInfo.RadixApplication.GetName(), envName))
-		if err != nil {
-			return err
+		envNamespace := operatorutils.GetEnvironmentNamespace(pipelineInfo.RadixApplication.GetName(), envName)
+
+		var currentRd *radixv1.RadixDeployment
+		// For new applications, or applications with new environments defined in radixconfig, the namespace
+		// or rolebinding may not be configured yet by radix-operator.
+		// We skip getting active deployment if namespace does not exist or pipeline-runner does not have access
+		if _, err := cli.GetKubeclient().CoreV1().Namespaces().Get(context.TODO(), envNamespace, metav1.GetOptions{}); err != nil {
+			if !kubeerrors.IsNotFound(err) && !kubeerrors.IsForbidden(err) {
+				return err
+			}
+			log.Infof("skip reading active RadixDeployment: %v", err)
+		} else {
+			currentRd, err = cli.GetKubeutil().GetActiveDeployment(envNamespace)
+			if err != nil {
+				return err
+			}
 		}
 
 		enabledComponents := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
-		mustBuildComponent, err := mustBuildComponentFactory(envName, pipelineInfo, currentRd)
+		mustBuildComponent, err := mustBuildComponentForEnvironment(envName, pipelineInfo, currentRd)
 		if err != nil {
 			return err
 		}
@@ -307,15 +320,17 @@ func isBuildSecretModifiedSinceDeployment(rd *radixv1.RadixDeployment, pipelineI
 	return !hashEqual, err
 }
 
-func mustBuildComponentFactory(environmentName string, pipelineInfo *model.PipelineInfo, currentRd *radixv1.RadixDeployment) (func(comp radixv1.RadixCommonComponent) bool, error) {
+func mustBuildComponentForEnvironment(environmentName string, pipelineInfo *model.PipelineInfo, currentRd *radixv1.RadixDeployment) (func(comp radixv1.RadixCommonComponent) bool, error) {
 	var (
 		buildContextIsDefined  bool
 		buildContextComponents []string
 	)
+
 	isRadixConfigModified, err := isRadixConfigModifiedSinceDeployment(currentRd, pipelineInfo)
 	if err != nil {
 		return nil, err
 	}
+
 	isBuildSecretsModified, err := isBuildSecretModifiedSinceDeployment(currentRd, pipelineInfo)
 	if err != nil {
 		return nil, err

@@ -543,7 +543,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		).
 		BuildRD()
 	_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), currentRd, metav1.CreateOptions{})
-
+	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
 	buildCtx := &model.PrepareBuildContext{
 		EnvironmentsToBuild: []model.EnvironmentToBuild{
 			{Environment: envName, Components: []string{"comp-changed", "comp-common1-changed", "comp-common3-changed", "job-changed", "job-common2-changed", "job-common3-changed"}},
@@ -692,6 +692,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		expectedJobContainers    []string
 		expectedDeployComponents []deployComponentSpec
 		expectedDeployJobs       []deployComponentSpec
+		skipEnvNamespace         bool
 	}
 	tests := []testSpec{
 		{
@@ -773,6 +774,27 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			expectedJobContainers:    []string{},
 			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: "comp-current:anytag"}},
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: "job-current:anytag"}},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged, env namespace missing - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(currentRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedJobContainers:    []string{"build-comp", "build-job"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			skipEnvNamespace:         true,
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, missing prepare context for environment - build all",
@@ -938,6 +960,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
 			if test.existingRd != nil {
 				_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), test.existingRd, metav1.CreateOptions{})
+			}
+			if !test.skipEnvNamespace {
+				_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
 			}
 			s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, currentRa, test.prepareBuildCtx))
 			pipeline := model.PipelineInfo{PipelineArguments: piplineArgs, RadixConfigMapName: prepareConfigMapName}
