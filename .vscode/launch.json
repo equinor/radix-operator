@@ -60,11 +60,11 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "--RADIX_APP=oauth-demo",
+        "--RADIX_APP=radix-job-demo",
         "--JOB_NAME=radix-pipeline-20231030091802-mfzoz",
         "--PIPELINE_TYPE=deploy",
         "--RADIX_TEKTON_IMAGE=radix-tekton:main-latest",
-        "--TO_ENVIRONMENT=dev",
+        "--TO_ENVIRONMENT=prod",
         "--DEBUG=true",
         "--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
         "--RADIX_CLUSTER_TYPE=development",
