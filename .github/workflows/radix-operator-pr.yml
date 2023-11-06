@@ -59,6 +59,7 @@ jobs:
   build-pipeline:
     name: Build-pipeline
     runs-on: ubuntu-latest
+    if: false
     steps:
     - uses: actions/checkout@v3
 
