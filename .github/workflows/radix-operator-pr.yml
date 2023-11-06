@@ -38,20 +38,19 @@ jobs:
       id: tag
       env:
         GITHUB_SHA: ${{github.sha}}
-        GITHUB_REF_NAME: ${{github.ref }}
       run: |
         sha=${GITHUB_SHA::8}
         ts=$(date +%s)
-        build_id=${GITHUB_REF_NAME}-${sha}-${ts}
+        build_id=nightly-${sha}-${ts}
         
-        echo "IMAGE_TAG=$build_id" >> $GITHUB_OUTPUTS
+        echo "tag=$build_id" >> $GITHUB_OUTPUTS
 
     - name: Build and push Docker images
       uses: docker/build-push-action@v5
       with:
         push: true
         file: operator.Dockerfile
-        tags:  radixdev.azurecr.io/radix-operator-test:${{ steps.tag.outputs.IMAGE_TAG }}
+        tags:  radixdev.azurecr.io/radix-operator-test:${{ steps.tag.outputs.tag }}
         cache-from: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache
         cache-to: type=registry,ref=radixdev.azurecr.io/radix-operator-test:buildcache,mode=max
 
