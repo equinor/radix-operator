@@ -44,9 +44,8 @@ func structEncoder(v any) ([]byte, error) {
 }
 
 func getEncoder(v any) (encoder, error) {
-
 	t := reflect.Indirect(reflect.ValueOf(v))
-	fmt.Println(t.Kind().String())
+
 	switch t.Kind() {
 	case reflect.Bool:
 		return boolEncoder, nil

@@ -27,6 +27,7 @@ func Test_ToHashString(t *testing.T) {
 		valOther any
 		match    bool
 	}
+
 	tests := []testSpec{
 		{test: "bool match", val: true, valOther: true, match: true},
 		{test: "bool no match", val: true, valOther: false, match: false},
