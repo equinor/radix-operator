@@ -31,6 +31,12 @@ jobs:
       id: update_firewall
       run: az acr network-rule add --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState && sleep 60
 
+    - uses: azure/login@v1
+      with:
+        client-id: 6e96429a-3ad5-40ee-b961-6de864d878fc
+        tenant-id: 3aa4a235-b6e2-48d5-9195-7fcf05b459b0
+        subscription-id: 16ede44b-1f74-40a5-b428-46cca9a5741b
+
     - name: ACR Login
       run: 'az acr login --name radixdev --subscription 16ede44b-1f74-40a5-b428-46cca9a5741b'
 
