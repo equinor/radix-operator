@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -56,6 +57,18 @@ func (kubeutil *Kube) ListRadixDNSAliasWithSelector(labelSelectorString string) 
 		return nil, fmt.Errorf("failed to get all RadixDNSAliases. Error was %v", err)
 	}
 	return slice.PointersOf(aliasList.Items).([]*radixv1.RadixDNSAlias), nil
+}
+
+// GetRadixDNSAliasMapWithSelector Gets a map of RadixDNSAliases by an optional selector
+func GetRadixDNSAliasMapWithSelector(radixClient radixclient.Interface, labelSelectorString string) (map[string]*radixv1.RadixDNSAlias, error) {
+	radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelectorString})
+	if err != nil {
+		return make(map[string]*radixv1.RadixDNSAlias), err
+	}
+	return slice.Reduce(radixDNSAliases.Items, make(map[string]*radixv1.RadixDNSAlias, len(radixDNSAliases.Items)), func(acc map[string]*radixv1.RadixDNSAlias, dnsAlias radixv1.RadixDNSAlias) map[string]*radixv1.RadixDNSAlias {
+		acc[dnsAlias.Name] = &dnsAlias
+		return acc
+	}), nil
 }
 
 // UpdateRadixDNSAlias Update RadixDNSAlias

@@ -1,12 +1,12 @@
 package applicationconfig
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +14,7 @@ import (
 
 func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 	appName := app.registration.Name
-	radixDNSAliasesMap, err := app.getRadixDNSAliasesMapForAppName(appName)
+	radixDNSAliasesMap, err := kube.GetRadixDNSAliasMapWithSelector(app.radixclient)
 	if err != nil {
 		return err
 	}
@@ -82,27 +82,4 @@ func (app *ApplicationConfig) createRadixDNSAlias(appName string, dnsAlias radix
 		},
 	}
 	return app.kubeutil.CreateRadixDNSAlias(&radixDNSAlias)
-}
-
-func (app *ApplicationConfig) getRadixDNSAliasesMapForAppName(appName string) (map[string]*radixv1.RadixDNSAlias, error) {
-	radixDNSAliasList, err := app.kubeutil.ListRadixDNSAliasWithSelector(labels.ForApplicationName(appName).String())
-	if err != nil {
-		return nil, err
-	}
-	return getRadixDNSAliasMap(radixDNSAliasList), err
-}
-
-func (app *ApplicationConfig) getAllRadixDNSAliasesMap() (map[string]*radixv1.RadixDNSAlias, error) {
-	radixDNSAliasList, err := app.kubeutil.RadixClient().RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return getRadixDNSAliasMap(slice.PointersOf(radixDNSAliasList.Items).([]*radixv1.RadixDNSAlias)), nil
-}
-
-func getRadixDNSAliasMap(dnsAliases []*radixv1.RadixDNSAlias) map[string]*radixv1.RadixDNSAlias {
-	return slice.Reduce(dnsAliases, make(map[string]*radixv1.RadixDNSAlias), func(acc map[string]*radixv1.RadixDNSAlias, dnsAlias *radixv1.RadixDNSAlias) map[string]*radixv1.RadixDNSAlias {
-		acc[dnsAlias.Name] = dnsAlias
-		return acc
-	})
 }

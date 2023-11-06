@@ -14,6 +14,7 @@ import (
 	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
@@ -62,7 +63,7 @@ func duplicatePathForAzureKeyVault(path, azureKeyVaultName, component string) er
 }
 
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
-func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
+func CanRadixApplicationBeInsertedErrors(radixClient radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
 	errs := []error{}
 	err := validateAppName(app.Name)
 	if err != nil {
@@ -105,12 +106,12 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
-	err = validateDoesRRExist(client, app.Name)
+	err = validateDoesRRExist(radixClient, app.Name)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	if dnsAliasErrs := validateDNSAlias(app); len(dnsAliasErrs) > 0 {
+	if dnsAliasErrs := validateDNSAlias(radixClient, app); len(dnsAliasErrs) > 0 {
 		errs = append(errs, dnsAliasErrs...)
 	}
 
@@ -175,8 +176,12 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	return validateDNSAppAliasComponentAndEnvironmentAvailable(app, alias.Component, alias.Environment)
 }
 
-func validateDNSAlias(app *radixv1.RadixApplication) []error {
+func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixApplication) []error {
 	var errs []error
+	radixDNSAliasMap, err := kube.GetRadixDNSAliasMapWithSelector(radixClient, "")
+	if err != nil {
+		return []error{err}
+	}
 	domainSet := make(map[string]struct{})
 	for _, dnsAlias := range app.Spec.DNSAlias {
 		if _, ok := domainSet[dnsAlias.Domain]; ok {
@@ -205,6 +210,8 @@ func validateDNSAlias(app *radixv1.RadixApplication) []error {
 		}
 		if !doesComponentHaveAPublicPort(app, dnsAlias.Component) {
 			errs = append(errs, ComponentForDNSAliasIsNotMarkedAsPublicError(dnsAlias.Component))
+		} else if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Domain]; ok && radixDNSAlias.Spec.AppName != app.Name {
+			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Domain))
 		}
 	}
 	return errs
