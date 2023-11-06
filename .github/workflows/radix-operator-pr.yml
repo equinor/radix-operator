@@ -29,7 +29,7 @@ jobs:
 
     - name: Add GitHub IP to ACR
       id: update_firewall
-      run: az acr network-rule add --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState && sleep 60
+      run: az acr network-rule add --name radixdev --ip-address  ${{ steps.github_public_ip.outputs.ipv4 }} --query provisioningState && sleep 10
 
     - uses: azure/login@v1
       with:
@@ -45,7 +45,7 @@ jobs:
       env:
         GITHUB_SHA: ${{github.sha}}
       run: |
-        sha=${GITHUB_SHA::8}
+        sha=${GITHUB_SHA:0:8}
         ts=$(date +%s)
         build_id=nightly-${sha}-${ts}
         echo "image_tag=${build_id}" >> "$GITHUB_OUTPUTS"
