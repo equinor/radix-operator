@@ -38,6 +38,7 @@ jobs:
       id: tag
       env:
         GITHUB_SHA: ${{github.sha}}
+        GITHUB_REF_NAME: ${{github.ref }}
       run: |
         sha=${GITHUB_SHA::8}
         ts=$(date +%s)
