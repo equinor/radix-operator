@@ -141,14 +141,14 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *model.PipelineInfo) error {
-	environmentComponentSource, err := getEnvironmentComponentSource(pipelineInfo.TargetEnvironments, pipelineInfo.PrepareBuildContext, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret, cli.GetKubeutil())
+	componentImageSources, err := getEnvironmentComponentImageSource(pipelineInfo.TargetEnvironments, pipelineInfo.PrepareBuildContext, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret, cli.GetKubeutil())
 	if err != nil {
 		return err
 	}
-	distinctComponentsToBuild := getDistinctComponentsToBuild(environmentComponentSource, pipelineInfo.RadixApplication)
+	distinctComponentsToBuild := getDistinctComponentsToBuild(componentImageSources, pipelineInfo.RadixApplication)
 	multiComponentDockerfile := getMultiComponentDockerfiles(distinctComponentsToBuild)
 	pipelineInfo.BuildComponentImages = getBuildComponents(distinctComponentsToBuild, multiComponentDockerfile, pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.PipelineArguments.ImageTag, pipelineInfo.RadixApplication)
-	pipelineInfo.DeployEnvironmentComponentImages = getEnvironmentDeployComponents(environmentComponentSource, pipelineInfo.BuildComponentImages, pipelineInfo.PipelineArguments.ImageTagNames)
+	pipelineInfo.DeployEnvironmentComponentImages = getEnvironmentDeployComponents(componentImageSources, pipelineInfo.BuildComponentImages, pipelineInfo.PipelineArguments.ImageTagNames)
 	return nil
 }
 
@@ -181,49 +181,25 @@ const (
 )
 
 // Get component image source for each environment
-func getEnvironmentComponentSource(targetEnvironments []string, prepareBuildContext *model.PrepareBuildContext, ra *radixv1.RadixApplication, buildSecret *corev1.Secret, kubeUtil *kube.Kube) (environmentComponentSourceMap, error) {
+func getEnvironmentComponentImageSource(targetEnvironments []string, prepareBuildContext *model.PrepareBuildContext, ra *radixv1.RadixApplication, buildSecret *corev1.Secret, kubeUtil *kube.Kube) (environmentComponentSourceMap, error) {
 	appComponents := getCommonComponents(ra)
 
 	environmentComponents := make(environmentComponentSourceMap)
 	for _, envName := range targetEnvironments {
 		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
 
-		// For new applications, or applications with new environments defined in radixconfig, the namespace
-		// or rolebinding may not be configured yet by radix-operator.
-		// We skip getting active deployment if namespace does not exist or pipeline-runner does not have access
-		var currentRd *radixv1.RadixDeployment
-		if _, err := kubeUtil.KubeClient().CoreV1().Namespaces().Get(context.TODO(), envNamespace, metav1.GetOptions{}); err != nil {
-			if !kubeerrors.IsNotFound(err) && !kubeerrors.IsForbidden(err) {
-				return nil, err
-			}
-			log.Infof("namespace for environment does not exist yet: %v", err)
-		} else {
-			currentRd, err = kubeUtil.GetActiveDeployment(envNamespace)
-			if err != nil {
-				return nil, err
-			}
+		currentRd, err := getCurrentRadixDeployment(kubeUtil, envNamespace)
+		if err != nil {
+			return nil, err
 		}
 
-		enabledComponents := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
 		mustBuildComponent, err := mustBuildComponentForEnvironment(envName, prepareBuildContext, currentRd, ra, buildSecret)
 		if err != nil {
 			return nil, err
 		}
-		componentSource := make([]componentImageSource, 0)
 
-		for _, comp := range enabledComponents {
-			var source containerImageSourceEnum
-			switch {
-			case len(comp.GetImage()) > 0:
-				source = fromImagePath
-			case mustBuildComponent(comp):
-				source = fromBuild
-			default:
-				source = fromDeployment
-			}
-			componentSource = append(componentSource, componentImageSource{ComponentName: comp.GetName(), ImageSource: source})
-		}
-
+		enabledComponents := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
+		componentSource := getComponentSources(enabledComponents, mustBuildComponent)
 		environmentComponents[envName] = environmentComponentSource{
 			RadixApplication:       ra,
 			CurrentRadixDeployment: currentRd,
@@ -232,6 +208,44 @@ func getEnvironmentComponentSource(targetEnvironments []string, prepareBuildCont
 	}
 
 	return environmentComponents, nil
+}
+
+func getComponentSources(components []radixv1.RadixCommonComponent, mustBuildComponent func(comp radixv1.RadixCommonComponent) bool) []componentImageSource {
+	componentSource := make([]componentImageSource, 0)
+
+	for _, comp := range components {
+		var source containerImageSourceEnum
+		switch {
+		case len(comp.GetImage()) > 0:
+			source = fromImagePath
+		case mustBuildComponent(comp):
+			source = fromBuild
+		default:
+			source = fromDeployment
+		}
+		componentSource = append(componentSource, componentImageSource{ComponentName: comp.GetName(), ImageSource: source})
+	}
+	return componentSource
+}
+
+func getCurrentRadixDeployment(kubeUtil *kube.Kube, namespace string) (*radixv1.RadixDeployment, error) {
+	var currentRd *radixv1.RadixDeployment
+	// For new applications, or applications with new environments defined in radixconfig, the namespace
+	// or rolebinding may not be configured yet by radix-operator.
+	// We skip getting active deployment if namespace does not exist or pipeline-runner does not have access
+
+	if _, err := kubeUtil.KubeClient().CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{}); err != nil {
+		if !kubeerrors.IsNotFound(err) && !kubeerrors.IsForbidden(err) {
+			return nil, err
+		}
+		log.Infof("namespace for environment does not exist yet: %v", err)
+	} else {
+		currentRd, err = kubeUtil.GetActiveDeployment(namespace)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return currentRd, nil
 }
 
 // Generate list of distinct components to build across all environments
@@ -313,7 +327,7 @@ func getEnvironmentDeployComponents(environmentComponentSource environmentCompon
 	return environmentDeployComponentImages
 }
 
-func isRadixConfigModifiedSinceDeployment(rd *radixv1.RadixDeployment, ra *radixv1.RadixApplication) (bool, error) {
+func isRadixConfigNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, ra *radixv1.RadixApplication) (bool, error) {
 	if rd == nil {
 		return true, nil
 	}
@@ -325,15 +339,15 @@ func isRadixConfigModifiedSinceDeployment(rd *radixv1.RadixDeployment, ra *radix
 	return !hashEqual, err
 }
 
-func isBuildSecretModifiedSinceDeployment(rd *radixv1.RadixDeployment, buildSecret *corev1.Secret) (bool, error) {
-	var targetHash string
-	if rd != nil {
-		targetHash = rd.GetAnnotations()[kube.RadixBuildSecretHash]
+func isBuildSecretNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, buildSecret *corev1.Secret) (bool, error) {
+	if rd == nil {
+		return true, nil
 	}
-	if buildSecret == nil || len(targetHash) == 0 {
-		return buildSecret != nil || len(targetHash) > 0, nil
+	targetHash := rd.GetAnnotations()[kube.RadixBuildSecretHash]
+	if len(targetHash) == 0 {
+		return true, nil
 	}
-	hashEqual, err := compareBuildSecretHash(targetHash, *buildSecret)
+	hashEqual, err := compareBuildSecretHash(targetHash, buildSecret)
 	return !hashEqual, err
 }
 
@@ -342,24 +356,19 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 		return true
 	}
 
-	if currentRd == nil {
+	if prepareBuildContext == nil || currentRd == nil {
 		return alwaysBuild, nil
 	}
 
-	if isModified, err := isRadixConfigModifiedSinceDeployment(currentRd, ra); err != nil {
+	if isModified, err := isRadixConfigNewOrModifiedSinceDeployment(currentRd, ra); err != nil {
 		return nil, err
 	} else if isModified {
 		return alwaysBuild, nil
 	}
 
-	if isModified, err := isBuildSecretModifiedSinceDeployment(currentRd, buildSecret); err != nil {
+	if isModified, err := isBuildSecretNewOrModifiedSinceDeployment(currentRd, buildSecret); err != nil {
 		return nil, err
 	} else if isModified {
-		return alwaysBuild, nil
-	}
-
-	var buildContextComponents []string
-	if prepareBuildContext == nil {
 		return alwaysBuild, nil
 	}
 
@@ -367,10 +376,9 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 	if !found {
 		return alwaysBuild, nil
 	}
-	buildContextComponents = envBuildContext.Components
 
 	return func(comp radixv1.RadixCommonComponent) bool {
-		return slice.Any(buildContextComponents, func(s string) bool { return s == comp.GetName() }) ||
+		return slice.Any(envBuildContext.Components, func(s string) bool { return s == comp.GetName() }) ||
 			commonutils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
 	}, nil
 }

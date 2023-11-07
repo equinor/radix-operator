@@ -489,13 +489,8 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 		kube.RadixBranchAnnotation:  branch,
 		kube.RadixGitTagsAnnotation: gitTags,
 		kube.RadixCommitAnnotation:  commitID,
-	}
-	if len(buildSecretHash) > 0 {
-		annotations[kube.RadixBuildSecretHash] = buildSecretHash
-	}
-
-	if len(radixConfigHash) > 0 {
-		annotations[kube.RadixConfigHash] = radixConfigHash
+		kube.RadixBuildSecretHash:   buildSecretHash,
+		kube.RadixConfigHash:        radixConfigHash,
 	}
 
 	radixDeployment := &v1.RadixDeployment{

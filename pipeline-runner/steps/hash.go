@@ -6,25 +6,38 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// Constants used to generate hash for RadixApplication and BuildSecret if they are nil. Do not change.
+const (
+	magicValueForNilRadixApplication = "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7"
+	magicValueForNilBuildSecretData  = "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj"
+)
+
 func createRadixApplicationHash(ra *radixv1.RadixApplication) (string, error) {
-	if ra == nil {
-		return "", nil
-	}
-	return hash.ToHashString(hash.SHA256, ra.Spec)
+	return hash.ToHashString(hash.SHA256, getRadixApplicationOrMagicValue(ra))
 }
 
 func compareRadixApplicationHash(targetHash string, ra *radixv1.RadixApplication) (bool, error) {
-	return hash.CompareWithHashString(ra.Spec, targetHash)
+	return hash.CompareWithHashString(getRadixApplicationOrMagicValue(ra), targetHash)
+}
+
+func getRadixApplicationOrMagicValue(ra *radixv1.RadixApplication) any {
+	if ra == nil {
+		return magicValueForNilRadixApplication
+	}
+	return ra.Spec
 }
 
 func createBuildSecretHash(secret *corev1.Secret) (string, error) {
-	if secret == nil {
-		return "", nil
-	}
-
-	return hash.ToHashString(hash.SHA256, secret.Data)
+	return hash.ToHashString(hash.SHA256, getBuildSecretOrMagicValue(secret))
 }
 
-func compareBuildSecretHash(targetHash string, secret corev1.Secret) (bool, error) {
-	return hash.CompareWithHashString(secret.Data, targetHash)
+func compareBuildSecretHash(targetHash string, secret *corev1.Secret) (bool, error) {
+	return hash.CompareWithHashString(getBuildSecretOrMagicValue(secret), targetHash)
+}
+
+func getBuildSecretOrMagicValue(secret *corev1.Secret) any {
+	if secret == nil || len(secret.Data) == 0 {
+		return magicValueForNilBuildSecretData
+	}
+	return secret.Data
 }
