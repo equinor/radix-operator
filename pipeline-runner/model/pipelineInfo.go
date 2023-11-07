@@ -198,7 +198,7 @@ func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
 	info.GitTags = gitTags
 }
 
-// IsDeployOnlyPipeline Determines if the pipeline is deploy-only
+// IsPipelineType Check pipeline type
 func (info *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
 	return info.PipelineArguments.PipelineType == string(pipelineType)
 }
