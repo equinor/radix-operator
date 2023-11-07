@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -178,6 +179,12 @@ func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixAppli
 		}
 		if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Domain]; ok && radixDNSAlias.Spec.AppName != app.Name {
 			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Domain))
+		}
+		if reservingAppName, aliasReserved := dnsAliasAppReserved[dnsAlias.Domain]; aliasReserved && reservingAppName != app.Name {
+			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformApplicationError(dnsAlias.Domain))
+		}
+		if slice.Any(dnsAliasReserved, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Domain }) {
+			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformServiceError(dnsAlias.Domain))
 		}
 	}
 	return errors.Join(errs...)

@@ -318,8 +318,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		domain2           = "domain2"
 	)
 	dnsAliasAppReserved := map[string]string{
-		"api":     "radix-api",
-		"console": "radix-web-console",
+		"api": "radix-api",
 	}
 	dnsAliasReserved := []string{"grafana"}
 	var testScenarios = []struct {

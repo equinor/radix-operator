@@ -14,7 +14,7 @@ import (
 
 func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 	appName := app.registration.Name
-	radixDNSAliasesMap, err := kube.GetRadixDNSAliasMapWithSelector(app.radixclient, labels.ForApplicationName(app.config.Name).String())
+	existingRadixDNSAliasesMap, err := kube.GetRadixDNSAliasMapWithSelector(app.radixclient, labels.ForApplicationName(app.config.Name).String())
 	if err != nil {
 		return err
 	}
@@ -24,27 +24,27 @@ func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 		if err != nil {
 			return err
 		}
-		if radixDNSAlias, ok := radixDNSAliasesMap[dnsAlias.Domain]; ok {
+		if existingRadixDNSAlias, ok := existingRadixDNSAliasesMap[dnsAlias.Domain]; ok {
 			switch {
-			case !strings.EqualFold(appName, radixDNSAlias.Spec.AppName):
-				errs = append(errs, fmt.Errorf("existing DNS alias domain %s is used by the application %s", dnsAlias.Domain, radixDNSAlias.Spec.AppName))
-			case strings.EqualFold(dnsAlias.Environment, radixDNSAlias.Spec.Environment) &&
-				strings.EqualFold(dnsAlias.Component, radixDNSAlias.Spec.Component) &&
-				port == radixDNSAlias.Spec.Port:
+			case !strings.EqualFold(appName, existingRadixDNSAlias.Spec.AppName):
+				errs = append(errs, fmt.Errorf("existing DNS alias domain %s is used by the application %s", dnsAlias.Domain, existingRadixDNSAlias.Spec.AppName))
+			case strings.EqualFold(dnsAlias.Environment, existingRadixDNSAlias.Spec.Environment) &&
+				strings.EqualFold(dnsAlias.Component, existingRadixDNSAlias.Spec.Component) &&
+				port == existingRadixDNSAlias.Spec.Port:
 				// No changes
 			default:
-				if err = app.updateRadixDNSAlias(radixDNSAlias, dnsAlias, port); err != nil {
+				if err = app.updateRadixDNSAlias(existingRadixDNSAlias, dnsAlias, port); err != nil {
 					errs = append(errs, err)
 				}
 			}
-			delete(radixDNSAliasesMap, dnsAlias.Domain)
+			delete(existingRadixDNSAliasesMap, dnsAlias.Domain)
 			continue
 		}
 		if err = app.createRadixDNSAlias(appName, dnsAlias, port); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	for _, radixDNSAlias := range radixDNSAliasesMap {
+	for _, radixDNSAlias := range existingRadixDNSAliasesMap {
 		if err = app.kubeutil.DeleteRadixDNSAlias(radixDNSAlias); err != nil {
 			errs = append(errs, err)
 		}
