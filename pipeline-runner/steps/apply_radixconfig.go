@@ -105,10 +105,8 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	if pipelineInfo.IsPipelineType(radixv1.Deploy) {
-		if len(pipelineInfo.BuildComponentImages) > 0 {
-			return errors.New("deploy pipeline does not support building components and jobs")
-		}
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
+		return errors.New("deploy pipeline does not support building components and jobs")
 	}
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
