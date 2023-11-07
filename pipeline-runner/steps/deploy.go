@@ -96,7 +96,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
 		pipelineInfo.PipelineArguments.Branch,
-		pipelineInfo.EnvironmentDeployComponentImages[env],
+		pipelineInfo.DeployEnvironmentComponentImages[env],
 		env,
 		defaultEnvVars,
 		radixApplicationHash,

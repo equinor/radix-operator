@@ -39,7 +39,7 @@ type PipelineInfo struct {
 	BuildComponentImages pipeline.BuildComponentImages
 
 	// Hold information about components to be deployed
-	EnvironmentDeployComponentImages pipeline.EnvironmentDeployComponentImages
+	DeployEnvironmentComponentImages pipeline.DeployEnvironmentComponentImages
 
 	// Prepare pipeline job build context
 	PrepareBuildContext *PrepareBuildContext

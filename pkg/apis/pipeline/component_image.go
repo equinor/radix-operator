@@ -10,8 +10,8 @@ type DeployComponentImage struct {
 // DeployComponentImages maps component names with image information
 type DeployComponentImages map[string]DeployComponentImage
 
-// EnvironmentDeployComponentImages maps environment names with components to be deployed
-type EnvironmentDeployComponentImages map[string]DeployComponentImages
+// DeployEnvironmentComponentImages maps environment names with components to be deployed
+type DeployEnvironmentComponentImages map[string]DeployComponentImages
 
 // BuildComponentImage holds info about a build container
 type BuildComponentImage struct {

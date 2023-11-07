@@ -150,7 +150,7 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	distinctComponentsToBuild := getDistinctComponentsToBuild(environmentComponentSource, pipelineInfo.RadixApplication)
 	multiComponentDockerfile := getMultiComponentDockerfiles(distinctComponentsToBuild)
 	pipelineInfo.BuildComponentImages = getBuildComponents(distinctComponentsToBuild, multiComponentDockerfile, pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.PipelineArguments.ImageTag, pipelineInfo.RadixApplication)
-	pipelineInfo.EnvironmentDeployComponentImages = getEnvironmentDeployComponents(environmentComponentSource, pipelineInfo.BuildComponentImages, pipelineInfo.PipelineArguments.ImageTagNames)
+	pipelineInfo.DeployEnvironmentComponentImages = getEnvironmentDeployComponents(environmentComponentSource, pipelineInfo.BuildComponentImages, pipelineInfo.PipelineArguments.ImageTagNames)
 	return nil
 }
 
@@ -289,8 +289,8 @@ func getBuildComponents(componentsDockerFile []componentDockerFile, multiCompone
 }
 
 // Get information about components and image to use for each environment when creating RadixDeployments
-func getEnvironmentDeployComponents(environmentComponentSource environmentComponentSourceMap, buildComponentImages pipeline.BuildComponentImages, imageTagNames map[string]string) pipeline.EnvironmentDeployComponentImages {
-	environmentDeployComponentImages := make(pipeline.EnvironmentDeployComponentImages)
+func getEnvironmentDeployComponents(environmentComponentSource environmentComponentSourceMap, buildComponentImages pipeline.BuildComponentImages, imageTagNames map[string]string) pipeline.DeployEnvironmentComponentImages {
+	environmentDeployComponentImages := make(pipeline.DeployEnvironmentComponentImages)
 	for envName, c := range environmentComponentSource {
 		environmentDeployComponentImages[envName] = slice.Reduce(c.Components, make(pipeline.DeployComponentImages), func(acc pipeline.DeployComponentImages, cis componentImageSource) pipeline.DeployComponentImages {
 			var imagePath string
