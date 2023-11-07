@@ -6,20 +6,14 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
 func Test_valid_rd_returns_true(t *testing.T) {
 	validRD := createValidRD()
-	_, radixclient := validRDSetup()
-	isValid, err := radixvalidators.CanRadixDeploymentBeInserted(radixclient, validRD)
+	err := radixvalidators.CanRadixDeploymentBeInserted(validRD)
 
-	assert.True(t, isValid)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 type updateRDFunc func(rr *v1.RadixDeployment)
@@ -69,16 +63,13 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 		}},
 	}
 
-	_, client := validRRSetup()
-
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRD := createValidRD()
 			testcase.updateRD(validRD)
-			isValid, err := radixvalidators.CanRadixDeploymentBeInserted(client, validRD)
+			err := radixvalidators.CanRadixDeploymentBeInserted(validRD)
 
-			assert.False(t, isValid)
-			assert.NotNil(t, err)
+			assert.Error(t, err)
 		})
 	}
 }
@@ -101,12 +92,4 @@ func createValidRD() *v1.RadixDeployment {
 	validRD, _ := utils.GetRadixDeployFromFile("testdata/radixdeploy.yaml")
 
 	return validRD
-}
-
-func validRDSetup() (kubernetes.Interface, radixclient.Interface) {
-	validRR, _ := utils.GetRadixRegistrationFromFile("testdata/radixregistration.yaml")
-	kubeclient := kubefake.NewSimpleClientset()
-	client := radixfake.NewSimpleClientset(validRR)
-
-	return kubeclient, client
 }
