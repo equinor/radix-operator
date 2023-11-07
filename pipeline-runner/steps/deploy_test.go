@@ -76,7 +76,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)
+	targetEnvs := applicationConfig.GetTargetEnvironments(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -86,7 +86,6 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 			CommitID: anyCommitID,
 		},
 		TargetEnvironments: targetEnvs,
-		BranchIsMapped:     branchIsMapped,
 	}
 
 	err := cli.Run(pipelineInfo)
@@ -182,7 +181,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy("master")
+	targetEnvs := applicationConfig.GetTargetEnvironments("master")
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -191,7 +190,6 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 			Branch:   "master",
 			CommitID: anyCommitID,
 		},
-		BranchIsMapped:     branchIsMapped,
 		TargetEnvironments: targetEnvs,
 		GitCommitHash:      anyCommitID,
 		GitTags:            anyGitTags,
@@ -308,8 +306,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 			Branch:   "master",
 			CommitID: anyCommitID,
 		},
-		BranchIsMapped:     true,
-		TargetEnvironments: map[string]bool{"master": true},
+		TargetEnvironments: []string{"master"},
 		GitCommitHash:      commitID,
 		GitTags:            "",
 	}

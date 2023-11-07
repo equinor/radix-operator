@@ -137,12 +137,8 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T)
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.True(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], true)
-	assert.Equal(t, targetEnvs["qa"], true)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.ElementsMatch(t, []string{"prod", "qa"}, targetEnvs)
 }
 
 func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_ListsBothButNoneIsBuilding(t *testing.T) {
@@ -154,12 +150,8 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_Lis
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.False(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], false)
-	assert.Equal(t, targetEnvs["qa"], false)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.Equal(t, 0, len(targetEnvs))
 }
 
 func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
@@ -171,12 +163,8 @@ func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBu
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.True(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], false)
-	assert.Equal(t, targetEnvs["qa"], true)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
 func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
@@ -188,12 +176,8 @@ func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.False(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, false, targetEnvs["qa"])
-	assert.Equal(t, false, targetEnvs["prod"])
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.Equal(t, 0, len(targetEnvs))
 }
 
 func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
@@ -203,9 +187,7 @@ func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.False(t, isThereAnythingToDeploy)
+	targetEnvs := application.GetTargetEnvironments(branch)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -218,12 +200,8 @@ func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuil
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.True(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], false)
-	assert.Equal(t, targetEnvs["qa"], true)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
 func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
@@ -235,41 +213,8 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.True(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], false)
-	assert.Equal(t, targetEnvs["feature"], true)
-}
-
-func TestIsTargetEnvsEmpty_noEntry(t *testing.T) {
-	targetEnvs := map[string]bool{}
-	assert.Equal(t, true, isTargetEnvsEmpty(targetEnvs))
-}
-
-func TestIsTargetEnvsEmpty_twoEntriesWithBranchMapping(t *testing.T) {
-	targetEnvs := map[string]bool{
-		"qa":   true,
-		"prod": true,
-	}
-	assert.Equal(t, false, isTargetEnvsEmpty(targetEnvs))
-}
-
-func TestIsTargetEnvsEmpty_twoEntriesWithNoMapping(t *testing.T) {
-	targetEnvs := map[string]bool{
-		"qa":   false,
-		"prod": false,
-	}
-	assert.Equal(t, true, isTargetEnvsEmpty(targetEnvs))
-}
-
-func TestIsTargetEnvsEmpty_twoEntriesWithOneMapping(t *testing.T) {
-	targetEnvs := map[string]bool{
-		"qa":   true,
-		"prod": false,
-	}
-	assert.Equal(t, false, isTargetEnvsEmpty(targetEnvs))
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.ElementsMatch(t, []string{"feature"}, targetEnvs)
 }
 
 func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {

@@ -105,18 +105,9 @@ func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
-// IsThereAnythingToDeploy Checks if given branch requires deployment to environments
-func (app *ApplicationConfig) IsThereAnythingToDeploy(branch string) (bool, map[string]bool) {
-	return IsThereAnythingToDeployForRadixApplication(branch, app.config)
-}
-
-// IsThereAnythingToDeployForRadixApplication Checks if given branch requires deployment to environments
-func IsThereAnythingToDeployForRadixApplication(branch string, ra *v1.RadixApplication) (bool, map[string]bool) {
-	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
-	if isTargetEnvsEmpty(targetEnvs) {
-		return false, targetEnvs
-	}
-	return true, targetEnvs
+// GetTargetEnvironments Checks if given branch requires deployment to environments
+func (app *ApplicationConfig) GetTargetEnvironments(branch string) []string {
+	return getTargetEnvironments(branch, app.config)
 }
 
 // ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it
@@ -212,33 +203,14 @@ func (app *ApplicationConfig) createEnvironments() error {
 	return nil
 }
 
-func getTargetEnvironmentsAsMap(branchToBuild string, radixApplication *v1.RadixApplication) map[string]bool {
-	targetEnvs := make(map[string]bool)
+func getTargetEnvironments(branchToBuild string, radixApplication *v1.RadixApplication) []string {
+	var targetEnvs []string
 	for _, env := range radixApplication.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
-			// Deploy environment
-			targetEnvs[env.Name] = true
-		} else {
-			// Only create namespace for environment
-			targetEnvs[env.Name] = false
+			targetEnvs = append(targetEnvs, env.Name)
 		}
 	}
 	return targetEnvs
-}
-
-func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
-	if len(targetEnvs) == 0 {
-		return true
-	}
-
-	// Check if all values are false
-	falseCount := 0
-	for _, value := range targetEnvs {
-		if !value {
-			falseCount++
-		}
-	}
-	return falseCount == len(targetEnvs)
 }
 
 // applyEnvironment creates an environment or applies changes if it exists

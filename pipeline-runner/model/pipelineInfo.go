@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 
@@ -27,8 +28,8 @@ type PipelineInfo struct {
 	// Temporary data
 	RadixConfigMapName string
 	GitConfigMapName   string
-	TargetEnvironments map[string]bool // TODO: Change this to []string
-	BranchIsMapped     bool
+	TargetEnvironments []string
+
 	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.
 	// not to be confused with PipelineInfo.PipelineArguments.CommitID
 	GitCommitHash string
@@ -179,15 +180,15 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	info.RadixApplication = applicationConfig.GetRadixApplicationConfig()
 
 	// Obtain metadata for rest of pipeline
-	branchIsMapped, targetEnvironments := applicationConfig.IsThereAnythingToDeploy(info.PipelineArguments.Branch)
+	targetEnvironments := applicationConfig.GetTargetEnvironments(info.PipelineArguments.Branch)
 
 	// For deploy-only pipeline
 	if info.IsPipelineType(radixv1.Deploy) {
-		targetEnvironments[info.PipelineArguments.ToEnvironment] = true
-		branchIsMapped = true
+		if !slice.Any(targetEnvironments, func(s string) bool { return s == info.PipelineArguments.ToEnvironment }) {
+			targetEnvironments = append(targetEnvironments, info.PipelineArguments.ToEnvironment)
+		}
 	}
 
-	info.BranchIsMapped = branchIsMapped
 	info.TargetEnvironments = targetEnvironments
 }
 

@@ -86,7 +86,7 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	applicationConfig := application.NewApplicationConfig(s.kubeClient, s.kubeUtil, s.radixClient, rr, ra)
-	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)
+	targetEnvs := applicationConfig.GetTargetEnvironments(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -96,7 +96,6 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 			CommitID: anyCommitID,
 		},
 		TargetEnvironments: targetEnvs,
-		BranchIsMapped:     branchIsMapped,
 	}
 
 	err := cli.Run(pipelineInfo)

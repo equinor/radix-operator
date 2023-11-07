@@ -138,7 +138,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageBuilder)
 	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
-	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
+	targetEnvs := strings.Join(pipelineInfo.TargetEnvironments, ",")
 	secretMountsArgsString := ""
 
 	if isUsingBuildKit(pipelineInfo) {
@@ -406,14 +406,4 @@ func getSecretArgs(buildSecrets []corev1.EnvVar) string {
 		secretArgs = append(secretArgs, fmt.Sprintf("--secret id=%s,src=%s/%s", envVar.ValueFrom.SecretKeyRef.Key, buildSecretsMountPath, envVar.ValueFrom.SecretKeyRef.Key))
 	}
 	return strings.Join(secretArgs, " ")
-}
-
-func getTargetEnvsToBuild(pipelineInfo *model.PipelineInfo) []string {
-	var envs []string
-	for env, toBuild := range pipelineInfo.TargetEnvironments {
-		if toBuild {
-			envs = append(envs, env)
-		}
-	}
-	return envs
 }
