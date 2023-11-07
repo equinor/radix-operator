@@ -395,7 +395,11 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 
 			actualValidationErr := applicationConfig.ApplyConfigToApplicationNamespace()
 
-			require.Equal(t, ts.expectedValidationError, actualValidationErr)
+			if ts.expectedValidationError == nil {
+				require.NoError(t, actualValidationErr)
+			} else {
+				require.EqualError(t, actualValidationErr, ts.expectedValidationError.Error(), "missing or unexpected error")
+			}
 		})
 	}
 }
