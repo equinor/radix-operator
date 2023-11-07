@@ -129,8 +129,8 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 		return err
 	}
 
-	isValid, err := radixvalidators.CanRadixDeploymentBeInserted(cli.GetRadixclient(), radixDeployment)
-	if !isValid {
+	err = radixvalidators.CanRadixDeploymentBeInserted(radixDeployment)
+	if err != nil {
 		return err
 	}
 

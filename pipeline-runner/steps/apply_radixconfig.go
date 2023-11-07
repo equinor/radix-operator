@@ -498,10 +498,10 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 		ra.Name = strings.ToLower(ra.Name)
 	}
 
-	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(radixClient, ra)
-	if !isRAValid {
+	err = validate.CanRadixApplicationBeInserted(radixClient, ra)
+	if err != nil {
 		log.Errorf("Radix config not valid.")
-		return nil, errorUtils.Concat(errs)
+		return nil, err
 	}
 	return ra, nil
 }
