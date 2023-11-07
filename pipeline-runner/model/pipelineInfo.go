@@ -183,10 +183,9 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	targetEnvironments := applicationConfig.GetTargetEnvironments(info.PipelineArguments.Branch)
 
 	// For deploy-only pipeline
-	if info.IsPipelineType(radixv1.Deploy) {
-		if !slice.Any(targetEnvironments, func(s string) bool { return s == info.PipelineArguments.ToEnvironment }) {
-			targetEnvironments = append(targetEnvironments, info.PipelineArguments.ToEnvironment)
-		}
+	if info.IsPipelineType(radixv1.Deploy) &&
+		!slice.Any(targetEnvironments, func(s string) bool { return s == info.PipelineArguments.ToEnvironment }) {
+		targetEnvironments = append(targetEnvironments, info.PipelineArguments.ToEnvironment)
 	}
 
 	info.TargetEnvironments = targetEnvironments

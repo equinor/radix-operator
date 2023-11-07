@@ -149,7 +149,31 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	multiComponentDockerfile := getMultiComponentDockerfiles(distinctComponentsToBuild)
 	pipelineInfo.BuildComponentImages = getBuildComponents(distinctComponentsToBuild, multiComponentDockerfile, pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.PipelineArguments.ImageTag, pipelineInfo.RadixApplication)
 	pipelineInfo.DeployEnvironmentComponentImages = getEnvironmentDeployComponents(componentImageSources, pipelineInfo.BuildComponentImages, pipelineInfo.PipelineArguments.ImageTagNames)
+
+	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
+		printEnvironmentComponentImageSources(componentImageSources)
+	}
+
 	return nil
+}
+
+func printEnvironmentComponentImageSources(imageSources environmentComponentSourceMap) {
+	log.Info("Component image source in environments:")
+	for envName, envInfo := range imageSources {
+		log.Infof("  %s:", envName)
+		for _, comp := range envInfo.Components {
+			var imageSource string
+			switch comp.ImageSource {
+			case fromDeployment:
+				imageSource = "active deployment"
+			case fromBuild:
+				imageSource = "build"
+			case fromImagePath:
+				imageSource = "image in radixconfig"
+			}
+			log.Infof("    - %s from %s", comp.ComponentName, imageSource)
+		}
+	}
 }
 
 type (
@@ -336,6 +360,9 @@ func isRadixConfigNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, ra *
 		return true, nil
 	}
 	hashEqual, err := compareRadixApplicationHash(currentRdConfigHash, ra)
+	if !hashEqual {
+		log.Infof("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
+	}
 	return !hashEqual, err
 }
 
@@ -348,6 +375,9 @@ func isBuildSecretNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, buil
 		return true, nil
 	}
 	hashEqual, err := compareBuildSecretHash(targetHash, buildSecret)
+	if !hashEqual {
+		log.Infof("Build secrets updated since last deployment to environment %s", rd.Spec.Environment)
+	}
 	return !hashEqual, err
 }
 
@@ -448,10 +478,10 @@ func printPrepareBuildContext(prepareBuildContext *model.PrepareBuildContext) {
 		log.Infoln("Radix config file was changed in the repository")
 	}
 	if len(prepareBuildContext.EnvironmentsToBuild) > 0 {
-		log.Infoln("Components to build in environments:")
+		log.Infoln("Components with changed source code in environments:")
 		for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
 			if len(environmentToBuild.Components) == 0 {
-				log.Infof(" - %s: no components or jobs with changed source", environmentToBuild.Environment)
+				log.Infof(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
 			} else {
 				log.Infof(" - %s: %s", environmentToBuild.Environment, strings.Join(environmentToBuild.Components, ","))
 			}

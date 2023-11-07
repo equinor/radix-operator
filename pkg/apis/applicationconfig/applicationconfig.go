@@ -106,8 +106,14 @@ func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
 }
 
 // GetTargetEnvironments Checks if given branch requires deployment to environments
-func (app *ApplicationConfig) GetTargetEnvironments(branch string) []string {
-	return getTargetEnvironments(branch, app.config)
+func (app *ApplicationConfig) GetTargetEnvironments(branchToBuild string) []string {
+	var targetEnvs []string
+	for _, env := range app.config.Spec.Environments {
+		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
+			targetEnvs = append(targetEnvs, env.Name)
+		}
+	}
+	return targetEnvs
 }
 
 // ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it
@@ -201,16 +207,6 @@ func (app *ApplicationConfig) createEnvironments() error {
 	}
 
 	return nil
-}
-
-func getTargetEnvironments(branchToBuild string, radixApplication *v1.RadixApplication) []string {
-	var targetEnvs []string
-	for _, env := range radixApplication.Spec.Environments {
-		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
-			targetEnvs = append(targetEnvs, env.Name)
-		}
-	}
-	return targetEnvs
 }
 
 // applyEnvironment creates an environment or applies changes if it exists
