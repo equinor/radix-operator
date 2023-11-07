@@ -12,7 +12,6 @@ import (
 	"unicode"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -28,10 +27,6 @@ import (
 
 const (
 	maximumNumberOfEgressRules = 1000
-	maxPortNameLength          = 15
-	minimumPortNumber          = 1024
-	maximumPortNumber          = 65535
-	cpuRegex                   = "^[0-9]+m$"
 	azureClientIdResourceName  = "identity.azure.clientId"
 )
 
@@ -56,7 +51,6 @@ var (
 		validateHPAConfigForRA,
 		validateVolumeMountConfigForRA,
 		ValidateNotificationsForRA,
-		validateDNSAlias,
 	}
 )
 
@@ -64,9 +58,12 @@ var (
 type RadixApplicationValidator func(radixApplication *radixv1.RadixApplication) error
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
-func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication, additionalValidators ...RadixApplicationValidator) error {
+func CanRadixApplicationBeInserted(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string, additionalValidators ...RadixApplicationValidator) error {
 
-	validators := append(requiredRadixApplicationValidators, validateDoesRRExistFactory(client))
+	validators := append(requiredRadixApplicationValidators,
+		validateDoesRRExistFactory(radixClient),
+		validateDNSAliasFactory(radixClient, dnsAliasAppReserved, dnsAliasReserved),
+	)
 	validators = append(validators, additionalValidators...)
 
 	return validateRadixApplication(app, validators...)
@@ -115,7 +112,13 @@ func validateDoesRRExistFactory(client radixclient.Interface) RadixApplicationVa
 	}
 }
 
-func validatePrivateImageHubs(app *radixv1.RadixApplication) []error {
+func validateDNSAliasFactory(client radixclient.Interface, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) RadixApplicationValidator {
+	return func(radixApplication *radixv1.RadixApplication) error {
+		return validateDNSAlias(client, radixApplication, dnsAliasAppReserved, dnsAliasReserved)
+	}
+}
+
+func validatePrivateImageHubs(app *radixv1.RadixApplication) error {
 	var errs []error
 	for server, config := range app.Spec.PrivateImageHubs {
 		if config.Username == "" {
@@ -136,31 +139,14 @@ func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 }
 
 func validateDNSAppAlias(app *radixv1.RadixApplication) error {
-	errs := []error{}
-	alias := app.Spec.DNSAppAlias
-	if alias.Component == "" && alias.Environment == "" {
-		return nil
-	}
-
-	if !doesEnvExist(app, alias.Environment) {
-		errs = append(errs, EnvForDNSAppAliasNotDefinedErrorWithMessage(alias.Environment))
-	}
-	if !doesComponentExistInEnvironment(app, alias.Component, alias.Environment) {
-		errs = append(errs, ComponentForDNSAppAliasNotDefinedErrorWithMessage(alias.Component))
-	}
-	return errors.Join(errs...)
+	return validateDNSAppAliasComponentAndEnvironmentAvailable(app)
 }
 
-func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
-	alias := app.Spec.DNSAppAlias
-	return validateDNSAppAliasComponentAndEnvironmentAvailable(app, alias.Component, alias.Environment)
-}
-
-func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixApplication) []error {
+func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) error {
 	var errs []error
 	radixDNSAliasMap, err := kube.GetRadixDNSAliasMapWithSelector(radixClient, "")
 	if err != nil {
-		return []error{err}
+		return err
 	}
 	uniqueDomainNames := make(map[string]struct{})
 	for _, dnsAlias := range app.Spec.DNSAlias {
@@ -194,21 +180,23 @@ func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixAppli
 			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Domain))
 		}
 	}
-	return errs
+	return errors.Join(errs...)
 }
 
-func validateDNSAppAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) []error {
+func validateDNSAppAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication) error {
+	alias := app.Spec.DNSAppAlias
+	if alias.Component == "" && alias.Environment == "" {
+		return nil
+	}
+
 	var errs []error
-	if component == "" && environment == "" {
-		return errs
+	if !doesEnvExist(app, alias.Environment) {
+		errs = append(errs, EnvForDNSAppAliasNotDefinedErrorWithMessage(alias.Environment))
 	}
-	if !doesEnvExist(app, environment) {
-		errs = append(errs, EnvForDNSAppAliasNotDefinedError(environment))
+	if !doesComponentExistInEnvironment(app, alias.Component, alias.Environment) {
+		errs = append(errs, ComponentForDNSAppAliasNotDefinedErrorWithMessage(alias.Component))
 	}
-	if !doesComponentExistInEnvironment(app, component, environment) {
-		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(component))
-	}
-	return errs
+	return errors.Join(errs...)
 }
 
 func validateDNSAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) error {
@@ -455,7 +443,7 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 		return nil
 	}
 
-	var errors []error
+	var errs []error
 	for _, environment := range environments {
 		environmentAuth := envAuthConfigGetter(environment.Name)
 		if componentAuth == nil && environmentAuth == nil {
@@ -463,19 +451,19 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 		}
 		combinedAuth, err := deployment.GetAuthenticationForComponent(componentAuth, environmentAuth)
 		if err != nil {
-			errors = append(errors, err)
+			errs = append(errs, err)
 		}
 		if combinedAuth == nil {
 			continue
 		}
 
 		if err := validateClientCertificate(combinedAuth.ClientCertificate); err != nil {
-			errors = append(errors, err)
+			errs = append(errs, err)
 		}
 
-		errors = append(errors, validateOAuth(combinedAuth.OAuth2, component.GetName(), environment.Name)...)
+		errs = append(errs, validateOAuth(combinedAuth.OAuth2, component.GetName(), environment.Name)...)
 	}
-	return errors
+	return errs
 }
 
 func validateClientCertificate(clientCertificate *radixv1.ClientCertificate) error {

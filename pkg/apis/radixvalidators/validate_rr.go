@@ -2,16 +2,15 @@ package radixvalidators
 
 import (
 	"context"
-	errors2 "errors"
 	"fmt"
 	"regexp"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/errors"
+	commonErrors "github.com/equinor/radix-common/utils/errors"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -20,7 +19,7 @@ const (
 )
 
 var (
-	ErrInvalidRadixConfigFullName = errors2.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
+	ErrInvalidRadixConfigFullName = fmt.Errorf("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
 
 	requiredRadixRegistrationValidators []RadixRegistrationValidator = []RadixRegistrationValidator{
 		validateRadixRegistrationAppName,
@@ -74,7 +73,7 @@ func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validato
 			errs = append(errs, err)
 		}
 	}
-	return errors.Concat(errs)
+	return commonErrors.Concat(errs)
 }
 
 // GetRadixRegistrationBeInsertedWarnings Get warnings for inserting RadixRegistration
@@ -133,7 +132,7 @@ func validateRequiredResourceName(resourceName, value string) error {
 
 	isValid := re.MatchString(value)
 	if !isValid {
-		return InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage(resourceName, value)
+		return InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage(resourceName, value)
 	}
 
 	return nil
@@ -203,7 +202,7 @@ func validateSSHKey(deployKey string) error {
 func validateDoesRRExist(client radixclient.Interface, appName string) error {
 	_, err := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
 	if err != nil {
-		if k8serrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			return NoRegistrationExistsForApplicationErrorWithMessage(appName)
 		}
 		return err

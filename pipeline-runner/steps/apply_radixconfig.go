@@ -199,7 +199,7 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 		ra.Name = strings.ToLower(ra.Name)
 	}
 
-	err = validate.CanRadixApplicationBeInserted(radixClient, ra)
+	err = validate.CanRadixApplicationBeInserted(radixClient, ra, nil, nil)
 	if err != nil {
 		log.Errorf("Radix config not valid.")
 		return nil, err

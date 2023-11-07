@@ -1,21 +1,21 @@
 package radixvalidators
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/pkg/errors"
 )
 
 var (
 	ErrMissingPrivateImageHubUsername                                      = errors.New("missing private image hub username")
-	ErrEnvForDNSAppAliasNotDefined                                         = errors.New("env for dnsapp alias not defined")
-	ErrComponentForDNSAppAliasNotDefined                                   = errors.New("component for dnsapp alias not defined")
+	ErrEnvForDNSAppAliasNotDefined                                         = errors.New("env for dns app alias not defined")
+	ErrComponentForDNSAppAliasNotDefined                                   = errors.New("component for dns app alias not defined")
 	ErrExternalAliasCannotBeEmpty                                          = errors.New("external alias cannot be empty")
-	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dnsexternal alias not defined")
-	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dnsexternal alias not defined")
-	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dnsexternal alias is not marked as public")
+	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dns external alias not defined")
+	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dns external alias not defined")
+	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
 	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
 	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
 	ErrPortSpecificationCannotBeEmptyForComponent                          = errors.New("port specification cannot be empty for component")
@@ -25,7 +25,7 @@ var (
 	ErrSchedulerPortCannotBeEmptyForJob                                    = errors.New("scheduler port cannot be empty for job")
 	ErrPayloadPathCannotBeEmptyForJob                                      = errors.New("payload path cannot be empty for job")
 	ErrMemoryResourceRequirementFormat                                     = errors.New("memory resource requirement format")
-	ErrCPUResourceRequirementFormat                                        = errors.New("cpuresource requirement format")
+	ErrCPUResourceRequirementFormat                                        = errors.New("cpu resource requirement format")
 	ErrInvalidVerificationType                                             = errors.New("invalid verification")
 	ErrResourceRequestOverLimit                                            = errors.New("resource request over limit")
 	ErrInvalidResource                                                     = errors.New("invalid resource")
@@ -56,7 +56,7 @@ var (
 	ErrInvalidUUID                                                         = errors.New("invalid")
 	ErrInvalidEmail                                                        = errors.New("invalid email")
 	ErrInvalidResourceName                                                 = errors.New("invalid resource name")
-	ErrInvalidLowerCaseAlphaNumericDotDashResourceName                     = errors.New("invalid lower case alpha numeric dot dash resource name")
+	ErrInvalidLowerCaseAlphaNumericDashResourceName                        = errors.New("invalid lower case alpha numeric dash resource name")
 	ErrNoRegistrationExistsForApplication                                  = errors.New("no registration exists for application")
 	ErrInvalidConfigBranchName                                             = errors.New("invalid config branch")
 	ErrOauth                                                               = errors.New("oauth error")
@@ -374,9 +374,9 @@ func InvalidResourceNameErrorWithMessage(resourceName, value string) error {
 	return errors.WithMessagef(ErrInvalidResourceName, "%s %s can only consist of alphanumeric characters and '-'", resourceName, value)
 }
 
-// InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage Invalid lower case alpha-numeric, dash resource name error
-func InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage(resourceName, value string) error {
-	return errors.WithMessagef(ErrInvalidLowerCaseAlphaNumericDotDashResourceName, "%s %s can only consist of lower case alphanumeric characters and '-'", resourceName, value)
+// InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage Invalid lower case alphanumeric, dash resource name error
+func InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage(resourceName, value string) error {
+	return errors.WithMessagef(ErrInvalidLowerCaseAlphaNumericDashResourceName, "%s %s can only consist of lower case alphanumeric characters and '-'", resourceName, value)
 }
 
 // NoRegistrationExistsForApplicationErrorWithMessage No registration exists

@@ -7,7 +7,6 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
@@ -24,7 +23,7 @@ type updateRAFunc func(rr *v1.RadixApplication)
 func Test_valid_ra_returns_true(t *testing.T) {
 	_, client := validRASetup()
 	validRA := createValidRA()
-	err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+	err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 	assert.NoError(t, err)
 }
@@ -32,7 +31,7 @@ func Test_missing_rr(t *testing.T) {
 	client := radixfake.NewSimpleClientset()
 	validRA := createValidRA()
 
-	err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+	err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 	assert.Error(t, err)
 }
@@ -104,7 +103,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long app name", radixvalidators.InvalidAppNameLengthErrorWithMessage(wayTooLongName), func(ra *v1.RadixApplication) {
 			ra.Name = wayTooLongName
 		}},
-		{"invalid app name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage("app name", invalidResourceName), func(ra *v1.RadixApplication) {
+		{"invalid app name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("app name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Name = invalidResourceName
 		}},
 		{"empty name", radixvalidators.ResourceNameCannotBeEmptyErrorWithMessage("app name"), func(ra *v1.RadixApplication) {
@@ -120,10 +119,10 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"invalid component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage("component name", invalidResourceName), func(ra *v1.RadixApplication) {
+		{"invalid component name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("component name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Name = invalidResourceName
 		}},
-		{"uppercase component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage("component name", invalidUpperCaseResourceName), func(ra *v1.RadixApplication) {
+		{"uppercase component name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("component name", invalidUpperCaseResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Name = invalidUpperCaseResourceName
 		}},
 		{"duplicate component name", radixvalidators.DuplicateComponentOrJobNameErrorWithMessage([]string{validRAFirstComponentName}), func(ra *v1.RadixApplication) {
@@ -138,7 +137,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid port specification. Empty value", radixvalidators.PortSpecificationCannotBeEmptyForComponentErrorWithMessage(validRAFirstComponentName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Ports = []v1.ComponentPort{}
 		}},
-		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage("port name", invalidResourceName), func(ra *v1.RadixApplication) {
+		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("port name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Ports[0].Name = invalidResourceName
 		}},
 		{"too long port name", radixvalidators.InvalidPortNameLengthErrorWithMessage(tooLongPortName), func(ra *v1.RadixApplication) {
@@ -189,7 +188,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
 		}},
-		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage("env name", invalidResourceName), func(ra *v1.RadixApplication) {
+		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("env name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Name = invalidResourceName
 		}},
 		{"invalid branch name", radixvalidators.InvalidBranchNameErrorWithMessage(invalidBranchName), func(ra *v1.RadixApplication) {
@@ -201,19 +200,19 @@ func Test_invalid_ra(t *testing.T) {
 		{"dns app alias non existing component", radixvalidators.ComponentForDNSAppAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAppAlias.Component = nonExistingComponent
 		}},
-		{"dns app alias non existing env", radixvalidators.EnvForDNSAppAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
+		{"dns app alias non existing env", radixvalidators.EnvForDNSAppAliasNotDefinedErrorWithMessage(noExistingEnvironment), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAppAlias.Environment = noExistingEnvironment
 		}},
-		{"dns alias is empty", radixvalidators.ResourceNameCannotBeEmptyError("dnsAlias component"), func(ra *v1.RadixApplication) {
+		{"dns alias is empty", radixvalidators.ResourceNameCannotBeEmptyErrorWithMessage("dnsAlias component"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Component = ""
 		}},
-		{"dns alias is empty", radixvalidators.ResourceNameCannotBeEmptyError("dnsAlias environment"), func(ra *v1.RadixApplication) {
+		{"dns alias is empty", radixvalidators.ResourceNameCannotBeEmptyErrorWithMessage("dnsAlias environment"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Environment = ""
 		}},
-		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("dnsAlias component", "component.abc"), func(ra *v1.RadixApplication) {
+		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("dnsAlias component", "component.abc"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Component = "component.abc"
 		}},
-		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("dnsAlias environment", "environment.abc"), func(ra *v1.RadixApplication) {
+		{"dns alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("dnsAlias environment", "environment.abc"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Environment = "environment.abc"
 		}},
 		{"dns alias non existing component", radixvalidators.ComponentForDNSAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
@@ -222,10 +221,10 @@ func Test_invalid_ra(t *testing.T) {
 		{"dns alias non existing env", radixvalidators.EnvForDNSAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Environment = noExistingEnvironment
 		}},
-		{"dns alias domain is empty", radixvalidators.ResourceNameCannotBeEmptyError("dnsAlias domain"), func(ra *v1.RadixApplication) {
+		{"dns alias domain is empty", radixvalidators.ResourceNameCannotBeEmptyErrorWithMessage("dnsAlias domain"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Domain = ""
 		}},
-		{"dns alias domain is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameError("dnsAlias domain", "my.domain"), func(ra *v1.RadixApplication) {
+		{"dns alias domain is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("dnsAlias domain", "my.domain"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Domain = "my.domain"
 		}},
 		{"dns alias domain is invalid", radixvalidators.DuplicateDomainForDNSAliasError("my-domain"), func(ra *v1.RadixApplication) {
@@ -672,7 +671,7 @@ func Test_invalid_ra(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			if testcase.expectedError != nil {
 				assert.Error(t, err)
@@ -769,7 +768,7 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			assert.NoError(t, err)
 		})
@@ -852,7 +851,7 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			assert.NoError(t, err)
 		})
@@ -887,7 +886,7 @@ func Test_InvalidRAComponentLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			assert.Error(t, err)
 		})
@@ -922,7 +921,7 @@ func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			assert.Error(t, err)
 		})
@@ -1063,7 +1062,7 @@ func Test_PublicPort(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			if testcase.isValid {
 				assert.NoError(t, err)
@@ -1146,7 +1145,7 @@ func Test_Variables(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			if testcase.isValid {
 				assert.NoError(t, err)
@@ -1460,7 +1459,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				validRA := createValidRA()
 				volumes := testcase.volumeMounts()
 				ra(validRA, volumes)
-				err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+				err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 				isErrorNil := err == nil
 
 				assert.Equal(t, testcase.isValid, err == nil)
@@ -1555,7 +1554,7 @@ func Test_ValidHPA_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			if testcase.isValid {
 				assert.NoError(t, err)
@@ -1731,7 +1730,7 @@ func Test_EgressConfig(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, nil, nil)
 
 			if testcase.isValid {
 				assert.NoError(t, err)

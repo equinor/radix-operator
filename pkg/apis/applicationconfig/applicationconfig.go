@@ -128,8 +128,8 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Debugf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
-			if _, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(app.radixclient, app.config, app.dnsAliasAppReserved, app.dnsAliasReserved); len(errs) > 0 {
-				return commonErrors.Concat(errs)
+			if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasAppReserved, app.dnsAliasReserved); err != nil {
+				return err
 			}
 			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), app.config, metav1.CreateOptions{})
 			if err != nil {
@@ -147,8 +147,8 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		return nil
 	}
 
-	if _, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(app.radixclient, app.config, app.dnsAliasAppReserved, app.dnsAliasReserved); len(errs) > 0 {
-		return commonErrors.Concat(errs)
+	if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasAppReserved, app.dnsAliasReserved); err != nil {
+		return err
 	}
 
 	// Update RA if different
