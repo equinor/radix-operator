@@ -16,12 +16,12 @@ type JobComponentsBuilder interface {
 type jobComponentsBuilder struct {
 	ra              *v1.RadixApplication
 	env             string
-	componentImages map[string]pipeline.ComponentImage
+	componentImages pipeline.DeployComponentImages
 	defaultEnvVars  v1.EnvVarsMap
 }
 
 // NewJobComponentsBuilder constructor for JobComponentsBuilder
-func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage, defaultEnvVars v1.EnvVarsMap) JobComponentsBuilder {
+func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars v1.EnvVarsMap) JobComponentsBuilder {
 	return &jobComponentsBuilder{
 		ra:              ra,
 		env:             env,
@@ -78,7 +78,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		return nil, commonErrors.Concat(errs)
 	}
 
-	image, err := getImagePath(componentName, &componentImage, environmentSpecificConfig)
+	image, err := getImagePath(componentName, componentImage, environmentSpecificConfig)
 	if err != nil {
 		return nil, err
 	}

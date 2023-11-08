@@ -94,7 +94,7 @@ func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.Ra
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages map[string]pipeline.ComponentImage, env string, defaultEnvVars v1.EnvVarsMap) (*v1.RadixDeployment, error) {
+func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages pipeline.DeployComponentImages, env string, defaultEnvVars v1.EnvVarsMap, radixConfigHash, buildSecretHash string) (*v1.RadixDeployment, error) {
 	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
 	components, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars)
@@ -105,7 +105,7 @@ func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, 
 	if err != nil {
 		return nil, err
 	}
-	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, components, jobs)
+	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, components, jobs, radixConfigHash, buildSecretHash)
 	return radixDeployment, nil
 }
 
@@ -478,12 +478,19 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
 	return nil
 }
 
-func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) *v1.RadixDeployment {
+func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
 	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
+	}
+	annotations := map[string]string{
+		kube.RadixBranchAnnotation:  branch,
+		kube.RadixGitTagsAnnotation: gitTags,
+		kube.RadixCommitAnnotation:  commitID,
+		kube.RadixBuildSecretHash:   buildSecretHash,
+		kube.RadixConfigHash:        radixConfigHash,
 	}
 
 	radixDeployment := &v1.RadixDeployment{
@@ -496,11 +503,7 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 				kube.RadixCommitLabel:  commitID,
 				kube.RadixJobNameLabel: jobName,
 			},
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:  branch,
-				kube.RadixGitTagsAnnotation: gitTags,
-				kube.RadixCommitAnnotation:  commitID,
-			},
+			Annotations: annotations,
 		},
 		Spec: v1.RadixDeploymentSpec{
 			AppName:          appName,

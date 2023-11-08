@@ -56,16 +56,12 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 	appName := cli.GetAppName()
 	log.Infof("Deploying app %s", appName)
 
-	if !pipelineInfo.BranchIsMapped {
+	if len(pipelineInfo.TargetEnvironments) == 0 {
 		log.Infof("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 		return nil
 	}
 
-	for env, shouldDeploy := range pipelineInfo.TargetEnvironments {
-		if !shouldDeploy {
-			continue
-		}
-
+	for _, env := range pipelineInfo.TargetEnvironments {
 		err := cli.deployToEnv(appName, env, pipelineInfo)
 		if err != nil {
 			return err
@@ -77,7 +73,6 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 
 func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineInfo *model.PipelineInfo) error {
 	defaultEnvVars, err := getDefaultEnvVars(pipelineInfo)
-
 	if err != nil {
 		return fmt.Errorf("failed to retrieve default env vars for RadixDeployment in app  %s. %v", appName, err)
 	}
@@ -85,14 +80,28 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	if commitID, ok := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]; !ok || len(commitID) == 0 {
 		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
+
+	radixApplicationHash, err := createRadixApplicationHash(pipelineInfo.RadixApplication)
+	if err != nil {
+		return err
+	}
+
+	buildSecretHash, err := createBuildSecretHash(pipelineInfo.BuildSecret)
+	if err != nil {
+		return err
+	}
+
 	radixDeployment, err := deployment.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
 		pipelineInfo.PipelineArguments.Branch,
-		pipelineInfo.ComponentImages,
+		pipelineInfo.DeployEnvironmentComponentImages[env],
 		env,
-		defaultEnvVars)
+		defaultEnvVars,
+		radixApplicationHash,
+		buildSecretHash,
+	)
 
 	if err != nil {
 		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)

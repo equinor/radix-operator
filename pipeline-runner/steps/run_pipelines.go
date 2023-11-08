@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
+	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	pipelineinternal "github.com/equinor/radix-operator/pipeline-runner/utils"
-	pipelinewait "github.com/equinor/radix-operator/pipeline-runner/wait"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -27,12 +27,12 @@ import (
 type RunPipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	jobWaiter pipelinewait.JobCompletionWaiter
+	jobWaiter internalwait.JobCompletionWaiter
 }
 
 // NewRunPipelinesStep Constructor.
 // jobWaiter is optional and will be set by Init(...) function if nil.
-func NewRunPipelinesStep(jobWaiter pipelinewait.JobCompletionWaiter) model.Step {
+func NewRunPipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
 	return &RunPipelinesStepImplementation{
 		stepType:  pipeline.RunPipelinesStep,
 		jobWaiter: jobWaiter,
@@ -42,7 +42,7 @@ func NewRunPipelinesStep(jobWaiter pipelinewait.JobCompletionWaiter) model.Step 
 func (step *RunPipelinesStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = pipelinewait.NewJobCompletionWaiter(kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(kubeclient)
 	}
 }
 
@@ -144,5 +144,5 @@ func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipeli
 			Value: pipelineInfo.PipelineArguments.LogLevel,
 		},
 	}
-	return pipelineinternal.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
+	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
 }

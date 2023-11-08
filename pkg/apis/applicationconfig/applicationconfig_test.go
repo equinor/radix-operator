@@ -1,4 +1,4 @@
-package applicationconfig_test
+package applicationconfig
 
 import (
 	"context"
@@ -47,7 +47,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 
 func getApplication(ra *radixv1.RadixApplication) *applicationconfig.ApplicationConfig {
 	// The other arguments are not relevant for this test
-	application, _ := applicationconfig.NewApplicationConfig(nil, nil, nil, nil, ra, nil, nil)
+	application := applicationconfig.NewApplicationConfig(nil, nil, nil, nil, ra, nil, nil)
 	return application
 }
 
@@ -56,7 +56,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
-	app, _ := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp, nil, nil)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp, nil, nil)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
@@ -117,7 +117,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	app, _ := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil, nil)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil, nil)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
@@ -139,12 +139,8 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T)
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.True(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], true)
-	assert.Equal(t, targetEnvs["qa"], true)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.ElementsMatch(t, []string{"prod", "qa"}, targetEnvs)
 }
 
 func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_ListsBothButNoneIsBuilding(t *testing.T) {
@@ -156,12 +152,8 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_Lis
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.False(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], false)
-	assert.Equal(t, targetEnvs["qa"], false)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.Equal(t, 0, len(targetEnvs))
 }
 
 func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
@@ -173,12 +165,8 @@ func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBu
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.True(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], false)
-	assert.Equal(t, targetEnvs["qa"], true)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
 func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
@@ -190,12 +178,8 @@ func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.False(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, false, targetEnvs["qa"])
-	assert.Equal(t, false, targetEnvs["prod"])
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.Equal(t, 0, len(targetEnvs))
 }
 
 func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
@@ -205,9 +189,7 @@ func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.False(t, isThereAnythingToDeploy)
+	targetEnvs := application.GetTargetEnvironments(branch)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -220,12 +202,8 @@ func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuil
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.True(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], false)
-	assert.Equal(t, targetEnvs["qa"], true)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
 func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
@@ -237,36 +215,8 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 		BuildRA()
 
 	application := getApplication(ra)
-	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
-
-	assert.True(t, isThereAnythingToDeploy)
-	assert.Equal(t, 2, len(targetEnvs))
-	assert.Equal(t, targetEnvs["prod"], false)
-	assert.Equal(t, targetEnvs["feature"], true)
-}
-
-func TestIsTargetEnvsEmpty_noEntry(t *testing.T) {
-	ra := utils.NewRadixApplicationBuilder().BuildRA()
-	hasEnvToDeploy, _ := applicationconfig.IsThereAnythingToDeployForRadixApplication("main", ra)
-	assert.False(t, hasEnvToDeploy)
-}
-
-func TestIsTargetEnvsEmpty_twoEntriesWithBranchMapping(t *testing.T) {
-	ra := utils.NewRadixApplicationBuilder().WithEnvironment("qa", "main").WithEnvironment("qa", "main").BuildRA()
-	hasEnvToDeploy, _ := applicationconfig.IsThereAnythingToDeployForRadixApplication("main", ra)
-	assert.True(t, hasEnvToDeploy)
-}
-
-func TestIsTargetEnvsEmpty_twoEntriesWithNoMapping(t *testing.T) {
-	ra := utils.NewRadixApplicationBuilder().WithEnvironment("qa", "main").WithEnvironment("prod", "release").BuildRA()
-	hasEnvToDeploy, _ := applicationconfig.IsThereAnythingToDeployForRadixApplication("test", ra)
-	assert.False(t, hasEnvToDeploy)
-}
-
-func TestIsTargetEnvsEmpty_twoEntriesWithOneMapping(t *testing.T) {
-	ra := utils.NewRadixApplicationBuilder().WithEnvironment("qa", "main").WithEnvironment("prod", "release").BuildRA()
-	hasEnvToDeploy, _ := applicationconfig.IsThereAnythingToDeployForRadixApplication("main", ra)
-	assert.True(t, hasEnvToDeploy)
+	targetEnvs := application.GetTargetEnvironments(branch)
+	assert.ElementsMatch(t, []string{"feature"}, targetEnvs)
 }
 
 func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
@@ -403,7 +353,7 @@ func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 	assert.True(t, roleBindingByNameExists("radix-private-image-hubs-reader", rolebindings))
 }
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -418,7 +368,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
-	client, appConfig, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, appConfig := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -446,7 +396,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) 
 		},
 	})
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -472,7 +422,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateUsername(t *testing.T) {
 		},
 	})
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abb2",
 			Email:    "radix@equinor.com",
@@ -494,7 +444,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T)
 		},
 	})
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme1.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -508,7 +458,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T)
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -524,7 +474,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
 
-	client, _, _ = applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _ = applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -538,7 +488,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
-	client, appConfig, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
+	client, appConfig := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
 	pendingSecrets, _ := appConfig.GetPendingPrivateImageHubSecrets()
 
 	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
@@ -682,11 +632,11 @@ func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEn
 	if err != nil {
 		return nil, nil, err
 	}
-	appConfig, err := getAppConfig(client, kubeUtil, radixClient, appBuilder)
+	appConfig := getAppConfig(client, kubeUtil, radixClient, appBuilder)
 	return client, appConfig, err
 }
 
-func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) (*applicationconfig.ApplicationConfig, error) {
+func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) *applicationconfig.ApplicationConfig {
 	ra := applicationBuilder.BuildRA()
 	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
 

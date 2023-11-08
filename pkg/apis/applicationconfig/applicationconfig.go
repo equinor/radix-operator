@@ -39,7 +39,7 @@ type ApplicationConfig struct {
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) (*ApplicationConfig, error) {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) *ApplicationConfig {
 	return &ApplicationConfig{
 		kubeclient:          kubeclient,
 		radixclient:         radixclient,
@@ -48,7 +48,7 @@ func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, 
 		config:              config,
 		dnsAliasAppReserved: dnsAliasAppReserved,
 		dnsAliasReserved:    dnsAliasReserved,
-	}, nil
+	}
 }
 
 // GetRadixApplicationConfig returns the provided config
@@ -106,18 +106,15 @@ func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
-// IsThereAnythingToDeploy Checks if given branch requires deployment to environments
-func (app *ApplicationConfig) IsThereAnythingToDeploy(branch string) (bool, map[string]bool) {
-	return IsThereAnythingToDeployForRadixApplication(branch, app.config)
-}
-
-// IsThereAnythingToDeployForRadixApplication Checks if given branch requires deployment to environments
-func IsThereAnythingToDeployForRadixApplication(branch string, ra *radixv1.RadixApplication) (bool, map[string]bool) {
-	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
-	if isTargetEnvsEmpty(targetEnvs) {
-		return false, targetEnvs
+// GetTargetEnvironments Checks if given branch requires deployment to environments
+func (app *ApplicationConfig) GetTargetEnvironments(branchToBuild string) []string {
+	var targetEnvs []string
+	for _, env := range app.config.Spec.Environments {
+		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
+			targetEnvs = append(targetEnvs, env.Name)
+		}
 	}
-	return true, targetEnvs
+	return targetEnvs
 }
 
 // ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it
@@ -214,35 +211,6 @@ func (app *ApplicationConfig) createEnvironments() error {
 	return commonErrors.Concat(errs)
 }
 
-func getTargetEnvironmentsAsMap(branchToBuild string, radixApplication *radixv1.RadixApplication) map[string]bool {
-	targetEnvs := make(map[string]bool)
-	for _, env := range radixApplication.Spec.Environments {
-		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
-			// Deploy environment
-			targetEnvs[env.Name] = true
-		} else {
-			// Only create namespace for environment
-			targetEnvs[env.Name] = false
-		}
-	}
-	return targetEnvs
-}
-
-func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
-	if len(targetEnvs) == 0 {
-		return true
-	}
-
-	// Check if all values are false
-	falseCount := 0
-	for _, value := range targetEnvs {
-		if !value {
-			falseCount++
-		}
-	}
-	return falseCount == len(targetEnvs)
-}
-
 // applyEnvironment creates an environment or applies changes if it exists
 func (app *ApplicationConfig) applyEnvironment(newRe *radixv1.RadixEnvironment) error {
 	logger := log.WithFields(log.Fields{"environment": newRe.ObjectMeta.Name})
@@ -315,7 +283,7 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *rad
 		return fmt.Errorf("failed to marshal new RadixEnvironment object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, radixv1.RadixEnvironment{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, v1.RadixEnvironment{})
 	if err != nil {
 		return fmt.Errorf("failed to create patch document for RadixEnvironment object: %v", err)
 	}

@@ -75,8 +75,8 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
-	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	targetEnvs := applicationConfig.GetTargetEnvironments(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -86,7 +86,6 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 			CommitID: anyCommitID,
 		},
 		TargetEnvironments: targetEnvs,
-		BranchIsMapped:     branchIsMapped,
 	}
 
 	err := cli.Run(pipelineInfo)
@@ -181,8 +180,8 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
-	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy("master")
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	targetEnvs := applicationConfig.GetTargetEnvironments("master")
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -191,7 +190,6 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 			Branch:   "master",
 			CommitID: anyCommitID,
 		},
-		BranchIsMapped:     branchIsMapped,
 		TargetEnvironments: targetEnvs,
 		GitCommitHash:      anyCommitID,
 		GitTags:            anyGitTags,
@@ -297,7 +295,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
 
 	const commitID = "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
 
@@ -308,8 +306,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 			Branch:   "master",
 			CommitID: anyCommitID,
 		},
-		BranchIsMapped:     true,
-		TargetEnvironments: map[string]bool{"master": true},
+		TargetEnvironments: []string{"master"},
 		GitCommitHash:      commitID,
 		GitTags:            "",
 	}
