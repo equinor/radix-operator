@@ -48,6 +48,11 @@ spec:
                     items:
                       type: string
                     type: array
+                  useBuildCache:
+                    description: 'Defaults to true and requires useBuildKit to have
+                      an effect. Note: All layers will be cached and can be available
+                      for other Radix Apps. Do not add secrets to a Dockerfile layer.'
+                    type: boolean
                   useBuildKit:
                     description: 'Enables BuildKit when building Dockerfile. More
                       info about BuildKit: https://docs.docker.com/build/buildkit/'
@@ -1951,7 +1956,6 @@ spec:
                   properties:
                     email:
                       description: The email address linked to the username.
-                      minLength: 3
                       type: string
                     username:
                       description: Username with permission to pull images. The password
@@ -1959,7 +1963,6 @@ spec:
                       minLength: 1
                       type: string
                   required:
-                  - email
                   - username
                   type: object
                 description: 'Defines protected container registries used by components

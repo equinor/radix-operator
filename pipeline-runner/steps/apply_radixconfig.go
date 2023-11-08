@@ -50,13 +50,20 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	// Get radix application from config map
+	// Get pipeline info from configmap created by prepare pipeline step
 	namespace := utils.GetAppNamespace(cli.GetAppName())
 	configMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.RadixConfigMapName)
 	if err != nil {
 		return err
 	}
 
+	// Read build context info from configmap
+	pipelineInfo.PrepareBuildContext, err = getPrepareBuildContextContent(configMap)
+	if err != nil {
+		return err
+	}
+
+	// Read radixconfig from configmap
 	configFileContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapContent]
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
@@ -80,11 +87,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 
 	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
-
-	pipelineInfo.PrepareBuildContext, err = getPrepareBuildContextContent(configMap)
-	if err != nil {
-		return err
-	}
 
 	if pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
 		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
@@ -196,10 +198,10 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 		ra.Name = strings.ToLower(ra.Name)
 	}
 
-	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(radixClient, ra)
-	if !isRAValid {
+	err = validate.CanRadixApplicationBeInserted(radixClient, ra)
+	if err != nil {
 		log.Errorf("Radix config not valid.")
-		return nil, errorUtils.Concat(errs)
+		return nil, err
 	}
 	return ra, nil
 }

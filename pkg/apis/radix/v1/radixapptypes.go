@@ -100,6 +100,11 @@ type BuildSpec struct {
 	// More info about BuildKit: https://docs.docker.com/build/buildkit/
 	// +optional
 	UseBuildKit *bool `json:"useBuildKit,omitempty"`
+
+	// Defaults to true and requires useBuildKit to have an effect.
+	// Note: All layers will be cached and can be available for other Radix Apps. Do not add secrets to a Dockerfile layer.
+	// +optional
+	UseBuildCache *bool `json:"useBuildCache,omitempty"`
 }
 
 // Environment contains environment specific configuration.
@@ -650,7 +655,7 @@ type RadixPrivateImageHubCredential struct {
 	Username string `json:"username"`
 
 	// The email address linked to the username.
-	// +kubebuilder:validation:MinLength=3
+	// +optional
 	Email string `json:"email"`
 }
 

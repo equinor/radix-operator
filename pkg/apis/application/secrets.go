@@ -114,7 +114,12 @@ func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNames
 		return err
 	}
 
-	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild} {
+	tokenSecretForAppRegistry, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRTokenPasswordAppRegistrySecretName)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild, tokenSecretForAppRegistry} {
 		_, err = app.kubeutil.ApplySecret(buildNamespace, secret)
 		if err != nil {
 			return err

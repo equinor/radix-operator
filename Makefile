@@ -97,6 +97,7 @@ mocks:
 	mockgen -source ./pkg/apis/batch/syncer.go -destination ./pkg/apis/batch/syncer_mock.go -package batch
 	mockgen -source ./pkg/apis/batch/syncerfactory.go -destination ./pkg/apis/batch/syncerfactory_mock.go -package batch
 	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
+	mockgen -source ./pipeline-runner/wait/job.go -destination ./pipeline-runner/wait/job_mock.go -package wait
 
 .PHONY: build-pipeline
 build-pipeline:

@@ -1,4 +1,4 @@
-package onpush
+package pipelines
 
 import (
 	"context"
@@ -32,9 +32,8 @@ type PipelineRunner struct {
 	pipelineInfo             *model.PipelineInfo
 }
 
-// InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
-
+// NewRunner constructor
+func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
 		definition:               definition,
@@ -106,10 +105,10 @@ func (cli *PipelineRunner) TearDown() {
 
 func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, steps.NewPreparePipelinesStep())
+	stepImplementations = append(stepImplementations, steps.NewPreparePipelinesStep(nil))
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
-	stepImplementations = append(stepImplementations, steps.NewBuildStep())
-	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep())
+	stepImplementations = append(stepImplementations, steps.NewBuildStep(nil))
+	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep(nil))
 	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(cli.kubeclient)))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 

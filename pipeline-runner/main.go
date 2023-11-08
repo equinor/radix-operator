@@ -9,7 +9,7 @@ import (
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -71,7 +71,7 @@ func prepareRunner(pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner,
 		return nil, err
 	}
 
-	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, secretProviderClient, pipelineDefinition, pipelineArgs.AppName)
+	pipelineRunner := pipe.NewRunner(client, radixClient, prometheusOperatorClient, secretProviderClient, pipelineDefinition, pipelineArgs.AppName)
 
 	err = pipelineRunner.PrepareRun(pipelineArgs)
 	if err != nil {
@@ -97,6 +97,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.Clustertype, defaults.RadixClusterTypeEnvironmentVariable, "", "Cluster type")
 	cmd.Flags().StringVar(&pipelineArgs.Clustername, defaults.ClusternameEnvironmentVariable, "", "Cluster name")
 	cmd.Flags().StringVar(&pipelineArgs.ContainerRegistry, defaults.ContainerRegistryEnvironmentVariable, "", "Container registry")
+	cmd.Flags().StringVar(&pipelineArgs.AppContainerRegistry, defaults.AppContainerRegistryEnvironmentVariable, "", "App Container registry")
 	cmd.Flags().StringVar(&pipelineArgs.SubscriptionId, defaults.AzureSubscriptionIdEnvironmentVariable, "", "Azure Subscription ID")
 	cmd.Flags().StringVar(&pipelineArgs.RadixZone, defaults.RadixZoneEnvironmentVariable, "", "Radix zone")
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: /workspace/radixconfig.yaml")

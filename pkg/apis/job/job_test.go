@@ -43,6 +43,7 @@ type RadixJobTestSuiteBase struct {
 		radixZone      string
 		clusterType    string
 		registry       string
+		appRegistry    string
 		subscriptionID string
 	}
 }
@@ -58,6 +59,7 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		radixZone      string
 		clusterType    string
 		registry       string
+		appRegistry    string
 		subscriptionID string
 	}{
 		clusterName:    "AnyClusterName",
@@ -69,6 +71,7 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		radixZone:      "anyzone",
 		clusterType:    "anyclustertype",
 		registry:       "anyregistry",
+		appRegistry:    "anyAppRegistry",
 		subscriptionID: "anysubid",
 	}
 }
@@ -94,6 +97,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, s.config.clusterType)
 	s.T().Setenv(defaults.RadixZoneEnvironmentVariable, s.config.radixZone)
 	s.T().Setenv(defaults.ContainerRegistryEnvironmentVariable, s.config.registry)
+	s.T().Setenv(defaults.AppContainerRegistryEnvironmentVariable, s.config.appRegistry)
 	s.T().Setenv(defaults.RadixTektonPipelineImageEnvironmentVariable, s.config.tektonImage)
 	s.T().Setenv(defaults.RadixImageBuilderEnvironmentVariable, s.config.builderImage)
 	s.T().Setenv(defaults.RadixBuildahImageBuilderEnvironmentVariable, s.config.buildahImage)
@@ -210,6 +214,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_ZONE=%s", s.config.radixZone),
 				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config.clusterName),
 				fmt.Sprintf("--RADIX_CONTAINER_REGISTRY=%s", s.config.registry),
+				fmt.Sprintf("--RADIX_APP_CONTAINER_REGISTRY=%s", s.config.appRegistry),
 				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
