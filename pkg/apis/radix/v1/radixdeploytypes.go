@@ -19,6 +19,7 @@ type RadixDeployment struct {
 	Status             RadixDeployStatus   `json:"status" yaml:"status"`
 }
 
+// GetComponentByName returns the component matching the name parameter, or nil if not found
 func (rd *RadixDeployment) GetComponentByName(name string) *RadixDeployComponent {
 	for _, component := range rd.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
@@ -28,6 +29,7 @@ func (rd *RadixDeployment) GetComponentByName(name string) *RadixDeployComponent
 	return nil
 }
 
+// GetJobComponentByName returns the job matching the name parameter, or nil if not found
 func (rd *RadixDeployment) GetJobComponentByName(name string) *RadixDeployJobComponent {
 	for _, jobComponent := range rd.Spec.Jobs {
 		if strings.EqualFold(jobComponent.Name, name) {
@@ -35,6 +37,14 @@ func (rd *RadixDeployment) GetJobComponentByName(name string) *RadixDeployJobCom
 		}
 	}
 	return nil
+}
+
+// GetCommonComponentByName returns the component or job matching the name parameter, or nil if not found
+func (rd *RadixDeployment) GetCommonComponentByName(name string) RadixCommonDeployComponent {
+	if comp := rd.GetComponentByName(name); comp != nil {
+		return comp
+	}
+	return rd.GetJobComponentByName(name)
 }
 
 // RadixDeployStatus is the status for a rd

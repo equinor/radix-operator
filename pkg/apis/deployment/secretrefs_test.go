@@ -12,7 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -323,7 +323,7 @@ func Test_GetRadixComponentsForEnv_AzureKeyVault(t *testing.T) {
 			}
 			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
 			sut := GetRadixComponentsForEnv
-			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+			components, err := sut(ra, envName, make(pipeline.DeployComponentImages), make(v1.EnvVarsMap))
 			require.NoError(t, err)
 			azureKeyVaults := components[0].SecretRefs.AzureKeyVaults
 			assert.EqualValues(t, sortAzureKeyVaults(scenario.expected), sortAzureKeyVaults(azureKeyVaults))
@@ -372,7 +372,7 @@ func Test_GetRadixComponentsForEnv_AzureKeyVaultUseIAzureIdentity(t *testing.T) 
 			}
 			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
 			sut := GetRadixComponentsForEnv
-			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+			components, err := sut(ra, envName, make(pipeline.DeployComponentImages), make(v1.EnvVarsMap))
 			require.NoError(t, err)
 			azureKeyVaults := components[0].SecretRefs.AzureKeyVaults
 			if len(azureKeyVaults) == 0 {

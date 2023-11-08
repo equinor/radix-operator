@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
+	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	pipelineinternal "github.com/equinor/radix-operator/pipeline-runner/utils"
-	pipelinewait "github.com/equinor/radix-operator/pipeline-runner/wait"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
@@ -29,12 +29,12 @@ import (
 type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	jobWaiter pipelinewait.JobCompletionWaiter
+	jobWaiter internalwait.JobCompletionWaiter
 }
 
 // NewPreparePipelinesStep Constructor.
 // jobWaiter is optional and will be set by Init(...) function if nil.
-func NewPreparePipelinesStep(jobWaiter pipelinewait.JobCompletionWaiter) model.Step {
+func NewPreparePipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
 	return &PreparePipelinesStepImplementation{
 		stepType:  pipeline.PreparePipelinesStep,
 		jobWaiter: jobWaiter,
@@ -44,7 +44,7 @@ func NewPreparePipelinesStep(jobWaiter pipelinewait.JobCompletionWaiter) model.S
 func (step *PreparePipelinesStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *radixv1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = pipelinewait.NewJobCompletionWaiter(kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(kubeclient)
 	}
 }
 
@@ -71,7 +71,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 	namespace := utils.GetAppNamespace(appName)
 	log.Infof("Prepare pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
-	if radixv1.RadixPipelineType(pipelineInfo.PipelineArguments.PipelineType) == radixv1.Promote {
+	if pipelineInfo.IsPipelineType(radixv1.Promote) {
 		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := cli.getSourceDeploymentGitInfo(appName, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
 		if err != nil {
 			return err
@@ -179,12 +179,12 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 	sshURL := registration.Spec.CloneURL
 	initContainers := cli.getInitContainerCloningRepo(pipelineInfo, configBranch, sshURL)
 
-	return pipelineinternal.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
+	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
 }
 
 func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
-	if pipelineInfo.PipelineArguments.PipelineType == string(radixv1.BuildDeploy) {
+	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
 		return pipelineInfo.PipelineArguments.CommitID
 	}
 	return ""

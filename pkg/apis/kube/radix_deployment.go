@@ -50,15 +50,15 @@ func (kubeutil *Kube) ListRadixDeployments(namespace string) ([]*v1.RadixDeploym
 
 }
 
-//GetActiveDeployment Get active RadixDeployment for the namespace
+// GetActiveDeployment Get active RadixDeployment for the namespace
 func (kubeutil *Kube) GetActiveDeployment(namespace string) (*v1.RadixDeployment, error) {
-	radixDeployments, err := kubeutil.ListRadixDeployments(namespace)
+	radixDeployments, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
-	for _, rd := range radixDeployments {
+	for _, rd := range radixDeployments.Items {
 		if rd.Status.ActiveTo.IsZero() {
-			return rd, err
+			return &rd, err
 		}
 	}
 	return nil, nil
