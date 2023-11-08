@@ -5,13 +5,13 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
-  name: radixdnsalias.radix.equinor.com
+  name: radixdnsaliases.radix.equinor.com
 spec:
   group: radix.equinor.com
   names:
     kind: RadixDNSAlias
     listKind: RadixDNSAliasList
-    plural: radixdnsalias
+    plural: radixdnsaliases
     shortNames:
     - rda
     singular: radixdnsalias

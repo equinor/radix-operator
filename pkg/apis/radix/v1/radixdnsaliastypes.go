@@ -5,7 +5,7 @@ import meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=radixdnsalias,scope=Cluster,shortName=rda
+// +kubebuilder:resource:path=radixdnsaliases,scope=Cluster,shortName=rda
 
 // RadixDNSAlias is a Custom Resource Definition
 type RadixDNSAlias struct {

@@ -29,8 +29,8 @@ rules:
   - radixalerts/status
   - radixbatches
   - radixbatches/status
-  - radixdnsalias
-  - radixdnsalias/status
+  - radixdnsaliases
+  - radixdnsaliases/status
   verbs:
   - get
   - list
