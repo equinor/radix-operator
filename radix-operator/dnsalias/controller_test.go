@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	"github.com/stretchr/testify/suite"

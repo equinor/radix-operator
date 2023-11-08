@@ -7,11 +7,11 @@ package internal
 import (
 	reflect "reflect"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	dnsalias "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	config "github.com/equinor/radix-operator/radix-operator/config"
 	gomock "github.com/golang/mock/gomock"
 	kubernetes "k8s.io/client-go/kubernetes"
 )

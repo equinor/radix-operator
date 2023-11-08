@@ -4,27 +4,20 @@ import (
 	"strconv"
 	"strings"
 
+	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/spf13/viper"
 )
 
-type LogLevel string
+var logLevels = map[string]bool{string(apiconfig.LogLevelInfo): true, string(apiconfig.LogLevelDebug): true, string(apiconfig.LogLevelError): true}
 
-const (
-	LogLevelInfo  LogLevel = "INFO"
-	LogLevelError LogLevel = "ERROR"
-	LogLevelDebug LogLevel = "DEBUG"
-)
-
-var logLevels = map[string]bool{string(LogLevelInfo): true, string(LogLevelDebug): true, string(LogLevelError): true}
-
-func getLogLevel() string {
+func getLogLevel() apiconfig.LogLevel {
 	logLevel := viper.GetString(defaults.LogLevel)
 	if _, ok := logLevels[logLevel]; ok {
-		return logLevel
+		return apiconfig.LogLevel(logLevel)
 	}
-	return string(LogLevelInfo)
+	return apiconfig.LogLevelInfo
 }
 
 // Gets pipeline job history limit per each list, grouped by pipeline branch and job status
@@ -70,19 +63,12 @@ func getIntFromEnvVar(envVarName string, defaultValue int) int {
 	return val
 }
 
-// Config from environment variables
-type Config struct {
-	LogLevel          string
-	ClusterConfig     *ClusterConfig
-	PipelineJobConfig *job.Config
-}
-
 // NewConfig New instance of the Config
-func NewConfig() *Config {
+func NewConfig() *apiconfig.Config {
 	viper.AutomaticEnv()
-	return &Config{
+	return &apiconfig.Config{
 		LogLevel: getLogLevel(),
-		ClusterConfig: &ClusterConfig{
+		ClusterConfig: &apiconfig.ClusterConfig{
 			DNSZone:             getDNSZone(),
 			DNSAliasAppReserved: getDNSAliasAppReserved(),
 			DNSAliasReserved:    getDNSAliasReserved(),

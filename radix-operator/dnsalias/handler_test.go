@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	"github.com/golang/mock/gomock"

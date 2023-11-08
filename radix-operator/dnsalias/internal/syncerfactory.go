@@ -1,11 +1,11 @@
 package internal
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/equinor/radix-operator/radix-operator/config"
 	"k8s.io/client-go/kubernetes"
 )
 

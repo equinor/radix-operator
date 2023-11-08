@@ -11,6 +11,7 @@ import (
 	"time"
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
+	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
@@ -24,7 +25,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
-	dnsalias "github.com/equinor/radix-operator/radix-operator/dnsalias"
+	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
@@ -38,7 +39,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
-	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
+	secretproviderclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 const (
@@ -114,7 +115,7 @@ func getInitParams() (int, int, int, int, int, int, int, float32, error) {
 	return registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, errCat
 }
 
-func createRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+func createRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -141,7 +142,7 @@ func createRegistrationController(client kubernetes.Interface, radixClient radix
 		recorder)
 }
 
-func createApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+func createApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -153,7 +154,7 @@ func createApplicationController(client kubernetes.Interface, radixClient radixc
 	handler := application.NewHandler(client,
 		kubeUtil,
 		radixClient,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
+		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
 	const waitForChildrenToSync = true
@@ -167,7 +168,7 @@ func createApplicationController(client kubernetes.Interface, radixClient radixc
 		recorder)
 }
 
-func createEnvironmentController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+func createEnvironmentController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -194,7 +195,7 @@ func createEnvironmentController(client kubernetes.Interface, radixClient radixc
 		recorder)
 }
 
-func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface, clusterConfig *config.ClusterConfig) *common.Controller {
+func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface, clusterConfig *apiconfig.ClusterConfig) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -222,7 +223,7 @@ func createDNSAliasesController(client kubernetes.Interface, radixClient radixcl
 		recorder)
 }
 
-func createDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+func createDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -267,7 +268,7 @@ func createDeploymentController(client kubernetes.Interface, radixClient radixcl
 		recorder)
 }
 
-func createJobController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface, config *jobUtil.Config) *common.Controller {
+func createJobController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface, config *jobUtil.Config) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -276,13 +277,13 @@ func createJobController(client kubernetes.Interface, radixClient radixclient.In
 		radixInformerFactory,
 	)
 
-	handler := job.NewHandler(client, kubeUtil, radixClient, config, func(syncedOk bool) {}) // Not interested in getting notifications of synced)
+	handler := job.NewHandler(client, kubeUtil, radixClient, config, func(syncedOk bool) {}) // Not interested in getting notifications of synced
 
 	const waitForChildrenToSync = true
 	return job.NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, recorder)
 }
 
-func createAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+func createAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -308,7 +309,7 @@ func createAlertController(client kubernetes.Interface, radixClient radixclient.
 		recorder)
 }
 
-func createBatchController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+func createBatchController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -387,11 +388,11 @@ func Healthz(writer http.ResponseWriter, _ *http.Request) {
 	_, _ = fmt.Fprintf(writer, "%s", response)
 }
 
-func setLogLevel(logLevel string) {
+func setLogLevel(logLevel apiconfig.LogLevel) {
 	switch logLevel {
-	case string(config.LogLevelDebug):
+	case apiconfig.LogLevelDebug:
 		log.SetLevel(log.DebugLevel)
-	case string(config.LogLevelError):
+	case apiconfig.LogLevelError:
 		log.SetLevel(log.ErrorLevel)
 	default:
 		log.SetLevel(log.InfoLevel)
