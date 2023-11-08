@@ -388,9 +388,8 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 			_, err = radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 			require.NoError(t, err)
 			ra := ts.applicationBuilder.BuildRA()
-			applicationConfig, err := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra,
+			applicationConfig := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra,
 				dnsAliasAppReserved, dnsAliasReserved)
-			require.NoError(t, err)
 
 			actualValidationErr := applicationConfig.ApplyConfigToApplicationNamespace()
 

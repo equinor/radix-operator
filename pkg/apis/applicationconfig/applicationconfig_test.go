@@ -1,4 +1,4 @@
-package applicationconfig
+package applicationconfig_test
 
 import (
 	"context"
@@ -619,7 +619,7 @@ func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	}
 }
 
-func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *applicationconfig.ApplicationConfig, error) {
+func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *applicationconfig.ApplicationConfig) {
 	tu, client, kubeUtil, radixClient := setupTest()
 	appBuilder := utils.ARadixApplication().
 		WithAppName("any-app").
@@ -630,10 +630,10 @@ func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEn
 
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, appBuilder)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil
 	}
 	appConfig := getAppConfig(client, kubeUtil, radixClient, appBuilder)
-	return client, appConfig, err
+	return client, appConfig
 }
 
 func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) *applicationconfig.ApplicationConfig {
@@ -656,10 +656,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationConfig, err := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil, nil)
-	if err != nil {
-		return err
-	}
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil, nil)
 
 	err = applicationConfig.OnSync()
 	if err != nil {
