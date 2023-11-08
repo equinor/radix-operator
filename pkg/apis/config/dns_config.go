@@ -1,7 +1,7 @@
 package config
 
-// ClusterConfig Config settings for the cluster
-type ClusterConfig struct {
+// DNSConfig Config settings for the cluster DNS
+type DNSConfig struct {
 	// DNSZone Cluster DNS zone.
 	// Example radix.equinor.com, playground.radix.equinor.com
 	DNSZone string

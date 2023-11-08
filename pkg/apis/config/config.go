@@ -15,6 +15,6 @@ const (
 // Config from environment variables
 type Config struct {
 	LogLevel          LogLevel
-	ClusterConfig     *ClusterConfig
+	DNSConfig         *DNSConfig
 	PipelineJobConfig *job.Config
 }

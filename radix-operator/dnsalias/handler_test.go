@@ -42,11 +42,11 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
-	clusterConfig := &config.ClusterConfig{DNSZone: "test.radix.equinor.com"}
-	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, clusterConfig,
+	dnsConfig := &config.DNSConfig{DNSZone: "test.radix.equinor.com"}
+	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), clusterConfig, gomock.Any()).Times(0)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync().Times(0)
 
 	err := handler.Sync("", domain1, s.EventRecorder)
@@ -54,12 +54,12 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
-	clusterConfig := &config.ClusterConfig{DNSZone: "test.radix.equinor.com"}
+	dnsConfig := &config.DNSConfig{DNSZone: "test.radix.equinor.com"}
 	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, domain1, 8080), "create existing RadixDNSAlias")
-	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, clusterConfig,
+	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	expectedError := fmt.Errorf("some error")
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), clusterConfig, gomock.Any()).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync().Return(expectedError).Times(1)
 
 	actualError := handler.Sync("", domain1, s.EventRecorder)
@@ -67,11 +67,11 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
-	clusterConfig := &config.ClusterConfig{DNSZone: "test.radix.equinor.com"}
+	dnsConfig := &config.DNSConfig{DNSZone: "test.radix.equinor.com"}
 	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, domain1, 8080), "create existing RadixDNSAlias")
-	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, clusterConfig,
+	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), clusterConfig, gomock.Any()).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync().Return(nil).Times(1)
 
 	err := handler.Sync("", domain1, s.EventRecorder)

@@ -11,7 +11,7 @@ import (
 
 // SyncerFactory defines a factory to create a DNS alias Syncer
 type SyncerFactory interface {
-	CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, clusterConfig *config.ClusterConfig, radixDNSAlias *radixv1.RadixDNSAlias) dnsaliasapi.Syncer
+	CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *config.DNSConfig, radixDNSAlias *radixv1.RadixDNSAlias) dnsaliasapi.Syncer
 }
 
 // SyncerFactoryFunc is an adapter that can be used to convert
@@ -20,11 +20,11 @@ type SyncerFactoryFunc func(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
-	clusterConfig *config.ClusterConfig,
+	dnsConfig *config.DNSConfig,
 	radixDNSAlias *radixv1.RadixDNSAlias,
 ) dnsaliasapi.Syncer
 
 // CreateSyncer Create a DNS alias Syncer
-func (f SyncerFactoryFunc) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, clusterConfig *config.ClusterConfig, radixDNSAlias *radixv1.RadixDNSAlias) dnsaliasapi.Syncer {
-	return f(kubeClient, kubeUtil, radixClient, clusterConfig, radixDNSAlias)
+func (f SyncerFactoryFunc) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *config.DNSConfig, radixDNSAlias *radixv1.RadixDNSAlias) dnsaliasapi.Syncer {
+	return f(kubeClient, kubeUtil, radixClient, dnsConfig, radixDNSAlias)
 }

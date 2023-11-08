@@ -25,16 +25,16 @@ type syncer struct {
 	radixClient   radixclient.Interface
 	kubeUtil      *kube.Kube
 	radixDNSAlias *radixv1.RadixDNSAlias
-	clusterConfig *config.ClusterConfig
+	dnsConfig     *config.DNSConfig
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, clusterConfig *config.ClusterConfig, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
+func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *config.DNSConfig, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
 	return &syncer{
 		kubeClient:    kubeClient,
 		radixClient:   radixClient,
 		kubeUtil:      kubeUtil,
-		clusterConfig: clusterConfig,
+		dnsConfig:     dnsConfig,
 		radixDNSAlias: radixDNSAlias,
 	}
 }
@@ -87,5 +87,5 @@ func (s *syncer) createIngress() error {
 func (s *syncer) buildIngress() (*networkingv1.Ingress, error) {
 	aliasSpec := s.radixDNSAlias.Spec
 	domain := s.radixDNSAlias.GetName()
-	return BuildRadixDNSAliasIngress(aliasSpec.AppName, domain, aliasSpec.Component, aliasSpec.Port, s.radixDNSAlias, s.clusterConfig), nil
+	return BuildRadixDNSAliasIngress(aliasSpec.AppName, domain, aliasSpec.Component, aliasSpec.Port, s.radixDNSAlias, s.dnsConfig), nil
 }

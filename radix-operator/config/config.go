@@ -68,7 +68,7 @@ func NewConfig() *apiconfig.Config {
 	viper.AutomaticEnv()
 	return &apiconfig.Config{
 		LogLevel: getLogLevel(),
-		ClusterConfig: &apiconfig.ClusterConfig{
+		DNSConfig: &apiconfig.DNSConfig{
 			DNSZone:             getDNSZone(),
 			DNSAliasAppReserved: getDNSAliasAppReserved(),
 			DNSAliasReserved:    getDNSAliasReserved(),

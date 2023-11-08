@@ -22,7 +22,7 @@ func CreateRadixDNSAliasIngress(kubeClient kubernetes.Interface, appName, envNam
 }
 
 // BuildRadixDNSAliasIngress Build an Ingress for a RadixDNSAlias
-func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owner *v1.RadixDNSAlias, config *config.ClusterConfig) *networkingv1.Ingress {
+func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owner *v1.RadixDNSAlias, config *config.DNSConfig) *networkingv1.Ingress {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
 	ingressName := GetDNSAliasIngressName(service, domain)
 	host := GetDNSAliasHost(domain, config.DNSZone)

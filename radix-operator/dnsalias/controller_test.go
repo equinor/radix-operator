@@ -85,7 +85,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
 
 	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
-	cfg := &config.ClusterConfig{DNSZone: dnsZone}
+	cfg := &config.DNSConfig{DNSZone: dnsZone}
 	ingress := dnsaliasapi.BuildRadixDNSAliasIngress(alias.Spec.AppName, alias.GetName(), alias.Spec.Component, int32(8080), alias, cfg)
 	ingress.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	namespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)

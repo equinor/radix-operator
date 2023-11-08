@@ -32,7 +32,7 @@ type handler struct {
 	radixClient   radixclient.Interface
 	syncerFactory internal.SyncerFactory
 	hasSynced     common.HasSynced
-	clusterConfig *config.ClusterConfig
+	dnsConfig     *config.DNSConfig
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
@@ -40,15 +40,15 @@ func NewHandler(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
-	clusterConfig *config.ClusterConfig,
+	dnsConfig *config.DNSConfig,
 	hasSynced common.HasSynced,
 	options ...HandlerConfigOption) common.Handler {
 	h := &handler{
-		kubeClient:    kubeClient,
-		kubeUtil:      kubeUtil,
-		radixClient:   radixClient,
-		hasSynced:     hasSynced,
-		clusterConfig: clusterConfig,
+		kubeClient:  kubeClient,
+		kubeUtil:    kubeUtil,
+		radixClient: radixClient,
+		hasSynced:   hasSynced,
+		dnsConfig:   dnsConfig,
 	}
 	configureDefaultSyncerFactory(h)
 	for _, option := range options {
@@ -81,7 +81,7 @@ func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 	syncingAlias := radixDNSAlias.DeepCopy()
 	logger.Debugf("Sync RadixDNSAlias %s", name)
 
-	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.clusterConfig, syncingAlias)
+	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, syncingAlias)
 	err = syncer.OnSync()
 	if err != nil {
 		return err
