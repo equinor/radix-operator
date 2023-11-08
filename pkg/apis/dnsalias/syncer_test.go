@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
@@ -29,7 +28,7 @@ type syncerTestSuite struct {
 	radixClient *radixfake.Clientset
 	kubeUtil    *kube.Kube
 	promClient  *prometheusfake.Clientset
-	dnsConfig   *config.DNSConfig
+	dnsConfig   *dnsalias.DNSConfig
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -40,7 +39,7 @@ func (s *syncerTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
-	s.dnsConfig = &config.DNSConfig{DNSZone: "test.radix.equinor.com"}
+	s.dnsConfig = &dnsalias.DNSConfig{DNSZone: "test.radix.equinor.com"}
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
 }
 
@@ -193,7 +192,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Domain, UID: uuid.NewUUID()},
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component, Port: ts.dnsAlias.Port}}
 			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Domain, radixDNSAlias.Spec), "create existing alias")
-			cfg := &config.DNSConfig{DNSZone: ts.dnsZone}
+			cfg := &dnsalias.DNSConfig{DNSZone: ts.dnsZone}
 			s.Require().NoError(registerExistingIngresses(s.kubeClient, ts.existingIngress, appName1, envName1, cfg), "create existing ingresses")
 			syncer := s.createSyncer(radixDNSAlias)
 			err := syncer.OnSync()
@@ -240,7 +239,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 	}
 }
 
-func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress, appNameForNamespace, envNameForNamespace string, config *config.DNSConfig) error {
+func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress, appNameForNamespace, envNameForNamespace string, config *dnsalias.DNSConfig) error {
 	for name, ing := range testIngresses {
 		ingress := dnsalias.BuildRadixDNSAliasIngress(ing.appName, ing.domain, ing.component, ing.port, nil, config)
 		ingress.SetName(name) // override built name with expected name for test purpose

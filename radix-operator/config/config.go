@@ -6,6 +6,7 @@ import (
 
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/spf13/viper"
 )
@@ -68,7 +69,7 @@ func NewConfig() *apiconfig.Config {
 	viper.AutomaticEnv()
 	return &apiconfig.Config{
 		LogLevel: getLogLevel(),
-		DNSConfig: &apiconfig.DNSConfig{
+		DNSConfig: &dnsalias.DNSConfig{
 			DNSZone:             getDNSZone(),
 			DNSAliasAppReserved: getDNSAliasAppReserved(),
 			DNSAliasReserved:    getDNSAliasReserved(),

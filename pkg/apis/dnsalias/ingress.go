@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -22,7 +21,7 @@ func CreateRadixDNSAliasIngress(kubeClient kubernetes.Interface, appName, envNam
 }
 
 // BuildRadixDNSAliasIngress Build an Ingress for a RadixDNSAlias
-func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owner *v1.RadixDNSAlias, config *config.DNSConfig) *networkingv1.Ingress {
+func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owner *v1.RadixDNSAlias, config *DNSConfig) *networkingv1.Ingress {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
 	ingressName := GetDNSAliasIngressName(service, domain)
 	host := GetDNSAliasHost(domain, config.DNSZone)

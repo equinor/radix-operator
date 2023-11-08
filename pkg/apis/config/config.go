@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 )
 
@@ -15,6 +16,6 @@ const (
 // Config from environment variables
 type Config struct {
 	LogLevel          LogLevel
-	DNSConfig         *DNSConfig
+	DNSConfig         *dnsalias.DNSConfig
 	PipelineJobConfig *job.Config
 }

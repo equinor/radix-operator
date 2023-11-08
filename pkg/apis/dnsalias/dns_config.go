@@ -1,4 +1,4 @@
-package config
+package dnsalias
 
 // DNSConfig Config settings for the cluster DNS
 type DNSConfig struct {
