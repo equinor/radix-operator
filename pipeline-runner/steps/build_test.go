@@ -86,7 +86,7 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	applicationConfig := application.NewApplicationConfig(s.kubeClient, s.kubeUtil, s.radixClient, rr, ra, nil, nil)
-	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)
+	targetEnvs := applicationConfig.GetTargetEnvironments(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -1611,18 +1611,18 @@ func (s *buildTestSuite) createBuildSecret(appName string, data map[string][]byt
 
 func (s *buildTestSuite) getRadixApplicationHash(ra *radixv1.RadixApplication) string {
 	if ra == nil {
-		hash, _ := hash.ToHashString(hash.SHA256, "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7")
-		return hash
+		appHash, _ := hash.ToHashString(hash.SHA256, "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7")
+		return appHash
 	}
-	hash, _ := hash.ToHashString(hash.SHA256, ra.Spec)
-	return hash
+	appHash, _ := hash.ToHashString(hash.SHA256, ra.Spec)
+	return appHash
 }
 
 func (s *buildTestSuite) getBuildSecretHash(secret *corev1.Secret) string {
 	if secret == nil {
-		hash, _ := hash.ToHashString(hash.SHA256, "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj")
-		return hash
+		secretHash, _ := hash.ToHashString(hash.SHA256, "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj")
+		return secretHash
 	}
-	hash, _ := hash.ToHashString(hash.SHA256, secret.Data)
-	return hash
+	secretHash, _ := hash.ToHashString(hash.SHA256, secret.Data)
+	return secretHash
 }

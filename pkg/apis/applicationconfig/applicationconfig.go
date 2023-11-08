@@ -252,7 +252,7 @@ func (app *ApplicationConfig) getPortForDNSAlias(dnsAlias radixv1.DNSAlias) (int
 		// TODO test
 		return 0, fmt.Errorf("component %s does not exist in the application %s", dnsAlias.Component, app.config.GetName())
 	}
-	if !component.GetEnabledForAnyEnvironment([]string{dnsAlias.Environment}) {
+	if !component.GetEnabledForEnvironment(dnsAlias.Environment) {
 		// TODO test
 		return 0, fmt.Errorf("component %s is not enabled for the environment %s in the application %s", dnsAlias.Component, dnsAlias.Environment, app.config.GetName())
 	}
@@ -283,7 +283,7 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *rad
 		return fmt.Errorf("failed to marshal new RadixEnvironment object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, v1.RadixEnvironment{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, radixv1.RadixEnvironment{})
 	if err != nil {
 		return fmt.Errorf("failed to create patch document for RadixEnvironment object: %v", err)
 	}
