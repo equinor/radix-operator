@@ -19,11 +19,12 @@ import (
 
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
-	Definition        *pipeline.Definition
-	RadixApplication  *radixv1.RadixApplication
-	BuildSecret       *corev1.Secret
-	PipelineArguments PipelineArguments
-	Steps             []Step
+	Definition            *pipeline.Definition
+	RadixApplication      *radixv1.RadixApplication
+	BuildSecret           *corev1.Secret
+	PrivateImageHubSecret *corev1.Secret
+	PipelineArguments     PipelineArguments
+	Steps                 []Step
 
 	// Temporary data
 	RadixConfigMapName string

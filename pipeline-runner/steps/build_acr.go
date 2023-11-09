@@ -3,6 +3,7 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-common/pkg/docker"
 	"strings"
 	"time"
 
@@ -33,9 +34,12 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
-
+	privateImageHubAuths, err := getDockerAuths(pipelineInfo.PrivateImageHubSecret)
+	if err != nil {
+		return nil, err
+	}
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
-	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildSecrets)
+	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildSecrets, privateImageHubAuths)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 
@@ -126,7 +130,7 @@ func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []c
 	return volumes
 }
 
-func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
+func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, additionalDockerAuth docker.AuthSpec) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
 	buildContainerSecContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
@@ -295,7 +299,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			useBuildCache := pipelineInfo.RadixApplication.Spec.Build.UseBuildCache == nil || *pipelineInfo.RadixApplication.Spec.Build.UseBuildCache
 			cacheContainerRegistry := pipelineInfo.PipelineArguments.AppContainerRegistry // Store application cache in the App Registry
 
-			containerCommand = getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath, clusterTypeImage, clusterNameImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pushImage)
+			containerCommand = getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath, clusterTypeImage, clusterNameImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pushImage, additionalDockerAuth)
 			container.Command = containerCommand
 			container.Resources.Requests = map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceCPU:    resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsCPU),
@@ -334,16 +338,28 @@ func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, bu
 		})
 	return volumeMounts
 }
-
-func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool) []string {
-
+func getDockerAuths(secret *corev1.Secret) (auths docker.AuthSpec, err error) {
+	if secret == nil {
+		return
+	}
+	data, ok := secret.Data[corev1.DockerConfigJsonKey]
+	if !ok {
+		return
+	}
+	err = json.Unmarshal(data, &auths)
+	return
+}
+func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool, additionalDockerAuth docker.AuthSpec) []string {
 	commandList := commandbuilder.NewCommandList()
-
 	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", containerImageRegistry)
 	if useBuildCache {
 		commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s", cacheContainerImageRegistry)
 	}
-
+	for registry, auth := range additionalDockerAuth.Auths {
+		if len(auth.Username) > 0 && len(auth.Password) > 0 {
+			commandList.AddStrCmd("/usr/bin/buildah login --username %s --password %s %s", auth.Username, auth.Password, registry)
+		}
+	}
 	buildah := commandbuilder.NewCommand("/usr/bin/buildah build")
 	commandList.AddCmd(buildah)
 
