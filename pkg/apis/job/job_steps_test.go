@@ -179,7 +179,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-5", "app-5", "a_tag"),
 			s.getPreparePipelineJob("prepare-pipeline-5", "job-5", "app-5", "a_tag"),
-			s.getBuildJob("build-job-5", "job-5", "app-5", "a_tag", map[string]pipeline.ComponentImage{
+			s.getBuildJob("build-job-5", "job-5", "app-5", "a_tag", pipeline.BuildComponentImages{
 				"comp":   {ContainerName: "build-app"},
 				"multi1": {ContainerName: "build-multi"},
 				"multi3": {ContainerName: "build-multi"},
@@ -227,7 +227,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-1", "app-1", "a_tag"),
 			s.getPreparePipelineJob("prepare-pipeline-1", "job-1", "app-1", "a_tag"),
-			s.getBuildJob("build-job-1", "job-1", "app-1", "a_tag", map[string]pipeline.ComponentImage{}),
+			s.getBuildJob("build-job-1", "job-1", "app-1", "a_tag", pipeline.BuildComponentImages{}),
 			s.getRunPipelineJob("run-pipeline-1", "job-1", "app-1", "a_tag"),
 		},
 		pods: []*corev1.Pod{
@@ -356,7 +356,7 @@ func (s *RadixJobStepTestSuite) getRunPipelineJob(name, radixJobName, appName, i
 	}
 }
 
-func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTag string, componentImages map[string]pipeline.ComponentImage) *batchv1.Job {
+func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTag string, componentImages pipeline.BuildComponentImages) *batchv1.Job {
 	componentImageAnnotation, _ := json.Marshal(&componentImages)
 
 	return &batchv1.Job{

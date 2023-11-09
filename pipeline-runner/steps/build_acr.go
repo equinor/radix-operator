@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/commandbuilder"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -39,7 +39,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 
-	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.ComponentImages)
+	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.BuildComponentImages)
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
 	annotations := radixannotations.ForClusterAutoscalerSafeToEvict(false)
 	buildPodSecurityContext := &pipelineInfo.PipelineArguments.PodSecurityContext
@@ -138,7 +138,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageBuilder)
 	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
-	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
+	targetEnvs := strings.Join(pipelineInfo.TargetEnvironments, ",")
 	secretMountsArgsString := ""
 
 	if isUsingBuildKit(pipelineInfo) {
@@ -162,12 +162,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		useCache = "--no-cache"
 	}
 	distinctBuildContainers := make(map[string]void)
-	for _, componentImage := range pipelineInfo.ComponentImages {
-		if !componentImage.Build {
-			// Nothing to build
-			continue
-		}
-
+	for _, componentImage := range pipelineInfo.BuildComponentImages {
 		if _, exists := distinctBuildContainers[componentImage.ContainerName]; exists {
 			// We already have a container for this multi-component
 			continue
@@ -411,14 +406,4 @@ func getSecretArgs(buildSecrets []corev1.EnvVar) string {
 		secretArgs = append(secretArgs, fmt.Sprintf("--secret id=%s,src=%s/%s", envVar.ValueFrom.SecretKeyRef.Key, buildSecretsMountPath, envVar.ValueFrom.SecretKeyRef.Key))
 	}
 	return strings.Join(secretArgs, " ")
-}
-
-func getTargetEnvsToBuild(pipelineInfo *model.PipelineInfo) []string {
-	var envs []string
-	for env, toBuild := range pipelineInfo.TargetEnvironments {
-		if toBuild {
-			envs = append(envs, env)
-		}
-	}
-	return envs
 }

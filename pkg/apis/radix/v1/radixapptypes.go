@@ -26,6 +26,34 @@ type RadixApplication struct {
 	Spec RadixApplicationSpec `json:"spec"`
 }
 
+// GetComponentByName returns the component matching the name parameter, or nil if not found
+func (ra *RadixApplication) GetComponentByName(name string) *RadixComponent {
+	for _, comp := range ra.Spec.Components {
+		if comp.GetName() == name {
+			return &comp
+		}
+	}
+	return nil
+}
+
+// GetJobComponentByName returns the job matching the name parameter, or nil if not found
+func (ra *RadixApplication) GetJobComponentByName(name string) *RadixJobComponent {
+	for _, job := range ra.Spec.Jobs {
+		if job.GetName() == name {
+			return &job
+		}
+	}
+	return nil
+}
+
+// GetCommonComponentByName returns the job or component matching the name parameter, or nil if not found
+func (ra *RadixApplication) GetCommonComponentByName(name string) RadixCommonComponent {
+	if comp := ra.GetComponentByName(name); comp != nil {
+		return comp
+	}
+	return ra.GetJobComponentByName(name)
+}
+
 // RadixApplicationSpec is the specification for an application.
 type RadixApplicationSpec struct {
 	// Build contains configuration used by pipeline jobs.
@@ -1256,6 +1284,8 @@ type Notifications struct {
 type RadixCommonComponent interface {
 	// GetName Gets component name
 	GetName() string
+	// GetDockerfileName Gets component docker file name
+	GetDockerfileName() string
 	// GetSourceFolder Gets component source folder
 	GetSourceFolder() string
 	// GetImage Gets component image
@@ -1286,11 +1316,16 @@ type RadixCommonComponent interface {
 	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
 	// GetEnvironmentConfigByName  Gets component environment configuration by its name
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
-	GetEnabledForAnyEnvironment(environments []string) bool
+	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
+	GetEnabledForEnvironment(environment string) bool
 }
 
 func (component *RadixComponent) GetName() string {
 	return component.Name
+}
+
+func (component *RadixComponent) GetDockerfileName() string {
+	return component.DockerfileName
 }
 
 func (component *RadixComponent) GetSourceFolder() string {
@@ -1366,8 +1401,8 @@ func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironme
 	return getEnabled(component, envConfig)
 }
 
-func (component *RadixComponent) GetEnabledForAnyEnvironment(environments []string) bool {
-	return getEnabledForAnyEnvironment(component, environments)
+func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
+	return getEnabledForEnvironment(component, environment)
 }
 
 func (component *RadixJobComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
@@ -1383,6 +1418,10 @@ func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironment
 
 func (component *RadixJobComponent) GetName() string {
 	return component.Name
+}
+
+func (component *RadixJobComponent) GetDockerfileName() string {
+	return component.DockerfileName
 }
 
 func (component *RadixJobComponent) GetSourceFolder() string {
@@ -1459,8 +1498,8 @@ func (component *RadixJobComponent) GetEnvironmentConfigByName(environment strin
 	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
 }
 
-func (component *RadixJobComponent) GetEnabledForAnyEnvironment(environments []string) bool {
-	return getEnabledForAnyEnvironment(component, environments)
+func (component *RadixJobComponent) GetEnabledForEnvironment(environment string) bool {
+	return getEnabledForEnvironment(component, environment)
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
@@ -1472,15 +1511,10 @@ func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCo
 	return nil
 }
 
-func getEnabledForAnyEnvironment(component RadixCommonComponent, environments []string) bool {
+func getEnabledForEnvironment(component RadixCommonComponent, environment string) bool {
 	environmentConfigsMap := component.GetEnvironmentConfigsMap()
 	if len(environmentConfigsMap) == 0 {
 		return component.getEnabled()
 	}
-	for _, envName := range environments {
-		if component.GetEnabledForEnv(environmentConfigsMap[envName]) {
-			return true
-		}
-	}
-	return false
+	return component.GetEnabledForEnv(environmentConfigsMap[environment])
 }

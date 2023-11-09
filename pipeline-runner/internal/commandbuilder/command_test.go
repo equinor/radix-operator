@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pipeline-runner/utils/commandbuilder"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	"github.com/stretchr/testify/assert"
 )
 
