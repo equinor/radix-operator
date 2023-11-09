@@ -13,6 +13,7 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -59,11 +60,11 @@ var (
 type RadixApplicationValidator func(radixApplication *radixv1.RadixApplication) error
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
-func CanRadixApplicationBeInserted(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string, additionalValidators ...RadixApplicationValidator) error {
+func CanRadixApplicationBeInserted(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig, additionalValidators ...RadixApplicationValidator) error {
 
 	validators := append(requiredRadixApplicationValidators,
 		validateDoesRRExistFactory(radixClient),
-		validateDNSAliasFactory(radixClient, dnsAliasAppReserved, dnsAliasReserved),
+		validateDNSAliasFactory(radixClient, dnsAliasConfig),
 	)
 	validators = append(validators, additionalValidators...)
 
@@ -113,9 +114,9 @@ func validateDoesRRExistFactory(client radixclient.Interface) RadixApplicationVa
 	}
 }
 
-func validateDNSAliasFactory(client radixclient.Interface, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) RadixApplicationValidator {
+func validateDNSAliasFactory(client radixclient.Interface, dnsAliasConfig *dnsalias.DNSConfig) RadixApplicationValidator {
 	return func(radixApplication *radixv1.RadixApplication) error {
-		return validateDNSAlias(client, radixApplication, dnsAliasAppReserved, dnsAliasReserved)
+		return validateDNSAlias(client, radixApplication, dnsAliasConfig)
 	}
 }
 
@@ -143,7 +144,7 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) error {
 	return validateDNSAppAliasComponentAndEnvironmentAvailable(app)
 }
 
-func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) error {
+func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) error {
 	var errs []error
 	radixDNSAliasMap, err := kube.GetRadixDNSAliasMapWithSelector(radixClient, "")
 	if err != nil {
@@ -180,10 +181,10 @@ func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixAppli
 		if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Domain]; ok && radixDNSAlias.Spec.AppName != app.Name {
 			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Domain))
 		}
-		if reservingAppName, aliasReserved := dnsAliasAppReserved[dnsAlias.Domain]; aliasReserved && reservingAppName != app.Name {
+		if reservingAppName, aliasReserved := dnsAliasConfig.ReservedAppDNSAliases[dnsAlias.Domain]; aliasReserved && reservingAppName != app.Name {
 			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformApplicationError(dnsAlias.Domain))
 		}
-		if slice.Any(dnsAliasReserved, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Domain }) {
+		if slice.Any(dnsAliasConfig.ReservedDNSAlias, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Domain }) {
 			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformServiceError(dnsAlias.Domain))
 		}
 	}

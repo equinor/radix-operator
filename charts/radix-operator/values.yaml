@@ -20,13 +20,13 @@ buildahImageBuilder: xx
 jobScheduler: radix-job-scheduler:main-latest
 radixTekton: radix-tekton:main-latest
 useImageBuilderCache: 0
-dnsAliasAppReserved:
+reservedAppDNSAlias:
   api: radix-api
   canary: radix-canary-golang
   console: radix-web-console
   cost-api: radix-cost-allocation-api
   webhook: radix-github-webhook
-dnsAliasReserved:
+reservedDNSAlias:
   - grafana
   - prometheus
 

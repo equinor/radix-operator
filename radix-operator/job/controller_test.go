@@ -73,9 +73,9 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 
 	cfg := &config.Config{
 		DNSConfig: &dnsalias.DNSConfig{
-			DNSZone:             "dev.radix.equinor.com",
-			DNSAliasAppReserved: map[string]string{"api": "radix-api"},
-			DNSAliasReserved:    []string{"grafana"},
+			DNSZone:               "dev.radix.equinor.com",
+			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
+			ReservedDNSAlias:      []string{"grafana"},
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          3,

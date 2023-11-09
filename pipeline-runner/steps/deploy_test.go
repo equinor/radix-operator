@@ -75,15 +75,16 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 	targetEnvs := applicationConfig.GetTargetEnvironments(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   anyNoMappedBranch,
-			CommitID: anyCommitID,
+			JobName:   anyJobName,
+			ImageTag:  anyImageTag,
+			Branch:    anyNoMappedBranch,
+			CommitID:  anyCommitID,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		TargetEnvironments: targetEnvs,
 	}
@@ -180,15 +181,16 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 	targetEnvs := applicationConfig.GetTargetEnvironments("master")
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   "master",
-			CommitID: anyCommitID,
+			JobName:   anyJobName,
+			ImageTag:  anyImageTag,
+			Branch:    "master",
+			CommitID:  anyCommitID,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		TargetEnvironments: targetEnvs,
 		GitCommitHash:      anyCommitID,
@@ -295,16 +297,17 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 
 	const commitID = "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   "master",
-			CommitID: anyCommitID,
+			JobName:   anyJobName,
+			ImageTag:  anyImageTag,
+			Branch:    "master",
+			CommitID:  anyCommitID,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		TargetEnvironments: []string{"master"},
 		GitCommitHash:      commitID,

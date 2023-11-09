@@ -12,7 +12,7 @@ import (
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -75,7 +75,7 @@ func main() {
 	radixInformerFactory := radixinformers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
 	startController(createRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), registrationControllerThreads, stop)
-	startController(createApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), applicationControllerThreads, stop)
+	startController(createApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.DNSConfig), applicationControllerThreads, stop)
 	startController(createEnvironmentController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), environmentControllerThreads, stop)
 	startController(createDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), deploymentControllerThreads, stop)
 	startController(createJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg), jobControllerThreads, stop)
@@ -142,7 +142,7 @@ func createRegistrationController(client kubernetes.Interface, radixClient radix
 		recorder)
 }
 
-func createApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface) *common.Controller {
+func createApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface, dnsConfig *dnsaliasconfig.DNSConfig) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -154,6 +154,7 @@ func createApplicationController(client kubernetes.Interface, radixClient radixc
 	handler := application.NewHandler(client,
 		kubeUtil,
 		radixClient,
+		dnsConfig,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
@@ -195,7 +196,7 @@ func createEnvironmentController(client kubernetes.Interface, radixClient radixc
 		recorder)
 }
 
-func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface, dnsConfig *dnsalias2.DNSConfig) *common.Controller {
+func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface, dnsConfig *dnsaliasconfig.DNSConfig) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,

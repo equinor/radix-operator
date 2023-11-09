@@ -47,7 +47,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 		envName2       = "env2"
 		componentName1 = "server1"
 		componentName2 = "server2"
-		dnsZone        = "test.radix.equinor.com"
+		dnsZone        = "dev.radix.equinor.com"
 	)
 	alias := internal.BuildRadixDNSAlias(appName1, componentName1, envName1, aliasName)
 

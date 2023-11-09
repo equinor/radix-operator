@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -31,20 +32,18 @@ type Handler struct {
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	hasSynced   common.HasSynced
+	dnsConfig   *dnsalias.DNSConfig
 }
 
 // NewHandler Constructor
-func NewHandler(
-	kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	hasSynced common.HasSynced) Handler {
+func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kubeutil,
 		hasSynced:   hasSynced,
+		dnsConfig:   dnsConfig,
 	}
 
 	return handler
@@ -78,7 +77,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncApplication := radixApplication.DeepCopy()
 	logger.Debugf("Sync application %s", syncApplication.Name)
-	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, nil, nil)
+	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsConfig)
 	err = applicationConfig.OnSync()
 	if err != nil {
 		// Put back on queue

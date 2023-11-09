@@ -127,6 +127,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 					JobName:         scenario.jobName,
 					ImageTag:        scenario.imageTag,
 					CommitID:        anyCommitID,
+					DNSConfig:       getDNSAliasConfig(),
 				},
 			}
 
@@ -271,10 +272,11 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
+			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -396,10 +398,11 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
+			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -490,10 +493,11 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
+			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -606,10 +610,11 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
+			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -667,10 +672,11 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
+			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -785,10 +791,11 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 					JobName:         anyPromoteJobName,
 					ImageTag:        anyImageTag,
 					CommitID:        anyCommitID,
+					DNSConfig:       getDNSAliasConfig(),
 				},
 			}
 
-			applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+			applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 			pipelineInfo.SetApplicationConfig(applicationConfig)
 			err = cli.Run(pipelineInfo)
 			require.NoError(t, err)
@@ -846,10 +853,11 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
+			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)

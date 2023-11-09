@@ -40,7 +40,7 @@ func (s *syncerTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
-	s.dnsConfig = &dnsalias2.DNSConfig{DNSZone: "test.radix.equinor.com"}
+	s.dnsConfig = &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
 }
 
@@ -84,7 +84,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		domain2    = "domain2"
 		port8080   = 8080
 		port9090   = 9090
-		dnsZone1   = "test.radix.equinor.com"
+		dnsZone1   = "dev.radix.equinor.com"
 	)
 
 	scenarios := []scenario{

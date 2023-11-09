@@ -36,7 +36,7 @@ func getDNSZone() string {
 }
 
 func getDNSAliasAppReserved() map[string]string {
-	return convertToMap(viper.GetString(defaults.RadixDNSAliasAppReservedEnvironmentVariable))
+	return convertToMap(viper.GetString(defaults.RadixReservedAppDNSAliasesEnvironmentVariable))
 }
 
 func convertToMap(keyValuePairs string) map[string]string {
@@ -52,7 +52,7 @@ func convertToMap(keyValuePairs string) map[string]string {
 }
 
 func getDNSAliasReserved() []string {
-	envVar := viper.GetString(defaults.RadixDNSAliasReservedEnvironmentVariable)
+	envVar := viper.GetString(defaults.RadixReservedDNSAliasesEnvironmentVariable)
 	return strings.Split(envVar, ",")
 }
 
@@ -70,9 +70,9 @@ func NewConfig() *apiconfig.Config {
 	return &apiconfig.Config{
 		LogLevel: getLogLevel(),
 		DNSConfig: &dnsalias.DNSConfig{
-			DNSZone:             getDNSZone(),
-			DNSAliasAppReserved: getDNSAliasAppReserved(),
-			DNSAliasReserved:    getDNSAliasReserved(),
+			DNSZone:               getDNSZone(),
+			ReservedAppDNSAliases: getDNSAliasAppReserved(),
+			ReservedDNSAlias:      getDNSAliasReserved(),
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),

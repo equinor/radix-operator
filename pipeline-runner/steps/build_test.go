@@ -15,6 +15,7 @@ import (
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -85,15 +86,16 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 	cli := steps.NewBuildStep(jobWaiter)
 	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	applicationConfig := application.NewApplicationConfig(s.kubeClient, s.kubeUtil, s.radixClient, rr, ra, nil, nil)
+	applicationConfig := application.NewApplicationConfig(s.kubeClient, s.kubeUtil, s.radixClient, rr, ra, getDNSAliasConfig())
 	targetEnvs := applicationConfig.GetTargetEnvironments(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   anyNoMappedBranch,
-			CommitID: anyCommitID,
+			JobName:   anyJobName,
+			ImageTag:  anyImageTag,
+			Branch:    anyNoMappedBranch,
+			CommitID:  anyCommitID,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		TargetEnvironments: targetEnvs,
 	}
@@ -103,6 +105,14 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 	radixJobList, err := s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err)
 	s.Empty(radixJobList.Items)
+}
+
+func getDNSAliasConfig() *dnsalias.DNSConfig {
+	return &dnsalias.DNSConfig{
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
+		ReservedDNSAlias:      []string{"grafana"},
+	}
 }
 
 func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
@@ -136,6 +146,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 			RadixZone:         "radixzone",
 			Clustername:       "clustername",
 			SubscriptionId:    "subscriptionid",
+			DNSConfig:         getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 		GitConfigMapName:   gitConfigMapName,
@@ -269,6 +280,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 			ContainerRegistry: "registry",
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
+			DNSConfig:         getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -408,6 +420,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 			ContainerRegistry: "registry",
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
+			DNSConfig:         getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -552,12 +565,13 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      "build-deploy",
-			Branch:            buildBranch,
 			JobName:           rjName,
+			Branch:            buildBranch,
 			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
+			ContainerRegistry: "registry",
+			DNSConfig:         getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -676,6 +690,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		ContainerRegistry: "registry",
 		Clustertype:       "clustertype",
 		Clustername:       "clustername",
+		DNSConfig:         getDNSAliasConfig(),
 	}
 	imageNameFunc := func(s string) string {
 		return fmt.Sprintf("%s/%s-%s:%s", piplineArgs.ContainerRegistry, appName, s, piplineArgs.ImageTag)
@@ -1104,6 +1119,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
 			ToEnvironment: envName,
 			JobName:       rjName,
 			ImageTagNames: map[string]string{"comp1": "comp1customtag", "job1": "job1customtag"},
+			DNSConfig:     getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1160,6 +1176,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 			Branch:    "main",
 			JobName:   rjName,
 			PushImage: true,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1197,9 +1214,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_UseCache() {
 	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:   "main",
-			JobName:  rjName,
-			UseCache: true,
+			Branch:    "main",
+			JobName:   rjName,
+			UseCache:  true,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1237,8 +1255,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithDockerfileName() {
 	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			Branch:    "main",
+			JobName:   rjName,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1276,8 +1295,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithSourceFolder() {
 	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			Branch:    "main",
+			JobName:   rjName,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1317,8 +1337,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	s.Require().NoError(s.createBuildSecret(appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			Branch:    "main",
+			JobName:   rjName,
+			DNSConfig: getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1380,6 +1401,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 			Clustertype:          "anyclustertype",
 			Clustername:          "anyclustername",
 			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			DNSConfig:            getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1444,6 +1466,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 			Clustername:          "anyclustername",
 			PushImage:            true,
 			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			DNSConfig:            getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1514,6 +1537,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 			Clustertype:          "anyclustertype",
 			Clustername:          "anyclustername",
 			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			DNSConfig:            getDNSAliasConfig(),
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}

@@ -166,6 +166,12 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("--%s=%s", defaults.AppContainerRegistryEnvironmentVariable, appContainerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
 	}
+	for dnsAlias, appName := range job.config.DNSConfig.ReservedAppDNSAliases {
+		args = append(args, fmt.Sprintf("--%s=%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, dnsAlias, appName))
+	}
+	for _, reservedDNSAlias := range job.config.DNSConfig.ReservedDNSAlias {
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, reservedDNSAlias))
+	}
 
 	radixConfigFullName := jobSpec.RadixConfigFullName
 	if len(radixConfigFullName) == 0 {

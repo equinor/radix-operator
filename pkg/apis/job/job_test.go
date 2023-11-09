@@ -219,6 +219,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_CONTAINER_REGISTRY=%s", s.config.registry),
 				fmt.Sprintf("--RADIX_APP_CONTAINER_REGISTRY=%s", s.config.appRegistry),
 				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
+				fmt.Sprint("--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api"),
+				fmt.Sprint("--RADIX_RESERVED_DNS_ALIASES=grafana"),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
@@ -905,9 +907,9 @@ func (s *RadixJobTestSuite) assertStatusEqual(expectedStatus, actualStatus radix
 
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 	dnsConfig := dnsalias.DNSConfig{
-		DNSZone:             "dev.radix.equinor.com",
-		DNSAliasAppReserved: map[string]string{"api": "radix-api"},
-		DNSAliasReserved:    []string{"grafana"},
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
+		ReservedDNSAlias:      []string{"grafana"},
 	}
 	scenarios := []struct {
 		name                                      string
@@ -1005,9 +1007,9 @@ func getJobContainerArgument(container corev1.Container, variableName string) st
 func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 	return &config.Config{
 		DNSConfig: &dnsalias.DNSConfig{
-			DNSZone:             "dev.radix.equinor.com",
-			DNSAliasAppReserved: map[string]string{"api": "radix-api"},
-			DNSAliasReserved:    []string{"grafana"},
+			DNSZone:               "dev.radix.equinor.com",
+			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
+			ReservedDNSAlias:      []string{"grafana"},
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          historyLimit,
@@ -1015,4 +1017,12 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
 			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
 		}}
+}
+
+func getDNSAliasConfig() *dnsalias.DNSConfig {
+	return &dnsalias.DNSConfig{
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
+		ReservedDNSAlias:      []string{"grafana"},
+	}
 }

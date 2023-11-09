@@ -9,6 +9,7 @@ import (
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -29,25 +30,23 @@ const ConfigBranchFallback = "master"
 
 // ApplicationConfig Instance variables
 type ApplicationConfig struct {
-	kubeclient          kubernetes.Interface
-	radixclient         radixclient.Interface
-	kubeutil            *kube.Kube
-	registration        *radixv1.RadixRegistration
-	config              *radixv1.RadixApplication
-	dnsAliasAppReserved map[string]string
-	dnsAliasReserved    []string
+	kubeclient     kubernetes.Interface
+	radixclient    radixclient.Interface
+	kubeutil       *kube.Kube
+	registration   *radixv1.RadixRegistration
+	config         *radixv1.RadixApplication
+	dnsAliasConfig *dnsalias.DNSConfig
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsAliasAppReserved map[string]string, dnsAliasReserved []string) *ApplicationConfig {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) *ApplicationConfig {
 	return &ApplicationConfig{
-		kubeclient:          kubeclient,
-		radixclient:         radixclient,
-		kubeutil:            kubeutil,
-		registration:        registration,
-		config:              config,
-		dnsAliasAppReserved: dnsAliasAppReserved,
-		dnsAliasReserved:    dnsAliasReserved,
+		kubeclient:     kubeclient,
+		radixclient:    radixclient,
+		kubeutil:       kubeutil,
+		registration:   registration,
+		config:         config,
+		dnsAliasConfig: dnsAliasConfig,
 	}
 }
 
@@ -125,7 +124,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Debugf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
-			if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasAppReserved, app.dnsAliasReserved); err != nil {
+			if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 				return err
 			}
 			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), app.config, metav1.CreateOptions{})
@@ -144,7 +143,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		return nil
 	}
 
-	if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasAppReserved, app.dnsAliasReserved); err != nil {
+	if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 		return err
 	}
 

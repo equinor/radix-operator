@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -81,7 +82,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
-	ra, err := CreateRadixApplication(cli.GetRadixclient(), configFileContent)
+	ra, err := CreateRadixApplication(cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
 	if err != nil {
 		return err
 	}
@@ -89,7 +90,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Apply RA to cluster
 	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
 		cli.GetRadixclient(), cli.GetRegistration(), ra,
-		pipelineInfo.PipelineArguments.DNSAliasAppReserved, pipelineInfo.PipelineArguments.DNSAliasReserved)
+		pipelineInfo.PipelineArguments.DNSConfig)
 
 	err = applicationConfig.ApplyConfigToApplicationNamespace()
 	if err != nil {
@@ -515,8 +516,7 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipel
 }
 
 // CreateRadixApplication Create RadixApplication from radixconfig.yaml content
-func CreateRadixApplication(radixClient radixclient.Interface,
-	configFileContent string) (*radixv1.RadixApplication, error) {
+func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
 	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
@@ -537,7 +537,7 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 		ra.Name = strings.ToLower(ra.Name)
 	}
 
-	err = validate.CanRadixApplicationBeInserted(radixClient, ra, nil, nil)
+	err = validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig)
 	if err != nil {
 		log.Errorf("Radix config not valid.")
 		return nil, err

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -317,10 +318,11 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		domain1           = "domain1"
 		domain2           = "domain2"
 	)
-	dnsAliasAppReserved := map[string]string{
-		"api": "radix-api",
+	dnsConfig := &dnsaliasconfig.DNSConfig{
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: dnsaliasconfig.AppReservedDNSAlias{"api": "radix-api"},
+		ReservedDNSAlias:      []string{"grafana"},
 	}
-	dnsAliasReserved := []string{"grafana"}
 	var testScenarios = []struct {
 		name                    string
 		applicationBuilder      utils.ApplicationBuilder
@@ -388,8 +390,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 			_, err = radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 			require.NoError(t, err)
 			ra := ts.applicationBuilder.BuildRA()
-			applicationConfig := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra,
-				dnsAliasAppReserved, dnsAliasReserved)
+			applicationConfig := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, dnsConfig)
 
 			actualValidationErr := applicationConfig.ApplyConfigToApplicationNamespace()
 
