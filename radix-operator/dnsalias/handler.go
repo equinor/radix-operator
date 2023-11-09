@@ -3,6 +3,7 @@ package dnsalias
 import (
 	"fmt"
 
+	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -31,7 +32,7 @@ type handler struct {
 	radixClient   radixclient.Interface
 	syncerFactory internal.SyncerFactory
 	hasSynced     common.HasSynced
-	dnsConfig     *dnsalias.DNSConfig
+	dnsConfig     *dnsalias2.DNSConfig
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
@@ -39,7 +40,7 @@ func NewHandler(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
-	dnsConfig *dnsalias.DNSConfig,
+	dnsConfig *dnsalias2.DNSConfig,
 	hasSynced common.HasSynced,
 	options ...HandlerConfigOption) common.Handler {
 	h := &handler{

@@ -32,7 +32,7 @@ func (job *Job) maintainHistoryLimit() {
 		return
 	}
 	deletingJobs, radixJobsForConditions := job.groupSortedRadixJobs(radixJobs, radixJobsWithRDs)
-	jobHistoryLimit := job.config.PipelineJobsHistoryLimit
+	jobHistoryLimit := job.config.PipelineJobConfig.PipelineJobsHistoryLimit
 	log.Infof("Delete history RadixJob for limit %d", jobHistoryLimit)
 	jobsByConditionAndBranch := job.getJobsToGarbageCollectByJobConditionAndBranch(radixJobsForConditions, jobHistoryLimit)
 
@@ -47,7 +47,7 @@ func (job *Job) garbageCollectRadixJobs(radixJobs []v1.RadixJob) {
 	}
 	for _, rj := range radixJobs {
 		if strings.EqualFold(rj.GetName(), job.radixJob.GetName()) {
-			continue //do not remove current job
+			continue // do not remove current job
 		}
 		log.Infof("- delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
 		err := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Delete(context.TODO(), rj.GetName(), metav1.DeleteOptions{})

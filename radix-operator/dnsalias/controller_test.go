@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -84,7 +85,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
 
 	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
-	cfg := &dnsaliasapi.DNSConfig{DNSZone: dnsZone}
+	cfg := &dnsalias2.DNSConfig{DNSZone: dnsZone}
 	ingress := dnsaliasapi.BuildRadixDNSAliasIngress(alias.Spec.AppName, alias.GetName(), alias.Spec.Component, int32(8080), alias, cfg)
 	ingress.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	namespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)

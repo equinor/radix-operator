@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -114,7 +117,7 @@ func (s *RadixJobTestSuiteBase) teardownTest() {
 	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
-func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, config *Config) (*radixv1.RadixJob, error) {
+func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, config *config.Config) (*radixv1.RadixJob, error) {
 	rj, err := s.testUtils.ApplyJob(jobBuilder)
 	if err != nil {
 		return nil, err
@@ -128,7 +131,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, co
 	return s.radixClient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.TODO(), rj.Name, metav1.GetOptions{})
 }
 
-func (s *RadixJobTestSuiteBase) runSync(rj *radixv1.RadixJob, config *Config) error {
+func (s *RadixJobTestSuiteBase) runSync(rj *radixv1.RadixJob, config *config.Config) error {
 	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rj, config)
 	return job.OnSync()
 }
@@ -847,7 +850,7 @@ func (s *RadixJobTestSuite) assertExistRadixJobsWithNames(radixJobList *radixv1.
 	}
 }
 
-func (s *RadixJobTestSuite) applyJobWithSyncFor(raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config *Config) error {
+func (s *RadixJobTestSuite) applyJobWithSyncFor(raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config *config.Config) error {
 	_, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().
 		WithRadixApplication(raBuilder).
 		WithAppName(appName).
@@ -901,9 +904,14 @@ func (s *RadixJobTestSuite) assertStatusEqual(expectedStatus, actualStatus radix
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
+	dnsConfig := dnsalias.DNSConfig{
+		DNSZone:             "dev.radix.equinor.com",
+		DNSAliasAppReserved: map[string]string{"api": "radix-api"},
+		DNSAliasReserved:    []string{"grafana"},
+	}
 	scenarios := []struct {
 		name                                      string
-		config                                    *Config
+		config                                    *config.Config
 		expectedAppBuilderResourcesRequestsCPU    string
 		expectedAppBuilderResourcesRequestsMemory string
 		expectedAppBuilderResourcesLimitsMemory   string
@@ -911,12 +919,14 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 	}{
 		{
 			name: "Configured AppBuilderResources",
-			config: &Config{
-				PipelineJobsHistoryLimit:          3,
-				AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
-				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-				AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
-			},
+			config: &config.Config{
+				DNSConfig: &dnsConfig,
+				PipelineJobConfig: &pipelinejob.Config{
+					PipelineJobsHistoryLimit:          3,
+					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
+					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+				}},
 			expectedError:                             "",
 			expectedAppBuilderResourcesRequestsCPU:    "123m",
 			expectedAppBuilderResourcesRequestsMemory: "1234Mi",
@@ -924,26 +934,32 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		},
 		{
 			name: "Missing config for ResourcesRequestsCPU",
-			config: &Config{
-				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-				AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
-			},
+			config: &config.Config{
+				DNSConfig: &dnsConfig,
+				PipelineJobConfig: &pipelinejob.Config{
+					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+				}},
 			expectedError: "invalid or missing app builder resources",
 		},
 		{
 			name: "Missing config for ResourcesRequestsMemory",
-			config: &Config{
-				AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
-				AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
-			},
+			config: &config.Config{
+				DNSConfig: &dnsConfig,
+				PipelineJobConfig: &pipelinejob.Config{
+					AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
+					AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
+				}},
 			expectedError: "invalid or missing app builder resources",
 		},
 		{
 			name: "Missing config for ResourcesLimitsMemory",
-			config: &Config{
-				AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
-				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-			},
+			config: &config.Config{
+				DNSConfig: &dnsConfig,
+				PipelineJobConfig: &pipelinejob.Config{
+					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
+					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+				}},
 			expectedError: "invalid or missing app builder resources",
 		},
 	}
@@ -986,11 +1002,17 @@ func getJobContainerArgument(container corev1.Container, variableName string) st
 	return ""
 }
 
-func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *Config {
-	return &Config{
-		PipelineJobsHistoryLimit:          historyLimit,
-		AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
-		AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-		AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
-	}
+func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
+	return &config.Config{
+		DNSConfig: &dnsalias.DNSConfig{
+			DNSZone:             "dev.radix.equinor.com",
+			DNSAliasAppReserved: map[string]string{"api": "radix-api"},
+			DNSAliasReserved:    []string{"grafana"},
+		},
+		PipelineJobConfig: &pipelinejob.Config{
+			PipelineJobsHistoryLimit:          historyLimit,
+			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
+			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
+			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+		}}
 }

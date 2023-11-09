@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -68,18 +71,25 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
 
-	pipelineJobConfig := &jobs.Config{
-		PipelineJobsHistoryLimit:          3,
-		AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
-		AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-		AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+	cfg := &config.Config{
+		DNSConfig: &dnsalias.DNSConfig{
+			DNSZone:             "dev.radix.equinor.com",
+			DNSAliasAppReserved: map[string]string{"api": "radix-api"},
+			DNSAliasReserved:    []string{"grafana"},
+		},
+		PipelineJobConfig: &pipelinejob.Config{
+			PipelineJobsHistoryLimit:          3,
+			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
+			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
+			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+		},
 	}
 
 	jobHandler := NewHandler(
 		s.kubeUtil.KubeClient(),
 		s.kubeUtil,
 		s.kubeUtil.RadixClient(),
-		pipelineJobConfig,
+		cfg,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},

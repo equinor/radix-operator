@@ -3,6 +3,7 @@ package dnsalias
 import (
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -24,11 +25,11 @@ type syncer struct {
 	radixClient   radixclient.Interface
 	kubeUtil      *kube.Kube
 	radixDNSAlias *radixv1.RadixDNSAlias
-	dnsConfig     *DNSConfig
+	dnsConfig     *dnsalias.DNSConfig
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *DNSConfig, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
+func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
 	return &syncer{
 		kubeClient:    kubeClient,
 		radixClient:   radixClient,

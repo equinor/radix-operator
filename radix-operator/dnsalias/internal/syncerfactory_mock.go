@@ -7,6 +7,7 @@ package internal
 import (
 	reflect "reflect"
 
+	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	dnsalias "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -39,7 +40,7 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dnsConfig *dnsalias.DNSConfig, radixDNSAlias *v1.RadixDNSAlias) dnsalias.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dnsConfig *dnsalias2.DNSConfig, radixDNSAlias *v1.RadixDNSAlias) dnsalias.Syncer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateSyncer", kubeClient, kubeUtil, radixClient, dnsConfig, radixDNSAlias)
 	ret0, _ := ret[0].(dnsalias.Syncer)

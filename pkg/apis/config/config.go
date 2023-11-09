@@ -1,21 +1,22 @@
 package config
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 )
 
 type LogLevel string
 
 const (
-	LogLevelInfo  LogLevel = "INFO"
-	LogLevelError LogLevel = "ERROR"
-	LogLevelDebug LogLevel = "DEBUG"
+	LogLevelError   LogLevel = "ERROR"
+	LogLevelInfo    LogLevel = "INFO"
+	LogLevelWarning LogLevel = "WARNING"
+	LogLevelDebug   LogLevel = "DEBUG"
 )
 
 // Config from environment variables
 type Config struct {
 	LogLevel          LogLevel
 	DNSConfig         *dnsalias.DNSConfig
-	PipelineJobConfig *job.Config
+	PipelineJobConfig *pipelinejob.Config
 }

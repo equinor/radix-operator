@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -41,7 +42,7 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
-	dnsConfig := &dnsaliasapi.DNSConfig{DNSZone: "test.radix.equinor.com"}
+	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "test.radix.equinor.com"}
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
@@ -53,7 +54,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
-	dnsConfig := &dnsaliasapi.DNSConfig{DNSZone: "test.radix.equinor.com"}
+	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "test.radix.equinor.com"}
 	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, domain1, 8080), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
@@ -66,7 +67,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
-	dnsConfig := &dnsaliasapi.DNSConfig{DNSZone: "test.radix.equinor.com"}
+	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "test.radix.equinor.com"}
 	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, domain1, 8080), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))

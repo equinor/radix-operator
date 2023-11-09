@@ -12,10 +12,9 @@ import (
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
+	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -79,7 +78,7 @@ func main() {
 	startController(createApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), applicationControllerThreads, stop)
 	startController(createEnvironmentController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), environmentControllerThreads, stop)
 	startController(createDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), deploymentControllerThreads, stop)
-	startController(createJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.PipelineJobConfig), jobControllerThreads, stop)
+	startController(createJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg), jobControllerThreads, stop)
 	startController(createAlertController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), alertControllerThreads, stop)
 	startController(createBatchController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), 1, stop)
 	startController(createDNSAliasesController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.DNSConfig), environmentControllerThreads, stop)
@@ -269,7 +268,7 @@ func createDeploymentController(client kubernetes.Interface, radixClient radixcl
 		recorder)
 }
 
-func createJobController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface, config *jobUtil.Config) *common.Controller {
+func createJobController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface, config *apiconfig.Config) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -393,6 +392,8 @@ func setLogLevel(logLevel apiconfig.LogLevel) {
 	switch logLevel {
 	case apiconfig.LogLevelDebug:
 		log.SetLevel(log.DebugLevel)
+	case apiconfig.LogLevelWarning:
+		log.SetLevel(log.WarnLevel)
 	case apiconfig.LogLevelError:
 		log.SetLevel(log.ErrorLevel)
 	default:
