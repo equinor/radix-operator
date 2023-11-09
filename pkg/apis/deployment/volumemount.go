@@ -575,6 +575,7 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 		// fmt.Sprintf("--%s=%s", csiStorageClassTmpPathMountOption, tmpPath),//TODO fix this path to be able to mount on external mount
 		"--file-cache-timeout-in-seconds=120",
 		"--use-attr-cache=true",
+		"--cancel-list-on-mount-seconds=0",
 		"-o allow_other",
 		"-o attr_timeout=120",
 		"-o entry_timeout=120",
