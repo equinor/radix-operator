@@ -11,42 +11,43 @@ import (
 )
 
 func (app Application) rrPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {
-	registration := app.registration
-	appName := registration.Name
-	clusterroleName := fmt.Sprintf("%s-%s", roleNamePrefix, appName)
-	return app.rrClusterRole(clusterroleName, []string{"get"})
+	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
+	return app.rrClusterRole(clusterRoleName, []string{"get"})
 }
 
-func (app Application) rrClusterRole(clusterroleName string, verbs []string) *auth.ClusterRole {
-	registration := app.registration
-	appName := registration.Name
+func (app Application) rrClusterRole(clusterRoleName string, verbs []string) *auth.ClusterRole {
+	appName := app.registration.Name
+	return app.buildClusterRole(clusterRoleName, auth.PolicyRule{APIGroups: []string{radix.GroupName},
+		Resources:     []string{radix.ResourceRadixRegistrations},
+		ResourceNames: []string{appName},
+		Verbs:         verbs,
+	})
+}
 
-	ownerRef := app.getOwnerReference()
+func (app Application) radixDNSAliasPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {
+	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
+	return app.buildClusterRole(clusterRoleName, auth.PolicyRule{APIGroups: []string{radix.GroupName},
+		Resources: []string{radix.ResourceRadixDNSAliases},
+		Verbs:     []string{"list"},
+	})
+}
 
-	logger.Debugf("Creating clusterrole config %s", clusterroleName)
-
-	clusterrole := &auth.ClusterRole{
+func (app Application) buildClusterRole(clusterRoleName string, rules ...auth.PolicyRule) *auth.ClusterRole {
+	logger.Debugf("Creating clusterrole config %s", clusterRoleName)
+	clusterRole := &auth.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: k8s.RbacApiVersion,
 			Kind:       k8s.KindClusterRole,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterroleName,
+			Name: clusterRoleName,
 			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
+				kube.RadixAppLabel: app.registration.Name,
 			},
-			OwnerReferences: ownerRef,
+			OwnerReferences: app.getOwnerReference(),
 		},
-		Rules: []auth.PolicyRule{
-			{
-				APIGroups:     []string{radix.GroupName},
-				Resources:     []string{"radixregistrations"},
-				ResourceNames: []string{appName},
-				Verbs:         verbs,
-			},
-		},
+		Rules: rules,
 	}
-	logger.Debugf("Done - creating clusterrole config %s", clusterroleName)
-
-	return clusterrole
+	logger.Debugf("Done - creating clusterrole config %s", clusterRoleName)
+	return clusterRole
 }

@@ -23,4 +23,8 @@ const (
 	KindRadixAlert = "RadixAlert"
 	// KindRadixDNSAlias RadixDNSAlias object Kind
 	KindRadixDNSAlias = "RadixDNSAlias"
+	// ResourceRadixRegistrations RadixRegistrations API resource
+	ResourceRadixRegistrations = "radixregistrations"
+	// ResourceRadixDNSAliases RadixDNSAliases API resource
+	ResourceRadixDNSAliases = "radixdnsaliases"
 )

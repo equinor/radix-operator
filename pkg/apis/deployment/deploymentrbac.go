@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
@@ -79,7 +80,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 		}
 		subjects := []auth.Subject{
 			{
-				Kind:      "ServiceAccount",
+				Kind:      k8s.KindServiceAccount,
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
 			}}
