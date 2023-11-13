@@ -10,7 +10,7 @@
       "env": {},
       "args": [
         "--RADIX_APP=radix-job-demo",
-        "--JOB_NAME=radix-pipeline-20231030143058-mtwyg",
+        "--JOB_NAME=radix-pipeline-20231113133209-sb8w8",
         "--PIPELINE_TYPE=build-deploy",
         "--RADIX_TEKTON_IMAGE=radix-tekton:main-latest",
         "--RADIX_IMAGE_BUILDER=radix-image-builder:master-latest",
@@ -23,7 +23,7 @@
         "--AZURE_SUBSCRIPTION_ID=16ede44b-1f74-40a5-b428-46cca9a5741b",
         "--IMAGE_TAG=abcde",
         "--BRANCH=main",
-        "--COMMIT_ID=890e19c7bea84678d684daa2a9363cd8be4940bb",
+        "--COMMIT_ID=1cbb2fb6b8a562d44a27edae9678c86cb7cbda2e",
         "--PUSH_IMAGE=true",
         "--USE_CACHE=true",
         "--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
