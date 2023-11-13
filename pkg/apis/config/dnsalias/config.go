@@ -7,8 +7,8 @@ type DNSConfig struct {
 	DNSZone string
 	// ReservedAppDNSAliases The list of DNS aliases, reserved for Radix platform Radix applications
 	ReservedAppDNSAliases map[string]string
-	// ReservedDNSAlias The list of DNS aliases, reserved for Radix platform services
-	ReservedDNSAlias []string
+	// ReservedDNSAliases The list of DNS aliases, reserved for Radix platform services
+	ReservedDNSAliases []string
 }
 
 // AppReservedDNSAlias DNS aliases, reserved for Radix application

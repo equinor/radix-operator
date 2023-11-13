@@ -115,7 +115,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&debug, "DEBUG", "false", "Debug information")
 	cmd.Flags().StringToStringVar(&pipelineArgs.ImageTagNames, defaults.RadixImageTagNameEnvironmentVariable, make(map[string]string), "Image tag names for components (optional)")
 	cmd.Flags().StringToStringVar(&pipelineArgs.DNSConfig.ReservedAppDNSAliases, defaults.RadixReservedAppDNSAliasesEnvironmentVariable, make(map[string]string), "The list of DNS aliases, reserved for Radix platform Radix application")
-	cmd.Flags().StringArrayVar(&pipelineArgs.DNSConfig.ReservedDNSAlias, defaults.RadixReservedDNSAliasesEnvironmentVariable, make([]string, 0), "The list of DNS aliases, reserved for Radix platform services")
+	cmd.Flags().StringArrayVar(&pipelineArgs.DNSConfig.ReservedDNSAliases, defaults.RadixReservedDNSAliasesEnvironmentVariable, make([]string, 0), "The list of DNS aliases, reserved for Radix platform services")
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
@@ -124,7 +124,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	if len(pipelineArgs.DNSConfig.ReservedAppDNSAliases) == 0 {
 		return fmt.Errorf("missing DNS aliases, reserved for Radix platform Radix application")
 	}
-	if len(pipelineArgs.DNSConfig.ReservedDNSAlias) == 0 {
+	if len(pipelineArgs.DNSConfig.ReservedDNSAliases) == 0 {
 		return fmt.Errorf("missing DNS aliases, reserved for Radix platform services")
 	}
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)

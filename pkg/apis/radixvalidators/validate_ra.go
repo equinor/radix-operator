@@ -184,7 +184,7 @@ func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixAppli
 		if reservingAppName, aliasReserved := dnsAliasConfig.ReservedAppDNSAliases[dnsAlias.Domain]; aliasReserved && reservingAppName != app.Name {
 			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformApplicationError(dnsAlias.Domain))
 		}
-		if slice.Any(dnsAliasConfig.ReservedDNSAlias, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Domain }) {
+		if slice.Any(dnsAliasConfig.ReservedDNSAliases, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Domain }) {
 			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformServiceError(dnsAlias.Domain))
 		}
 	}

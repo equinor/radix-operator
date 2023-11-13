@@ -72,7 +72,7 @@ func NewConfig() *apiconfig.Config {
 		DNSConfig: &dnsalias.DNSConfig{
 			DNSZone:               getDNSZone(),
 			ReservedAppDNSAliases: getDNSAliasAppReserved(),
-			ReservedDNSAlias:      getDNSAliasReserved(),
+			ReservedDNSAliases:    getDNSAliasReserved(),
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),

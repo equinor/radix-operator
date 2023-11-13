@@ -321,7 +321,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 	dnsConfig := &dnsaliasconfig.DNSConfig{
 		DNSZone:               "dev.radix.equinor.com",
 		ReservedAppDNSAliases: dnsaliasconfig.AppReservedDNSAlias{"api": "radix-api"},
-		ReservedDNSAlias:      []string{"grafana"},
+		ReservedDNSAliases:    []string{"grafana"},
 	}
 	var testScenarios = []struct {
 		name                    string

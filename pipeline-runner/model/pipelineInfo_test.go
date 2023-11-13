@@ -191,6 +191,6 @@ func getDNSAliasConfig() *dnsalias.DNSConfig {
 	return &dnsalias.DNSConfig{
 		DNSZone:               "dev.radix.equinor.com",
 		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
-		ReservedDNSAlias:      []string{"grafana"},
+		ReservedDNSAliases:    []string{"grafana"},
 	}
 }

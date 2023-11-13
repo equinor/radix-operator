@@ -169,7 +169,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	for dnsAlias, appName := range job.config.DNSConfig.ReservedAppDNSAliases {
 		args = append(args, fmt.Sprintf("--%s=%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, dnsAlias, appName))
 	}
-	for _, reservedDNSAlias := range job.config.DNSConfig.ReservedDNSAlias {
+	for _, reservedDNSAlias := range job.config.DNSConfig.ReservedDNSAliases {
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, reservedDNSAlias))
 	}
 

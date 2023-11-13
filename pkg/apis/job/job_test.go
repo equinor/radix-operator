@@ -909,7 +909,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 	dnsConfig := dnsalias.DNSConfig{
 		DNSZone:               "dev.radix.equinor.com",
 		ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
-		ReservedDNSAlias:      []string{"grafana"},
+		ReservedDNSAliases:    []string{"grafana"},
 	}
 	scenarios := []struct {
 		name                                      string
@@ -1009,7 +1009,7 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 		DNSConfig: &dnsalias.DNSConfig{
 			DNSZone:               "dev.radix.equinor.com",
 			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
-			ReservedDNSAlias:      []string{"grafana"},
+			ReservedDNSAliases:    []string{"grafana"},
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          historyLimit,
