@@ -107,8 +107,13 @@ func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
 
 // GetTargetEnvironments Checks if given branch requires deployment to environments
 func (app *ApplicationConfig) GetTargetEnvironments(branchToBuild string) []string {
+	return GetRadixApplicationTargetEnvironments(app.config, branchToBuild)
+}
+
+// GetRadixApplicationTargetEnvironments Gets environments to be built for a branch
+func GetRadixApplicationTargetEnvironments(radixApplication *radixv1.RadixApplication, branchToBuild string) []string {
 	var targetEnvs []string
-	for _, env := range app.config.Spec.Environments {
+	for _, env := range radixApplication.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
 			targetEnvs = append(targetEnvs, env.Name)
 		}
