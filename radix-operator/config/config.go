@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/maps"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
@@ -36,24 +37,11 @@ func getDNSZone() string {
 }
 
 func getDNSAliasAppReserved() map[string]string {
-	return convertToMap(viper.GetString(defaults.RadixReservedAppDNSAliasesEnvironmentVariable))
-}
-
-func convertToMap(keyValuePairs string) map[string]string {
-	pair := strings.Split(keyValuePairs, ",")
-	keyValues := make(map[string]string)
-	for _, part := range pair {
-		kv := strings.Split(part, "=")
-		if len(kv) == 2 {
-			keyValues[kv[0]] = kv[1]
-		}
-	}
-	return keyValues
+	return maps.FromString(viper.GetString(defaults.RadixReservedAppDNSAliasesEnvironmentVariable))
 }
 
 func getDNSAliasReserved() []string {
-	envVar := viper.GetString(defaults.RadixReservedDNSAliasesEnvironmentVariable)
-	return strings.Split(envVar, ",")
+	return strings.Split(viper.GetString(defaults.RadixReservedDNSAliasesEnvironmentVariable), ",")
 }
 
 func getIntFromEnvVar(envVarName string, defaultValue int) int {

@@ -74,6 +74,8 @@ github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0/go.m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/equinor/radix-common v1.5.0 h1:z5hQHlKG2x16/NnV4b9ynf9n5ZageYUewE4MANdA96Y=
 github.com/equinor/radix-common v1.5.0/go.mod h1:UZ69U56VFtTxABi5JjGdaqn9Df5ilfTTqzUQ0riofVM=
+github.com/equinor/radix-common v1.6.1-0.20231114095949-d7354edaf04c h1:lX3lWLliPowJHMs3yp327ExdlkJvvpqU5ErRxJyV7Zg=
+github.com/equinor/radix-common v1.6.1-0.20231114095949-d7354edaf04c/go.mod h1:9hHvudaiqmoIjCqKlsW14jMj8qU/b/wMXUwkffd9MUw=
 github.com/evanphx/json-patch v5.6.0+incompatible h1:jBYDEEiFBPxA0v50tFdvOzQQTCvpL6mnFh5mB2/l16U=
 github.com/evanphx/json-patch v5.6.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/flowstack/go-jsonschema v0.1.1/go.mod h1:yL7fNggx1o8rm9RlgXv7hTBWxdBM0rVwpMwimd3F3N0=

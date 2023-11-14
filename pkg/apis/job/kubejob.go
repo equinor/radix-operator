@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -165,12 +167,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("--%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AppContainerRegistryEnvironmentVariable, appContainerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
-	}
-	for dnsAlias, appName := range job.config.DNSConfig.ReservedAppDNSAliases {
-		args = append(args, fmt.Sprintf("--%s=%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, dnsAlias, appName))
-	}
-	for _, reservedDNSAlias := range job.config.DNSConfig.ReservedDNSAliases {
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, reservedDNSAlias))
+		fmt.Sprintf("--%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, maps.ToString(job.config.DNSConfig.ReservedAppDNSAliases)),
+		fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, strings.Join(job.config.DNSConfig.ReservedDNSAliases, ",")),
 	}
 
 	radixConfigFullName := jobSpec.RadixConfigFullName
