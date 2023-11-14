@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipelinewait "github.com/equinor/radix-operator/pipeline-runner/wait"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -22,12 +22,12 @@ import (
 type BuildStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	jobWaiter pipelinewait.JobCompletionWaiter
+	jobWaiter internalwait.JobCompletionWaiter
 }
 
 // NewBuildStep Constructor.
 // jobWaiter is optional and will be set by Init(...) function if nil.
-func NewBuildStep(jobWaiter pipelinewait.JobCompletionWaiter) model.Step {
+func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
 	step := &BuildStepImplementation{
 		stepType:  pipeline.BuildStep,
 		jobWaiter: jobWaiter,
@@ -39,7 +39,7 @@ func NewBuildStep(jobWaiter pipelinewait.JobCompletionWaiter) model.Step {
 func (step *BuildStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = pipelinewait.NewJobCompletionWaiter(kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(kubeclient)
 	}
 }
 
@@ -63,12 +63,12 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 
-	if !pipelineInfo.BranchIsMapped {
+	if len(pipelineInfo.TargetEnvironments) == 0 {
 		log.Infof("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 		return nil
 	}
 
-	if !needToBuildComponents(pipelineInfo.ComponentImages) {
+	if len(pipelineInfo.BuildComponentImages) == 0 {
 		log.Infof("No component in app %s requires building", cli.GetAppName())
 		return nil
 	}
@@ -76,7 +76,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	log.Infof("Building app %s for branch %s and commit %s", cli.GetAppName(), branch, commitID)
 
 	namespace := utils.GetAppNamespace(cli.GetAppName())
-	buildSecrets, err := getBuildSecretsAsVariables(cli.GetKubeclient(), pipelineInfo.RadixApplication, namespace)
+	buildSecrets, err := getBuildSecretsAsVariables(pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -103,13 +103,4 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	}
 
 	return cli.jobWaiter.Wait(job)
-}
-
-func needToBuildComponents(componentImages map[string]pipeline.ComponentImage) bool {
-	for _, componentImage := range componentImages {
-		if componentImage.Build {
-			return true
-		}
-	}
-	return false
 }

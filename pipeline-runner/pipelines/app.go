@@ -95,7 +95,7 @@ func (cli *PipelineRunner) TearDown() {
 		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.RadixConfigMapName, namespace, err)
 	}
 
-	if cli.pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
+	if cli.pipelineInfo.IsPipelineType(v1.BuildDeploy) {
 		err = cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.GitConfigMapName)
 		if err != nil && !k8sErrors.IsNotFound(err) {
 			log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.GitConfigMapName, namespace, err)

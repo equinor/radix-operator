@@ -177,28 +177,3 @@ func Test_NonExistingPipelineType(t *testing.T) {
 	_, err := pipeline.GetPipelineFromName("non existing pipeline")
 	assert.NotNil(t, err)
 }
-
-func Test_IsDeployOnlyPipeline(t *testing.T) {
-	toEnvironment := "prod"
-	pipelineArguments := &model.PipelineArguments{
-		ToEnvironment: toEnvironment,
-	}
-
-	pipelineInfo := model.PipelineInfo{
-		PipelineArguments: *pipelineArguments,
-	}
-
-	assert.True(t, pipelineInfo.IsDeployOnlyPipeline())
-
-	fromEnvironment := "dev"
-	pipelineArguments = &model.PipelineArguments{
-		ToEnvironment:   toEnvironment,
-		FromEnvironment: fromEnvironment,
-	}
-
-	pipelineInfo = model.PipelineInfo{
-		PipelineArguments: *pipelineArguments,
-	}
-
-	assert.False(t, pipelineInfo.IsDeployOnlyPipeline())
-}

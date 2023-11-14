@@ -274,7 +274,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -399,7 +399,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -493,7 +493,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -609,7 +609,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -670,7 +670,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -788,7 +788,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 				},
 			}
 
-			applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+			applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 			pipelineInfo.SetApplicationConfig(applicationConfig)
 			err = cli.Run(pipelineInfo)
 			require.NoError(t, err)
@@ -805,11 +805,11 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 	srcDeploymentName := "deployment-1"
 	anyImageTag := "abcdef"
-	anyBuildDeployJobName := "any-build-deploy-job"
 	anyPromoteJobName := "any-promote-job"
 	dstEnv := "test"
 	srcEnv := "dev"
 	srcDeploymentCommitID := "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
+	srcRadixConfigHash := "sha256-a5d1565b32252be05910e459eb7551fd0fd6e0d513f7728c54ca5507c9b11387"
 
 	// Setup
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
@@ -827,8 +827,9 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 			WithDeploymentName(srcDeploymentName).
 			WithEnvironment(srcEnv).
 			WithImageTag(anyImageTag).
-			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
-			WithLabel(kube.RadixCommitLabel, srcDeploymentCommitID))
+			WithLabel(kube.RadixCommitLabel, srcDeploymentCommitID).
+			WithAnnotations(map[string]string{kube.RadixConfigHash: srcRadixConfigHash}))
+
 	require.NoError(t, err)
 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyAppName, metav1.GetOptions{})
@@ -848,7 +849,7 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -862,5 +863,6 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 	promotedRD := rds.Items[0]
 	assert.Equal(t, srcEnv, promotedRD.GetAnnotations()[kube.RadixDeploymentPromotedFromEnvironmentAnnotation])
 	assert.Equal(t, srcDeploymentName, promotedRD.GetAnnotations()[kube.RadixDeploymentPromotedFromDeploymentAnnotation])
+	assert.Equal(t, srcRadixConfigHash, promotedRD.GetAnnotations()[kube.RadixConfigHash])
 	assert.Equal(t, srcDeploymentCommitID, promotedRD.GetLabels()[kube.RadixCommitLabel])
 }
