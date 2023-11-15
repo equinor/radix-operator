@@ -53,6 +53,7 @@ const (
 	RadixJobTypeRunPipelines           = "run-pipelines"
 	RadixJobTypeJobSchedule            = "job-scheduler"
 	RadixJobTypeBatchSchedule          = "batch-scheduler"
+	RadixAliasLabel                    = "radix-alias"
 	RadixAppAliasLabel                 = "radix-app-alias"
 	RadixExternalAliasLabel            = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel       = "radix-app-active-cluster-alias"

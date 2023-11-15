@@ -70,12 +70,6 @@ spec:
             type: object
           status:
             description: RadixDNSAliasStatus is the status for an RadixDNSAlias
-            properties:
-              reconciled:
-                format: date-time
-                type: string
-            required:
-            - reconciled
             type: object
         required:
         - spec

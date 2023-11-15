@@ -52,5 +52,5 @@ type RadixDNSAliasSpec struct {
 
 // RadixDNSAliasStatus is the status for an RadixDNSAlias
 type RadixDNSAliasStatus struct {
-	Reconciled meta.Time `json:"reconciled" yaml:"reconciled"`
+	// Reconciled *meta.Time `json:"reconciled" yaml:"reconciled"`
 }

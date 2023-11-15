@@ -27,6 +27,16 @@ type AnnotationConfiguration struct {
 	Annotations map[string]string
 }
 
+type dnsAliasType int
+
+const (
+	dnsDefaultAlias = iota
+	dnsActiveClusterAlias
+	dnsAlias
+	dnsAppAlias
+	dnsExternalAlias
+)
+
 func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	clustername, err := deploy.kubeutil.GetClusterName()
@@ -228,7 +238,7 @@ func (deploy *Deployment) getAppAliasIngressConfig(appName string, ownerReferenc
 	hostname := fmt.Sprintf("%s.%s", appName, appAlias)
 	ingressSpec := getIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 
-	return deploy.getIngressConfig(appName, component, getAppAliasIngressName(appName), ownerReference, true, false, false, ingressSpec, namespace)
+	return deploy.getIngressConfig(appName, component, getAppAliasIngressName(appName), ownerReference, dnsAppAlias, ingressSpec, namespace)
 }
 
 func getAppAliasIngressName(appName string) string {
@@ -249,7 +259,7 @@ func (deploy *Deployment) getActiveClusterAliasIngressConfig(
 	ingressSpec := getIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 	ingressName := getActiveClusterIngressName(component.GetName())
 
-	return deploy.getIngressConfig(appName, component, ingressName, ownerReference, false, false, true, ingressSpec, namespace)
+	return deploy.getIngressConfig(appName, component, ingressName, ownerReference, dnsActiveClusterAlias, ingressSpec, namespace)
 }
 
 func getActiveClusterIngressName(componentName string) string {
@@ -270,7 +280,7 @@ func (deploy *Deployment) getDefaultIngressConfig(
 	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
 	ingressSpec := getIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 
-	return deploy.getIngressConfig(appName, component, getDefaultIngressName(component.GetName()), ownerReference, false, false, false, ingressSpec, namespace)
+	return deploy.getIngressConfig(appName, component, getDefaultIngressName(component.GetName()), ownerReference, dnsDefaultAlias, ingressSpec, namespace)
 }
 
 func getDefaultIngressName(componentName string) string {
@@ -286,7 +296,7 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
 	ingressSpec := getIngressSpec(externalAlias, component.GetName(), externalAlias, publicPortNumber)
-	return deploy.getIngressConfig(appName, component, externalAlias, ownerReference, false, true, false, ingressSpec, namespace)
+	return deploy.getIngressConfig(appName, component, externalAlias, ownerReference, dnsExternalAlias, ingressSpec, namespace)
 }
 
 func getActiveClusterHostName(componentName, namespace string) string {
@@ -325,7 +335,7 @@ func (deploy *Deployment) getIngressConfig(
 	component radixv1.RadixCommonDeployComponent,
 	ingressName string,
 	ownerReference []metav1.OwnerReference,
-	isAlias, isExternalAlias, isActiveClusterAlias bool,
+	aliasType dnsAliasType,
 	ingressSpec networkingv1.IngressSpec,
 	namespace string,
 ) (*networkingv1.Ingress, error) {
@@ -346,9 +356,10 @@ func (deploy *Deployment) getIngressConfig(
 			Labels: map[string]string{
 				kube.RadixAppLabel:                appName,
 				kube.RadixComponentLabel:          component.GetName(),
-				kube.RadixAppAliasLabel:           strconv.FormatBool(isAlias),
-				kube.RadixExternalAliasLabel:      strconv.FormatBool(isExternalAlias),
-				kube.RadixActiveClusterAliasLabel: strconv.FormatBool(isActiveClusterAlias),
+				kube.RadixAliasLabel:              strconv.FormatBool(aliasType == dnsAlias),
+				kube.RadixAppAliasLabel:           strconv.FormatBool(aliasType == dnsAppAlias),
+				kube.RadixExternalAliasLabel:      strconv.FormatBool(aliasType == dnsExternalAlias),
+				kube.RadixActiveClusterAliasLabel: strconv.FormatBool(aliasType == dnsActiveClusterAlias),
 			},
 			OwnerReferences: ownerReference,
 		},

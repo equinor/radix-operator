@@ -30,9 +30,9 @@ func (s *syncer) restoreStatus() error {
 }
 
 func (s *syncer) syncStatus() error {
-	syncCompleteTime := metav1.Now()
+	// syncCompleteTime := metav1.Now()
 	err := s.updateStatus(func(currStatus *radixv1.RadixDNSAliasStatus) {
-		currStatus.Reconciled = syncCompleteTime
+		// currStatus.Reconciled = &syncCompleteTime
 	})
 	if err != nil {
 		return fmt.Errorf("failed to sync status: %v", err)
