@@ -10,12 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app Application) rrPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {
-	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
-	return app.rrClusterRole(clusterRoleName, []string{"get"})
-}
-
-func (app Application) rrClusterRole(clusterRoleName string, verbs []string) *auth.ClusterRole {
+func (app Application) buildRRClusterRole(clusterRoleName string, verbs []string) *auth.ClusterRole {
 	appName := app.registration.Name
 	return app.buildClusterRole(clusterRoleName, auth.PolicyRule{APIGroups: []string{radix.GroupName},
 		Resources:     []string{radix.ResourceRadixRegistrations},
@@ -24,7 +19,7 @@ func (app Application) rrClusterRole(clusterRoleName string, verbs []string) *au
 	})
 }
 
-func (app Application) radixDNSAliasPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {
+func (app Application) buildRadixDNSAliasClusterRole(roleNamePrefix string) *auth.ClusterRole {
 	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
 	return app.buildClusterRole(clusterRoleName, auth.PolicyRule{APIGroups: []string{radix.GroupName},
 		Resources: []string{radix.ResourceRadixDNSAliases},

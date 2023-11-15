@@ -46,12 +46,6 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }
 
-func getApplication(ra *radixv1.RadixApplication) *applicationconfig.ApplicationConfig {
-	// The other arguments are not relevant for this test
-	application := applicationconfig.NewApplicationConfig(nil, nil, nil, nil, ra, nil)
-	return application
-}
-
 func Test_Create_Radix_Environments(t *testing.T) {
 	_, client, kubeUtil, radixClient := setupTest()
 

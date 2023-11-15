@@ -121,27 +121,3 @@ func deepEqual(old, new *v1.RadixDNSAlias) bool {
 func getOwner(radixClient radixclient.Interface, _, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), name, metav1.GetOptions{})
 }
-
-// func getAddedOrDroppedDNSAliasDomains(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {
-// 	var dnsAliasDomains []string
-// 	dnsAliasDomains = append(dnsAliasDomains, getMissingDNSAliasDomains(oldRa.Spec.DNSAlias, newRa.Spec.DNSAlias)...)
-// 	dnsAliasDomains = append(dnsAliasDomains, getMissingDNSAliasDomains(newRa.Spec.DNSAlias, oldRa.Spec.DNSAlias)...)
-// 	return dnsAliasDomains
-// }
-//
-// // getMissingDNSAliasDomains returns dnsAlias domains that exists in source list but not in target list
-// func getMissingDNSAliasDomains(source []v1.DNSAlias, target []v1.DNSAlias) []string {
-// 	droppedDomains := make([]string, 0)
-// 	for _, oldDNSAlias := range source {
-// 		dropped := true
-// 		for _, newDnsAlias := range target {
-// 			if oldDNSAlias.Domain == newDnsAlias.Domain {
-// 				dropped = false
-// 			}
-// 		}
-// 		if dropped {
-// 			droppedDomains = append(droppedDomains, oldDNSAlias.Domain)
-// 		}
-// 	}
-// 	return droppedDomains
-// }
