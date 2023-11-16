@@ -20,7 +20,7 @@ func Test_NewForceSslRedirectAnnotationProvider(t *testing.T) {
 }
 
 func Test_NewIngressConfigurationAnnotationProvider(t *testing.T) {
-	cfg := ingress.IngressConfiguration{[]ingress.AnnotationConfiguration{{Name: "test"}}}
+	cfg := ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
 	sut := NewIngressConfigurationAnnotationProvider(cfg)
 	assert.IsType(t, &ingressConfigurationAnnotationProvider{}, sut)
 	sutReal := sut.(*ingressConfigurationAnnotationProvider)
