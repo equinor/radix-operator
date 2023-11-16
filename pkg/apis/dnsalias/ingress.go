@@ -22,15 +22,15 @@ func CreateRadixDNSAliasIngress(kubeClient kubernetes.Interface, appName, envNam
 }
 
 // BuildRadixDNSAliasIngress Build an Ingress for a RadixDNSAlias
-func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owner *v1.RadixDNSAlias, config *dnsalias.DNSConfig) *networkingv1.Ingress {
+func BuildRadixDNSAliasIngress(appName, alias, service string, port int32, owner *v1.RadixDNSAlias, config *dnsalias.DNSConfig) *networkingv1.Ingress {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
-	ingressName := GetDNSAliasIngressName(service, domain)
-	host := GetDNSAliasHost(domain, config.DNSZone)
+	ingressName := GetDNSAliasIngressName(service, alias)
+	host := GetDNSAliasHost(alias, config.DNSZone)
 	ingress := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ingressName,
 			Labels:      labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(service)),
-			Annotations: annotations.ForManagedByRadixDNSAliasIngress(domain),
+			Annotations: annotations.ForManagedByRadixDNSAliasIngress(alias),
 		},
 		Spec: networkingv1.IngressSpec{
 			TLS: []networkingv1.IngressTLS{
@@ -60,12 +60,12 @@ func BuildRadixDNSAliasIngress(appName, domain, service string, port int32, owne
 }
 
 // GetDNSAliasIngressName Gets name of the ingress for the custom DNS alias
-func GetDNSAliasIngressName(service string, domain string) string {
-	return fmt.Sprintf("%s.%s.custom-domain", service, domain)
+func GetDNSAliasIngressName(service string, alias string) string {
+	return fmt.Sprintf("%s.%s.custom-alias", service, alias)
 }
 
-// GetDNSAliasHost Gets DNS alias domain host.
-// Example for the domain "my-app" and the cluster "Playground": my-app.playground.radix.equinor.com
-func GetDNSAliasHost(domain string, dnsZone string) string {
-	return fmt.Sprintf("%s.%s", domain, dnsZone)
+// GetDNSAliasHost Gets DNS alias host.
+// Example for the alias "my-app" and the cluster "Playground": my-app.playground.radix.equinor.com
+func GetDNSAliasHost(alias string, dnsZone string) string {
+	return fmt.Sprintf("%s.%s", alias, dnsZone)
 }

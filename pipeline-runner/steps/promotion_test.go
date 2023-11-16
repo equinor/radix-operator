@@ -148,7 +148,9 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	anyPromoteJobName := "any-promote-job"
 	anyProdEnvironment := "prod"
 	anyDevEnvironment := "dev"
-	anyDNSAlias := "a-dns-alias"
+	anyDNSAlias1 := "a-dns-alias1"
+	anyDNSAlias2 := "a-dns-alias2"
+	anyExternalDNSAlias := "an-external-dns-alias"
 	prodNode := v1.RadixNode{Gpu: "prod-gpu", GpuCount: "2"}
 
 	// Setup
@@ -156,6 +158,17 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 
 	secretType := v1.RadixAzureKeyVaultObjectTypeSecret
 	keyType := v1.RadixAzureKeyVaultObjectTypeKey
+	componentName1 := "app"
+	dnsAlias1 := v1.DNSAlias{
+		Alias:       anyDNSAlias1,
+		Environment: anyProdEnvironment,
+		Component:   componentName1,
+	}
+	dnsAlias2 := v1.DNSAlias{
+		Alias:       anyDNSAlias2,
+		Environment: anyProdEnvironment,
+		Component:   componentName1,
+	}
 	_, err := commonTestUtils.ApplyDeployment(
 		utils.NewDeploymentBuilder().
 			WithComponent(
@@ -179,7 +192,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithEnvironment(anyDevEnvironment, "master").
 					WithEnvironment(anyProdEnvironment, "").
 					WithDNSAppAlias(anyProdEnvironment, "app").
-					WithDNSExternalAlias(anyDNSAlias, anyProdEnvironment, "app").
+					WithDNSExternalAlias(anyExternalDNSAlias, anyProdEnvironment, "app").
+					WithDNSAlias(dnsAlias1, dnsAlias2).
 					WithComponents(
 						utils.AnApplicationComponent().
 							WithName("app").
@@ -295,7 +309,9 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "5678", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
 	assert.Equal(t, "mysql", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_TYPE"])
 	assert.Equal(t, "my-db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_NAME"])
-	assert.Equal(t, anyDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
+	assert.Equal(t, anyExternalDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
+	assert.Contains(t, rds.Items[0].Spec.Components[0].DNSAlias, anyDNSAlias1)
+	assert.Contains(t, rds.Items[0].Spec.Components[0].DNSAlias, anyDNSAlias2)
 	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
 	assert.Len(t, rds.Items[0].Spec.Components[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYAPPSECRET", rds.Items[0].Spec.Components[0].Secrets[0])

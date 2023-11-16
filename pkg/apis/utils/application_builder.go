@@ -120,14 +120,14 @@ func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env, component string) Appli
 	return ap
 }
 
-// WithDNSAlias Sets domain for env and component to be the DNS alias like "my-domain.radix.equinor.com" or "my-domain.<clustername>.radix.equinor.com"
+// WithDNSAlias Sets alias for env and component to be the DNS alias like "my-alias.radix.equinor.com" or "my-alias.<clustername>.radix.equinor.com"
 func (ap *ApplicationBuilderStruct) WithDNSAlias(dnsAliases ...radixv1.DNSAlias) ApplicationBuilder {
 	var dnsAliasesToAppend []radixv1.DNSAlias
 	for _, dnsAlias := range dnsAliases {
 		foundExistingAlias := false
 		for i := 0; i < len(ap.dnsAliases); i++ {
-			if strings.EqualFold(dnsAlias.Domain, ap.dnsAliases[i].Domain) {
-				ap.dnsAliases[i].Domain = dnsAlias.Domain
+			if strings.EqualFold(dnsAlias.Alias, ap.dnsAliases[i].Alias) {
+				ap.dnsAliases[i].Alias = dnsAlias.Alias
 				ap.dnsAliases[i].Environment = dnsAlias.Environment
 				ap.dnsAliases[i].Component = dnsAlias.Component
 				foundExistingAlias = true
@@ -138,7 +138,7 @@ func (ap *ApplicationBuilderStruct) WithDNSAlias(dnsAliases ...radixv1.DNSAlias)
 			continue
 		}
 		dnsAliasesToAppend = append(dnsAliasesToAppend, radixv1.DNSAlias{
-			Domain:      dnsAlias.Domain,
+			Alias:       dnsAlias.Alias,
 			Environment: dnsAlias.Environment,
 			Component:   dnsAlias.Component,
 		})

@@ -275,6 +275,43 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 	assert.Equal(t, 0, len(deployComponent[0].DNSExternalAlias))
 }
 
+func TestGetRadixComponentsForEnv_ListOfDNSAliasesForComponent_GetListOfAliases(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("componentA"),
+			utils.NewApplicationComponentBuilder().
+				WithName("componentB")).
+		WithDNSAlias(
+			radixv1.DNSAlias{Alias: "alias1", Component: "componentA", Environment: "prod"},
+			radixv1.DNSAlias{Alias: "alias2", Component: "componentA", Environment: "prod"},
+			radixv1.DNSAlias{Alias: "alias3", Component: "componentA", Environment: "dev"},
+		).BuildRA()
+
+	prodDeployComponent, _ := GetRadixComponentsForEnv(ra, "prod", componentImages, envVarsMap)
+	assert.Equal(t, 2, len(prodDeployComponent))
+	assert.Equal(t, 2, len(prodDeployComponent[0].DNSAlias))
+	require.Len(t, prodDeployComponent[0].DNSAlias, 2)
+	assert.Equal(t, "alias1", prodDeployComponent[0].DNSAlias[0])
+	assert.Equal(t, "componentA", prodDeployComponent[0].GetName())
+	assert.Equal(t, "alias2", prodDeployComponent[0].DNSAlias[1])
+
+	devDeployComponent, _ := GetRadixComponentsForEnv(ra, "dev", componentImages, envVarsMap)
+	assert.Equal(t, 2, len(devDeployComponent))
+	assert.Equal(t, 1, len(devDeployComponent[0].DNSAlias))
+	require.Len(t, devDeployComponent[0].DNSAlias, 1)
+	assert.Equal(t, "alias3", devDeployComponent[0].DNSAlias[0])
+	assert.Equal(t, "componentA", devDeployComponent[0].GetName())
+}
+
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *testing.T) {
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}

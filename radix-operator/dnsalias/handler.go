@@ -4,11 +4,13 @@ import (
 	"fmt"
 
 	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
+	"github.com/equinor/radix-operator/radix-operator/ingress"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -27,12 +29,14 @@ const (
 
 // Handler Handler for radix dns aliases
 type handler struct {
-	kubeClient    kubernetes.Interface
-	kubeUtil      *kube.Kube
-	radixClient   radixclient.Interface
-	syncerFactory internal.SyncerFactory
-	hasSynced     common.HasSynced
-	dnsConfig     *dnsalias2.DNSConfig
+	kubeClient           kubernetes.Interface
+	kubeUtil             *kube.Kube
+	radixClient          radixclient.Interface
+	syncerFactory        internal.SyncerFactory
+	hasSynced            common.HasSynced
+	dnsConfig            *dnsalias2.DNSConfig
+	ingressConfiguration ingress.IngressConfiguration
+	oauth2DefaultConfig  defaults.OAuth2Config
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
@@ -64,6 +68,20 @@ type HandlerConfigOption func(*handler)
 func WithSyncerFactory(factory internal.SyncerFactory) HandlerConfigOption {
 	return func(h *handler) {
 		h.syncerFactory = factory
+	}
+}
+
+// WithIngressConfiguration sets the list of custom ingress confiigurations
+func WithIngressConfiguration(config ingress.IngressConfiguration) HandlerConfigOption {
+	return func(h *handler) {
+		h.ingressConfiguration = config
+	}
+}
+
+// WithOAuth2DefaultConfig configures default OAuth2 settings
+func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
+	return func(h *handler) {
+		h.oauth2DefaultConfig = oauth2Config
 	}
 }
 

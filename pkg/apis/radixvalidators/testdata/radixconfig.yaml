@@ -150,4 +150,4 @@ spec:
   dnsAlias:
   - environment: prod
     component: app2
-    domain: my-domain
+    alias: my-alias

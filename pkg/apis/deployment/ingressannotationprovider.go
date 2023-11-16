@@ -8,6 +8,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
+	"github.com/equinor/radix-operator/radix-operator/ingress"
 )
 
 type IngressAnnotationProvider interface {
@@ -24,12 +25,12 @@ func (forceSslRedirectAnnotationProvider) GetAnnotations(component v1.RadixCommo
 	return map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}, nil
 }
 
-func NewIngressConfigurationAnnotationProvider(config IngressConfiguration) IngressAnnotationProvider {
+func NewIngressConfigurationAnnotationProvider(config ingress.IngressConfiguration) IngressAnnotationProvider {
 	return &ingressConfigurationAnnotationProvider{config: config}
 }
 
 type ingressConfigurationAnnotationProvider struct {
-	config IngressConfiguration
+	config ingress.IngressConfiguration
 }
 
 func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
@@ -45,7 +46,7 @@ func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component
 	return allAnnotations, nil
 }
 
-func (provider *ingressConfigurationAnnotationProvider) getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
+func (provider *ingressConfigurationAnnotationProvider) getAnnotationsFromConfiguration(name string, config ingress.IngressConfiguration) map[string]string {
 	for _, ingressConfig := range config.AnnotationConfigurations {
 		if strings.EqualFold(ingressConfig.Name, name) {
 			return ingressConfig.Annotations

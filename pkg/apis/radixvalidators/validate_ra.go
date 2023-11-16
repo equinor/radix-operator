@@ -150,14 +150,14 @@ func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixAppli
 	if err != nil {
 		return err
 	}
-	uniqueDomainNames := make(map[string]struct{})
+	uniqueAliasNames := make(map[string]struct{})
 	for _, dnsAlias := range app.Spec.DNSAlias {
-		if _, ok := uniqueDomainNames[dnsAlias.Domain]; ok {
-			errs = append(errs, DuplicateDomainForDNSAliasError(dnsAlias.Domain))
-		} else if err = validateRequiredResourceName("dnsAlias domain", dnsAlias.Domain); err != nil {
+		if _, ok := uniqueAliasNames[dnsAlias.Alias]; ok {
+			errs = append(errs, DuplicateAliasForDNSAliasError(dnsAlias.Alias))
+		} else if err = validateRequiredResourceName("dnsAlias alias", dnsAlias.Alias); err != nil {
 			errs = append(errs, err)
 		}
-		uniqueDomainNames[dnsAlias.Domain] = struct{}{}
+		uniqueAliasNames[dnsAlias.Alias] = struct{}{}
 		componentNameIsValid, environmentNameIsValid := true, true
 		if err = validateRequiredResourceName("dnsAlias component", dnsAlias.Component); err != nil {
 			errs = append(errs, err)
@@ -178,14 +178,14 @@ func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixAppli
 			errs = append(errs, ComponentForDNSAliasIsNotMarkedAsPublicError(dnsAlias.Component))
 			continue
 		}
-		if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Domain]; ok && radixDNSAlias.Spec.AppName != app.Name {
-			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Domain))
+		if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Alias]; ok && radixDNSAlias.Spec.AppName != app.Name {
+			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Alias))
 		}
-		if reservingAppName, aliasReserved := dnsAliasConfig.ReservedAppDNSAliases[dnsAlias.Domain]; aliasReserved && reservingAppName != app.Name {
-			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformApplicationError(dnsAlias.Domain))
+		if reservingAppName, aliasReserved := dnsAliasConfig.ReservedAppDNSAliases[dnsAlias.Alias]; aliasReserved && reservingAppName != app.Name {
+			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformApplicationError(dnsAlias.Alias))
 		}
-		if slice.Any(dnsAliasConfig.ReservedDNSAliases, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Domain }) {
-			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformServiceError(dnsAlias.Domain))
+		if slice.Any(dnsAliasConfig.ReservedDNSAliases, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Alias }) {
+			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformServiceError(dnsAlias.Alias))
 		}
 	}
 	return errors.Join(errs...)

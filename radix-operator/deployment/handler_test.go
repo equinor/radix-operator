@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/equinor/radix-operator/radix-operator/ingress"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -129,7 +130,7 @@ func (s *handlerSuite) Test_Sync() {
 		syncer.EXPECT().OnSync().Times(1)
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		oauthConfig := defaults.NewOAuth2Config()
-		ingressConfig := deployment.IngressConfiguration{AnnotationConfigurations: []deployment.AnnotationConfiguration{{Name: "test"}}}
+		ingressConfig := ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
 		expectedIngressAnnotations := []deployment.IngressAnnotationProvider{
 			deployment.NewForceSslRedirectAnnotationProvider(),
 			deployment.NewIngressConfigurationAnnotationProvider(ingressConfig),

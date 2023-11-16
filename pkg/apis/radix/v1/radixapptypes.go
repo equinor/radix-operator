@@ -97,7 +97,7 @@ type RadixApplicationSpec struct {
 	// List of DNS names and which component and environment incoming requests shall be routed to.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias
 	// +listType=map
-	// +listMapKey=domain
+	// +listMapKey=alias
 	// +optional
 	DNSAlias []DNSAlias `json:"dnsAlias,omitempty"`
 
@@ -252,11 +252,11 @@ type ExternalAlias struct {
 
 // DNSAlias defines mapping between an DNS alias and a component and environment.
 type DNSAlias struct {
-	// Domain name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com
+	// Alias name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
-	Domain string `json:"domain"`
+	Alias string `json:"alias"`
 
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1

@@ -42,7 +42,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	const (
 		appName1       = "any-app1"
 		appName2       = "any-app2"
-		aliasName      = "alias-domain-1"
+		aliasName      = "alias-alias-1"
 		envName1       = "env1"
 		envName2       = "env2"
 		componentName1 = "server1"

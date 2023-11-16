@@ -100,14 +100,14 @@ var (
 	ErrMissingAzureIdentity                                                = errors.New("missing identity")
 )
 
-// DomainForDNSAliasNotDefinedError Error when domain is not valid
-func DomainForDNSAliasNotDefinedError() error {
-	return fmt.Errorf("invalid or missing domain for dnsAlias")
+// AliasForDNSAliasNotDefinedError Error when alias is not valid
+func AliasForDNSAliasNotDefinedError() error {
+	return fmt.Errorf("invalid or missing alias for dnsAlias")
 }
 
-// DuplicateDomainForDNSAliasError Error when domains are duplicate
-func DuplicateDomainForDNSAliasError(domain string) error {
-	return fmt.Errorf("duplicate domains %s in dnsAlias-es are not allowed", domain)
+// DuplicateAliasForDNSAliasError Error when aliases are duplicate
+func DuplicateAliasForDNSAliasError(alias string) error {
+	return fmt.Errorf("duplicate aliases %s in dnsAliases are not allowed", alias)
 }
 
 // EnvForDNSAliasNotDefinedError Error when env not defined
@@ -126,18 +126,18 @@ func ComponentForDNSAliasIsNotMarkedAsPublicError(component string) error {
 }
 
 // RadixDNSAliasAlreadyUsedByAnotherApplicationError Error when RadixDNSAlias already used by another application
-func RadixDNSAliasAlreadyUsedByAnotherApplicationError(domain string) error {
-	return fmt.Errorf("DNS alias %s already used by another application", domain)
+func RadixDNSAliasAlreadyUsedByAnotherApplicationError(alias string) error {
+	return fmt.Errorf("DNS alias %s already used by another application", alias)
 }
 
 // RadixDNSAliasIsReservedForRadixPlatformApplicationError Error when RadixDNSAlias is reserved by Radix platform for a Radix application
-func RadixDNSAliasIsReservedForRadixPlatformApplicationError(domain string) error {
-	return fmt.Errorf("DNS alias %s is reserved by Radix platform application", domain)
+func RadixDNSAliasIsReservedForRadixPlatformApplicationError(alias string) error {
+	return fmt.Errorf("DNS alias %s is reserved by Radix platform application", alias)
 }
 
 // RadixDNSAliasIsReservedForRadixPlatformServiceError Error when RadixDNSAlias is reserved by Radix platform for a Radix service
-func RadixDNSAliasIsReservedForRadixPlatformServiceError(domain string) error {
-	return fmt.Errorf("DNS alias %s is reserved by Radix platform service", domain)
+func RadixDNSAliasIsReservedForRadixPlatformServiceError(alias string) error {
+	return fmt.Errorf("DNS alias %s is reserved by Radix platform service", alias)
 }
 
 // MissingPrivateImageHubUsernameErrorWithMessage Error when username for private image hubs is not defined

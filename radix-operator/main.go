@@ -14,7 +14,6 @@ import (
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -27,6 +26,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/deployment"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/environment"
+	"github.com/equinor/radix-operator/radix-operator/ingress"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -73,15 +73,16 @@ func main() {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := radixinformers.NewSharedInformerFactory(radixClient, resyncPeriod)
+	oauthDefaultConfig := getOAuthDefaultConfig()
 
 	startController(createRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), registrationControllerThreads, stop)
 	startController(createApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.DNSConfig), applicationControllerThreads, stop)
 	startController(createEnvironmentController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), environmentControllerThreads, stop)
-	startController(createDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), deploymentControllerThreads, stop)
+	startController(createDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, oauthDefaultConfig), deploymentControllerThreads, stop)
 	startController(createJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg), jobControllerThreads, stop)
 	startController(createAlertController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), alertControllerThreads, stop)
 	startController(createBatchController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), 1, stop)
-	startController(createDNSAliasesController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.DNSConfig), environmentControllerThreads, stop)
+	startController(createDNSAliasesController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, oauthDefaultConfig, cfg.DNSConfig), environmentControllerThreads, stop)
 
 	// Start informers when all controllers are running
 	kubeInformerFactory.Start(stop)
@@ -91,6 +92,13 @@ func main() {
 	signal.Notify(sigTerm, syscall.SIGTERM)
 	signal.Notify(sigTerm, syscall.SIGINT)
 	<-sigTerm
+}
+
+func getOAuthDefaultConfig() defaults.OAuth2Config {
+	return defaults.NewOAuth2Config(
+		defaults.WithOAuth2Defaults(),
+		defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)),
+	)
 }
 
 func startController(controller *common.Controller, threadiness int, stop <-chan struct{}) {
@@ -196,7 +204,10 @@ func createEnvironmentController(client kubernetes.Interface, radixClient radixc
 		recorder)
 }
 
-func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface, dnsConfig *dnsaliasconfig.DNSConfig) *common.Controller {
+func createDNSAliasesController(client kubernetes.Interface, radixClient radixclient.Interface,
+	kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory,
+	recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface,
+	oauthDefaultConfig defaults.OAuth2Config, dnsConfig *dnsaliasconfig.DNSConfig) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -205,12 +216,19 @@ func createDNSAliasesController(client kubernetes.Interface, radixClient radixcl
 		radixInformerFactory,
 	)
 
+	ingressConfiguration, err := loadIngressConfigFromMap(kubeUtil)
+	if err != nil {
+		panic(fmt.Errorf("failed to load ingress configuration: %v", err))
+	}
+
 	handler := dnsalias.NewHandler(
 		client,
 		kubeUtil,
 		radixClient,
 		dnsConfig,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+		dnsalias.WithIngressConfiguration(ingressConfiguration),
+		dnsalias.WithOAuth2DefaultConfig(oauthDefaultConfig),
 	)
 
 	const waitForChildrenToSync = true
@@ -224,7 +242,10 @@ func createDNSAliasesController(client kubernetes.Interface, radixClient radixcl
 		recorder)
 }
 
-func createDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface) *common.Controller {
+func createDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface,
+	kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory,
+	recorder record.EventRecorder, secretProviderClient secretproviderclient.Interface,
+	oauthDefaultConfig defaults.OAuth2Config) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -233,10 +254,6 @@ func createDeploymentController(client kubernetes.Interface, radixClient radixcl
 		radixInformerFactory,
 	)
 
-	oauthDefaultConfig := defaults.NewOAuth2Config(
-		defaults.WithOAuth2Defaults(),
-		defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)),
-	)
 	ingressConfiguration, err := loadIngressConfigFromMap(kubeUtil)
 	if err != nil {
 		panic(fmt.Errorf("failed to load ingress configuration: %v", err))
@@ -336,8 +353,8 @@ func createBatchController(client kubernetes.Interface, radixClient radixclient.
 		recorder)
 }
 
-func loadIngressConfigFromMap(kubeutil *kube.Kube) (deploymentAPI.IngressConfiguration, error) {
-	ingressConfig := deploymentAPI.IngressConfiguration{}
+func loadIngressConfigFromMap(kubeutil *kube.Kube) (ingress.IngressConfiguration, error) {
+	ingressConfig := ingress.IngressConfiguration{}
 	configMap, err := kubeutil.GetConfigMap(metav1.NamespaceDefault, ingressConfigurationMap)
 	if err != nil {
 		return ingressConfig, err

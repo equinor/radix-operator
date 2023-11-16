@@ -24,7 +24,7 @@ const (
 	appName1   = "appName1"
 	env1       = "env1"
 	component1 = "component1"
-	domain1    = "domain1"
+	alias1     = "alias1"
 )
 
 func (s *handlerTestSuite) SetupTest() {
@@ -49,31 +49,31 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync().Times(0)
 
-	err := handler.Sync("", domain1, s.EventRecorder)
+	err := handler.Sync("", alias1, s.EventRecorder)
 	s.Require().NoError(err)
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
-	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, domain1, 8080), "create existing RadixDNSAlias")
+	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, alias1, 8080), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	expectedError := fmt.Errorf("some error")
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync().Return(expectedError).Times(1)
 
-	actualError := handler.Sync("", domain1, s.EventRecorder)
+	actualError := handler.Sync("", alias1, s.EventRecorder)
 	s.Equal(expectedError, actualError)
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
-	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, domain1, 8080), "create existing RadixDNSAlias")
+	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, alias1, 8080), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync().Return(nil).Times(1)
 
-	err := handler.Sync("", domain1, s.EventRecorder)
+	err := handler.Sync("", alias1, s.EventRecorder)
 	s.Require().Nil(err)
 }

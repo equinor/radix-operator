@@ -1365,6 +1365,11 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.DNSAlias != nil {
+		in, out := &in.DNSAlias, &out.DNSAlias
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.DNSExternalAlias != nil {
 		in, out := &in.DNSExternalAlias, &out.DNSExternalAlias
 		*out = make([]string, len(*in))

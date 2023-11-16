@@ -402,8 +402,8 @@ func AssertError(t *testing.T, expectedError string, err error) {
 
 // RegisterRadixDNSAliases Register RadixDNSAliases
 func RegisterRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]radixv1.RadixDNSAliasSpec) error {
-	for domain, aliasesSpec := range radixDNSAliasesMap {
-		err := RegisterRadixDNSAliasBySpec(radixClient, domain, aliasesSpec)
+	for alias, aliasesSpec := range radixDNSAliasesMap {
+		err := RegisterRadixDNSAliasBySpec(radixClient, alias, aliasesSpec)
 		if err != nil {
 			return err
 		}
@@ -412,8 +412,8 @@ func RegisterRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesM
 }
 
 // RegisterRadixDNSAlias Register RadixDNSAlias by properties
-func RegisterRadixDNSAlias(radixClient radixclient.Interface, appName, componentName, envName, domain string, port int32) error {
-	return RegisterRadixDNSAliasBySpec(radixClient, domain, radixv1.RadixDNSAliasSpec{
+func RegisterRadixDNSAlias(radixClient radixclient.Interface, appName, componentName, envName, alias string, port int32) error {
+	return RegisterRadixDNSAliasBySpec(radixClient, alias, radixv1.RadixDNSAliasSpec{
 		AppName:     appName,
 		Environment: envName,
 		Component:   componentName,
@@ -422,11 +422,11 @@ func RegisterRadixDNSAlias(radixClient radixclient.Interface, appName, component
 }
 
 // RegisterRadixDNSAliasBySpec Register RadixDNSAlias by its spec
-func RegisterRadixDNSAliasBySpec(radixClient radixclient.Interface, domain string, aliasesSpec radixv1.RadixDNSAliasSpec) error {
+func RegisterRadixDNSAliasBySpec(radixClient radixclient.Interface, alias string, aliasesSpec radixv1.RadixDNSAliasSpec) error {
 	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.Background(),
 		&radixv1.RadixDNSAlias{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   domain,
+				Name:   alias,
 				Labels: map[string]string{kube.RadixAppLabel: aliasesSpec.AppName},
 			},
 			Spec: aliasesSpec,

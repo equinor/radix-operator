@@ -24,10 +24,10 @@ func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 		if err != nil {
 			return err
 		}
-		if existingRadixDNSAlias, ok := existingRadixDNSAliasesMap[dnsAlias.Domain]; ok {
+		if existingRadixDNSAlias, ok := existingRadixDNSAliasesMap[dnsAlias.Alias]; ok {
 			switch {
 			case !strings.EqualFold(appName, existingRadixDNSAlias.Spec.AppName):
-				errs = append(errs, fmt.Errorf("existing DNS alias domain %s is used by the application %s", dnsAlias.Domain, existingRadixDNSAlias.Spec.AppName))
+				errs = append(errs, fmt.Errorf("existing DNS alias %s is used by the application %s", dnsAlias.Alias, existingRadixDNSAlias.Spec.AppName))
 			case strings.EqualFold(dnsAlias.Environment, existingRadixDNSAlias.Spec.Environment) &&
 				strings.EqualFold(dnsAlias.Component, existingRadixDNSAlias.Spec.Component) &&
 				port == existingRadixDNSAlias.Spec.Port:
@@ -37,7 +37,7 @@ func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 					errs = append(errs, err)
 				}
 			}
-			delete(existingRadixDNSAliasesMap, dnsAlias.Domain)
+			delete(existingRadixDNSAliasesMap, dnsAlias.Alias)
 			continue
 		}
 		if err = app.createRadixDNSAlias(appName, dnsAlias, port); err != nil {
@@ -70,7 +70,7 @@ func (app *ApplicationConfig) updateRadixDNSAlias(radixDNSAlias *radixv1.RadixDN
 func (app *ApplicationConfig) createRadixDNSAlias(appName string, dnsAlias radixv1.DNSAlias, port int32) error {
 	radixDNSAlias := radixv1.RadixDNSAlias{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            dnsAlias.Domain,
+			Name:            dnsAlias.Alias,
 			Labels:          labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component)),
 			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfApplication(app.config)},
 		},

@@ -16,17 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IngressConfiguration Holds all ingress annotation configurations
-type IngressConfiguration struct {
-	AnnotationConfigurations []AnnotationConfiguration `yaml:"configuration"`
-}
-
-// AnnotationConfiguration Holds annotations for a single configuration
-type AnnotationConfiguration struct {
-	Name        string
-	Annotations map[string]string
-}
-
 type dnsAliasType int
 
 const (

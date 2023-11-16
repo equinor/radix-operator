@@ -1092,15 +1092,15 @@
           "items": {
             "description": "DNSAlias defines mapping between an DNS alias and a component and environment.",
             "properties": {
-              "component": {
-                "description": "Name of the component that shall receive the incoming requests.",
+              "alias": {
+                "description": "Alias name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com",
                 "maxLength": 63,
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
-              "domain": {
-                "description": "Domain name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com",
+              "component": {
+                "description": "Name of the component that shall receive the incoming requests.",
                 "maxLength": 63,
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
@@ -1115,15 +1115,15 @@
               }
             },
             "required": [
+              "alias",
               "component",
-              "domain",
               "environment"
             ],
             "type": "object"
           },
           "type": "array",
           "x-kubernetes-list-map-keys": [
-            "domain"
+            "alias"
           ],
           "x-kubernetes-list-type": "map"
         },

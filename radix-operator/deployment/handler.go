@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/ingress"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 
@@ -81,7 +82,7 @@ func WithOAuth2ProxyDockerImage(image string) HandlerConfigOption {
 }
 
 // WithIngressConfiguration sets the list of custom ingress confiigurations
-func WithIngressConfiguration(config deployment.IngressConfiguration) HandlerConfigOption {
+func WithIngressConfiguration(config ingress.IngressConfiguration) HandlerConfigOption {
 	return func(h *Handler) {
 		h.ingressConfiguration = config
 	}
@@ -106,7 +107,7 @@ type Handler struct {
 	deploymentHistoryLimit  int
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
-	ingressConfiguration    deployment.IngressConfiguration
+	ingressConfiguration    ingress.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
 

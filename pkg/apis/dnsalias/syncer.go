@@ -53,9 +53,9 @@ func (s *syncer) OnSync() error {
 
 func (s *syncer) syncAlias() error {
 	aliasSpec := s.radixDNSAlias.Spec
-	domainName := s.radixDNSAlias.GetName()
+	aliasName := s.radixDNSAlias.GetName()
 	envNamespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	ingressName := GetDNSAliasIngressName(aliasSpec.Component, domainName)
+	ingressName := GetDNSAliasIngressName(aliasSpec.Component, aliasName)
 	existingIngress, err := s.kubeUtil.GetIngress(envNamespace, ingressName)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -86,6 +86,6 @@ func (s *syncer) createIngress() error {
 
 func (s *syncer) buildIngress() (*networkingv1.Ingress, error) {
 	aliasSpec := s.radixDNSAlias.Spec
-	domain := s.radixDNSAlias.GetName()
-	return BuildRadixDNSAliasIngress(aliasSpec.AppName, domain, aliasSpec.Component, aliasSpec.Port, s.radixDNSAlias, s.dnsConfig), nil
+	alias := s.radixDNSAlias.GetName()
+	return BuildRadixDNSAliasIngress(aliasSpec.AppName, alias, aliasSpec.Component, aliasSpec.Port, s.radixDNSAlias, s.dnsConfig), nil
 }

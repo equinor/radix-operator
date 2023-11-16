@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/radix-operator/ingress"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -19,7 +20,7 @@ func Test_NewForceSslRedirectAnnotationProvider(t *testing.T) {
 }
 
 func Test_NewIngressConfigurationAnnotationProvider(t *testing.T) {
-	cfg := IngressConfiguration{[]AnnotationConfiguration{{Name: "test"}}}
+	cfg := ingress.IngressConfiguration{[]ingress.AnnotationConfiguration{{Name: "test"}}}
 	sut := NewIngressConfigurationAnnotationProvider(cfg)
 	assert.IsType(t, &ingressConfigurationAnnotationProvider{}, sut)
 	sutReal := sut.(*ingressConfigurationAnnotationProvider)
@@ -50,8 +51,8 @@ func Test_ForceSslRedirectAnnotations(t *testing.T) {
 }
 
 func Test_IngressConfigurationAnnotations(t *testing.T) {
-	config := IngressConfiguration{
-		AnnotationConfigurations: []AnnotationConfiguration{
+	config := ingress.IngressConfiguration{
+		AnnotationConfigurations: []ingress.AnnotationConfiguration{
 			{Name: "ewma", Annotations: map[string]string{"ewma1": "x", "ewma2": "y"}},
 			{Name: "socket", Annotations: map[string]string{"socket1": "x", "socket2": "y", "socket3": "z"}},
 			{Name: "round-robin", Annotations: map[string]string{"round-robin1": "1"}},

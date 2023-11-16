@@ -222,20 +222,20 @@ func Test_invalid_ra(t *testing.T) {
 		{"dns alias non existing env", radixvalidators.EnvForDNSAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Environment = noExistingEnvironment
 		}},
-		{"dns alias domain is empty", radixvalidators.ResourceNameCannotBeEmptyErrorWithMessage("dnsAlias domain"), func(ra *v1.RadixApplication) {
-			ra.Spec.DNSAlias[0].Domain = ""
+		{"dns alias alias is empty", radixvalidators.ResourceNameCannotBeEmptyErrorWithMessage("dnsAlias alias"), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Alias = ""
 		}},
-		{"dns alias domain is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("dnsAlias domain", "my.domain"), func(ra *v1.RadixApplication) {
-			ra.Spec.DNSAlias[0].Domain = "my.domain"
+		{"dns alias alias is invalid", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("dnsAlias alias", "my.alias"), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAlias[0].Alias = "my.alias"
 		}},
-		{"dns alias domain is invalid", radixvalidators.DuplicateDomainForDNSAliasError("my-domain"), func(ra *v1.RadixApplication) {
+		{"dns alias alias is invalid", radixvalidators.DuplicateAliasForDNSAliasError("my-alias"), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSAlias = append(ra.Spec.DNSAlias, ra.Spec.DNSAlias[0])
 		}},
 		{"dns alias with no public port", radixvalidators.ComponentForDNSAliasIsNotMarkedAsPublicError(validRAComponentNameApp2), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[3].PublicPort = ""
 			ra.Spec.Components[3].Public = false
 			ra.Spec.DNSAlias[0] = v1.DNSAlias{
-				Domain:      "my-domain",
+				Alias:       "my-alias",
 				Component:   ra.Spec.Components[3].Name,
 				Environment: ra.Spec.Environments[0].Name,
 			}

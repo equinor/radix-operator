@@ -3,6 +3,7 @@ package deployment
 import (
 	"dario.cat/mergo"
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -57,7 +58,8 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
 		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig, defaultEnvVars)
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
-		deployComponent.DNSExternalAlias = GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
+		deployComponent.DNSAlias = getDNSAliasForComponentEnvironment(radixApplication, componentName, env)
+		deployComponent.DNSExternalAlias = getExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 		deployComponent.Authentication = auth
@@ -141,17 +143,22 @@ func getRadixComponentPort(radixComponent *v1.RadixComponent) string {
 	return radixComponent.PublicPort
 }
 
-// GetExternalDNSAliasForComponentEnvironment Gets external DNS alias
-func GetExternalDNSAliasForComponentEnvironment(radixApplication *v1.RadixApplication, component, env string) []string {
-	dnsExternalAlias := make([]string, 0)
-
-	for _, externalAlias := range radixApplication.Spec.DNSExternalAlias {
-		if externalAlias.Component == component && externalAlias.Environment == env {
-			dnsExternalAlias = append(dnsExternalAlias, externalAlias.Alias)
+func getDNSAliasForComponentEnvironment(radixApplication *v1.RadixApplication, component, env string) []string {
+	return slice.Reduce(radixApplication.Spec.DNSAlias, make([]string, 0), func(acc []string, dnsAlias v1.DNSAlias) []string {
+		if dnsAlias.Component == component && dnsAlias.Environment == env {
+			acc = append(acc, dnsAlias.Alias)
 		}
-	}
+		return acc
+	})
+}
 
-	return dnsExternalAlias
+func getExternalDNSAliasForComponentEnvironment(radixApplication *v1.RadixApplication, component, env string) []string {
+	return slice.Reduce(radixApplication.Spec.DNSExternalAlias, make([]string, 0), func(acc []string, externalAlias v1.ExternalAlias) []string {
+		if externalAlias.Component == component && externalAlias.Environment == env {
+			acc = append(acc, externalAlias.Alias)
+		}
+		return acc
+	})
 }
 
 func GetCascadeBoolean(first *bool, second *bool, fallback bool) bool {

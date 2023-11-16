@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/radix-operator/ingress"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +27,7 @@ configuration:
 		Data:       map[string]string{"ingressConfiguration": ingressConfig},
 	}
 	kubeutil, _ := kube.New(kubefake.NewSimpleClientset(&ingressCm), nil, nil)
-	expected := []deploymentAPI.AnnotationConfiguration{
+	expected := []ingress.AnnotationConfiguration{
 		{Name: "foo", Annotations: map[string]string{"foo1": "x"}},
 		{Name: "bar", Annotations: map[string]string{"bar1": "x", "bar2": "y"}},
 	}

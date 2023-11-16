@@ -7,8 +7,8 @@ package internal
 import (
 	reflect "reflect"
 
-	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
-	dnsalias "github.com/equinor/radix-operator/pkg/apis/dnsalias"
+	dnsalias "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	dnsalias0 "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -40,10 +40,10 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dnsConfig *dnsaliasconfig.DNSConfig, radixDNSAlias *v1.RadixDNSAlias) dnsalias.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dnsConfig *dnsalias.DNSConfig, radixDNSAlias *v1.RadixDNSAlias) dnsalias0.Syncer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateSyncer", kubeClient, kubeUtil, radixClient, dnsConfig, radixDNSAlias)
-	ret0, _ := ret[0].(dnsalias.Syncer)
+	ret0, _ := ret[0].(dnsalias0.Syncer)
 	return ret0
 }
 
