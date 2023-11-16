@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/equinor/radix-operator/radix-operator/ingress"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
