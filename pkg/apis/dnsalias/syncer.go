@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -21,21 +23,25 @@ type Syncer interface {
 
 // DNSAlias is the aggregate-root for manipulating RadixDNSAliases
 type syncer struct {
-	kubeClient    kubernetes.Interface
-	radixClient   radixclient.Interface
-	kubeUtil      *kube.Kube
-	radixDNSAlias *radixv1.RadixDNSAlias
-	dnsConfig     *dnsalias.DNSConfig
+	kubeClient           kubernetes.Interface
+	radixClient          radixclient.Interface
+	kubeUtil             *kube.Kube
+	radixDNSAlias        *radixv1.RadixDNSAlias
+	dnsConfig            *dnsalias.DNSConfig
+	ingressConfiguration ingress.IngressConfiguration
+	oauth2Config         defaults.OAuth2Config
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
+func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, ingressConfiguration ingress.IngressConfiguration, oauth2Config defaults.OAuth2Config, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
 	return &syncer{
-		kubeClient:    kubeClient,
-		radixClient:   radixClient,
-		kubeUtil:      kubeUtil,
-		dnsConfig:     dnsConfig,
-		radixDNSAlias: radixDNSAlias,
+		kubeClient:           kubeClient,
+		radixClient:          radixClient,
+		kubeUtil:             kubeUtil,
+		dnsConfig:            dnsConfig,
+		ingressConfiguration: ingressConfiguration,
+		oauth2Config:         oauth2Config,
+		radixDNSAlias:        radixDNSAlias,
 	}
 }
 

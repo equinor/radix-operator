@@ -99,7 +99,7 @@ func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 	syncingAlias := radixDNSAlias.DeepCopy()
 	logger.Debugf("Sync RadixDNSAlias %s", name)
 
-	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, syncingAlias)
+	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, syncingAlias)
 	err = syncer.OnSync()
 	if err != nil {
 		return err

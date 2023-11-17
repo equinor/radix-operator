@@ -46,7 +46,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Times(0)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync().Times(0)
 
 	err := handler.Sync("", alias1, s.EventRecorder)
@@ -59,7 +59,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	expectedError := fmt.Errorf("some error")
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any()).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync().Return(expectedError).Times(1)
 
 	actualError := handler.Sync("", alias1, s.EventRecorder)
@@ -71,7 +71,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, alias1, 8080), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any()).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any()).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync().Return(nil).Times(1)
 
 	err := handler.Sync("", alias1, s.EventRecorder)

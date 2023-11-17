@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -25,11 +27,13 @@ import (
 
 type syncerTestSuite struct {
 	suite.Suite
-	kubeClient  *kubefake.Clientset
-	radixClient *radixfake.Clientset
-	kubeUtil    *kube.Kube
-	promClient  *prometheusfake.Clientset
-	dnsConfig   *dnsalias2.DNSConfig
+	kubeClient    *kubefake.Clientset
+	radixClient   *radixfake.Clientset
+	kubeUtil      *kube.Kube
+	promClient    *prometheusfake.Clientset
+	dnsConfig     *dnsalias2.DNSConfig
+	oauthConfig   defaults.OAuth2Config
+	ingressConfig ingress.IngressConfiguration
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -41,11 +45,14 @@ func (s *syncerTestSuite) SetupTest() {
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.dnsConfig = &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
+	s.oauthConfig = defaults.NewOAuth2Config()
+	s.ingressConfig = ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
+
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
-	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsConfig, radixDNSAlias)
+	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsConfig, s.ingressConfig, s.oauthConfig, radixDNSAlias)
 }
 
 type testIngress struct {
@@ -210,18 +217,18 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 
 			s.Require().Len(ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
 			if len(ingresses.Items) == len(ts.expectedIngress) {
-				for _, ingress := range ingresses.Items {
-					if expectedIngress, ok := ts.expectedIngress[ingress.Name]; ok {
-						s.Require().Len(ingress.Spec.Rules, 1, "rules count")
-						s.Assert().Equal(expectedIngress.appName, ingress.GetLabels()[kube.RadixAppLabel], "app name")
-						s.Assert().Equal(utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ingress.GetNamespace(), "namespace")
-						s.Assert().Equal(expectedIngress.component, ingress.GetLabels()[kube.RadixComponentLabel], "component name")
-						s.Assert().Equal(expectedIngress.host, ingress.Spec.Rules[0].Host, "rule host")
-						s.Assert().Equal("/", ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
-						s.Assert().Equal(expectedIngress.component, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend service name")
-						s.Assert().Equal(expectedIngress.port, ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "rule backend service port")
-						if len(ingress.ObjectMeta.OwnerReferences) > 0 {
-							ownerRef := ingress.ObjectMeta.OwnerReferences[0]
+				for _, ing := range ingresses.Items {
+					if expectedIngress, ok := ts.expectedIngress[ing.Name]; ok {
+						s.Require().Len(ing.Spec.Rules, 1, "rules count")
+						s.Assert().Equal(expectedIngress.appName, ing.GetLabels()[kube.RadixAppLabel], "app name")
+						s.Assert().Equal(utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName), ing.GetNamespace(), "namespace")
+						s.Assert().Equal(expectedIngress.component, ing.GetLabels()[kube.RadixComponentLabel], "component name")
+						s.Assert().Equal(expectedIngress.host, ing.Spec.Rules[0].Host, "rule host")
+						s.Assert().Equal("/", ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path, "rule http path")
+						s.Assert().Equal(expectedIngress.component, ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, "rule backend service name")
+						s.Assert().Equal(expectedIngress.port, ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "rule backend service port")
+						if len(ing.ObjectMeta.OwnerReferences) > 0 {
+							ownerRef := ing.ObjectMeta.OwnerReferences[0]
 							s.Assert().Equal(radix.APIVersion, ownerRef.APIVersion, "ownerRef.APIVersion")
 							s.Assert().Equal(radix.KindRadixDNSAlias, ownerRef.Kind, "ownerRef.Kind")
 							s.Assert().Equal(radixDNSAlias.GetName(), ownerRef.Name, "ownerRef.Name")
@@ -231,8 +238,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 						continue
 					}
 					assert.Fail(t, fmt.Sprintf("found not expected ingress %s for: appName %s, host %s, service %s, port %d",
-						ingress.GetName(), ingress.GetLabels()[kube.RadixAppLabel], ingress.Spec.Rules[0].Host, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name,
-						ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number))
+						ing.GetName(), ing.GetLabels()[kube.RadixAppLabel], ing.Spec.Rules[0].Host, ing.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name,
+						ing.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number))
 				}
 			}
 
@@ -242,9 +249,9 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 
 func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress, appNameForNamespace, envNameForNamespace string, config *dnsalias2.DNSConfig) error {
 	for name, ing := range testIngresses {
-		ingress := dnsalias.BuildRadixDNSAliasIngress(ing.appName, ing.alias, ing.component, ing.port, nil, config)
-		ingress.SetName(name) // override built name with expected name for test purpose
-		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, appNameForNamespace, envNameForNamespace, ingress)
+		ing := dnsalias.BuildRadixDNSAliasIngress(ing.appName, ing.alias, ing.component, ing.port, nil, config)
+		ing.SetName(name) // override built name with expected name for test purpose
+		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, appNameForNamespace, envNameForNamespace, ing)
 		if err != nil {
 			return err
 		}

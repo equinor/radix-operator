@@ -48,3 +48,55 @@ func (mr *MockAnnotationProviderMockRecorder) GetAnnotations(component, namespac
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAnnotations", reflect.TypeOf((*MockAnnotationProvider)(nil).GetAnnotations), component, namespace)
 }
+
+// MockClientCertificateAnnotationProvider is a mock of ClientCertificateAnnotationProvider interface.
+type MockClientCertificateAnnotationProvider struct {
+	ctrl     *gomock.Controller
+	recorder *MockClientCertificateAnnotationProviderMockRecorder
+}
+
+// MockClientCertificateAnnotationProviderMockRecorder is the mock recorder for MockClientCertificateAnnotationProvider.
+type MockClientCertificateAnnotationProviderMockRecorder struct {
+	mock *MockClientCertificateAnnotationProvider
+}
+
+// NewMockClientCertificateAnnotationProvider creates a new mock instance.
+func NewMockClientCertificateAnnotationProvider(ctrl *gomock.Controller) *MockClientCertificateAnnotationProvider {
+	mock := &MockClientCertificateAnnotationProvider{ctrl: ctrl}
+	mock.recorder = &MockClientCertificateAnnotationProviderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockClientCertificateAnnotationProvider) EXPECT() *MockClientCertificateAnnotationProviderMockRecorder {
+	return m.recorder
+}
+
+// GetAnnotations mocks base method.
+func (m *MockClientCertificateAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAnnotations", component, namespace)
+	ret0, _ := ret[0].(map[string]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAnnotations indicates an expected call of GetAnnotations.
+func (mr *MockClientCertificateAnnotationProviderMockRecorder) GetAnnotations(component, namespace interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAnnotations", reflect.TypeOf((*MockClientCertificateAnnotationProvider)(nil).GetAnnotations), component, namespace)
+}
+
+// GetNamespace mocks base method.
+func (m *MockClientCertificateAnnotationProvider) GetNamespace() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespace")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetNamespace indicates an expected call of GetNamespace.
+func (mr *MockClientCertificateAnnotationProviderMockRecorder) GetNamespace() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockClientCertificateAnnotationProvider)(nil).GetNamespace))
+}
