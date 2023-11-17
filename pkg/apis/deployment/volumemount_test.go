@@ -1526,7 +1526,7 @@ func getDesiredDeployment(componentName string, volumes []corev1.Volume) *appsv1
 			Annotations: make(map[string]string),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: int32Ptr(DefaultReplicas),
+			Replicas: pointers.Ptr[int32](DefaultReplicas),
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
