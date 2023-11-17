@@ -43,12 +43,6 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	return &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }
 
-func getApplication(ra *radixv1.RadixApplication) *ApplicationConfig {
-	// The other arguments are not relevant for this test
-	application := NewApplicationConfig(nil, nil, nil, nil, ra)
-	return application
-}
-
 func Test_Create_Radix_Environments(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 
@@ -136,8 +130,7 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T)
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	application := getApplication(ra)
-	targetEnvs := application.GetTargetEnvironments(branch)
+	targetEnvs := GetTargetEnvironments(branch, ra)
 	assert.ElementsMatch(t, []string{"prod", "qa"}, targetEnvs)
 }
 
@@ -149,8 +142,7 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_Lis
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	application := getApplication(ra)
-	targetEnvs := application.GetTargetEnvironments(branch)
+	targetEnvs := GetTargetEnvironments(branch, ra)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -162,8 +154,7 @@ func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBu
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	application := getApplication(ra)
-	targetEnvs := application.GetTargetEnvironments(branch)
+	targetEnvs := GetTargetEnvironments(branch, ra)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -175,8 +166,7 @@ func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
 		WithEnvironmentNoBranch("prod").
 		BuildRA()
 
-	application := getApplication(ra)
-	targetEnvs := application.GetTargetEnvironments(branch)
+	targetEnvs := GetTargetEnvironments(branch, ra)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -186,8 +176,7 @@ func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
 	ra := utils.NewRadixApplicationBuilder().
 		BuildRA()
 
-	application := getApplication(ra)
-	targetEnvs := application.GetTargetEnvironments(branch)
+	targetEnvs := GetTargetEnvironments(branch, ra)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -199,8 +188,7 @@ func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuil
 		WithEnvironment("prod", "").
 		BuildRA()
 
-	application := getApplication(ra)
-	targetEnvs := application.GetTargetEnvironments(branch)
+	targetEnvs := GetTargetEnvironments(branch, ra)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -212,8 +200,7 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	application := getApplication(ra)
-	targetEnvs := application.GetTargetEnvironments(branch)
+	targetEnvs := GetTargetEnvironments(branch, ra)
 	assert.ElementsMatch(t, []string{"feature"}, targetEnvs)
 }
 

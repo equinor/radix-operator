@@ -181,7 +181,7 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	info.RadixApplication = applicationConfig.GetRadixApplicationConfig()
 
 	// Obtain metadata for rest of pipeline
-	targetEnvironments := applicationConfig.GetTargetEnvironments(info.PipelineArguments.Branch)
+	targetEnvironments := application.GetTargetEnvironments(info.PipelineArguments.Branch, info.RadixApplication)
 
 	// For deploy-only pipeline
 	if info.IsPipelineType(radixv1.Deploy) &&

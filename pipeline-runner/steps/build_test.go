@@ -85,8 +85,7 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 	cli := steps.NewBuildStep(jobWaiter)
 	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	applicationConfig := application.NewApplicationConfig(s.kubeClient, s.kubeUtil, s.radixClient, rr, ra)
-	targetEnvs := applicationConfig.GetTargetEnvironments(anyNoMappedBranch)
+	targetEnvs := application.GetTargetEnvironments(anyNoMappedBranch, ra)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
