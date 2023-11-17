@@ -9,6 +9,7 @@ import (
 	commonutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
@@ -24,16 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const (
-	oauthProxyPortName                  = "http"
-	oauthProxyPortNumber          int32 = 4180
-	authUrlAnnotation                   = "nginx.ingress.kubernetes.io/auth-url"
-	authSigninAnnotation                = "nginx.ingress.kubernetes.io/auth-signin"
-	authResponseHeadersAnnotation       = "nginx.ingress.kubernetes.io/auth-response-headers"
-)
-
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []IngressAnnotationProvider, oauth2ProxyDockerImage string) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, oauth2ProxyDockerImage string) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
@@ -48,7 +41,7 @@ type oauthProxyResourceManager struct {
 	rd                         *v1.RadixDeployment
 	rr                         *v1.RadixRegistration
 	kubeutil                   *kube.Kube
-	ingressAnnotationProviders []IngressAnnotationProvider
+	ingressAnnotationProviders []ingress.AnnotationProvider
 	oauth2DefaultConfig        defaults.OAuth2Config
 	oauth2ProxyDockerImage     string
 }
@@ -437,7 +430,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 										Service: &networkingv1.IngressServiceBackend{
 											Name: utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix),
 											Port: networkingv1.ServiceBackendPort{
-												Number: oauthProxyPortNumber,
+												Number: defaults.OAuthProxyPortNumber,
 											},
 										},
 									},
@@ -604,8 +597,8 @@ func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDep
 			Selector: o.getLabelsForAuxComponent(component),
 			Ports: []corev1.ServicePort{
 				{
-					Port:       oauthProxyPortNumber,
-					TargetPort: intstr.FromString(oauthProxyPortName),
+					Port:       defaults.OAuthProxyPortNumber,
+					TargetPort: intstr.FromString(defaults.OAuthProxyPortName),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
@@ -664,7 +657,7 @@ func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(component v1.
 
 func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(oauthProxyPortNumber)
+	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(defaults.OAuthProxyPortNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -694,8 +687,8 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 							Env:             o.getEnvVars(component),
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          oauthProxyPortName,
-									ContainerPort: oauthProxyPortNumber,
+									Name:          defaults.OAuthProxyPortName,
+									ContainerPort: defaults.OAuthProxyPortNumber,
 								},
 							},
 							ReadinessProbe:  readinessProbe,
@@ -735,7 +728,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PASS_BASIC_AUTH", Value: "false"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("http://:%v", oauthProxyPortNumber)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("http://:%v", defaults.OAuthProxyPortNumber)})
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	envVars = append(envVars, o.createEnvVarWithSecretRef("OAUTH2_PROXY_COOKIE_SECRET", secretName, defaults.OAuthCookieSecretKeyName))
 	envVars = append(envVars, o.createEnvVarWithSecretRef("OAUTH2_PROXY_CLIENT_SECRET", secretName, defaults.OAuthClientSecretKeyName))

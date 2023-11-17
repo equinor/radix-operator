@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -3765,9 +3766,9 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	annotations1 := NewMockIngressAnnotationProvider(ctrl)
+	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
 	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"foo": "x"}, nil)
-	annotations2 := NewMockIngressAnnotationProvider(ctrl)
+	annotations2 := ingress.NewMockAnnotationProvider(ctrl)
 	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
 
 	syncer := Deployment{
@@ -3777,7 +3778,7 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 		kubeutil:                   kubeUtil,
 		registration:               rr,
 		radixDeployment:            rd,
-		ingressAnnotationProviders: []IngressAnnotationProvider{annotations1, annotations2},
+		ingressAnnotationProviders: []ingress.AnnotationProvider{annotations1, annotations2},
 	}
 
 	err := syncer.OnSync()
@@ -3800,7 +3801,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	annotations1 := NewMockIngressAnnotationProvider(ctrl)
+	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
 	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], "app-dev").Times(1).Return(nil, errors.New("any error"))
 
 	syncer := Deployment{
@@ -3810,7 +3811,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 		kubeutil:                   kubeUtil,
 		registration:               rr,
 		radixDeployment:            rd,
-		ingressAnnotationProviders: []IngressAnnotationProvider{annotations1},
+		ingressAnnotationProviders: []ingress.AnnotationProvider{annotations1},
 	}
 
 	err := syncer.OnSync()

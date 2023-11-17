@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -47,7 +48,7 @@ type Deployment struct {
 	registration               *v1.RadixRegistration
 	radixDeployment            *v1.RadixDeployment
 	auxResourceManagers        []AuxiliaryResourceManager
-	ingressAnnotationProviders []IngressAnnotationProvider
+	ingressAnnotationProviders []ingress.AnnotationProvider
 	tenantId                   string
 	kubernetesApiPort          int32
 	deploymentHistoryLimit     int
@@ -57,7 +58,7 @@ type Deployment struct {
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,

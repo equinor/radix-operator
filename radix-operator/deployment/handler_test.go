@@ -131,14 +131,14 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		oauthConfig := defaults.NewOAuth2Config()
 		ingressConfig := ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
-		expectedIngressAnnotations := []deployment.IngressAnnotationProvider{
-			deployment.NewForceSslRedirectAnnotationProvider(),
-			deployment.NewIngressConfigurationAnnotationProvider(ingressConfig),
-			deployment.NewClientCertificateAnnotationProvider(activeRd.Namespace),
-			deployment.NewOAuth2AnnotationProvider(oauthConfig),
+		expectedIngressAnnotations := []ingress.AnnotationProvider{
+			ingress.NewForceSslRedirectAnnotationProvider(),
+			ingress.NewIngressConfigurationAnnotationProvider(ingressConfig),
+			ingress.NewClientCertificateAnnotationProvider(activeRd.Namespace),
+			ingress.NewOAuth2AnnotationProvider(oauthConfig),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, "oauth:123"),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, []ingress.AnnotationProvider{ingress.NewForceSslRedirectAnnotationProvider()}, "oauth:123"),
 		}
 		factory.
 			EXPECT().

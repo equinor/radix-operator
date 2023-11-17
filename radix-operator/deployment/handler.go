@@ -168,15 +168,15 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	ingressAnnotations := []deployment.IngressAnnotationProvider{
-		deployment.NewForceSslRedirectAnnotationProvider(),
-		deployment.NewIngressConfigurationAnnotationProvider(t.ingressConfiguration),
-		deployment.NewClientCertificateAnnotationProvider(syncRD.Namespace),
-		deployment.NewOAuth2AnnotationProvider(t.oauth2DefaultConfig),
+	ingressAnnotations := []ingress.AnnotationProvider{
+		ingress.NewForceSslRedirectAnnotationProvider(),
+		ingress.NewIngressConfigurationAnnotationProvider(t.ingressConfiguration),
+		ingress.NewClientCertificateAnnotationProvider(syncRD.Namespace),
+		ingress.NewOAuth2AnnotationProvider(t.oauth2DefaultConfig),
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
+		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []ingress.AnnotationProvider{ingress.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
 	}
 
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers)

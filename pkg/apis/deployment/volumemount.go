@@ -37,7 +37,7 @@ const (
 	csiVolumeNodeMountPathTemplate       = "%s/%s/%s/%s/%s/%s" // <volumeRootMount>/<namespace>/<radixvolumeid>/<componentname>/<radixvolumename>/<storage>
 
 	csiStorageClassProvisionerSecretNameParameter       = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
-	csiStorageClassProvisionerSecretNamespaceParameter  = "csi.storage.k8s.io/provisioner-secret-namespace" // Namespace of the secret
+	csiStorageClassProvisionerSecretNamespaceParameter  = "csi.storage.k8s.io/provisioner-secret-namespace" // namespace of the secret
 	csiStorageClassNodeStageSecretNameParameter         = "csi.storage.k8s.io/node-stage-secret-name"       // Usually equal to csiStorageClassProvisionerSecretNameParameter
 	csiStorageClassNodeStageSecretNamespaceParameter    = "csi.storage.k8s.io/node-stage-secret-namespace"  // Usually equal to csiStorageClassProvisionerSecretNamespaceParameter
 	csiAzureStorageClassSkuNameParameter                = "skuName"                                         // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types

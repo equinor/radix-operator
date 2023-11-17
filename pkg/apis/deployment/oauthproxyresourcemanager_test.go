@@ -10,6 +10,7 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -39,7 +40,7 @@ type OAuthProxyResourceManagerTestSuite struct {
 	secretProviderClient      secretProviderClient.Interface
 	kubeUtil                  *kube.Kube
 	ctrl                      *gomock.Controller
-	ingressAnnotationProvider *MockIngressAnnotationProvider
+	ingressAnnotationProvider *ingress.MockAnnotationProvider
 	oauth2Config              *defaults.MockOAuth2Config
 }
 
@@ -81,7 +82,7 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
 	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
 	s.ctrl = gomock.NewController(s.T())
-	s.ingressAnnotationProvider = NewMockIngressAnnotationProvider(s.ctrl)
+	s.ingressAnnotationProvider = ingress.NewMockAnnotationProvider(s.ctrl)
 	s.oauth2Config = defaults.NewMockOAuth2Config(s.ctrl)
 }
 
@@ -95,7 +96,7 @@ func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() 
 	oauthConfig := defaults.NewMockOAuth2Config(ctrl)
 	rd := utils.NewDeploymentBuilder().BuildRD()
 	rr := utils.NewRegistrationBuilder().BuildRR()
-	ingressAnnotationProviders := []IngressAnnotationProvider{&MockIngressAnnotationProvider{}}
+	ingressAnnotationProviders := []ingress.AnnotationProvider{&ingress.MockAnnotationProvider{}}
 
 	oauthManager := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, oauthConfig, ingressAnnotationProviders, "proxy:123")
 	sut, ok := oauthManager.(*oauthProxyResourceManager)
@@ -118,7 +119,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 
 	for _, scenario := range scenarios {
-		sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+		sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 		err := sut.Sync()
 		s.Nil(err)
 		deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -176,7 +177,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 		WithEnvironment(envName).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: inputOAuth})).
 		BuildRD()
-	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 	err := sut.Sync()
 	s.Nil(err)
 
@@ -196,10 +197,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Equal(sut.oauth2ProxyDockerImage, defaultContainer.Image)
 
 	s.Len(defaultContainer.Ports, 1)
-	s.Equal(oauthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
-	s.Equal(oauthProxyPortName, defaultContainer.Ports[0].Name)
+	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
+	s.Equal(defaults.OAuthProxyPortName, defaultContainer.Ports[0].Name)
 	s.NotNil(defaultContainer.ReadinessProbe)
-	s.Equal(oauthProxyPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
+	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
 
 	s.Len(defaultContainer.Env, 29)
 	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
@@ -208,7 +209,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Equal("false", s.getEnvVarValueByName("OAUTH2_PROXY_PASS_BASIC_AUTH", defaultContainer.Env))
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", defaultContainer.Env))
 	s.Equal("*", s.getEnvVarValueByName("OAUTH2_PROXY_EMAIL_DOMAINS", defaultContainer.Env))
-	s.Equal(fmt.Sprintf("http://:%v", oauthProxyPortNumber), s.getEnvVarValueByName("OAUTH2_PROXY_HTTP_ADDRESS", defaultContainer.Env))
+	s.Equal(fmt.Sprintf("http://:%v", defaults.OAuthProxyPortNumber), s.getEnvVarValueByName("OAUTH2_PROXY_HTTP_ADDRESS", defaultContainer.Env))
 	s.Equal(returnOAuth.ClientID, s.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", defaultContainer.Env))
 	s.Equal(returnOAuth.Scope, s.getEnvVarValueByName("OAUTH2_PROXY_SCOPE", defaultContainer.Env))
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SET_XAUTHREQUEST", defaultContainer.Env))
@@ -254,7 +255,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCr
 		WithEnvironment(envName).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
-	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 	err := sut.Sync()
 	s.Nil(err)
 
@@ -278,7 +279,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 		WithEnvironment(envName).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
-	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 	err := sut.Sync()
 	s.Nil(err)
 
@@ -357,7 +358,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 		WithEnvironment(envName).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
-	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 	err = sut.Sync()
 	s.Nil(err)
 
@@ -392,7 +393,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated(
 		WithEnvironment(envName).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
-	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 	err := sut.Sync()
 	s.Nil(err)
 
@@ -405,7 +406,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated(
 	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualServices.Items[0].OwnerReferences)
 	s.Equal(corev1.ServiceTypeClusterIP, actualServices.Items[0].Spec.Type)
 	s.Len(actualServices.Items[0].Spec.Ports, 1)
-	s.Equal(corev1.ServicePort{Port: oauthProxyPortNumber, TargetPort: intstr.FromString(oauthProxyPortName), Protocol: corev1.ProtocolTCP}, actualServices.Items[0].Spec.Ports[0])
+	s.Equal(corev1.ServicePort{Port: defaults.OAuthProxyPortNumber, TargetPort: intstr.FromString(defaults.OAuthProxyPortName), Protocol: corev1.ProtocolTCP}, actualServices.Items[0].Spec.Ports[0])
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreated() {
@@ -483,7 +484,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	expectedIngWebCall.Authentication.OAuth2.ProxyPrefix = "auth2"
 	expectedIngWebAnnotations := map[string]string{"annotation2-1": "val2-1", "annotation2-2": "val2-2"}
 	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall, rd.Namespace).Times(2).Return(expectedIngWebAnnotations, nil)
-	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{s.ingressAnnotationProvider}, s.oauth2Config, ""}
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{s.ingressAnnotationProvider}, s.oauth2Config, ""}
 	err := sut.Sync()
 	s.Nil(err)
 
@@ -507,7 +508,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 					Backend: networkingv1.IngressBackend{
 						Service: &networkingv1.IngressServiceBackend{
 							Name: utils.GetAuxiliaryComponentServiceName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix),
-							Port: networkingv1.ServiceBackendPort{Number: oauthProxyPortNumber},
+							Port: networkingv1.ServiceBackendPort{Number: defaults.OAuthProxyPortNumber},
 						},
 					},
 				}},
@@ -578,7 +579,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(2).Return(&v1.OAuth2{}, nil)
-	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 	err := sut.Sync()
 	s.Nil(err)
 
@@ -604,7 +605,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{})).
 		BuildRD()
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
-	sut = &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+	sut = &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 	err = sut.Sync()
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})

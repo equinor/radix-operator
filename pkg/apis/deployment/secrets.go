@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -100,7 +101,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	}
 
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
-	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
+	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && ingress.IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
 		if !deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
 			if err := deploy.createClientCertificateSecret(namespace, deploy.registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
 				return err
@@ -428,17 +429,6 @@ func (deploy *Deployment) removeOrphanedSecrets(ns, secretName string, secrets [
 	}
 
 	return nil
-}
-
-func IsSecretRequiredForClientCertificate(clientCertificate *radixv1.ClientCertificate) bool {
-	if clientCertificate != nil {
-		certificateConfig := parseClientCertificateConfiguration(*clientCertificate)
-		if *certificateConfig.PassCertificateToUpstream || *certificateConfig.Verification != radixv1.VerificationTypeOff {
-			return true
-		}
-	}
-
-	return false
 }
 
 // GarbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames

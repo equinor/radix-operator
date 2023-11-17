@@ -91,7 +91,7 @@ mocks:
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/auxiliaryresourcemanager.go -destination ./pkg/apis/deployment/auxiliaryresourcemanager_mock.go -package deployment
-	mockgen -source ./pkg/apis/deployment/ingressannotationprovider.go -destination ./pkg/apis/deployment/ingressannotationprovider_mock.go -package deployment
+	mockgen -source ./pkg/apis/ingress/ingressannotationprovider.go -destination ./pkg/apis/ingress/ingressannotationprovider_mock.go -package ingress
 	mockgen -source ./pkg/apis/alert/alert.go -destination ./pkg/apis/alert/alert_mock.go -package alert
 	mockgen -source ./pkg/apis/alert/alertfactory.go -destination ./pkg/apis/alert/alertfactory_mock.go -package alert
 	mockgen -source ./pkg/apis/batch/syncer.go -destination ./pkg/apis/batch/syncer_mock.go -package batch
