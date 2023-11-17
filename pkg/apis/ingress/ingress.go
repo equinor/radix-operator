@@ -93,11 +93,14 @@ func ParseClientCertificateConfiguration(clientCertificate radixv1.ClientCertifi
 }
 
 // GetIngressConfig Gets Ingress configuration
-func GetIngressConfig(namespace string, appName string, component radixv1.RadixCommonDeployComponent, ingressName string, ingressSpec networkingv1.IngressSpec, ingressProviders []AnnotationProvider, aliasType DNSAliasType, ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
-	annotations := map[string]string{}
+func GetIngressConfig(namespace string, appName string, component radixv1.RadixCommonDeployComponent,
+	ingressName string, ingressSpec networkingv1.IngressSpec,
+	ingressProviders []AnnotationProvider, aliasType DNSAliasType,
+	ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
 
-	for _, ia := range ingressProviders {
-		providedAnnotations, err := ia.GetAnnotations(component, namespace)
+	annotations := map[string]string{}
+	for _, ingressProvider := range ingressProviders {
+		providedAnnotations, err := ingressProvider.GetAnnotations(component, namespace)
 		if err != nil {
 			return nil, err
 		}

@@ -3,12 +3,15 @@ package dnsalias
 import (
 	"fmt"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +32,7 @@ type syncer struct {
 	radixDNSAlias        *radixv1.RadixDNSAlias
 	dnsConfig            *dnsalias.DNSConfig
 	ingressConfiguration ingress.IngressConfiguration
-	oauth2Config         defaults.OAuth2Config
+	oauth2DefaultConfig  defaults.OAuth2Config
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
@@ -40,7 +43,7 @@ func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient
 		kubeUtil:             kubeUtil,
 		dnsConfig:            dnsConfig,
 		ingressConfiguration: ingressConfiguration,
-		oauth2Config:         oauth2Config,
+		oauth2DefaultConfig:  oauth2Config,
 		radixDNSAlias:        radixDNSAlias,
 	}
 }
@@ -92,6 +95,33 @@ func (s *syncer) createIngress() error {
 
 func (s *syncer) buildIngress() (*networkingv1.Ingress, error) {
 	aliasSpec := s.radixDNSAlias.Spec
-	alias := s.radixDNSAlias.GetName()
-	return BuildRadixDNSAliasIngress(aliasSpec.AppName, alias, aliasSpec.Component, aliasSpec.Port, s.radixDNSAlias, s.dnsConfig), nil
+	appName := aliasSpec.AppName
+	envName := aliasSpec.Environment
+	componentName := aliasSpec.Component
+	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+	ingressAnnotations := []ingress.AnnotationProvider{
+		ingress.NewForceSslRedirectAnnotationProvider(),
+		ingress.NewIngressConfigurationAnnotationProvider(s.ingressConfiguration),
+		ingress.NewClientCertificateAnnotationProvider(envNamespace),
+		ingress.NewOAuth2AnnotationProvider(s.oauth2DefaultConfig),
+	}
+	radixDeployment, err := s.kubeUtil.GetActiveDeployment(envNamespace)
+	if err != nil {
+		return nil, err
+	}
+	deployComponent := radixDeployment.GetCommonComponentByName(componentName)
+	if commonUtils.IsNil(deployComponent) {
+		return nil, DeployComponentNotFoundByName(appName, envName, componentName, radixDeployment.GetName())
+	}
+
+	aliasName := s.radixDNSAlias.GetName()
+	ingressName := GetDNSAliasIngressName(componentName, aliasName)
+	hostName := GetDNSAliasHost(aliasName, s.dnsConfig.DNSZone)
+	ingressSpec := ingress.GetIngressSpec(hostName, componentName, defaults.TLSSecretName, aliasSpec.Port)
+	ingressConfig, err := ingress.GetIngressConfig(envNamespace, appName, deployComponent, ingressName, ingressSpec, ingressAnnotations, ingress.DNSAlias, internal.GetOwnerReferences(s.radixDNSAlias))
+	if err != nil {
+		return nil, err
+	}
+	ingressConfig.ObjectMeta.Annotations = annotations.Merge(ingressConfig.ObjectMeta.Annotations, annotations.ForManagedByRadixDNSAliasIngress(aliasName))
+	return ingressConfig, nil
 }

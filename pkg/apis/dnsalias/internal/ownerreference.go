@@ -7,13 +7,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GetOwnerReference Gets RadixDNSAlias as an owner reference
-func GetOwnerReference(alias *radixv1.RadixDNSAlias) metav1.OwnerReference {
-	return metav1.OwnerReference{
+// GetOwnerReferences Gets RadixDNSAlias as an owner reference
+func GetOwnerReferences(radixDNSAlias *radixv1.RadixDNSAlias) []metav1.OwnerReference {
+	return []metav1.OwnerReference{{
 		APIVersion: radix.APIVersion,
 		Kind:       radix.KindRadixDNSAlias,
-		Name:       alias.Name,
-		UID:        alias.UID,
+		Name:       radixDNSAlias.Name,
+		UID:        radixDNSAlias.UID,
 		Controller: pointers.Ptr(true),
+	},
 	}
 }
