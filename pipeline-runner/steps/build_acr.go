@@ -130,7 +130,7 @@ func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []c
 	return volumes
 }
 
-func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, additionalDockerAuth docker.AuthSpec) []corev1.Container {
+func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, additionalDockerAuth docker.AuthConfig) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
 	buildContainerSecContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
@@ -338,7 +338,7 @@ func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, bu
 		})
 	return volumeMounts
 }
-func getDockerAuths(secret *corev1.Secret) (auths docker.AuthSpec, err error) {
+func getDockerAuths(secret *corev1.Secret) (auths docker.AuthConfig, err error) {
 	if secret == nil {
 		return
 	}
@@ -349,7 +349,7 @@ func getDockerAuths(secret *corev1.Secret) (auths docker.AuthSpec, err error) {
 	err = json.Unmarshal(data, &auths)
 	return
 }
-func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool, additionalDockerAuth docker.AuthSpec) []string {
+func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool, additionalDockerAuth docker.AuthConfig) []string {
 	commandList := commandbuilder.NewCommandList()
 	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", containerImageRegistry)
 	if useBuildCache {

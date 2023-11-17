@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-common/pkg/docker"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -112,7 +113,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 					imageHubs[server] = currentConfig
 				}
 			} else {
-				imageHubs[server] = secretImageHub{
+				imageHubs[server] = docker.Credential{
 					Username: config.Username,
 					Email:    config.Email,
 				}
@@ -156,27 +157,9 @@ func applyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretV
 	return nil
 }
 
-// represent the secret of type docker-config
-type secretImageHubsJSON struct {
-	Auths secretImageHubs `json:"auths"`
-}
-
-type secretImageHubs map[string]secretImageHub
-
-type secretImageHub struct {
-	// +optional
-	Username string `json:"username"`
-	// +optional
-	Password string `json:"password"`
-	// +optional
-	Email string `json:"email"`
-	// +optional
-	Auth string `json:"auth"`
-}
-
 // getImageHubSecretValue gets imagehub secret value
-func getImageHubSecretValue(value []byte) (secretImageHubs, error) {
-	secretValue := secretImageHubsJSON{}
+func getImageHubSecretValue(value []byte) (docker.Auths, error) {
+	secretValue := docker.AuthConfig{}
 	err := json.Unmarshal(value, &secretValue)
 	if err != nil {
 		return nil, err
@@ -187,11 +170,11 @@ func getImageHubSecretValue(value []byte) (secretImageHubs, error) {
 
 // createImageHubsSecretValue turn PrivateImageHubEntries into a json string correctly formated for k8s and ImagePullSecrets
 func createImageHubsSecretValue(imagehubs v1.PrivateImageHubEntries) ([]byte, error) {
-	imageHubs := secretImageHubs(map[string]secretImageHub{})
+	imageHubs := docker.Auths{}
 
 	for server, config := range imagehubs {
 		pwd := ""
-		imageHub := secretImageHub{
+		imageHub := docker.Credential{
 			Username: config.Username,
 			Email:    config.Email,
 			Password: pwd,
@@ -202,13 +185,13 @@ func createImageHubsSecretValue(imagehubs v1.PrivateImageHubEntries) ([]byte, er
 }
 
 // getImageHubsSecretValue turn SecretImageHubs into a correctly formated secret for k8s ImagePullSecrets
-func getImageHubsSecretValue(imageHubs secretImageHubs) ([]byte, error) {
+func getImageHubsSecretValue(imageHubs docker.Auths) ([]byte, error) {
 	for server, config := range imageHubs {
 		config.Auth = encodeAuthField(config.Username, config.Password)
 		imageHubs[server] = config
 	}
 
-	imageHubJSON := secretImageHubsJSON{
+	imageHubJSON := docker.AuthConfig{
 		Auths: imageHubs,
 	}
 	return json.Marshal(imageHubJSON)
