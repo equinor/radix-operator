@@ -3,11 +3,12 @@ package deployment
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -48,32 +49,18 @@ func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
 	suite.Run(t, new(OAuthProxyResourceManagerTestSuite))
 }
 
-func (*OAuthProxyResourceManagerTestSuite) SetupSuite() {
-	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
-	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
-	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
-	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
-	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler:main-latest")
-	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-	os.Setenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable, "oidc_issuer_url")
-}
-
-func (*OAuthProxyResourceManagerTestSuite) TearDownSuite() {
-	os.Unsetenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
-	os.Unsetenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)
+func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
+	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
+	s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
+	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
+	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
+	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+	s.T().Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
+	s.T().Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
+	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler:main-latest")
+	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
+	s.T().Setenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable, "oidc_issuer_url")
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
@@ -109,6 +96,47 @@ func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() 
 	s.Equal("proxy:123", sut.oauth2ProxyDockerImage)
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() {
+	auth := &v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}}
+	appName := "anyapp"
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	baseComp := func() utils.DeployComponentBuilder {
+		return utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithAuthentication(auth)
+	}
+	type testSpec struct {
+		name                string
+		rd                  *v1.RadixDeployment
+		expectRestartEnvVar bool
+	}
+	tests := []testSpec{
+		{
+			name: "component default config",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithEnvironmentVariable(defaults.RadixRestartEnvironmentVariable, "anyval")).
+				BuildRD(),
+			expectRestartEnvVar: true,
+		},
+		{
+			name: "component replicas set to 1",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(1))).
+				BuildRD(),
+			expectRestartEnvVar: false,
+		},
+	}
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&v1.OAuth2{}, nil)
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+			err := sut.Sync()
+			s.Nil(err)
+			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+			envVarExist := slice.Any(deploys.Items[0].Spec.Template.Spec.Containers[0].Env, func(ev corev1.EnvVar) bool { return ev.Name == defaults.RadixRestartEnvironmentVariable })
+			s.Equal(test.expectRestartEnvVar, envVarExist)
+		})
+	}
+}
+
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	type scenarioDef struct{ rd *v1.RadixDeployment }
 	scenarios := []scenarioDef{
@@ -134,6 +162,89 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 		s.Len(roles.Items, 0)
 		rolebindings, _ := s.kubeClient.RbacV1().RoleBindings(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
 		s.Len(rolebindings.Items, 0)
+	}
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas() {
+	auth := &v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}}
+	appName := "anyapp"
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	baseComp := func() utils.DeployComponentBuilder {
+		return utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithAuthentication(auth)
+	}
+	type testSpec struct {
+		name             string
+		rd               *v1.RadixDeployment
+		expectedReplicas int32
+	}
+	tests := []testSpec{
+		{
+			name: "component default config",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp()).
+				BuildRD(),
+			expectedReplicas: 1,
+		},
+		{
+			name: "component replicas set to 1",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(1))).
+				BuildRD(),
+			expectedReplicas: 1,
+		},
+		{
+			name: "component replicas set to 2",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(2))).
+				BuildRD(),
+			expectedReplicas: 1,
+		},
+		{
+			name: "component replicas set to 0",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(0))).
+				BuildRD(),
+			expectedReplicas: 0,
+		},
+		{
+			name: "component with hpa and default config",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				BuildRD(),
+			expectedReplicas: 1,
+		},
+		{
+			name: "component with hpa and replicas set to 1",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				BuildRD(),
+			expectedReplicas: 1,
+		},
+		{
+			name: "component with hpa and replicas set to 2",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(2)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				BuildRD(),
+			expectedReplicas: 1,
+		},
+		{
+
+			name: "component with hpa and replicas set to 0",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				BuildRD(),
+			expectedReplicas: 0,
+		},
+	}
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&v1.OAuth2{}, nil)
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+			err := sut.Sync()
+			s.Nil(err)
+			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+			s.Equal(test.expectedReplicas, *deploys.Items[0].Spec.Replicas)
+		})
 	}
 }
 
