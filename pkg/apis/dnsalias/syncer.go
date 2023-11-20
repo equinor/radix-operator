@@ -9,12 +9,14 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -58,6 +60,7 @@ func (s *syncer) OnSync() error {
 		return err
 	}
 	return s.syncStatus()
+
 }
 
 func (s *syncer) syncAlias() error {
@@ -86,6 +89,9 @@ func (s *syncer) syncAlias() error {
 func (s *syncer) createIngress() error {
 	ingress, err := s.buildIngress()
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	aliasSpec := s.radixDNSAlias.Spec
@@ -108,6 +114,9 @@ func (s *syncer) buildIngress() (*networkingv1.Ingress, error) {
 	radixDeployment, err := s.kubeUtil.GetActiveDeployment(envNamespace)
 	if err != nil {
 		return nil, err
+	}
+	if radixDeployment == nil {
+		return nil, errors.NewNotFound(schema.GroupResource{Group: radix.GroupName, Resource: radix.ResourceRadixDeployment}, "active")
 	}
 	deployComponent := radixDeployment.GetCommonComponentByName(componentName)
 	if commonUtils.IsNil(deployComponent) {

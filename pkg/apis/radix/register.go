@@ -27,4 +27,6 @@ const (
 	ResourceRadixRegistrations = "radixregistrations"
 	// ResourceRadixDNSAliases RadixDNSAliases API resource
 	ResourceRadixDNSAliases = "radixdnsaliases"
+	// ResourceRadixDeployment RadixDeployment API resource
+	ResourceRadixDeployment = "radixdeployment"
 )
