@@ -8,6 +8,7 @@ import (
 
 	commonutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -669,6 +670,11 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 		return nil, err
 	}
 
+	var replicas int32 = 1
+	if isComponentStopped(component) {
+		replicas = 0
+	}
+
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -677,7 +683,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: int32Ptr(DefaultReplicas),
+			Replicas: pointers.Ptr(replicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: o.getLabelsForAuxComponent(component),
 			},
@@ -728,7 +734,12 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 		}
 	}
 
-	// Add fixed envvars
+	// Radix envvars
+	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
+		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
+	}
+
+	// oauth2-proxy envvars
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: "oidc"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_HTTPONLY", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_SECURE", Value: "true"})
