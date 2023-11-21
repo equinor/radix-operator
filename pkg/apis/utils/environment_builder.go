@@ -3,6 +3,7 @@ package utils
 import (
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -164,6 +165,7 @@ func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 			ResourceVersion: eb.ResourceVersion,
 			UID:             eb.UID,
 			OwnerReferences: eb.Owners,
+			Finalizers:      []string{kube.RadixEnvironmentFinalizer},
 		},
 		Spec: rx.RadixEnvironmentSpec{
 			AppName: eb.AppName,

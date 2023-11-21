@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -11,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/sirupsen/logrus"
 	rbac "k8s.io/api/rbac/v1"
@@ -57,9 +59,14 @@ func NewEnvironment(
 // OnSync is called by the handler when changes are applied and must be
 // reconciled with current state.
 func (env *Environment) OnSync(time metav1.Time) error {
+	re := env.config
+
+	if handled, err := env.handleDeletedRadixEnvironment(re); handled || err != nil {
+		return err
+	}
 
 	// create a globally unique namespace name
-	namespaceName := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
+	namespaceName := utils.GetEnvironmentNamespace(re.Spec.AppName, re.Spec.EnvName)
 
 	err := env.ApplyNamespace(namespaceName)
 	if err != nil {
@@ -86,24 +93,57 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		return fmt.Errorf("failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
 
-	err = env.networkPolicy.UpdateEnvEgressRules(env.config.Spec.Egress.Rules, env.config.Spec.Egress.AllowRadix, env.config.Spec.EnvName)
+	err = env.networkPolicy.UpdateEnvEgressRules(re.Spec.Egress.Rules, re.Spec.Egress.AllowRadix, re.Spec.EnvName)
 	if err != nil {
-		errmsg := fmt.Sprintf("failed to add egress rules in %s, environment %s: ", env.config.Spec.AppName, env.config.Spec.EnvName)
+		errmsg := fmt.Sprintf("failed to add egress rules in %s, environment %s: ", re.Spec.AppName, re.Spec.EnvName)
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
 
-	isOrphaned := !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
+	isOrphaned := !existsInAppConfig(env.appConfig, re.Spec.EnvName)
 
-	err = env.updateRadixEnvironmentStatus(env.config, func(currStatus *v1.RadixEnvironmentStatus) {
+	err = env.updateRadixEnvironmentStatus(re, func(currStatus *v1.RadixEnvironmentStatus) {
 		currStatus.Orphaned = isOrphaned
 		// time is parameterized for testability
 		currStatus.Reconciled = time
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update status on environment %s: %v", env.config.Spec.EnvName, err)
+		return fmt.Errorf("failed to update status on environment %s: %v", re.Spec.EnvName, err)
 	}
 	env.logger.Debugf("Environment %s reconciled", namespaceName)
 	return nil
+}
+
+func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) (bool, error) {
+	if re.ObjectMeta.DeletionTimestamp == nil {
+		return false, nil
+	}
+	finalizerIndex := slice.FindIndex(re.ObjectMeta.Finalizers, func(val string) bool {
+		return val == kube.RadixEnvironmentFinalizer
+	})
+	if finalizerIndex < 0 {
+		logrus.Info("missing finalizer %s in the Radix environment %s in the application %s. Exist finalizers: %d. Skip dependency handling",
+			kube.RadixEnvironmentFinalizer, re.Name, re.Spec.AppName, len(re.ObjectMeta.Finalizers))
+		return false, nil
+	}
+	err := env.handleDeletedRadixEnvironmentDependencies(re)
+	if err != nil {
+		return true, err
+	}
+	updatingRE := re.DeepCopy()
+	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
+	logrus.Debug("removed finalizer %s from the Radix environment %s in the application %s. LEft finalizers: %d",
+		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
+	return true, env.kubeutil.UpdateRadixEnvironment(updatingRE)
+}
+
+func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEnvironment) error {
+	radixDNSAliasList, err := env.kubeutil.GetRadixDNSAliasWithSelector(radixlabels.Merge(radixlabels.ForApplicationName(re.Spec.AppName), radixlabels.ForEnvironmentName(re.GetName())).String())
+	if err != nil {
+		return err
+	}
+	return env.kubeutil.DeleteRadixDNSAliases(slice.Reduce(radixDNSAliasList.Items, []*v1.RadixDNSAlias{}, func(acc []*v1.RadixDNSAlias, radixDNSAlias v1.RadixDNSAlias) []*v1.RadixDNSAlias {
+		return append(acc, &radixDNSAlias)
+	})...)
 }
 
 func (env *Environment) updateRadixEnvironmentStatus(rEnv *v1.RadixEnvironment, changeStatusFunc func(currStatus *v1.RadixEnvironmentStatus)) error {

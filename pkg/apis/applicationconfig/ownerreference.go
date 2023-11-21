@@ -7,12 +7,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getOwnerReferenceOfApplication(radixApplication *radixv1.RadixApplication) metav1.OwnerReference {
+func getOwnerReferenceOfRadixRegistration(radixRegistration *radixv1.RadixRegistration) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: radix.APIVersion,
 		Kind:       radix.KindRadixApplication,
-		Name:       radixApplication.Name,
-		UID:        radixApplication.UID,
+		Name:       radixRegistration.Name,
+		UID:        radixRegistration.UID,
 		Controller: utils.BoolPtr(true),
 	}
 }

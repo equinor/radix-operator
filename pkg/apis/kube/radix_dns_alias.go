@@ -38,7 +38,7 @@ func (kubeutil *Kube) ListRadixDNSAlias() ([]*radixv1.RadixDNSAlias, error) {
 	return kubeutil.ListRadixDNSAliasWithSelector("")
 }
 
-// ListRadixDNSAliasWithSelector List radix DNS aliases with selector
+// ListRadixDNSAliasWithSelector List RadixDNSAliases with selector
 func (kubeutil *Kube) ListRadixDNSAliasWithSelector(labelSelectorString string) ([]*radixv1.RadixDNSAlias, error) {
 	if kubeutil.RadixDNSAliasLister != nil {
 		selector, err := labels.Parse(labelSelectorString)
@@ -52,11 +52,16 @@ func (kubeutil *Kube) ListRadixDNSAliasWithSelector(labelSelectorString string) 
 		return aliases, nil
 	}
 
-	aliasList, err := kubeutil.radixclient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelectorString})
+	aliasList, err := kubeutil.GetRadixDNSAliasWithSelector(labelSelectorString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all RadixDNSAliases. Error was %v", err)
 	}
 	return slice.PointersOf(aliasList.Items).([]*radixv1.RadixDNSAlias), nil
+}
+
+// GetRadixDNSAliasWithSelector Get RadixDNSAliases with selector
+func (kubeutil *Kube) GetRadixDNSAliasWithSelector(labelSelectorString string) (*radixv1.RadixDNSAliasList, error) {
+	return kubeutil.radixclient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelectorString})
 }
 
 // GetRadixDNSAliasMapWithSelector Gets a map of RadixDNSAliases by an optional selector
@@ -77,7 +82,13 @@ func (kubeutil *Kube) UpdateRadixDNSAlias(radixDNSAlias *radixv1.RadixDNSAlias) 
 	return err
 }
 
-// DeleteRadixDNSAlias Delete RadixDNSAliases
-func (kubeutil *Kube) DeleteRadixDNSAlias(radixDNSAlias *radixv1.RadixDNSAlias) error {
-	return kubeutil.radixclient.RadixV1().RadixDNSAliases().Delete(context.Background(), radixDNSAlias.GetName(), metav1.DeleteOptions{})
+// DeleteRadixDNSAliases Delete RadixDNSAliases
+func (kubeutil *Kube) DeleteRadixDNSAliases(radixDNSAliases ...*radixv1.RadixDNSAlias) error {
+	for _, radixDNSAlias := range radixDNSAliases {
+		err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Delete(context.Background(), radixDNSAlias.GetName(), metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -19,6 +19,8 @@ func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 		return err
 	}
 	var errs []error
+	var radixDNSAliasesToCreate []*radixv1.RadixDNSAlias
+	var radixDNSAliasesToUpdate []*radixv1.RadixDNSAlias
 	for _, dnsAlias := range app.config.Spec.DNSAlias {
 		port, err := app.getPortForDNSAlias(dnsAlias)
 		if err != nil {
@@ -28,24 +30,36 @@ func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 			switch {
 			case !strings.EqualFold(appName, existingRadixDNSAlias.Spec.AppName):
 				errs = append(errs, fmt.Errorf("existing DNS alias %s is used by the application %s", dnsAlias.Alias, existingRadixDNSAlias.Spec.AppName))
+				delete(existingRadixDNSAliasesMap, dnsAlias.Alias)
+				continue
 			case strings.EqualFold(dnsAlias.Environment, existingRadixDNSAlias.Spec.Environment) &&
-				strings.EqualFold(dnsAlias.Component, existingRadixDNSAlias.Spec.Component) &&
-				port == existingRadixDNSAlias.Spec.Port:
-				// No changes
-			default:
-				if err = app.updateRadixDNSAlias(existingRadixDNSAlias, dnsAlias, port); err != nil {
-					errs = append(errs, err)
+				strings.EqualFold(dnsAlias.Component, existingRadixDNSAlias.Spec.Component):
+				if port != existingRadixDNSAlias.Spec.Port {
+					updatingRadixDNSAlias := existingRadixDNSAlias.DeepCopy()
+					updatingRadixDNSAlias.Spec.Port = port
+					radixDNSAliasesToUpdate = append(radixDNSAliasesToUpdate, updatingRadixDNSAlias)
 				}
+				delete(existingRadixDNSAliasesMap, dnsAlias.Alias)
+				continue
 			}
-			delete(existingRadixDNSAliasesMap, dnsAlias.Alias)
-			continue
 		}
-		if err = app.createRadixDNSAlias(appName, dnsAlias, port); err != nil {
+		radixDNSAliasesToCreate = append(radixDNSAliasesToCreate, app.buildRadixDNSAlias(appName, dnsAlias, port))
+	}
+	if len(errs) > 0 {
+		return errors.Concat(errs)
+	}
+	for _, radixDNSAlias := range existingRadixDNSAliasesMap {
+		if err = app.kubeutil.DeleteRadixDNSAliases(radixDNSAlias); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	for _, radixDNSAlias := range existingRadixDNSAliasesMap {
-		if err = app.kubeutil.DeleteRadixDNSAlias(radixDNSAlias); err != nil {
+	for _, radixDNSAlias := range radixDNSAliasesToUpdate {
+		if err = app.kubeutil.UpdateRadixDNSAlias(radixDNSAlias); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for _, radixDNSAlias := range radixDNSAliasesToCreate {
+		if err = app.kubeutil.CreateRadixDNSAlias(radixDNSAlias); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -59,20 +73,13 @@ func getComponentPublicPort(component *radixv1.RadixComponent) *radixv1.Componen
 	return nil
 }
 
-func (app *ApplicationConfig) updateRadixDNSAlias(radixDNSAlias *radixv1.RadixDNSAlias, dnsAlias radixv1.DNSAlias, port int32) error {
-	updatedRadixDNSAlias := radixDNSAlias.DeepCopy()
-	updatedRadixDNSAlias.Spec.Environment = dnsAlias.Environment
-	updatedRadixDNSAlias.Spec.Component = dnsAlias.Component
-	updatedRadixDNSAlias.Spec.Port = port
-	return app.kubeutil.UpdateRadixDNSAlias(updatedRadixDNSAlias)
-}
-
-func (app *ApplicationConfig) createRadixDNSAlias(appName string, dnsAlias radixv1.DNSAlias, port int32) error {
-	radixDNSAlias := radixv1.RadixDNSAlias{
+func (app *ApplicationConfig) buildRadixDNSAlias(appName string, dnsAlias radixv1.DNSAlias, port int32) *radixv1.RadixDNSAlias {
+	return &radixv1.RadixDNSAlias{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            dnsAlias.Alias,
-			Labels:          labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component)),
-			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfApplication(app.config)},
+			Labels:          labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component), labels.ForEnvironmentName(dnsAlias.Environment)),
+			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfRadixRegistration(app.registration)},
+			// Finalizers:      []string{kube.RadixDNSAliasFinalizer},
 		},
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
@@ -81,5 +88,4 @@ func (app *ApplicationConfig) createRadixDNSAlias(appName string, dnsAlias radix
 			Port:        port,
 		},
 	}
-	return app.kubeutil.CreateRadixDNSAlias(&radixDNSAlias)
 }

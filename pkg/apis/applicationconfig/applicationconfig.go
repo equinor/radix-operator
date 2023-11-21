@@ -269,6 +269,8 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *rad
 	radixEnvironment.ObjectMeta.Labels = newRe.ObjectMeta.Labels
 	radixEnvironment.ObjectMeta.OwnerReferences = newRe.ObjectMeta.OwnerReferences
 	radixEnvironment.ObjectMeta.Annotations = newRe.ObjectMeta.Annotations
+	radixEnvironment.ObjectMeta.Finalizers = newRe.ObjectMeta.Finalizers
+	radixEnvironment.ObjectMeta.DeletionTimestamp = newRe.ObjectMeta.DeletionTimestamp
 	radixEnvironment.Spec = newRe.Spec
 	radixEnvironment.Status = newRe.Status
 

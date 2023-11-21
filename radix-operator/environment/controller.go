@@ -190,7 +190,9 @@ func NewController(client kubernetes.Interface,
 func deepEqual(old, new *v1.RadixEnvironment) bool {
 	if !reflect.DeepEqual(new.Spec, old.Spec) ||
 		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
-		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
+		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) ||
+		!reflect.DeepEqual(new.ObjectMeta.DeletionTimestamp, old.ObjectMeta.DeletionTimestamp) ||
+		!reflect.DeepEqual(new.ObjectMeta.Finalizers, old.ObjectMeta.Finalizers) {
 		return false
 	}
 
