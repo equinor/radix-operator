@@ -53,7 +53,7 @@ func (s *syncerTestSuite) SetupTest() {
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
-	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsConfig, s.ingressConfig, s.oauthConfig, radixDNSAlias)
+	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsConfig, s.ingressConfig, s.oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), radixDNSAlias)
 }
 
 type testIngress struct {

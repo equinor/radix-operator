@@ -2,6 +2,7 @@ package labels
 
 import (
 	maputils "github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
@@ -216,5 +217,14 @@ func ForRadixSecretType(secretType kube.RadixSecretType) kubelabels.Set {
 func ForAccessValidation() kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAccessValidationLabel: "true",
+	}
+}
+
+// ForAuxComponent returns labels for application component aux OAuth proxy
+func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) map[string]string {
+	return map[string]string{
+		kube.RadixAppLabel:                    appName,
+		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
+		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
 	}
 }

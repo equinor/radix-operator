@@ -138,7 +138,7 @@ func (s *handlerSuite) Test_Sync() {
 			ingress.NewOAuth2AnnotationProvider(oauthConfig),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, []ingress.AnnotationProvider{ingress.NewForceSslRedirectAnnotationProvider()}, "oauth:123"),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
 		}
 		factory.
 			EXPECT().

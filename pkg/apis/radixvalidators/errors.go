@@ -117,7 +117,7 @@ func EnvForDNSAliasNotDefinedError(env string) error {
 
 // ComponentForDNSAliasNotDefinedError Error when component not defined
 func ComponentForDNSAliasNotDefinedError(component string) error {
-	return fmt.Errorf("component %s referred to by dnsAlias is not defined", component)
+	return fmt.Errorf("component %s referred to by dnsAlias is not defined or it is disabled", component)
 }
 
 // ComponentForDNSAliasIsNotMarkedAsPublicError Component is not marked as public
@@ -157,7 +157,7 @@ func ComponentForDNSAppAliasNotDefinedError(component string) error {
 
 // ComponentForDNSAppAliasNotDefinedErrorWithMessage Error when env not defined
 func ComponentForDNSAppAliasNotDefinedErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrComponentForDNSAppAliasNotDefined, "component %s referred to by dnsAppAlias is not defined", component)
+	return errors.WithMessagef(ErrComponentForDNSAppAliasNotDefined, "component %s referred to by dnsAppAlias is not defined or it is disabled", component)
 }
 
 // EnvForDNSExternalAliasNotDefinedErrorWithMessage Error when env not defined
@@ -167,7 +167,7 @@ func EnvForDNSExternalAliasNotDefinedErrorWithMessage(env string) error {
 
 // ComponentForDNSExternalAliasNotDefinedErrorWithMessage Error when env not defined
 func ComponentForDNSExternalAliasNotDefinedErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrComponentForDNSExternalAliasNotDefined, "component %s referred to by dnsExternalAlias is not defined", component)
+	return errors.WithMessagef(ErrComponentForDNSExternalAliasNotDefined, "component %s referred to by dnsExternalAlias is not defined or it is disabled", component)
 }
 
 // ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage Component is not marked as public

@@ -176,7 +176,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []ingress.AnnotationProvider{ingress.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
+		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage),
 	}
 
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers)

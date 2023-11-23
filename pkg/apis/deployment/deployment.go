@@ -74,7 +74,7 @@ func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, r
 	}
 }
 
-// GetDeploymentComponent Gets the index of and the component given name
+// GetDeploymentComponent Gets the index of and the component given name. Used by Radix API.
 func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
 	for index, component := range rd.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
@@ -275,6 +275,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 func (deploy *Deployment) syncAuxiliaryResources() error {
 	for _, aux := range deploy.auxResourceManagers {
+		log.Debugf("sync AuxiliaryResource for the RadixDeployment %s", deploy.radixDeployment.GetName())
 		if err := aux.Sync(); err != nil {
 			return err
 		}

@@ -42,38 +42,40 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingre
 	newIngress.ObjectMeta.Annotations = ingress.ObjectMeta.Annotations
 	newIngress.ObjectMeta.OwnerReferences = ingress.ObjectMeta.OwnerReferences
 	newIngress.Spec = ingress.Spec
-	return kubeutil.PatchIngress(namespace, oldIngress, newIngress)
+	_, err = kubeutil.PatchIngress(namespace, oldIngress, newIngress)
+	return err
 }
 
 // PatchIngress Patches an ingress, if there are changes
-func (kubeutil *Kube) PatchIngress(namespace string, oldIngress *networkingv1.Ingress, newIngress *networkingv1.Ingress) error {
+func (kubeutil *Kube) PatchIngress(namespace string, oldIngress *networkingv1.Ingress, newIngress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
 	ingressName := oldIngress.GetName()
+	log.Debugf("patch an ingress %s in the namespace %s", ingressName, namespace)
 	oldIngressJSON, err := json.Marshal(oldIngress)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old Ingress object: %v", err)
+		return nil, fmt.Errorf("failed to marshal old Ingress object: %v", err)
 	}
 
 	newIngressJSON, err := json.Marshal(newIngress)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new Ingress object: %v", err)
+		return nil, fmt.Errorf("failed to marshal new Ingress object: %v", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldIngressJSON, newIngressJSON, networkingv1.Ingress{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch Ingess objects: %v", err)
+		return nil, fmt.Errorf("failed to create two way merge patch Ingess objects: %v", err)
 	}
 
-	if !IsEmptyPatch(patchBytes) {
-		patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(context.Background(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to patch Ingress object: %v", err)
-		}
-		log.Debugf("Patched Ingress: %s in namespace %s", patchedIngress.Name, namespace)
-	} else {
+	if IsEmptyPatch(patchBytes) {
 		log.Debugf("No need to patch ingress: %s ", ingressName)
+		return oldIngress, nil
 	}
+	patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(context.Background(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to patch Ingress object: %v", err)
+	}
+	log.Debugf("Patched Ingress: %s in namespace %s", patchedIngress.Name, namespace)
 
-	return nil
+	return patchedIngress, nil
 }
 
 // ListIngresses lists ingresses

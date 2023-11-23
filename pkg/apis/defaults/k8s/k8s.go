@@ -10,4 +10,6 @@ const (
 	KindRoleBinding        = "RoleBinding"
 	KindServiceAccount     = "ServiceAccount"
 	KindGroup              = "Group"
+	KindIngress            = "Ingress"
+	APIVersionNetworking   = "networking.k8s.io/v1"
 )

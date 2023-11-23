@@ -62,18 +62,19 @@ func NewController(kubeClient kubernetes.Interface,
 	dnsAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			alias := cur.(*v1.RadixDNSAlias)
-			logger.Debugf("added RadixDNSAlias %s. Do nothing", alias.GetName())
+			logger.Debugf("added RadixDNSAlias %s", alias.GetName())
 			controller.Enqueue(cur)
 			metrics.CustomResourceAdded(radix.KindRadixDNSAlias)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			newAlias := cur.(*v1.RadixDNSAlias)
 			oldAlias := old.(*v1.RadixDNSAlias)
+			newAlias := cur.(*v1.RadixDNSAlias)
 			if deepEqual(oldAlias, newAlias) {
 				logger.Debugf("RadixDNSAlias object is equal to old for %s. Do nothing", newAlias.GetName())
 				metrics.CustomResourceUpdatedButSkipped(radix.KindRadixDNSAlias)
 				return
 			}
+			logger.Debugf("updated RadixDNSAlias %s", newAlias.GetName())
 			controller.Enqueue(cur)
 			metrics.CustomResourceUpdated(radix.KindRadixDNSAlias)
 		},
@@ -83,6 +84,7 @@ func NewController(kubeClient kubernetes.Interface,
 				logger.Errorf("RadixDNSAlias object cast failed during deleted event received.")
 				return
 			}
+			logger.Debugf("deleted RadixDNSAlias %s", alias.GetName())
 			key, err := cache.MetaNamespaceKeyFunc(alias)
 			if err != nil {
 				logger.Errorf("error on RadixDNSAlias object deleted event received for %s: %v", key, err)
@@ -96,8 +98,10 @@ func NewController(kubeClient kubernetes.Interface,
 			oldIng := oldObj.(metav1.Object)
 			newIng := newObj.(metav1.Object)
 			if oldIng.GetResourceVersion() == newIng.GetResourceVersion() {
+				logger.Debugf("updating Ingress %s has the same resource version. Do nothing.", newIng.GetName())
 				return
 			}
+			logger.Debugf("updated Ingress %s", newIng.GetName())
 			controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -106,6 +110,7 @@ func NewController(kubeClient kubernetes.Interface,
 				logger.Errorf("Ingress object cast failed during deleted event received.")
 				return
 			}
+			logger.Debugf("deleted Ingress %s", ing.GetName())
 			controller.HandleObject(ing, radix.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
 		},
 	})

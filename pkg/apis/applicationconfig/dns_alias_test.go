@@ -246,11 +246,11 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 			require.NoError(t, err)
 
 			if ts.expectedRadixDNSAliases == nil {
-				require.Len(t, radixDNSAliases.Items, 0, "not expected Radix DNS aliases")
+				require.Len(t, radixDNSAliases.Items, 0, "not expected RadixDNSAliases")
 				return
 			}
 
-			require.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "not matching expected Radix DNS aliases count")
+			require.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "not matching expected RadixDNSAliases count")
 			if len(radixDNSAliases.Items) == len(ts.expectedRadixDNSAliases) {
 				for _, radixDNSAlias := range radixDNSAliases.Items {
 					if expectedDNSAlias, ok := ts.expectedRadixDNSAliases[radixDNSAlias.Name]; ok {

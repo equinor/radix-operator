@@ -127,7 +127,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&v1.OAuth2{}, nil)
 	for _, test := range tests {
 		s.Run(test.name, func() {
-			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 			err := sut.Sync()
 			s.Nil(err)
 			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -239,7 +239,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&v1.OAuth2{}, nil)
 	for _, test := range tests {
 		s.Run(test.name, func() {
-			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
 			err := sut.Sync()
 			s.Nil(err)
 			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -630,7 +630,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	actualIngress := getIngress(fmt.Sprintf("%s-%s", ingServer.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
 	s.NotNil(actualIngress)
 	s.Equal(expectedIngServerAnnotations, actualIngress.Annotations)
-	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingServer), actualIngress.OwnerReferences)
+	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingServer), actualIngress.OwnerReferences)
 	s.Equal(ingServer.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
 	s.Equal(ingServer.Spec.TLS, actualIngress.Spec.TLS)
 	s.Equal(ingServer.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
@@ -640,7 +640,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	actualIngress = getIngress(fmt.Sprintf("%s-%s", ingWeb1.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
 	s.NotNil(actualIngress)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
-	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingWeb1), actualIngress.OwnerReferences)
+	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb1), actualIngress.OwnerReferences)
 	s.Equal(ingWeb1.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
 	s.Equal(ingWeb1.Spec.TLS, actualIngress.Spec.TLS)
 	s.Equal(ingWeb1.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
@@ -649,7 +649,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	actualIngress = getIngress(fmt.Sprintf("%s-%s", ingWeb2.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
 	s.NotNil(actualIngress)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
-	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingWeb2), actualIngress.OwnerReferences)
+	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb2), actualIngress.OwnerReferences)
 	s.Equal(ingWeb2.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
 	s.Equal(ingWeb2.Spec.TLS, actualIngress.Spec.TLS)
 	s.Equal(ingWeb2.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
@@ -738,18 +738,16 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	for _, ing := range actualIngresses.Items {
 		actualIngressNames = append(actualIngressNames, ing.Name)
 	}
-	s.ElementsMatch([]string{"ing1", sut.getIngressName("ing1"), "ing2", "ing3"}, actualIngressNames)
+	s.ElementsMatch([]string{"ing1", oauthutil.GetAuxAuthProxyIngressName("ing1"), "ing2", "ing3"}, actualIngressNames)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetOwnerReferenceOfIngress() {
-	sut := &oauthProxyResourceManager{}
-	actualOwnerReferences := sut.getOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
-	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: "networking.k8s.io/v1", Kind: "Ingress", Name: "anyingress", UID: "anyuid", Controller: utils.BoolPtr(true)}}, actualOwnerReferences)
+	actualOwnerReferences := ingress.GetOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
+	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: k8s.APIVersionNetworking, Kind: k8s.KindIngress, Name: "anyingress", UID: "anyuid", Controller: utils.BoolPtr(true)}}, actualOwnerReferences)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetIngressName() {
-	sut := &oauthProxyResourceManager{}
-	actualIngressName := sut.getIngressName("ing")
+	actualIngressName := oauthutil.GetAuxAuthProxyIngressName("ing")
 	s.Equal(fmt.Sprintf("%s-%s", "ing", defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngressName)
 }
 

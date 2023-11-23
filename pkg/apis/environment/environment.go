@@ -65,6 +65,10 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		return err
 	}
 
+	if env.regConfig == nil {
+		return nil // RadixRegistration does not exist, possible it was deleted
+	}
+
 	// create a globally unique namespace name
 	namespaceName := utils.GetEnvironmentNamespace(re.Spec.AppName, re.Spec.EnvName)
 
@@ -137,7 +141,7 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) (
 }
 
 func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEnvironment) error {
-	radixDNSAliasList, err := env.kubeutil.GetRadixDNSAliasWithSelector(radixlabels.Merge(radixlabels.ForApplicationName(re.Spec.AppName), radixlabels.ForEnvironmentName(re.GetName())).String())
+	radixDNSAliasList, err := env.kubeutil.GetRadixDNSAliasWithSelector(radixlabels.Merge(radixlabels.ForApplicationName(re.Spec.AppName), radixlabels.ForEnvironmentName(re.Spec.EnvName)).String())
 	if err != nil {
 		return err
 	}
