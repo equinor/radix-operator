@@ -132,14 +132,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 								"memory": "129Mi",
 								"cpu":    "501m",
 							}).
-							WithReplicas(test.IntPtr(2)),
+							WithReplicas(pointers.Ptr(2)),
 						utils.NewDeployComponentBuilder().
 							WithImage("old_radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
 							WithName(componentNameRedis).
 							WithEnvironmentVariable("a_variable", "3002").
 							WithPort("http", 6378).
 							WithPublicPort("").
-							WithReplicas(test.IntPtr(1)),
+							WithReplicas(pointers.Ptr(1)),
 						utils.NewDeployComponentBuilder().
 							WithImage("old_radixdev.azurecr.io/edcradix-radixquote:axmz8").
 							WithName(componentNameRadixQuote).
@@ -172,14 +172,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 								"memory": "128Mi",
 								"cpu":    "500m",
 							}).
-							WithReplicas(test.IntPtr(4)),
+							WithReplicas(pointers.Ptr(4)),
 						utils.NewDeployComponentBuilder().
 							WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
 							WithName(componentNameRedis).
 							WithEnvironmentVariable("a_variable", "3001").
 							WithPort("http", 6379).
 							WithPublicPort("").
-							WithReplicas(test.IntPtr(0)),
+							WithReplicas(pointers.Ptr(0)),
 						utils.NewDeployComponentBuilder().
 							WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
 							WithName(componentNameRadixQuote).
@@ -1471,7 +1471,7 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app").
-				WithReplicas(test.IntPtr(0))))
+				WithReplicas(pointers.Ptr(0))))
 
 	time.Sleep(1 * time.Second)
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -1751,7 +1751,7 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app").
-				WithReplicas(test.IntPtr(3))))
+				WithReplicas(pointers.Ptr(3))))
 
 	time.Sleep(1 * time.Second)
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -1828,12 +1828,12 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(4)),
+				WithReplicas(pointers.Ptr(4)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
@@ -1857,7 +1857,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(0)).
 				WithSecrets([]string{"a_secret"})))
 
 	assert.NoError(t, err)
@@ -1993,7 +1993,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 							"memory": "128Mi",
 							"cpu":    "500m",
 						}).
-						WithReplicas(test.IntPtr(4)),
+						WithReplicas(pointers.Ptr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithEnvironmentVariable("DB_HOST", "db-dev").
@@ -2018,7 +2018,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 								GID:     "1000",
 							},
 						}).
-						WithReplicas(test.IntPtr(3)))).
+						WithReplicas(pointers.Ptr(3)))).
 		BuildRA()
 
 	var testScenarios = []struct {
@@ -2081,11 +2081,11 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithAlwaysPullImageOnDeploy(true).
-						WithReplicas(test.IntPtr(3)),
+						WithReplicas(pointers.Ptr(3)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
 						WithAlwaysPullImageOnDeploy(false).
-						WithReplicas(test.IntPtr(3))),
+						WithReplicas(pointers.Ptr(3))),
 			utils.AnApplicationComponent().
 				WithName("app1").
 				WithAlwaysPullImageOnDeploy(true).
@@ -2093,17 +2093,17 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithAlwaysPullImageOnDeploy(true).
-						WithReplicas(test.IntPtr(3)),
+						WithReplicas(pointers.Ptr(3)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
 						WithAlwaysPullImageOnDeploy(false).
-						WithReplicas(test.IntPtr(3))),
+						WithReplicas(pointers.Ptr(3))),
 			utils.AnApplicationComponent().
 				WithName("app2").
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
-						WithReplicas(test.IntPtr(3)))).
+						WithReplicas(pointers.Ptr(3)))).
 		BuildRA()
 
 	componentImages := make(pipeline.DeployComponentImages)
@@ -2739,19 +2739,19 @@ func TestHPAConfig(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(0)).
 				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil)))
 
 	assert.NoError(t, err)
@@ -2775,19 +2775,19 @@ func TestHPAConfig(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(0)).
 				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1))))
+				WithReplicas(pointers.Ptr(1))))
 
 	assert.NoError(t, err)
 

@@ -212,19 +212,6 @@ func validateComponents(app *radixv1.RadixApplication) error {
 			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(component.Name))
 		}
 
-		if usesDynamicTaggingForDeployOnly(component.Image) {
-			if len(component.EnvironmentConfig) == 0 {
-				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfigWithMessage(component.Name))
-			} else {
-				for _, environment := range component.EnvironmentConfig {
-					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
-						errs = append(errs,
-							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironmentWithMessage(component.Name, environment.Environment))
-					}
-				}
-			}
-		}
-
 		err := validateComponentName(component.Name, "component")
 		if err != nil {
 			errs = append(errs, err)
@@ -294,19 +281,6 @@ func validateJobComponents(app *radixv1.RadixApplication) error {
 	for _, job := range app.Spec.Jobs {
 		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
 			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(job.Name))
-		}
-
-		if usesDynamicTaggingForDeployOnly(job.Image) {
-			if len(job.EnvironmentConfig) == 0 {
-				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfigWithMessage(job.Name))
-			} else {
-				for _, environment := range job.EnvironmentConfig {
-					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
-						errs = append(errs,
-							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironmentWithMessage(job.Name, environment.Environment))
-					}
-				}
-			}
 		}
 
 		err := validateComponentName(job.Name, "job")
@@ -536,11 +510,6 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 	}
 
 	return
-}
-
-func usesDynamicTaggingForDeployOnly(componentImage string) bool {
-	return componentImage != "" &&
-		strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
 func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
@@ -1316,11 +1285,6 @@ func doesComponentExistInEnvironment(app *radixv1.RadixApplication, componentNam
 
 func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
 	return getEnv(app, name) != nil
-}
-
-func doesEnvExistAndIsMappedToBranch(app *radixv1.RadixApplication, name string) bool {
-	env := getEnv(app, name)
-	return env != nil && env.Build.From != ""
 }
 
 func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {

@@ -176,8 +176,8 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 
 // SetApplicationConfig Set radixconfig to be used later by other steps, as well
 // as deriving info from the config
-func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
-	info.RadixApplication = applicationConfig.GetRadixApplicationConfig()
+func (info *PipelineInfo) SetApplicationConfig(ra *radixv1.RadixApplication) {
+	info.RadixApplication = ra
 
 	// Obtain metadata for rest of pipeline
 	targetEnvironments := application.GetTargetEnvironments(info.PipelineArguments.Branch, info.RadixApplication)

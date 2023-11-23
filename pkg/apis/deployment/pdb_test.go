@@ -2,14 +2,15 @@ package deployment
 
 import (
 	"context"
+	"testing"
+
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"testing"
 )
 
 func TestHorizontalScaleChangePDB(t *testing.T) {
@@ -32,13 +33,13 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(4)).
+				WithReplicas(pointers.Ptr(4)).
 				WithHorizontalScaling(numbers.Int32Ptr(2), 4, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
@@ -69,7 +70,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(0)).
 				WithSecrets([]string{"a_secret"})))
 
 	assert.NoError(t, err)
@@ -106,12 +107,12 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(4)),
+				WithReplicas(pointers.Ptr(4)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
@@ -142,7 +143,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(0)).
 				WithSecrets([]string{"a_secret"})))
 
 	assert.NoError(t, err)
@@ -178,12 +179,12 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(4)),
+				WithReplicas(pointers.Ptr(4)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 		))
 
 	assert.NoError(t, err)
@@ -206,12 +207,12 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(1)),
+				WithReplicas(pointers.Ptr(1)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 		))
 
 	assert.NoError(t, err)
@@ -231,12 +232,12 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(10)),
+				WithReplicas(pointers.Ptr(10)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 		))
 
 	assert.NoError(t, err)
@@ -258,7 +259,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 		))
 
 	assert.NoError(t, err)
@@ -280,17 +281,17 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(4)),
+				WithReplicas(pointers.Ptr(4)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(3)),
+				WithReplicas(pointers.Ptr(3)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(2))))
+				WithReplicas(pointers.Ptr(2))))
 
 	assert.NoError(t, err)
 
@@ -323,13 +324,13 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(4)).
+				WithReplicas(pointers.Ptr(4)).
 				WithHorizontalScaling(numbers.Int32Ptr(4), 6, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 		))
 
 	assert.NoError(t, err)
@@ -352,13 +353,13 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(numbers.Int32Ptr(1), 6, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(pointers.Ptr(0)),
 		))
 
 	assert.NoError(t, err)
@@ -387,7 +388,7 @@ func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(10)),
+				WithReplicas(pointers.Ptr(10)),
 		))
 
 	assert.NoError(t, err)
@@ -417,7 +418,7 @@ func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(9)),
+				WithReplicas(pointers.Ptr(9)),
 		))
 
 	assert.NoError(t, err)

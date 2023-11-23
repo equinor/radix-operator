@@ -83,22 +83,16 @@ func getImagePath(componentName string, componentImage pipeline.DeployComponentI
 		return image, nil
 	}
 
-	imageTagName := getImageTagName(componentImage, environmentSpecificConfig)
 	if strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
+		imageTagName := getImageTagName(componentImage, environmentSpecificConfig)
 		if len(imageTagName) == 0 {
 			return "", errorMissingExpectedDynamicImageTagName(componentName)
 		}
 		// For deploy-only images, we will replace the dynamic tag with the tag from the environment config
 		return strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName), nil
 	}
-	if len(imageTagName) > 0 {
-		return "", errorNotExpectedImageTagNameInImage(componentName, imageTagName)
-	}
-	return image, nil
-}
 
-func errorNotExpectedImageTagNameInImage(componentImageName, imageTagName string) error {
-	return fmt.Errorf("image property for a component %s does not have a dynamic imageTagName but it is provided: %s", componentImageName, imageTagName)
+	return image, nil
 }
 
 func errorMissingExpectedDynamicImageTagName(componentName string) error {

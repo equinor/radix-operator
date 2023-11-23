@@ -86,16 +86,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	// Apply RA to cluster
-	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
-		cli.GetRadixclient(), cli.GetRegistration(), ra)
-
-	err = applicationConfig.ApplyConfigToApplicationNamespace()
-	if err != nil {
-		return err
-	}
-
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetApplicationConfig(ra)
 
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
 		return err
@@ -117,6 +108,13 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		}
 		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
+	}
+
+	// Apply RA to cluster
+	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(), cli.GetRadixclient(), cli.GetRegistration(), ra)
+	err = applicationConfig.ApplyConfigToApplicationNamespace()
+	if err != nil {
+		return err
 	}
 
 	return nil

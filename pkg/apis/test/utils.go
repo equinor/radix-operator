@@ -338,11 +338,6 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 	kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 }
 
-// IntPtr Helper function to get the pointer of an int
-func IntPtr(i int) *int {
-	return &i
-}
-
 func (tu *Utils) applyRadixDeploymentEnvVarsConfigMaps(rd *v1.RadixDeployment) map[string]*corev1.ConfigMap {
 	envVarConfigMapsMap := map[string]*corev1.ConfigMap{}
 	for _, deployComponent := range rd.Spec.Components {

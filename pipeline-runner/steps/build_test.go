@@ -10,9 +10,9 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/hash"
+	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -26,11 +26,9 @@ import (
 	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	yamlk8s "sigs.k8s.io/yaml"
 )
 
 func Test_RunBuildTestSuite(t *testing.T) {
@@ -47,14 +45,14 @@ type buildTestSuite struct {
 }
 
 func (s *buildTestSuite) SetupTest() {
-	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radixfake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, nil)
-	s.ctrl = gomock.NewController(s.T())
+	s.setupTest()
 }
 
 func (s *buildTestSuite) SetupSubTest() {
+	s.setupTest()
+}
+
+func (s *buildTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
@@ -63,21 +61,20 @@ func (s *buildTestSuite) SetupSubTest() {
 }
 
 func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
-	anyBranch := "master"
-	anyEnvironment := "dev"
-	anyComponentName := "app"
-	anyNoMappedBranch := "feature"
+	appName := "any-app"
+	envName := "dev"
+	noMappedBranch := "feature"
 
 	rr := utils.ARadixRegistration().
-		WithName(anyAppName).
+		WithName(appName).
 		BuildRR()
 
 	ra := utils.NewRadixApplicationBuilder().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment, anyBranch).
+		WithAppName(appName).
+		WithEnvironment(envName, "anyBranch").
 		WithComponents(
 			utils.AnApplicationComponent().
-				WithName(anyComponentName)).
+				WithName("anyComponentName")).
 		BuildRA()
 
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
@@ -85,21 +82,21 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 	cli := steps.NewBuildStep(jobWaiter)
 	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	targetEnvs := application.GetTargetEnvironments(anyNoMappedBranch, ra)
+	targetEnvs := application.GetTargetEnvironments(noMappedBranch, ra)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   anyNoMappedBranch,
-			CommitID: anyCommitID,
+			JobName:  "anyjobname",
+			ImageTag: "anyimagetag",
+			Branch:   noMappedBranch,
+			CommitID: "anycommit",
 		},
 		TargetEnvironments: targetEnvs,
 	}
 
 	err := cli.Run(pipelineInfo)
 	s.Require().NoError(err)
-	radixJobList, err := s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
+	radixJobList, err := s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err)
 	s.Empty(radixJobList.Items)
 }
@@ -118,8 +115,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		WithEnvironment("prod", "release").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName)).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
-	s.Require().NoError(s.createGitInfoConfigMapResponse(gitConfigMapName, appName, gitHash, gitTags))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      "build-deploy",
@@ -146,7 +143,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -219,7 +216,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	expectedRaHash, err := hash.ToHashString(hash.SHA256, ra.Spec)
 	s.Require().NoError(err)
 	s.Equal(expectedRaHash, rd.GetAnnotations()[kube.RadixConfigHash])
-	s.Equal(s.getBuildSecretHash(nil), rd.GetAnnotations()[kube.RadixBuildSecretHash])
+	s.Equal(internaltest.GetBuildSecretHash(nil), rd.GetAnnotations()[kube.RadixBuildSecretHash])
 	s.Greater(len(rd.GetAnnotations()[kube.RadixConfigHash]), 0)
 	s.Require().Len(rd.Spec.Components, 1)
 	s.Equal(compName, rd.Spec.Components[0].Name)
@@ -258,7 +255,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("public-job-component").WithImage("job/job:latest"),
 		).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      "build-deploy",
@@ -278,7 +275,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -397,7 +394,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
 		).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      "build-deploy",
@@ -417,7 +414,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -525,7 +522,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		WithDeploymentName("currentrd").
 		WithAppName(appName).
 		WithEnvironment(envName).
-		WithAnnotations(map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(ra), kube.RadixBuildSecretHash: s.getBuildSecretHash(nil)}).
+		WithAnnotations(map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(ra), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(nil)}).
 		WithCondition(radixv1.DeploymentActive).
 		WithComponents(
 			utils.NewDeployComponentBuilder().WithName("comp-changed").WithImage("comp-changed-current:anytag"),
@@ -547,7 +544,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 			{Environment: envName, Components: []string{"comp-changed", "comp-common1-changed", "comp-common3-changed", "job-changed", "job-common2-changed", "job-common3-changed"}},
 		},
 	}
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, buildCtx))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, buildCtx))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      "build-deploy",
@@ -567,7 +564,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -697,7 +694,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component changed, job changed - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-changed-current:anytag")},
@@ -717,7 +714,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component changed - build component",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -737,7 +734,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, job changed - build job",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -757,7 +754,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged - no build job",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -777,7 +774,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged, env namespace missing - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -798,7 +795,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, missing prepare context for environment - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -818,7 +815,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged - no build job",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -838,7 +835,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash changed, buildsecret hash unchanged, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(oldRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(oldRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -858,7 +855,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash missing, buildsecret hash unchanged, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -878,7 +875,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash changed, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(oldBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(oldBuildSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -898,7 +895,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret magic hash, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(nil)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(nil)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -918,7 +915,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret magic hash, no build secret, component unchanged, job unchanged - no build job",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(raWithoutSecret), kube.RadixBuildSecretHash: s.getBuildSecretHash(nil)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(raWithoutSecret), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(nil)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -939,7 +936,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret missing, no build secret, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(raWithoutSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(raWithoutSecret)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -960,7 +957,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "radixconfig hash unchanged, buildsecret hash missing, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa)},
 				radixv1.DeploymentActive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -994,7 +991,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		{
 			name: "no current RD, component unchanged, job unchanged - build all",
 			existingRd: radixDeploymentFactory(
-				map[string]string{kube.RadixConfigHash: s.getRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: s.getBuildSecretHash(currentBuildSecret)},
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
 				radixv1.DeploymentInactive,
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
@@ -1029,7 +1026,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			if !test.skipEnvNamespace {
 				_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
 			}
-			s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, test.prepareBuildCtx))
+			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, test.prepareBuildCtx))
 			pipeline := model.PipelineInfo{PipelineArguments: piplineArgs, RadixConfigMapName: prepareConfigMapName}
 			applyStep := steps.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
@@ -1039,7 +1036,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			}
 			buildStep := steps.NewBuildStep(jobWaiter)
 			buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-			deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+			deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
 			deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 			// Run pipeline steps
@@ -1096,7 +1093,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job2envtag")),
 		).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  "deploy",
@@ -1109,7 +1106,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -1153,7 +1150,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 		WithEnvironment("dev", "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName)).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			Branch:    "main",
@@ -1193,7 +1190,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_UseCache() {
 		WithEnvironment("dev", "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName)).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			Branch:   "main",
@@ -1233,7 +1230,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithDockerfileName() {
 		WithEnvironment("dev", "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName).WithDockerfileName(dockerFileName)).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			Branch:  "main",
@@ -1272,7 +1269,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithSourceFolder() {
 		WithEnvironment("dev", "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName).WithSourceFolder(".././path/../../subpath")).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			Branch:  "main",
@@ -1312,8 +1309,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 		WithEnvironment(envName, "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName)).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
-	s.Require().NoError(s.createBuildSecret(appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreateBuildSecret(s.kubeClient, appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			Branch:  "main",
@@ -1328,7 +1325,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(&pipeline))
 	s.Require().NoError(buildStep.Run(&pipeline))
@@ -1367,7 +1364,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 		WithEnvironment("dev", "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName).WithDockerfileName(dockerFile).WithSourceFolder(sourceFolder)).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			Branch:               "main",
@@ -1430,7 +1427,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 		WithEnvironment("dev", "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName).WithDockerfileName(dockerFile).WithSourceFolder(sourceFolder)).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			Branch:               "main",
@@ -1501,8 +1498,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 		WithEnvironment("dev", "main").
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName).WithDockerfileName(dockerFile).WithSourceFolder(sourceFolder)).
 		BuildRA()
-	s.Require().NoError(s.createPreparePipelineConfigMapResponse(prepareConfigMapName, appName, ra, nil))
-	s.Require().NoError(s.createBuildSecret(appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreateBuildSecret(s.kubeClient, appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			Branch:               "main",
@@ -1560,68 +1557,4 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	)
 	expectedCommand := []string{"/bin/bash", "-c", expectedBuildCmd}
 	s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
-}
-
-func (s *buildTestSuite) createPreparePipelineConfigMapResponse(configMapName, appName string, ra *radixv1.RadixApplication, buildCtx *model.PrepareBuildContext) error {
-	raBytes, err := yamlk8s.Marshal(ra)
-	if err != nil {
-		return err
-	}
-	data := map[string]string{
-		pipelineDefaults.PipelineConfigMapContent: string(raBytes),
-	}
-
-	if buildCtx != nil {
-		buildCtxBytes, err := yaml.Marshal(buildCtx)
-		if err != nil {
-			return err
-		}
-		data[pipelineDefaults.PipelineConfigMapBuildContext] = string(buildCtxBytes)
-	}
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-		Data:       data,
-	}
-	_, err = s.kubeClient.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Create(context.Background(), cm, metav1.CreateOptions{})
-	return err
-}
-
-func (s *buildTestSuite) createGitInfoConfigMapResponse(configMapName, appName, gitHash, gitTags string) error {
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-		Data: map[string]string{
-			defaults.RadixGitCommitHashKey: gitHash,
-			defaults.RadixGitTagsKey:       gitTags,
-		},
-	}
-	_, err := s.kubeClient.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Create(context.Background(), cm, metav1.CreateOptions{})
-	return err
-}
-
-func (s *buildTestSuite) createBuildSecret(appName string, data map[string][]byte) error {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName},
-		Data:       data,
-	}
-
-	_, err := s.kubeClient.CoreV1().Secrets(utils.GetAppNamespace(appName)).Create(context.Background(), secret, metav1.CreateOptions{})
-	return err
-}
-
-func (s *buildTestSuite) getRadixApplicationHash(ra *radixv1.RadixApplication) string {
-	if ra == nil {
-		hash, _ := hash.ToHashString(hash.SHA256, "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7")
-		return hash
-	}
-	hash, _ := hash.ToHashString(hash.SHA256, ra.Spec)
-	return hash
-}
-
-func (s *buildTestSuite) getBuildSecretHash(secret *corev1.Secret) string {
-	if secret == nil {
-		hash, _ := hash.ToHashString(hash.SHA256, "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj")
-		return hash
-	}
-	hash, _ := hash.ToHashString(hash.SHA256, secret.Data)
-	return hash
 }
