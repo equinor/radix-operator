@@ -63,8 +63,29 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	// Get pipeline info from configmap created by prepare pipeline step
+	if err := cli.processPreparePipelineOutput(pipelineInfo); err != nil {
+		return err
+	}
+
+	if err := cli.setBuildSecret(pipelineInfo); err != nil {
+		return err
+	}
+
+	if err := cli.setBuildAndDeployImages(pipelineInfo); err != nil {
+		return err
+	}
+
+	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
+		return err
+	}
+
+	return cli.applyRadixApplicationToCluster(pipelineInfo)
+}
+
+func (cli *ApplyConfigStepImplementation) processPreparePipelineOutput(pipelineInfo *model.PipelineInfo) error {
 	namespace := operatorutils.GetAppNamespace(cli.GetAppName())
+
+	// Get pipeline info from configmap created by prepare pipeline step
 	configMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.RadixConfigMapName)
 	if err != nil {
 		return err
@@ -81,24 +102,13 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
+
 	ra, err := CreateRadixApplication(cli.GetRadixclient(), configFileContent)
 	if err != nil {
 		return err
 	}
 
 	pipelineInfo.SetApplicationConfig(ra)
-
-	if err := cli.setBuildSecret(pipelineInfo); err != nil {
-		return err
-	}
-
-	if err := cli.setBuildAndDeployImages(pipelineInfo); err != nil {
-		return err
-	}
-
-	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
-		return errors.New("deploy pipeline does not support building components and jobs")
-	}
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
 		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
@@ -108,13 +118,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		}
 		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
-	}
-
-	// Apply RA to cluster
-	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(), cli.GetRadixclient(), cli.GetRegistration(), ra)
-	err = applicationConfig.ApplyConfigToApplicationNamespace()
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -153,6 +156,20 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	}
 
 	return nil
+}
+
+func (cli ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
+		return errors.New("deploy pipeline does not support building components and jobs")
+	}
+
+	return nil
+}
+
+func (cli *ApplyConfigStepImplementation) applyRadixApplicationToCluster(pipelineInfo *model.PipelineInfo) error {
+	// Apply RA to cluster
+	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(), cli.GetRadixclient(), cli.GetRegistration(), pipelineInfo.RadixApplication)
+	return applicationConfig.ApplyConfigToApplicationNamespace()
 }
 
 func printEnvironmentComponentImageSources(imageSources environmentComponentSourceMap) {
