@@ -54,7 +54,7 @@ func buildOAuthProxyIngressForComponentIngress(appName string, ingressAnnotation
 		tls = append(tls, *sourceTls.DeepCopy())
 	}
 
-	prefix := oauth.SanitizePathPrefix(component.GetAuthentication().OAuth2.ProxyPrefix)
+	rulePath := oauth.SanitizePathPrefix(component.GetAuthentication().OAuth2.ProxyPrefix)
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            oauthProxyIngressName,
@@ -71,7 +71,7 @@ func buildOAuthProxyIngressForComponentIngress(appName string, ingressAnnotation
 						HTTP: &networkingv1.HTTPIngressRuleValue{
 							Paths: []networkingv1.HTTPIngressPath{
 								{
-									Path:     prefix,
+									Path:     rulePath,
 									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
