@@ -5,8 +5,9 @@ import (
 	"slices"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -41,10 +42,10 @@ func (app *ApplicationConfig) applySubPipelineServiceAccounts() error {
 				Name:      saName,
 				Namespace: appNs,
 
-				Labels: map[string]string{
-					kube.IsServiceAccountForSubPipelineLabel: "true",
-					kube.RadixEnvLabel:                       env.Name,
-				},
+				Labels: radixlabels.Merge(
+					radixlabels.ForServiceAccountIsForSubPipeline(),
+					radixlabels.ForEnvironmentName(env.Name),
+				),
 			},
 		}
 
@@ -60,7 +61,7 @@ func (app *ApplicationConfig) applySubPipelineServiceAccounts() error {
 
 func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 	appNs := utils.GetAppNamespace(app.registration.Name)
-	accounts, err := app.kubeutil.ListServiceAccountsWithSelector(appNs, fmt.Sprintf("%s=%s", kube.IsServiceAccountForSubPipelineLabel, true))
+	accounts, err := app.kubeutil.ListServiceAccountsWithSelector(appNs, radixlabels.ForServiceAccountIsForSubPipeline().AsSelector().String())
 
 	if err != nil {
 		return fmt.Errorf("failed to list: %w: %w", ErrCleanupSubPipelineServiceAccount, err)
@@ -69,7 +70,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 	for _, sa := range accounts {
 		targetEnv := sa.Labels[kube.RadixEnvLabel]
 
-		exists := slices.ContainsFunc(app.config.Spec.Environments, func(e v1.Environment) bool {
+		exists := slices.ContainsFunc(app.config.Spec.Environments, func(e radixv1.Environment) bool {
 			return e.Name == targetEnv
 		})
 
