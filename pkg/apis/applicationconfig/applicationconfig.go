@@ -185,6 +185,12 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
+	err = app.syncSubPipelineServiceAccounts()
+	if err != nil {
+		log.Errorf("Failed to sync subpipeline service-accounts: %v", err)
+		return err
+	}
+
 	return nil
 }
 
