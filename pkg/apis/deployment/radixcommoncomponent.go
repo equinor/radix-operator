@@ -91,9 +91,6 @@ func getImagePath(componentName string, componentImage pipeline.DeployComponentI
 		// For deploy-only images, we will replace the dynamic tag with the tag from the environment config
 		return strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName), nil
 	}
-	if len(imageTagName) > 0 {
-		return "", errorNotExpectedImageTagNameInImage(componentName, imageTagName)
-	}
 	return image, nil
 }
 
