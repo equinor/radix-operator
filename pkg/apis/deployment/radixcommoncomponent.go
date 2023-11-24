@@ -94,10 +94,6 @@ func getImagePath(componentName string, componentImage pipeline.DeployComponentI
 	return image, nil
 }
 
-func errorNotExpectedImageTagNameInImage(componentImageName, imageTagName string) error {
-	return fmt.Errorf("image property for a component %s does not have a dynamic imageTagName but it is provided: %s", componentImageName, imageTagName)
-}
-
 func errorMissingExpectedDynamicImageTagName(componentName string) error {
 	return fmt.Errorf(fmt.Sprintf("component %s is missing an expected dynamic imageTagName for its image", componentName))
 }
