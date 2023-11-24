@@ -214,7 +214,7 @@ func NewApplicationComponentBuilder() RadixApplicationComponentBuilder {
 
 // AnApplicationComponent Constructor for component builder builder containing test data
 func AnApplicationComponent() RadixApplicationComponentBuilder {
-	return &radixApplicationComponentBuilder{
-		name: "app",
-	}
+	return NewApplicationComponentBuilder().
+		WithName("app").
+		WithPort("http", 8000)
 }

@@ -79,22 +79,23 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
-	cli := steps.NewBuildStep(jobWaiter)
-	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	targetEnvs := application.GetTargetEnvironments(noMappedBranch, ra)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  "anyjobname",
-			ImageTag: "anyimagetag",
-			Branch:   noMappedBranch,
-			CommitID: "anycommit",
+			PipelineType: string(radixv1.BuildDeploy),
+			JobName:      "anyjobname",
+			ImageTag:     "anyimagetag",
+			Branch:       noMappedBranch,
+			CommitID:     "anycommit",
 		},
 		TargetEnvironments: targetEnvs,
 	}
 
-	err := cli.Run(pipelineInfo)
+	err := buildStep.Run(pipelineInfo)
 	s.Require().NoError(err)
 	radixJobList, err := s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err)
@@ -119,7 +120,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
+			PipelineType:      string(radixv1.BuildDeploy),
 			Branch:            buildBranch,
 			JobName:           rjName,
 			ImageBuilder:      "builder:latest",
@@ -217,7 +218,9 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.Require().NoError(err)
 	s.Equal(expectedRaHash, rd.GetAnnotations()[kube.RadixConfigHash])
 	s.Equal(internaltest.GetBuildSecretHash(nil), rd.GetAnnotations()[kube.RadixBuildSecretHash])
-	s.Greater(len(rd.GetAnnotations()[kube.RadixConfigHash]), 0)
+	s.Equal(buildBranch, rd.GetAnnotations()[kube.RadixBranchAnnotation])
+	s.Equal(gitTags, rd.GetAnnotations()[kube.RadixGitTagsAnnotation])
+	s.Equal(gitHash, rd.GetAnnotations()[kube.RadixCommitAnnotation])
 	s.Require().Len(rd.Spec.Components, 1)
 	s.Equal(compName, rd.Spec.Components[0].Name)
 	s.Equal(fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag), rd.Spec.Components[0].Image)
@@ -258,7 +261,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
+			PipelineType:      string(radixv1.BuildDeploy),
 			Branch:            buildBranch,
 			JobName:           rjName,
 			ImageTag:          "imgtag",
@@ -397,7 +400,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
+			PipelineType:      string(radixv1.BuildDeploy),
 			Branch:            buildBranch,
 			JobName:           rjName,
 			ImageTag:          "imgtag",
@@ -547,7 +550,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, buildCtx))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
+			PipelineType:      string(radixv1.BuildDeploy),
 			Branch:            buildBranch,
 			JobName:           rjName,
 			ImageTag:          "imgtag",
@@ -665,7 +668,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		return builder.BuildRD()
 	}
 	piplineArgs := model.PipelineArguments{
-		PipelineType:      "build-deploy",
+		PipelineType:      string(radixv1.BuildDeploy),
 		Branch:            buildBranch,
 		JobName:           rjName,
 		ImageTag:          "imgtag",
@@ -1069,75 +1072,6 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 	}
 }
 
-func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
-	appName, envName, rjName, buildBranch, jobPort := "anyapp", "dev", "anyrj", "anybranch", pointers.Ptr[int32](9999)
-	prepareConfigMapName := "preparecm"
-
-	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
-	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
-	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
-	ra := utils.NewRadixApplicationBuilder().
-		WithAppName(appName).
-		WithEnvironment(envName, buildBranch).
-		WithComponents(
-			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp1").WithImage("comp1img:{imageTagName}").
-				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("comp1envtag")),
-			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp2").WithImage("comp2img:{imageTagName}").
-				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("comp2envtag")),
-		).
-		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job1").WithImage("job1img:{imageTagName}").
-				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job1envtag")),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job2").WithImage("job2img:{imageTagName}").
-				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job2envtag")),
-		).
-		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
-	pipeline := model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			PipelineType:  "deploy",
-			ToEnvironment: envName,
-			JobName:       rjName,
-			ImageTagNames: map[string]string{"comp1": "comp1customtag", "job1": "job1customtag"},
-		},
-		RadixConfigMapName: prepareConfigMapName,
-	}
-
-	applyStep := steps.NewApplyConfigStep()
-	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
-	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
-
-	// Check RadixDeployment component and job images
-	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
-	s.Require().Len(rds.Items, 1)
-	rd := rds.Items[0]
-	type deployComponentSpec struct {
-		Name  string
-		Image string
-	}
-	expectedDeployComponents := []deployComponentSpec{
-		{Name: "comp1", Image: "comp1img:comp1customtag"},
-		{Name: "comp2", Image: "comp2img:comp2envtag"},
-	}
-	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
-		return deployComponentSpec{Name: c.Name, Image: c.Image}
-	})
-	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
-	expectedJobComponents := []deployComponentSpec{
-		{Name: "job1", Image: "job1img:job1customtag"},
-		{Name: "job2", Image: "job2img:job2envtag"},
-	}
-	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
-		return deployComponentSpec{Name: c.Name, Image: c.Image}
-	})
-	s.ElementsMatch(expectedJobComponents, actualJobComponents)
-}
-
 func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 	appName, rjName, compName := "anyapp", "anyrj", "c1"
 	prepareConfigMapName := "preparecm"
@@ -1153,9 +1087,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:    "main",
-			JobName:   rjName,
-			PushImage: true,
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       "main",
+			JobName:      rjName,
+			PushImage:    true,
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1193,9 +1128,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_UseCache() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:   "main",
-			JobName:  rjName,
-			UseCache: true,
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       "main",
+			JobName:      rjName,
+			UseCache:     true,
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1233,8 +1169,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithDockerfileName() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       "main",
+			JobName:      rjName,
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1272,8 +1209,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithSourceFolder() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       "main",
+			JobName:      rjName,
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1313,8 +1251,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	s.Require().NoError(internaltest.CreateBuildSecret(s.kubeClient, appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       "main",
+			JobName:      rjName,
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1367,6 +1306,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
+			PipelineType:         string(radixv1.BuildDeploy),
 			Branch:               "main",
 			JobName:              rjName,
 			BuildKitImageBuilder: "anybuildkitimage:tag",
@@ -1430,6 +1370,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
+			PipelineType:         string(radixv1.BuildDeploy),
 			Branch:               "main",
 			JobName:              rjName,
 			BuildKitImageBuilder: "anybuildkitimage:tag",
@@ -1502,6 +1443,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	s.Require().NoError(internaltest.CreateBuildSecret(s.kubeClient, appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
+			PipelineType:         string(radixv1.BuildDeploy),
 			Branch:               "main",
 			JobName:              rjName,
 			BuildKitImageBuilder: "anybuildkitimage:tag",

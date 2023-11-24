@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/hash"
 	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
@@ -89,26 +91,24 @@ func (s *deployTestSuite) TestDeploy_BranchIsNotMapped_ShouldSkip() {
 	s.Empty(radixJobList.Items)
 }
 
-func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists() {
+func (s *deployTestSuite) Test_DeployOnly_DeploymentConsistent() {
 	appName := "any-app"
 	jobName := "any-job-name"
 	commitID := "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
-	gitTags := "some tags go here"
-
-	rr := utils.ARadixRegistration().
-		WithName(appName).
-		BuildRR()
-
+	prepareConfigMapName := "preparecm"
+	gitConfigMapName := "gitcm"
 	certificateVerification := radixv1.VerificationTypeOptional
-
+	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", "").
 		WithDNSAppAlias("dev", "app").
 		WithComponents(
-			utils.AnApplicationComponent().
+			utils.NewApplicationComponentBuilder().
 				WithName("app").
+				WithImage("app:1").
 				WithPublicPort("http").
 				WithPort("http", 8080).
 				WithAuthentication(
@@ -135,6 +135,7 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 						WithReplicas(pointers.Ptr(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
+				WithImage("redis:1").
 				WithPublicPort("").
 				WithPort("http", 6379).
 				WithAuthentication(
@@ -167,54 +168,49 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 							"memory": "128Mi",
 							"cpu":    "500m",
 						}),
-					utils.AnEnvironmentConfig().
-						WithEnvironment("no-existing-env").
-						WithEnvironmentVariable("DB_HOST", "db-prod").
-						WithEnvironmentVariable("DB_PORT", "9876"))).
+				)).
 		BuildRA()
 
-	// Prometheus doesn´t contain any fake
-	cli := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
-	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-
-	targetEnvs := application.GetTargetEnvironments("master", ra)
-
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, "someothercommitid", "anytags"))
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  jobName,
-			ImageTag: "anyImageTag",
-			Branch:   "master",
-			CommitID: commitID,
+			PipelineType:  string(radixv1.Deploy),
+			ToEnvironment: "dev",
+			JobName:       jobName,
+			CommitID:      commitID,
 		},
-		TargetEnvironments: targetEnvs,
-		GitCommitHash:      commitID,
-		GitTags:            gitTags,
+		RadixConfigMapName: prepareConfigMapName,
+		GitConfigMapName:   gitConfigMapName,
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
+	applyStep := steps.NewApplyConfigStep()
+	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
+	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	pipelineInfo.SetApplicationConfig(ra)
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
-	s.Require().NoError(err)
+	s.Require().NoError(applyStep.Run(pipelineInfo))
+	s.Require().NoError(deployStep.Run(pipelineInfo))
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
 	s.Require().Len(rds.Items, 1)
 	rdDev := rds.Items[0]
 	s.Require().Equal("any-app-dev", rdDev.Namespace)
 
 	// validate deployment environment variables
+	s.NotEmpty(rdDev.Labels[kube.RadixCommitLabel])
+	s.Equal(jobName, rdDev.Labels["radix-job-name"])
+	expectedRaHash, _ := hash.ToHashString(hash.SHA256, ra.Spec)
+	s.Equal(expectedRaHash, rdDev.GetAnnotations()[kube.RadixConfigHash])
+	s.Equal(internaltest.GetBuildSecretHash(nil), rdDev.GetAnnotations()[kube.RadixBuildSecretHash])
+	s.Empty(rdDev.GetAnnotations()[kube.RadixBranchAnnotation])
+	s.Empty(rdDev.GetAnnotations()[kube.RadixGitTagsAnnotation])
+	s.Equal(commitID, rdDev.GetAnnotations()[kube.RadixCommitAnnotation])
 	s.Len(rdDev.Spec.Components, 2)
 	s.Len(rdDev.Spec.Components[1].EnvironmentVariables, 4)
 	s.Equal("db-dev", rdDev.Spec.Components[1].EnvironmentVariables["DB_HOST"])
 	s.Equal("1234", rdDev.Spec.Components[1].EnvironmentVariables["DB_PORT"])
 	s.Equal(commitID, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
-	s.Equal(gitTags, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
-	s.NotEmpty(rdDev.Annotations[kube.RadixBranchAnnotation])
-	s.NotEmpty(rdDev.Labels[kube.RadixCommitLabel])
-	s.NotEmpty(rdDev.Labels["radix-job-name"])
-	s.Equal("master", rdDev.Annotations[kube.RadixBranchAnnotation])
-	s.Equal(commitID, rdDev.Labels[kube.RadixCommitLabel])
-	s.Equal(jobName, rdDev.Labels["radix-job-name"])
+	s.Empty(rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 
 	// validate authentication variable
 	expectedAuthComp1 := &radixv1.Authentication{
@@ -245,45 +241,149 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 	s.Equal("500m", rdDev.Spec.Components[1].Resources.Limits["cpu"])
 }
 
-func (s *deployTestSuite) TestDeploy_SetCommitID_whenSet() {
+func (s *deployTestSuite) Test_DeployOnly_IsDeployable() {
 	appName := "any-app"
-
-	rr := utils.ARadixRegistration().
-		WithName(appName).
-		BuildRR()
-	ra := utils.NewRadixApplicationBuilder().
-		WithAppName(appName).
-		WithEnvironment("dev", "master").
-		WithComponents(utils.AnApplicationComponent().WithName("app")).
-		BuildRA()
-	const commitID = "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
-
-	cli := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
-	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			JobName:  "anyjob",
-			ImageTag: "anyimagetag",
-			Branch:   "master",
-			CommitID: "anycommit",
-		},
-		TargetEnvironments: []string{"master"},
-		GitCommitHash:      commitID,
-		GitTags:            "",
+	jobName := "any-job-name"
+	prepareConfigMapName := "preparecm"
+	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+	pipelineArgs := model.PipelineArguments{
+		PipelineType:  string(radixv1.Deploy),
+		ToEnvironment: "dev",
+		JobName:       jobName,
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
+	type testSpec struct {
+		name          string
+		components    []utils.RadixApplicationComponentBuilder
+		jobs          []utils.RadixApplicationJobComponentBuilder
+		expectedError error
+	}
 
-	pipelineInfo.SetApplicationConfig(ra)
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
-	s.Require().NoError(err)
+	tests := []testSpec{
+		{
+			name: "component and job with image should succeed",
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("c1").WithPort("any", 8000).WithImage("img:1"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("j1").WithSchedulerPort(pointers.Ptr[int32](8000)).WithImage("img:1"),
+			},
+		},
+		{
+			name: "component without image should fail",
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("c1").WithPort("any", 8000).WithImage("img:1"),
+				utils.NewApplicationComponentBuilder().WithName("c2").WithPort("any", 8000),
+			},
+			expectedError: steps.ErrDeployOnlyPipelineDoesNotSupportBuild,
+		},
+		{
+			name: "job without image should fail",
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("j1").WithSchedulerPort(pointers.Ptr[int32](8000)).WithImage("img:1"),
+				utils.NewApplicationJobComponentBuilder().WithName("j2").WithSchedulerPort(pointers.Ptr[int32](8000)),
+			},
+			expectedError: steps.ErrDeployOnlyPipelineDoesNotSupportBuild,
+		},
+	}
 
-	rds, err := s.radixClient.RadixV1().RadixDeployments("any-app-dev").List(context.TODO(), metav1.ListOptions{})
-	s.Require().NoError(err)
-	s.Len(rds.Items, 1)
+	for _, test := range tests {
+		s.Run(test.name, func() {
+			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			ra := utils.NewRadixApplicationBuilder().
+				WithAppName(appName).
+				WithEnvironment("dev", "master").
+				WithComponents(test.components...).
+				WithJobComponents(test.jobs...).
+				BuildRA()
+			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments:  pipelineArgs,
+				RadixConfigMapName: prepareConfigMapName,
+			}
+			applyStep := steps.NewApplyConfigStep()
+			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+			deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
+			deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+
+			err := applyStep.Run(pipelineInfo)
+			if test.expectedError != nil {
+				s.ErrorIs(err, test.expectedError)
+				return
+			} else {
+				s.NoError(err)
+			}
+			s.NoError(deployStep.Run(pipelineInfo))
+		})
+	}
+}
+
+func (s *deployTestSuite) Test_Deploy_ImageTagNames() {
+	appName, envName, rjName, buildBranch, jobPort := "anyapp", "dev", "anyrj", "anybranch", pointers.Ptr[int32](9999)
+	prepareConfigMapName := "preparecm"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName, buildBranch).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp1").WithImage("comp1img:{imageTagName}").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("comp1envtag")),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp2").WithImage("comp2img:{imageTagName}").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("comp2envtag")),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job1").WithImage("job1img:{imageTagName}").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job1envtag")),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job2").WithImage("job2img:{imageTagName}").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job2envtag")),
+		).
+		BuildRA()
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	pipeline := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType:  string(radixv1.Deploy),
+			ToEnvironment: envName,
+			JobName:       rjName,
+			ImageTagNames: map[string]string{"comp1": "comp1customtag", "job1": "job1customtag"},
+		},
+		RadixConfigMapName: prepareConfigMapName,
+	}
+
+	applyStep := steps.NewApplyConfigStep()
+	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	deployStep := steps.NewDeployStep(internaltest.FakeNamespaceWatcher{})
+	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+
+	s.Require().NoError(applyStep.Run(&pipeline))
+	s.Require().NoError(deployStep.Run(&pipeline))
+
+	// Check RadixDeployment component and job images
+	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(rds.Items, 1)
 	rd := rds.Items[0]
-	s.Equal(commitID, rd.ObjectMeta.Labels[kube.RadixCommitLabel])
+	type deployComponentSpec struct {
+		Name  string
+		Image string
+	}
+	expectedDeployComponents := []deployComponentSpec{
+		{Name: "comp1", Image: "comp1img:comp1customtag"},
+		{Name: "comp2", Image: "comp2img:comp2envtag"},
+	}
+	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Image: c.Image}
+	})
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	expectedJobComponents := []deployComponentSpec{
+		{Name: "job1", Image: "job1img:job1customtag"},
+		{Name: "job2", Image: "job2img:job2envtag"},
+	}
+	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Image: c.Image}
+	})
+	s.ElementsMatch(expectedJobComponents, actualJobComponents)
 }

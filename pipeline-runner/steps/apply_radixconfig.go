@@ -2,7 +2,6 @@ package steps
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -67,6 +66,8 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
+	cli.setTargetEnvironments(pipelineInfo)
+
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}
@@ -80,6 +81,19 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	}
 
 	return cli.applyRadixApplicationToCluster(pipelineInfo)
+}
+
+func (cli *ApplyConfigStepImplementation) setTargetEnvironments(pipelineInfo *model.PipelineInfo) {
+	// Obtain metadata for rest of pipeline
+	targetEnvironments := application.GetTargetEnvironments(pipelineInfo.PipelineArguments.Branch, pipelineInfo.RadixApplication)
+
+	// For deploy-only pipeline
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) &&
+		!slice.Any(targetEnvironments, func(s string) bool { return s == pipelineInfo.PipelineArguments.ToEnvironment }) {
+		targetEnvironments = append(targetEnvironments, pipelineInfo.PipelineArguments.ToEnvironment)
+	}
+
+	pipelineInfo.TargetEnvironments = targetEnvironments
 }
 
 func (cli *ApplyConfigStepImplementation) processPreparePipelineOutput(pipelineInfo *model.PipelineInfo) error {
@@ -103,12 +117,12 @@ func (cli *ApplyConfigStepImplementation) processPreparePipelineOutput(pipelineI
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
 
-	ra, err := CreateRadixApplication(cli.GetRadixclient(), configFileContent)
+	ra, err := parseRadixApplicationFromString(cli.GetRadixclient(), configFileContent)
 	if err != nil {
 		return err
 	}
 
-	pipelineInfo.SetApplicationConfig(ra)
+	pipelineInfo.RadixApplication = ra
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
 		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
@@ -116,7 +130,8 @@ func (cli *ApplyConfigStepImplementation) processPreparePipelineOutput(pipelineI
 		if err != nil {
 			return err
 		}
-		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+		pipelineInfo.GitCommitHash = gitCommitHash
+		pipelineInfo.GitTags = gitTags
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
 	}
 
@@ -160,7 +175,7 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 
 func (cli ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
-		return errors.New("deploy pipeline does not support building components and jobs")
+		return ErrDeployOnlyPipelineDoesNotSupportBuild
 	}
 
 	return nil
@@ -528,9 +543,8 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipel
 	return gitCommitHash, gitTags
 }
 
-// CreateRadixApplication Create RadixApplication from radixconfig.yaml content
-func CreateRadixApplication(radixClient radixclient.Interface,
-	configFileContent string) (*radixv1.RadixApplication, error) {
+// parseRadixApplicationFromString Create RadixApplication from radixconfig.yaml content
+func parseRadixApplicationFromString(radixClient radixclient.Interface, configFileContent string) (*radixv1.RadixApplication, error) {
 	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
