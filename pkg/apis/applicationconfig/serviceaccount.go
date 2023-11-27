@@ -70,16 +70,18 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 	for _, sa := range accounts {
 		targetEnv := sa.Labels[kube.RadixEnvLabel]
 
-		exists := slices.ContainsFunc(app.config.Spec.Environments, func(e radixv1.Environment) bool {
+		nsExists := slices.ContainsFunc(app.config.Spec.Environments, func(e radixv1.Environment) bool {
 			return e.Name == targetEnv
 		})
 
-		if !exists {
-			err = app.kubeutil.DeleteServiceAccount(appNs, sa.Name)
+		if nsExists {
+			continue
+		}
 
-			if err != nil {
-				return fmt.Errorf("%w: %s/%s: %w", ErrCleanupSubPipelineServiceAccount, appNs, sa.Name, err)
-			}
+		// Delete service-accounts that don't have a matching environment
+		err = app.kubeutil.DeleteServiceAccount(appNs, sa.Name)
+		if err != nil {
+			return fmt.Errorf("%w: %s/%s: %w", ErrCleanupSubPipelineServiceAccount, appNs, sa.Name, err)
 		}
 	}
 
