@@ -100,10 +100,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
-		return errors.New("deploy pipeline does not support building components and jobs")
-	}
-
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
 		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
 		err = validate.GitTagsContainIllegalChars(gitTags)
@@ -114,12 +110,11 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
 	}
 
-	err = applicationConfig.ApplyConfigToApplicationNamespace()
-	if err != nil {
+	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
 		return err
 	}
 
-	return nil
+	return applicationConfig.ApplyConfigToApplicationNamespace()
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
@@ -155,6 +150,14 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	}
 
 	return nil
+}
+
+func (cli ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
+		return ErrDeployOnlyPipelineDoesNotSupportBuild
+	}
+
+	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
 }
 
 func printEnvironmentComponentImageSources(imageSources environmentComponentSourceMap) {
@@ -551,4 +554,27 @@ func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, err
 		return "", fmt.Errorf("failed to get %s from configMap %s", key, configMap.Name)
 	}
 	return value, nil
+}
+
+func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironmentComponentImages, ra *radixv1.RadixApplication) error {
+	var errs []error
+
+	for envName, components := range deployComponentImages {
+		for componentName, imageInfo := range components {
+			if strings.HasSuffix(imageInfo.ImagePath, radixv1.DynamicTagNameInEnvironmentConfig) {
+				if len(imageInfo.ImageTagName) > 0 {
+					continue
+				}
+
+				env := ra.GetCommonComponentByName(componentName).GetEnvironmentConfigByName(envName)
+				if !commonutils.IsNil(env) && len(env.GetImageTagName()) > 0 {
+					continue
+				}
+
+				errs = append(errs, ErrMissingRequiredImageTagName(componentName, envName))
+			}
+		}
+	}
+
+	return errors.Join(errs...)
 }
