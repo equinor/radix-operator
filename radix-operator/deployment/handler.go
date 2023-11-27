@@ -168,12 +168,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	ingressAnnotations := []ingress.AnnotationProvider{
-		ingress.NewForceSslRedirectAnnotationProvider(),
-		ingress.NewIngressConfigurationAnnotationProvider(t.ingressConfiguration),
-		ingress.NewClientCertificateAnnotationProvider(syncRD.Namespace),
-		ingress.NewOAuth2AnnotationProvider(t.oauth2DefaultConfig),
-	}
+	ingressAnnotations := ingress.GetAnnotationProvider(t.ingressConfiguration, syncRD.Namespace, t.oauth2DefaultConfig)
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage),

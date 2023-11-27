@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
@@ -94,7 +95,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		port9090   = 9090
 		dnsZone1   = "dev.radix.equinor.com"
 	)
-
+	rd1 := buildRadixDeployment(appName1, component1, component2, envName1, envName2, port8080, port9090)
+	rd2 := buildRadixDeployment(appName2, component1, component2, envName1, envName2, port8080, port9090)
 	scenarios := []scenario{
 		{
 			name:     "created an ingress",
@@ -201,14 +203,16 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component, Port: ts.dnsAlias.Port}}
 			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, radixDNSAlias.Spec), "create existing alias")
-			cfg := &dnsalias2.DNSConfig{DNSZone: ts.dnsZone}
+			// cfg := &dnsalias2.DNSConfig{DNSZone: ts.dnsZone}
 
+			s.registeringRadixDeployments(rd1, rd2)
 			// TODO fix registration below
-			s.Require().NoError(registerExistingIngresses(s.kubeClient, ts.existingIngress, appName1, envName1, cfg), "create existing ingresses")
+			err := registerExistingIngresses(s.kubeClient, ts.existingIngress, appName1, envName1)
+			s.Require().NoError(err, "create existing ingresses")
 			require.Fail(t, "fix registration above")
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err := syncer.OnSync()
+			err = syncer.OnSync()
 			commonTest.AssertError(s.T(), ts.expectedError, err)
 
 			ingresses, err := s.kubeClient.NetworkingV1().Ingresses("").List(context.Background(), metav1.ListOptions{})
@@ -252,15 +256,42 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 	}
 }
 
-func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress, appNameForNamespace, envNameForNamespace string, config *dnsalias2.DNSConfig) error {
-	// TODO - rework pre-registration
-	// for name, ing := range testIngresses {
-	// ing := dnsalias.BuildRadixDNSAliasIngress(ing.appName, ing.alias, ing.component, ing.port, nil, config)
-	// ing.SetName(name) // override built name with expected name for test purpose
-	// _, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, appNameForNamespace, envNameForNamespace, ing)
-	// if err != nil {
-	// 	return err
-	// }
-	// }
+func buildRadixDeployment(appName1, component1, component2, envName1, envName2 string, port8080, port9090 int32) *radixv1.RadixDeployment {
+	return utils.NewDeploymentBuilder().
+		WithRadixApplication(utils.ARadixApplication()).
+		WithAppName(appName1).
+		WithEnvironment(envName1).
+		WithEnvironment(envName2).
+		WithComponents(utils.NewDeployComponentBuilder().
+			WithImage("radixdev.azurecr.io/some-image1:image.tag").
+			WithName(component1).
+			WithPort("http", port8080).
+			WithPublicPort("http"),
+			utils.NewDeployComponentBuilder().
+				WithImage("radixdev.azurecr.io/some-image2:image.tag").
+				WithName(component2).
+				WithPort("http", port9090).
+				WithPublicPort("http")).BuildRD()
+}
+
+func (s *syncerTestSuite) registeringRadixDeployments(radixDeployments ...*radixv1.RadixDeployment) {
+	for _, rd := range radixDeployments {
+		_, err := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).
+			Create(context.Background(), rd, metav1.CreateOptions{})
+		s.Require().NoError(err)
+	}
+}
+
+func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress, appName, envName string) error {
+	for _, ingProps := range testIngresses {
+		ing := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{Name: dnsalias.GetDNSAliasIngressName(ingProps.component, ingProps.alias)},
+			Spec:       ingress.GetIngressSpec(ingProps.host, ingProps.component, defaults.TLSSecretName, ingProps.port),
+		}
+		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, appName, envName, ing)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

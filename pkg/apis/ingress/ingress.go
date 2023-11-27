@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -125,4 +126,14 @@ func GetIngressConfig(namespace string, appName string, component radixv1.RadixC
 	}
 
 	return ing, nil
+}
+
+// GetAnnotationProvider Gets annotation provider
+func GetAnnotationProvider(ingressConfiguration IngressConfiguration, certificateNamespace string, oauth2DefaultConfig defaults.OAuth2Config) []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
+		NewClientCertificateAnnotationProvider(certificateNamespace),
+		NewOAuth2AnnotationProvider(oauth2DefaultConfig),
+	}
 }

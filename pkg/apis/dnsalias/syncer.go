@@ -115,12 +115,12 @@ func (s *syncer) createOrUpdateIngress(namespace string, radixDeployComponent ra
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Debugf("not found Ingress %s in the namespace %s. Create new.", ingressName, namespace)
-			return s.createIngress(radixDeployComponent)
+			return s.createIngress(radixDeployComponent, s.radixDNSAlias, s.dnsConfig, s.oauth2DefaultConfig, s.ingressConfiguration)
 		}
 		return nil, err
 	}
 	log.Debugf("found Ingress %s in the namespace %s.", ingressName, namespace)
-	updatedIngress, err := s.buildIngress(radixDeployComponent)
+	updatedIngress, err := buildIngress(radixDeployComponent, s.radixDNSAlias, s.dnsConfig, s.oauth2DefaultConfig, s.ingressConfiguration)
 	if err != nil {
 		return nil, err
 	}
@@ -131,38 +131,34 @@ func (s *syncer) createOrUpdateIngress(namespace string, radixDeployComponent ra
 	return ing, nil
 }
 
-func (s *syncer) createIngress(radixDeployComponent radixv1.RadixCommonDeployComponent) (*networkingv1.Ingress, error) {
-	ing, err := s.buildIngress(radixDeployComponent)
+func (s *syncer) createIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
+	ing, err := buildIngress(radixDeployComponent, radixDNSAlias, dnsConfig, oauth2Config, ingressConfiguration)
 	if err != nil {
 		return nil, err
 	}
-	aliasSpec := s.radixDNSAlias.Spec
+	aliasSpec := radixDNSAlias.Spec
 	log.Debugf("create an ingress %s for the RadixDNSAlias", ing.GetName())
 	return CreateRadixDNSAliasIngress(s.kubeClient, aliasSpec.AppName, aliasSpec.Environment, ing)
 }
 
-func (s *syncer) buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent) (*networkingv1.Ingress, error) {
+func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
 	log.Debug("build an ingress for the RadixDNSAlias")
-	aliasSpec := s.radixDNSAlias.Spec
+	aliasSpec := radixDNSAlias.Spec
 	appName := aliasSpec.AppName
 	envName := aliasSpec.Environment
 	componentName := aliasSpec.Component
 	namespace := utils.GetEnvironmentNamespace(appName, envName)
-	ingressAnnotations := []ingress.AnnotationProvider{
-		ingress.NewForceSslRedirectAnnotationProvider(),
-		ingress.NewIngressConfigurationAnnotationProvider(s.ingressConfiguration),
-		ingress.NewClientCertificateAnnotationProvider(namespace),
-		ingress.NewOAuth2AnnotationProvider(s.oauth2DefaultConfig),
-	}
-
-	aliasName := s.radixDNSAlias.GetName()
+	aliasName := radixDNSAlias.GetName()
 	ingressName := GetDNSAliasIngressName(componentName, aliasName)
-	hostName := GetDNSAliasHost(aliasName, s.dnsConfig.DNSZone)
+	hostName := GetDNSAliasHost(aliasName, dnsConfig.DNSZone)
+
 	ingressSpec := ingress.GetIngressSpec(hostName, componentName, defaults.TLSSecretName, aliasSpec.Port)
-	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, ingress.DNSAlias, internal.GetOwnerReferences(s.radixDNSAlias))
+	ingressAnnotations := ingress.GetAnnotationProvider(ingressConfiguration, namespace, oauth2Config)
+	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, ingress.DNSAlias, internal.GetOwnerReferences(radixDNSAlias))
 	if err != nil {
 		return nil, err
 	}
+
 	ingressConfig.ObjectMeta.Annotations = annotations.Merge(ingressConfig.ObjectMeta.Annotations, annotations.ForManagedByRadixDNSAliasIngress(aliasName))
 	log.Debugf("built the Ingress %s in the environment %s with a host %s", ingressConfig.GetName(), namespace, hostName)
 	return ingressConfig, nil

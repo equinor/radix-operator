@@ -6,13 +6,16 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
 	"github.com/stretchr/testify/suite"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -86,30 +89,30 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
 	cfg := &dnsalias2.DNSConfig{DNSZone: dnsZone}
-	ingress := dnsaliasapi.BuildRadixDNSAliasIngress(alias.Spec.AppName, alias.GetName(), alias.Spec.Component, int32(8080), alias, cfg)
-	ingress.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
+	ing := buildRadixDNSAliasIngress(alias.GetName(), alias.Spec.Component, int32(8080), cfg)
+	ing.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	namespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	ingress, err = dnsaliasapi.CreateRadixDNSAliasIngress(s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ingress)
+	ing, err = dnsaliasapi.CreateRadixDNSAliasIngress(s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ing)
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when adding ingress")
 
 	// Sync should not trigger on ingress update if resource version is unchanged
 	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	ingress, err = s.KubeClient.NetworkingV1().Ingresses(namespace).Update(context.Background(), ingress, metav1.UpdateOptions{})
+	ing, err = s.KubeClient.NetworkingV1().Ingresses(namespace).Update(context.Background(), ing, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called on ingress update with no resource version change")
 
 	// Sync should trigger on ingress update if resource version is changed
-	ingress.ResourceVersion = "2"
+	ing.ResourceVersion = "2"
 	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	_, err = s.KubeClient.NetworkingV1().Ingresses(namespace).Update(context.Background(), ingress, metav1.UpdateOptions{})
+	_, err = s.KubeClient.NetworkingV1().Ingresses(namespace).Update(context.Background(), ing, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on k8s ingress update with changed resource version")
 
 	// Sync should trigger when deleting ingress
 	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	err = s.KubeClient.NetworkingV1().Ingresses(namespace).Delete(context.Background(), ingress.GetName(), metav1.DeleteOptions{})
+	err = s.KubeClient.NetworkingV1().Ingresses(namespace).Delete(context.Background(), ing.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on ingress deletion")
 
@@ -118,4 +121,11 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	err = s.RadixClient.RadixV1().RadixDNSAliases().Delete(context.TODO(), alias.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
+}
+
+func buildRadixDNSAliasIngress(aliasName, component string, port int32, cfg *dnsalias2.DNSConfig) *networkingv1.Ingress {
+	return &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: dnsaliasapi.GetDNSAliasIngressName(component, aliasName)},
+		Spec:       ingress.GetIngressSpec(dnsaliasapi.GetDNSAliasHost(aliasName, cfg.DNSZone), component, defaults.TLSSecretName, port),
+	}
 }

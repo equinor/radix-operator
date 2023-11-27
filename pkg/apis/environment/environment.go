@@ -125,7 +125,7 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) (
 		return val == kube.RadixEnvironmentFinalizer
 	})
 	if finalizerIndex < 0 {
-		logrus.Info("missing finalizer %s in the Radix environment %s in the application %s. Exist finalizers: %d. Skip dependency handling",
+		logrus.Infof("missing finalizer %s in the Radix environment %s in the application %s. Exist finalizers: %d. Skip dependency handling",
 			kube.RadixEnvironmentFinalizer, re.Name, re.Spec.AppName, len(re.ObjectMeta.Finalizers))
 		return false, nil
 	}
@@ -135,7 +135,7 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) (
 	}
 	updatingRE := re.DeepCopy()
 	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
-	logrus.Debug("removed finalizer %s from the Radix environment %s in the application %s. LEft finalizers: %d",
+	logrus.Debugf("removed finalizer %s from the Radix environment %s in the application %s. LEft finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
 	return true, env.kubeutil.UpdateRadixEnvironment(updatingRE)
 }
