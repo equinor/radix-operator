@@ -254,17 +254,11 @@ func Test_SubPipelineServiceAccountsCorrectlySynced(t *testing.T) {
 	// Already includes a "test" environment
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixclient,
 		utils.ARadixApplication().
-			WithAppName("any-app").
-			WithEnvironment("dev", "master"))
+			WithAppName("any-app"))
 	require.NoError(t, err)
 
 	accounts, err := client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	require.NoError(t, err)
-
-	saDev := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("dev"), accounts)
-	assert.NotNil(t, saDev)
-	assert.Equal(t, "dev", saDev.Labels[kube.RadixEnvLabel])
-	assert.Equal(t, "true", saDev.Labels[kube.IsServiceAccountForSubPipelineLabel])
 
 	saTest := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
 	assert.NotNil(t, saTest)
@@ -277,7 +271,6 @@ func Test_SubPipelineServiceAccountsCorrectlySynced(t *testing.T) {
 	err = applyApplicationWithSync(tu, client, kubeUtil, radixclient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
-			WithEnvironment("dev", "master").
 			WithEnvironment("prod", "release"))
 	require.NoError(t, err)
 
@@ -295,15 +288,11 @@ func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixclient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
-			WithEnvironment("dev", "master").
 			WithEnvironment("prod", "release"))
 	require.NoError(t, err)
 
 	accounts, err := client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	require.NoError(t, err)
-
-	saDev := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("dev"), accounts)
-	assert.NotNil(t, saDev)
 
 	saTest := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
 	assert.NotNil(t, saTest)
@@ -319,9 +308,6 @@ func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
 	require.NoError(t, err)
 
 	accounts, _ = client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
-
-	saDev = getServiceAccountByName(utils.GetSubPipelineServiceAccountName("dev"), accounts)
-	assert.NotNil(t, saDev)
 
 	saTest = getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
 	assert.NotNil(t, saTest)
