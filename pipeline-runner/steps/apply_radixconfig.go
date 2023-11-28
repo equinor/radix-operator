@@ -22,7 +22,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -446,7 +445,7 @@ func getPrepareBuildContext(configMap *corev1.ConfigMap) (*model.PrepareBuildCon
 		return nil, nil
 	}
 	prepareBuildContext := &model.PrepareBuildContext{}
-	err := yaml.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
+	err := yamlk8s.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
 	if err != nil {
 		return nil, err
 	}

@@ -26,7 +26,6 @@ import (
 	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -1572,7 +1571,7 @@ func (s *buildTestSuite) createPreparePipelineConfigMapResponse(configMapName, a
 	}
 
 	if buildCtx != nil {
-		buildCtxBytes, err := yaml.Marshal(buildCtx)
+		buildCtxBytes, err := yamlk8s.Marshal(buildCtx)
 		if err != nil {
 			return err
 		}
