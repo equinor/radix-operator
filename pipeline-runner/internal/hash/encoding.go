@@ -6,7 +6,7 @@ import (
 	"math"
 	"reflect"
 
-	yamlk8s "sigs.k8s.io/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 type encoder func(v any) ([]byte, error)
@@ -39,7 +39,7 @@ func stringEncoder(v any) ([]byte, error) {
 }
 
 func structEncoder(v any) ([]byte, error) {
-	b, err := yamlk8s.Marshal(v)
+	b, err := yaml.Marshal(v)
 	return b, err
 }
 
