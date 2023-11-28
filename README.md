@@ -1,3 +1,4 @@
+[![Build Status](https://github.com/equinor/radix-operator/workflows/radix-operator-build/badge.svg)](https://github.com/equinor/radix-operator/actions?query=workflow%3Aradix-operator-build)
 # radix-operator
 
 The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform natively on [Kubernetes](https://kubernetes.io/). It manages seven [custom resource definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/):
@@ -14,8 +15,6 @@ The `radix-operator` and `radix-pipeline` are built using Github actions, then t
 
 There are [secrets](https://github.com/equinor/radix-operator/settings/secrets) defined for the actions to be able to push to radixdev and radixprod. These are the corresponding credentials for radix-cr-cicd-dev and radix-cr-cicd-prod service accounts.
 
-[![Build Status](https://github.com/equinor/radix-operator/workflows/radix-operator-build/badge.svg)](https://github.com/equinor/radix-operator/actions?query=workflow%3Aradix-operator-build)
-
 ## Developer information
 
 ### Development Process
@@ -29,6 +28,8 @@ The `radix-pipeline` never gets deployed to cluster, but rather is invoked by th
 
 - `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, Github actions build will create a will create a `radix-pipeline:master-latest` image available in ACR of the subscription
 - `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster, we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless there are breaking changes which needs to be coordinated with release of our other components. When the `master` branch is merged to the `release` branch, Github actions build will create a `radix-pipeline:release-latest` image available in ACR of the subscription.
+
+Want to contribute? Read our [contributing guidelines](./CONTRIBUTING.md)
 
 ### Dependencies management
 
