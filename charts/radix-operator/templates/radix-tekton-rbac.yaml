@@ -34,6 +34,7 @@ rules:
       - list
       - watch
       - update
+      - delete
   - apiGroups:
       - radix.equinor.com
     resources:

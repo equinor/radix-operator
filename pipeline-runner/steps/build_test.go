@@ -27,11 +27,10 @@ import (
 	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	yamlk8s "sigs.k8s.io/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 func Test_RunBuildTestSuite(t *testing.T) {
@@ -1587,7 +1586,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 }
 
 func (s *buildTestSuite) createPreparePipelineConfigMapResponse(configMapName, appName string, ra *radixv1.RadixApplication, buildCtx *model.PrepareBuildContext) error {
-	raBytes, err := yamlk8s.Marshal(ra)
+	raBytes, err := yaml.Marshal(ra)
 	if err != nil {
 		return err
 	}
