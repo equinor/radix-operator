@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	yamlk8s "sigs.k8s.io/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -445,7 +445,7 @@ func getPrepareBuildContext(configMap *corev1.ConfigMap) (*model.PrepareBuildCon
 		return nil, nil
 	}
 	prepareBuildContext := &model.PrepareBuildContext{}
-	err := yamlk8s.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
+	err := yaml.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
 	if err != nil {
 		return nil, err
 	}
@@ -520,7 +520,7 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
 	// This package supports encoding and decoding of yaml for CRD struct types using the json tag.
 	// The gopkg.in/yaml.v3 package requires the yaml tag.
-	if err := yamlk8s.Unmarshal([]byte(configFileContent), ra); err != nil {
+	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
 	}
 
