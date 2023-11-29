@@ -61,7 +61,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 	appNs := utils.GetAppNamespace(app.registration.Name)
 	accounts, err := app.kubeutil.ListServiceAccountsWithSelector(appNs, radixlabels.ForServiceAccountIsForSubPipeline().AsSelector().String())
 	if err != nil {
-		return fmt.Errorf("failed to list: %w: %w", ErrCleanupSubPipelineServiceAccount, err)
+		return fmt.Errorf("%w: failed to list: %w", ErrCleanupSubPipelineServiceAccount, err)
 	}
 
 	for _, sa := range accounts {
