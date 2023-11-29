@@ -77,7 +77,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 		// Delete service-accounts that don't have a matching environment
 		err = app.kubeutil.DeleteServiceAccount(appNs, sa.Name)
 		if err != nil {
-			return fmt.Errorf("%w: %s/%s: %w", ErrCleanupSubPipelineServiceAccount, appNs, sa.Name, err)
+			return fmt.Errorf("%w: service account %s/%s: %w", ErrCleanupSubPipelineServiceAccount, appNs, sa.Name, err)
 		}
 	}
 
