@@ -46,7 +46,7 @@ rules:
   verbs:
   - get
   - list
-  - watch 
+  - watch
   - create
   - delete
   - update # required since radix operator grants this to others

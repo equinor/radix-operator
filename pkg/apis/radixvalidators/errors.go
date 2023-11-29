@@ -45,8 +45,6 @@ var (
 	ErrunknownVolumeMountType                                              = errors.New("unknown volume mount type")
 	ErrApplicationNameNotLowercase                                         = errors.New("application name not lowercase")
 	ErrPublicImageComponentCannotHaveSourceOrDockerfileSet                 = errors.New("public image component cannot have source or dockerfile")
-	ErrComponentWithDynamicTagRequiresTagInEnvironmentConfig               = errors.New("component with dynamic tag requires tag in environment")
-	ErrComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment = errors.New("component with dynamic tag requires tag in environment config for")
 	ErrComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag = errors.New("component with tag in environment config for environment requires dynamic")
 	ErrComponentNameReservedSuffix                                         = errors.New("component name reserved suffix")
 	ErrSecretNameConflictsWithEnvironmentVariable                          = errors.New("secret name conflicts with environment")
@@ -311,17 +309,6 @@ func ApplicationNameNotLowercaseErrorWithMessage(appName string) error {
 // PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage Error if image is set and radix config contains src or dockerfile
 func PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(componentName string) error {
 	return errors.WithMessagef(ErrPublicImageComponentCannotHaveSourceOrDockerfileSet, "component %s cannot have neither 'src' nor 'Dockerfile' set", componentName)
-}
-
-// ComponentWithDynamicTagRequiresTagInEnvironmentConfigWithMessage Error if image is set with dynamic tag and tag is missing
-func ComponentWithDynamicTagRequiresTagInEnvironmentConfigWithMessage(componentName string) error {
-	return errors.WithMessagef(ErrComponentWithDynamicTagRequiresTagInEnvironmentConfig, "component %s with %s on image requires an image tag set on environment config",
-		componentName, radixv1.DynamicTagNameInEnvironmentConfig)
-}
-
-// ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironmentWithMessage Error if image is set with dynamic tag and tag is missing
-func ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironmentWithMessage(componentName, environment string) error {
-	return errors.WithMessagef(ErrComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment, "component %s with %s on image requires an image tag set on environment config for environment %s", componentName, radixv1.DynamicTagNameInEnvironmentConfig, environment)
 }
 
 // ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage If tag is set then the dynamic tag needs to be set on the image
