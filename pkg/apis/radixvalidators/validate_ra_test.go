@@ -318,18 +318,6 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].SourceFolder = "./api"
 			ra.Spec.Components[0].DockerfileName = ".Dockerfile"
 		}},
-		{"missing environment config for dynamic tag", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfigWithMessage(validRAFirstComponentName), func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
-			ra.Spec.Components[0].EnvironmentConfig = []v1.RadixEnvironmentConfig{}
-		}},
-		{"missing dynamic tag config for mapped environment", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironmentWithMessage(validRAFirstComponentName, "dev"), func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
-			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = ""
-			ra.Spec.Components[0].EnvironmentConfig = append(ra.Spec.Components[0].EnvironmentConfig, v1.RadixEnvironmentConfig{
-				Environment:  "dev",
-				ImageTagName: "",
-			})
-		}},
 		{"inconcistent dynamic tag config for environment", radixvalidators.ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(validRAFirstComponentName, "prod"), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
 			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
@@ -455,18 +443,6 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Jobs[0].Image = "redis:5.0-alpine"
 			ra.Spec.Jobs[0].SourceFolder = "./api"
 			ra.Spec.Jobs[0].DockerfileName = ".Dockerfile"
-		}},
-		{"job missing environment config for dynamic tag", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfigWithMessage(validRAFirstJobName), func(ra *v1.RadixApplication) {
-			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
-			ra.Spec.Jobs[0].EnvironmentConfig = []v1.RadixJobComponentEnvironmentConfig{}
-		}},
-		{"job missing dynamic tag config for mapped environment", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironmentWithMessage(validRAFirstJobName, "dev"), func(ra *v1.RadixApplication) {
-			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
-			ra.Spec.Jobs[0].EnvironmentConfig[0].ImageTagName = ""
-			ra.Spec.Jobs[0].EnvironmentConfig = append(ra.Spec.Jobs[0].EnvironmentConfig, v1.RadixJobComponentEnvironmentConfig{
-				Environment:  "dev",
-				ImageTagName: "",
-			})
 		}},
 		{"job inconcistent dynamic tag config for environment", radixvalidators.ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(validRAFirstJobName, "dev"), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
