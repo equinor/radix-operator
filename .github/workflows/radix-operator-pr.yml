@@ -32,6 +32,8 @@ jobs:
           args: --timeout=30m --new --issues-exit-code=0 --max-same-issues=0 --out-format=github-actions
 
       # Add legacy checks since golangci-lint only tests changed files for now
+      - name: Install StaticCheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@2023.1.6
       - name: StaticCheck
         run: staticcheck `go list ./... | grep -v "pkg/client"`
       - name: Go Vet
