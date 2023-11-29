@@ -31,17 +31,17 @@ type stringArray struct {
 // SecretProviderClassParameterObject Object for SecretProviderClass parameters
 type SecretProviderClassParameterObject struct {
 	// Name. Name of the Azure Key Vault object
-	Name string `yaml:"objectName"`
+	Name string `json:"objectName" yaml:"objectName"`
 	// Type. Type of the Azure KeyVault object: secret, key, cert
-	Type string `yaml:"objectType"`
+	Type string `json:"objectType" yaml:"objectType"`
 	// Alias. Optional. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
-	Alias string `yaml:"objectAlias,omitempty"`
+	Alias string `json:"objectAlias,omitempty" yaml:"objectAlias,omitempty"`
 	// Version. Optional. object versions, default to the latest if empty
-	Version string `yaml:"objectVersion,omitempty"`
+	Version string `json:"objectVersion,omitempty" yaml:"objectVersion,omitempty"`
 	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
-	Format string `yaml:"objectFormat,omitempty"`
+	Format string `json:"objectFormat,omitempty" yaml:"objectFormat,omitempty"`
 	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
-	Encoding string `yaml:"objectEncoding,omitempty"`
+	Encoding string `json:"objectEncoding,omitempty" yaml:"objectEncoding,omitempty"`
 }
 
 // GetSecretProviderClass Gets secret provider class
