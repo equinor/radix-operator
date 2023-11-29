@@ -41,7 +41,6 @@ func (app *ApplicationConfig) applySubPipelineServiceAccounts() error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      saName,
 				Namespace: appNs,
-
 				Labels: radixlabels.Merge(
 					radixlabels.ForServiceAccountIsForSubPipeline(),
 					radixlabels.ForEnvironmentName(env.Name),
