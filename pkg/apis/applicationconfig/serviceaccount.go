@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	ErrSyncSubPipelineServiceAccount    = fmt.Errorf("failed to sync sub-pipeline service accounts")
-	ErrCleanupSubPipelineServiceAccount = fmt.Errorf("failed to garbage collect sub-pipeline service accounts")
+	errSyncSubPipelineServiceAccount    = fmt.Errorf("failed to sync sub-pipeline service accounts")
+	errCleanupSubPipelineServiceAccount = fmt.Errorf("failed to garbage collect sub-pipeline service accounts")
 )
 
 // syncSubPipelineServiceAccounts creates, updates and cleans up service accounts used by sub-pipelines / tekton
@@ -50,7 +50,7 @@ func (app *ApplicationConfig) applySubPipelineServiceAccounts() error {
 
 		_, err := app.kubeutil.ApplyServiceAccount(sa)
 		if err != nil {
-			return fmt.Errorf("%w: service account %s/%s: %w", ErrSyncSubPipelineServiceAccount, appNs, saName, err)
+			return fmt.Errorf("%w: service account %s/%s: %w", errSyncSubPipelineServiceAccount, appNs, saName, err)
 		}
 	}
 
@@ -61,7 +61,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 	appNs := utils.GetAppNamespace(app.registration.Name)
 	accounts, err := app.kubeutil.ListServiceAccountsWithSelector(appNs, radixlabels.ForServiceAccountIsForSubPipeline().AsSelector().String())
 	if err != nil {
-		return fmt.Errorf("%w: failed to list: %w", ErrCleanupSubPipelineServiceAccount, err)
+		return fmt.Errorf("%w: failed to list: %w", errCleanupSubPipelineServiceAccount, err)
 	}
 
 	for _, sa := range accounts {
@@ -77,7 +77,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 		// Delete service-accounts that don't have a matching environment
 		err = app.kubeutil.DeleteServiceAccount(appNs, sa.Name)
 		if err != nil {
-			return fmt.Errorf("%w: service account %s/%s: %w", ErrCleanupSubPipelineServiceAccount, appNs, sa.Name, err)
+			return fmt.Errorf("%w: service account %s/%s: %w", errCleanupSubPipelineServiceAccount, appNs, sa.Name, err)
 		}
 	}
 
