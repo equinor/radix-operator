@@ -6,7 +6,8 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -39,17 +40,20 @@ func NewController(kubeClient kubernetes.Interface,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 
-	dnsAliasInformer := radixInformerFactory.Radix().V1().RadixDNSAliases()
+	radixDNSAliasInformer := radixInformerFactory.Radix().V1().RadixDNSAliases()
+	radixDeploymentInformer := radixInformerFactory.Radix().V1().RadixDeployments()
 	ingressInformer := kubeInformerFactory.Networking().V1().Ingresses()
 
 	controller := &common.Controller{
-		Name:                  controllerAgentName,
-		HandlerOf:             radix.KindRadixDNSAlias,
-		KubeClient:            kubeClient,
-		RadixClient:           radixClient,
-		Informer:              dnsAliasInformer.Informer(),
-		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), radix.KindRadixDNSAlias),
+		Name:                controllerAgentName,
+		HandlerOf:           radix.KindRadixDNSAlias,
+		KubeClient:          kubeClient,
+		RadixClient:         radixClient,
+		Informer:            radixDNSAliasInformer.Informer(),
+		KubeInformerFactory: kubeInformerFactory,
+		WorkQueue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+			Name: radix.KindRadixDNSAlias,
+		}),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -59,27 +63,33 @@ func NewController(kubeClient kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 
-	dnsAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := radixDNSAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			alias := cur.(*v1.RadixDNSAlias)
+			alias := cur.(*radixv1.RadixDNSAlias)
 			logger.Debugf("added RadixDNSAlias %s", alias.GetName())
-			controller.Enqueue(cur)
+			_, err := controller.Enqueue(cur)
+			if err != nil {
+				logger.Errorf("failed to enqueue the RadixDNSAlias %s", alias.GetName())
+			}
 			metrics.CustomResourceAdded(radix.KindRadixDNSAlias)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			oldAlias := old.(*v1.RadixDNSAlias)
-			newAlias := cur.(*v1.RadixDNSAlias)
+			oldAlias := old.(*radixv1.RadixDNSAlias)
+			newAlias := cur.(*radixv1.RadixDNSAlias)
 			if deepEqual(oldAlias, newAlias) {
 				logger.Debugf("RadixDNSAlias object is equal to old for %s. Do nothing", newAlias.GetName())
 				metrics.CustomResourceUpdatedButSkipped(radix.KindRadixDNSAlias)
 				return
 			}
 			logger.Debugf("updated RadixDNSAlias %s", newAlias.GetName())
-			controller.Enqueue(cur)
+			_, err := controller.Enqueue(cur)
+			if err != nil {
+				logger.Errorf("failed to enqueue the RadixDNSAlias %s", newAlias.GetName())
+			}
 			metrics.CustomResourceUpdated(radix.KindRadixDNSAlias)
 		},
 		DeleteFunc: func(obj interface{}) {
-			alias, converted := obj.(*v1.RadixDNSAlias)
+			alias, converted := obj.(*radixv1.RadixDNSAlias)
 			if !converted {
 				logger.Errorf("RadixDNSAlias object cast failed during deleted event received.")
 				return
@@ -92,8 +102,32 @@ func NewController(kubeClient kubernetes.Interface,
 			metrics.CustomResourceDeleted(radix.KindRadixDNSAlias)
 		},
 	})
+	if err != nil {
+		logger.Errorf("failed to add an event hanflers to the radixDNSAliasInformer")
+	}
 
-	ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = radixDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(cur interface{}) {
+			rd := cur.(*radixv1.RadixDeployment)
+			logger.Debugf("Added RadixDeployment %s to application %s in the environment %s. Re-sync relevant RadixDNSAliases", rd.GetName(), rd.Spec.AppName, rd.Spec.Environment)
+			radixDNSAliases, err := getRadixDNSAliasForAppAndEnvironment(radixClient, rd.Spec.AppName, rd.Spec.Environment)
+			if err != nil {
+				logger.Errorf("failed to get list of RadixDNSAliases for the application %s", rd.Spec.AppName)
+				return
+			}
+			for _, radixDNSAlias := range radixDNSAliases {
+				logger.Debugf("re-sync RadixDNSAlias %s", radixDNSAlias.GetName())
+				if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
+					logger.Errorf("failed to re-sync RadixDNSAlias %s. Error: %v", radixDNSAlias.GetName(), err)
+				}
+			}
+		},
+	})
+	if err != nil {
+		logger.Errorf("failed to add an event hanflers to the radixDeploymentInformer")
+	}
+
+	_, err = ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldIng := oldObj.(metav1.Object)
 			newIng := newObj.(metav1.Object)
@@ -114,10 +148,24 @@ func NewController(kubeClient kubernetes.Interface,
 			controller.HandleObject(ing, radix.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
 		},
 	})
+	if err != nil {
+		logger.Errorf("failed to add an event hanflers to the ingressInformer")
+	}
 	return controller
 }
 
-func deepEqual(old, new *v1.RadixDNSAlias) bool {
+func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, appName string, envName string) ([]radixv1.RadixDNSAlias, error) {
+	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{
+		LabelSelector: radixlabels.Merge(radixlabels.ForApplicationName(appName),
+			radixlabels.ForEnvironmentName(envName)).String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return radixDNSAliasList.Items, err
+}
+
+func deepEqual(old, new *radixv1.RadixDNSAlias) bool {
 	return reflect.DeepEqual(new.Spec, old.Spec) &&
 		reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) &&
 		reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations)

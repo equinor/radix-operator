@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -17,7 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -75,6 +73,9 @@ func (s *syncer) syncAlias() error {
 	if err != nil {
 		return err
 	}
+	if radixDeployComponent == nil {
+		return nil // there is no any RadixDeployment (probably it is just created app). Do not sync, radixDeploymentInformer in the RadixDNSAlias controller will call the re-sync, when the RadixDeployment is added
+	}
 
 	aliasSpec := s.radixDNSAlias.Spec
 	ingressName := GetDNSAliasIngressName(aliasSpec.Component, aliasName)
@@ -100,7 +101,7 @@ func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, 
 		return nil, err
 	}
 	if radixDeployment == nil {
-		return nil, errors.NewNotFound(schema.GroupResource{Group: radix.GroupName, Resource: radix.ResourceRadixDeployment}, "active")
+		return nil, nil
 	}
 	log.Debugf("active deployment for the namespace %s is %s", namespace, radixDeployment.GetName())
 	deployComponent := radixDeployment.GetCommonComponentByName(aliasSpec.Component)
