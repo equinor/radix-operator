@@ -24,7 +24,7 @@ const (
 
 // IngressConfiguration Holds all ingress annotation configurations
 type IngressConfiguration struct {
-	AnnotationConfigurations []AnnotationConfiguration `yaml:"configuration"`
+	AnnotationConfigurations []AnnotationConfiguration `json:"configuration" yaml:"configuration"`
 }
 
 // AnnotationConfiguration Holds annotations for a single configuration
