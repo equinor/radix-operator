@@ -67,7 +67,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 	for _, sa := range accounts {
 		targetEnv := sa.Labels[kube.RadixEnvLabel]
 
-		nsExists := slices.ContainsFunc(app.config.Spec.Environments, func(e radixv1.Environment) bool {
+		envExists := slices.ContainsFunc(app.config.Spec.Environments, func(e radixv1.Environment) bool {
 			return e.Name == targetEnv
 		})
 
