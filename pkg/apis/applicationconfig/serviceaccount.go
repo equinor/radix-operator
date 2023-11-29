@@ -14,7 +14,7 @@ import (
 
 var (
 	ErrSyncSubPipelineServiceAccount    = fmt.Errorf("failed to sync sub-pipeline service accounts")
-	ErrCleanupSubPipelineServiceAccount = fmt.Errorf("failed to cleanup serviceaccount")
+	ErrCleanupSubPipelineServiceAccount = fmt.Errorf("failed to garbage collect sub-pipeline service accounts")
 )
 
 // syncSubPipelineServiceAccounts creates, updates and cleans up service accounts used by sub-pipelines / tekton
