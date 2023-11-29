@@ -120,7 +120,9 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithMissingImageTagNameShoul
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	err := applyStep.Run(&pipeline)
-	s.ErrorContains(err, steps.ErrMissingRequiredImageTagName("deploycomp", "dev").Error())
+	s.ErrorIs(err, steps.ErrMissingRequiredImageTagName)
+	s.ErrorContains(err, "deploycomp")
+	s.ErrorContains(err, "dev")
 }
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSucceed() {
@@ -204,7 +206,9 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	err := applyStep.Run(&pipeline)
-	s.ErrorContains(err, steps.ErrMissingRequiredImageTagName("deployjob", "dev").Error())
+	s.ErrorIs(err, steps.ErrMissingRequiredImageTagName)
+	s.ErrorContains(err, "deployjob")
+	s.ErrorContains(err, "dev")
 }
 
 func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed() {

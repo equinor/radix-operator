@@ -2,7 +2,7 @@ package steps
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -21,6 +21,7 @@ import (
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -571,10 +572,10 @@ func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironm
 					continue
 				}
 
-				errs = append(errs, ErrMissingRequiredImageTagName(componentName, envName))
+				errs = append(errs, errors.WithMessagef(ErrMissingRequiredImageTagName, "component %s in environment %s", componentName, envName))
 			}
 		}
 	}
 
-	return errors.Join(errs...)
+	return stderrors.Join(errs...)
 }
