@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
@@ -11,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-/*
 func Test_RadixEnvironment_Defaults(t *testing.T) {
 	re := NewEnvironmentBuilder().BuildRE()
 
@@ -28,7 +28,8 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 	assert.Equal(t, minTime, re.ObjectMeta.CreationTimestamp)
 	assert.Equal(t, (*int64)(nil), re.ObjectMeta.DeletionGracePeriodSeconds)
 	assert.Equal(t, nilTime, re.ObjectMeta.DeletionTimestamp)
-	assert.Len(t, re.ObjectMeta.Finalizers, 0)
+	assert.Len(t, re.ObjectMeta.Finalizers, 1)
+	assert.Equal(t, re.ObjectMeta.Finalizers[0], kube.RadixEnvironmentFinalizer)
 	assert.Equal(t, "", re.ObjectMeta.GenerateName)
 	assert.Equal(t, int64(0), re.ObjectMeta.Generation)
 	assert.Len(t, re.ObjectMeta.Labels, 0)
@@ -47,7 +48,7 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 	assert.True(t, re.Status.Orphaned)
 	assert.Equal(t, minTime, re.Status.Reconciled)
 }
-*/
+
 // Test ObjectMeta manipulation
 
 func Test_WithAppLabel(t *testing.T) {
