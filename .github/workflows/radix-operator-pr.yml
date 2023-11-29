@@ -29,7 +29,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.55.2
-          args: --timeout=30m --new --issues-exit-code=0 --max-same-issues=0 --out-format=github-actions
+          args: --timeout=30m --new --max-same-issues=0 --out-format=github-actions
 
       # Add legacy checks since golangci-lint only tests changed files for now
       - name: Install StaticCheck
