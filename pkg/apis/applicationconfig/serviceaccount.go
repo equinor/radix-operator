@@ -50,7 +50,7 @@ func (app *ApplicationConfig) applySubPipelineServiceAccounts() error {
 
 		_, err := app.kubeutil.ApplyServiceAccount(sa)
 		if err != nil {
-			return fmt.Errorf("%w: %s/%s: %w", ErrSyncSubPipelineServiceAccount, appNs, saName, err)
+			return fmt.Errorf("%w: service account %s/%s: %w", ErrSyncSubPipelineServiceAccount, appNs, saName, err)
 		}
 	}
 
