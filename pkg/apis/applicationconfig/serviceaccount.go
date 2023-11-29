@@ -70,7 +70,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts() error {
 		envExists := slices.ContainsFunc(app.config.Spec.Environments, func(e radixv1.Environment) bool {
 			return e.Name == targetEnv
 		})
-		if nsExists {
+		if envExists {
 			continue
 		}
 
