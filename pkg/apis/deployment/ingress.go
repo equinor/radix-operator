@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -54,14 +55,14 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCom
 	}
 
 	// Only the active cluster should have the DNS external alias, not to cause conflicts between clusters
-	dnsExternalAlias := deployComponent.GetDNSExternalAlias()
-	if len(dnsExternalAlias) > 0 && isActiveCluster(clustername) {
+	dnsExternalAliases := deployComponent.GetDNSExternalAlias()
+	if len(dnsExternalAliases) > 0 && isActiveCluster(clustername) {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
 		if err != nil {
 			return err
 		}
 
-		for _, externalAlias := range dnsExternalAlias {
+		for _, externalAlias := range dnsExternalAliases {
 			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
 				ownerReference, externalAlias, deployComponent, namespace, publicPortNumber)
 			if err != nil {
@@ -75,6 +76,33 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCom
 		}
 	} else {
 		err = deploy.garbageCollectAllExternalAliasIngressesForComponent(deployComponent)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Only the active cluster should have the DNS alias, not to cause conflicts between clusters
+	dnsAliases := deployComponent.GetDNSAlias()
+	if len(dnsAliases) > 0 && isActiveCluster(clustername) {
+		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndAlias(deployComponent)
+		if err != nil {
+			return err
+		}
+
+		for _, dnsAlias := range dnsAliases {
+			aliasIngress, err := deploy.getAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
+				ownerReference, dnsAlias, deployComponent, namespace, publicPortNumber)
+			if err != nil {
+				return err
+			}
+
+			err = deploy.kubeutil.ApplyIngress(namespace, aliasIngress)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		err = deploy.garbageCollectAllAliasIngressesForComponent(deployComponent)
 		if err != nil {
 			return err
 		}
@@ -169,15 +197,22 @@ func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(label
 }
 
 func (deploy *Deployment) garbageCollectAllExternalAliasIngressesForComponent(component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectIngressForComponentAndExternalAlias(component, true)
+	return deploy.garbageCollectIngressForComponentAndExternalAlias(getLabelSelectorForExternalAlias(component), component.GetDNSExternalAlias(), true)
 }
 
 func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectIngressForComponentAndExternalAlias(component, false)
+	return deploy.garbageCollectIngressForComponentAndExternalAlias(getLabelSelectorForExternalAlias(component), component.GetDNSExternalAlias(), false)
 }
 
-func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent, all bool) error {
-	labelSelector := getLabelSelectorForExternalAlias(component)
+func (deploy *Deployment) garbageCollectAllAliasIngressesForComponent(component radixv1.RadixCommonDeployComponent) error {
+	return deploy.garbageCollectIngressForComponentAndExternalAlias(getLabelSelectorForAlias(component), component.GetDNSAlias(), true)
+}
+
+func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndAlias(component radixv1.RadixCommonDeployComponent) error {
+	return deploy.garbageCollectIngressForComponentAndExternalAlias(getLabelSelectorForAlias(component), component.GetDNSAlias(), false)
+}
+
+func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(labelSelector string, aliases []string, all bool) error {
 	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 	if err != nil {
 		return err
@@ -187,10 +222,10 @@ func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(comp
 		garbageCollectIngress := true
 
 		if !all {
-			externalAliasForIngress := ing.Name
-			for _, externalAlias := range component.GetDNSExternalAlias() {
-				if externalAlias == externalAliasForIngress {
+			for _, alias := range aliases {
+				if alias == ing.Name {
 					garbageCollectIngress = false
+					break
 				}
 			}
 		}
@@ -274,6 +309,20 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 ) (*networkingv1.Ingress, error) {
 	ingressSpec := ingress.GetIngressSpec(externalAlias, component.GetName(), externalAlias, publicPortNumber)
 	return ingress.GetIngressConfig(namespace, appName, component, externalAlias, ingressSpec, deploy.ingressAnnotationProviders, ingress.DNSExternalAlias, ownerReference)
+}
+
+func (deploy *Deployment) getAliasIngressConfig(
+	appName string,
+	ownerReference []metav1.OwnerReference,
+	alias string,
+	component radixv1.RadixCommonDeployComponent,
+	namespace string,
+	publicPortNumber int32,
+) (*networkingv1.Ingress, error) {
+	// TODO
+	host := dnsaliasapi.GetDNSAliasHost(alias, cfg.DNSZone)
+	ingressSpec := ingress.GetIngressSpec(alias, component.GetName(), alias, publicPortNumber)
+	return ingress.GetIngressConfig(namespace, appName, component, alias, ingressSpec, deploy.ingressAnnotationProviders, ingress.DNSExternalAlias, ownerReference)
 }
 
 func getActiveClusterHostName(componentName, namespace string) string {

@@ -84,11 +84,18 @@ func (s *syncer) syncAlias() error {
 	if err != nil {
 		return err
 	}
-	oauth, err := s.oauth2DefaultConfig.MergeWith(radixDeployComponent.GetAuthentication().OAuth2)
+	return s.createOrUpdateOAuthProxyIngressForComponentIngress(radixDeployComponent.GetAuthentication(), namespace, aliasSpec, radixDeployComponent, ing)
+}
+
+func (s *syncer) createOrUpdateOAuthProxyIngressForComponentIngress(componentAuthentication *radixv1.Authentication, namespace string, aliasSpec radixv1.RadixDNSAliasSpec, radixDeployComponent radixv1.RadixCommonDeployComponent, ing *networkingv1.Ingress) error {
+	if componentAuthentication == nil || componentAuthentication.OAuth2 == nil {
+		return nil
+	}
+	oauth, err := s.oauth2DefaultConfig.MergeWith(componentAuthentication.OAuth2)
 	if err != nil {
 		return err
 	}
-	radixDeployComponent.GetAuthentication().OAuth2 = oauth
+	componentAuthentication.OAuth2 = oauth
 	return ingress.CreateOrUpdateOAuthProxyIngressForComponentIngress(s.kubeUtil, namespace, aliasSpec.AppName, radixDeployComponent, ing, s.ingressAnnotationProviders)
 }
 
