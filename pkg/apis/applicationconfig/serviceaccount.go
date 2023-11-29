@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	ErrSyncSubPipelineServiceAccount    = fmt.Errorf("failed to sync serviceaccount")
+	ErrSyncSubPipelineServiceAccount    = fmt.Errorf("failed to sync sub-pipeline service accounts")
 	ErrCleanupSubPipelineServiceAccount = fmt.Errorf("failed to cleanup serviceaccount")
 )
 
