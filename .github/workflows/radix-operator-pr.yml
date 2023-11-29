@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: go mod download
       - name: Run Tests
-        run: CGO_ENABLED=0 GOOS=linux go test `go list ./... | grep -v "pkg/client"`
+        run: CGO_ENABLED=0 GOOS=linux go test `go list ./... | grep -v "pkg/client"` -timeout 2m
 
   lint:
     name: Lint
