@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ .Values.seccompProfile.daemonSetName }}
-  namespace: {{ .Release.Namespace | quote }}
+  namespace: kube-system
 spec:
   selector:
     matchLabels:

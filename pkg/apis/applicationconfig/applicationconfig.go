@@ -185,7 +185,7 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
-	return nil
+	return app.syncSubPipelineServiceAccounts()
 }
 
 // createEnvironments Will create environments defined in the radix config

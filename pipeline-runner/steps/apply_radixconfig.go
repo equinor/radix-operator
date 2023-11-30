@@ -2,7 +2,7 @@ package steps
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -21,6 +21,7 @@ import (
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -89,11 +90,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
 		cli.GetRadixclient(), cli.GetRegistration(), ra)
 
-	err = applicationConfig.ApplyConfigToApplicationNamespace()
-	if err != nil {
-		return err
-	}
-
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
@@ -102,10 +98,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 
 	if err := cli.setBuildAndDeployImages(pipelineInfo); err != nil {
 		return err
-	}
-
-	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
-		return errors.New("deploy pipeline does not support building components and jobs")
 	}
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
@@ -118,7 +110,11 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
 	}
 
-	return nil
+	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
+		return err
+	}
+
+	return applicationConfig.ApplyConfigToApplicationNamespace()
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
@@ -154,6 +150,14 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	}
 
 	return nil
+}
+
+func (cli ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
+		return ErrDeployOnlyPipelineDoesNotSupportBuild
+	}
+
+	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
 }
 
 func printEnvironmentComponentImageSources(imageSources environmentComponentSourceMap) {
@@ -550,4 +554,27 @@ func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, err
 		return "", fmt.Errorf("failed to get %s from configMap %s", key, configMap.Name)
 	}
 	return value, nil
+}
+
+func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironmentComponentImages, ra *radixv1.RadixApplication) error {
+	var errs []error
+
+	for envName, components := range deployComponentImages {
+		for componentName, imageInfo := range components {
+			if strings.HasSuffix(imageInfo.ImagePath, radixv1.DynamicTagNameInEnvironmentConfig) {
+				if len(imageInfo.ImageTagName) > 0 {
+					continue
+				}
+
+				env := ra.GetCommonComponentByName(componentName).GetEnvironmentConfigByName(envName)
+				if !commonutils.IsNil(env) && len(env.GetImageTagName()) > 0 {
+					continue
+				}
+
+				errs = append(errs, errors.WithMessagef(ErrMissingRequiredImageTagName, "component %s in environment %s", componentName, envName))
+			}
+		}
+	}
+
+	return stderrors.Join(errs...)
 }
