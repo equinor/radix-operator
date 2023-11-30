@@ -185,7 +185,7 @@ func (app *ApplicationConfig) OnSync() error {
 	if err := app.createOrUpdateDNSAliases(); err != nil {
 		return fmt.Errorf("failed to process DNS aliases: %w", err)
 	}
-	return nil
+	return app.syncSubPipelineServiceAccounts()
 }
 
 func (app *ApplicationConfig) createEnvironments() error {
