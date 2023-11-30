@@ -29,6 +29,7 @@ reservedAppDNSAlias:
 reservedDNSAlias:
   - grafana
   - prometheus
+  - www
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com

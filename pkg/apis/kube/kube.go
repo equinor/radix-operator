@@ -28,6 +28,7 @@ const (
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
 	ManagedByRadixDNSAliasIngressAnnotation          = "radix.equinor.com/managed-by-radix-dns-alias"
 	RadixEnvironmentFinalizer                        = "radix.equinor.com/environment-finalizer"
+	RadixDNSAliasFinalizer                           = "radix.equinor.com/dnsalias-finalizer"
 
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"

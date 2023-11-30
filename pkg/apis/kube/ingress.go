@@ -85,30 +85,38 @@ func (kubeutil *Kube) ListIngresses(namespace string) ([]*networkingv1.Ingress, 
 
 // ListIngressesWithSelector lists ingresses
 func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
-	var ingresses []*networkingv1.Ingress
-
-	if kubeutil.IngressLister != nil {
-		selector, err := labels.Parse(labelSelectorString)
-		if err != nil {
-			return nil, err
-		}
-
-		ingresses, err = kubeutil.IngressLister.Ingresses(namespace).List(selector)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		listOptions := metav1.ListOptions{
-			LabelSelector: labelSelectorString,
-		}
-
-		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), listOptions)
-		if err != nil {
-			return nil, err
-		}
-
-		ingresses = slice.PointersOf(list.Items).([]*networkingv1.Ingress)
+	if kubeutil.IngressLister == nil {
+		return kubeutil.GetIngressesWithSelector(namespace, labelSelectorString)
 	}
-
+	selector, err := labels.Parse(labelSelectorString)
+	if err != nil {
+		return nil, err
+	}
+	ingresses, err := kubeutil.IngressLister.Ingresses(namespace).List(selector)
+	if err != nil {
+		return nil, err
+	}
 	return ingresses, nil
+}
+
+func (kubeutil *Kube) GetIngressesWithSelector(namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
+	list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelectorString})
+	if err != nil {
+		return nil, err
+	}
+	return slice.PointersOf(list.Items).([]*networkingv1.Ingress), nil
+}
+
+// DeleteIngresses Deletes ingresses
+func (kubeutil *Kube) DeleteIngresses(ignoreIsNotFoundError bool, ingresses ...*networkingv1.Ingress) error {
+	for _, ing := range ingresses {
+		err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name, metav1.DeleteOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) && ignoreIsNotFoundError {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
 }

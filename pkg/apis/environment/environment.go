@@ -72,40 +72,28 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	// create a globally unique namespace name
 	namespaceName := utils.GetEnvironmentNamespace(re.Spec.AppName, re.Spec.EnvName)
 
-	err := env.ApplyNamespace(namespaceName)
-	if err != nil {
+	if err := env.ApplyNamespace(namespaceName); err != nil {
 		return fmt.Errorf("failed to apply namespace %s: %v", namespaceName, err)
 	}
-
-	err = env.ApplyAdGroupRoleBinding(namespaceName)
-	if err != nil {
+	if err := env.ApplyAdGroupRoleBinding(namespaceName); err != nil {
 		return fmt.Errorf("failed to apply RBAC on namespace %s: %v", namespaceName, err)
 	}
-
-	err = env.applyRadixTektonEnvRoleBinding(namespaceName)
-	if err != nil {
+	if err := env.applyRadixTektonEnvRoleBinding(namespaceName); err != nil {
 		return fmt.Errorf("failed to apply RBAC for radix-tekton-env on namespace %s: %v", namespaceName, err)
 	}
-
-	err = env.ApplyRadixPipelineRunnerRoleBinding(namespaceName)
-	if err != nil {
+	if err := env.ApplyRadixPipelineRunnerRoleBinding(namespaceName); err != nil {
 		return fmt.Errorf("failed to apply RBAC for radix-pipeline-runner on namespace %s: %v", namespaceName, err)
 	}
-
-	err = env.ApplyLimitRange(namespaceName)
-	if err != nil {
+	if err := env.ApplyLimitRange(namespaceName); err != nil {
 		return fmt.Errorf("failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
-
-	err = env.networkPolicy.UpdateEnvEgressRules(re.Spec.Egress.Rules, re.Spec.Egress.AllowRadix, re.Spec.EnvName)
-	if err != nil {
-		errmsg := fmt.Sprintf("failed to add egress rules in %s, environment %s: ", re.Spec.AppName, re.Spec.EnvName)
-		return fmt.Errorf("%s%v", errmsg, err)
+	if err := env.networkPolicy.UpdateEnvEgressRules(re.Spec.Egress.Rules, re.Spec.Egress.AllowRadix, re.Spec.EnvName); err != nil {
+		return fmt.Errorf("failed to add egress rules in %s, environment %s: %v", re.Spec.AppName, re.Spec.EnvName, err)
 	}
 
 	isOrphaned := !existsInAppConfig(env.appConfig, re.Spec.EnvName)
 
-	err = env.updateRadixEnvironmentStatus(re, func(currStatus *v1.RadixEnvironmentStatus) {
+	err := env.updateRadixEnvironmentStatus(re, func(currStatus *v1.RadixEnvironmentStatus) {
 		currStatus.Orphaned = isOrphaned
 		// time is parameterized for testability
 		currStatus.Reconciled = time
@@ -121,6 +109,7 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) (
 	if re.ObjectMeta.DeletionTimestamp == nil {
 		return false, nil
 	}
+	logrus.Debugf("handle deleted RadixEnvironment %s in the application %s", re.Name, re.Spec.AppName)
 	finalizerIndex := slice.FindIndex(re.ObjectMeta.Finalizers, func(val string) bool {
 		return val == kube.RadixEnvironmentFinalizer
 	})
@@ -135,9 +124,12 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) (
 	}
 	updatingRE := re.DeepCopy()
 	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
-	logrus.Debugf("removed finalizer %s from the Radix environment %s in the application %s. LEft finalizers: %d",
+	logrus.Debugf("removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
-	return true, env.kubeutil.UpdateRadixEnvironment(updatingRE)
+	if err = env.kubeutil.UpdateRadixEnvironment(updatingRE); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEnvironment) error {
@@ -145,6 +137,7 @@ func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEn
 	if err != nil {
 		return err
 	}
+	logrus.Debugf("delete %d RadixDNSAlias(es)", len(radixDNSAliasList.Items))
 	return env.kubeutil.DeleteRadixDNSAliases(slice.Reduce(radixDNSAliasList.Items, []*v1.RadixDNSAlias{}, func(acc []*v1.RadixDNSAlias, radixDNSAlias v1.RadixDNSAlias) []*v1.RadixDNSAlias {
 		return append(acc, &radixDNSAlias)
 	})...)
@@ -184,7 +177,7 @@ func (env *Environment) ApplyNamespace(name string) error {
 		kube.RadixAppLabel:             env.config.Spec.AppName,
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
 	}
-	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels()))
+	nsLabels = labels.Merge(nsLabels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
 	return env.kubeutil.ApplyNamespace(name, nsLabels, env.AsOwnerReference())
 }
 

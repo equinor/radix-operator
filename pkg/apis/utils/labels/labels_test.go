@@ -136,6 +136,12 @@ func Test_ForRadixImageTag(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func Test_ForDNSAlias(t *testing.T) {
+	actual := ForDNSAlias()
+	expected := kubelabels.Set{kube.RadixAliasLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
 func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
 	actual := requirementRadixBatchNameLabelExists()
 	expected := kubelabels.Set{kube.RadixBatchNameLabel: "anyname"}

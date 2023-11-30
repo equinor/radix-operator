@@ -292,14 +292,7 @@ func (o *oauthProxyResourceManager) deleteIngresses(component v1.RadixCommonDepl
 	if err != nil {
 		return err
 	}
-
-	for _, ing := range ingresses {
-		if err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(context.TODO(), ing.Name, metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return o.kubeutil.DeleteIngresses(true, ingresses...)
 }
 
 func (o *oauthProxyResourceManager) deleteServices(component v1.RadixCommonDeployComponent) error {

@@ -79,7 +79,7 @@ func (app *ApplicationConfig) buildRadixDNSAlias(appName string, dnsAlias radixv
 			Name:            dnsAlias.Alias,
 			Labels:          labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component), labels.ForEnvironmentName(dnsAlias.Environment)),
 			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfRadixRegistration(app.registration)},
-			// Finalizers:      []string{kube.RadixDNSAliasFinalizer},
+			Finalizers:      []string{kube.RadixDNSAliasFinalizer},
 		},
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,

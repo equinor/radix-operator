@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
@@ -12,6 +13,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -57,6 +59,9 @@ func (s *syncer) OnSync() error {
 	log.Debugf("OnSync RadixDNSAlias %s, application %s, environment %s, component %s, port %d", s.radixDNSAlias.GetName(), s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment, s.radixDNSAlias.Spec.Component, s.radixDNSAlias.Spec.Port)
 	if err := s.restoreStatus(); err != nil {
 		return fmt.Errorf("failed to update status on DNS alias %s: %v", s.radixDNSAlias.GetName(), err)
+	}
+	if handled, err := s.handleDeletedRadixDNSAlias(); handled || err != nil {
+		return err
 	}
 	if err := s.syncAlias(); err != nil {
 		return err
@@ -147,6 +152,43 @@ func (s *syncer) createIngress(radixDeployComponent radixv1.RadixCommonDeployCom
 	aliasSpec := radixDNSAlias.Spec
 	log.Debugf("create an ingress %s for the RadixDNSAlias", ing.GetName())
 	return CreateRadixDNSAliasIngress(s.kubeClient, aliasSpec.AppName, aliasSpec.Environment, ing)
+}
+
+func (s *syncer) handleDeletedRadixDNSAlias() (bool, error) {
+	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp == nil {
+		return false, nil
+	}
+	log.Debugf("handle deleted RadixDNSAlias %s in the application %s", s.radixDNSAlias.Name, s.radixDNSAlias.Spec.AppName)
+	finalizerIndex := slice.FindIndex(s.radixDNSAlias.ObjectMeta.Finalizers, func(val string) bool {
+		return val == kube.RadixDNSAliasFinalizer
+	})
+	if finalizerIndex < 0 {
+		log.Infof("missing finalizer %s in the RadixDNSAlias %s. Exist finalizers: %d. Skip dependency handling",
+			kube.RadixDNSAliasFinalizer, s.radixDNSAlias.Name, len(s.radixDNSAlias.ObjectMeta.Finalizers))
+		return false, nil
+	}
+	if err := s.deletedIngressesForRadixDNSAlias(); err != nil {
+		return true, err
+	}
+	updatingAlias := s.radixDNSAlias.DeepCopy()
+	updatingAlias.ObjectMeta.Finalizers = append(s.radixDNSAlias.ObjectMeta.Finalizers[:finalizerIndex], s.radixDNSAlias.ObjectMeta.Finalizers[finalizerIndex+1:]...)
+	log.Debugf("removed finalizer %s from the RadixDNSAlias %s for the application %s. Left finalizers: %d",
+		kube.RadixEnvironmentFinalizer, updatingAlias.Name, updatingAlias.Spec.AppName, len(updatingAlias.ObjectMeta.Finalizers))
+	if err := s.kubeUtil.UpdateRadixDNSAlias(updatingAlias); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *syncer) deletedIngressesForRadixDNSAlias() error {
+	aliasSpec := s.radixDNSAlias.Spec
+	ingresses, err := s.kubeUtil.GetIngressesWithSelector(utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment),
+		radixlabels.Merge(radixlabels.ForApplicationName(aliasSpec.AppName), radixlabels.ForComponentName(aliasSpec.Component), radixlabels.ForDNSAlias()).String())
+	if err != nil {
+		return err
+	}
+	log.Debugf("delete %d Ingress(es)", len(ingresses))
+	return s.kubeUtil.DeleteIngresses(true, ingresses...)
 }
 
 func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
