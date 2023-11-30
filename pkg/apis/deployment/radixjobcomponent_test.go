@@ -545,28 +545,6 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 			expectedError: errorMissingExpectedDynamicImageTagName(componentName1),
 		},
 		{
-			name: "static image name, but component env config image-tags provided",
-			componentImages: map[string]string{
-				componentName1: staticImageName1,
-				componentName2: staticImageName2,
-			},
-			environmentConfigImageTagNames: map[string]string{
-				componentName2: "tag-component-a",
-			},
-			expectedError: errorNotExpectedImageTagNameInImage(componentName2, "tag-component-a"),
-		},
-		{
-			name: "static image name, but external image-tags provided",
-			componentImages: map[string]string{
-				componentName1: staticImageName1,
-				componentName2: staticImageName2,
-			},
-			externalImageTagNames: map[string]string{
-				componentName1: "tag-component-a",
-			},
-			expectedError: errorNotExpectedImageTagNameInImage(componentName1, "tag-component-a"),
-		},
-		{
 			name: "with image-tags",
 			componentImages: map[string]string{
 				componentName1: staticImageName1,

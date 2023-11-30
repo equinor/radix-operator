@@ -87,6 +87,20 @@ spec:
       ports:
         - name: http
           port: 8090
+    - name: compimg1
+      image: img:{imageTagName}
+      ports:
+        - name: http
+          port: 8090
+    - name: compimg2
+      image: img:{imageTagName}
+      ports:
+        - name: http
+          port: 8090  
+      environmentConfig:
+        - environment: dev
+        - environment: prod
+          imageTagName: "1.0.0"
   jobs:
     - name: job
       src: job/
@@ -138,6 +152,16 @@ spec:
       ports:
         - name: http
           port: 8099
+    - name: jobimg1
+      schedulerPort: 8000
+      image: img:{imageTagName}
+    - name: jobimg2
+      schedulerPort: 8000
+      image: img:{imageTagName}
+      environmentConfig:
+        - environment: dev
+        - environment: prod
+          imageTagName: "1.0.0"
   dnsAppAlias:
     environment: prod
     component: app

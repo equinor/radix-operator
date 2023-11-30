@@ -2,7 +2,7 @@ package steps
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -21,12 +21,12 @@ import (
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	yamlk8s "sigs.k8s.io/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -90,11 +90,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
 		cli.GetRadixclient(), cli.GetRegistration(), ra)
 
-	err = applicationConfig.ApplyConfigToApplicationNamespace()
-	if err != nil {
-		return err
-	}
-
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
@@ -103,10 +98,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 
 	if err := cli.setBuildAndDeployImages(pipelineInfo); err != nil {
 		return err
-	}
-
-	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
-		return errors.New("deploy pipeline does not support building components and jobs")
 	}
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
@@ -119,7 +110,11 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
 	}
 
-	return nil
+	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
+		return err
+	}
+
+	return applicationConfig.ApplyConfigToApplicationNamespace()
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
@@ -155,6 +150,14 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	}
 
 	return nil
+}
+
+func (cli ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
+		return ErrDeployOnlyPipelineDoesNotSupportBuild
+	}
+
+	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
 }
 
 func printEnvironmentComponentImageSources(imageSources environmentComponentSourceMap) {
@@ -521,7 +524,7 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
 	// This package supports encoding and decoding of yaml for CRD struct types using the json tag.
 	// The gopkg.in/yaml.v3 package requires the yaml tag.
-	if err := yamlk8s.Unmarshal([]byte(configFileContent), ra); err != nil {
+	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
 	}
 
@@ -551,4 +554,27 @@ func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, err
 		return "", fmt.Errorf("failed to get %s from configMap %s", key, configMap.Name)
 	}
 	return value, nil
+}
+
+func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironmentComponentImages, ra *radixv1.RadixApplication) error {
+	var errs []error
+
+	for envName, components := range deployComponentImages {
+		for componentName, imageInfo := range components {
+			if strings.HasSuffix(imageInfo.ImagePath, radixv1.DynamicTagNameInEnvironmentConfig) {
+				if len(imageInfo.ImageTagName) > 0 {
+					continue
+				}
+
+				env := ra.GetCommonComponentByName(componentName).GetEnvironmentConfigByName(envName)
+				if !commonutils.IsNil(env) && len(env.GetImageTagName()) > 0 {
+					continue
+				}
+
+				errs = append(errs, errors.WithMessagef(ErrMissingRequiredImageTagName, "component %s in environment %s", componentName, envName))
+			}
+		}
+	}
+
+	return stderrors.Join(errs...)
 }
