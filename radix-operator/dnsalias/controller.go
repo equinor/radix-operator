@@ -10,11 +10,13 @@ import (
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	radixinformersv1 "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
+	networkinginformersv1 "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -62,7 +64,61 @@ func NewController(kubeClient kubernetes.Interface,
 	}
 
 	logger.Info("Setting up event handlers")
+	addEventHandlersForRadixDNSAliases(radixDNSAliasInformer, controller)
+	addEventHandlersForRadixDeployments(radixDeploymentInformer, controller, radixClient)
+	addEventHandlersForIngresses(ingressInformer, controller)
+	return controller
+}
 
+func addEventHandlersForIngresses(ingressInformer networkinginformersv1.IngressInformer, controller *common.Controller) {
+	_, err := ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldIng := oldObj.(metav1.Object)
+			newIng := newObj.(metav1.Object)
+			if oldIng.GetResourceVersion() == newIng.GetResourceVersion() {
+				logger.Debugf("updating Ingress %s has the same resource version. Do nothing.", newIng.GetName())
+				return
+			}
+			logger.Debugf("updated Ingress %s", newIng.GetName())
+			controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
+		},
+		DeleteFunc: func(obj interface{}) {
+			ing, converted := obj.(*networkingv1.Ingress)
+			if !converted {
+				logger.Errorf("Ingress object cast failed during deleted event received.")
+				return
+			}
+			logger.Debugf("deleted Ingress %s", ing.GetName())
+			controller.HandleObject(ing, radix.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
+		},
+	})
+	if err != nil {
+		logger.Errorf("failed to add an event hanflers to the ingressInformer")
+	}
+}
+
+func addEventHandlersForRadixDeployments(radixDeploymentInformer radixinformersv1.RadixDeploymentInformer, controller *common.Controller, radixClient radixclient.Interface) {
+	_, err := radixDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(cur interface{}) {
+			rd := cur.(*radixv1.RadixDeployment)
+			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldRD := oldObj.(metav1.Object)
+			newRD := newObj.(metav1.Object)
+			if oldRD.GetResourceVersion() == newRD.GetResourceVersion() {
+				return // updating RadixDeployment has the same resource version. Do nothing.
+			}
+			rd := newRD.(*radixv1.RadixDeployment)
+			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd)
+		},
+	})
+	if err != nil {
+		logger.Errorf("failed to add an event hanflers to the radixDeploymentInformer")
+	}
+}
+
+func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.RadixDNSAliasInformer, controller *common.Controller) {
 	_, err := radixDNSAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			alias := cur.(*radixv1.RadixDNSAlias)
@@ -105,53 +161,24 @@ func NewController(kubeClient kubernetes.Interface,
 	if err != nil {
 		logger.Errorf("failed to add an event hanflers to the radixDNSAliasInformer")
 	}
+}
 
-	_, err = radixDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
-			rd := cur.(*radixv1.RadixDeployment)
-			logger.Debugf("Added RadixDeployment %s to application %s in the environment %s. Re-sync relevant RadixDNSAliases", rd.GetName(), rd.Spec.AppName, rd.Spec.Environment)
-			radixDNSAliases, err := getRadixDNSAliasForAppAndEnvironment(radixClient, rd.Spec.AppName, rd.Spec.Environment)
-			if err != nil {
-				logger.Errorf("failed to get list of RadixDNSAliases for the application %s", rd.Spec.AppName)
-				return
-			}
-			for _, radixDNSAlias := range radixDNSAliases {
-				logger.Debugf("re-sync RadixDNSAlias %s", radixDNSAlias.GetName())
-				if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
-					logger.Errorf("failed to re-sync RadixDNSAlias %s. Error: %v", radixDNSAlias.GetName(), err)
-				}
-			}
-		},
-	})
-	if err != nil {
-		logger.Errorf("failed to add an event hanflers to the radixDeploymentInformer")
+func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, radixClient radixclient.Interface, rd *radixv1.RadixDeployment) {
+	if !rd.Status.ActiveTo.IsZero() {
+		return // skip not active RadixDeployments
 	}
-
-	_, err = ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			oldIng := oldObj.(metav1.Object)
-			newIng := newObj.(metav1.Object)
-			if oldIng.GetResourceVersion() == newIng.GetResourceVersion() {
-				logger.Debugf("updating Ingress %s has the same resource version. Do nothing.", newIng.GetName())
-				return
-			}
-			logger.Debugf("updated Ingress %s", newIng.GetName())
-			controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
-		},
-		DeleteFunc: func(obj interface{}) {
-			ing, converted := obj.(*networkingv1.Ingress)
-			if !converted {
-				logger.Errorf("Ingress object cast failed during deleted event received.")
-				return
-			}
-			logger.Debugf("deleted Ingress %s", ing.GetName())
-			controller.HandleObject(ing, radix.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
-		},
-	})
+	logger.Debugf("Added or updated an active RadixDeployment %s to application %s in the environment %s. Re-sync relevant RadixDNSAliases", rd.GetName(), rd.Spec.AppName, rd.Spec.Environment)
+	radixDNSAliases, err := getRadixDNSAliasForAppAndEnvironment(radixClient, rd.Spec.AppName, rd.Spec.Environment)
 	if err != nil {
-		logger.Errorf("failed to add an event hanflers to the ingressInformer")
+		logger.Errorf("failed to get list of RadixDNSAliases for the application %s", rd.Spec.AppName)
+		return
 	}
-	return controller
+	for _, radixDNSAlias := range radixDNSAliases {
+		logger.Debugf("re-sync RadixDNSAlias %s", radixDNSAlias.GetName())
+		if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
+			logger.Errorf("failed to re-sync RadixDNSAlias %s. Error: %v", radixDNSAlias.GetName(), err)
+		}
+	}
 }
 
 func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, appName string, envName string) ([]radixv1.RadixDNSAlias, error) {
