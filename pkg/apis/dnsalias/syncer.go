@@ -63,10 +63,7 @@ func (s *syncer) OnSync() error {
 	if handled, err := s.handleDeletedRadixDNSAlias(); handled || err != nil {
 		return err
 	}
-	if err := s.syncAlias(); err != nil {
-		return err
-	}
-	return s.syncStatus()
+	return s.syncStatus(s.syncAlias())
 
 }
 

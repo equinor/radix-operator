@@ -5,14 +5,23 @@ import meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.condition"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=radixdnsaliases,scope=Cluster,shortName=rda
+// +kubebuilder:subresource:status
 
 // RadixDNSAlias is a Custom Resource Definition
 type RadixDNSAlias struct {
-	meta.TypeMeta   `json:",inline" yaml:",inline"`
+	// meta.TypeMeta of the RadixDNSAlias
+	// +optional
+	meta.TypeMeta `json:",inline" yaml:",inline"`
+	// meta.ObjectMeta Metadata of the RadixDNSAlias
 	meta.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec            RadixDNSAliasSpec   `json:"spec" yaml:"spec"`
-	Status          RadixDNSAliasStatus `json:"status" yaml:"status"`
+	// RadixDNSAliasSpec specification of the RadixDNSAlias
+	Spec RadixDNSAliasSpec `json:"spec" yaml:"spec"`
+	// Status of the RadixDNSAlias
+	// +optional
+	Status RadixDNSAliasStatus `json:"status" yaml:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -50,7 +59,26 @@ type RadixDNSAliasSpec struct {
 	Port int32 `json:"port"`
 }
 
+// RadixDNSAliasCondition Holds the condition of a RadixDNSAlias
+type RadixDNSAliasCondition string
+
+// These are valid conditions of a deployment.
+const (
+	// RadixDNSAliasSucceeded means the RadixDNSAlias has been successfully created or updated
+	RadixDNSAliasSucceeded RadixDNSAliasCondition = "Succeeded"
+	// RadixDNSAliasFailed means the RadixDNSAlias create or update failed
+	RadixDNSAliasFailed RadixDNSAliasCondition = "Failed"
+)
+
 // RadixDNSAliasStatus is the status for an RadixDNSAlias
 type RadixDNSAliasStatus struct {
-	// Reconciled *meta.Time `json:"reconciled" yaml:"reconciled"`
+	// Condition of the RadixDNSAlias creating or updating
+	// +optional
+	Condition RadixDNSAliasCondition `json:"condition,omitempty" yaml:"condition,omitempty"`
+	// A human-readable message indicating details about the condition.
+	// +optional
+	Message string `json:"message,omitempty" yaml:"message,omitempty"`
+	// Reconciled The timestamp when the RadixDNSAlias was reconciled
+	// +optional
+	Reconciled *meta.Time `json:"reconciled,omitempty" yaml:"reconciled,omitempty"`
 }

@@ -29,14 +29,21 @@ func (s *syncer) restoreStatus() error {
 	})
 }
 
-func (s *syncer) syncStatus() error {
-	// syncCompleteTime := metav1.Now()
-	// err := s.updateStatus(func(currStatus *radixv1.RadixDNSAliasStatus) {
-	// 	// currStatus.Reconciled = &syncCompleteTime
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("failed to sync status: %v", err)
-	// }
+func (s *syncer) syncStatus(syncErr error) error {
+	syncCompleteTime := metav1.Now()
+	err := s.updateStatus(func(currStatus *radixv1.RadixDNSAliasStatus) {
+		currStatus.Reconciled = &syncCompleteTime
+		if syncErr != nil {
+			currStatus.Condition = radixv1.RadixDNSAliasFailed
+			currStatus.Message = syncErr.Error()
+			return
+		}
+		currStatus.Condition = radixv1.RadixDNSAliasSucceeded
+		currStatus.Message = ""
+	})
+	if err != nil {
+		return fmt.Errorf("failed to sync status: %v", err)
+	}
 	return nil
 }
 
