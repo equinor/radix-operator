@@ -18,6 +18,9 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.appName
+      name: Application
+      type: string
     - jsonPath: .status.condition
       name: Condition
       type: string
