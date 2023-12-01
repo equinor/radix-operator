@@ -13,25 +13,19 @@ import meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // RadixDNSAlias is a Custom Resource Definition
 type RadixDNSAlias struct {
-	// meta.TypeMeta of the RadixDNSAlias
-	// +optional
-	meta.TypeMeta `json:",inline" yaml:",inline"`
-	// meta.ObjectMeta Metadata of the RadixDNSAlias
-	meta.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	// RadixDNSAliasSpec specification of the RadixDNSAlias
-	Spec RadixDNSAliasSpec `json:"spec" yaml:"spec"`
-	// Status of the RadixDNSAlias
-	// +optional
-	Status RadixDNSAliasStatus `json:"status" yaml:"status"`
+	meta.TypeMeta   `json:",inline"`
+	meta.ObjectMeta `json:"metadata"`
+	Spec            RadixDNSAliasSpec   `json:"spec"`
+	Status          RadixDNSAliasStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixDNSAliasList is a list of RadixDNSAliases
 type RadixDNSAliasList struct {
-	meta.TypeMeta `json:",inline" yaml:",inline"`
-	meta.ListMeta `json:"metadata" yaml:"metadata"`
-	Items         []RadixDNSAlias `json:"items" yaml:"items"`
+	meta.TypeMeta `json:",inline"`
+	meta.ListMeta `json:"metadata"`
+	Items         []RadixDNSAlias `json:"items"`
 }
 
 // RadixDNSAliasSpec is the spec for an RadixDNSAlias
@@ -40,19 +34,19 @@ type RadixDNSAliasSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-	AppName string `json:"appName" yaml:"appName"`
+	AppName string `json:"appName"`
 
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-	Environment string `json:"environment" yaml:"environment"`
+	Environment string `json:"environment"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-	Component string `json:"component" yaml:"component"`
+	Component string `json:"component"`
 
 	// Port number.
 	// +kubebuilder:validation:Minimum=1024
@@ -75,11 +69,11 @@ const (
 type RadixDNSAliasStatus struct {
 	// Condition of the RadixDNSAlias creating or updating
 	// +optional
-	Condition RadixDNSAliasCondition `json:"condition,omitempty" yaml:"condition,omitempty"`
+	Condition RadixDNSAliasCondition `json:"condition,omitempty"`
 	// A human-readable message indicating details about the condition.
 	// +optional
-	Message string `json:"message,omitempty" yaml:"message,omitempty"`
+	Message string `json:"message,omitempty"`
 	// Reconciled The timestamp when the RadixDNSAlias was reconciled
 	// +optional
-	Reconciled *meta.Time `json:"reconciled,omitempty" yaml:"reconciled,omitempty"`
+	Reconciled *meta.Time `json:"reconciled,omitempty"`
 }

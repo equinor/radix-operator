@@ -13,7 +13,7 @@
       "type": "object"
     },
     "spec": {
-      "description": "RadixDNSAliasSpec specification of the RadixDNSAlias",
+      "description": "RadixDNSAliasSpec is the spec for an RadixDNSAlias",
       "properties": {
         "appName": {
           "description": "Name of the application the DNS alias used in.",
@@ -53,7 +53,7 @@
       "type": "object"
     },
     "status": {
-      "description": "Status of the RadixDNSAlias",
+      "description": "RadixDNSAliasStatus is the status for an RadixDNSAlias",
       "properties": {
         "condition": {
           "description": "Condition of the RadixDNSAlias creating or updating",
@@ -73,6 +73,7 @@
     }
   },
   "required": [
+    "metadata",
     "spec"
   ],
   "type": "object"
