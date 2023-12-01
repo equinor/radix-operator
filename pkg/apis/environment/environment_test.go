@@ -58,7 +58,9 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	nw, _ := networkpolicy.NewNetworkPolicy(client, kubeUtil, logger, re.Spec.AppName)
 	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
-	radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, meta.CreateOptions{})
+	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, meta.CreateOptions{}); err != nil {
+		panic(err)
+	}
 	return rr, re, env
 }
 

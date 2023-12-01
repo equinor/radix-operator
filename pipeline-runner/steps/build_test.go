@@ -13,7 +13,6 @@ import (
 	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
@@ -31,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	"sigs.k8s.io/yaml"
 )
 
 func Test_RunBuildTestSuite(t *testing.T) {
@@ -1582,68 +1580,4 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	)
 	expectedCommand := []string{"/bin/bash", "-c", expectedBuildCmd}
 	s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
-}
-
-func (s *buildTestSuite) createPreparePipelineConfigMapResponse(configMapName, appName string, ra *radixv1.RadixApplication, buildCtx *model.PrepareBuildContext) error {
-	raBytes, err := yaml.Marshal(ra)
-	if err != nil {
-		return err
-	}
-	data := map[string]string{
-		pipelineDefaults.PipelineConfigMapContent: string(raBytes),
-	}
-
-	if buildCtx != nil {
-		buildCtxBytes, err := yaml.Marshal(buildCtx)
-		if err != nil {
-			return err
-		}
-		data[pipelineDefaults.PipelineConfigMapBuildContext] = string(buildCtxBytes)
-	}
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-		Data:       data,
-	}
-	_, err = s.kubeClient.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Create(context.Background(), cm, metav1.CreateOptions{})
-	return err
-}
-
-func (s *buildTestSuite) createGitInfoConfigMapResponse(configMapName, appName, gitHash, gitTags string) error {
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-		Data: map[string]string{
-			defaults.RadixGitCommitHashKey: gitHash,
-			defaults.RadixGitTagsKey:       gitTags,
-		},
-	}
-	_, err := s.kubeClient.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Create(context.Background(), cm, metav1.CreateOptions{})
-	return err
-}
-
-func (s *buildTestSuite) createBuildSecret(appName string, data map[string][]byte) error {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName},
-		Data:       data,
-	}
-
-	_, err := s.kubeClient.CoreV1().Secrets(utils.GetAppNamespace(appName)).Create(context.Background(), secret, metav1.CreateOptions{})
-	return err
-}
-
-func (s *buildTestSuite) getRadixApplicationHash(ra *radixv1.RadixApplication) string {
-	if ra == nil {
-		appHash, _ := hash.ToHashString(hash.SHA256, "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7")
-		return appHash
-	}
-	appHash, _ := hash.ToHashString(hash.SHA256, ra.Spec)
-	return appHash
-}
-
-func (s *buildTestSuite) getBuildSecretHash(secret *corev1.Secret) string {
-	if secret == nil {
-		secretHash, _ := hash.ToHashString(hash.SHA256, "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj")
-		return secretHash
-	}
-	secretHash, _ := hash.ToHashString(hash.SHA256, secret.Data)
-	return secretHash
 }

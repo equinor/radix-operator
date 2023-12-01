@@ -83,7 +83,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	_, client, kubeUtil, radixClient := setupTest()
 
 	// Create environments manually
-	radixClient.RadixV1().RadixEnvironments().Create(
+	_, err := radixClient.RadixV1().RadixEnvironments().Create(
 		context.TODO(),
 		&radixv1.RadixEnvironment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -91,8 +91,9 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 			},
 		},
 		metav1.CreateOptions{})
+	assert.NoError(t, err)
 
-	radixClient.RadixV1().RadixEnvironments().Create(
+	_, err = radixClient.RadixV1().RadixEnvironments().Create(
 		context.TODO(),
 		&radixv1.RadixEnvironment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -100,6 +101,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 			},
 		},
 		metav1.CreateOptions{})
+	assert.NoError(t, err)
 
 	adGroups := []string{"5678-91011-1234", "9876-54321-0987"}
 	rr := utils.NewRegistrationBuilder().
@@ -117,12 +119,14 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
-	app.OnSync()
-	environments, _ := radixClient.RadixV1().RadixEnvironments().List(
+	err = app.OnSync()
+	assert.NoError(t, err)
+	environments, err := radixClient.RadixV1().RadixEnvironments().List(
 		context.TODO(),
 		metav1.ListOptions{
 			LabelSelector: label,
 		})
+	assert.NoError(t, err)
 	assert.Equal(t, 2, len(environments.Items))
 }
 

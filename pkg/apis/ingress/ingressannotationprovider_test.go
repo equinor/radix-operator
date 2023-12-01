@@ -167,7 +167,8 @@ func (s *OAuth2AnnotationsTestSuite) Test_ComponentOAuthPassedToOAuth2Config() {
 	oauth := &radixv1.OAuth2{ClientID: "1234"}
 	s.oauth2Config.EXPECT().MergeWith(oauth).Times(1).Return(&radixv1.OAuth2{}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: oauth}}, "unused-namespace")
+	_, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: oauth}}, "unused-namespace")
+	s.NoError(err)
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthSigninAndUrlAnnotations() {
