@@ -31,7 +31,7 @@
         "--IMAGE_TAG_NAME=server=1.23-alpine-slim",
         "--IMAGE_TAG_NAME=server2=1.22.1-alpine-perl",
         "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
-        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus"
+        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www"
       ]
     },
     {
@@ -54,7 +54,7 @@
         "--DEBUG=true",
         "--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
         "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
-        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus"
+        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www"
       ]
     },
     { 
@@ -77,7 +77,7 @@
         "--RADIX_CLUSTERNAME=weekly-44",
         "--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
         "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
-        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus"
+        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www"
       ]
     },
     {
@@ -135,7 +135,7 @@
         "SECCOMP_PROFILE_FILENAME": "allow-buildah.json",
         "RADIX_BUILDAH_IMAGE_BUILDER": "quay.io/buildah/stable:v1.31",
         "RADIX_RESERVED_APP_DNS_ALIASES": "api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
-        "RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus"
+        "RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www"
       },
       "args": ["--useOutClusterClient=false"]
     },

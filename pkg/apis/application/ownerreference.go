@@ -2,7 +2,7 @@ package application
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/radix"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -12,7 +12,7 @@ func (app Application) getOwnerReference() []metav1.OwnerReference {
 }
 
 // GetOwnerReferenceOfRegistration Gets owner reference given registration. Resources that an RR owns
-func GetOwnerReferenceOfRegistration(registration *v1.RadixRegistration) []metav1.OwnerReference {
+func GetOwnerReferenceOfRegistration(registration *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		{
