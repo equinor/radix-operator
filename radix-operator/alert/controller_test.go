@@ -28,22 +28,34 @@ func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
-	go sut.Run(5, s.Stop)
+	go func() {
+		if err := sut.Run(5, s.Stop); err != nil {
+			panic(err)
+		}
+	}()
 
 	// Adding a RadixAlert should trigger sync
 	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	alert, _ = s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert, metav1.CreateOptions{})
+	alert, err := s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert, metav1.CreateOptions{})
+	if err != nil {
+		panic(err)
+	}
+
 	s.WaitForSynced("first call")
 
 	// Updating the RadixAlert with changes should trigger a sync
 	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	alert.Labels = map[string]string{"foo": "bar"}
-	s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.TODO(), alert, metav1.UpdateOptions{})
+	if _, err := s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.TODO(), alert, metav1.UpdateOptions{}); err != nil {
+		panic(err)
+	}
 	s.WaitForSynced("second call")
 
 	// Updating the RadixAlert with no changes should not trigger a sync
 	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.TODO(), alert, metav1.UpdateOptions{})
+	if _, err := s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.TODO(), alert, metav1.UpdateOptions{}); err != nil {
+		panic(err)
+	}
 	s.WaitForNotSynced("Sync should not be called when updating RadixAlert with no changes")
 }
 
@@ -52,29 +64,43 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	alert1 := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alert1Name, Labels: map[string]string{kube.RadixAppLabel: appName}}}
 	alert2 := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alert2Name}}
 	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: v1.RadixRegistrationSpec{Owner: "first-owner", AdGroups: []string{"first-admin-group"}, ReaderAdGroups: []string{"first-reader-group"}}}
-	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+	if err != nil {
+		panic(err)
+	}
 
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
-	go sut.Run(5, s.Stop)
+	go func() {
+		if err := sut.Run(5, s.Stop); err != nil {
+			panic(err)
+		}
+	}()
 
 	hasSynced := cache.WaitForCacheSync(s.Stop, s.RadixInformerFactory.Radix().V1().RadixRegistrations().Informer().HasSynced)
 	s.True(hasSynced)
 
 	// Initial Sync for the two alerts
-	s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert1, metav1.CreateOptions{})
+	if _, err := s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert1, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
 	s.Handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync of alert1")
 
-	s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert2, metav1.CreateOptions{})
+	if _, err := s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert2, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
 	s.Handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("initial sync of alert2")
 
 	// Update adGroups should trigger sync of alert1
 	rr.Spec.AdGroups = []string{"another-admin-group"}
 	rr.ResourceVersion = "2"
-	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	if err != nil {
+		panic(err)
+	}
 	s.Handler.EXPECT().Sync(namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync on adGroups update")
 
@@ -88,7 +114,9 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	// Update other props on RR should not trigger sync of alert1
 	rr.Spec.Owner = "owner"
 	rr.ResourceVersion = "4"
-	s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	if _, err := s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{}); err != nil {
+		panic(err)
+	}
 	s.Handler.EXPECT().Sync(namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	s.WaitForNotSynced("Sync should not be called when updating other RR props")
 }

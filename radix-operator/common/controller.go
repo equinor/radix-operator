@@ -79,7 +79,9 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 	errorGroup.SetLimit(threadiness)
 	defer func() {
 		c.Log.Info("Waiting for workers to complete")
-		errorGroup.Wait()
+		if err := errorGroup.Wait(); err != nil {
+			log.Error(err)
+		}
 		c.Log.Info("Workers completed")
 	}()
 
@@ -91,7 +93,9 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 	for c.processNext(&errorGroup, stopCh, locker) {
 	}
 
-	errorGroup.Wait()
+	if err := errorGroup.Wait(); err != nil {
+		log.Error(err)
+	}
 }
 
 func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struct{}, locker resourceLocker) bool {

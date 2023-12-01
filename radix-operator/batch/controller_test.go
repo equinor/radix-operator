@@ -28,7 +28,12 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
-	go sut.Run(5, s.Stop)
+	go func() {
+		err := sut.Run(5, s.Stop)
+		if err != nil {
+			panic(err)
+		}
+	}()
 
 	batch := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: batchName, Namespace: namespace}}
 

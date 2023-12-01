@@ -484,7 +484,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 
 	// Remove redispassword if sessionstoretype is cookie
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreCookie}, nil)
-	sut.Sync()
+	if err := sut.Sync(); err != nil {
+		panic(err)
+	}
 	actualSecret, _ = s.kubeClient.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
 	s.Equal(
 		map[string][]byte{
@@ -570,12 +572,24 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 			Rules:            []networkingv1.IngressRule{{Host: "ing2.public"}},
 		},
 	}
-	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServer, metav1.CreateOptions{})
-	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServerNoRules, metav1.CreateOptions{})
-	s.kubeClient.NetworkingV1().Ingresses("otherns").Create(context.Background(), &ingServerOtherNs, metav1.CreateOptions{})
-	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingOtherComponent, metav1.CreateOptions{})
-	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb1, metav1.CreateOptions{})
-	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb2, metav1.CreateOptions{})
+	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServer, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
+	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServerNoRules, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
+	if _, err := s.kubeClient.NetworkingV1().Ingresses("otherns").Create(context.Background(), &ingServerOtherNs, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
+	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingOtherComponent, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
+	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb1, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
+	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb2, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
@@ -660,27 +674,33 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	appName, envName, component1Name, component2Name := "anyapp", "qa", "server", "web"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 
-	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
+	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component1Name}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
-	)
-	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
+	); err != nil {
+		panic(err)
+	}
+	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
-	)
-	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
+	); err != nil {
+		panic(err)
+	}
+	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
-	)
+	); err != nil {
+		panic(err)
+	}
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().

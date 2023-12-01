@@ -190,8 +190,6 @@ func (deploy *Deployment) restoreStatus() bool {
 }
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
-	stopReconciliation = false
-
 	allRDs, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
 	if err != nil {
 		err = fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)

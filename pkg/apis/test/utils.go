@@ -99,12 +99,14 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 	ra.ObjectMeta.UID = uuid.NewUUID() // imitate new UID, assigned by Kubernetes
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
-		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
+		if _, err := tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
 			WithRegistrationOwner(rr).
-			WithOrphaned(false))
+			WithOrphaned(false)); err != nil {
+			panic(err)
+		}
 	}
 
 	return ra, nil
@@ -133,11 +135,13 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
-		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
+		if _, err := tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
-			WithRegistrationOwner(rr))
+			WithRegistrationOwner(rr)); err != nil {
+			panic(err)
+		}
 	}
 
 	return ra, nil
@@ -193,7 +197,9 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder
 // ApplyJob Will help persist a radixjob
 func (tu *Utils) ApplyJob(jobBuilder utils.JobBuilder) (*radixv1.RadixJob, error) {
 	if jobBuilder.GetApplicationBuilder() != nil {
-		tu.ApplyApplication(jobBuilder.GetApplicationBuilder())
+		if _, err := tu.ApplyApplication(jobBuilder.GetApplicationBuilder()); err != nil {
+			panic(err)
+		}
 	}
 
 	rj := jobBuilder.BuildRJ()
@@ -283,7 +289,7 @@ func SetRequiredEnvironmentVariables() {
 func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) {
 	SetRequiredEnvironmentVariables()
 
-	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+	if _, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.TODO(),
 		&corev1.Secret{
 			Type: "Opaque",
@@ -295,9 +301,11 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 				"known_hosts": []byte("abcd"),
 			},
 		},
-		metav1.CreateOptions{})
+		metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
 
-	tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+	if _, err := tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
 		context.TODO(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -310,7 +318,9 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 				"subscriptionId":         subscriptionId,
 			},
 		},
-		metav1.CreateOptions{})
+		metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
 }
 
 // CreateAppNamespace Helper method to creat app namespace
@@ -338,7 +348,9 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		},
 	}
 
-	kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
+	if _, err := kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{}); err != nil {
+		log.Error(err)
+	}
 }
 
 // IntPtr Helper function to get the pointer of an int

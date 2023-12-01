@@ -49,7 +49,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, prometheusclient := setupTest()
 
-	client.CoreV1().Namespaces().Create(
+	if _, err := client.CoreV1().Namespaces().Create(
 		context.TODO(),
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -60,7 +60,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 				},
 			},
 		},
-		metav1.CreateOptions{})
+		metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
 
 	stop := make(chan struct{})
 	synced := make(chan bool)
@@ -99,7 +101,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Update deployment should sync. Only actual updates will be handled by the controller
 	noReplicas := 0
 	rd.Spec.Components[0].Replicas = &noReplicas
-	radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{})
+	if _, err := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{}); err != nil {
+		panic(err)
+	}
 
 	op, ok = <-synced
 	assert.True(t, ok)
@@ -118,7 +122,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		})
 
 	for _, aservice := range services.Items {
-		client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{})
+		if err := client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{}); err != nil {
+			panic(err)
+		}
 
 		op, ok = <-synced
 		assert.True(t, ok)
@@ -151,6 +157,7 @@ func startDeploymentController(client kubernetes.Interface,
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(4, stop)
-
+	if err := controller.Run(4, stop); err != nil {
+		panic(err)
+	}
 }

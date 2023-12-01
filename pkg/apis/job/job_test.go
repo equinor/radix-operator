@@ -268,7 +268,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	if _, err := s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{}); err != nil {
+		panic(err)
+	}
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -289,7 +291,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	if _, err := s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{}); err != nil {
+		panic(err)
+	}
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -315,7 +319,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	if _, err := s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{}); err != nil {
+		panic(err)
+	}
+
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -657,7 +664,9 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName).
 					WithActiveFrom(testTime))
 				s.NoError(err)
-				s.applyJobWithSyncFor(raBuilder, appName, rdJob, config)
+				if err := s.applyJobWithSyncFor(raBuilder, appName, rdJob, config); err != nil {
+					panic(err)
+				}
 				testTime = testTime.Add(time.Hour)
 			}
 
@@ -666,7 +675,9 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				WithEnvironment(scenario.testingRadixDeploymentJob.env).
 				WithActiveFrom(testTime))
 			s.NoError(err)
-			s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config)
+			if err := s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config); err != nil {
+				panic(err)
+			}
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
 			s.NoError(err)
@@ -790,7 +801,9 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
 			raBuilder := scenario.raBuilder.WithAppName(appName)
-			s.testUtils.ApplyApplication(raBuilder)
+			if _, err := s.testUtils.ApplyApplication(raBuilder); err != nil {
+				panic(err)
+			}
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				if rdJob.jobStatus == radixv1.JobSucceeded {
 					_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().

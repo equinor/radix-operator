@@ -139,6 +139,8 @@ func startRegistrationController(
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(5, stop)
+	if err := controller.Run(5, stop); err != nil {
+		panic(err)
+	}
 
 }

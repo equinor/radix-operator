@@ -216,11 +216,13 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
 	appNamespace := "any-app-app"
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret1", "secret2"))
+			WithBuildSecrets("secret1", "secret2")); err != nil {
+		panic(err)
+	}
 
 	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
@@ -239,11 +241,13 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
 	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret4", "secret5", "secret6"))
+			WithBuildSecrets("secret4", "secret5", "secret6")); err != nil {
+		panic(err)
+	}
 
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	buildSecrets = getSecretByName(defaults.BuildSecretsName, secrets)
@@ -326,19 +330,23 @@ func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
 func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret1", "secret2"))
+			WithBuildSecrets("secret1", "secret2")); err != nil {
+		panic(err)
+	}
 
 	// Delete secret
 	appNamespace := "any-app-app"
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret2"))
+			WithBuildSecrets("secret2")); err != nil {
+		panic(err)
+	}
 
 	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
@@ -350,11 +358,13 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
 
 	// Delete secret
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets())
+			WithBuildSecrets()); err != nil {
+		panic(err)
+	}
 
 	// Secret is deleted
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -374,11 +384,13 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret1", "secret2"))
+			WithBuildSecrets("secret1", "secret2")); err != nil {
+		panic(err)
+	}
 
 	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-reader-build-secrets", roles))
@@ -387,10 +399,12 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	assert.True(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 
 	// Delete secret and verify that role and rolebinding is deleted
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
-			WithEnvironment("dev", "master"))
+			WithEnvironment("dev", "master")); err != nil {
+		panic(err)
+	}
 
 	roles, _ = client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.False(t, roleByNameExists("radix-app-reader-build-secrets", roles))
@@ -402,11 +416,13 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret1", "secret2"))
+			WithBuildSecrets("secret1", "secret2")); err != nil {
+		panic(err)
+	}
 
 	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-private-image-hubs-reader", roles))
@@ -440,7 +456,9 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
 
 	assert.Equal(t, "privaterepodeleteme.azurecr.io", pendingSecrets[0])
 
-	appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password")
+	if err := appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password"); err != nil {
+		panic(err)
+	}
 	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	pendingSecrets, _ = appConfig.GetPendingPrivateImageHubSecrets()
 
@@ -566,9 +584,11 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
 func Test_RadixEnvironment(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
-			WithAppName("any-app"))
+			WithAppName("any-app")); err != nil {
+		panic(err)
+	}
 
 	rr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), "any-app", metav1.GetOptions{})
 
@@ -621,7 +641,9 @@ func Test_UseBuildKit(t *testing.T) {
 		if testScenario.useBuildKit != nil {
 			ra = ra.WithBuildKit(testScenario.useBuildKit)
 		}
-		applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra)
+		if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra); err != nil {
+			panic(err)
+		}
 
 		raAfterSync, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.TODO(), testScenario.appName, metav1.GetOptions{})
 

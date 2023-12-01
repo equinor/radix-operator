@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -60,9 +61,11 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -75,7 +78,9 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -90,17 +95,21 @@ func NewController(client kubernetes.Interface,
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			controller.HandleObject(obj, radix.KindRadixRegistration, getObject)
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()
-	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldSecret := oldObj.(*corev1.Secret)
 			newSecret := newObj.(*corev1.Secret)
@@ -142,7 +151,9 @@ func NewController(client kubernetes.Interface,
 				controller.HandleObject(namespace, radix.KindRadixRegistration, getObject)
 			}
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	return controller
 }

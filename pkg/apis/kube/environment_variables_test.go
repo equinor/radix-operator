@@ -208,11 +208,13 @@ func Test_SetEnvVarsMetadataMapToConfigMap(t *testing.T) {
 			},
 		}
 
-		SetEnvVarsMetadataMapToConfigMap(&currentMetadataConfigMap, map[string]EnvVarMetadata{
+		if err := SetEnvVarsMetadataMapToConfigMap(&currentMetadataConfigMap, map[string]EnvVarMetadata{
 			"VAR1": {RadixConfigValue: "val1changed"},
 			"VAR2": {RadixConfigValue: "added"},
-			//VAR3: removed
-		})
+			// VAR3: removed
+		}); err != nil {
+			panic(err)
+		}
 
 		assert.NotNil(t, currentMetadataConfigMap.Data)
 		assert.NotNil(t, currentMetadataConfigMap.Data["metadata"])
@@ -249,17 +251,19 @@ func Test_ApplyEnvVarsMetadataConfigMap(t *testing.T) {
 	metadata := map[string]EnvVarMetadata{
 		"VAR1": {RadixConfigValue: "val1changed"},
 		"VAR2": {RadixConfigValue: "added"},
-		//VAR3: removed
+		// VAR3: removed
 	}
 
 	t.Run("Save changes", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
-		testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &corev1.ConfigMap{
+		if _, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
-			}}, metav1.CreateOptions{})
+			}}, metav1.CreateOptions{}); err != nil {
+			panic(err)
+		}
 
 		err := testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(namespace, &currentMetadataConfigMap, metadata)
 
@@ -454,5 +458,7 @@ func Test_BuildRadixConfigEnvVarsMetadataConfigMap(t *testing.T) {
 }
 
 func createConfigMap(kubeUtil *Kube, namespace string, configMap *corev1.ConfigMap) {
-	kubeUtil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{})
+	if _, err := kubeUtil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{}); err != nil {
+		panic(err)
+	}
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -64,9 +65,11 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 
-	environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -79,7 +82,9 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -94,33 +99,41 @@ func NewController(client kubernetes.Interface,
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this namespace
 			controller.HandleObject(obj, radix.KindRadixEnvironment, getOwner)
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
 	rolebindingInformer := kubeInformerFactory.Rbac().V1().RoleBindings()
-	rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this role-binding
 			controller.HandleObject(obj, radix.KindRadixEnvironment, getOwner)
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
 	limitrangeInformer := kubeInformerFactory.Core().V1().LimitRanges()
-	limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this limit-range
 			controller.HandleObject(obj, radix.KindRadixEnvironment, getOwner)
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
@@ -145,13 +158,17 @@ func NewController(client kubernetes.Interface,
 			if err == nil {
 				for _, environment := range environments.Items {
 					// Will sync the environment
-					controller.Enqueue(&environment)
+					if _, err := controller.Enqueue(&environment); err != nil {
+						utilruntime.HandleError(err)
+					}
 				}
 			}
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
-	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newRa := cur.(*v1.RadixApplication)
 			oldRa := old.(*v1.RadixApplication)
@@ -164,7 +181,9 @@ func NewController(client kubernetes.Interface,
 				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
-					controller.Enqueue(re)
+					if _, err := controller.Enqueue(re); err != nil {
+						utilruntime.HandleError(err)
+					}
 				}
 			}
 		},
@@ -178,11 +197,15 @@ func NewController(client kubernetes.Interface,
 				uniqueName := utils.GetEnvironmentNamespace(radixApplication.Name, env.Name)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
-					controller.Enqueue(re)
+					if _, err := controller.Enqueue(re); err != nil {
+						utilruntime.HandleError(err)
+					}
 				}
 			}
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
 	return controller
 }

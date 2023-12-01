@@ -88,7 +88,7 @@ func (s *syncer) syncAlias() error {
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	ing, err := s.createOrUpdateIngress(namespace, radixDeployComponent, ingressName)
 	if err != nil {
-		if admissionWebhookErrorMatcher := admissionWebhookErrorExpression.FindStringSubmatch(err.Error()); admissionWebhookErrorMatcher != nil && len(admissionWebhookErrorMatcher) == 5 {
+		if admissionWebhookErrorMatcher := admissionWebhookErrorExpression.FindStringSubmatch(err.Error()); len(admissionWebhookErrorMatcher) == 5 {
 			log.Error(err)
 			return fmt.Errorf("DNS alias %s cannot be used, because the host %s with the path %s is already in use", s.radixDNSAlias.GetName(), admissionWebhookErrorMatcher[1], admissionWebhookErrorMatcher[2])
 		}

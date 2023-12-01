@@ -15,6 +15,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -56,7 +57,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 	}
 
 	logger.Info("Setting up event handlers")
-	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
 			if job.IsRadixJobDone(radixJob) {
@@ -66,7 +67,9 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -78,7 +81,9 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -93,9 +98,11 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
-	kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newJob := cur.(*batchv1.Job)
 			oldJob := old.(*batchv1.Job)
@@ -105,18 +112,20 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			controller.HandleObject(cur, radix.KindRadixJob, getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
-			job, converted := obj.(*batchv1.Job)
+			radixJob, converted := obj.(*batchv1.Job)
 			if !converted {
 				logger.Errorf("RadixJob object cast failed during deleted event received.")
 				return
 			}
 			// If a kubernetes job gets deleted for a running job, the running radix job should
 			// take this into account. The running job will get restarted
-			controller.HandleObject(job, radix.KindRadixJob, getObject)
+			controller.HandleObject(radixJob, radix.KindRadixJob, getObject)
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
-	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newPod := cur.(*corev1.Pod)
 			oldPod := old.(*corev1.Pod)
@@ -139,7 +148,9 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 				controller.HandleObject(job, radix.KindRadixJob, getObject)
 			}
 		},
-	})
+	}); err != nil {
+		utilruntime.HandleError(err)
+	}
 
 	return controller
 }

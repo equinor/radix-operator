@@ -71,7 +71,9 @@ func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, 
 		}
 		desiredConfigMap.Data[envVarName] = envVarValue
 	}
-	kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
+	if err := kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap); err != nil {
+		panic(err)
+	}
 	return desiredConfigMap
 }
 
@@ -134,7 +136,7 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 }
 
 func (s *syncerTestSuite) Test_RestoreStatusWithInvalidAnnotationValueShouldReturnErrorAndSkipReconcile() {
-	jobName, namespace := "any-job", "any-ns"
+	jobName := "any-job"
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	batch := &radixv1.RadixBatch{
 		ObjectMeta: metav1.ObjectMeta{Name: batchName, Annotations: map[string]string{kube.RestoredStatusAnnotation: "invalid data"}},
