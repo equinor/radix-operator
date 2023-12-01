@@ -237,8 +237,8 @@ func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) ma
 }
 
 // ForDNSAlias returns labels for ingress, created for Radix DNS alias
-func ForDNSAlias() map[string]string {
-	return map[string]string{
+func ForDNSAlias() kubelabels.Set {
+	return kubelabels.Set{
 		kube.RadixAliasLabel: strconv.FormatBool(true),
 	}
 }
