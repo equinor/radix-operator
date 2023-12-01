@@ -75,8 +75,8 @@ func (app *ApplicationConfig) GetPendingPrivateImageHubSecrets() ([]string, erro
 }
 
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
-	ns := utils.GetAppNamespace(app.config.Name)
-	secret, err := app.kubeutil.GetSecret(ns, defaults.PrivateImageHubSecretName)
+	namespace := utils.GetAppNamespace(app.config.Name)
+	secret, err := app.kubeutil.GetSecret(namespace, defaults.PrivateImageHubSecretName)
 	if err != nil && !errors.IsNotFound(err) {
 		log.Warnf("failed to get private image hub secret %v", err)
 		return err
@@ -126,7 +126,24 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 			return err
 		}
 	}
-	return applyPrivateImageHubSecret(app.kubeutil, ns, app.config.Name, secretValue)
+	err = applyPrivateImageHubSecret(app.kubeutil, namespace, app.config.Name, secretValue)
+	if err != nil {
+		return nil
+	}
+
+	err = utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
+	if err != nil {
+		log.Warnf("failed to grant reader access to private image hub secret %v", err)
+		return err
+	}
+
+	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
+	if err != nil {
+		log.Warnf("failed to grant access to private image hub secret %v", err)
+		return err
+	}
+
+	return app.grantPipelineAccessToSecret(namespace, defaults.PrivateImageHubSecretName)
 }
 
 // applyPrivateImageHubSecret create a private image hub secret based on SecretTypeDockerConfigJson

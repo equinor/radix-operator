@@ -3,6 +3,7 @@ package applicationconfig
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-common/utils/slice"
 	"io"
 	"log"
 	"testing"
@@ -392,20 +393,44 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	assert.False(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 }
 
-func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
+func Test_PrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 	tu, client, kubeUtil, radixclient := setupTest()
 
+	adminGroups, readerGroups := []string{"admin1", "admin2"}, []string{"reader1", "reader2"}
 	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
 		utils.ARadixApplication().
+			WithRadixRegistration(utils.ARadixRegistration().WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)).
 			WithAppName("any-app").
-			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret1", "secret2"))
+			WithEnvironment("dev", "master"))
+
+	type testSpec struct {
+		roleName         string
+		expectedVerbs    []string
+		expectedSubjects []string
+	}
+	tests := []testSpec{
+		{roleName: "radix-private-image-hubs-reader", expectedVerbs: []string{"get", "list", "watch"}, expectedSubjects: readerGroups},
+		{roleName: "radix-private-image-hubs", expectedVerbs: []string{"get", "list", "watch", "update", "patch", "delete"}, expectedSubjects: adminGroups},
+		{roleName: "pipeline-radix-private-image-hubs", expectedVerbs: []string{"get", "list", "watch"}, expectedSubjects: []string{"radix-pipeline"}},
+	}
 
 	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, roleByNameExists("radix-private-image-hubs-reader", roles))
-
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, roleBindingByNameExists("radix-private-image-hubs-reader", rolebindings))
+
+	for _, test := range tests {
+		t.Run(test.roleName, func(t *testing.T) {
+			expectedRules := []rbacv1.PolicyRule{
+				{Verbs: test.expectedVerbs, Resources: []string{"secrets"}, APIGroups: []string{""}, ResourceNames: []string{"radix-private-image-hubs"}},
+			}
+			assert.True(t, roleByNameExists(test.roleName, roles))
+			assert.ElementsMatch(t, expectedRules, getRoleByName(test.roleName, roles).Rules)
+			assert.True(t, roleBindingByNameExists(test.roleName, rolebindings))
+			expectedRoleRef := rbacv1.RoleRef{Kind: "Role", APIGroup: "rbac.authorization.k8s.io", Name: test.roleName}
+			assert.Equal(t, expectedRoleRef, getRoleBindingByName(test.roleName, rolebindings).RoleRef)
+			actualSubjectNames := slice.Map(getRoleBindingByName(test.roleName, rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name })
+			assert.ElementsMatch(t, test.expectedSubjects, actualSubjectNames)
+		})
+	}
 }
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{

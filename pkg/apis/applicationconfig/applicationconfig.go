@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -165,17 +163,6 @@ func (app *ApplicationConfig) OnSync() error {
 	err = app.syncPrivateImageHubSecrets()
 	if err != nil {
 		log.Errorf("Failed to create private image hub secrets. %v", err)
-		return err
-	}
-
-	err = utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
-	if err != nil {
-		log.Warnf("failed to grant reader access to private image hub secret %v", err)
-	}
-
-	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
-	if err != nil {
-		log.Warnf("failed to grant access to private image hub secret %v", err)
 		return err
 	}
 
