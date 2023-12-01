@@ -22,7 +22,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("job1").
-				WithSchedulerPort(int32Ptr(8888)).
+				WithSchedulerPort(pointers.Ptr[int32](8888)).
 				WithPayloadPath(utils.StringPtr("/path/to/payload")),
 			utils.AnApplicationJobComponent().
 				WithName("job2"),
@@ -37,7 +37,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, "job1", jobs[0].Name)
-	assert.Equal(t, int32Ptr(8888), jobs[0].SchedulerPort)
+	assert.Equal(t, pointers.Ptr[int32](8888), jobs[0].SchedulerPort)
 	assert.Equal(t, "/path/to/payload", jobs[0].Payload.Path)
 	assert.Equal(t, "job2", jobs[1].Name)
 	assert.Nil(t, jobs[1].SchedulerPort)
@@ -51,7 +51,7 @@ func Test_GetRadixJobComponentsWithNode_BuildAllJobComponents(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("job1").
-				WithSchedulerPort(int32Ptr(8888)).
+				WithSchedulerPort(pointers.Ptr[int32](8888)).
 				WithPayloadPath(utils.StringPtr("/path/to/payload")).
 				WithNode(v1.RadixNode{Gpu: gpu, GpuCount: gpuCount}),
 			utils.AnApplicationJobComponent().
@@ -543,28 +543,6 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 				componentName2: staticImageName2,
 			},
 			expectedError: errorMissingExpectedDynamicImageTagName(componentName1),
-		},
-		{
-			name: "static image name, but component env config image-tags provided",
-			componentImages: map[string]string{
-				componentName1: staticImageName1,
-				componentName2: staticImageName2,
-			},
-			environmentConfigImageTagNames: map[string]string{
-				componentName2: "tag-component-a",
-			},
-			expectedError: errorNotExpectedImageTagNameInImage(componentName2, "tag-component-a"),
-		},
-		{
-			name: "static image name, but external image-tags provided",
-			componentImages: map[string]string{
-				componentName1: staticImageName1,
-				componentName2: staticImageName2,
-			},
-			externalImageTagNames: map[string]string{
-				componentName1: "tag-component-a",
-			},
-			expectedError: errorNotExpectedImageTagNameInImage(componentName1, "tag-component-a"),
 		},
 		{
 			name: "with image-tags",

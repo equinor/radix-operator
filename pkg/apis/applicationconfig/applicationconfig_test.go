@@ -15,6 +15,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -244,6 +245,75 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret5"])
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret6"])
 
+}
+
+func Test_SubPipelineServiceAccountsCorrectlySynced(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	appNamespace := "any-app-app"
+	// Already includes a "test" environment
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app"))
+	require.NoError(t, err)
+
+	accounts, err := client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	require.NoError(t, err)
+
+	saTest := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
+	assert.NotNil(t, saTest)
+	assert.Equal(t, "true", saTest.Labels[kube.IsServiceAccountForSubPipelineLabel])
+	assert.Equal(t, "test", saTest.Labels[kube.RadixEnvLabel])
+
+	saProd := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("prod"), accounts)
+	assert.Nil(t, saProd)
+
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("prod", "release"))
+	require.NoError(t, err)
+
+	accounts, _ = client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	saProd = getServiceAccountByName(utils.GetSubPipelineServiceAccountName("prod"), accounts)
+	assert.NotNil(t, saProd)
+	assert.Equal(t, "true", saProd.Labels[kube.IsServiceAccountForSubPipelineLabel])
+	assert.Equal(t, "prod", saProd.Labels[kube.RadixEnvLabel])
+}
+func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	appNamespace := "any-app-app"
+	// Already includes a "test" environment
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("prod", "release"))
+	require.NoError(t, err)
+
+	accounts, err := client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	require.NoError(t, err)
+
+	saTest := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
+	assert.NotNil(t, saTest)
+
+	saProd := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("prod"), accounts)
+	assert.NotNil(t, saProd)
+
+	// Already includes a "test" environment
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master"))
+	require.NoError(t, err)
+
+	accounts, _ = client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
+
+	saTest = getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
+	assert.NotNil(t, saTest)
+
+	saProd = getServiceAccountByName(utils.GetSubPipelineServiceAccountName("prod"), accounts)
+	assert.Nil(t, saProd)
 }
 
 func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
@@ -643,6 +713,16 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 	err = applicationconfig.OnSync()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccountList) *corev1.ServiceAccount {
+	for _, sa := range serviceAccounts.Items {
+		if sa.Name == name {
+			return &sa
+		}
 	}
 
 	return nil

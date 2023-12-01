@@ -106,6 +106,11 @@ func ForServiceAccountIsForComponent() kubelabels.Set {
 	return kubelabels.Set{
 		kube.IsServiceAccountForComponent: "true",
 	}
+} // ForServiceAccountIsForComponent returns labels indicating that a service account is used by a component or job
+func ForServiceAccountIsForSubPipeline() kubelabels.Set {
+	return kubelabels.Set{
+		kube.IsServiceAccountForSubPipelineLabel: "true",
+	}
 }
 
 // ForServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
