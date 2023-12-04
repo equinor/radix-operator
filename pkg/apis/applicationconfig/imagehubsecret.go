@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+
 	"github.com/equinor/radix-common/pkg/docker"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -143,7 +144,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		return err
 	}
 
-	return app.grantPipelineAccessToSecret(namespace, defaults.PrivateImageHubSecretName)
+	return nil
 }
 
 // applyPrivateImageHubSecret create a private image hub secret based on SecretTypeDockerConfigJson

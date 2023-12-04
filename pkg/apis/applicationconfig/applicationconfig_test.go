@@ -3,10 +3,11 @@ package applicationconfig
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-common/utils/slice"
 	"io"
 	"log"
 	"testing"
+
+	"github.com/equinor/radix-common/utils/slice"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -411,7 +412,6 @@ func Test_PrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 	tests := []testSpec{
 		{roleName: "radix-private-image-hubs-reader", expectedVerbs: []string{"get", "list", "watch"}, expectedSubjects: readerGroups},
 		{roleName: "radix-private-image-hubs", expectedVerbs: []string{"get", "list", "watch", "update", "patch", "delete"}, expectedSubjects: adminGroups},
-		{roleName: "pipeline-radix-private-image-hubs", expectedVerbs: []string{"get", "list", "watch"}, expectedSubjects: []string{"radix-pipeline"}},
 	}
 
 	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})

@@ -92,9 +92,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
-	if err := cli.setPrivateImageHubSecret(pipelineInfo); err != nil {
-		return err
-	}
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}
@@ -119,23 +116,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 
 	return applicationConfig.ApplyConfigToApplicationNamespace()
 }
-func (cli *ApplyConfigStepImplementation) setPrivateImageHubSecret(pipelineInfo *model.PipelineInfo) error {
-	if len(pipelineInfo.RadixApplication.Spec.PrivateImageHubs) == 0 {
-		return nil
-	}
 
-	secret, err := cli.GetKubeclient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	if err != nil {
-		// For new applications, or when privateimagehub is first added to radixconfig, the secret
-		// or role bindings may not be synced yet by radix-operator
-		if kubeerrors.IsNotFound(err) || kubeerrors.IsForbidden(err) {
-			return nil
-		}
-		return err
-	}
-	pipelineInfo.PrivateImageHubSecret = secret
-	return nil
-}
 func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.RadixApplication.Spec.Build == nil || len(pipelineInfo.RadixApplication.Spec.Build.Secrets) == 0 {
 		return nil
