@@ -446,13 +446,13 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
-	client, appConfig, kubeUtil := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, kubeUtil := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
 		},
 	})
-	pendingSecrets, _ := appConfig.GetPendingPrivateImageHubSecrets()
+	pendingSecrets, _ := applicationconfig.GetPendingPrivateImageHubSecrets(kubeUtil, "any-app")
 
 	assert.Equal(t, "privaterepodeleteme.azurecr.io", pendingSecrets[0])
 
@@ -460,7 +460,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
 		panic(err)
 	}
 	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	pendingSecrets, _ = appConfig.GetPendingPrivateImageHubSecrets()
+	pendingSecrets, _ = applicationconfig.GetPendingPrivateImageHubSecrets(kubeUtil, "any-app")
 
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOmEtcGFzc3dvcmQ=\"}}}",
@@ -568,8 +568,8 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
-	client, appConfig, kubeUtil := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
-	pendingSecrets, _ := appConfig.GetPendingPrivateImageHubSecrets()
+	client, _, kubeUtil := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
+	pendingSecrets, _ := applicationconfig.GetPendingPrivateImageHubSecrets(kubeUtil, "any-app")
 
 	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 

@@ -51,11 +51,10 @@ func UpdatePrivateImageHubsSecretsPassword(kubeutil *kube.Kube, appName, server,
 }
 
 // GetPendingPrivateImageHubSecrets returns a list of private image hubs where secret value is not set
-func (app *ApplicationConfig) GetPendingPrivateImageHubSecrets() ([]string, error) {
-	appName := app.config.Name
+func GetPendingPrivateImageHubSecrets(kubeUtil *kube.Kube, appName string) ([]string, error) {
 	pendingSecrets := []string{}
 	ns := utils.GetAppNamespace(appName)
-	secret, err := app.kubeutil.GetSecret(ns, defaults.PrivateImageHubSecretName)
+	secret, err := kubeUtil.GetSecret(ns, defaults.PrivateImageHubSecretName)
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, err
 	}
