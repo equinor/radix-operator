@@ -343,7 +343,7 @@ func InvalidStringValueMaxLengthErrorWithMessage(resourceName, value string, max
 
 // ResourceNameCannotBeEmptyErrorWithMessage Resource name cannot be left empty
 func ResourceNameCannotBeEmptyErrorWithMessage(resourceName string) error {
-	return errors.WithMessagef(ErrResourceNameCannotBeEmpty, "%s cannot be empty", resourceName)
+	return errors.WithMessagef(ErrResourceNameCannotBeEmpty, "%s is empty", resourceName)
 }
 
 // InvalidUUIDErrorWithMessage Invalid UUID
