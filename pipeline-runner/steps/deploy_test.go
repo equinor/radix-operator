@@ -294,7 +294,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, getDNSAliasConfig())
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 
 	const commitID = "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
 

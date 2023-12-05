@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
@@ -115,7 +114,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, getDNSAliasConfig())
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
@@ -724,7 +723,7 @@ func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient 
 	ra := applicationBuilder.BuildRA()
 	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
 
-	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, getDNSAliasConfig())
+	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 }
 
 func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
@@ -740,7 +739,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, getDNSAliasConfig())
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 
 	err = applicationConfig.OnSync()
 	if err != nil {
@@ -800,12 +799,4 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
 	return getRoleBindingByName(name, roleBindings) != nil
-}
-
-func getDNSAliasConfig() *dnsalias.DNSConfig {
-	return &dnsalias.DNSConfig{
-		DNSZone:               "dev.radix.equinor.com",
-		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
-		ReservedDNSAliases:    []string{"grafana"},
-	}
 }
