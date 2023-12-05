@@ -3,11 +3,11 @@ package applicationconfig
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"reflect"
 	"strings"
 
-	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -207,7 +207,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 			errs = append(errs, err)
 		}
 	}
-	return commonErrors.Concat(errs)
+	return stderrors.Join(errs...)
 }
 
 // applyEnvironment creates an environment or applies changes if it exists

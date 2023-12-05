@@ -1,8 +1,9 @@
 package deployment
 
 import (
+	stderrors "errors"
 	"fmt"
-	"github.com/equinor/radix-common/utils/errors"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -41,5 +42,5 @@ func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec() error {
 		}
 
 	}
-	return errors.Concat(errs)
+	return stderrors.Join(errs...)
 }

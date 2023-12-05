@@ -4,6 +4,7 @@ package deployment
 import (
 	"context"
 	"errors"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	radixutils "github.com/equinor/radix-common/utils"
-	radixerrors "github.com/equinor/radix-common/utils/errors"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
@@ -1759,7 +1759,7 @@ func addRadixBatches(radixclient radixclient.Interface, envNamespace string, dep
 			errs = append(errs, err)
 		}
 	}
-	return radixerrors.Concat(errs)
+	return stderrors.Join(errs...)
 }
 
 func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {

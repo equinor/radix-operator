@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	commonutils "github.com/equinor/radix-common/utils"
-	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
@@ -510,7 +509,7 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipel
 	}
 	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
 	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
-	err = errorUtils.Concat([]error{commitErr, tagsErr})
+	err = stderrors.Join(commitErr, tagsErr)
 	if err != nil {
 		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
 		return "", ""

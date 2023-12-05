@@ -1,10 +1,10 @@
 package applicationconfig
 
 import (
+	stderrors "errors"
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -46,7 +46,7 @@ func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 		radixDNSAliasesToCreate = append(radixDNSAliasesToCreate, app.buildRadixDNSAlias(appName, dnsAlias, port))
 	}
 	if len(errs) > 0 {
-		return errors.Concat(errs)
+		return stderrors.Join(errs...)
 	}
 	for _, radixDNSAlias := range existingRadixDNSAliasesMap {
 		if err = app.kubeutil.DeleteRadixDNSAliases(radixDNSAlias); err != nil {
@@ -63,7 +63,7 @@ func (app *ApplicationConfig) createOrUpdateDNSAliases() error {
 			errs = append(errs, err)
 		}
 	}
-	return errors.Concat(errs)
+	return stderrors.Join(errs...)
 }
 
 func getComponentPublicPort(component *radixv1.RadixComponent) *radixv1.ComponentPort {

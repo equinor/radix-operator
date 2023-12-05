@@ -2,15 +2,15 @@ package radixvalidators
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"regexp"
 	"strings"
 
-	commonErrors "github.com/equinor/radix-common/utils/errors"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	errors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -73,7 +73,7 @@ func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validato
 			errs = append(errs, err)
 		}
 	}
-	return commonErrors.Concat(errs)
+	return stderrors.Join(errs...)
 }
 
 // GetRadixRegistrationBeInsertedWarnings Get warnings for inserting RadixRegistration
