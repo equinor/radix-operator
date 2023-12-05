@@ -3,6 +3,7 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -22,7 +23,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const buildSecretsMountPath = "/build-secrets"
+const (
+	buildSecretsMountPath        = "/build-secrets"
+	privateImageHubMountPath     = "/radix-private-image-hubs"
+	buildahRegistryAuthFile      = "/home/build/auth.json"
+	azureServicePrincipleContext = "/radix-image-builder/.azure"
+)
 
 type void struct{}
 
@@ -33,14 +39,13 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
-
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
 	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
-
 	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.BuildComponentImages)
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
+
 	annotations := radixannotations.ForClusterAutoscalerSafeToEvict(false)
 	buildPodSecurityContext := &pipelineInfo.PipelineArguments.PodSecurityContext
 	if isUsingBuildKit(pipelineInfo) {
@@ -109,6 +114,14 @@ func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []c
 				},
 			},
 		},
+		{
+			Name: defaults.PrivateImageHubSecretName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: defaults.PrivateImageHubSecretName,
+				},
+			},
+		},
 	}
 
 	if len(buildSecrets) > 0 {
@@ -127,40 +140,36 @@ func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []c
 }
 
 func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
+	var containers []corev1.Container
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
-	buildContainerSecContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
-	var containerCommand []string
-
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
 	clusterName := pipelineInfo.PipelineArguments.Clustername
 	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
-	imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageBuilder)
 	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(pipelineInfo.TargetEnvironments, ",")
-	secretMountsArgsString := ""
+	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
 
+	imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageBuilder)
+	buildContainerSecContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
+	var secretMountsArgsString string
 	if isUsingBuildKit(pipelineInfo) {
 		imageBuilder = pipelineInfo.PipelineArguments.BuildKitImageBuilder
 		buildContainerSecContext = getBuildContainerSecContext()
 		secretMountsArgsString = getSecretArgs(buildSecrets)
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
-
-	var containers []corev1.Container
-	azureServicePrincipleContext := "/radix-image-builder/.azure"
-	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
 	var push string
-	var useCache string
 	if pushImage {
 		push = "--push"
 	}
+
+	var useCache string
 	if !pipelineInfo.PipelineArguments.UseCache {
 		useCache = "--no-cache"
 	}
+
 	distinctBuildContainers := make(map[string]void)
 	for _, componentImage := range pipelineInfo.BuildComponentImages {
 		if _, exists := distinctBuildContainers[componentImage.ContainerName]; exists {
@@ -174,7 +183,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		clusterTypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterType, imageTag))
 		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
 		containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.ImageName)
-
 		envVars := []corev1.EnvVar{
 			{
 				Name:  "DOCKER_FILE_NAME",
@@ -198,7 +206,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			},
 			{
 				Name:  "AZURE_CREDENTIALS",
-				Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
+				Value: path.Join(azureServicePrincipleContext, "sp_credentials.json"),
 			},
 			{
 				Name:  "SUBSCRIPTION_ID",
@@ -235,75 +243,89 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			},
 			{
 				Name:  defaults.RadixCommitHashEnvironmentVariable,
-				Value: gitCommitHash,
+				Value: pipelineInfo.GitCommitHash,
 			},
 			{
 				Name:  defaults.RadixGitTagsEnvironmentVariable,
-				Value: gitTags,
-			},
-			// buildah specific env vars
-			{
-				Name: "BUILDAH_USERNAME",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
-						Key:                  "username",
-					},
-				},
-			},
-			{
-				Name: "BUILDAH_PASSWORD",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
-						Key:                  "password",
-					},
-				},
-			},
-			{
-				Name: "BUILDAH_CACHE_USERNAME",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
-						Key:                  "username",
-					},
-				},
-			},
-			{
-				Name: "BUILDAH_CACHE_PASSWORD",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
-						Key:                  "password",
-					},
-				},
+				Value: pipelineInfo.GitTags,
 			},
 		}
-
+		if isUsingBuildKit(pipelineInfo) {
+			envVars = append(envVars, []corev1.EnvVar{
+				{
+					Name: "BUILDAH_USERNAME",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
+							Key:                  "username",
+						},
+					},
+				},
+				{
+					Name: "BUILDAH_PASSWORD",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
+							Key:                  "password",
+						},
+					},
+				},
+				{
+					Name: "BUILDAH_CACHE_USERNAME",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
+							Key:                  "username",
+						},
+					},
+				},
+				{
+					Name: "BUILDAH_CACHE_PASSWORD",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
+							Key:                  "password",
+						},
+					},
+				},
+				{
+					Name:  "REGISTRY_AUTH_FILE",
+					Value: buildahRegistryAuthFile,
+				},
+			}...)
+		}
 		envVars = append(envVars, buildSecrets...)
 
-		container := corev1.Container{
-			Name:            componentImage.ContainerName,
-			Image:           imageBuilder,
-			ImagePullPolicy: corev1.PullAlways,
-			Env:             envVars,
-			VolumeMounts:    getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext, buildSecrets),
-			SecurityContext: buildContainerSecContext,
-		}
+		var command []string
 		if isUsingBuildKit(pipelineInfo) {
 			cacheImagePath := utils.GetImageCachePath(pipelineInfo.PipelineArguments.AppContainerRegistry, pipelineInfo.RadixApplication.Name)
 			useBuildCache := pipelineInfo.RadixApplication.Spec.Build.UseBuildCache == nil || *pipelineInfo.RadixApplication.Spec.Build.UseBuildCache
 			cacheContainerRegistry := pipelineInfo.PipelineArguments.AppContainerRegistry // Store application cache in the App Registry
+			command = getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath, clusterTypeImage, clusterNameImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pushImage)
+		}
 
-			containerCommand = getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage.Context, componentImage.Dockerfile, componentImage.ImagePath, clusterTypeImage, clusterNameImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pushImage)
-			container.Command = containerCommand
-			container.Resources.Requests = map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceCPU:    resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsCPU),
-				corev1.ResourceMemory: resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsMemory),
+		var resources corev1.ResourceRequirements
+		if isUsingBuildKit(pipelineInfo) {
+			resources = corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsCPU),
+					corev1.ResourceMemory: resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsMemory),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceMemory: resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesLimitsMemory),
+				},
 			}
-			container.Resources.Limits = map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceMemory: resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesLimitsMemory),
-			}
+		}
+
+		container := corev1.Container{
+			Name:            componentImage.ContainerName,
+			Image:           imageBuilder,
+			Command:         command,
+			ImagePullPolicy: corev1.PullAlways,
+			Env:             envVars,
+			VolumeMounts:    getBuildAcrJobContainerVolumeMounts(buildSecrets, isUsingBuildKit(pipelineInfo)),
+			SecurityContext: buildContainerSecContext,
+			Resources:       resources,
 		}
 		containers = append(containers, container)
 	}
@@ -311,7 +333,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	return containers
 }
 
-func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, buildSecrets []corev1.EnvVar) []corev1.VolumeMount {
+func getBuildAcrJobContainerVolumeMounts(buildSecrets []corev1.EnvVar, mountPrivateImageHubAuth bool) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      git.BuildContextVolumeName,
@@ -323,27 +345,33 @@ func getBuildAcrJobContainerVolumeMounts(azureServicePrincipleContext string, bu
 			ReadOnly:  true,
 		},
 	}
-	if len(buildSecrets) == 0 {
-		return volumeMounts
-	}
-	volumeMounts = append(volumeMounts,
-		corev1.VolumeMount{
-			Name:      defaults.BuildSecretsName,
-			MountPath: buildSecretsMountPath,
-			ReadOnly:  true,
+
+	if mountPrivateImageHubAuth {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      defaults.PrivateImageHubSecretName,
+			MountPath: privateImageHubMountPath,
 		})
+	}
+
+	if len(buildSecrets) > 0 {
+		volumeMounts = append(volumeMounts,
+			corev1.VolumeMount{
+				Name:      defaults.BuildSecretsName,
+				MountPath: buildSecretsMountPath,
+				ReadOnly:  true,
+			})
+	}
+
 	return volumeMounts
 }
 
 func getBuildahContainerCommand(containerImageRegistry, secretArgsString, context, dockerFileName, imageTag, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool) []string {
-
 	commandList := commandbuilder.NewCommandList()
-
+	commandList.AddStrCmd("cp %s %s", path.Join(privateImageHubMountPath, ".dockerconfigjson"), buildahRegistryAuthFile)
 	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", containerImageRegistry)
 	if useBuildCache {
 		commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s", cacheContainerImageRegistry)
 	}
-
 	buildah := commandbuilder.NewCommand("/usr/bin/buildah build")
 	commandList.AddCmd(buildah)
 
