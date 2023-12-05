@@ -118,7 +118,8 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 
 	sut := s.createAlertSyncer(radixAlert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	_, err = s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Nil(err, "secret not found")
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
@@ -139,7 +140,8 @@ func (s *alertTestSuite) Test_OnSync_Rbac_SkipCreateOnMissingRR() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoles.Items, 0)
 	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
@@ -164,7 +166,8 @@ func (s *alertTestSuite) Test_OnSync_Rbac_DeleteExistingOnMissingRR() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err = sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoles.Items, 0)
 	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
@@ -187,7 +190,8 @@ func (s *alertTestSuite) Test_OnSync_Rbac_CreateWithOwnerReference() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoles.Items, 2)
 	for _, actualRole := range actualRoles.Items {
@@ -229,7 +233,8 @@ func (s *alertTestSuite) Test_OnSync_Rbac_UpdateWithOwnerReference() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err = sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoles.Items, 2)
 	for _, actualRole := range actualRoles.Items {
@@ -260,7 +265,8 @@ func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualAdminRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretAdminRoleName(alertName), metav1.GetOptions{})
 	s.Len(actualAdminRole.Rules, 1, "role rules not as expected")
 	s.ElementsMatch([]string{GetAlertSecretName(alertName)}, actualAdminRole.Rules[0].ResourceNames, "role rule resource names not as expected")
@@ -311,7 +317,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_RemoveOrphanedKeys() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Len(actualSecret.Data, 2)
 	s.Equal(receiver1, string(actualSecret.Data[GetSlackConfigSecretKeyName(receiver1)]))
@@ -330,7 +337,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithOwnerReference() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Len(actualSecret.OwnerReferences, 1, "secret ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualSecret.OwnerReferences[0], "secret ownerReference not as expected")
@@ -350,7 +358,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateWithOwnerReference() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err = sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Len(actualSecret.OwnerReferences, 1, "secret ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualSecret.OwnerReferences[0], "secret ownerReference not as expected")
@@ -367,7 +376,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithAppLabel() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Equal(map[string]string{kube.RadixAppLabel: appName}, actualSecret.Labels, "secret labels not as expected")
 }
@@ -383,7 +393,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithoutAppLabel() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Empty(actualSecret.Labels, "secret labels not as expected")
 }
@@ -401,7 +412,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateSetAppLabel() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err = sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Equal(map[string]string{kube.RadixAppLabel: appName}, actualSecret.Labels, "secret labels not as expected")
 }
@@ -419,7 +431,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateRemoveAppLabel() {
 
 	sut := s.createAlertSyncer(radixalert)
 	err = sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Empty(actualSecret.Labels, "secret labels not as expected")
 }
@@ -436,7 +449,8 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_CreateWithOwnerReference
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
 	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualAmr.OwnerReferences[0], "alertmanagerconfig ownerReference not as expected")
@@ -456,7 +470,8 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_UpdateWithOwnerReference
 
 	sut := s.createAlertSyncer(radixalert)
 	err = sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
 	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualAmr.OwnerReferences[0], "alertmanagerconfig ownerReference not as expected")
@@ -537,7 +552,8 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 
 	sut := s.createAlertSyncer(radixalert, testAlertSyncerWithAlertConfigs(alertConfigs), testAlertSyncerWithSlackMessageTemplate(slackTemplate))
 	err := sut.OnSync()
-	s.Nil(err)
+	s.Require().NoError(err)
+
 	// Receivers
 	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
 	s.Len(actualAmr.Spec.Receivers, 5)
@@ -597,9 +613,9 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	radixalert, err = s.radixClient.RadixV1().RadixAlerts(namespace).Update(context.Background(), radixalert, metav1.UpdateOptions{})
 	s.Nil(err)
 	sut = s.createAlertSyncer(radixalert, testAlertSyncerWithAlertConfigs(alertConfigs), testAlertSyncerWithSlackMessageTemplate(slackTemplate))
-	if err := sut.OnSync(); err != nil {
-		panic(err)
-	}
+	err = sut.OnSync()
+	s.Require().NoError(err)
+
 	actualAmr, _ = s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
 	s.Len(actualAmr.Spec.Receivers, 3)
 	s.Len(actualAmr.Spec.Route.Routes, 2)
