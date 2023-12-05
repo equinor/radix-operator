@@ -5,7 +5,6 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/pipelines"
-	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -31,14 +30,6 @@ func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
 	cli := pipelines.NewRunner(kubeclient, radixclient, &monitoring.Clientset{}, secretproviderclient, pipelineDefinition, "any-app")
 
-	err := cli.PrepareRun(&model.PipelineArguments{DNSConfig: getDNSAliasConfig()})
+	err := cli.PrepareRun(&model.PipelineArguments{})
 	assert.Error(t, err)
-}
-
-func getDNSAliasConfig() *dnsaliasconfig.DNSConfig {
-	return &dnsaliasconfig.DNSConfig{
-		DNSZone:               "dev.radix.equinor.com",
-		ReservedAppDNSAliases: dnsaliasconfig.AppReservedDNSAlias{"api": "radix-api"},
-		ReservedDNSAliases:    []string{"grafana"},
-	}
 }

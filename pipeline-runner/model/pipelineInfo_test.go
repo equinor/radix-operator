@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
@@ -74,7 +73,6 @@ func Test_GetImageTagNamesFromArgs(t *testing.T) {
 			pipelineArguments: model.PipelineArguments{
 				ToEnvironment: "env1",
 				ImageTagNames: map[string]string{},
-				DNSConfig:     getDNSAliasConfig(),
 			},
 			expectedToEnvironment: "env1",
 			expectedImageTagNames: map[string]string{},
@@ -84,7 +82,6 @@ func Test_GetImageTagNamesFromArgs(t *testing.T) {
 			pipelineArguments: model.PipelineArguments{
 				ToEnvironment: "env1",
 				ImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"},
-				DNSConfig:     getDNSAliasConfig(),
 			},
 			expectedToEnvironment: "env1",
 			expectedImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"},
@@ -107,7 +104,6 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 
 	pipelineArgs := &model.PipelineArguments{
 		PushImage: false,
-		DNSConfig: getDNSAliasConfig(),
 	}
 
 	p, _ := model.InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
@@ -125,7 +121,6 @@ func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 
 	pipelineArgs := &model.PipelineArguments{
 		PushImage: true,
-		DNSConfig: getDNSAliasConfig(),
 	}
 
 	p, _ := model.InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
@@ -151,12 +146,12 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 	scenarios := []scenario{
 		{
 			name:                  "only target environment",
-			pipelineArguments:     model.PipelineArguments{ToEnvironment: "target", DNSConfig: getDNSAliasConfig()},
+			pipelineArguments:     model.PipelineArguments{ToEnvironment: "target"},
 			expectedToEnvironment: "target",
 		},
 		{
 			name:                  "target environment with image tags",
-			pipelineArguments:     model.PipelineArguments{ToEnvironment: "target", ImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"}, DNSConfig: getDNSAliasConfig()},
+			pipelineArguments:     model.PipelineArguments{ToEnvironment: "target", ImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"}},
 			expectedToEnvironment: "target",
 			expectedImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"},
 		},
@@ -184,13 +179,5 @@ func Test_NonExistingPipelineType(t *testing.T) {
 }
 
 func getPipelineArguments() *model.PipelineArguments {
-	return &model.PipelineArguments{DNSConfig: getDNSAliasConfig()}
-}
-
-func getDNSAliasConfig() *dnsalias.DNSConfig {
-	return &dnsalias.DNSConfig{
-		DNSZone:               "dev.radix.equinor.com",
-		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
-		ReservedDNSAliases:    []string{"grafana"},
-	}
+	return &model.PipelineArguments{}
 }

@@ -146,7 +146,6 @@ radixbatch-crd: temp-crds
 .PHONY: radixdnsalias-crd
 radixdnsalias-crd: temp-crds
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
-	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixdnsalias.yaml > $(JSON_SCHEMA_DIR)radixdnsalias.json
 
 .PHONY: temp-crds
 temp-crds: controller-gen
