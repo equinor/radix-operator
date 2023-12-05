@@ -2,9 +2,10 @@ package utils
 
 import (
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -29,12 +30,12 @@ func GetPodSpecAffinity(node *v1.RadixNode, appName string, componentName string
 	nodeAffinity := &corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
 	}
-	addGpuNodeSelectorTerms(node, nodeAffinity)
-	addJobNodeSelectorTerms(nodeAffinity, isScheduledJob, isPipelineJob)
+	if !addGpuNodeSelectorTerms(node, nodeAffinity) {
+		addJobNodeSelectorTerms(nodeAffinity, isScheduledJob, isPipelineJob)
+	}
 	if len(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
 		affinity.NodeAffinity = nodeAffinity
 	}
-
 	return affinity
 }
 
@@ -61,25 +62,23 @@ func getPodAffinityTerm(appName string, componentName string) corev1.PodAffinity
 	}
 }
 
-func addGpuNodeSelectorTerms(node *v1.RadixNode, nodeAffinity *corev1.NodeAffinity) {
-	nodeSelectorTerm := corev1.NodeSelectorTerm{}
-
-	if node != nil {
-		addNodeSelectorRequirementForGpu(node.Gpu, &nodeSelectorTerm)
-		addNodeSelectorRequirementForGpuCount(node.GpuCount, &nodeSelectorTerm)
+func addGpuNodeSelectorTerms(radixNode *v1.RadixNode, nodeAffinity *corev1.NodeAffinity) bool {
+	if !UseGPUNode(radixNode) {
+		return false
 	}
+	nodeSelectorTerm := corev1.NodeSelectorTerm{}
+	addNodeSelectorRequirementForGpu(radixNode.Gpu, &nodeSelectorTerm)
+	addNodeSelectorRequirementForGpuCount(radixNode.GpuCount, &nodeSelectorTerm)
 
 	if len(nodeSelectorTerm.MatchExpressions) > 0 {
 		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, nodeSelectorTerm)
+		return true
 	}
+	return false
 }
 
 func addNodeSelectorRequirementForGpu(gpu string, nodeSelectorTerm *corev1.NodeSelectorTerm) {
-	nodeGpuValue := strings.ReplaceAll(gpu, " ", "")
-	if len(nodeGpuValue) == 0 {
-		return
-	}
-	nodeGpuList := strings.Split(nodeGpuValue, ",")
+	nodeGpuList := strings.Split(strings.TrimSpace(gpu), ",")
 	if len(nodeGpuList) == 0 {
 		return
 	}
@@ -119,10 +118,10 @@ func getGpuLists(nodeGpuList []string) ([]string, []string) {
 	excludingGpus := make([]string, 0)
 	for _, gpu := range nodeGpuList {
 		if strings.HasPrefix(gpu, "-") {
-			excludingGpus = append(excludingGpus, strings.ToLower(gpu[1:]))
+			excludingGpus = append(excludingGpus, strings.TrimSpace(strings.ToLower(gpu[1:])))
 			continue
 		}
-		includingGpus = append(includingGpus, strings.ToLower(gpu))
+		includingGpus = append(includingGpus, strings.TrimSpace(strings.ToLower(gpu)))
 	}
 	return includingGpus, excludingGpus
 }
