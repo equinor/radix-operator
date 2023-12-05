@@ -15,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -101,14 +100,6 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 	radixJobList, err := s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err)
 	s.Empty(radixJobList.Items)
-}
-
-func getDNSAliasConfig() *dnsalias.DNSConfig {
-	return &dnsalias.DNSConfig{
-		DNSZone:               "dev.radix.equinor.com",
-		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
-		ReservedDNSAliases:    []string{"grafana"},
-	}
 }
 
 func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {

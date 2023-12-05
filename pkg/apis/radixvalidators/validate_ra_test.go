@@ -28,6 +28,7 @@ func Test_valid_ra_returns_true(t *testing.T) {
 
 	assert.NoError(t, err)
 }
+
 func Test_missing_rr(t *testing.T) {
 	client := radixfake.NewSimpleClientset()
 	validRA := createValidRA()
