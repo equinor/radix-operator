@@ -7,7 +7,7 @@ import (
 )
 
 // GetOwnerReference Gets owner reference of application
-func (app Application) getOwnerReference() []metav1.OwnerReference {
+func (app *Application) getOwnerReference() []metav1.OwnerReference {
 	return GetOwnerReferenceOfRegistration(app.registration)
 }
 

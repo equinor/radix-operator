@@ -9,7 +9,7 @@ const (
 	limitRangeName = "mem-cpu-limit-range-app"
 )
 
-func (app Application) createLimitRangeOnAppNamespace(namespace string) error {
+func (app *Application) createLimitRangeOnAppNamespace(namespace string) error {
 	defaultMemoryLimit := defaults.GetDefaultMemoryLimitForAppNamespace()
 	defaultCPURequest := defaults.GetDefaultCPURequestForAppNamespace()
 	defaultMemoryRequest := defaults.GetDefaultMemoryRequestForAppNamespace()

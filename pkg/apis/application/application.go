@@ -42,7 +42,7 @@ func NewApplication(
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
-func (app Application) OnSync() error {
+func (app *Application) OnSync() error {
 	radixRegistration := app.registration
 	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName()})
 
@@ -113,7 +113,7 @@ func (app Application) OnSync() error {
 	return nil
 }
 
-func (app Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
+func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
 	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currentRR, err := rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})

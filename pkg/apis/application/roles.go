@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app Application) buildRRClusterRole(clusterRoleName string, verbs []string) *auth.ClusterRole {
+func (app *Application) buildRRClusterRole(clusterRoleName string, verbs []string) *auth.ClusterRole {
 	appName := app.registration.Name
 	return app.buildClusterRole(clusterRoleName, auth.PolicyRule{APIGroups: []string{radix.GroupName},
 		Resources:     []string{radix.ResourceRadixRegistrations},
@@ -19,7 +19,7 @@ func (app Application) buildRRClusterRole(clusterRoleName string, verbs []string
 	})
 }
 
-func (app Application) buildRadixDNSAliasClusterRole(roleNamePrefix string) *auth.ClusterRole {
+func (app *Application) buildRadixDNSAliasClusterRole(roleNamePrefix string) *auth.ClusterRole {
 	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
 	return app.buildClusterRole(clusterRoleName, auth.PolicyRule{APIGroups: []string{radix.GroupName},
 		Resources: []string{radix.ResourceRadixDNSAliases},
@@ -27,7 +27,7 @@ func (app Application) buildRadixDNSAliasClusterRole(roleNamePrefix string) *aut
 	})
 }
 
-func (app Application) buildClusterRole(clusterRoleName string, rules ...auth.PolicyRule) *auth.ClusterRole {
+func (app *Application) buildClusterRole(clusterRoleName string, rules ...auth.PolicyRule) *auth.ClusterRole {
 	logger.Debugf("Creating clusterrole config %s", clusterRoleName)
 	clusterRole := &auth.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
