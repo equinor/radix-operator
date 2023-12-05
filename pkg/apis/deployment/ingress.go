@@ -340,7 +340,12 @@ func (deploy *Deployment) getIngressConfig(
 		if err != nil {
 			return nil, err
 		}
-		annotations = radixmaps.MergeMaps(annotations, providedAnnotations)
+
+		test := map[string]string{
+			"nginx.ingress.kubernetes.io/custom-http-errors":             "503",
+			"nginx.ingress.kubernetes.io/disable-proxy-intercept-errors": "true",
+		}
+		annotations = radixmaps.MergeMaps(annotations, providedAnnotations, test)
 	}
 
 	ingress := &networkingv1.Ingress{
