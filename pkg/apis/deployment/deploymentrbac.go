@@ -8,7 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	auth "k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 // ConfigureDeploymentRbacFunc defines a function that configures RBAC
@@ -78,9 +78,9 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix job scheduler. %v", err)
 		}
-		subjects := []auth.Subject{
+		subjects := []rbacv1.Subject{
 			{
-				Kind:      k8s.KindServiceAccount,
+				Kind:      rbacv1.ServiceAccountKind,
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
 			}}

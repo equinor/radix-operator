@@ -15,7 +15,7 @@ import (
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/sirupsen/logrus"
-	rbac "k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -197,7 +197,7 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppReaderEnvironmentsRoleName, readerSubjects)
 	readerRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
-	for _, roleBinding := range []*rbac.RoleBinding{adminRoleBinding, readerRoleBinding} {
+	for _, roleBinding := range []*rbacv1.RoleBinding{adminRoleBinding, readerRoleBinding} {
 		err = env.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 		if err != nil {
 			return err
@@ -208,9 +208,9 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 }
 
 func (env *Environment) applyRadixTektonEnvRoleBinding(namespace string) error {
-	roleBinding := &rbac.RoleBinding{
+	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -219,14 +219,14 @@ func (env *Environment) applyRadixTektonEnvRoleBinding(namespace string) error {
 				kube.RadixAppLabel: env.config.Spec.AppName,
 			},
 		},
-		RoleRef: rbac.RoleRef{
-			APIGroup: k8s.RbacApiGroup,
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
 			Name:     defaults.RadixTektonEnvRoleName,
 		},
-		Subjects: []rbac.Subject{
+		Subjects: []rbacv1.Subject{
 			{
-				Kind:      k8s.KindServiceAccount,
+				Kind:      rbacv1.ServiceAccountKind,
 				Name:      defaults.RadixTektonServiceAccountName,
 				Namespace: utils.GetAppNamespace(env.config.Spec.AppName),
 			},
@@ -237,9 +237,9 @@ func (env *Environment) applyRadixTektonEnvRoleBinding(namespace string) error {
 }
 
 func (env *Environment) ApplyRadixPipelineRunnerRoleBinding(namespace string) error {
-	roleBinding := &rbac.RoleBinding{
+	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -248,14 +248,14 @@ func (env *Environment) ApplyRadixPipelineRunnerRoleBinding(namespace string) er
 				kube.RadixAppLabel: env.config.Spec.AppName,
 			},
 		},
-		RoleRef: rbac.RoleRef{
-			APIGroup: k8s.RbacApiGroup,
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
 			Name:     defaults.PipelineEnvRoleName,
 		},
-		Subjects: []rbac.Subject{
+		Subjects: []rbacv1.Subject{
 			{
-				Kind:      k8s.KindServiceAccount,
+				Kind:      rbacv1.ServiceAccountKind,
 				Name:      defaults.PipelineServiceAccountName,
 				Namespace: utils.GetAppNamespace(env.config.Spec.AppName),
 			},

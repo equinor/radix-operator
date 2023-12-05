@@ -429,8 +429,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	s.Equal(expectedLabels, admRoleBinding.Labels)
 	s.Equal(admRole.Name, admRoleBinding.RoleRef.Name)
 	expectedSubjects := []rbacv1.Subject{
-		{Kind: k8s.KindGroup, APIGroup: k8s.RbacApiGroup, Name: "ad1"},
-		{Kind: k8s.KindGroup, APIGroup: k8s.RbacApiGroup, Name: "ad2"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "ad1"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "ad2"},
 	}
 	s.ElementsMatch(expectedSubjects, admRoleBinding.Subjects)
 
@@ -438,8 +438,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	s.Equal(expectedLabels, readerRoleBinding.Labels)
 	s.Equal(readerRole.Name, readerRoleBinding.RoleRef.Name)
 	expectedSubjects = []rbacv1.Subject{
-		{Kind: k8s.KindGroup, APIGroup: k8s.RbacApiGroup, Name: "rd1"},
-		{Kind: k8s.KindGroup, APIGroup: k8s.RbacApiGroup, Name: "rd2"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "rd1"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "rd2"},
 	}
 	s.ElementsMatch(expectedSubjects, readerRoleBinding.Subjects)
 }
@@ -763,7 +763,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetOwnerReferenceOfIngress() {
 	actualOwnerReferences := ingress.GetOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
-	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: k8s.APIVersionNetworking, Kind: k8s.KindIngress, Name: "anyingress", UID: "anyuid", Controller: utils.BoolPtr(true)}}, actualOwnerReferences)
+	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: networkingv1.SchemeGroupVersion.Identifier(), Kind: k8s.KindIngress, Name: "anyingress", UID: "anyuid", Controller: utils.BoolPtr(true)}}, actualOwnerReferences)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetIngressName() {
