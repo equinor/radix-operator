@@ -161,6 +161,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: git.BuildContextVolumeName},
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
+		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
 	}
 	s.ElementsMatch(expectedVolumes, job.Spec.Template.Spec.Volumes)
 
@@ -204,10 +205,6 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: "TARGET_ENVIRONMENTS", Value: "dev"},
 		{Name: "RADIX_GIT_COMMIT_HASH", Value: gitHash},
 		{Name: "RADIX_GIT_TAGS", Value: gitTags},
-		{Name: "BUILDAH_USERNAME", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "username", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName}}}},
-		{Name: "BUILDAH_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "password", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName}}}},
-		{Name: "BUILDAH_CACHE_USERNAME", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "username", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName}}}},
-		{Name: "BUILDAH_CACHE_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "password", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName}}}},
 	}
 	s.ElementsMatch(expectedEnv, job.Spec.Template.Spec.Containers[0].Env)
 
@@ -1334,7 +1331,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
-	s.Len(job.Spec.Template.Spec.Volumes, 4)
+	s.Len(job.Spec.Template.Spec.Volumes, 5)
 	expectedVolumes := []corev1.Volume{
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
 	}
@@ -1355,6 +1352,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	appName, rjName, compName, sourceFolder, dockerFile := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile"
 	prepareConfigMapName := "preparecm"
+	gitConfigMapName, gitHash, gitTags := "gitcm", "githash", "gittags"
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
@@ -1366,8 +1364,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName).WithDockerfileName(dockerFile).WithSourceFolder(sourceFolder)).
 		BuildRA()
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
+			PipelineType:         "build-deploy",
 			Branch:               "main",
 			JobName:              rjName,
 			BuildKitImageBuilder: "anybuildkitimage:tag",
@@ -1379,6 +1379,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
 		},
 		RadixConfigMapName: prepareConfigMapName,
+		GitConfigMapName:   gitConfigMapName,
 	}
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
@@ -1396,6 +1397,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
 	expectedBuildCmd := strings.Join(
 		[]string{
+			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
 			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
@@ -1413,6 +1415,34 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	)
 	expectedCommand := []string{"/bin/bash", "-c", expectedBuildCmd}
 	s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
+	expectedEnv := []corev1.EnvVar{
+		{Name: "DOCKER_FILE_NAME", Value: dockerFile},
+		{Name: "DOCKER_REGISTRY", Value: pipeline.PipelineArguments.ContainerRegistry},
+		{Name: "IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag)},
+		{Name: "CONTEXT", Value: "/workspace/path2/"},
+		{Name: "PUSH", Value: ""},
+		{Name: "AZURE_CREDENTIALS", Value: "/radix-image-builder/.azure/sp_credentials.json"},
+		{Name: "SUBSCRIPTION_ID", Value: pipeline.PipelineArguments.SubscriptionId},
+		{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
+		{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
+		{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s", appName, compName)},
+		{Name: "CACHE", Value: "--no-cache"},
+		{Name: "RADIX_ZONE", Value: pipeline.PipelineArguments.RadixZone},
+		{Name: "BRANCH", Value: pipeline.PipelineArguments.Branch},
+		{Name: "TARGET_ENVIRONMENTS", Value: "dev"},
+		{Name: "RADIX_GIT_COMMIT_HASH", Value: gitHash},
+		{Name: "RADIX_GIT_TAGS", Value: gitTags},
+		{Name: "BUILDAH_USERNAME", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "username", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName}}}},
+		{Name: "BUILDAH_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "password", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName}}}},
+		{Name: "BUILDAH_CACHE_USERNAME", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "username", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName}}}},
+		{Name: "BUILDAH_CACHE_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "password", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName}}}},
+		{Name: "REGISTRY_AUTH_FILE", Value: "/home/build/auth.json"},
+	}
+	s.ElementsMatch(expectedEnv, job.Spec.Template.Spec.Containers[0].Env)
+	expectedVolumeMounts := []corev1.VolumeMount{
+		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs"},
+	}
+	s.Subset(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
@@ -1460,6 +1490,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
 	expectedBuildCmd := strings.Join(
 		[]string{
+			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
 			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
@@ -1526,13 +1557,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
-	s.Len(job.Spec.Template.Spec.Volumes, 4)
+	s.Len(job.Spec.Template.Spec.Volumes, 5)
 	expectedVolumes := []corev1.Volume{
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
 	}
 	s.Subset(job.Spec.Template.Spec.Volumes, expectedVolumes)
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 3)
+	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 4)
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
 	}
@@ -1540,6 +1571,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
 	expectedBuildCmd := strings.Join(
 		[]string{
+			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
 			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
