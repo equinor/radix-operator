@@ -127,7 +127,6 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 					JobName:         scenario.jobName,
 					ImageTag:        scenario.imageTag,
 					CommitID:        anyCommitID,
-					DNSConfig:       getDNSAliasConfig(),
 				},
 			}
 
@@ -286,7 +285,6 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
-			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
@@ -414,7 +412,6 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
-			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
@@ -509,7 +506,6 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
-			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
@@ -626,7 +622,6 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
-			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
@@ -688,7 +683,6 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
-			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 
@@ -807,7 +801,6 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 					JobName:         anyPromoteJobName,
 					ImageTag:        anyImageTag,
 					CommitID:        anyCommitID,
-					DNSConfig:       getDNSAliasConfig(),
 				},
 			}
 
@@ -869,7 +862,6 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
 			CommitID:        anyCommitID,
-			DNSConfig:       getDNSAliasConfig(),
 		},
 	}
 

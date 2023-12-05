@@ -79,11 +79,10 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:   anyJobName,
-			ImageTag:  anyImageTag,
-			Branch:    anyNoMappedBranch,
-			CommitID:  anyCommitID,
-			DNSConfig: getDNSAliasConfig(),
+			JobName:  anyJobName,
+			ImageTag: anyImageTag,
+			Branch:   anyNoMappedBranch,
+			CommitID: anyCommitID,
 		},
 		TargetEnvironments: targetEnvs,
 	}
@@ -185,11 +184,10 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:   anyJobName,
-			ImageTag:  anyImageTag,
-			Branch:    "master",
-			CommitID:  anyCommitID,
-			DNSConfig: getDNSAliasConfig(),
+			JobName:  anyJobName,
+			ImageTag: anyImageTag,
+			Branch:   "master",
+			CommitID: anyCommitID,
 		},
 		TargetEnvironments: targetEnvs,
 		GitCommitHash:      anyCommitID,
@@ -302,11 +300,10 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:   anyJobName,
-			ImageTag:  anyImageTag,
-			Branch:    "master",
-			CommitID:  anyCommitID,
-			DNSConfig: getDNSAliasConfig(),
+			JobName:  anyJobName,
+			ImageTag: anyImageTag,
+			Branch:   "master",
+			CommitID: anyCommitID,
 		},
 		TargetEnvironments: []string{"master"},
 		GitCommitHash:      commitID,
