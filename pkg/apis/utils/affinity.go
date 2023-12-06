@@ -1,42 +1,56 @@
 package utils
 
 import (
-	"fmt"
 	"strconv"
-	"strings"
 
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GetPodSpecAffinity(node *v1.RadixNode, appName string, componentName string, isScheduledJob bool, isPipelineJob bool) *corev1.Affinity {
-	affinity := &corev1.Affinity{}
+// GetDeploymentPodSpecAffinity  Gets component pod specific affinity
+func GetDeploymentPodSpecAffinity(node *v1.RadixNode, appName string, componentName string) *corev1.Affinity {
+	return &corev1.Affinity{
+		PodAntiAffinity: getPodAffinity(appName, componentName),
+		NodeAffinity:    getNodeAffinityForGPUNode(node),
+	}
+}
 
-	if !isScheduledJob && !isPipelineJob {
-		affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
-			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-				{
-					Weight:          1,
-					PodAffinityTerm: getPodAffinityTerm(appName, componentName),
-				},
+// GetScheduledJobPodSpecAffinity  Gets job-component pod specific affinity
+func GetScheduledJobPodSpecAffinity(node *v1.RadixNode) *corev1.Affinity {
+	nodeAffinity := getNodeAffinity(node)
+	if nodeAffinity == nil {
+		return nil
+	}
+	return &corev1.Affinity{
+		NodeAffinity: nodeAffinity,
+	}
+}
+
+// GetPipelineJobPodSpecAffinity Gets pipeline job pod specific affinity
+func GetPipelineJobPodSpecAffinity() *corev1.Affinity {
+	return &corev1.Affinity{NodeAffinity: getNodeAffinityForJobNode()}
+}
+
+func getPodAffinity(appName string, componentName string) *corev1.PodAntiAffinity {
+	return &corev1.PodAntiAffinity{
+		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+			{
+				Weight:          1,
+				PodAffinityTerm: getPodAffinityTerm(appName, componentName),
 			},
-		}
+		},
 	}
+}
 
-	nodeAffinity := &corev1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
+func getNodeAffinity(node *v1.RadixNode) *corev1.NodeAffinity {
+	if nodeAffinity := getNodeAffinityForGPUNode(node); nodeAffinity != nil {
+		return nodeAffinity
 	}
-	if !addGpuNodeSelectorTerms(node, nodeAffinity) {
-		addJobNodeSelectorTerms(nodeAffinity, isScheduledJob, isPipelineJob)
-	}
-	if len(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
-		affinity.NodeAffinity = nodeAffinity
-	}
-	return affinity
+	return getNodeAffinityForJobNode()
 }
 
 func getPodAffinityTerm(appName string, componentName string) corev1.PodAffinityTerm {
@@ -62,73 +76,58 @@ func getPodAffinityTerm(appName string, componentName string) corev1.PodAffinity
 	}
 }
 
-func addGpuNodeSelectorTerms(radixNode *v1.RadixNode, nodeAffinity *corev1.NodeAffinity) bool {
+func getNodeAffinityForGPUNode(radixNode *v1.RadixNode) *corev1.NodeAffinity {
 	if !UseGPUNode(radixNode) {
-		return false
+		return nil
 	}
-	nodeSelectorTerm := corev1.NodeSelectorTerm{}
-	addNodeSelectorRequirementForGpu(radixNode.Gpu, &nodeSelectorTerm)
-	addNodeSelectorRequirementForGpuCount(radixNode.GpuCount, &nodeSelectorTerm)
-
+	nodeSelectorTerm := &corev1.NodeSelectorTerm{}
+	if err := addNodeSelectorRequirementForGpuCount(radixNode.GpuCount, nodeSelectorTerm); err != nil {
+		log.Error(err)
+		return nil
+	}
+	addNodeSelectorRequirementForGpu(radixNode.Gpu, nodeSelectorTerm)
 	if len(nodeSelectorTerm.MatchExpressions) > 0 {
-		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, nodeSelectorTerm)
-		return true
+		return &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{*nodeSelectorTerm}},
+		}
 	}
-	return false
+	return nil
 }
 
 func addNodeSelectorRequirementForGpu(gpu string, nodeSelectorTerm *corev1.NodeSelectorTerm) {
-	nodeGpuList := strings.Split(strings.TrimSpace(gpu), ",")
-	if len(nodeGpuList) == 0 {
+	includingGpus, excludingGpus := GetNodeGPULists(gpu)
+	if len(includingGpus)+len(excludingGpus) == 0 {
 		return
 	}
-	includingGpus, excludingGpus := getGpuLists(nodeGpuList)
 	addNodeSelectorRequirement(nodeSelectorTerm, kube.RadixGpuLabel, corev1.NodeSelectorOpIn, includingGpus...)
 	addNodeSelectorRequirement(nodeSelectorTerm, kube.RadixGpuLabel, corev1.NodeSelectorOpNotIn, excludingGpus...)
 }
 
-func addNodeSelectorRequirementForGpuCount(gpuCount string, nodeSelectorTerm *corev1.NodeSelectorTerm) {
-	gpuCount = strings.ReplaceAll(gpuCount, " ", "")
-	if len(gpuCount) == 0 {
-		return
+func addNodeSelectorRequirementForGpuCount(gpuCount string, nodeSelectorTerm *corev1.NodeSelectorTerm) error {
+	gpuCountValue, err := GetNodeGPUCount(gpuCount)
+	if err != nil {
+		return err
 	}
-	gpuCountValue, err := strconv.Atoi(gpuCount)
-	if err != nil || gpuCountValue <= 0 {
-		log.Error(fmt.Sprintf("invalid node GPU count: %s", gpuCount))
-		return
+	if gpuCountValue == nil {
+		return nil
 	}
-	values := strconv.Itoa(gpuCountValue - 1)
-	addNodeSelectorRequirement(nodeSelectorTerm, kube.RadixGpuCountLabel, corev1.NodeSelectorOpGt, values)
+	addNodeSelectorRequirement(nodeSelectorTerm, kube.RadixGpuCountLabel, corev1.NodeSelectorOpGt, strconv.Itoa((*gpuCountValue)-1))
+	return nil
 }
 
-func addJobNodeSelectorTerms(nodeAffinity *corev1.NodeAffinity, isScheduledJob bool, isPipelineJob bool) {
-	requirement := corev1.NodeSelectorRequirement{Key: kube.RadixJobNodeLabel}
-	if isPipelineJob || isScheduledJob {
-		requirement.Operator = corev1.NodeSelectorOpExists
-	} else {
-		requirement.Operator = corev1.NodeSelectorOpDoesNotExist
-	}
-	nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, corev1.NodeSelectorTerm{
-		MatchExpressions: []corev1.NodeSelectorRequirement{requirement},
-	})
+func getNodeAffinityForJobNode() *corev1.NodeAffinity {
+	return &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+			NodeSelectorTerms: []corev1.NodeSelectorTerm{
+				{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists}}},
+			},
+		}}
 }
 
-func getGpuLists(nodeGpuList []string) ([]string, []string) {
-	includingGpus := make([]string, 0)
-	excludingGpus := make([]string, 0)
-	for _, gpu := range nodeGpuList {
-		if strings.HasPrefix(gpu, "-") {
-			excludingGpus = append(excludingGpus, strings.TrimSpace(strings.ToLower(gpu[1:])))
-			continue
-		}
-		includingGpus = append(includingGpus, strings.TrimSpace(strings.ToLower(gpu)))
-	}
-	return includingGpus, excludingGpus
-}
-
-func addNodeSelectorRequirement(nodeSelectorTerm *corev1.NodeSelectorTerm, key string, operator corev1.NodeSelectorOperator, values ...string) {
+func addNodeSelectorRequirement(nodeSelectorTerm *corev1.NodeSelectorTerm, key string, operator corev1.NodeSelectorOperator, values ...string) bool {
 	if len(values) <= 0 {
-		return
+		return false
 	}
 	nodeSelectorTerm.MatchExpressions = append(nodeSelectorTerm.MatchExpressions, corev1.NodeSelectorRequirement{Key: key, Operator: operator, Values: values})
+	return true
 }
