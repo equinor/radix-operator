@@ -19,6 +19,7 @@ type JobBuilder interface {
 	WithBranch(string) JobBuilder
 	WithCommitID(string) JobBuilder
 	WithPushImage(bool) JobBuilder
+	WithTektonImageTag(string) JobBuilder
 	WithImageTag(string) JobBuilder
 	WithDeploymentName(string) JobBuilder
 	WithStatusOnAnnotation(JobStatusBuilder) JobBuilder

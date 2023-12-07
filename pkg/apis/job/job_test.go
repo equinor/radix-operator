@@ -250,6 +250,32 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	s.Equal(expectedPodSpec, podTemplate.Spec)
 }
 
+func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreatedWithTektonImageTag() {
+	appName, jobName, branch, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	config := getConfigWithPipelineJobsHistoryLimit(3)
+	rj, err := s.applyJobWithSync(utils.NewJobBuilder().
+		WithJobName(jobName).
+		WithAppName(appName).
+		WithBranch(branch).
+		WithCommitID(commitID).
+		WithPushImage(true).
+		WithImageTag(imageTag).
+		WithDeploymentName(deploymentName).
+		WithTektonImageTag("test-tekton-image").
+		WithPipelineType(radixv1.BuildDeploy).
+		WithPipelineImageTag(pipelineTag), config)
+	s.Require().NoError(err)
+	s.Equal("test-tekton-image", rj.Spec.TektonImage)
+	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 1)
+	job := jobs.Items[0]
+	podTemplate := job.Spec.Template
+
+	expected := fmt.Sprintf("--%s=anyregistry/radix-tekton:%s", defaults.RadixTektonPipelineImageEnvironmentVariable, "test-tekton-image")
+	actualArgs := podTemplate.Spec.Containers[0].Args
+	assert.Contains(s.T(), actualArgs, expected)
+}
+
 func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	// Setup

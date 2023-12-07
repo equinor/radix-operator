@@ -144,6 +144,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		return nil, fmt.Errorf("invalid or missing app builder resources")
 	}
 
+	// TODO: Remove fallback to Operator GetEnv when Radix-API is upgrade
 	radixTektonImage := os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)
 	if job.radixJob.Spec.TektonImage != "" {
 		radixTektonImage = fmt.Sprintf("%s/%s:%s", containerRegistry, tektonImage, job.radixJob.Spec.TektonImage)
