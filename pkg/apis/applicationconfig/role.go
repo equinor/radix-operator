@@ -13,7 +13,7 @@ import (
 )
 
 func (app *ApplicationConfig) grantAccessToBuildSecrets(namespace string) error {
-	err := app.grantPipelineAccessToBuildSecrets(namespace)
+	err := app.grantPipelineAccessToSecret(namespace, defaults.BuildSecretsName)
 	if err != nil {
 		return err
 	}
@@ -54,14 +54,14 @@ func (app *ApplicationConfig) grantAppAdminAccessToBuildSecrets(namespace string
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string) error {
-	role := rolePipelineBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
+func (app *ApplicationConfig) grantPipelineAccessToSecret(namespace, secretName string) error {
+	role := rolePipelineSecret(app.GetRadixRegistration(), secretName)
 	err := app.kubeutil.ApplyRole(namespace, role)
 	if err != nil {
 		return err
 	}
 
-	rolebinding := rolebindingPipelineToBuildSecrets(app.GetRadixRegistration(), role)
+	rolebinding := rolebindingPipelineToRole(app.GetRadixRegistration(), role)
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
@@ -95,7 +95,7 @@ func (app *ApplicationConfig) garbageCollectAccessToBuildSecretsForRole(namespac
 func garbageCollectAccessToBuildSecrets(app *ApplicationConfig) error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 	for _, roleName := range []string{
-		getPipelineRoleNameToBuildSecrets(defaults.BuildSecretsName),
+		getPipelineRoleNameToSecret(defaults.BuildSecretsName),
 		getAppReaderRoleNameToBuildSecrets(defaults.BuildSecretsName),
 		getAppAdminRoleNameToBuildSecrets(defaults.BuildSecretsName),
 	} {
@@ -116,8 +116,8 @@ func roleAppReaderBuildSecrets(registration *radixv1.RadixRegistration, buildSec
 	return kube.CreateReadSecretRole(registration.Name, getAppReaderRoleNameToBuildSecrets(buildSecretName), []string{buildSecretName}, nil)
 }
 
-func rolePipelineBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *auth.Role {
-	return kube.CreateManageSecretRole(registration.Name, getPipelineRoleNameToBuildSecrets(buildSecretName), []string{buildSecretName}, nil)
+func rolePipelineSecret(registration *radixv1.RadixRegistration, secretName string) *auth.Role {
+	return kube.CreateReadSecretRole(registration.Name, getPipelineRoleNameToSecret(secretName), []string{secretName}, nil)
 }
 
 func getAppAdminRoleNameToBuildSecrets(buildSecretName string) string {
@@ -128,6 +128,6 @@ func getAppReaderRoleNameToBuildSecrets(buildSecretName string) string {
 	return fmt.Sprintf("%s-%s", defaults.AppReaderRoleName, buildSecretName)
 }
 
-func getPipelineRoleNameToBuildSecrets(buildSecretName string) string {
-	return fmt.Sprintf("%s-%s", "pipeline", buildSecretName)
+func getPipelineRoleNameToSecret(secretName string) string {
+	return fmt.Sprintf("%s-%s", "pipeline", secretName)
 }

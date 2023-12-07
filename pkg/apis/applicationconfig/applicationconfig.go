@@ -96,17 +96,17 @@ func GetEnvironment(component radixv1.RadixCommonComponent, envName string) radi
 }
 
 // GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
-func GetConfigBranch(rr *radixv1.RadixRegistration) string {
+func GetConfigBranch(rr *v1.RadixRegistration) string {
 	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
 }
 
 // IsConfigBranch Checks if given branch is where radix config lives
-func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
+func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
 // GetTargetEnvironments Checks if given branch requires deployment to environments
-func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) []string {
+func GetTargetEnvironments(branchToBuild string, ra *v1.RadixApplication) []string {
 	var targetEnvs []string
 	for _, env := range ra.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
@@ -171,14 +171,9 @@ func (app *ApplicationConfig) OnSync() error {
 		log.Errorf("Failed to create private image hub secrets. %v", err)
 		return err
 	}
-	if err := utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName); err != nil {
-		log.Warnf("failed to grant reader access to private image hub secret %v", err)
-	}
-	if err := utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName); err != nil {
-		log.Warnf("failed to grant access to private image hub secret %v", err)
-		return err
-	}
-	if err := app.syncBuildSecrets(); err != nil {
+
+	err = app.syncBuildSecrets()
+	if err != nil {
 		log.Errorf("Failed to create build secrets. %v", err)
 		return err
 	}
