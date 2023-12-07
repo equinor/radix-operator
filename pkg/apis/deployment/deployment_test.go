@@ -4,7 +4,6 @@ package deployment
 import (
 	"context"
 	"errors"
-	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
@@ -1759,7 +1758,7 @@ func addRadixBatches(radixclient radixclient.Interface, envNamespace string, dep
 			errs = append(errs, err)
 		}
 	}
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }
 
 func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {
