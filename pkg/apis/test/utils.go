@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -414,6 +415,9 @@ func AssertError(t *testing.T, expectedError string, err error) {
 
 // RegisterRadixDNSAliases Register RadixDNSAliases
 func RegisterRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]radixv1.RadixDNSAliasSpec) error {
+	if radixDNSAliasesMap == nil {
+		return nil
+	}
 	for alias, aliasesSpec := range radixDNSAliasesMap {
 		err := RegisterRadixDNSAliasBySpec(radixClient, alias, aliasesSpec)
 		if err != nil {
@@ -438,10 +442,16 @@ func RegisterRadixDNSAliasBySpec(radixClient radixclient.Interface, alias string
 	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.Background(),
 		&radixv1.RadixDNSAlias{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   alias,
-				Labels: map[string]string{kube.RadixAppLabel: aliasesSpec.AppName},
+				Name:       alias,
+				Labels:     labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
+				Finalizers: []string{kube.RadixDNSAliasFinalizer},
 			},
-			Spec: aliasesSpec,
+			Spec: radixv1.RadixDNSAliasSpec{
+				AppName:     aliasesSpec.AppName,
+				Environment: aliasesSpec.Environment,
+				Component:   aliasesSpec.Component,
+				Port:        aliasesSpec.Port,
+			},
 		}, metav1.CreateOptions{})
 	return err
 }

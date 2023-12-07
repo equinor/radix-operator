@@ -64,9 +64,9 @@ func (kubeutil *Kube) GetRadixDNSAliasWithSelector(labelSelectorString string) (
 	return kubeutil.radixclient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelectorString})
 }
 
-// GetRadixDNSAliasMapWithSelector Gets a map of RadixDNSAliases by an optional selector
-func GetRadixDNSAliasMapWithSelector(radixClient radixclient.Interface, labelSelectorString string) (map[string]*radixv1.RadixDNSAlias, error) {
-	radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelectorString})
+// GetRadixDNSAliasMap Gets a map of all RadixDNSAliases
+func GetRadixDNSAliasMap(radixClient radixclient.Interface) (map[string]*radixv1.RadixDNSAlias, error) {
+	radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return make(map[string]*radixv1.RadixDNSAlias), err
 	}

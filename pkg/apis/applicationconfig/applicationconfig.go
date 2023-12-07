@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -140,7 +139,7 @@ func (app *ApplicationConfig) OnSync() error {
 		log.Errorf("Failed to create build secrets. %v", err)
 		return err
 	}
-	if err := app.createOrUpdateDNSAliases(); err != nil {
+	if err := app.syncDNSAliases(); err != nil {
 		return fmt.Errorf("failed to process DNS aliases: %w", err)
 	}
 	return app.syncSubPipelineServiceAccounts()
@@ -199,26 +198,6 @@ func (app *ApplicationConfig) applyEnvironment(newRe *radixv1.RadixEnvironment) 
 		}
 	}
 	return nil
-}
-
-func (app *ApplicationConfig) getPortForDNSAlias(dnsAlias radixv1.DNSAlias) (int32, error) {
-	component, componentFound := slice.FindFirst(app.config.Spec.Components, func(c radixv1.RadixComponent) bool {
-		return c.Name == dnsAlias.Component
-	})
-	if !componentFound {
-		// TODO test
-		return 0, fmt.Errorf("component %s does not exist in the application %s", dnsAlias.Component, app.config.GetName())
-	}
-	if !component.GetEnabledForEnvironment(dnsAlias.Environment) {
-		// TODO test
-		return 0, fmt.Errorf("component %s is not enabled for the environment %s in the application %s", dnsAlias.Component, dnsAlias.Environment, app.config.GetName())
-	}
-	componentPublicPort := getComponentPublicPort(&component)
-	if componentPublicPort == nil {
-		// TODO test
-		return 0, fmt.Errorf("component %s does not have public port in the application %s", dnsAlias.Component, app.config.GetName())
-	}
-	return componentPublicPort.Port, nil
 }
 
 // patchDifference creates a mergepatch, comparing old and new RadixEnvironments and issues the patch to radix

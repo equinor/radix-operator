@@ -146,7 +146,7 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) error {
 
 func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) error {
 	var errs []error
-	radixDNSAliasMap, err := kube.GetRadixDNSAliasMapWithSelector(radixClient, "")
+	radixDNSAliasMap, err := kube.GetRadixDNSAliasMap(radixClient)
 	if err != nil {
 		return err
 	}
