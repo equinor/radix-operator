@@ -16,12 +16,12 @@ func CreateRadixDNSAliasIngress(kubeClient kubernetes.Interface, appName, envNam
 }
 
 // GetDNSAliasIngressName Gets name of the ingress for the custom DNS alias
-func GetDNSAliasIngressName(service string, alias string) string {
-	return fmt.Sprintf("%s.%s.custom-alias", service, alias)
+func GetDNSAliasIngressName(alias string) string {
+	return fmt.Sprintf("%s.custom-alias", alias)
 }
 
 // GetDNSAliasHost Gets DNS alias host.
 // Example for the alias "my-app" and the cluster "Playground": my-app.playground.radix.equinor.com
-func GetDNSAliasHost(alias string, dnsZone string) string {
+func GetDNSAliasHost(alias, dnsZone string) string {
 	return fmt.Sprintf("%s.%s", alias, dnsZone)
 }

@@ -1,20 +1,24 @@
 package radixvalidators_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
+	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
@@ -1851,6 +1855,104 @@ func Test_validateNotificationsRA(t *testing.T) {
 	}
 }
 
+func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
+	const (
+		raAppName         = "anyapp"
+		otherAppName      = "anyapp2"
+		raEnv             = "test"
+		raComponentName   = "app"
+		raPublicPort      = 8080
+		someEnv           = "dev"
+		someComponentName = "component-abc"
+		somePort          = 9090
+		alias1            = "alias1"
+		alias2            = "alias2"
+	)
+	dnsConfig := &dnsaliasconfig.DNSConfig{
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: dnsaliasconfig.AppReservedDNSAlias{"api": "radix-api"},
+		ReservedDNSAliases:    []string{"grafana"},
+	}
+	var testScenarios = []struct {
+		name                    string
+		applicationBuilder      utils.ApplicationBuilder
+		existingRadixDNSAliases map[string]commonTest.DNSAlias
+		expectedValidationError error
+	}{
+		{
+			name:                    "No dns aliases",
+			applicationBuilder:      utils.ARadixApplication(),
+			expectedValidationError: nil,
+		},
+		{
+			name:                    "Added dns aliases",
+			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(v1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: nil,
+		},
+		{
+			name:               "Existing dns aliases for the app",
+			applicationBuilder: utils.ARadixApplication().WithDNSAlias(v1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: raAppName, Environment: raEnv, Component: raComponentName},
+			},
+			expectedValidationError: nil,
+		},
+		{
+			name:               "Existing dns aliases for the app and another app",
+			applicationBuilder: utils.ARadixApplication().WithDNSAlias(v1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: raAppName, Environment: raEnv, Component: raComponentName},
+				alias2: {AppName: otherAppName, Environment: someEnv, Component: someComponentName},
+			},
+			expectedValidationError: nil,
+		},
+		{
+			name:               "Same alias exists in dns alias for another app",
+			applicationBuilder: utils.ARadixApplication().WithDNSAlias(v1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: otherAppName, Environment: someEnv, Component: someComponentName},
+			},
+			expectedValidationError: radixvalidators.RadixDNSAliasAlreadyUsedByAnotherApplicationError(alias1),
+		},
+		{
+			name:                    "Reserved alias api for another app",
+			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(v1.DNSAlias{Alias: "api", Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: radixvalidators.RadixDNSAliasIsReservedForRadixPlatformApplicationError("api"),
+		},
+		{
+			name:                    "Reserved alias api for another service",
+			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(v1.DNSAlias{Alias: "grafana", Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: radixvalidators.RadixDNSAliasIsReservedForRadixPlatformServiceError("grafana"),
+		},
+		{
+			name:                    "Reserved alias api for this app",
+			applicationBuilder:      utils.ARadixApplication().WithAppName("radix-api").WithDNSAlias(v1.DNSAlias{Alias: "api", Environment: raEnv, Component: raComponentName}),
+			expectedValidationError: nil,
+		},
+	}
+
+	for _, ts := range testScenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			_, radixClient := validRASetup()
+
+			err := commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases)
+			require.NoError(t, err)
+			rr := ts.applicationBuilder.GetRegistrationBuilder().BuildRR()
+			_, err = radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			require.NoError(t, err)
+			ra := ts.applicationBuilder.BuildRA()
+
+			actualValidationErr := radixvalidators.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig)
+
+			if ts.expectedValidationError == nil {
+				require.NoError(t, actualValidationErr)
+			} else {
+				require.EqualError(t, actualValidationErr, ts.expectedValidationError.Error(), "missing or unexpected error")
+			}
+		})
+	}
+}
+
 func createValidRA() *v1.RadixApplication {
 	validRA, _ := utils.GetRadixApplicationFromFile("testdata/radixconfig.yaml")
 
@@ -1865,10 +1967,10 @@ func validRASetup() (kubernetes.Interface, radixclient.Interface) {
 	return kubeclient, client
 }
 
-func getDNSAliasConfig() *dnsalias.DNSConfig {
-	return &dnsalias.DNSConfig{
+func getDNSAliasConfig() *dnsaliasconfig.DNSConfig {
+	return &dnsaliasconfig.DNSConfig{
 		DNSZone:               "dev.radix.equinor.com",
-		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
+		ReservedAppDNSAliases: dnsaliasconfig.AppReservedDNSAlias{"api": "radix-api"},
 		ReservedDNSAliases:    []string{"grafana"},
 	}
 }

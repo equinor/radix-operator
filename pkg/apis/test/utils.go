@@ -414,7 +414,7 @@ func AssertError(t *testing.T, expectedError string, err error) {
 }
 
 // RegisterRadixDNSAliases Register RadixDNSAliases
-func RegisterRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]radixv1.RadixDNSAliasSpec) error {
+func RegisterRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]DNSAlias) error {
 	if radixDNSAliasesMap == nil {
 		return nil
 	}
@@ -428,17 +428,16 @@ func RegisterRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesM
 }
 
 // RegisterRadixDNSAlias Register RadixDNSAlias by properties
-func RegisterRadixDNSAlias(radixClient radixclient.Interface, appName, componentName, envName, alias string, port int32) error {
-	return RegisterRadixDNSAliasBySpec(radixClient, alias, radixv1.RadixDNSAliasSpec{
+func RegisterRadixDNSAlias(radixClient radixclient.Interface, appName, componentName, envName, alias string) error {
+	return RegisterRadixDNSAliasBySpec(radixClient, alias, DNSAlias{
 		AppName:     appName,
 		Environment: envName,
 		Component:   componentName,
-		Port:        port,
 	})
 }
 
 // RegisterRadixDNSAliasBySpec Register RadixDNSAlias by its spec
-func RegisterRadixDNSAliasBySpec(radixClient radixclient.Interface, alias string, aliasesSpec radixv1.RadixDNSAliasSpec) error {
+func RegisterRadixDNSAliasBySpec(radixClient radixclient.Interface, alias string, aliasesSpec DNSAlias) error {
 	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.Background(),
 		&radixv1.RadixDNSAlias{
 			ObjectMeta: metav1.ObjectMeta{
@@ -450,8 +449,15 @@ func RegisterRadixDNSAliasBySpec(radixClient radixclient.Interface, alias string
 				AppName:     aliasesSpec.AppName,
 				Environment: aliasesSpec.Environment,
 				Component:   aliasesSpec.Component,
-				Port:        aliasesSpec.Port,
 			},
 		}, metav1.CreateOptions{})
 	return err
+}
+
+type DNSAlias struct {
+	Alias       string
+	AppName     string
+	Environment string
+	Component   string
+	Port        int
 }

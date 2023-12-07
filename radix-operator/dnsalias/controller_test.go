@@ -125,7 +125,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 func buildRadixDNSAliasIngress(aliasName, component string, port int32, cfg *dnsalias2.DNSConfig) *networkingv1.Ingress {
 	return &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: dnsaliasapi.GetDNSAliasIngressName(component, aliasName)},
+		ObjectMeta: metav1.ObjectMeta{Name: dnsaliasapi.GetDNSAliasIngressName(aliasName)},
 		Spec:       ingress.GetIngressSpec(dnsaliasapi.GetDNSAliasHost(aliasName, cfg.DNSZone), component, defaults.TLSSecretName, port),
 	}
 }
