@@ -59,41 +59,6 @@ func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration 
 	return app.registration
 }
 
-// GetComponent Gets the component for a provided name
-func GetComponent(ra *radixv1.RadixApplication, name string) radixv1.RadixCommonComponent {
-	for _, component := range ra.Spec.Components {
-		if strings.EqualFold(component.Name, name) {
-			return &component
-		}
-	}
-	for _, jobComponent := range ra.Spec.Jobs {
-		if strings.EqualFold(jobComponent.Name, name) {
-			return &jobComponent
-		}
-	}
-	return nil
-}
-
-// GetComponentEnvironmentConfig Gets environment config of component. This method is used by radix-api
-func GetComponentEnvironmentConfig(ra *radixv1.RadixApplication, envName, componentName string) radixv1.RadixCommonEnvironmentConfig {
-	// TODO: Add interface for RA + EnvConfig
-	return GetEnvironment(GetComponent(ra, componentName), envName)
-}
-
-// GetEnvironment Gets environment config of component
-func GetEnvironment(component radixv1.RadixCommonComponent, envName string) radixv1.RadixCommonEnvironmentConfig {
-	if component == nil {
-		return nil
-	}
-
-	for _, environment := range component.GetEnvironmentConfig() {
-		if strings.EqualFold(environment.GetEnvironment(), envName) {
-			return environment
-		}
-	}
-	return nil
-}
-
 // GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
 func GetConfigBranch(rr *radixv1.RadixRegistration) string {
 	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
