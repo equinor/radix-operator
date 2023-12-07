@@ -10,7 +10,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
@@ -96,17 +95,17 @@ func GetEnvironment(component radixv1.RadixCommonComponent, envName string) radi
 }
 
 // GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
-func GetConfigBranch(rr *v1.RadixRegistration) string {
+func GetConfigBranch(rr *radixv1.RadixRegistration) string {
 	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
 }
 
 // IsConfigBranch Checks if given branch is where radix config lives
-func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
+func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
 // GetTargetEnvironments Checks if given branch requires deployment to environments
-func GetTargetEnvironments(branchToBuild string, ra *v1.RadixApplication) []string {
+func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) []string {
 	var targetEnvs []string
 	for _, env := range ra.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
@@ -172,8 +171,7 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
-	err = app.syncBuildSecrets()
-	if err != nil {
+	if err := app.syncBuildSecrets(); err != nil {
 		log.Errorf("Failed to create build secrets. %v", err)
 		return err
 	}
