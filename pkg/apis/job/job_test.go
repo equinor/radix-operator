@@ -271,7 +271,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreatedWithTektonImageTa
 	job := jobs.Items[0]
 	podTemplate := job.Spec.Template
 
-	expected := fmt.Sprintf("--%s=anyregistry/radix-tekton:%s", defaults.RadixTektonPipelineImageEnvironmentVariable, "test-tekton-image")
+	expected := fmt.Sprintf("--%s=radix-tekton:%s", defaults.RadixTektonPipelineImageEnvironmentVariable, "test-tekton-image")
 	actualArgs := podTemplate.Spec.Containers[0].Args
 	assert.Contains(s.T(), actualArgs, expected)
 }

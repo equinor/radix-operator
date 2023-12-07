@@ -147,7 +147,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	// TODO: Remove fallback to Operator GetEnv when Radix-API is upgrade
 	radixTektonImage := os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)
 	if job.radixJob.Spec.TektonImage != "" {
-		radixTektonImage = fmt.Sprintf("%s/%s:%s", containerRegistry, tektonImage, job.radixJob.Spec.TektonImage)
+		radixTektonImage = fmt.Sprintf("%s:%s", tektonImage, job.radixJob.Spec.TektonImage)
 	}
 
 	// Base arguments for all types of pipeline
