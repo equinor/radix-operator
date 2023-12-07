@@ -141,6 +141,17 @@ func (cli *PipelineRunner) CreateResultConfigMap() error {
 		},
 		Data: map[string]string{jobs.ResultContent: string(resultContent)},
 	}
+
+	// When debugging pipeline there will be no RJ
+	if !cli.pipelineInfo.PipelineArguments.Debug {
+		ownerReference, err := jobs.GetOwnerReferenceOfJob(cli.radixclient, utils.GetAppNamespace(cli.appName), cli.pipelineInfo.PipelineArguments.JobName)
+		if err != nil {
+			return err
+		}
+
+		configMap.ObjectMeta.OwnerReferences = ownerReference
+	}
+
 	log.Debugf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 	_, err = cli.kubeUtil.CreateConfigMap(utils.GetAppNamespace(cli.appName), &configMap)
 	return err
