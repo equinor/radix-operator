@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,7 +61,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 		secretsToManage = append(secretsToManage, secretName)
 	}
 
-	dnsExternalAlias := component.GetDNSExternalAlias()
+	dnsExternalAlias := component.GetExternalDNS()
 	if len(dnsExternalAlias) > 0 {
 		err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
 		if err != nil {
@@ -70,13 +70,17 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 
 		// Create secrets to hold TLS certificates
 		for _, externalAlias := range dnsExternalAlias {
-			secretsToManage = append(secretsToManage, externalAlias)
+			// Cert manager will create the TLS secret
+			if externalAlias.UseAutomation {
+				continue
+			}
+			secretsToManage = append(secretsToManage, externalAlias.FQDN)
 
-			if deploy.kubeutil.SecretExists(namespace, externalAlias) {
+			if deploy.kubeutil.SecretExists(namespace, externalAlias.FQDN) {
 				continue
 			}
 
-			err := deploy.createOrUpdateSecret(namespace, deploy.registration.Name, component.GetName(), externalAlias, true)
+			err := deploy.createOrUpdateSecret(namespace, deploy.registration.Name, component.GetName(), externalAlias.FQDN, true)
 			if err != nil {
 				return err
 			}
@@ -266,18 +270,18 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 	for _, secret := range secrets {
 		garbageCollectSecret := true
 
-		dnsExternalAlias := component.GetDNSExternalAlias()
-		if !all && dnsExternalAlias != nil {
+		dnsExternalAlias := component.GetExternalDNS()
+		if !all && len(dnsExternalAlias) > 0 {
 			externalAliasForSecret := secret.Name
 			for _, externalAlias := range dnsExternalAlias {
-				if externalAlias == externalAliasForSecret {
+				if externalAlias.FQDN == externalAliasForSecret {
 					garbageCollectSecret = false
 				}
 			}
 		}
 
 		if garbageCollectSecret {
-			log.Debugf("Delete secret %s for component %s and external alias %s", secret.Name, component.GetName(), dnsExternalAlias)
+			log.Debugf("Delete secret %s for component %s and external alias %s", secret.Name, component.GetName(), slice.Map(dnsExternalAlias, func(dns radixv1.RadixDeployExternalDNS) string { return dns.FQDN }))
 			err = deploy.deleteSecret(secret)
 			if err != nil {
 				return err
@@ -414,7 +418,8 @@ func (deploy *Deployment) removeOrphanedSecrets(ns, secretName string, secrets [
 
 	orphanRemoved := false
 	for secretName := range secret.Data {
-		if !slice.ContainsString(secrets, secretName) {
+
+		if !slice.Any(secrets, func(s string) bool { return s == secretName }) {
 			delete(secret.Data, secretName)
 			orphanRemoved = true
 		}
@@ -444,7 +449,7 @@ func IsSecretRequiredForClientCertificate(clientCertificate *radixv1.ClientCerti
 // GarbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
 func (deploy *Deployment) GarbageCollectSecrets(secrets []*v1.Secret, excludeSecretNames []string) error {
 	for _, secret := range secrets {
-		if slice.ContainsString(excludeSecretNames, secret.Name) {
+		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
 			continue
 		}
 		err := deploy.deleteSecret(secret)

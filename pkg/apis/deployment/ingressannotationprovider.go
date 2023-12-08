@@ -1,10 +1,13 @@
 package deployment
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
@@ -115,6 +118,35 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommo
 		if len(authResponseHeaders) > 0 {
 			annotations[authResponseHeadersAnnotation] = strings.Join(authResponseHeaders, ",")
 		}
+	}
+
+	return annotations, nil
+}
+
+func NewExternalDNSAnnotationProvider(externalDNS *v1.RadixDeployExternalDNS, clusterIssuer string) IngressAnnotationProvider {
+	return &externalDNSAnnotationProvider{
+		externalDNS:   externalDNS,
+		clusterIssuer: clusterIssuer,
+	}
+}
+
+type externalDNSAnnotationProvider struct {
+	externalDNS   *v1.RadixDeployExternalDNS
+	clusterIssuer string
+}
+
+func (provider *externalDNSAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
+	if provider.externalDNS == nil {
+		return nil, errors.New("external DNS config not provided")
+	}
+
+	useAutomation := provider.externalDNS.UseAutomation && len(provider.clusterIssuer) > 0
+	annotations := map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: strconv.FormatBool(useAutomation)}
+
+	if useAutomation {
+		annotations["cert-manager.io/cluster-issuer"] = provider.clusterIssuer
+		annotations["cert-manager.io/duration"] = "2160h"
+		annotations["cert-manager.io/renew-before"] = "360h"
 	}
 
 	return annotations, nil
