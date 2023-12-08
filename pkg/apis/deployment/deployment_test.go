@@ -56,6 +56,8 @@ const testTenantId = "123456789"
 const testRadixDeploymentHistoryLimit = 10
 const testKubernetesApiPort = 543
 
+var testCertAutomationConfig = CertificateAutomationConfig{ClusterIssuer: "test-cert-issuer", Duration: 10000 * time.Hour}
+
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface, secretProvider.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
@@ -123,8 +125,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 8081).
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
-							WithDNSExternalAlias("updated_some.alias.com").
-							WithDNSExternalAlias("updated_another.alias.com").
+							WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "updated_some.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "updated_another.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "updated_external.alias.com", UseAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "65Mi",
 								"cpu":    "251m",
@@ -163,8 +164,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 8080).
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
-							WithDNSExternalAlias("some.alias.com").
-							WithDNSExternalAlias("another.alias.com").
+							WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "another.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "external.alias.com", UseAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "64Mi",
 								"cpu":    "250m",
@@ -698,8 +698,7 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com"),
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "another.alias.com"}),
 			utils.NewDeployComponentBuilder().
 				WithName("redis").
 				WithPort("http", 6379).
@@ -748,8 +747,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com"),
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "external1.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "external2.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "external3.alias.com", UseAutomation: true}),
 			utils.NewDeployComponentBuilder().
 				WithName("redis").
 				WithPort("http", 6379).
@@ -763,12 +761,13 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 7, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
+	assert.Equal(t, 8, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
 	assert.Truef(t, ingressByNameExists("app", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("radixquote", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("edcradix-url-alias", ingresses), "Cluster specific ingress for public component should exist")
-	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have an external alias")
-	assert.Truef(t, ingressByNameExists("another.alias.com", ingresses), "App should have another external alias")
+	assert.Truef(t, ingressByNameExists("external1.alias.com", ingresses), "App should have external1 external alias")
+	assert.Truef(t, ingressByNameExists("external2.alias.com", ingresses), "App should have external2 external alias")
+	assert.Truef(t, ingressByNameExists("external3.alias.com", ingresses), "App should have external3 external alias")
 	assert.Truef(t, ingressByNameExists("app-active-cluster-url-alias", ingresses), "App should have another external alias")
 	assert.Truef(t, ingressByNameExists("radixquote-active-cluster-url-alias", ingresses), "Radixquote should have had an ingress")
 
@@ -778,23 +777,41 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "false", appAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "false", appAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", appAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Len(t, appAlias.Annotations, 0)
 	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", appAlias.Spec.Rules[0].Host, "App should have an external alias")
 
-	externalAlias := getIngressByName("some.alias.com", ingresses)
-	assert.Equal(t, int32(8080), externalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Equal(t, "false", externalAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", externalAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "false", externalAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", externalAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, "some.alias.com", externalAlias.Spec.Rules[0].Host, "App should have an external alias")
+	externalDNS1 := getIngressByName("external1.alias.com", ingresses)
+	assert.Equal(t, int32(8080), externalDNS1.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Equal(t, "false", externalDNS1.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "true", externalDNS1.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "false", externalDNS1.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", externalDNS1.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, externalDNS1.Annotations)
+	assert.Equal(t, "external1.alias.com", externalDNS1.Spec.Rules[0].Host, "App should have an external alias")
 
-	anotherExternalAlias := getIngressByName("another.alias.com", ingresses)
-	assert.Equal(t, int32(8080), anotherExternalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Equal(t, "false", anotherExternalAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", anotherExternalAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "false", anotherExternalAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", anotherExternalAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, "another.alias.com", anotherExternalAlias.Spec.Rules[0].Host, "App should have an external alias")
+	externalDNS2 := getIngressByName("external2.alias.com", ingresses)
+	assert.Equal(t, int32(8080), externalDNS2.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Equal(t, "false", externalDNS2.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "true", externalDNS2.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "false", externalDNS2.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", externalDNS2.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, externalDNS2.Annotations)
+	assert.Equal(t, "external2.alias.com", externalDNS2.Spec.Rules[0].Host, "App should have an external alias")
+
+	externalDNS3 := getIngressByName("external3.alias.com", ingresses)
+	assert.Equal(t, int32(8080), externalDNS3.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Equal(t, "false", externalDNS3.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "true", externalDNS3.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "false", externalDNS3.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", externalDNS3.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+	expectedAnnotations := map[string]string{
+		kube.RadixExternalDNSUseAutomationAnnotation: "true",
+		"cert-manager.io/cluster-issuer":             testCertAutomationConfig.ClusterIssuer,
+		"cert-manager.io/duration":                   testCertAutomationConfig.Duration.String(),
+		"cert-manager.io/renew-before":               certRenewBefore.String(),
+	}
+	assert.Equal(t, expectedAnnotations, externalDNS3.Annotations)
+	assert.Equal(t, "external3.alias.com", externalDNS3.Spec.Rules[0].Host, "App should have an external alias")
 
 	appActiveClusterIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
 	assert.Equal(t, int32(8080), appActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
@@ -815,15 +832,14 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 
 	appAdmAppRole := getRoleByName("radix-app-adm-app", roles)
 	assert.Equal(t, "secrets", appAdmAppRole.Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
-	assert.Equal(t, "some.alias.com", appAdmAppRole.Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
-	assert.Equal(t, "another.alias.com", appAdmAppRole.Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
+	assert.ElementsMatch(t, []string{"external1.alias.com", "external2.alias.com"}, appAdmAppRole.Rules[0].ResourceNames)
 
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
-	assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
+	assert.True(t, secretByNameExists("external1.alias.com", secrets), "TLS certificate for external alias is not properly defined")
+	assert.True(t, secretByNameExists("external2.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
 
-	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("some.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
-	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("another.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
+	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("external1.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
+	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("external2.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
 
 	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.ElementsMatch(t, []string{"radix-app-adm-app", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
@@ -2163,6 +2179,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
+			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2181,6 +2198,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
+			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2198,6 +2216,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
+			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2214,6 +2233,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
+			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2258,7 +2278,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com")))
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "some.alias.com"})))
 
 	// Test
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -2321,8 +2341,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
 				WithSecrets([]string{"a_secret"})))
 
 	// Test
@@ -2355,8 +2374,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithName(anyComponentName).
 				WithPort("http", 8081).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("yet.another.alias.com").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "yet.another.alias.com"}).
 				WithSecrets([]string{"a_secret"})))
 
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -2387,7 +2405,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithName(anyComponentName).
 				WithPort("http", 8081).
 				WithPublicPort("http").
-				WithDNSExternalAlias("yet.another.alias.com").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "yet.another.alias.com"}).
 				WithSecrets([]string{"a_secret"})))
 
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -2584,8 +2602,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
 				WithSecrets([]string{"a_secret", "another_secret", "a_third_secret"})))
 
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -2615,8 +2632,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, v1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
 				WithSecrets([]string{"a_secret", "a_third_secret"})))
 
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -4187,7 +4203,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 		return nil, err
 	}
 
-	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil)
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil, testCertAutomationConfig)
 	modifySyncer(deploymentSyncer)
 	err = deploymentSyncer.OnSync()
 	if err != nil {
@@ -4210,7 +4226,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil, testCertAutomationConfig)
 	err = deployment.OnSync()
 	if err != nil {
 		return err

@@ -100,28 +100,30 @@ type RadixDeployExternalDNS struct {
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
-	Name                    string                   `json:"name"`
-	Image                   string                   `json:"image"`
-	Ports                   []ComponentPort          `json:"ports"`
-	Replicas                *int                     `json:"replicas"`
-	Public                  bool                     `json:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
-	PublicPort              string                   `json:"publicPort,omitempty"`
-	EnvironmentVariables    EnvVarsMap               `json:"environmentVariables,omitempty"`
-	Secrets                 []string                 `json:"secrets,omitempty"`
-	SecretRefs              RadixSecretRefs          `json:"secretRefs,omitempty"`
-	IngressConfiguration    []string                 `json:"ingressConfiguration,omitempty"`
-	DNSAppAlias             bool                     `json:"dnsAppAlias,omitempty"`
-	ExternalDNS             []RadixDeployExternalDNS `json:"externalDNS,omitempty"`
-	DNSExternalAlias        []string                 `json:"dnsExternalAlias,omitempty"` // Deprecated: For backward compatibility we must still support this field.
-	Monitoring              bool                     `json:"monitoring" yaml:"monitoring"`
-	MonitoringConfig        MonitoringConfig         `json:"monitoringConfig,omitempty"`
-	Resources               ResourceRequirements     `json:"resources,omitempty"`
-	HorizontalScaling       *RadixHorizontalScaling  `json:"horizontalScaling,omitempty"`
-	AlwaysPullImageOnDeploy bool                     `json:"alwaysPullImageOnDeploy"`
-	VolumeMounts            []RadixVolumeMount       `json:"volumeMounts,omitempty"`
-	Node                    RadixNode                `json:"node,omitempty"`
-	Authentication          *Authentication          `json:"authentication,omitempty"`
-	Identity                *Identity                `json:"identity,omitempty"`
+	Name     string          `json:"name"`
+	Image    string          `json:"image"`
+	Ports    []ComponentPort `json:"ports"`
+	Replicas *int            `json:"replicas"`
+	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
+	Public               bool                     `json:"public"`
+	PublicPort           string                   `json:"publicPort,omitempty"`
+	EnvironmentVariables EnvVarsMap               `json:"environmentVariables,omitempty"`
+	Secrets              []string                 `json:"secrets,omitempty"`
+	SecretRefs           RadixSecretRefs          `json:"secretRefs,omitempty"`
+	IngressConfiguration []string                 `json:"ingressConfiguration,omitempty"`
+	DNSAppAlias          bool                     `json:"dnsAppAlias,omitempty"`
+	ExternalDNS          []RadixDeployExternalDNS `json:"externalDNS,omitempty"`
+	// Deprecated: For backward compatibility we must still support this field.
+	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty"`
+	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
+	MonitoringConfig        MonitoringConfig        `json:"monitoringConfig,omitempty"`
+	Resources               ResourceRequirements    `json:"resources,omitempty"`
+	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
+	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy"`
+	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty"`
+	Node                    RadixNode               `json:"node,omitempty"`
+	Authentication          *Authentication         `json:"authentication,omitempty"`
+	Identity                *Identity               `json:"identity,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {

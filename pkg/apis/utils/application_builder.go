@@ -20,7 +20,7 @@ type ApplicationBuilder interface {
 	WithJobComponent(RadixApplicationJobComponentBuilder) ApplicationBuilder
 	WithJobComponents(...RadixApplicationJobComponentBuilder) ApplicationBuilder
 	WithDNSAppAlias(string, string) ApplicationBuilder
-	WithDNSExternalAlias(string, string, string) ApplicationBuilder
+	WithDNSExternalAlias(string, string, string, bool) ApplicationBuilder
 	WithPrivateImageRegistry(string, string, string) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRA() *v1.RadixApplication
@@ -116,15 +116,16 @@ func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env string, component string
 }
 
 // WithDNSExternalAlias Sets env + component to the external alias
-func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string, useAutomation bool) ApplicationBuilder {
 	if ap.externalAppAlias == nil {
 		ap.externalAppAlias = make([]v1.ExternalAlias, 0)
 	}
 
 	externalAlias := v1.ExternalAlias{
-		Alias:       alias,
-		Environment: env,
-		Component:   component,
+		Alias:         alias,
+		Environment:   env,
+		Component:     component,
+		UseAutomation: useAutomation,
 	}
 
 	ap.externalAppAlias = append(ap.externalAppAlias, externalAlias)

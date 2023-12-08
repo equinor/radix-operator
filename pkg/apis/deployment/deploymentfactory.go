@@ -22,6 +22,7 @@ type DeploymentSyncerFactoryFunc func(
 	deploymentHistoryLimit int,
 	ingressAnnotationProviders []IngressAnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
+	certAutomationConfig CertificateAutomationConfig,
 ) DeploymentSyncer
 
 func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
@@ -36,8 +37,9 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	deploymentHistoryLimit int,
 	ingressAnnotationProviders []IngressAnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
+	certAutomationConfig CertificateAutomationConfig,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, deploymentHistoryLimit, ingressAnnotationProviders, auxResourceManagers)
+	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, deploymentHistoryLimit, ingressAnnotationProviders, auxResourceManagers, certAutomationConfig)
 }
 
 // DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -54,5 +56,6 @@ type DeploymentSyncerFactory interface {
 		deploymentHistoryLimit int,
 		ingressAnnotationProviders []IngressAnnotationProvider,
 		auxResourceManagers []AuxiliaryResourceManager,
+		certAutomationConfig CertificateAutomationConfig,
 	) DeploymentSyncer
 }

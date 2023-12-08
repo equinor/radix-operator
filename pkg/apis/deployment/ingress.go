@@ -89,8 +89,8 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCom
 
 			if existingIngress, err := deploy.kubeclient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), externalAliasIngress.Name, metav1.GetOptions{}); err == nil {
 				// Delete existing ingress is useAutomation has changed, and optionally delete TLS secrets if existing ingress was configured to use automation
-				if isAnnotatatedForTLSAutomation(externalAliasIngress.Annotations) != isAnnotatatedForTLSAutomation(existingIngress.Annotations) {
-					if isAnnotatatedForTLSAutomation(existingIngress.Annotations) {
+				if useAutomationForExternalDNS(externalAliasIngress) != useAutomationForExternalDNS(existingIngress) {
+					if useAutomationForExternalDNS(existingIngress) {
 						if err := deleteTLSSecretForIngress(existingIngress, deploy.kubeclient); err != nil {
 							return err
 						}
@@ -156,8 +156,8 @@ func deleteTLSSecretForIngress(ing *networkingv1.Ingress, kubeClient kubernetes.
 	return nil
 }
 
-func isAnnotatatedForTLSAutomation(annotations map[string]string) bool {
-	if boolStr, ok := annotations[kube.RadixExternalDNSUseAutomationAnnotation]; ok {
+func useAutomationForExternalDNS(ing *networkingv1.Ingress) bool {
+	if boolStr, ok := ing.Annotations[kube.RadixExternalDNSUseAutomationAnnotation]; ok {
 		b, _ := strconv.ParseBool(boolStr)
 		return b
 	}
@@ -252,7 +252,7 @@ func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(comp
 
 		if garbageCollectIngress {
 			// Delete TLS secrets created by cert-manager
-			if isAnnotatatedForTLSAutomation(ingress.Annotations) {
+			if useAutomationForExternalDNS(ingress) {
 				if err := deleteTLSSecretForIngress(ingress, deploy.kubeclient); err != nil {
 					return err
 				}
@@ -334,7 +334,7 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
 	ingressSpec := getIngressSpec(externalAlias.FQDN, component.GetName(), externalAlias.FQDN, publicPortNumber)
-	externalDNSAnnotations := NewExternalDNSAnnotationProvider(&externalAlias, "digicert-test")
+	externalDNSAnnotations := NewExternalDNSAnnotationProvider(&externalAlias, deploy.certAutomationConfig)
 	return deploy.getIngressConfig(appName, component, externalAlias.FQDN, ownerReference, false, true, false, ingressSpec, namespace, externalDNSAnnotations)
 }
 

@@ -51,13 +51,14 @@ type Deployment struct {
 	tenantId                   string
 	kubernetesApiPort          int32
 	deploymentHistoryLimit     int
+	certAutomationConfig       CertificateAutomationConfig
 }
 
 // Test if NewDeploymentSyncer implements DeploymentSyncerFactory
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, certAutomationConfig CertificateAutomationConfig) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
@@ -70,6 +71,7 @@ func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, r
 		tenantId:                   tenantId,
 		kubernetesApiPort:          kubernetesApiPort,
 		deploymentHistoryLimit:     deploymentHistoryLimit,
+		certAutomationConfig:       certAutomationConfig,
 	}
 }
 

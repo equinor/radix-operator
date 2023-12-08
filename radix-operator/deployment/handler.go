@@ -94,6 +94,13 @@ func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) Han
 	}
 }
 
+// WithCertificateClusterIssuer sets the name of the cert manager cluster issuer to use when ordering TLS certificates for external DNS
+func WithCertificateAutomationConfig(config deployment.CertificateAutomationConfig) HandlerConfigOption {
+	return func(h *Handler) {
+		h.certAutomationConfig = config
+	}
+}
+
 // Handler Instance variables
 type Handler struct {
 	kubeclient              kubernetes.Interface
@@ -108,6 +115,7 @@ type Handler struct {
 	oauth2ProxyDockerImage  string
 	ingressConfiguration    deployment.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
+	certAutomationConfig    deployment.CertificateAutomationConfig
 }
 
 // NewHandler Constructor
@@ -178,7 +186,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers, t.certAutomationConfig)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue
