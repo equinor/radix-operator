@@ -19,6 +19,7 @@ type JobBuilder interface {
 	WithBranch(string) JobBuilder
 	WithCommitID(string) JobBuilder
 	WithPushImage(bool) JobBuilder
+	WithTektonImageTag(string) JobBuilder
 	WithImageTag(string) JobBuilder
 	WithDeploymentName(string) JobBuilder
 	WithStatusOnAnnotation(JobStatusBuilder) JobBuilder
@@ -45,6 +46,7 @@ type JobBuilderStruct struct {
 	created            time.Time
 	pipelineImageTag   string
 	pushImage          bool
+	tektonImageTag     string
 }
 
 // WithRadixApplication Links to RA builder
@@ -79,6 +81,10 @@ func (jb *JobBuilderStruct) WithPipelineType(pipeline v1.RadixPipelineType) JobB
 // WithPipelineImageTag Sets the pipeline image tag
 func (jb *JobBuilderStruct) WithPipelineImageTag(imageTag string) JobBuilder {
 	jb.pipelineImageTag = imageTag
+	return jb
+}
+func (jb *JobBuilderStruct) WithTektonImageTag(imageTag string) JobBuilder {
+	jb.tektonImageTag = imageTag
 	return jb
 }
 
@@ -169,6 +175,7 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			AppName:       jb.appName,
 			PipeLineType:  jb.pipeline,
 			PipelineImage: jb.pipelineImageTag,
+			TektonImage:   jb.tektonImageTag,
 			Build: v1.RadixBuildSpec{
 				Branch:    jb.branch,
 				ImageTag:  jb.imageTag,
