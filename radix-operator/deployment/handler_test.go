@@ -69,7 +69,7 @@ func (s *handlerSuite) Test_Sync() {
 			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive},
 		},
 	); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	if err := s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
@@ -77,7 +77,7 @@ func (s *handlerSuite) Test_Sync() {
 			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 		},
 	); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	activeRd := &radixv1.RadixDeployment{
 		ObjectMeta: v1.ObjectMeta{Name: activeRdName, Namespace: namespace},
@@ -85,13 +85,13 @@ func (s *handlerSuite) Test_Sync() {
 		Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 	}
 	if err := s.radixClient.Tracker().Add(activeRd); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	rr := &radixv1.RadixRegistration{
 		ObjectMeta: v1.ObjectMeta{Name: appName},
 	}
 	if err := s.radixClient.Tracker().Add(rr); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 
 	s.Run("non-existing RD should not call factory method", func() {

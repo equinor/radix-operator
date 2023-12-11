@@ -38,7 +38,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	go func() {
 		err := sut.Run(5, s.Stop)
 		if err != nil {
-			panic(err)
+			s.Require().NoError(err)
 		}
 	}()
 

@@ -72,7 +72,7 @@ func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, 
 		desiredConfigMap.Data[envVarName] = envVarValue
 	}
 	if err := kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	return desiredConfigMap
 }

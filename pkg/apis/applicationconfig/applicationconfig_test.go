@@ -221,7 +221,7 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret1", "secret2")); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -246,7 +246,7 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret4", "secret5", "secret6")); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -335,7 +335,7 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret1", "secret2")); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	// Delete secret
@@ -345,7 +345,7 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret2")); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -363,7 +363,7 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets()); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	// Secret is deleted
@@ -389,7 +389,7 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret1", "secret2")); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
@@ -403,7 +403,7 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master")); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	roles, _ = client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
@@ -480,7 +480,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
 	assert.Equal(t, "privaterepodeleteme.azurecr.io", pendingSecrets[0])
 
 	if err := applicationconfig.UpdatePrivateImageHubsSecretsPassword(kubeUtil, "any-app", "privaterepodeleteme.azurecr.io", "a-password"); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	pendingSecrets, _ = applicationconfig.GetPendingPrivateImageHubSecrets(kubeUtil, "any-app")
@@ -610,7 +610,7 @@ func Test_RadixEnvironment(t *testing.T) {
 	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app")); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	rr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), "any-app", metav1.GetOptions{})
@@ -665,7 +665,7 @@ func Test_UseBuildKit(t *testing.T) {
 			ra = ra.WithBuildKit(testScenario.useBuildKit)
 		}
 		if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		raAfterSync, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.TODO(), testScenario.appName, metav1.GetOptions{})

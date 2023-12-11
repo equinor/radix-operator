@@ -485,7 +485,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 	// Remove redispassword if sessionstoretype is cookie
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreCookie}, nil)
 	if err := sut.Sync(); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	actualSecret, _ = s.kubeClient.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
 	s.Equal(
@@ -573,22 +573,22 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServer, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServerNoRules, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	if _, err := s.kubeClient.NetworkingV1().Ingresses("otherns").Create(context.Background(), &ingServerOtherNs, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingOtherComponent, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb1, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb2, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
@@ -681,7 +681,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
 	); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
@@ -690,7 +690,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
 	); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
@@ -699,7 +699,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
 	); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
@@ -919,7 +919,7 @@ func (s *OAuthProxyResourceManagerTestSuite) addDeployment(name, namespace, appN
 	}
 	_, err := s.kubeClient.AppsV1().Deployments(namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 }
 
@@ -933,7 +933,7 @@ func (s *OAuthProxyResourceManagerTestSuite) addSecret(name, namespace, appName,
 	}
 	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 }
 
@@ -947,7 +947,7 @@ func (s *OAuthProxyResourceManagerTestSuite) addService(name, namespace, appName
 	}
 	_, err := s.kubeClient.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 }
 
@@ -961,7 +961,7 @@ func (s *OAuthProxyResourceManagerTestSuite) addIngress(name, namespace, appName
 	}
 	_, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 }
 
@@ -975,7 +975,7 @@ func (s *OAuthProxyResourceManagerTestSuite) addRole(name, namespace, appName, a
 	}
 	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 }
 
@@ -989,7 +989,7 @@ func (s *OAuthProxyResourceManagerTestSuite) addRoleBinding(name, namespace, app
 	}
 	_, err := s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rolebinding, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 }
 

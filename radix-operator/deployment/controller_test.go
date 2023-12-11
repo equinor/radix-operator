@@ -15,6 +15,7 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
@@ -61,7 +62,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			},
 		},
 		metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	stop := make(chan struct{})
@@ -80,7 +81,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		prometheusclient,
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
-	go startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
+	go func() {
+		if err := startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop); err != nil {
+			require.NoError(t, err)
+		}
+	}()
 
 	// Test
 
@@ -102,7 +107,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	noReplicas := 0
 	rd.Spec.Components[0].Replicas = &noReplicas
 	if _, err := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	op, ok = <-synced
@@ -123,7 +128,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 	for _, aservice := range services.Items {
 		if err := client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{}); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		op, ok = <-synced
@@ -139,15 +144,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startDeploymentController(client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	radixInformerFactory informers.SharedInformerFactory,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	handler *Handler, stop chan struct{}) {
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler, stop chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
-	waitForChildrenToSync := false
+	const waitForChildrenToSync = false
 	controller := NewController(
 		client, radixClient, handler,
 		kubeInformerFactory,
@@ -158,6 +159,7 @@ func startDeploymentController(client kubernetes.Interface,
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 	if err := controller.Run(4, stop); err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }

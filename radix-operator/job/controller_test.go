@@ -94,7 +94,11 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+	go func() {
+		if err := startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop); err != nil {
+			s.Require().NoError(err)
+		}
+	}()
 
 	// Test
 
@@ -111,7 +115,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
 	if _, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 
 	op, ok = <-synced
@@ -127,11 +131,11 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 
 	// Only update of Kubernetes Job is something that the job-controller handles
 	if _, err := s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 	childJob.ObjectMeta.ResourceVersion = "1234"
 	if _, err := s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{}); err != nil {
-		panic(err)
+		s.Require().NoError(err)
 	}
 
 	op, ok = <-synced
@@ -139,17 +143,18 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	s.True(op)
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
-	waitForChildrenToSync := false
+	const waitForChildrenToSync = false
 	controller := NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 	if err := controller.Run(4, stop); err != nil {
-		panic(err)
+		return err
 	}
 
+	return nil
 }

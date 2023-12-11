@@ -838,7 +838,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithJobComponents().
 			WithAppName("any-other-app").
 			WithEnvironment("test")); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
@@ -863,7 +863,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName)); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
@@ -889,7 +889,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName)); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
@@ -911,7 +911,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName)); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
@@ -932,7 +932,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			context.Background(),
 			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName}}},
 			metav1.CreateOptions{}); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -955,7 +955,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			context.Background(),
 			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "any-other-label": "any-value"}}},
 			metav1.CreateOptions{}); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -986,7 +986,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			context.Background(),
 			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: anyOtherServiceAccountName, Labels: map[string]string{kube.RadixComponentLabel: "anything"}}},
 			metav1.CreateOptions{}); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		// Deploy component with Azure identity must create custom SA
@@ -1002,12 +1002,12 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName)); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		serviceAccounts, err := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 		assert.Equal(t, 3, len(serviceAccounts.Items), "Number of service accounts was not expected")
 
@@ -1021,7 +1021,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName)); err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
@@ -1567,7 +1567,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 	// Simulate HPA scaling up comp1 to 3 replicas
 	comp1.Spec.Replicas = pointers.Ptr[int32](3)
 	if _, err := client.AppsV1().Deployments(envNamespace).Update(context.Background(), comp1, metav1.UpdateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	// Resync existing RD should use replicas from current deployment for HPA enabled component
@@ -2627,7 +2627,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 
 	anyComponentSecret.Data = secretData
 	if _, err := client.CoreV1().Secrets(envNamespace).Update(context.TODO(), anyComponentSecret, metav1.UpdateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	// Removing one secret from config and therefor from the deployment
@@ -3587,7 +3587,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 					},
 				},
 				metav1.CreateOptions{}); err != nil {
-				panic(err)
+				require.NoError(t, err)
 			}
 		}
 
@@ -3606,7 +3606,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 					},
 				},
 				metav1.CreateOptions{}); err != nil {
-				panic(err)
+				require.NoError(t, err)
 			}
 		}
 
@@ -3625,7 +3625,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 					},
 				},
 				metav1.CreateOptions{}); err != nil {
-				panic(err)
+				require.NoError(t, err)
 			}
 		}
 
@@ -3793,10 +3793,10 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithDNSAppAlias(true)).BuildRD()
 	if _, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -3832,10 +3832,10 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
 	if _, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -3862,10 +3862,10 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
 	if _, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -3893,10 +3893,10 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
 	if _, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -3925,10 +3925,10 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
 	if _, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -4127,28 +4127,28 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 	}
 
 	if _, err := radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch1", "job1"), metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch2", "job1"), metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch3", "job2"), metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch4", "job2"), metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch5", "job3"), metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch6", "job4"), metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch7", ""), metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if _, err := radixclient.RadixV1().RadixBatches("other-ns").Create(context.Background(), batchFactory("batch8", "job1"), metav1.CreateOptions{}); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	// Test
