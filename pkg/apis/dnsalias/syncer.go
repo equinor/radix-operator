@@ -66,8 +66,8 @@ func (s *syncer) OnSync() error {
 	if err := s.restoreStatus(); err != nil {
 		return fmt.Errorf("failed to update status on DNS alias %s: %v", s.radixDNSAlias.GetName(), err)
 	}
-	if handled, err := s.handleDeletedRadixDNSAlias(); handled || err != nil {
-		return err
+	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
+		return s.syncStatus(s.handleDeletedRadixDNSAlias())
 	}
 	return s.syncStatus(s.syncAlias())
 
@@ -126,11 +126,7 @@ func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, 
 	return deployComponent, nil
 }
 
-func (s *syncer) handleDeletedRadixDNSAlias() (bool, error) {
-	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp == nil {
-		return false, nil
-	}
-
+func (s *syncer) handleDeletedRadixDNSAlias() error {
 	log.Debugf("handle deleted RadixDNSAlias %s in the application %s", s.radixDNSAlias.Name, s.radixDNSAlias.Spec.AppName)
 	finalizerIndex := slice.FindIndex(s.radixDNSAlias.ObjectMeta.Finalizers, func(val string) bool {
 		return val == kube.RadixDNSAliasFinalizer
@@ -138,11 +134,11 @@ func (s *syncer) handleDeletedRadixDNSAlias() (bool, error) {
 	if finalizerIndex < 0 {
 		log.Infof("missing finalizer %s in the RadixDNSAlias %s. Exist finalizers: %d. Skip dependency handling",
 			kube.RadixDNSAliasFinalizer, s.radixDNSAlias.Name, len(s.radixDNSAlias.ObjectMeta.Finalizers))
-		return false, nil
+		return nil
 	}
 
 	if err := s.deletedIngressesForRadixDNSAlias(); err != nil {
-		return true, err
+		return err
 	}
 
 	updatingAlias := s.radixDNSAlias.DeepCopy()
@@ -150,10 +146,7 @@ func (s *syncer) handleDeletedRadixDNSAlias() (bool, error) {
 	log.Debugf("removed finalizer %s from the RadixDNSAlias %s for the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingAlias.Name, updatingAlias.Spec.AppName, len(updatingAlias.ObjectMeta.Finalizers))
 
-	if err := s.kubeUtil.UpdateRadixDNSAlias(updatingAlias); err != nil {
-		return false, err
-	}
-	return true, nil
+	return s.kubeUtil.UpdateRadixDNSAlias(updatingAlias)
 }
 
 func (s *syncer) deletedIngressesForRadixDNSAlias() error {
