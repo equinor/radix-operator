@@ -30,6 +30,7 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -37,13 +38,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 	secretProvider "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
@@ -56,9 +60,9 @@ const testTenantId = "123456789"
 const testRadixDeploymentHistoryLimit = 10
 const testKubernetesApiPort = 543
 
-var testCertAutomationConfig = CertificateAutomationConfig{ClusterIssuer: "test-cert-issuer", Duration: 10000 * time.Hour}
+var testCertAutomationConfig = CertificateAutomationConfig{ClusterIssuer: "test-cert-issuer", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour}
 
-func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface, secretProvider.Interface) {
+func setupTest() (*test.Utils, *kubefake.Clientset, *kube.Kube, radixclient.Interface, prometheusclient.Interface, secretProvider.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset()
@@ -808,7 +812,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 		kube.RadixExternalDNSUseAutomationAnnotation: "true",
 		"cert-manager.io/cluster-issuer":             testCertAutomationConfig.ClusterIssuer,
 		"cert-manager.io/duration":                   testCertAutomationConfig.Duration.String(),
-		"cert-manager.io/renew-before":               certRenewBefore.String(),
+		"cert-manager.io/renew-before":               testCertAutomationConfig.RenewBefore.String(),
 	}
 	assert.Equal(t, expectedAnnotations, externalDNS3.Annotations)
 	assert.Equal(t, "external3.alias.com", externalDNS3.Spec.Rules[0].Host, "App should have an external alias")
@@ -2322,7 +2326,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 
 }
 
-func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyReconciled(t *testing.T) {
+func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyReconciled(t *testing.T) {
 	anyAppName := "any-app"
 	anyEnvironment := "dev"
 	anyComponentName := "frontend"
@@ -2638,6 +2642,199 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.True(t, radixutils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
+}
+
+func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t *testing.T) {
+	anyAppName := "any-app"
+	anyEnvironment := "dev"
+	fqdn := "some.alias.com"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
+	defer teardownTest()
+
+	// Initial sync with useAutomation false
+	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("anycomp").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: false}),
+		)
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
+	require.NoError(t, err)
+	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	// New sync with useAutomation true
+	var m mock.Mock
+	client.Fake.PrependReactor("*", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetVerb() == "delete" && slice.Any([]string{"ingresses", "secrets"}, func(r string) bool { return r == action.GetResource().Resource }) {
+			deleteAction := action.(kubetesting.DeleteAction)
+			m.MethodCalled(deleteAction.GetVerb(), deleteAction.GetResource().Resource, deleteAction.GetNamespace(), deleteAction.GetName())
+		}
+		return false, nil, nil
+	})
+	m.On("delete", "ingresses", envNamespace, fqdn).Times(1)
+	m.On("delete", "secrets", envNamespace, fqdn).Times(1)
+
+	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("anycomp").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: true}),
+		)
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
+	require.NoError(t, err)
+	m.AssertExpectations(t)
+	ingress, err := client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedAnnotations := map[string]string{
+		kube.RadixExternalDNSUseAutomationAnnotation: "true",
+		"cert-manager.io/cluster-issuer":             testCertAutomationConfig.ClusterIssuer,
+		"cert-manager.io/duration":                   testCertAutomationConfig.Duration.String(),
+		"cert-manager.io/renew-before":               testCertAutomationConfig.RenewBefore.String(),
+	}
+	assert.Equal(t, expectedAnnotations, ingress.Annotations)
+	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.True(t, kubeerrors.IsNotFound(err))
+}
+
+func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressClearSecret(t *testing.T) {
+	anyAppName, anyEnvironment, anyComponent := "any-app", "dev", "anyComp"
+	fqdn := "some.alias.com"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
+	defer teardownTest()
+
+	// Initial sync with useAutomation true
+	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponent).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: true}),
+		)
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
+	require.NoError(t, err)
+	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.True(t, kubeerrors.IsNotFound(err))
+	// Create the TLS secret that cert-manager would normally created
+	tlsSecret := &corev1.Secret{
+		Type:       corev1.SecretTypeTLS,
+		ObjectMeta: metav1.ObjectMeta{Name: fqdn, Namespace: envNamespace},
+		Data: map[string][]byte{
+			corev1.TLSPrivateKeyKey: []byte("anykey"),
+			corev1.TLSCertKey:       []byte("anycert"),
+		},
+	}
+	_, err = client.CoreV1().Secrets(envNamespace).Create(context.Background(), tlsSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// New sync with useAutomation false
+	var m mock.Mock
+	client.Fake.PrependReactor("*", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetVerb() == "delete" && slice.Any([]string{"ingresses", "secrets"}, func(r string) bool { return r == action.GetResource().Resource }) {
+			deleteAction := action.(kubetesting.DeleteAction)
+			m.MethodCalled(deleteAction.GetVerb(), deleteAction.GetResource().Resource, deleteAction.GetNamespace(), deleteAction.GetName())
+		}
+		return false, nil, nil
+	})
+	m.On("delete", "ingresses", envNamespace, fqdn).Times(1)
+
+	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponent).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: false}),
+		)
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
+	require.NoError(t, err)
+	m.AssertExpectations(t)
+	ingress, err := client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, ingress.Annotations)
+	secret, err := client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, secret.Data)
+	assert.Equal(t, map[string]string{kube.RadixAppLabel: anyAppName, kube.RadixComponentLabel: anyComponent, kube.RadixExternalAliasLabel: "true"}, secret.Labels)
+}
+
+func TestObjectUpdated_ExternalDNS_TLSSecretDataRetainedBetweenSync(t *testing.T) {
+	anyAppName := "any-app"
+	anyEnvironment := "dev"
+	fqdn := "some.alias.com"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	tlsKey, tlsCert := []byte("anytlskey"), []byte("anytlscert")
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
+	defer teardownTest()
+
+	// Initial sync
+	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("anycomp").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: false}),
+		)
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
+	require.NoError(t, err)
+	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	secret, err := client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	secret.Data[corev1.TLSPrivateKeyKey] = tlsKey
+	secret.Data[corev1.TLSCertKey] = tlsCert
+	secret, err = client.CoreV1().Secrets(envNamespace).Update(context.Background(), secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	require.Equal(t, tlsKey, secret.Data[corev1.TLSPrivateKeyKey])
+	require.Equal(t, tlsCert, secret.Data[corev1.TLSCertKey])
+
+	// New RD with same external DNS
+	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("anycomp").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(v1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: false}),
+		)
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
+	require.NoError(t, err)
+	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.NoError(t, err)
+	secret, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, tlsKey, secret.Data[corev1.TLSPrivateKeyKey])
+	assert.Equal(t, tlsCert, secret.Data[corev1.TLSCertKey])
 }
 
 func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {

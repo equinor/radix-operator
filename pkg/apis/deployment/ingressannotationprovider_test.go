@@ -3,13 +3,16 @@ package deployment
 import (
 	"errors"
 	"testing"
+	"time"
 
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -211,4 +214,63 @@ func (s *OAuth2AnnotationsTestSuite) Test_OAuthConfig_ApplyTo_ReturnError() {
 	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}}, "unused-namespace")
 	s.Error(err)
 	s.Nil(actual)
+}
+
+func Test_ExternalDNSAnnotationProvider(t *testing.T) {
+	t.Run("expected annotations when useAnnotation is false", func(t *testing.T) {
+		sut := NewExternalDNSAnnotationProvider(false, CertificateAutomationConfig{})
+		actualAnnotations, err := sut.GetAnnotations(nil, "")
+		require.NoError(t, err)
+		expectedAnnotations := map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}
+		assert.Equal(t, expectedAnnotations, actualAnnotations)
+	})
+
+	t.Run("expected annotations when useAnnotation is false", func(t *testing.T) {
+		certConfig := CertificateAutomationConfig{ClusterIssuer: "anyclusterissuer", Duration: 4000 * time.Hour, RenewBefore: 1000 * time.Hour}
+		sut := NewExternalDNSAnnotationProvider(true, certConfig)
+		actualAnnotations, err := sut.GetAnnotations(nil, "")
+		require.NoError(t, err)
+		expectedAnnotations := map[string]string{
+			kube.RadixExternalDNSUseAutomationAnnotation: "true",
+			"cert-manager.io/cluster-issuer":             certConfig.ClusterIssuer,
+			"cert-manager.io/duration":                   certConfig.Duration.String(),
+			"cert-manager.io/renew-before":               certConfig.RenewBefore.String(),
+		}
+		assert.Equal(t, expectedAnnotations, actualAnnotations)
+	})
+
+	t.Run("expected annotations when RenewBefore less than min value", func(t *testing.T) {
+		certConfig := CertificateAutomationConfig{ClusterIssuer: "anyclusterissuer", Duration: 4000 * time.Hour, RenewBefore: 360*time.Hour - 1}
+		sut := NewExternalDNSAnnotationProvider(true, certConfig)
+		actualAnnotations, err := sut.GetAnnotations(nil, "")
+		require.NoError(t, err)
+		expectedAnnotations := map[string]string{
+			kube.RadixExternalDNSUseAutomationAnnotation: "true",
+			"cert-manager.io/cluster-issuer":             certConfig.ClusterIssuer,
+			"cert-manager.io/duration":                   certConfig.Duration.String(),
+			"cert-manager.io/renew-before":               (360 * time.Hour).String(),
+		}
+		assert.Equal(t, expectedAnnotations, actualAnnotations)
+	})
+
+	t.Run("expected annotations when Duration less than min value", func(t *testing.T) {
+		certConfig := CertificateAutomationConfig{ClusterIssuer: "anyclusterissuer", Duration: 2160*time.Hour - 1, RenewBefore: 1000 * time.Hour}
+		sut := NewExternalDNSAnnotationProvider(true, certConfig)
+		actualAnnotations, err := sut.GetAnnotations(nil, "")
+		require.NoError(t, err)
+		expectedAnnotations := map[string]string{
+			kube.RadixExternalDNSUseAutomationAnnotation: "true",
+			"cert-manager.io/cluster-issuer":             certConfig.ClusterIssuer,
+			"cert-manager.io/duration":                   (2160 * time.Hour).String(),
+			"cert-manager.io/renew-before":               certConfig.RenewBefore.String(),
+		}
+		assert.Equal(t, expectedAnnotations, actualAnnotations)
+	})
+
+	t.Run("return error if cluster issuer is empty", func(t *testing.T) {
+		certConfig := CertificateAutomationConfig{Duration: 4000 * time.Hour, RenewBefore: 1000 * time.Hour}
+		sut := NewExternalDNSAnnotationProvider(true, certConfig)
+		_, err := sut.GetAnnotations(nil, "")
+		assert.ErrorContains(t, err, "cluster issuer not set in certificate automation config")
+	})
 }

@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	radixmaps "github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -40,14 +41,7 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCom
 		return err
 	}
 
-	var publicPortNumber int32
-	// For backwards compatibility
-	if deployComponent.GetPublicPort() == "" {
-		publicPortNumber = deployComponent.GetPorts()[0].Port
-	} else {
-		publicPortNumber = getPublicPortNumber(deployComponent.GetPorts(), deployComponent.GetPublicPort())
-	}
-
+	publicPortNumber := getPublicPortForComponent(deployComponent)
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
@@ -72,47 +66,8 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCom
 		}
 	}
 
-	// Only the active cluster should have the DNS external alias, not to cause conflicts between clusters
-	externalDNSList := deployComponent.GetExternalDNS()
-	if len(externalDNSList) > 0 && isActiveCluster(clustername) {
-		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
-		if err != nil {
-			return err
-		}
-
-		for _, externalDNS := range externalDNSList {
-			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
-				ownerReference, externalDNS, deployComponent, namespace, publicPortNumber)
-			if err != nil {
-				return err
-			}
-
-			if existingIngress, err := deploy.kubeclient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), externalAliasIngress.Name, metav1.GetOptions{}); err == nil {
-				// Delete existing ingress is useAutomation has changed, and optionally delete TLS secrets if existing ingress was configured to use automation
-				if useAutomationForExternalDNS(externalAliasIngress) != useAutomationForExternalDNS(existingIngress) {
-					if useAutomationForExternalDNS(existingIngress) {
-						if err := deleteTLSSecretForIngress(existingIngress, deploy.kubeclient); err != nil {
-							return err
-						}
-					}
-					if err := deploy.kubeclient.NetworkingV1().Ingresses(existingIngress.Namespace).Delete(context.TODO(), existingIngress.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
-						return err
-					}
-				}
-			} else if !errors.IsNotFound(err) {
-				return err
-			}
-
-			err = deploy.kubeutil.ApplyIngress(namespace, externalAliasIngress)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		err = deploy.garbageCollectAllExternalAliasIngressesForComponent(deployComponent)
-		if err != nil {
-			return err
-		}
+	if err := deploy.createOrUpdateExternalDNSIngresses(deployComponent); err != nil {
+		return err
 	}
 
 	if isActiveCluster(clustername) {
@@ -144,10 +99,103 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCom
 	return deploy.kubeutil.ApplyIngress(namespace, ingress)
 }
 
+func (deploy *Deployment) createOrUpdateExternalDNSIngresses(deployComponent radixv1.RadixCommonDeployComponent) error {
+	clustername, err := deploy.kubeutil.GetClusterName()
+	if err != nil {
+		return err
+	}
+	namespace := deploy.radixDeployment.Namespace
+	publicPortNumber := getPublicPortForComponent(deployComponent)
+
+	// Only the active cluster should have the DNS external alias, not to cause conflicts between clusters
+	externalDNSList := deployComponent.GetExternalDNS()
+	if len(externalDNSList) > 0 && isActiveCluster(clustername) {
+		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
+		if err != nil {
+			return err
+		}
+
+		for _, externalDNS := range externalDNSList {
+			ingress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, externalDNS, deployComponent, namespace, publicPortNumber)
+			if err != nil {
+				return err
+			}
+
+			if existingIngress, err := deploy.kubeclient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), ingress.Name, metav1.GetOptions{}); err == nil {
+				// Perform updated and deletions of ingress and TLS secret when we change automation flag.
+				// cert-manager does not cleanup its resources (certificates, orders etc) by simply clearing ingress annotation. The ingress must be deleted for this to happen.
+				if useAutomationForExternalDNS(ingress) != useAutomationForExternalDNS(existingIngress) {
+					if useAutomationForExternalDNS(ingress) {
+						// Delete existing TLS secret if the ingress should use automation since cert-manager will handle the secret lifecycle.
+						if err := deleteTLSSecretForIngress(existingIngress, deploy.kubeclient); err != nil {
+							return err
+						}
+					} else {
+						// Clear secret data (key + cert) generated by cert-manager automation when we disable automation.
+						// Labels for the existing secret is updated by method createOrUpdateSecrets
+						if err := clearTLSSecretDataForIngress(existingIngress, deploy.kubeclient); err != nil {
+							return err
+						}
+					}
+
+					if err := deploy.kubeclient.NetworkingV1().Ingresses(existingIngress.Namespace).Delete(context.TODO(), existingIngress.Name, metav1.DeleteOptions{}); err != nil && !kubeerrors.IsNotFound(err) {
+						return err
+					}
+				}
+			} else if !kubeerrors.IsNotFound(err) {
+				return err
+			}
+
+			err = deploy.kubeutil.ApplyIngress(namespace, ingress)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		err = deploy.garbageCollectAllExternalAliasIngressesForComponent(deployComponent)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getPublicPortForComponent(deployComponent radixv1.RadixCommonDeployComponent) int32 {
+	if deployComponent.GetPublicPort() == "" {
+		// For backwards compatibility
+		return deployComponent.GetPorts()[0].Port
+	} else {
+		if port, ok := slice.FindFirst(deployComponent.GetPorts(), func(cp radixv1.ComponentPort) bool {
+			return strings.EqualFold(cp.Name, deployComponent.GetPublicPort())
+		}); ok {
+			return port.Port
+		}
+	}
+
+	return 0
+}
+
 func deleteTLSSecretForIngress(ing *networkingv1.Ingress, kubeClient kubernetes.Interface) error {
 	for _, tls := range ing.Spec.TLS {
 		if len(tls.SecretName) > 0 {
-			if err := kubeClient.CoreV1().Secrets(ing.Namespace).Delete(context.TODO(), tls.SecretName, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+			if err := kubeClient.CoreV1().Secrets(ing.Namespace).Delete(context.TODO(), tls.SecretName, metav1.DeleteOptions{}); err != nil && !kubeerrors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func clearTLSSecretDataForIngress(ing *networkingv1.Ingress, kubeClient kubernetes.Interface) error {
+	for _, tls := range ing.Spec.TLS {
+		if len(tls.SecretName) > 0 {
+			if secret, err := kubeClient.CoreV1().Secrets(ing.Namespace).Get(context.TODO(), tls.SecretName, metav1.GetOptions{}); err == nil {
+				secret.Data = nil
+				_, err = kubeClient.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+				return err
+			} else if !kubeerrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -334,7 +382,7 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
 	ingressSpec := getIngressSpec(externalAlias.FQDN, component.GetName(), externalAlias.FQDN, publicPortNumber)
-	externalDNSAnnotations := NewExternalDNSAnnotationProvider(&externalAlias, deploy.certAutomationConfig)
+	externalDNSAnnotations := NewExternalDNSAnnotationProvider(externalAlias.UseAutomation, deploy.certAutomationConfig)
 	return deploy.getIngressConfig(appName, component, externalAlias.FQDN, ownerReference, false, true, false, ingressSpec, namespace, externalDNSAnnotations)
 }
 
@@ -446,13 +494,4 @@ func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 			},
 		},
 	}
-}
-
-func getPublicPortNumber(ports []radixv1.ComponentPort, publicPort string) int32 {
-	for _, port := range ports {
-		if strings.EqualFold(port.Name, publicPort) {
-			return port.Port
-		}
-	}
-	return 0
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -22,18 +23,15 @@ const (
 )
 
 func (deploy *Deployment) createOrUpdateSecrets() error {
-	envName := deploy.radixDeployment.Spec.Environment
-	namespace := utils.GetEnvironmentNamespace(deploy.registration.Name, envName)
-
 	log.Debugf("Apply empty secrets based on radix deployment obj")
 	for _, comp := range deploy.radixDeployment.Spec.Components {
-		err := deploy.createOrUpdateSecretsForComponent(&comp, namespace)
+		err := deploy.createOrUpdateSecretsForComponent(&comp)
 		if err != nil {
 			return err
 		}
 	}
 	for _, comp := range deploy.radixDeployment.Spec.Jobs {
-		err := deploy.createOrUpdateSecretsForComponent(&comp, namespace)
+		err := deploy.createOrUpdateSecretsForComponent(&comp)
 		if err != nil {
 			return err
 		}
@@ -41,7 +39,8 @@ func (deploy *Deployment) createOrUpdateSecrets() error {
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.RadixCommonDeployComponent, namespace string) error {
+func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.RadixCommonDeployComponent) error {
+	namespace := deploy.radixDeployment.Namespace
 	secretsToManage := make([]string, 0)
 
 	if len(component.GetSecrets()) > 0 {
@@ -76,9 +75,9 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 			}
 			secretsToManage = append(secretsToManage, externalAlias.FQDN)
 
-			if deploy.kubeutil.SecretExists(namespace, externalAlias.FQDN) {
-				continue
-			}
+			// if deploy.kubeutil.SecretExists(namespace, externalAlias.FQDN) {
+			// 	continue
+			// }
 
 			err := deploy.createOrUpdateSecret(namespace, deploy.registration.Name, component.GetName(), externalAlias.FQDN, true)
 			if err != nil {
@@ -354,7 +353,14 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 		secret.Data = data
 	}
 
-	_, err := deploy.kubeutil.ApplySecret(ns, &secret)
+	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if err == nil {
+		secret.Data = existingSecret.Data
+	} else if !errors.IsNotFound(err) {
+		return err
+	}
+
+	_, err = deploy.kubeutil.ApplySecret(ns, &secret)
 	if err != nil {
 		return err
 	}

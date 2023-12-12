@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	minCertDuration = 2160 * time.Hour
-	certRenewBefore = 720 * time.Hour
+	minCertDuration    = 2160 * time.Hour
+	minCertRenewBefore = 360 * time.Hour
 )
 
 type IngressAnnotationProvider interface {
@@ -129,35 +129,36 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommo
 	return annotations, nil
 }
 
-func NewExternalDNSAnnotationProvider(externalDNS *v1.RadixDeployExternalDNS, certAutomationConfig CertificateAutomationConfig) IngressAnnotationProvider {
+func NewExternalDNSAnnotationProvider(useAutomation bool, certAutomationConfig CertificateAutomationConfig) IngressAnnotationProvider {
 	return &externalDNSAnnotationProvider{
-		externalDNS:          externalDNS,
+		useAutomation:        useAutomation,
 		certAutomationConfig: certAutomationConfig,
 	}
 }
 
 type externalDNSAnnotationProvider struct {
-	externalDNS          *v1.RadixDeployExternalDNS
+	useAutomation        bool
 	certAutomationConfig CertificateAutomationConfig
 }
 
-func (provider *externalDNSAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
-	if provider.externalDNS == nil {
-		return nil, errors.New("external DNS config not provided")
-	}
+func (provider *externalDNSAnnotationProvider) GetAnnotations(_ v1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+	annotations := map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: strconv.FormatBool(provider.useAutomation)}
 
-	useAutomation := provider.externalDNS.UseAutomation && len(provider.certAutomationConfig.ClusterIssuer) > 0
-	annotations := map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: strconv.FormatBool(useAutomation)}
-
-	if useAutomation {
+	if provider.useAutomation {
+		if len(provider.certAutomationConfig.ClusterIssuer) == 0 {
+			return nil, errors.New("cluster issuer not set in certificate automation config")
+		}
 		duration := provider.certAutomationConfig.Duration
 		if duration < minCertDuration {
 			duration = minCertDuration
 		}
-
+		renewBefore := provider.certAutomationConfig.RenewBefore
+		if renewBefore < minCertRenewBefore {
+			renewBefore = minCertRenewBefore
+		}
 		annotations["cert-manager.io/cluster-issuer"] = provider.certAutomationConfig.ClusterIssuer
 		annotations["cert-manager.io/duration"] = duration.String()
-		annotations["cert-manager.io/renew-before"] = certRenewBefore.String()
+		annotations["cert-manager.io/renew-before"] = renewBefore.String()
 	}
 
 	return annotations, nil
