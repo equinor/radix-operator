@@ -722,6 +722,7 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 	assert.Empty(t, appIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Empty(t, appIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, appIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "true", appIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should be default")
 	assert.Equal(t, "app", appIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	quoteIngress := getIngressByName("radixquote", ingresses)
@@ -729,6 +730,7 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 	assert.Empty(t, quoteIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Empty(t, quoteIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, quoteIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "true", quoteIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should be default")
 	assert.Equal(t, "radixquote", quoteIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 }
 

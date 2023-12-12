@@ -180,6 +180,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 				for _, ing := range ingresses.Items {
 					appNameLabel := ing.GetLabels()[kube.RadixAppLabel]
 					componentNameLabel := ing.GetLabels()[kube.RadixComponentLabel]
+					aliasLabel := ing.GetLabels()[kube.RadixAliasLabel]
 					s.Assert().Len(ing.Spec.Rules, 1, "rules count")
 					rule := ing.Spec.Rules[0]
 					expectedIngress, ingressExists := ts.expectedIngress[ing.Name]
@@ -191,6 +192,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 						expectedNamespace := utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName)
 						s.Assert().Equal(expectedNamespace, ing.GetNamespace(), "namespace")
 						s.Assert().Equal(expectedIngress.component, componentNameLabel, "component name")
+						s.Assert().Equal(expectedIngress.alias, aliasLabel, "alias name in the label")
 						s.Assert().Equal(expectedIngress.host, rule.Host, "rule host")
 						s.Assert().Len(rule.IngressRuleValue.HTTP.Paths, 1, "http path count")
 						httpIngressPath := rule.IngressRuleValue.HTTP.Paths[0]
