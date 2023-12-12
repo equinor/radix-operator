@@ -67,9 +67,7 @@ type testIngress struct {
 
 type scenario struct {
 	name            string
-	expectedError   string
 	dnsAlias        commonTest.DNSAlias
-	dnsZone         string
 	existingIngress map[string]testIngress
 	expectedIngress map[string]testIngress
 }
@@ -96,7 +94,6 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		{
 			name:     "created an ingress",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			dnsZone:  dnsZone1,
 			expectedIngress: map[string]testIngress{
 				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
 			},
@@ -104,7 +101,6 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		{
 			name:     "created additional ingress for another component",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			dnsZone:  dnsZone1,
 			existingIngress: map[string]testIngress{
 				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, port: component1Port8080},
 			},
@@ -116,7 +112,6 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		{
 			name:     "changed port changes port in existing ingress",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			dnsZone:  dnsZone1,
 			existingIngress: map[string]testIngress{
 				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component2Port9090},
 			},
@@ -127,7 +122,6 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		{
 			name:     "created additional ingress on another alias for the same component",
 			dnsAlias: commonTest.DNSAlias{Alias: alias2, Environment: envName1, Component: component1},
-			dnsZone:  dnsZone1,
 			existingIngress: map[string]testIngress{
 				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
 			},
@@ -139,7 +133,6 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		{
 			name:     "manually changed port repaired",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			dnsZone:  dnsZone1,
 			existingIngress: map[string]testIngress{
 				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component2Port9090},
 			},
@@ -150,7 +143,6 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 		{
 			name:     "manually changed host repaired",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			dnsZone:  dnsZone1,
 			existingIngress: map[string]testIngress{
 				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: "/manually/edited/host", component: component1, port: component1Port8080},
 			},
@@ -172,14 +164,14 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 
 			syncer := s.createSyncer(radixDNSAlias)
 			err = syncer.OnSync()
-			commonTest.AssertError(s.T(), ts.expectedError, err)
+			s.Assert().NoError(err)
 
 			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
-			s.Require().NoError(err)
+			s.Assert().NoError(err)
 
 			// assert ingresses
 			if ts.expectedIngress == nil {
-				s.Require().Len(ingresses.Items, 0, "not expected ingresses")
+				s.Assert().Len(ingresses.Items, 0, "not expected ingresses")
 				return
 			}
 
@@ -188,7 +180,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 				for _, ing := range ingresses.Items {
 					appNameLabel := ing.GetLabels()[kube.RadixAppLabel]
 					componentNameLabel := ing.GetLabels()[kube.RadixComponentLabel]
-					s.Require().Len(ing.Spec.Rules, 1, "rules count")
+					s.Assert().Len(ing.Spec.Rules, 1, "rules count")
 					rule := ing.Spec.Rules[0]
 					expectedIngress, ingressExists := ts.expectedIngress[ing.Name]
 					assert.True(t, ingressExists, "found not expected ingress %s for: appName %s, host %s, service %s, port %d",
