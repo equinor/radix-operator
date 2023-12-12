@@ -102,7 +102,7 @@ func Test_DeleteEnvironment_Deleted(t *testing.T) {
 	require.NoError(t, err)
 	timeNow := metav1.NewTime(time.Now())
 	re.ObjectMeta.DeletionTimestamp = &timeNow
-	re, err = radixclient.RadixV1().RadixEnvironments().Update(context.Background(), re, metav1.UpdateOptions{})
+	_, err = radixclient.RadixV1().RadixEnvironments().Update(context.Background(), re, metav1.UpdateOptions{})
 	require.NoError(t, err)
 	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -112,6 +112,7 @@ func Test_DeleteEnvironment_Deleted(t *testing.T) {
 	sync(t, &env)
 
 	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
+	require.NoError(t, err)
 	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
 	assert.NotContains(t, re.ObjectMeta.Finalizers, kube.RadixEnvironmentFinalizer, "unexpected environment finalizer")
 }
@@ -126,6 +127,9 @@ func Test_DeleteEnvironment_DeletedDNSAlias(t *testing.T) {
 	alias1Name := "alias1"
 	err := createRadixDNSAliasForEnvironment(radixclient, alias1Name)
 	require.NoError(t, err)
+	dnsAlias, err := radixclient.RadixV1().RadixDNSAliases().Get(context.Background(), alias1Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, dnsAlias)
 	re, err := radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
 	require.NoError(t, err)
 	timeNow := metav1.NewTime(time.Now())
@@ -137,6 +141,7 @@ func Test_DeleteEnvironment_DeletedDNSAlias(t *testing.T) {
 	sync(t, &env)
 
 	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
+	require.NoError(t, err)
 	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
 	assert.NotContains(t, re.ObjectMeta.Finalizers, kube.RadixEnvironmentFinalizer, "unexpected environment finalizer")
 	_, err = radixclient.RadixV1().RadixDNSAliases().Get(context.Background(), alias1Name, metav1.GetOptions{})
