@@ -1,40 +1,33 @@
 package utils
 
 import (
-	"strings"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
-// GetPodSpecTolerations returns tolerations required to schedule the pod on nodes
-func GetPodSpecTolerations(node *v1.RadixNode, isScheduledJob bool, isPipelineJob bool) []corev1.Toleration {
-	var tolerations []corev1.Toleration
-	tolerations = append(tolerations, getGpuNodeTolerations(node)...)
-	if isPipelineJob || isScheduledJob {
-		return append(tolerations, getJobNodeToleration())
-	}
-	return tolerations
+// GetPipelineJobPodSpecTolerations returns tolerations required to schedule the pipeline job pod on specific nodes
+func GetPipelineJobPodSpecTolerations() []corev1.Toleration {
+	return []corev1.Toleration{getNodeTolerationExists(kube.NodeTaintJobsKey)}
 }
 
-func getGpuNodeTolerations(node *v1.RadixNode) []corev1.Toleration {
-	if node == nil {
-		return nil
+// GetScheduledJobPodSpecTolerations returns tolerations required to schedule the job-component pod on specific nodes
+func GetScheduledJobPodSpecTolerations(node *v1.RadixNode) []corev1.Toleration {
+	if UseGPUNode(node) {
+		return []corev1.Toleration{getNodeTolerationExists(kube.NodeTaintGpuCountKey)}
 	}
-
-	// No toleration required if Gpu is empty
-	if len(strings.ReplaceAll(node.Gpu, " ", "")) == 0 {
-		return nil
-	}
-
-	return []corev1.Toleration{
-		getNodeTolerationExists(kube.NodeTaintGpuCountKey),
-	}
+	return []corev1.Toleration{getNodeTolerationExists(kube.NodeTaintJobsKey)}
 }
 
-func getJobNodeToleration() corev1.Toleration {
-	return getNodeTolerationExists(kube.NodeTaintJobsKey)
+// GetDeploymentPodSpecTolerations returns tolerations required to schedule the component pod on specific nodes
+func GetDeploymentPodSpecTolerations(node *v1.RadixNode) []corev1.Toleration {
+	if !UseGPUNode(node) {
+		return nil
+	}
+	if _, err := GetNodeGPUCount(node.GpuCount); err == nil {
+		return []corev1.Toleration{getNodeTolerationExists(kube.NodeTaintGpuCountKey)}
+	}
+	return nil
 }
 
 func getNodeTolerationExists(key string) corev1.Toleration {

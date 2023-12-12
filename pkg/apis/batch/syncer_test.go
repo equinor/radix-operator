@@ -458,8 +458,10 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.applyRadixDeploymentEnvVarsConfigMaps(s.kubeUtil, rd)
+
 	sut := s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(allJobs.Items, 2)
 	for _, jobName := range []string{job1Name, job2Name} {
@@ -499,7 +501,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(corev1.PullAlways, kubejob.Spec.Template.Spec.Containers[0].ImagePullPolicy)
 		s.Equal("default", kubejob.Spec.Template.Spec.ServiceAccountName)
 		s.Equal(utils.BoolPtr(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
-		s.Len(kubejob.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, 1)
+		s.Require().Len(kubejob.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, 1)
 		s.Equal(corev1.NodeSelectorRequirement{
 			Key:      kube.RadixJobNodeLabel,
 			Operator: corev1.NodeSelectorOpExists,
@@ -1004,18 +1006,18 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 }
 
 func (s *syncerTestSuite) Test_JobWithGpuNode() {
-	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
+	appName, batchName, jobComponentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
 		ObjectMeta: metav1.ObjectMeta{Name: batchName},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-				Job:                  componentName,
+				Job:                  jobComponentName,
 			},
 			Jobs: []radixv1.RadixBatchJob{
-				{Name: job1Name},
-				{Name: job2Name, Node: &radixv1.RadixNode{Gpu: "gpu3, gpu4", GpuCount: "8"}},
+				{Name: job1Name, Node: &radixv1.RadixNode{}},
+				{Name: job2Name, Node: &radixv1.RadixNode{Gpu: "gpu3 , gpu4 ", GpuCount: "8"}},
 			},
 		},
 	}
@@ -1025,8 +1027,8 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
 				{
-					Name: componentName,
-					Node: radixv1.RadixNode{Gpu: "gpu1, gpu2", GpuCount: "4"},
+					Name: jobComponentName,
+					Node: radixv1.RadixNode{Gpu: " gpu1, gpu2", GpuCount: "4"},
 				},
 			},
 		},
@@ -1043,44 +1045,33 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 
 	job1 := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
 	job1NodeSelectorTerms := job1.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-	s.Len(job1NodeSelectorTerms, 2)
-	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixGpuLabel,
-		Operator: corev1.NodeSelectorOpIn,
-		Values:   []string{"gpu1", "gpu2"},
-	}, job1NodeSelectorTerms[0].MatchExpressions[0])
-	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixGpuCountLabel,
-		Operator: corev1.NodeSelectorOpGt,
-		Values:   []string{"3"},
-	}, job1NodeSelectorTerms[0].MatchExpressions[1])
+	s.Require().Len(job1NodeSelectorTerms, 1)
 	s.Equal(corev1.NodeSelectorRequirement{
 		Key:      kube.RadixJobNodeLabel,
 		Operator: corev1.NodeSelectorOpExists,
-	}, job1NodeSelectorTerms[1].MatchExpressions[0])
+		Values:   nil,
+	}, job1NodeSelectorTerms[0].MatchExpressions[0])
 
 	tolerations := job1.Spec.Template.Spec.Tolerations
-	s.Len(tolerations, 2)
-	s.Equal(corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
-	s.Equal(corev1.Toleration{Key: kube.NodeTaintJobsKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[1])
+	s.Require().Len(tolerations, 1)
+	s.Equal(corev1.Toleration{Key: kube.NodeTaintJobsKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
 
 	job2 := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
 	job2NodeSelectorTerms := job2.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-	s.Len(job2NodeSelectorTerms, 2)
-	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixGpuLabel,
-		Operator: corev1.NodeSelectorOpIn,
-		Values:   []string{"gpu3", "gpu4"},
-	}, job2NodeSelectorTerms[0].MatchExpressions[0])
+	s.Require().Len(job2NodeSelectorTerms, 1)
 	s.Equal(corev1.NodeSelectorRequirement{
 		Key:      kube.RadixGpuCountLabel,
 		Operator: corev1.NodeSelectorOpGt,
 		Values:   []string{"7"},
-	}, job2NodeSelectorTerms[0].MatchExpressions[1])
+	}, job2NodeSelectorTerms[0].MatchExpressions[0])
 	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixJobNodeLabel,
-		Operator: corev1.NodeSelectorOpExists,
-	}, job2NodeSelectorTerms[1].MatchExpressions[0])
+		Key:      kube.RadixGpuLabel,
+		Operator: corev1.NodeSelectorOpIn,
+		Values:   []string{"gpu3", "gpu4"},
+	}, job2NodeSelectorTerms[0].MatchExpressions[1])
+	tolerations = job2.Spec.Template.Spec.Tolerations
+	s.Require().Len(tolerations, 1)
+	s.Equal(corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
 }
 
 func (s *syncerTestSuite) Test_StopJob() {

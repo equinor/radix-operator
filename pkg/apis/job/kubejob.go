@@ -26,6 +26,7 @@ import (
 )
 
 const (
+	tektonImage = "radix-tekton"
 	workerImage = "radix-pipeline"
 	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
 	ResultContent = "ResultContent"
@@ -107,8 +108,8 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 						},
 					},
 					RestartPolicy: "Never",
-					Affinity:      utils.GetPodSpecAffinity(nil, appName, "", false, true),
-					Tolerations:   utils.GetPodSpecTolerations(nil, false, true),
+					Affinity:      utils.GetPipelineJobPodSpecAffinity(),
+					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},
 		},
@@ -145,6 +146,12 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		return nil, fmt.Errorf("invalid or missing app builder resources")
 	}
 
+	// TODO: Remove fallback to Operator GetEnv when Radix-API is upgrade
+	radixTektonImage := os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)
+	if job.radixJob.Spec.TektonImage != "" {
+		radixTektonImage = fmt.Sprintf("%s:%s", tektonImage, job.radixJob.Spec.TektonImage)
+	}
+
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
@@ -155,7 +162,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.String()),
 
 		// Pass tekton and builder images
-		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)),
+		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, radixTektonImage),
 		fmt.Sprintf("--%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
 		fmt.Sprintf("--%s=%s", defaults.RadixBuildahImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixBuildahImageBuilderEnvironmentVariable)),
 		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),

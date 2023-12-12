@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/labels"
-
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
@@ -21,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -181,8 +180,8 @@ func (s *syncer) buildJob(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1
 					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					RestartPolicy:                corev1.RestartPolicyNever,
 					ImagePullSecrets:             rd.Spec.ImagePullSecrets,
-					Affinity:                     operatorUtils.GetPodSpecAffinity(node, rd.Spec.AppName, jobComponent.GetName(), true, false),
-					Tolerations:                  operatorUtils.GetPodSpecTolerations(jobComponent.GetNode(), true, false),
+					Affinity:                     operatorUtils.GetScheduledJobPodSpecAffinity(node),
+					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node),
 					ActiveDeadlineSeconds:        timeLimitSeconds,
 					ServiceAccountName:           serviceAccountSpec.ServiceAccountName(),
 					AutomountServiceAccountToken: serviceAccountSpec.AutomountServiceAccountToken(),
