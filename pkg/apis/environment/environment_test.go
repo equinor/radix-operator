@@ -17,9 +17,11 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -47,7 +49,6 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
 	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
-
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
 
@@ -58,7 +59,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	nw, _ := networkpolicy.NewNetworkPolicy(client, kubeUtil, logger, re.Spec.AppName)
 	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
-	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, meta.CreateOptions{}); err != nil {
+	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, metav1.CreateOptions{}); err != nil {
 		panic(err)
 	}
 	return rr, re, env
@@ -71,7 +72,7 @@ func Test_Create_Namespace(t *testing.T) {
 
 	sync(t, &env)
 
-	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), meta.ListOptions{
+	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
 	})
 
@@ -90,6 +91,67 @@ func Test_Create_Namespace(t *testing.T) {
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }
 
+func Test_DeleteEnvironment_Deleted(t *testing.T) {
+	_, client, kubeUtil, radixclient := setupTest()
+	defer os.Clearenv()
+	_, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+
+	sync(t, &env)
+
+	re, err := radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
+	require.NoError(t, err)
+	timeNow := metav1.NewTime(time.Now())
+	re.ObjectMeta.DeletionTimestamp = &timeNow
+	re, err = radixclient.RadixV1().RadixEnvironments().Update(context.Background(), re, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
+	assert.Contains(t, re.ObjectMeta.Finalizers, kube.RadixEnvironmentFinalizer, "missing environment finalizer")
+	env.config = re
+	sync(t, &env)
+
+	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
+	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
+	assert.NotContains(t, re.ObjectMeta.Finalizers, kube.RadixEnvironmentFinalizer, "unexpected environment finalizer")
+}
+
+func Test_DeleteEnvironment_DeletedDNSAlias(t *testing.T) {
+	_, client, kubeUtil, radixclient := setupTest()
+	defer os.Clearenv()
+	_, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+
+	sync(t, &env)
+
+	alias1Name := "alias1"
+	err := createRadixDNSAliasForEnvironment(radixclient, alias1Name)
+	require.NoError(t, err)
+	re, err := radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
+	require.NoError(t, err)
+	timeNow := metav1.NewTime(time.Now())
+	re.ObjectMeta.DeletionTimestamp = &timeNow
+	re, err = radixclient.RadixV1().RadixEnvironments().Update(context.Background(), re, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
+	env.config = re
+	sync(t, &env)
+
+	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
+	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
+	assert.NotContains(t, re.ObjectMeta.Finalizers, kube.RadixEnvironmentFinalizer, "unexpected environment finalizer")
+	_, err = radixclient.RadixV1().RadixDNSAliases().Get(context.Background(), alias1Name, metav1.GetOptions{})
+	require.Error(t, err)
+	assert.True(t, errors.IsNotFound(err))
+}
+
+func createRadixDNSAliasForEnvironment(radixClient radixclient.Interface, aliasName string) error {
+	return test.RegisterRadixDNSAliasBySpec(radixClient, aliasName, test.DNSAlias{
+		AppName:     "testapp",
+		Environment: "testenv",
+		Component:   "testcomponent",
+	})
+}
+
 func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
@@ -103,7 +165,7 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 
 	sync(t, &env)
 
-	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), meta.ListOptions{
+	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
 	})
 
@@ -135,7 +197,7 @@ func Test_Create_EgressRules(t *testing.T) {
 
 	sync(t, &env)
 
-	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), meta.ListOptions{
+	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
 	})
 
@@ -156,7 +218,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	sync(t, &env)
 
-	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), meta.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), metav1.ListOptions{})
 
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-tekton-env", "radix-app-admin-envs", "radix-pipeline-env", "radix-app-reader-envs")
 	adGroupName := rr.Spec.AdGroups[0]
@@ -181,7 +243,7 @@ func Test_Create_LimitRange(t *testing.T) {
 
 	sync(t, &env)
 
-	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(context.TODO(), meta.ListOptions{})
+	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(context.TODO(), metav1.ListOptions{})
 
 	commonAsserts(t, env, limitRangesAsMeta(limitranges.Items), "mem-cpu-limit-range-env")
 
@@ -228,7 +290,7 @@ func Test_Orphaned_Status(t *testing.T) {
 
 // sync calls OnSync on the Environment resource and asserts success
 func sync(t *testing.T, env *Environment) {
-	time := meta.NewTime(time.Now().UTC())
+	time := metav1.NewTime(time.Now().UTC())
 	err := env.OnSync(time)
 
 	t.Run("Method succeeds", func(t *testing.T) {
@@ -241,7 +303,7 @@ func sync(t *testing.T, env *Environment) {
 }
 
 // commonAsserts runs a generic set of assertions about resource creation
-func commonAsserts(t *testing.T, env Environment, resources []meta.Object, names ...string) {
+func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, names ...string) {
 	t.Run("It creates a single resource", func(t *testing.T) {
 		assert.Len(t, resources, len(names))
 	})
@@ -259,7 +321,7 @@ func commonAsserts(t *testing.T, env Environment, resources []meta.Object, names
 	})
 
 	t.Run("Creation is idempotent", func(t *testing.T) {
-		err := env.OnSync(meta.NewTime(time.Now().UTC()))
+		err := env.OnSync(metav1.NewTime(time.Now().UTC()))
 		assert.NoError(t, err)
 		assert.Len(t, resources, len(names))
 	})
@@ -268,24 +330,24 @@ func commonAsserts(t *testing.T, env Environment, resources []meta.Object, names
 // following code is necessary noise to account for the lack of covariance and overloading
 // it simply exposes a resource slice as a generic interface
 
-func namespacesAsMeta(items []core.Namespace) []meta.Object {
-	var slice []meta.Object
+func namespacesAsMeta(items []core.Namespace) []metav1.Object {
+	var slice []metav1.Object
 	for _, w := range items {
 		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
 }
-func roleBindingsAsMeta(items []rbac.RoleBinding) []meta.Object {
-	var slice []meta.Object
+func roleBindingsAsMeta(items []rbac.RoleBinding) []metav1.Object {
+	var slice []metav1.Object
 	for _, w := range items {
 		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
 }
-func limitRangesAsMeta(items []core.LimitRange) []meta.Object {
-	var slice []meta.Object
+func limitRangesAsMeta(items []core.LimitRange) []metav1.Object {
+	var slice []metav1.Object
 	for _, w := range items {
 		w := w
 		slice = append(slice, w.GetObjectMeta())

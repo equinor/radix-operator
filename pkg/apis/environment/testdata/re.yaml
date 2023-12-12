@@ -3,6 +3,8 @@ kind: RadixEnvironment
 metadata:
   name: testenv
   uid: af1d2960-5eb7-40e8-9ca2-12fc1fd9916e
+  finalizers:
+  - radix.equinor.com/environment-finalizer
 spec:
   appName: "testapp"
   envName: "testenv"

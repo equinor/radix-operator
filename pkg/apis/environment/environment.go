@@ -1,7 +1,6 @@
 package environment
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -19,7 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/retry"
 )
 
 // Environment is the aggregate-root for manipulating RadixEnvironments
@@ -62,7 +60,10 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	re := env.config
 
 	if re.ObjectMeta.DeletionTimestamp != nil {
-		return env.handleDeletedRadixEnvironment(re)
+		if err := env.handleDeletedRadixEnvironment(re); err != nil {
+			return err
+		}
+		return env.syncStatus(re, time)
 	}
 
 	if env.regConfig == nil {
@@ -90,19 +91,7 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	if err := env.networkPolicy.UpdateEnvEgressRules(re.Spec.Egress.Rules, re.Spec.Egress.AllowRadix, re.Spec.EnvName); err != nil {
 		return fmt.Errorf("failed to add egress rules in %s, environment %s: %v", re.Spec.AppName, re.Spec.EnvName, err)
 	}
-
-	isOrphaned := !existsInAppConfig(env.appConfig, re.Spec.EnvName)
-
-	err := env.updateRadixEnvironmentStatus(re, func(currStatus *v1.RadixEnvironmentStatus) {
-		currStatus.Orphaned = isOrphaned
-		// time is parameterized for testability
-		currStatus.Reconciled = time
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update status on environment %s: %v", re.Spec.EnvName, err)
-	}
-	env.logger.Debugf("Environment %s reconciled", namespaceName)
-	return nil
+	return env.syncStatus(re, time)
 }
 
 func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) error {
@@ -134,25 +123,6 @@ func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEn
 	return env.kubeutil.DeleteRadixDNSAliases(slice.Reduce(radixDNSAliasList.Items, []*v1.RadixDNSAlias{}, func(acc []*v1.RadixDNSAlias, radixDNSAlias v1.RadixDNSAlias) []*v1.RadixDNSAlias {
 		return append(acc, &radixDNSAlias)
 	})...)
-}
-
-func (env *Environment) updateRadixEnvironmentStatus(rEnv *v1.RadixEnvironment, changeStatusFunc func(currStatus *v1.RadixEnvironmentStatus)) error {
-	radixEnvironmentInterface := env.radixclient.RadixV1().RadixEnvironments()
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentEnv, err := radixEnvironmentInterface.Get(context.TODO(), rEnv.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		changeStatusFunc(&currentEnv.Status)
-		_, err = radixEnvironmentInterface.UpdateStatus(context.TODO(), currentEnv, metav1.UpdateOptions{})
-		if err == nil && env.config.GetName() == rEnv.GetName() {
-			currentEnv, err = radixEnvironmentInterface.Get(context.TODO(), rEnv.GetName(), metav1.GetOptions{})
-			if err == nil {
-				env.config = currentEnv
-			}
-		}
-		return err
-	})
 }
 
 // ApplyNamespace sets up namespace metadata and applies configuration to kubernetes
