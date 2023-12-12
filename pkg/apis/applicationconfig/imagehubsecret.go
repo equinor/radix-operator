@@ -52,28 +52,6 @@ func UpdatePrivateImageHubsSecretsPassword(kubeutil *kube.Kube, appName, server,
 	return fmt.Errorf("private image hub secret does not contain config for server %s", server)
 }
 
-// GetPendingPrivateImageHubSecrets returns a list of private image hubs where secret value is not set
-func GetPendingPrivateImageHubSecrets(kubeUtil *kube.Kube, appName string) ([]string, error) {
-	pendingSecrets := []string{}
-	ns := utils.GetAppNamespace(appName)
-	secret, err := kubeUtil.GetSecret(ns, defaults.PrivateImageHubSecretName)
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, err
-	}
-
-	imageHubs, err := GetImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
-	if err != nil {
-		return nil, err
-	}
-
-	for key, imageHub := range imageHubs {
-		if imageHub.Password == "" {
-			pendingSecrets = append(pendingSecrets, key)
-		}
-	}
-	return pendingSecrets, nil
-}
-
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	namespace := utils.GetAppNamespace(app.config.Name)
 	secret, err := app.kubeutil.GetSecret(namespace, defaults.PrivateImageHubSecretName)

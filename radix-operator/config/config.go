@@ -9,17 +9,17 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
-var logLevels = map[string]bool{string(apiconfig.LogLevelInfo): true, string(apiconfig.LogLevelWarning): true, string(apiconfig.LogLevelDebug): true, string(apiconfig.LogLevelError): true}
-
-func getLogLevel() apiconfig.LogLevel {
+func getLogLevel() log.Level {
 	logLevel := viper.GetString(defaults.LogLevel)
-	if _, ok := logLevels[logLevel]; ok {
-		return apiconfig.LogLevel(logLevel)
+	level, err := log.ParseLevel(logLevel)
+	if err != nil {
+		return log.InfoLevel
 	}
-	return apiconfig.LogLevelInfo
+	return level
 }
 
 // Gets pipeline job history limit per each list, grouped by pipeline branch and job status

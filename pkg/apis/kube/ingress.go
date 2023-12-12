@@ -86,7 +86,11 @@ func (kubeutil *Kube) ListIngresses(namespace string) ([]*networkingv1.Ingress, 
 // ListIngressesWithSelector lists ingresses
 func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
 	if kubeutil.IngressLister == nil {
-		return kubeutil.GetIngressesWithSelector(namespace, labelSelectorString)
+		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelectorString})
+		if err != nil {
+			return nil, err
+		}
+		return slice.PointersOf(list.Items).([]*networkingv1.Ingress), nil
 	}
 	selector, err := labels.Parse(labelSelectorString)
 	if err != nil {
@@ -97,14 +101,6 @@ func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorS
 		return nil, err
 	}
 	return ingresses, nil
-}
-
-func (kubeutil *Kube) GetIngressesWithSelector(namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
-	list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelectorString})
-	if err != nil {
-		return nil, err
-	}
-	return slice.PointersOf(list.Items).([]*networkingv1.Ingress), nil
 }
 
 // DeleteIngresses Deletes ingresses

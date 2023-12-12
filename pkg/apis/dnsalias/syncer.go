@@ -1,6 +1,7 @@
 package dnsalias
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 
@@ -19,6 +20,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -158,11 +160,11 @@ func (s *syncer) deletedIngressesForRadixDNSAlias() error {
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	dnsAliasIngressesSelector := radixlabels.ForDNSAliasIngress(aliasSpec.AppName, aliasSpec.Component, s.radixDNSAlias.GetName()).String()
-	ingresses, err := s.kubeUtil.GetIngressesWithSelector(namespace, dnsAliasIngressesSelector)
+	ingresses, err := s.kubeUtil.KubeClient().NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: dnsAliasIngressesSelector})
 	if err != nil {
 		return err
 	}
-	return s.kubeUtil.DeleteIngresses(ingresses...)
+	return s.kubeUtil.DeleteIngresses(slice.PointersOf(ingresses.Items).([]*networkingv1.Ingress)...)
 }
 
 func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {

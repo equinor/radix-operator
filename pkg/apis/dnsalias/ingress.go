@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -90,9 +91,9 @@ func (s *syncer) syncOAuthProxyIngress(deployComponent radixv1.RadixCommonDeploy
 }
 
 func (s *syncer) deleteOAuthAuxIngresses(deployComponent radixv1.RadixCommonDeployComponent, namespace string, appName string) error {
-	oauthAuxIngresses, err := s.kubeUtil.GetIngressesWithSelector(namespace, radixlabels.ForAuxComponentDNSAliasIngress(appName, deployComponent, s.radixDNSAlias.GetName()).String())
+	oauthAuxIngresses, err := s.kubeUtil.KubeClient().NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForAuxComponentDNSAliasIngress(appName, deployComponent, s.radixDNSAlias.GetName()).String()})
 	if err != nil {
 		return err
 	}
-	return s.kubeUtil.DeleteIngresses(oauthAuxIngresses...)
+	return s.kubeUtil.DeleteIngresses(slice.PointersOf(oauthAuxIngresses.Items).([]*networkingv1.Ingress)...)
 }
