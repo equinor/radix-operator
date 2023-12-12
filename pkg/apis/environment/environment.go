@@ -61,8 +61,8 @@ func NewEnvironment(
 func (env *Environment) OnSync(time metav1.Time) error {
 	re := env.config
 
-	if handled, err := env.handleDeletedRadixEnvironment(re); handled || err != nil {
-		return err
+	if re.ObjectMeta.DeletionTimestamp != nil {
+		return env.handleDeletedRadixEnvironment(re)
 	}
 
 	if env.regConfig == nil {
@@ -105,10 +105,7 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	return nil
 }
 
-func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) (bool, error) {
-	if re.ObjectMeta.DeletionTimestamp == nil {
-		return false, nil
-	}
+func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) error {
 	logrus.Debugf("handle deleted RadixEnvironment %s in the application %s", re.Name, re.Spec.AppName)
 	finalizerIndex := slice.FindIndex(re.ObjectMeta.Finalizers, func(val string) bool {
 		return val == kube.RadixEnvironmentFinalizer
@@ -116,20 +113,16 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) (
 	if finalizerIndex < 0 {
 		logrus.Infof("missing finalizer %s in the Radix environment %s in the application %s. Exist finalizers: %d. Skip dependency handling",
 			kube.RadixEnvironmentFinalizer, re.Name, re.Spec.AppName, len(re.ObjectMeta.Finalizers))
-		return false, nil
+		return nil
 	}
-	err := env.handleDeletedRadixEnvironmentDependencies(re)
-	if err != nil {
-		return true, err
+	if err := env.handleDeletedRadixEnvironmentDependencies(re); err != nil {
+		return err
 	}
 	updatingRE := re.DeepCopy()
 	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
 	logrus.Debugf("removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
-	if err = env.kubeutil.UpdateRadixEnvironment(updatingRE); err != nil {
-		return false, err
-	}
-	return true, nil
+	return env.kubeutil.UpdateRadixEnvironment(updatingRE)
 }
 
 func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEnvironment) error {
