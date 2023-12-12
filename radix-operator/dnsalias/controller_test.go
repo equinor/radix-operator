@@ -10,7 +10,9 @@ import (
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/radix"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
@@ -89,7 +91,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
 	cfg := &dnsalias2.DNSConfig{DNSZone: dnsZone}
-	ing := buildRadixDNSAliasIngress(alias.GetName(), alias.Spec.Component, int32(8080), cfg)
+	ing := buildRadixDNSAliasIngress(alias, int32(8080), cfg)
 	ing.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	namespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
@@ -123,9 +125,13 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
 }
 
-func buildRadixDNSAliasIngress(aliasName, component string, port int32, cfg *dnsalias2.DNSConfig) *networkingv1.Ingress {
+func buildRadixDNSAliasIngress(dnsAlias *radixv1.RadixDNSAlias, port int32, cfg *dnsalias2.DNSConfig) *networkingv1.Ingress {
+	aliasName := dnsAlias.GetName()
 	return &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: dnsaliasapi.GetDNSAliasIngressName(aliasName)},
-		Spec:       ingress.GetIngressSpec(dnsaliasapi.GetDNSAliasHost(aliasName, cfg.DNSZone), component, defaults.TLSSecretName, port),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   dnsaliasapi.GetDNSAliasIngressName(aliasName),
+			Labels: radixlabels.ForDNSAliasIngress(dnsAlias.Spec.AppName, dnsAlias.Spec.Component, aliasName),
+		},
+		Spec: ingress.GetIngressSpec(dnsaliasapi.GetDNSAliasHost(aliasName, cfg.DNSZone), dnsAlias.Spec.Component, defaults.TLSSecretName, port),
 	}
 }

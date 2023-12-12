@@ -3,7 +3,6 @@ package ingress
 import (
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
@@ -17,19 +16,8 @@ func GetAuxOAuthProxyAnnotationProviders() []AnnotationProvider {
 	return []AnnotationProvider{NewForceSslRedirectAnnotationProvider()}
 }
 
-// CreateOrUpdateOAuthProxyIngressForComponentIngress Creates or updates OAuth proxy ingress for RadixDeploy component ingress
-func CreateOrUpdateOAuthProxyIngressForComponentIngress(kubeutil *kube.Kube, namespace string, appName string, component v1.RadixCommonDeployComponent, ingress *networkingv1.Ingress, ingressAnnotationProviders []AnnotationProvider) error {
-	auxIngress, err := buildOAuthProxyIngressForComponentIngress(appName, ingressAnnotationProviders, component, ingress, namespace)
-	if err != nil {
-		return err
-	}
-	if auxIngress != nil {
-		return kubeutil.ApplyIngress(namespace, auxIngress)
-	}
-	return nil
-}
-
-func buildOAuthProxyIngressForComponentIngress(appName string, ingressAnnotationProviders []AnnotationProvider, component v1.RadixCommonDeployComponent, componentIngress *networkingv1.Ingress, namespace string) (*networkingv1.Ingress, error) {
+// BuildOAuthProxyIngressForComponentIngress builds OAuth proxy ingress for RadixDeploy component ingress
+func BuildOAuthProxyIngressForComponentIngress(namespace string, component v1.RadixCommonDeployComponent, componentIngress *networkingv1.Ingress, ingressAnnotationProviders []AnnotationProvider) (*networkingv1.Ingress, error) {
 	if len(componentIngress.Spec.Rules) == 0 {
 		logrus.Debugf("the component ingress %s in the namespace %s has no rules. Do not create an OAuth proxy ingress", componentIngress.GetName(), namespace)
 		return nil, nil
@@ -89,7 +77,5 @@ func buildOAuthProxyIngressForComponentIngress(appName string, ingressAnnotation
 			},
 		},
 	}
-
-	oauth.MergeAuxComponentResourceLabels(ingress, appName, component)
 	return ingress, nil
 }

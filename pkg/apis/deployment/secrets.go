@@ -231,7 +231,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 
 	for _, secret := range secrets {
 		// External alias not handled here
-		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
+		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] == "" {
 			continue
 		}
 

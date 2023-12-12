@@ -136,9 +136,9 @@ func Test_ForRadixImageTag(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func Test_ForDNSAlias(t *testing.T) {
-	actual := ForDNSAlias()
-	expected := kubelabels.Set{kube.RadixAliasLabel: "true"}
+func Test_ForDNSAliasIngress(t *testing.T) {
+	actual := ForDNSAliasIngress("any-app", "any-component", "any-dns-alias")
+	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixComponentLabel: "any-component", kube.RadixAliasLabel: "any-dns-alias"}
 	assert.Equal(t, expected, actual)
 }
 

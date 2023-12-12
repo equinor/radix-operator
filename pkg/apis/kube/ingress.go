@@ -108,13 +108,10 @@ func (kubeutil *Kube) GetIngressesWithSelector(namespace string, labelSelectorSt
 }
 
 // DeleteIngresses Deletes ingresses
-func (kubeutil *Kube) DeleteIngresses(ignoreIsNotFoundError bool, ingresses ...*networkingv1.Ingress) error {
+func (kubeutil *Kube) DeleteIngresses(ingresses ...*networkingv1.Ingress) error {
+	log.Debugf("delete %d Ingress(es)", len(ingresses))
 	for _, ing := range ingresses {
-		err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name, metav1.DeleteOptions{})
-		if err != nil {
-			if errors.IsNotFound(err) && ignoreIsNotFoundError {
-				continue
-			}
+		if err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 	}

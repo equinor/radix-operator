@@ -52,6 +52,7 @@ const (
 	RadixJobTypeJob                     = "job" // Outer job
 	RadixJobTypeBuild                   = "build"
 	RadixJobTypeCloneConfig             = "clone-config"
+	RadixStandardIngressLabel           = "radix-standard-ingress"
 	RadixAliasLabel                     = "radix-alias"
 	RadixJobTypePreparePipelines        = "prepare-pipelines"
 	RadixJobTypeRunPipelines            = "run-pipelines"

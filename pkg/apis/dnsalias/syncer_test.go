@@ -2,8 +2,6 @@ package dnsalias_test
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"testing"
 
 	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
@@ -176,8 +174,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 			err = syncer.OnSync()
 			commonTest.AssertError(s.T(), ts.expectedError, err)
 
-			ingresses, err := s.kubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment)).
-				List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForDNSAlias().String()})
+			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
 			s.Require().NoError(err)
 
 			// assert ingresses
@@ -186,14 +183,18 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 				return
 			}
 
-			s.Require().Len(ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
+			s.Len(ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
 			if len(ingresses.Items) == len(ts.expectedIngress) {
 				for _, ing := range ingresses.Items {
 					appNameLabel := ing.GetLabels()[kube.RadixAppLabel]
 					componentNameLabel := ing.GetLabels()[kube.RadixComponentLabel]
 					s.Require().Len(ing.Spec.Rules, 1, "rules count")
 					rule := ing.Spec.Rules[0]
-					if expectedIngress, ok := ts.expectedIngress[ing.Name]; ok {
+					expectedIngress, ingressExists := ts.expectedIngress[ing.Name]
+					assert.True(t, ingressExists, "found not expected ingress %s for: appName %s, host %s, service %s, port %d",
+						ing.GetName(), appNameLabel, rule.Host, rule.HTTP.Paths[0].Backend.Service.Name,
+						rule.HTTP.Paths[0].Backend.Service.Port.Number)
+					if ingressExists {
 						s.Assert().Equal(expectedIngress.appName, appNameLabel, "app name")
 						expectedNamespace := utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName)
 						s.Assert().Equal(expectedNamespace, ing.GetNamespace(), "namespace")
@@ -213,16 +214,16 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 							s.Assert().Equal(radixDNSAlias.GetUID(), ownerRef.UID, "ownerRef.UID")
 							s.Assert().True(ownerRef.Controller != nil && *ownerRef.Controller, "ownerRef.Controller")
 						}
-						continue
 					}
-					assert.Fail(t, fmt.Sprintf("found not expected ingress %s for: appName %s, host %s, service %s, port %d",
-						ing.GetName(), appNameLabel, rule.Host, rule.HTTP.Paths[0].Backend.Service.Name,
-						rule.HTTP.Paths[0].Backend.Service.Port.Number))
 				}
 			}
 
 		})
 	}
+}
+
+func (s *syncerTestSuite) getIngressesForAnyAliases(namespace string) (*networkingv1.IngressList, error) {
+	return s.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
 }
 
 func buildRadixDeployment(appName, component1, component2, envName string, port8080, port9090 int32) *radixv1.RadixDeployment {
@@ -255,12 +256,8 @@ func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses ma
 	for _, ingProps := range testIngresses {
 		ing := &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: dnsalias.GetDNSAliasIngressName(ingProps.alias),
-				Labels: map[string]string{
-					kube.RadixAppLabel:       ingProps.appName,
-					kube.RadixComponentLabel: ingProps.component,
-					kube.RadixAliasLabel:     strconv.FormatBool(true),
-				},
+				Name:   dnsalias.GetDNSAliasIngressName(ingProps.alias),
+				Labels: radixlabels.ForDNSAliasIngress(ingProps.appName, ingProps.component, ingProps.alias),
 			},
 			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.component, defaults.TLSSecretName, ingProps.port),
 		}

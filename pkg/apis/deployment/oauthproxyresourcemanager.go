@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -287,12 +288,12 @@ func (o *oauthProxyResourceManager) deleteDeployment(component v1.RadixCommonDep
 }
 
 func (o *oauthProxyResourceManager) deleteIngresses(component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentIngress(o.rd.Spec.AppName, component)).String()
 	ingresses, err := o.kubeutil.ListIngressesWithSelector(o.rd.Namespace, selector)
 	if err != nil {
 		return err
 	}
-	return o.kubeutil.DeleteIngresses(true, ingresses...)
+	return o.kubeutil.DeleteIngresses(ingresses...)
 }
 
 func (o *oauthProxyResourceManager) deleteServices(component v1.RadixCommonDeployComponent) error {
@@ -370,7 +371,16 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 	}
 
 	for _, ing := range ingresses.Items {
-		if err := ingress.CreateOrUpdateOAuthProxyIngressForComponentIngress(o.kubeutil, namespace, o.rd.Spec.AppName, component, &ing, o.ingressAnnotationProviders); err != nil {
+		appName := o.rd.Spec.AppName
+		auxIngress, err := ingress.BuildOAuthProxyIngressForComponentIngress(namespace, component, &ing, o.ingressAnnotationProviders)
+		if err != nil {
+			return err
+		}
+		if auxIngress == nil {
+			continue
+		}
+		oauth.MergeAuxComponentIngressResourceLabels(auxIngress, appName, component)
+		if err := o.kubeutil.ApplyIngress(namespace, auxIngress); err != nil {
 			return err
 		}
 	}

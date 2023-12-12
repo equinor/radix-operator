@@ -1,8 +1,6 @@
 package labels
 
 import (
-	"strconv"
-
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -236,9 +234,31 @@ func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) ma
 	}
 }
 
-// ForDNSAlias returns labels for ingress, created for Radix DNS alias
-func ForDNSAlias() kubelabels.Set {
+// ForAuxComponentIngress returns labels for application component aux OAuth proxy standard ingress
+func ForAuxComponentIngress(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
 	return kubelabels.Set{
-		kube.RadixAliasLabel: strconv.FormatBool(true),
+		kube.RadixAppLabel:                    appName,
+		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
+		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+		kube.RadixStandardIngressLabel:        "true",
+	}
+}
+
+// ForAuxComponentDNSAliasIngress returns labels for application component aux DNS alias ingress OAuth proxy
+func ForAuxComponentDNSAliasIngress(appName string, component v1.RadixCommonDeployComponent, dnsAlias string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:                    appName,
+		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
+		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+		kube.RadixAliasLabel:                  dnsAlias,
+	}
+}
+
+// ForDNSAliasIngress returns labels for DNS alias ingress
+func ForDNSAliasIngress(appName string, componentName, dnsAlias string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:       appName,
+		kube.RadixComponentLabel: componentName,
+		kube.RadixAliasLabel:     dnsAlias,
 	}
 }

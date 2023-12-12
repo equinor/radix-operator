@@ -641,8 +641,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		}
 	}
 	// Ingresses for server component
-	actualIngress := getIngress(fmt.Sprintf("%s-%s", ingServer.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
-	s.NotNil(actualIngress)
+	ingressName := fmt.Sprintf("%s-%s", ingServer.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	actualIngress := getIngress(ingressName, actualIngresses.Items)
+	s.Require().NotNil(actualIngress, "not fount aux ingress %s", ingressName)
 	s.Equal(expectedIngServerAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingServer), actualIngress.OwnerReferences)
 	s.Equal(ingServer.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
@@ -651,8 +652,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(getExpectedIngressRule(component1Name, "auth1"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
 	// Ingresses for web component
-	actualIngress = getIngress(fmt.Sprintf("%s-%s", ingWeb1.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
-	s.NotNil(actualIngress)
+	ingressName = fmt.Sprintf("%s-%s", ingWeb1.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	actualIngress = getIngress(ingressName, actualIngresses.Items)
+	s.Require().NotNil(actualIngress, "not fount aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb1), actualIngress.OwnerReferences)
 	s.Equal(ingWeb1.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
@@ -660,8 +662,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(ingWeb1.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
 	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
-	actualIngress = getIngress(fmt.Sprintf("%s-%s", ingWeb2.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
-	s.NotNil(actualIngress)
+	ingressName = fmt.Sprintf("%s-%s", ingWeb2.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	actualIngress = getIngress(ingressName, actualIngresses.Items)
+	s.Require().NotNil(actualIngress, "not fount aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb2), actualIngress.OwnerReferences)
 	s.Equal(ingWeb2.Spec.IngressClassName, actualIngress.Spec.IngressClassName)

@@ -22,7 +22,7 @@ func (s *syncer) restoreStatus() error {
 	}
 	var status radixv1.RadixDNSAliasStatus
 	if err := json.Unmarshal([]byte(restoredStatus), &status); err != nil {
-		return fmt.Errorf("unable to deserealise status from annotation: %w", err)
+		return fmt.Errorf("unable to deserialize status from annotation: %w", err)
 	}
 	return s.updateStatus(func(currStatus *radixv1.RadixDNSAliasStatus) {
 		*currStatus = status
@@ -42,7 +42,7 @@ func (s *syncer) syncStatus(syncErr error) error {
 		currStatus.Message = ""
 	})
 	if err != nil {
-		return fmt.Errorf("failed to sync status: %v", err)
+		return fmt.Errorf("failed to sync status: %w", err)
 	}
 	return nil
 }

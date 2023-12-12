@@ -215,7 +215,12 @@ func (deploy *Deployment) getAppAliasIngressConfig(appName string, ownerReferenc
 	hostname := fmt.Sprintf("%s.%s", appName, appAlias)
 	ingressSpec := ingress.GetIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 
-	return ingress.GetIngressConfig(namespace, appName, component, getAppAliasIngressName(appName), ingressSpec, deploy.ingressAnnotationProviders, ingress.DNSAppAlias, ownerReference)
+	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, getAppAliasIngressName(appName), ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
+	if err != nil {
+		return nil, err
+	}
+	ingressConfig.ObjectMeta.Labels[kube.RadixAppAliasLabel] = "true"
+	return ingressConfig, err
 }
 
 func getAppAliasIngressName(appName string) string {
@@ -236,7 +241,12 @@ func (deploy *Deployment) getActiveClusterAliasIngressConfig(
 	ingressSpec := ingress.GetIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 	ingressName := getActiveClusterIngressName(component.GetName())
 
-	return ingress.GetIngressConfig(namespace, appName, component, ingressName, ingressSpec, deploy.ingressAnnotationProviders, ingress.DNSActiveClusterAlias, ownerReference)
+	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, ingressName, ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
+	if err != nil {
+		return nil, err
+	}
+	ingressConfig.ObjectMeta.Labels[kube.RadixActiveClusterAliasLabel] = "true"
+	return ingressConfig, err
 }
 
 func getActiveClusterIngressName(componentName string) string {
@@ -257,7 +267,11 @@ func (deploy *Deployment) getDefaultIngressConfig(
 	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
 	ingressSpec := ingress.GetIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 
-	return ingress.GetIngressConfig(namespace, appName, component, getDefaultIngressName(component.GetName()), ingressSpec, deploy.ingressAnnotationProviders, ingress.DNSDefaultAlias, ownerReference)
+	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, getDefaultIngressName(component.GetName()), ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
+	if err != nil {
+		return nil, err
+	}
+	return ingressConfig, err
 }
 
 func getDefaultIngressName(componentName string) string {
@@ -273,7 +287,12 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
 	ingressSpec := ingress.GetIngressSpec(externalAlias, component.GetName(), externalAlias, publicPortNumber)
-	return ingress.GetIngressConfig(namespace, appName, component, externalAlias, ingressSpec, deploy.ingressAnnotationProviders, ingress.DNSExternalAlias, ownerReference)
+	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, externalAlias, ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
+	if err != nil {
+		return nil, err
+	}
+	ingressConfig.ObjectMeta.Labels[kube.RadixExternalAliasLabel] = "true"
+	return ingressConfig, err
 }
 
 func getActiveClusterHostName(componentName, namespace string) string {

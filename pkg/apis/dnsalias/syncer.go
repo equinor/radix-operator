@@ -19,7 +19,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -87,32 +86,27 @@ func (s *syncer) syncAlias() error {
 	aliasSpec := s.radixDNSAlias.Spec
 	ingressName := GetDNSAliasIngressName(aliasName)
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	ing, err := s.createOrUpdateIngress(namespace, radixDeployComponent, ingressName)
+
+	ing, err := s.syncIngress(namespace, radixDeployComponent, ingressName)
 	if err != nil {
-		if admissionWebhookErrorMatcher := admissionWebhookErrorExpression.FindStringSubmatch(err.Error()); len(admissionWebhookErrorMatcher) == 5 {
-			log.Error(err)
-			return fmt.Errorf("DNS alias %s cannot be used, because the host %s with the path %s is already in use", s.radixDNSAlias.GetName(), admissionWebhookErrorMatcher[1], admissionWebhookErrorMatcher[2])
-		}
-		return err
+		return s.getDNSAliasError(err)
 	}
-	return s.createOrUpdateOAuthProxyIngressForComponentIngress(radixDeployComponent.GetAuthentication(), namespace, aliasSpec, radixDeployComponent, ing)
+
+	return s.syncOAuthProxyIngress(radixDeployComponent, namespace, aliasSpec, radixDeployComponent, ing)
 }
 
-func (s *syncer) createOrUpdateOAuthProxyIngressForComponentIngress(componentAuthentication *radixv1.Authentication, namespace string, aliasSpec radixv1.RadixDNSAliasSpec, radixDeployComponent radixv1.RadixCommonDeployComponent, ing *networkingv1.Ingress) error {
-	if componentAuthentication == nil || componentAuthentication.OAuth2 == nil {
-		return nil
+func (s *syncer) getDNSAliasError(err error) error {
+	if admissionWebhookErrorMatcher := admissionWebhookErrorExpression.FindStringSubmatch(err.Error()); len(admissionWebhookErrorMatcher) == 5 {
+		log.Error(err)
+		return fmt.Errorf("DNS alias %s cannot be used, because the host %s with the path %s is already in use", s.radixDNSAlias.GetName(), admissionWebhookErrorMatcher[1], admissionWebhookErrorMatcher[2])
 	}
-	oauth, err := s.oauth2DefaultConfig.MergeWith(componentAuthentication.OAuth2)
-	if err != nil {
-		return err
-	}
-	componentAuthentication.OAuth2 = oauth
-	return ingress.CreateOrUpdateOAuthProxyIngressForComponentIngress(s.kubeUtil, namespace, aliasSpec.AppName, radixDeployComponent, ing, s.ingressAnnotationProviders)
+	return err
 }
 
 func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, error) {
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
+
 	log.Debugf("get active deployment for the namespace %s", namespace)
 	radixDeployment, err := s.kubeUtil.GetActiveDeployment(namespace)
 	if err != nil {
@@ -122,6 +116,7 @@ func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, 
 		return nil, nil
 	}
 	log.Debugf("active deployment for the namespace %s is %s", namespace, radixDeployment.GetName())
+
 	deployComponent := radixDeployment.GetCommonComponentByName(aliasSpec.Component)
 	if commonUtils.IsNil(deployComponent) {
 		return nil, DeployComponentNotFoundByName(aliasSpec.AppName, aliasSpec.Environment, aliasSpec.Component, radixDeployment.GetName())
@@ -129,41 +124,11 @@ func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, 
 	return deployComponent, nil
 }
 
-func (s *syncer) createOrUpdateIngress(namespace string, radixDeployComponent radixv1.RadixCommonDeployComponent, ingressName string) (*networkingv1.Ingress, error) {
-	existingIngress, err := s.kubeUtil.GetIngress(namespace, ingressName)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			log.Debugf("not found Ingress %s in the namespace %s. Create new.", ingressName, namespace)
-			return s.createIngress(radixDeployComponent, s.radixDNSAlias, s.dnsConfig, s.oauth2DefaultConfig, s.ingressConfiguration)
-		}
-		return nil, err
-	}
-	log.Debugf("found Ingress %s in the namespace %s.", ingressName, namespace)
-	updatedIngress, err := buildIngress(radixDeployComponent, s.radixDNSAlias, s.dnsConfig, s.oauth2DefaultConfig, s.ingressConfiguration)
-	if err != nil {
-		return nil, err
-	}
-	ing, err := s.kubeUtil.PatchIngress(namespace, existingIngress, updatedIngress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to patch an ingress %s: %w", ingressName, err)
-	}
-	return ing, nil
-}
-
-func (s *syncer) createIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
-	ing, err := buildIngress(radixDeployComponent, radixDNSAlias, dnsConfig, oauth2Config, ingressConfiguration)
-	if err != nil {
-		return nil, err
-	}
-	aliasSpec := radixDNSAlias.Spec
-	log.Debugf("create an ingress %s for the RadixDNSAlias", ing.GetName())
-	return CreateRadixDNSAliasIngress(s.kubeClient, aliasSpec.AppName, aliasSpec.Environment, ing)
-}
-
 func (s *syncer) handleDeletedRadixDNSAlias() (bool, error) {
 	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp == nil {
 		return false, nil
 	}
+
 	log.Debugf("handle deleted RadixDNSAlias %s in the application %s", s.radixDNSAlias.Name, s.radixDNSAlias.Spec.AppName)
 	finalizerIndex := slice.FindIndex(s.radixDNSAlias.ObjectMeta.Finalizers, func(val string) bool {
 		return val == kube.RadixDNSAliasFinalizer
@@ -173,13 +138,16 @@ func (s *syncer) handleDeletedRadixDNSAlias() (bool, error) {
 			kube.RadixDNSAliasFinalizer, s.radixDNSAlias.Name, len(s.radixDNSAlias.ObjectMeta.Finalizers))
 		return false, nil
 	}
+
 	if err := s.deletedIngressesForRadixDNSAlias(); err != nil {
 		return true, err
 	}
+
 	updatingAlias := s.radixDNSAlias.DeepCopy()
 	updatingAlias.ObjectMeta.Finalizers = append(s.radixDNSAlias.ObjectMeta.Finalizers[:finalizerIndex], s.radixDNSAlias.ObjectMeta.Finalizers[finalizerIndex+1:]...)
 	log.Debugf("removed finalizer %s from the RadixDNSAlias %s for the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingAlias.Name, updatingAlias.Spec.AppName, len(updatingAlias.ObjectMeta.Finalizers))
+
 	if err := s.kubeUtil.UpdateRadixDNSAlias(updatingAlias); err != nil {
 		return false, err
 	}
@@ -188,13 +156,13 @@ func (s *syncer) handleDeletedRadixDNSAlias() (bool, error) {
 
 func (s *syncer) deletedIngressesForRadixDNSAlias() error {
 	aliasSpec := s.radixDNSAlias.Spec
-	ingresses, err := s.kubeUtil.GetIngressesWithSelector(utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment),
-		radixlabels.Merge(radixlabels.ForApplicationName(aliasSpec.AppName), radixlabels.ForComponentName(aliasSpec.Component), radixlabels.ForDNSAlias()).String())
+	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
+	dnsAliasIngressesSelector := radixlabels.ForDNSAliasIngress(aliasSpec.AppName, aliasSpec.Component, s.radixDNSAlias.GetName()).String()
+	ingresses, err := s.kubeUtil.GetIngressesWithSelector(namespace, dnsAliasIngressesSelector)
 	if err != nil {
 		return err
 	}
-	log.Debugf("delete %d Ingress(es)", len(ingresses))
-	return s.kubeUtil.DeleteIngresses(true, ingresses...)
+	return s.kubeUtil.DeleteIngresses(ingresses...)
 }
 
 func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
@@ -203,23 +171,21 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 	if publicPort == nil {
 		return nil, radixvalidators.ComponentForDNSAliasIsNotMarkedAsPublicError(radixDeployComponent.GetName())
 	}
-	aliasSpec := radixDNSAlias.Spec
-	appName := aliasSpec.AppName
-	envName := aliasSpec.Environment
-	componentName := aliasSpec.Component
-	namespace := utils.GetEnvironmentNamespace(appName, envName)
 	aliasName := radixDNSAlias.GetName()
+	aliasSpec := radixDNSAlias.Spec
 	ingressName := GetDNSAliasIngressName(aliasName)
 	hostName := GetDNSAliasHost(aliasName, dnsConfig.DNSZone)
+	ingressSpec := ingress.GetIngressSpec(hostName, aliasSpec.Component, defaults.TLSSecretName, publicPort.Port)
 
-	ingressSpec := ingress.GetIngressSpec(hostName, componentName, defaults.TLSSecretName, publicPort.Port)
+	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	ingressAnnotations := ingress.GetAnnotationProvider(ingressConfiguration, namespace, oauth2Config)
-	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, ingress.DNSAlias, internal.GetOwnerReferences(radixDNSAlias))
+	ingressConfig, err := ingress.GetIngressConfig(namespace, aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias))
 	if err != nil {
 		return nil, err
 	}
 
 	ingressConfig.ObjectMeta.Annotations = annotations.Merge(ingressConfig.ObjectMeta.Annotations, annotations.ForManagedByRadixDNSAliasIngress(aliasName))
+	ingressConfig.ObjectMeta.Labels[kube.RadixAliasLabel] = aliasName
 	log.Debugf("built the Ingress %s in the environment %s with a host %s", ingressConfig.GetName(), namespace, hostName)
 	return ingressConfig, nil
 }

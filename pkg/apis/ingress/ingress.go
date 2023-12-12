@@ -1,8 +1,6 @@
 package ingress
 
 import (
-	"strconv"
-
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -10,16 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-type DNSAliasType int
-
-const (
-	DNSDefaultAlias = iota
-	DNSActiveClusterAlias
-	DNSAlias
-	DNSAppAlias
-	DNSExternalAlias
 )
 
 // IngressConfiguration Holds all ingress annotation configurations
@@ -94,10 +82,7 @@ func ParseClientCertificateConfiguration(clientCertificate radixv1.ClientCertifi
 }
 
 // GetIngressConfig Gets Ingress configuration
-func GetIngressConfig(namespace string, appName string, component radixv1.RadixCommonDeployComponent,
-	ingressName string, ingressSpec networkingv1.IngressSpec,
-	ingressProviders []AnnotationProvider, aliasType DNSAliasType,
-	ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
+func GetIngressConfig(namespace string, appName string, component radixv1.RadixCommonDeployComponent, ingressName string, ingressSpec networkingv1.IngressSpec, ingressProviders []AnnotationProvider, ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
 
 	annotations := map[string]string{}
 	for _, ingressProvider := range ingressProviders {
@@ -113,18 +98,13 @@ func GetIngressConfig(namespace string, appName string, component radixv1.RadixC
 			Name:        ingressName,
 			Annotations: annotations,
 			Labels: map[string]string{
-				kube.RadixAppLabel:                appName,
-				kube.RadixComponentLabel:          component.GetName(),
-				kube.RadixAliasLabel:              strconv.FormatBool(aliasType == DNSAlias),
-				kube.RadixAppAliasLabel:           strconv.FormatBool(aliasType == DNSAppAlias),
-				kube.RadixExternalAliasLabel:      strconv.FormatBool(aliasType == DNSExternalAlias),
-				kube.RadixActiveClusterAliasLabel: strconv.FormatBool(aliasType == DNSActiveClusterAlias),
+				kube.RadixAppLabel:       appName,
+				kube.RadixComponentLabel: component.GetName(),
 			},
 			OwnerReferences: ownerReference,
 		},
 		Spec: ingressSpec,
 	}
-
 	return ing, nil
 }
 
