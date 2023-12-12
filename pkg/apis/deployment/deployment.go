@@ -520,6 +520,10 @@ func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) strin
 	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
 }
 
+func getLabelSelectorForComponentDefaultAlias(component v1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s", kube.RadixComponentLabel, component.GetName(), kube.RadixDefaultAliasLabel)
+}
+
 func getLabelSelectorForExternalAlias(component v1.RadixCommonDeployComponent) string {
 	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixExternalAliasLabel, "true")
 }

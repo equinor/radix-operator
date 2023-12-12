@@ -526,7 +526,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	appName, envName, component1Name, component2Name := "anyapp", "qa", "server", "web"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	ingServer := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixComponentLabel: component1Name}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
@@ -534,14 +534,14 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	ingServerNoRules := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixComponentLabel: component1Name}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
 		},
 	}
 	ingOtherComponent := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixComponentLabel: "othercomponent"}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixComponentLabel: "othercomponent", kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
@@ -549,7 +549,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	ingServerOtherNs := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing4", Labels: map[string]string{kube.RadixComponentLabel: component1Name}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing4", Labels: map[string]string{kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
@@ -557,7 +557,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	ingWeb1 := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing5", Labels: map[string]string{kube.RadixComponentLabel: component2Name}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing5", Labels: map[string]string{kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass1"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing2-tls"}},
@@ -565,7 +565,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	ingWeb2 := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing6", Labels: map[string]string{kube.RadixComponentLabel: component2Name}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing6", Labels: map[string]string{kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass2"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing2-tls"}},
@@ -680,7 +680,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component1Name}},
+			ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
 	); err != nil {
@@ -689,7 +689,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name}},
+			ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
 	); err != nil {
@@ -698,7 +698,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name}},
+			ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
 	); err != nil {

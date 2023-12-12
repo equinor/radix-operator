@@ -287,7 +287,7 @@ func (o *oauthProxyResourceManager) deleteDeployment(component v1.RadixCommonDep
 }
 
 func (o *oauthProxyResourceManager) deleteIngresses(component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentIngress(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentDefaultIngress(o.rd.Spec.AppName, component)).String()
 	ingresses, err := o.kubeutil.ListIngressesWithSelector(o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -363,7 +363,7 @@ func (o *oauthProxyResourceManager) deleteRoles(component v1.RadixCommonDeployCo
 func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCommonDeployComponent) error {
 	namespace := o.rd.Namespace
 	log.Debugf("create of update ingresses for the component %s in the namespace %s", component.GetName(), namespace)
-	listOptions := metav1.ListOptions{LabelSelector: getLabelSelectorForComponent(component)}
+	listOptions := metav1.ListOptions{LabelSelector: getLabelSelectorForComponentDefaultAlias(component)}
 	ingresses, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(namespace).List(context.TODO(), listOptions)
 	if err != nil {
 		return err

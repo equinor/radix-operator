@@ -271,6 +271,7 @@ func (deploy *Deployment) getDefaultIngressConfig(
 	if err != nil {
 		return nil, err
 	}
+	ingressConfig.ObjectMeta.Labels[kube.RadixDefaultAliasLabel] = "true"
 	return ingressConfig, err
 }
 

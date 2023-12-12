@@ -234,13 +234,13 @@ func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) ma
 	}
 }
 
-// ForAuxComponentIngress returns labels for application component aux OAuth proxy standard ingress
-func ForAuxComponentIngress(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
+// ForAuxComponentDefaultIngress returns labels for application component aux OAuth proxy default ingress
+func ForAuxComponentDefaultIngress(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
 		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
-		kube.RadixStandardIngressLabel:        "true",
+		kube.RadixDefaultAliasLabel:           "true",
 	}
 }
 
