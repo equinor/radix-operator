@@ -49,6 +49,7 @@ const (
 type RadixJobSpec struct {
 	AppName             string            `json:"appName" yaml:"appName"`
 	CloneURL            string            `json:"cloneURL" yaml:"cloneURL"`
+	TektonImage         string            `json:"tektonImage" yaml:"tektonImage"`
 	PipeLineType        RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
 	PipelineImage       string            `json:"pipelineImage" yaml:"pipelineImage"`
 	Build               RadixBuildSpec    `json:"build" yaml:"build"`
