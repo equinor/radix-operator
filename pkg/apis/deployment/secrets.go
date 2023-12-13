@@ -22,6 +22,13 @@ const (
 	secretUsedBySecretStoreDriverLabel = "secrets-store.csi.k8s.io/used"
 )
 
+var (
+	tlsSecretDefaultData map[string][]byte = map[string][]byte{
+		v1.TLSCertKey:       nil,
+		v1.TLSPrivateKeyKey: nil, //[]byte(secretDefaultData),
+	}
+)
+
 func (deploy *Deployment) createOrUpdateSecrets() error {
 	log.Debugf("Apply empty secrets based on radix deployment obj")
 	for _, comp := range deploy.radixDeployment.Spec.Components {
@@ -73,11 +80,8 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 			if externalAlias.UseAutomation {
 				continue
 			}
-			secretsToManage = append(secretsToManage, externalAlias.FQDN)
 
-			// if deploy.kubeutil.SecretExists(namespace, externalAlias.FQDN) {
-			// 	continue
-			// }
+			secretsToManage = append(secretsToManage, externalAlias.FQDN)
 
 			err := deploy.createOrUpdateSecret(namespace, deploy.registration.Name, component.GetName(), externalAlias.FQDN, true)
 			if err != nil {
@@ -343,14 +347,7 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	}
 
 	if isExternalAlias {
-		defaultValue := []byte(secretDefaultData)
-
-		// Will need to set fake data in order to apply the secret. The user then need to set data to real values
-		data := make(map[string][]byte)
-		data[v1.TLSCertKey] = defaultValue
-		data[v1.TLSPrivateKeyKey] = defaultValue
-
-		secret.Data = data
+		secret.Data = tlsSecretDefaultData
 	}
 
 	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})

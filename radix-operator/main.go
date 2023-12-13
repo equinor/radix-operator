@@ -76,8 +76,8 @@ func main() {
 	startController(createRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), registrationControllerThreads, stop)
 	startController(createApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), applicationControllerThreads, stop)
 	startController(createEnvironmentController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), environmentControllerThreads, stop)
-	startController(createDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), deploymentControllerThreads, stop)
-	startController(createJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.PipelineJobConfig), jobControllerThreads, stop)
+	startController(createDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg), deploymentControllerThreads, stop)
+	startController(createJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient, cfg.PipelineJob), jobControllerThreads, stop)
 	startController(createAlertController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), alertControllerThreads, stop)
 	startController(createBatchController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, secretProviderClient), 1, stop)
 
@@ -193,7 +193,7 @@ func createEnvironmentController(client kubernetes.Interface, radixClient radixc
 		recorder)
 }
 
-func createDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface) *common.Controller {
+func createDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, secretProviderClient secretProviderClient.Interface, cfg config.Config) *common.Controller {
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
@@ -225,6 +225,7 @@ func createDeploymentController(client kubernetes.Interface, radixClient radixcl
 		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
 		deployment.WithIngressConfiguration(ingressConfiguration),
 		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
+		deployment.WithCertificateAutomationConfig(cfg.CertificateAutomation),
 	)
 
 	waitForChildrenToSync := true

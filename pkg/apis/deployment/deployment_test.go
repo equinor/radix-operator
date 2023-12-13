@@ -2710,7 +2710,7 @@ func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t
 	assert.True(t, kubeerrors.IsNotFound(err))
 }
 
-func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressClearSecret(t *testing.T) {
+func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressResetSecret(t *testing.T) {
 	anyAppName, anyEnvironment, anyComponent := "any-app", "dev", "anyComp"
 	fqdn := "some.alias.com"
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)

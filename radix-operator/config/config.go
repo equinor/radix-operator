@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/spf13/viper"
 )
@@ -46,21 +47,27 @@ func getIntFromEnvVar(envVarName string, defaultValue int) int {
 
 // Config from environment variables
 type Config struct {
-	LogLevel          string
-	PipelineJobConfig *job.Config
+	LogLevel              string
+	PipelineJob           *job.Config
+	CertificateAutomation deployment.CertificateAutomationConfig
 }
 
 // NewConfig New instance of the Config
-func NewConfig() *Config {
+func NewConfig() Config {
 	viper.AutomaticEnv()
-	return &Config{
+	return Config{
 		LogLevel: getLogLevel(),
-		PipelineJobConfig: &job.Config{
+		PipelineJob: &job.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
 			DeploymentsHistoryLimitPerEnvironment: getDeploymentsHistoryLimitPerEnvironment(),
 			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
+		},
+		CertificateAutomation: deployment.CertificateAutomationConfig{
+			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
+			Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
+			RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
 		},
 	}
 }

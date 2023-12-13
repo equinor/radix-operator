@@ -158,6 +158,12 @@ spec:
               value: {{ .Values.seccompProfile.fileNameOnNode }}
             - name: RADIX_BUILDAH_IMAGE_BUILDER
               value: {{ .Values.buildahImageBuilder }}
+            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER
+              value: {{ .Values.ingress.certificate.clusterIssuer }}
+            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
+              value: {{ .Values.ingress.certificate.duration }}
+            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE
+              value: {{ .Values.ingress.certificate.renewBefore }}
           livenessProbe:
             httpGet:
               path: /healthz

@@ -98,7 +98,7 @@
         "RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE": "25%",
         "RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS": "5",
         "RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS": "10",
-        "RADIX_ACTIVE_CLUSTERNAME": "weekly-47",
+        "RADIX_ACTIVE_CLUSTERNAME": "weekly-50",
         "RADIX_IMAGE_BUILDER": "radix-image-builder:master-latest",
         "RADIX_TEKTON_IMAGE": "radix-tekton:main-latest",
         "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler:main-latest",
@@ -127,7 +127,10 @@
         "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT": "10",
         "RADIX_PIPELINE_JOBS_HISTORY_LIMIT": "5",
         "SECCOMP_PROFILE_FILENAME": "allow-buildah.json",
-        "RADIX_BUILDAH_IMAGE_BUILDER": "quay.io/buildah/stable:v1.31"
+        "RADIX_BUILDAH_IMAGE_BUILDER": "quay.io/buildah/stable:v1.31",
+        "RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER": "digicert-test",
+        "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION": "2160h",
+        "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE": "720h"
       },
       "args": ["--useOutClusterClient=false"]
     },
