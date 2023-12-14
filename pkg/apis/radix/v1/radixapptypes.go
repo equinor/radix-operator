@@ -245,7 +245,7 @@ type ExternalAlias struct {
 	// Enable automatic issuing and renewal of TLS certificate
 	// +kubebuilder:default:=false
 	// +optional
-	UseAutomation bool `json:"useAutomation,omitempty"`
+	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
 }
 
 // ComponentPort defines a named port.

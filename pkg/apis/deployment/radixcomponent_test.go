@@ -271,8 +271,8 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 
 	deployComponent, _ := GetRadixComponentsForEnv(ra, "prod", componentImages, envVarsMap)
 	assert.Len(t, deployComponent, 2)
-	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "some.alias.com", UseAutomation: true}, {FQDN: "another.alias.com", UseAutomation: false}}, deployComponent[0].ExternalDNS)
-	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "athird.alias.com", UseAutomation: false}}, deployComponent[1].ExternalDNS)
+	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "some.alias.com", UseCertificateAutomation: true}, {FQDN: "another.alias.com", UseCertificateAutomation: false}}, deployComponent[0].ExternalDNS)
+	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "athird.alias.com", UseCertificateAutomation: false}}, deployComponent[1].ExternalDNS)
 
 	deployComponent, _ = GetRadixComponentsForEnv(ra, "dev", componentImages, envVarsMap)
 	assert.Len(t, deployComponent, 2)

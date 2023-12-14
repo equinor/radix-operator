@@ -17,24 +17,24 @@ func Test_RadixCommonDeployComponent_GetExternalDNS(t *testing.T) {
 	sut = &v1.RadixDeployComponent{DNSExternalAlias: []string{"foo.example.com", "bar.example.com"}}
 	assert.ElementsMatch(
 		t,
-		[]v1.RadixDeployExternalDNS{{FQDN: "foo.example.com", UseAutomation: false}, {FQDN: "bar.example.com", UseAutomation: false}},
+		[]v1.RadixDeployExternalDNS{{FQDN: "foo.example.com", UseCertificateAutomation: false}, {FQDN: "bar.example.com", UseCertificateAutomation: false}},
 		sut.GetExternalDNS(),
 	)
 
-	sut = &v1.RadixDeployComponent{ExternalDNS: []v1.RadixDeployExternalDNS{{FQDN: "foo.example.com", UseAutomation: true}, {FQDN: "bar.example.com", UseAutomation: false}}}
+	sut = &v1.RadixDeployComponent{ExternalDNS: []v1.RadixDeployExternalDNS{{FQDN: "foo.example.com", UseCertificateAutomation: true}, {FQDN: "bar.example.com", UseCertificateAutomation: false}}}
 	assert.ElementsMatch(
 		t,
-		[]v1.RadixDeployExternalDNS{{FQDN: "foo.example.com", UseAutomation: true}, {FQDN: "bar.example.com", UseAutomation: false}},
+		[]v1.RadixDeployExternalDNS{{FQDN: "foo.example.com", UseCertificateAutomation: true}, {FQDN: "bar.example.com", UseCertificateAutomation: false}},
 		sut.GetExternalDNS(),
 	)
 
 	sut = &v1.RadixDeployComponent{
 		DNSExternalAlias: []string{"foo.example.com", "bar.example.com"},
-		ExternalDNS:      []v1.RadixDeployExternalDNS{{FQDN: "foo2.example.com", UseAutomation: true}, {FQDN: "bar2.example.com", UseAutomation: false}},
+		ExternalDNS:      []v1.RadixDeployExternalDNS{{FQDN: "foo2.example.com", UseCertificateAutomation: true}, {FQDN: "bar2.example.com", UseCertificateAutomation: false}},
 	}
 	assert.ElementsMatch(
 		t,
-		[]v1.RadixDeployExternalDNS{{FQDN: "foo2.example.com", UseAutomation: true}, {FQDN: "bar2.example.com", UseAutomation: false}},
+		[]v1.RadixDeployExternalDNS{{FQDN: "foo2.example.com", UseCertificateAutomation: true}, {FQDN: "bar2.example.com", UseCertificateAutomation: false}},
 		sut.GetExternalDNS(),
 	)
 

@@ -129,7 +129,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 8081).
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
-							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "updated_some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_external.alias.com", UseAutomation: true}).
+							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "updated_some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_external.alias.com", UseCertificateAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "65Mi",
 								"cpu":    "251m",
@@ -168,7 +168,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 8080).
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
-							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external.alias.com", UseAutomation: true}).
+							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external.alias.com", UseCertificateAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "64Mi",
 								"cpu":    "250m",
@@ -751,7 +751,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "external1.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external2.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external3.alias.com", UseAutomation: true}),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "external1.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external2.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external3.alias.com", UseCertificateAutomation: true}),
 			utils.NewDeployComponentBuilder().
 				WithName("redis").
 				WithPort("http", 6379).
@@ -2662,7 +2662,7 @@ func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t
 				WithName("anycomp").
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: false}),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
 		)
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
 	require.NoError(t, err)
@@ -2692,7 +2692,7 @@ func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t
 				WithName("anycomp").
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: true}),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
 		)
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
 	require.NoError(t, err)
@@ -2728,7 +2728,7 @@ func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressResetSecret(t 
 				WithName(anyComponent).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: true}),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
 		)
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
 	require.NoError(t, err)
@@ -2767,7 +2767,7 @@ func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressResetSecret(t 
 				WithName(anyComponent).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: false}),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
 		)
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
 	require.NoError(t, err)
@@ -2801,7 +2801,7 @@ func TestObjectUpdated_ExternalDNS_TLSSecretDataRetainedBetweenSync(t *testing.T
 				WithName("anycomp").
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: false}),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
 		)
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
 	require.NoError(t, err)
@@ -2825,7 +2825,7 @@ func TestObjectUpdated_ExternalDNS_TLSSecretDataRetainedBetweenSync(t *testing.T
 				WithName("anycomp").
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseAutomation: false}),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
 		)
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
 	require.NoError(t, err)

@@ -122,10 +122,10 @@ func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component s
 	}
 
 	externalAlias := v1.ExternalAlias{
-		Alias:         alias,
-		Environment:   env,
-		Component:     component,
-		UseAutomation: useAutomation,
+		Alias:                    alias,
+		Environment:              env,
+		Component:                component,
+		UseCertificateAutomation: useAutomation,
 	}
 
 	ap.externalAppAlias = append(ap.externalAppAlias, externalAlias)

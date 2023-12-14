@@ -382,7 +382,7 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
 	ingressSpec := getIngressSpec(externalAlias.FQDN, component.GetName(), externalAlias.FQDN, publicPortNumber)
-	externalDNSAnnotations := NewExternalDNSAnnotationProvider(externalAlias.UseAutomation, deploy.certAutomationConfig)
+	externalDNSAnnotations := NewExternalDNSAnnotationProvider(externalAlias.UseCertificateAutomation, deploy.certAutomationConfig)
 	return deploy.getIngressConfig(appName, component, externalAlias.FQDN, ownerReference, false, true, false, ingressSpec, namespace, externalDNSAnnotations)
 }
 

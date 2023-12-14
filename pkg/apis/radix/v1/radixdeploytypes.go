@@ -95,7 +95,7 @@ type RadixDeployExternalDNS struct {
 	// Enable automatic issuing and renewal of TLS certificate
 	// +kubebuilder:default:=false
 	// +optional
-	UseAutomation bool `json:"useAutomation,omitempty"`
+	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
 }
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
@@ -195,7 +195,7 @@ func (deployComponent *RadixDeployComponent) GetExternalDNS() []RadixDeployExter
 		return deployComponent.ExternalDNS
 	}
 	return slice.Map(deployComponent.DNSExternalAlias, func(alias string) RadixDeployExternalDNS {
-		return RadixDeployExternalDNS{FQDN: alias, UseAutomation: false}
+		return RadixDeployExternalDNS{FQDN: alias, UseCertificateAutomation: false}
 	})
 }
 

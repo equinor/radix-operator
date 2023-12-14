@@ -147,7 +147,7 @@ func GetExternalDNSAliasForComponentEnvironment(radixApplication *radixv1.RadixA
 
 	for _, externalAlias := range radixApplication.Spec.DNSExternalAlias {
 		if externalAlias.Component == component && externalAlias.Environment == env {
-			dnsExternalAlias = append(dnsExternalAlias, radixv1.RadixDeployExternalDNS{FQDN: externalAlias.Alias, UseAutomation: externalAlias.UseAutomation})
+			dnsExternalAlias = append(dnsExternalAlias, radixv1.RadixDeployExternalDNS{FQDN: externalAlias.Alias, UseCertificateAutomation: externalAlias.UseCertificateAutomation})
 		}
 	}
 

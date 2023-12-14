@@ -77,7 +77,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 		// Create secrets to hold TLS certificates
 		for _, externalAlias := range dnsExternalAlias {
 			// Cert manager will create the TLS secret
-			if externalAlias.UseAutomation {
+			if externalAlias.UseCertificateAutomation {
 				continue
 			}
 
