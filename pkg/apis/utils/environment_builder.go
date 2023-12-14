@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -20,13 +20,13 @@ type EnvironmentBuilder interface {
 	WithReconciledTime(time.Time) EnvironmentBuilder
 	WithUID(types.UID) EnvironmentBuilder
 	WithOwner(owner meta.OwnerReference) EnvironmentBuilder
-	WithRegistrationOwner(registration *rx.RadixRegistration) EnvironmentBuilder
+	WithRegistrationOwner(registration *radixv1.RadixRegistration) EnvironmentBuilder
 	WithRegistrationBuilder(builder RegistrationBuilder) EnvironmentBuilder
 	WithOrphaned(isOrphan bool) EnvironmentBuilder
-	WithEgressConfig(egressRules rx.EgressConfig) EnvironmentBuilder
+	WithEgressConfig(egressRules radixv1.EgressConfig) EnvironmentBuilder
 	WithResourceVersion(version string) EnvironmentBuilder
 	GetRegistrationBuilder() RegistrationBuilder
-	BuildRE() *rx.RadixEnvironment
+	BuildRE() *radixv1.RadixEnvironment
 }
 
 // EnvironmentBuilderStruct Holds instance variables
@@ -34,7 +34,7 @@ type EnvironmentBuilderStruct struct {
 	registrationBuilder RegistrationBuilder
 	EnvironmentName     string
 	AppName             string
-	EgressConfig        rx.EgressConfig
+	EgressConfig        radixv1.EgressConfig
 	Labels              map[string]string
 	AppLabel            bool
 	CreatedTime         *time.Time
@@ -94,14 +94,14 @@ func (eb *EnvironmentBuilderStruct) WithOwner(owner meta.OwnerReference) Environ
 }
 
 // WithRegistrationOwner appends new OwnerReference to a RadixRegistration
-func (eb *EnvironmentBuilderStruct) WithRegistrationOwner(registration *rx.RadixRegistration) EnvironmentBuilder {
+func (eb *EnvironmentBuilderStruct) WithRegistrationOwner(registration *radixv1.RadixRegistration) EnvironmentBuilder {
 	if registration == nil {
 		return eb
 	}
 	trueVar := true
 	return eb.WithOwner(meta.OwnerReference{
-		APIVersion: rx.APIVersion,
-		Kind:       rx.KindRadixRegistration,
+		APIVersion: radixv1.SchemeGroupVersion.Identifier(),
+		Kind:       radixv1.KindRadixRegistration,
 		Name:       registration.Name,
 		UID:        registration.UID,
 		Controller: &trueVar,
@@ -132,13 +132,13 @@ func (eb *EnvironmentBuilderStruct) WithOrphaned(isOrphan bool) EnvironmentBuild
 }
 
 // WithEgressConfig sets the egress configuration for this environment
-func (eb *EnvironmentBuilderStruct) WithEgressConfig(egress rx.EgressConfig) EnvironmentBuilder {
+func (eb *EnvironmentBuilderStruct) WithEgressConfig(egress radixv1.EgressConfig) EnvironmentBuilder {
 	eb.EgressConfig = egress
 	return eb
 }
 
 // BuildRE builds RE structure based on set variables
-func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
+func (eb *EnvironmentBuilderStruct) BuildRE() *radixv1.RadixEnvironment {
 
 	var uniqueName string
 	if eb.AppName == "" {
@@ -153,10 +153,10 @@ func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 		eb.WithRegistrationOwner(eb.registrationBuilder.BuildRR())
 	}
 
-	radixEnvironment := &rx.RadixEnvironment{
+	radixEnvironment := &radixv1.RadixEnvironment{
 		TypeMeta: meta.TypeMeta{
-			APIVersion: rx.APIVersion,
-			Kind:       rx.KindRadixEnvironment,
+			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
+			Kind:       radixv1.KindRadixEnvironment,
 		},
 		ObjectMeta: meta.ObjectMeta{
 			Name:            uniqueName,
@@ -166,12 +166,12 @@ func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 			OwnerReferences: eb.Owners,
 			Finalizers:      []string{kube.RadixEnvironmentFinalizer},
 		},
-		Spec: rx.RadixEnvironmentSpec{
+		Spec: radixv1.RadixEnvironmentSpec{
 			AppName: eb.AppName,
 			EnvName: eb.EnvironmentName,
 			Egress:  eb.EgressConfig,
 		},
-		Status: rx.RadixEnvironmentStatus{
+		Status: radixv1.RadixEnvironmentStatus{
 			Orphaned: eb.IsOrphan,
 		},
 	}

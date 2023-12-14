@@ -57,10 +57,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 }
 
 const (
-
-	// APIVersion API version for Radix objects
-	APIVersion = "radix.equinor.com/v1"
-
 	// KindRadixRegistration RadixRegistration object Kind
 	KindRadixRegistration = "RadixRegistration"
 	// KindRadixEnvironment RadixEnvironment object Kind

@@ -7,7 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	logger "github.com/sirupsen/logrus"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -53,8 +53,8 @@ func (s *syncer) syncRbac() error {
 }
 
 func (s *syncer) buildDNSAliasClusterRole(clusterRoleName string, verbs []string) *rbacv1.ClusterRole {
-	return s.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{radix.GroupName},
-		Resources:     []string{radix.ResourceRadixDNSAliases},
+	return s.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{radixv1.SchemeGroupVersion.Group},
+		Resources:     []string{radixv1.ResourceRadixDNSAliases},
 		ResourceNames: []string{s.radixDNSAlias.GetName()},
 		Verbs:         verbs,
 	})
@@ -80,8 +80,8 @@ func (s *syncer) buildClusterRole(clusterRoleName string, rules ...rbacv1.Policy
 	return clusterRole
 }
 
-func (s *syncer) buildDNSAliasClusterRoleBinding(appName string, clusterrole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
-	clusterRoleBindingName := clusterrole.Name
+func (s *syncer) buildDNSAliasClusterRoleBinding(appName string, clusterRole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+	clusterRoleBindingName := clusterRole.Name
 	logger.Debugf("Create clusterrolebinding config %s", clusterRoleBindingName)
 	ownerReference := s.getOwnerReference()
 
@@ -100,7 +100,7 @@ func (s *syncer) buildDNSAliasClusterRoleBinding(appName string, clusterrole *rb
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
-			Name:     clusterrole.Name,
+			Name:     clusterRole.Name,
 		},
 		Subjects: subjects,
 	}
@@ -111,5 +111,5 @@ func (s *syncer) buildDNSAliasClusterRoleBinding(appName string, clusterrole *rb
 }
 
 func (s *syncer) getOwnerReference() []metav1.OwnerReference {
-	return []metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: s.radixDNSAlias.GetName(), UID: s.radixDNSAlias.GetUID(), Controller: pointers.Ptr(true)}}
+	return []metav1.OwnerReference{{APIVersion: radixv1.SchemeGroupVersion.Identifier(), Kind: radixv1.KindRadixDNSAlias, Name: s.radixDNSAlias.GetName(), UID: s.radixDNSAlias.GetUID(), Controller: pointers.Ptr(true)}}
 }

@@ -201,7 +201,7 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 						s.Assert().Equal(expectedIngress.port, service.Port.Number, "rule backend service port")
 						if len(ing.ObjectMeta.OwnerReferences) > 0 {
 							ownerRef := ing.ObjectMeta.OwnerReferences[0]
-							s.Assert().Equal(radixv1.APIVersion, ownerRef.APIVersion, "ownerRef.APIVersion")
+							s.Assert().Equal(radixv1.SchemeGroupVersion.Identifier(), ownerRef.APIVersion, "ownerRef.APIVersion")
 							s.Assert().Equal(radixv1.KindRadixDNSAlias, ownerRef.Kind, "ownerRef.Kind")
 							s.Assert().Equal(radixDNSAlias.GetName(), ownerRef.Name, "ownerRef.Name")
 							s.Assert().Equal(radixDNSAlias.GetUID(), ownerRef.UID, "ownerRef.UID")
