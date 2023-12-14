@@ -19,7 +19,7 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 	nilTime := (*meta.Time)(nil)
 
 	// TypeMeta
-	assert.Equal(t, v1.APIVersion, re.TypeMeta.APIVersion)
+	assert.Equal(t, v1.SchemeGroupVersion.Identifier(), re.TypeMeta.APIVersion)
 	assert.Equal(t, v1.KindRadixEnvironment, re.TypeMeta.Kind)
 
 	// ObjectMeta
