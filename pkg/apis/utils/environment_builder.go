@@ -7,7 +7,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 // EnvironmentBuilder Handles construction of RE
@@ -202,20 +201,4 @@ func NewEnvironmentBuilder() EnvironmentBuilder {
 		AppLabel:        false,
 		IsOrphan:        true,
 	}
-}
-
-// ARadixEnvironment constructor for environment builder containing test data
-func ARadixEnvironment() EnvironmentBuilder {
-	now := time.Now()
-	builder := NewEnvironmentBuilder().
-		WithAppName("anyapp").
-		WithEnvironmentName("anyenv").
-		WithResourceVersion("v1.0.0").
-		WithAppLabel().
-		WithCreatedTime(now).
-		WithReconciledTime(now).
-		WithRegistrationBuilder(ARadixRegistration()).
-		WithUID(uuid.NewUUID())
-
-	return builder
 }
