@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -92,7 +91,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
 	cfg := &dnsalias2.DNSConfig{DNSZone: dnsZone}
 	ing := buildRadixDNSAliasIngress(alias, int32(8080), cfg)
-	ing.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radix.APIVersion, Kind: radix.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
+	ing.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radixv1.SchemeGroupVersion.Identifier(), Kind: radixv1.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	namespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(namespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	ing, err = dnsaliasapi.CreateRadixDNSAliasIngress(s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ing)

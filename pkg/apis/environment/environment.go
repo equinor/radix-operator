@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -256,8 +255,8 @@ func (env *Environment) AsOwnerReference() []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		{
-			APIVersion: radix.APIVersion,
-			Kind:       radix.KindRadixEnvironment,
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixEnvironment,
 			Name:       env.config.Name,
 			UID:        env.config.UID,
 			Controller: &trueVar,

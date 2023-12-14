@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -157,8 +156,8 @@ func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 	radixJob := &v1.RadixJob{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: radix.APIVersion,
-			Kind:       radix.KindRadixJob,
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixJob,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jb.jobName,

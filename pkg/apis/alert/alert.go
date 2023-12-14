@@ -6,7 +6,6 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -110,8 +109,8 @@ func (syncer *alertSyncer) updateRadixAlertStatus(changeStatusFunc func(currStat
 func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
-			APIVersion: radix.APIVersion,
-			Kind:       radix.KindRadixAlert,
+			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
+			Kind:       radixv1.KindRadixAlert,
 			Name:       syncer.radixAlert.Name,
 			UID:        syncer.radixAlert.UID,
 			Controller: commonUtils.BoolPtr(true),

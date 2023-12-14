@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -109,7 +108,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			if newJob.ResourceVersion == oldJob.ResourceVersion {
 				return
 			}
-			controller.HandleObject(cur, radix.KindRadixJob, getObject)
+			controller.HandleObject(cur, v1.KindRadixJob, getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixJob, converted := obj.(*batchv1.Job)
@@ -119,7 +118,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			}
 			// If a kubernetes job gets deleted for a running job, the running radix job should
 			// take this into account. The running job will get restarted
-			controller.HandleObject(radixJob, radix.KindRadixJob, getObject)
+			controller.HandleObject(radixJob, v1.KindRadixJob, getObject)
 		},
 	}); err != nil {
 		utilruntime.HandleError(err)
@@ -145,7 +144,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 					return
 				}
 
-				controller.HandleObject(job, radix.KindRadixJob, getObject)
+				controller.HandleObject(job, v1.KindRadixJob, getObject)
 			}
 		},
 	}); err != nil {

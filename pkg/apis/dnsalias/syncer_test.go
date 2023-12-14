@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -202,8 +201,8 @@ func (s *syncerTestSuite) Test_syncer_OnSync() {
 						s.Assert().Equal(expectedIngress.port, service.Port.Number, "rule backend service port")
 						if len(ing.ObjectMeta.OwnerReferences) > 0 {
 							ownerRef := ing.ObjectMeta.OwnerReferences[0]
-							s.Assert().Equal(radix.APIVersion, ownerRef.APIVersion, "ownerRef.APIVersion")
-							s.Assert().Equal(radix.KindRadixDNSAlias, ownerRef.Kind, "ownerRef.Kind")
+							s.Assert().Equal(radixv1.APIVersion, ownerRef.APIVersion, "ownerRef.APIVersion")
+							s.Assert().Equal(radixv1.KindRadixDNSAlias, ownerRef.Kind, "ownerRef.Kind")
 							s.Assert().Equal(radixDNSAlias.GetName(), ownerRef.Name, "ownerRef.Name")
 							s.Assert().Equal(radixDNSAlias.GetUID(), ownerRef.UID, "ownerRef.UID")
 							s.Assert().True(ownerRef.Controller != nil && *ownerRef.Controller, "ownerRef.Controller")

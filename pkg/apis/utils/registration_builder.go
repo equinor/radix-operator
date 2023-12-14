@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -181,8 +180,8 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 
 	radixRegistration := &v1.RadixRegistration{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: radix.APIVersion,
-			Kind:       radix.KindRadixRegistration,
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixRegistration,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: rb.name,

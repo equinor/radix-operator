@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -101,8 +100,8 @@ func (eb *EnvironmentBuilderStruct) WithRegistrationOwner(registration *rx.Radix
 	}
 	trueVar := true
 	return eb.WithOwner(meta.OwnerReference{
-		APIVersion: radix.APIVersion,
-		Kind:       radix.KindRadixRegistration,
+		APIVersion: rx.APIVersion,
+		Kind:       rx.KindRadixRegistration,
 		Name:       registration.Name,
 		UID:        registration.UID,
 		Controller: &trueVar,
@@ -156,8 +155,8 @@ func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 
 	radixEnvironment := &rx.RadixEnvironment{
 		TypeMeta: meta.TypeMeta{
-			APIVersion: radix.APIVersion,
-			Kind:       radix.KindRadixEnvironment,
+			APIVersion: rx.APIVersion,
+			Kind:       rx.KindRadixEnvironment,
 		},
 		ObjectMeta: meta.ObjectMeta{
 			Name:            uniqueName,

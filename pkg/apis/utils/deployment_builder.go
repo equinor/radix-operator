@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -246,8 +245,8 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 
 	radixDeployment := &v1.RadixDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: radix.APIVersion,
-			Kind:       radix.KindRadixDeployment,
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixDeployment,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              deployName,

@@ -3,7 +3,6 @@ package job
 import (
 	"context"
 
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,8 +13,8 @@ func GetOwnerReference(radixJob *v1.RadixJob) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		{
-			APIVersion: radix.APIVersion,
-			Kind:       radix.KindRadixJob,
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixJob,
 			Name:       radixJob.Name,
 			UID:        radixJob.UID,
 			Controller: &trueVar,

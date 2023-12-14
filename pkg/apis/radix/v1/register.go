@@ -4,14 +4,12 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 )
 
 // SchemeGroupVersion provides the group version
 var SchemeGroupVersion = schema.GroupVersion{
-	Group:   radix.GroupName,
-	Version: radix.Version,
+	Group:   "radix.equinor.com",
+	Version: "v1",
 }
 var (
 	// SchemeBuilder builds a scheme
@@ -57,3 +55,32 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	meta_v1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }
+
+const (
+
+	// APIVersion API version for Radix objects
+	APIVersion = "radix.equinor.com/v1"
+
+	// KindRadixRegistration RadixRegistration object Kind
+	KindRadixRegistration = "RadixRegistration"
+	// KindRadixEnvironment RadixEnvironment object Kind
+	KindRadixEnvironment = "RadixEnvironment"
+	// KindRadixApplication RadixApplication object Kind
+	KindRadixApplication = "RadixApplication"
+	// KindRadixDeployment RadixDeployment object Kind
+	KindRadixDeployment = "RadixDeployment"
+	// KindRadixJob RadixJob object Kind
+	KindRadixJob = "RadixJob"
+	// KindRadixBatch RadixBatch object Kind
+	KindRadixBatch = "RadixBatch"
+	// KindRadixAlert RadixAlert object Kind
+	KindRadixAlert = "RadixAlert"
+	// KindRadixDNSAlias RadixDNSAlias object Kind
+	KindRadixDNSAlias = "RadixDNSAlias"
+	// ResourceRadixRegistrations RadixRegistrations API resource
+	ResourceRadixRegistrations = "radixregistrations"
+	// ResourceRadixDNSAliases RadixDNSAliases API resource
+	ResourceRadixDNSAliases = "radixdnsaliases"
+	// ResourceRadixDeployment RadixDeployment API resource
+	ResourceRadixDeployment = "radixdeployment"
+)
