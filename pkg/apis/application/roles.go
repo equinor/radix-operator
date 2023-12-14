@@ -5,15 +5,15 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (app *Application) buildRRClusterRole(clusterRoleName string, verbs []string) *rbacv1.ClusterRole {
 	appName := app.registration.Name
-	return app.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{radix.GroupName},
-		Resources:     []string{radix.ResourceRadixRegistrations},
+	return app.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{v1.SchemeGroupVersion.Group},
+		Resources:     []string{v1.ResourceRadixRegistrations},
 		ResourceNames: []string{appName},
 		Verbs:         verbs,
 	})
@@ -21,8 +21,8 @@ func (app *Application) buildRRClusterRole(clusterRoleName string, verbs []strin
 
 func (app *Application) buildRadixDNSAliasClusterRole(roleNamePrefix string) *rbacv1.ClusterRole {
 	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
-	return app.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{radix.GroupName},
-		Resources: []string{radix.ResourceRadixDNSAliases},
+	return app.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{"radix.equinor.com"},
+		Resources: []string{v1.ResourceRadixDNSAliases},
 		Verbs:     []string{"list"},
 	})
 }

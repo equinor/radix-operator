@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -270,7 +269,7 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 							require.Len(t, ownerReferences, 1)
 							ownerReference := ownerReferences[0]
 							assert.Equal(t, radixDNSAlias.Spec.AppName, ownerReference.Name, "invalid or empty ownerReference.Name")
-							assert.Equal(t, radix.KindRadixApplication, ownerReference.Kind, "invalid or empty ownerReference.Kind")
+							assert.Equal(t, radixv1.KindRadixApplication, ownerReference.Kind, "invalid or empty ownerReference.Kind")
 							assert.NotEmpty(t, ownerReference.UID, "ownerReference.UID is empty")
 							require.NotNil(t, ownerReference.Controller, "ownerReference.Controller is nil")
 							assert.True(t, *ownerReference.Controller, "ownerReference.Controller is false")

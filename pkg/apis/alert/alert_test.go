@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -83,7 +82,7 @@ func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ..
 }
 
 func (s *alertTestSuite) getRadixAlertAsOwnerReference(radixAlert *radixv1.RadixAlert) metav1.OwnerReference {
-	return metav1.OwnerReference{Kind: radix.KindRadixAlert, Name: radixAlert.Name, UID: radixAlert.UID, APIVersion: radix.APIVersion, Controller: utils.BoolPtr(true)}
+	return metav1.OwnerReference{Kind: radixv1.KindRadixAlert, Name: radixAlert.Name, UID: radixAlert.UID, APIVersion: radixv1.SchemeGroupVersion.Identifier(), Controller: utils.BoolPtr(true)}
 }
 
 func (s *alertTestSuite) Test_New() {

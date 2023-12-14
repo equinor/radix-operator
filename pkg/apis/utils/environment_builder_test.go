@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,8 +19,8 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 	nilTime := (*meta.Time)(nil)
 
 	// TypeMeta
-	assert.Equal(t, radix.APIVersion, re.TypeMeta.APIVersion)
-	assert.Equal(t, radix.KindRadixEnvironment, re.TypeMeta.Kind)
+	assert.Equal(t, v1.APIVersion, re.TypeMeta.APIVersion)
+	assert.Equal(t, v1.KindRadixEnvironment, re.TypeMeta.Kind)
 
 	// ObjectMeta
 	assert.Len(t, re.ObjectMeta.Annotations, 0)
@@ -112,7 +111,7 @@ func Test_WithRegistrationOwner(t *testing.T) {
 
 	assert.Len(t, re.ObjectMeta.OwnerReferences, 1)
 	assert.Equal(t, "RR", re.ObjectMeta.OwnerReferences[0].Name)
-	assert.Equal(t, radix.KindRadixRegistration, re.ObjectMeta.OwnerReferences[0].Kind)
+	assert.Equal(t, v1.KindRadixRegistration, re.ObjectMeta.OwnerReferences[0].Kind)
 }
 
 func Test_WithRegistrationBuilder(t *testing.T) {
@@ -123,7 +122,7 @@ func Test_WithRegistrationBuilder(t *testing.T) {
 
 	assert.Len(t, re.ObjectMeta.OwnerReferences, 1)
 	assert.Equal(t, "RR", re.ObjectMeta.OwnerReferences[0].Name)
-	assert.Equal(t, radix.KindRadixRegistration, re.ObjectMeta.OwnerReferences[0].Kind)
+	assert.Equal(t, v1.KindRadixRegistration, re.ObjectMeta.OwnerReferences[0].Kind)
 }
 
 func Test_WithResourceVersion(t *testing.T) {

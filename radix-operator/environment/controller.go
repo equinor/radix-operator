@@ -8,7 +8,6 @@ import (
 	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -107,7 +106,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this namespace
-			controller.HandleObject(obj, radix.KindRadixEnvironment, getOwner)
+			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
 		utilruntime.HandleError(err)
@@ -117,7 +116,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this role-binding
-			controller.HandleObject(obj, radix.KindRadixEnvironment, getOwner)
+			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
 		utilruntime.HandleError(err)
@@ -127,7 +126,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this limit-range
-			controller.HandleObject(obj, radix.KindRadixEnvironment, getOwner)
+			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
 		utilruntime.HandleError(err)

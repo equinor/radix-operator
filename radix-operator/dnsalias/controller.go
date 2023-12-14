@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -48,13 +47,13 @@ func NewController(kubeClient kubernetes.Interface,
 
 	controller := &common.Controller{
 		Name:                controllerAgentName,
-		HandlerOf:           radix.KindRadixDNSAlias,
+		HandlerOf:           radixv1.KindRadixDNSAlias,
 		KubeClient:          kubeClient,
 		RadixClient:         radixClient,
 		Informer:            radixDNSAliasInformer.Informer(),
 		KubeInformerFactory: kubeInformerFactory,
 		WorkQueue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
-			Name: radix.KindRadixDNSAlias,
+			Name: radixv1.KindRadixDNSAlias,
 		}),
 		Handler:               handler,
 		Log:                   logger,
@@ -80,7 +79,7 @@ func addEventHandlersForIngresses(ingressInformer networkinginformersv1.IngressI
 				return
 			}
 			logger.Debugf("updated Ingress %s", newIng.GetName())
-			controller.HandleObject(newObj, radix.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
+			controller.HandleObject(newObj, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
 		},
 		DeleteFunc: func(obj interface{}) {
 			ing, converted := obj.(*networkingv1.Ingress)
@@ -89,7 +88,7 @@ func addEventHandlersForIngresses(ingressInformer networkinginformersv1.IngressI
 				return
 			}
 			logger.Debugf("deleted Ingress %s", ing.GetName())
-			controller.HandleObject(ing, radix.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
+			controller.HandleObject(ing, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
 		},
 	})
 	if err != nil {
@@ -127,14 +126,14 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 			if err != nil {
 				logger.Errorf("failed to enqueue the RadixDNSAlias %s", alias.GetName())
 			}
-			metrics.CustomResourceAdded(radix.KindRadixDNSAlias)
+			metrics.CustomResourceAdded(radixv1.KindRadixDNSAlias)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oldAlias := old.(*radixv1.RadixDNSAlias)
 			newAlias := cur.(*radixv1.RadixDNSAlias)
 			if deepEqual(oldAlias, newAlias) {
 				logger.Debugf("RadixDNSAlias object is equal to old for %s. Do nothing", newAlias.GetName())
-				metrics.CustomResourceUpdatedButSkipped(radix.KindRadixDNSAlias)
+				metrics.CustomResourceUpdatedButSkipped(radixv1.KindRadixDNSAlias)
 				return
 			}
 			logger.Debugf("updated RadixDNSAlias %s", newAlias.GetName())
@@ -142,7 +141,7 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 			if err != nil {
 				logger.Errorf("failed to enqueue the RadixDNSAlias %s", newAlias.GetName())
 			}
-			metrics.CustomResourceUpdated(radix.KindRadixDNSAlias)
+			metrics.CustomResourceUpdated(radixv1.KindRadixDNSAlias)
 		},
 		DeleteFunc: func(obj interface{}) {
 			alias, converted := obj.(*radixv1.RadixDNSAlias)
@@ -155,7 +154,7 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 			if err != nil {
 				logger.Errorf("error on RadixDNSAlias object deleted event received for %s: %v", key, err)
 			}
-			metrics.CustomResourceDeleted(radix.KindRadixDNSAlias)
+			metrics.CustomResourceDeleted(radixv1.KindRadixDNSAlias)
 		},
 	})
 	if err != nil {
