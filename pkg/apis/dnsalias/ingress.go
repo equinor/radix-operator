@@ -33,7 +33,18 @@ func GetDNSAliasHost(alias, dnsZone string) string {
 	return fmt.Sprintf("%s.%s", alias, dnsZone)
 }
 
-func (s *syncer) syncIngress(namespace string, radixDeployComponent radixv1.RadixCommonDeployComponent, ingressName string) (*networkingv1.Ingress, error) {
+func (s *syncer) syncIngress(radixDeployComponent radixv1.RadixCommonDeployComponent) error {
+	aliasSpec := s.radixDNSAlias.Spec
+	ingressName := GetDNSAliasIngressName(s.radixDNSAlias.GetName())
+	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
+	ing, err := s.createOrUpdateIngress(namespace, ingressName, radixDeployComponent)
+	if err != nil {
+		return err
+	}
+	return s.syncOAuthProxyIngress(radixDeployComponent, namespace, aliasSpec, radixDeployComponent, ing)
+}
+
+func (s *syncer) createOrUpdateIngress(namespace string, ingressName string, radixDeployComponent radixv1.RadixCommonDeployComponent) (*networkingv1.Ingress, error) {
 	newIngress, err := buildIngress(radixDeployComponent, s.radixDNSAlias, s.dnsConfig, s.oauth2DefaultConfig, s.ingressConfiguration)
 	if err != nil {
 		return nil, err

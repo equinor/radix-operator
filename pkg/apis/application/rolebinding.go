@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -46,7 +45,7 @@ func (app *Application) applyRbacRadixRegistration() error {
 	// Admin RBAC
 	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
 	adminClusterRole := app.buildRRClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
-	appAdminSubjects, err := getAppAdminSubjects(rr)
+	appAdminSubjects, err := utils.GetAppAdminRbacSubjects(rr)
 	if err != nil {
 		return err
 	}
@@ -74,15 +73,6 @@ func (app *Application) applyRbacRadixRegistration() error {
 	}
 
 	return nil
-}
-
-func getAppAdminSubjects(rr *v1.RadixRegistration) ([]rbacv1.Subject, error) {
-	adGroups, err := utils.GetAdGroups(rr)
-	if err != nil {
-		return nil, err
-	}
-	subjects := kube.GetRoleBindingGroups(adGroups)
-	return subjects, nil
 }
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline

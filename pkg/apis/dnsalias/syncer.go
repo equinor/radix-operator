@@ -85,16 +85,11 @@ func (s *syncer) syncAlias() error {
 		return nil // there is no any RadixDeployment (probably it is just created app). Do not sync, radixDeploymentInformer in the RadixDNSAlias controller will call the re-sync, when the RadixDeployment is added
 	}
 
-	aliasSpec := s.radixDNSAlias.Spec
-	ingressName := GetDNSAliasIngressName(aliasName)
-	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-
-	ing, err := s.syncIngress(namespace, radixDeployComponent, ingressName)
-	if err != nil {
+	if err := s.syncIngress(radixDeployComponent); err != nil {
 		return s.getDNSAliasError(err)
 	}
 
-	return s.syncOAuthProxyIngress(radixDeployComponent, namespace, aliasSpec, radixDeployComponent, ing)
+	return s.syncRbac()
 }
 
 func (s *syncer) getDNSAliasError(err error) error {
