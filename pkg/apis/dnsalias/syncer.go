@@ -64,7 +64,13 @@ func (s *syncer) OnSync() error {
 
 func (s *syncer) syncAlias() error {
 	log.Debugf("syncAlias RadixDNSAlias %s", s.radixDNSAlias.GetName())
+	if err := s.syncIngresses(); err != nil {
+		return err
+	}
+	return s.syncRbac()
+}
 
+func (s *syncer) syncIngresses() error {
 	radixDeployComponent, err := s.getRadixDeployComponent()
 	if err != nil {
 		return err
@@ -75,7 +81,6 @@ func (s *syncer) syncAlias() error {
 
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-
 	ing, err := s.syncIngress(namespace, radixDeployComponent)
 	if err != nil {
 		return err
@@ -115,10 +120,10 @@ func (s *syncer) handleDeletedRadixDNSAlias() error {
 		return nil
 	}
 
-	if err := s.deletedIngresses(); err != nil {
+	if err := s.deleteIngresses(); err != nil {
 		return err
 	}
-	if err := s.deletedRbac(); err != nil {
+	if err := s.deleteRbac(); err != nil {
 		return err
 	}
 
