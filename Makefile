@@ -160,4 +160,8 @@ delete-temp-crds:
 staticcheck:
 	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`
 
+.PHONY: lint
+lint:
+	golangci-lint run
+
 

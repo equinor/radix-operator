@@ -22,7 +22,7 @@ spec:
       name: Application
       type: string
     - jsonPath: .status.condition
-      name: Condition
+      name: State
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age

@@ -31,6 +31,8 @@ reservedDNSAlias:
   - prometheus
   - www
   - app
+  - playground
+  - dev
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
