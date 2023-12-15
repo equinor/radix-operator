@@ -96,12 +96,16 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
-		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
+		_, err = tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
 			WithRegistrationOwner(rr).
 			WithOrphaned(false))
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ra, nil
@@ -130,11 +134,14 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
-		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
+		_, err := tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
 			WithRegistrationOwner(rr))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ra, nil
@@ -190,7 +197,9 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder
 // ApplyJob Will help persist a radixjob
 func (tu *Utils) ApplyJob(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
 	if jobBuilder.GetApplicationBuilder() != nil {
-		tu.ApplyApplication(jobBuilder.GetApplicationBuilder())
+		if _, err := tu.ApplyApplication(jobBuilder.GetApplicationBuilder()); err != nil {
+			return nil, err
+		}
 	}
 
 	rj := jobBuilder.BuildRJ()
@@ -261,26 +270,26 @@ func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuil
 // SetRequiredEnvironmentVariables  Sets the required environment
 // variables needed for the operator to run properly
 func SetRequiredEnvironmentVariables() {
-	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
-	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
-	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
-	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
-	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler:main-latest")
-	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
-	os.Setenv(defaults.ContainerRegistryEnvironmentVariable, "any.container.registry")
-	os.Setenv(defaults.AppContainerRegistryEnvironmentVariable, "any.app.container.registry")
+	_ = os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
+	_ = os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
+	_ = os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+	_ = os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
+	_ = os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+	_ = os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
+	_ = os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
+	_ = os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler:main-latest")
+	_ = os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
+	_ = os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
+	_ = os.Setenv(defaults.ContainerRegistryEnvironmentVariable, "any.container.registry")
+	_ = os.Setenv(defaults.AppContainerRegistryEnvironmentVariable, "any.app.container.registry")
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) {
+func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) error {
 	SetRequiredEnvironmentVariables()
 
-	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+	_, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.TODO(),
 		&corev1.Secret{
 			Type: "Opaque",
@@ -293,8 +302,11 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 			},
 		},
 		metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
 
-	tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+	_, err = tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
 		context.TODO(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -308,6 +320,8 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 			},
 		},
 		metav1.CreateOptions{})
+
+	return err
 }
 
 // CreateAppNamespace Helper method to creat app namespace
@@ -335,7 +349,7 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		},
 	}
 
-	kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
+	_, _ = kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 }
 
 // IntPtr Helper function to get the pointer of an int

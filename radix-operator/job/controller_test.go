@@ -15,6 +15,7 @@ import (
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -46,14 +47,15 @@ func (s *jobTestSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(fake.NewSimpleClientset(), fakeradix.NewSimpleClientset(), secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), secretProviderClient)
-	s.tu.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	err := s.tu.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	require.NoError(s.T(), err)
 }
 
 func (s *jobTestSuite) TearDownTest() {
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+	_ = os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 }
 
 func (s *jobTestSuite) Test_Controller_Calls_Handler() {
@@ -84,7 +86,9 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+	go func() {
+		_ = startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+	}()
 
 	// Test
 
@@ -100,7 +104,8 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	// Update  radix job should sync. Controller will skip if an update
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
-	s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
+	_, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
+	require.NoError(s.T(), err)
 
 	op, ok = <-synced
 	s.True(ok)
@@ -114,16 +119,18 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	}
 
 	// Only update of Kubernetes Job is something that the job-controller handles
-	s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
+	require.NoError(s.T(), err)
 	childJob.ObjectMeta.ResourceVersion = "1234"
-	s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
+	require.NoError(s.T(), err)
 
 	op, ok = <-synced
 	s.True(ok)
 	s.True(op)
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
@@ -132,6 +139,5 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(4, stop)
-
+	return controller.Run(4, stop)
 }

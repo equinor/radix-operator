@@ -30,7 +30,7 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	_ = handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	return handlerTestUtils, client, kubeUtil, radixClient
 }
 
@@ -98,8 +98,9 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	// Test
 	appName := "any-app"
-	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
+	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName(appName))
+	require.NoError(t, err)
 
 	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -142,8 +143,9 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 
 	// Test
 	appName := "any-app"
-	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
+	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName(appName))
+	require.NoError(t, err)
 
 	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -168,7 +170,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 	defer os.Clearenv()
 
 	// Create namespaces manually
-	client.CoreV1().Namespaces().Create(
+	_, err := client.CoreV1().Namespaces().Create(
 		context.TODO(),
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -176,12 +178,14 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 			},
 		},
 		metav1.CreateOptions{})
+	require.NoError(t, err)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, "any-app")
 
 	// Test
-	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
+	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName("any-app"))
+	require.NoError(t, err)
 
 	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: label,
@@ -197,10 +201,11 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultRole)
 
 	// Test
-	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
+	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName("any-app").
 		WithAdGroups([]string{}).
 		WithReaderAdGroups([]string{}))
+	require.NoError(t, err)
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
@@ -219,13 +224,14 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
 	defer os.Clearenv()
-	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "300M")
-	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "0.25")
-	os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "256M")
+	_ = os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "300M")
+	_ = os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "0.25")
+	_ = os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "256M")
 
 	// Test
-	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
+	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName("any-app"))
+	require.NoError(t, err)
 
 	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
@@ -237,13 +243,14 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
 	defer os.Clearenv()
-	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "")
-	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "")
-	os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "")
+	_ = os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "")
+	_ = os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "")
+	_ = os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "")
 
 	// Test
-	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
+	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName("any-app"))
+	require.NoError(t, err)
 
 	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")

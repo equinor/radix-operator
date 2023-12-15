@@ -18,6 +18,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -91,7 +92,8 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.egressIps, s.config.subscriptionID)
+	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.egressIps, s.config.subscriptionID)
+	require.NoError(s.T(), err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, s.config.clusterType)
@@ -106,12 +108,12 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 
 func (s *RadixJobTestSuiteBase) teardownTest() {
 	// Cleanup setup
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
+	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+	_ = os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+	_ = os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
+	_ = os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
 func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, config *Config) (*radixv1.RadixJob, error) {
@@ -289,7 +291,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -310,7 +313,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -336,7 +340,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -678,7 +683,8 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName).
 					WithActiveFrom(testTime))
 				s.NoError(err)
-				s.applyJobWithSyncFor(raBuilder, appName, rdJob, config)
+				err = s.applyJobWithSyncFor(raBuilder, appName, rdJob, config)
+				require.NoError(t, err)
 				testTime = testTime.Add(time.Hour)
 			}
 
@@ -687,7 +693,8 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				WithEnvironment(scenario.testingRadixDeploymentJob.env).
 				WithActiveFrom(testTime))
 			s.NoError(err)
-			s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config)
+			err = s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config)
+			require.NoError(t, err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
 			s.NoError(err)
@@ -811,7 +818,8 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
 			raBuilder := scenario.raBuilder.WithAppName(appName)
-			s.testUtils.ApplyApplication(raBuilder)
+			_, err := s.testUtils.ApplyApplication(raBuilder)
+			require.NoError(s.T(), err)
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				if rdJob.jobStatus == radixv1.JobSucceeded {
 					_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().

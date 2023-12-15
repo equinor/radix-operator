@@ -28,7 +28,7 @@ func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	_ = handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	return client, kubeUtil, radixClient
 }
 
@@ -53,7 +53,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			synced <- syncedOk
 		},
 	)
-	go startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+	go func() {
+		_ = startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+	}()
 
 	// Test
 
@@ -129,7 +131,7 @@ func startRegistrationController(
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	handler Handler,
-	stop chan struct{}) {
+	stop chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
@@ -139,6 +141,5 @@ func startRegistrationController(
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(5, stop)
-
+	return controller.Run(5, stop)
 }

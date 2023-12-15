@@ -17,6 +17,7 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,30 +43,31 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(fakekube, fakeradix, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	_ = handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 
-	os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
-	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
 
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
 
-func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*v1.RadixRegistration, *v1.RadixEnvironment, Environment) {
+func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*v1.RadixRegistration, *v1.RadixEnvironment, Environment, error) {
 	rr, _ := utils.GetRadixRegistrationFromFile(regConfigFileName)
 	re, _ := utils.GetRadixEnvironmentFromFile(radixEnvFileName)
 	logger := logrus.WithFields(logrus.Fields{"environmentName": namespaceName})
 	nw, _ := networkpolicy.NewNetworkPolicy(client, kubeUtil, logger, re.Spec.AppName)
 	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
-	radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, meta.CreateOptions{})
-	return rr, re, env
+	_, err := radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, meta.CreateOptions{})
+	return rr, re, env, err
 }
 
 func Test_Create_Namespace(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	defer os.Clearenv()
-	rr, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	require.NoError(t, err)
 
 	sync(t, &env)
 
@@ -97,7 +99,8 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardWarnLevelEnvironmentVariable, "warnLvl")
 	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "warnVer")
 	defer os.Clearenv()
-	rr, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	require.NoError(t, err)
 
 	sync(t, &env)
 
@@ -129,7 +132,8 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 func Test_Create_EgressRules(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	defer os.Clearenv()
-	rr, _, env := newEnv(client, kubeUtil, radixclient, egressRuleEnvConfigFileName)
+	rr, _, env, err := newEnv(client, kubeUtil, radixclient, egressRuleEnvConfigFileName)
+	require.NoError(t, err)
 
 	sync(t, &env)
 
@@ -150,7 +154,8 @@ func Test_Create_EgressRules(t *testing.T) {
 func Test_Create_RoleBinding(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	defer os.Clearenv()
-	rr, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	require.NoError(t, err)
 
 	sync(t, &env)
 
@@ -175,7 +180,8 @@ func Test_Create_RoleBinding(t *testing.T) {
 func Test_Create_LimitRange(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	defer os.Clearenv()
-	_, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	require.NoError(t, err)
 
 	sync(t, &env)
 
@@ -195,7 +201,8 @@ func Test_Create_LimitRange(t *testing.T) {
 func Test_Orphaned_Status(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	defer os.Clearenv()
-	_, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+	require.NoError(t, err)
 
 	env.appConfig = nil
 	sync(t, &env)

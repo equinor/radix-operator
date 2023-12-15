@@ -20,6 +20,7 @@ import (
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -71,7 +72,8 @@ func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, 
 		}
 		desiredConfigMap.Data[envVarName] = envVarValue
 	}
-	kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
+	err := kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
+	require.NoError(s.T(), err)
 	return desiredConfigMap
 }
 
@@ -134,8 +136,7 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 }
 
 func (s *syncerTestSuite) Test_RestoreStatusWithInvalidAnnotationValueShouldReturnErrorAndSkipReconcile() {
-	jobName, namespace := "any-job", "any-ns"
-	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	appName, batchName, componentName, namespace, rdName, jobName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "any-job"
 	batch := &radixv1.RadixBatch{
 		ObjectMeta: metav1.ObjectMeta{Name: batchName, Annotations: map[string]string{kube.RestoredStatusAnnotation: "invalid data"}},
 		Spec: radixv1.RadixBatchSpec{

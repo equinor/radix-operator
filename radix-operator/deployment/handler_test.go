@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -62,28 +63,32 @@ func (s *handlerSuite) Test_Sync() {
 	appName := "any-app"
 	namespace := "any-ns"
 
-	s.radixClient.Tracker().Add(
+	err := s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
 			ObjectMeta: v1.ObjectMeta{Name: inactiveRdName, Namespace: namespace},
 			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive},
 		},
 	)
-	s.radixClient.Tracker().Add(
+	require.NoError(s.T(), err)
+	err = s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
 			ObjectMeta: v1.ObjectMeta{Name: activeRdMissingRrName, Namespace: namespace},
 			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 		},
 	)
+	require.NoError(s.T(), err)
 	activeRd := &radixv1.RadixDeployment{
 		ObjectMeta: v1.ObjectMeta{Name: activeRdName, Namespace: namespace},
 		Spec:       radixv1.RadixDeploymentSpec{AppName: appName},
 		Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 	}
-	s.radixClient.Tracker().Add(activeRd)
+	err = s.radixClient.Tracker().Add(activeRd)
+	require.NoError(s.T(), err)
 	rr := &radixv1.RadixRegistration{
 		ObjectMeta: v1.ObjectMeta{Name: appName},
 	}
-	s.radixClient.Tracker().Add(rr)
+	err = s.radixClient.Tracker().Add(rr)
+	require.NoError(s.T(), err)
 
 	s.Run("non-existing RD should not call factory method", func() {
 		ctrl := gomock.NewController(s.T())

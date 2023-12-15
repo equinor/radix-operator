@@ -11,6 +11,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -99,9 +100,10 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 			})
 		})
 		//goland:noinspection GoUnhandledErrorResult
-		testEnv.kubeUtil.CreateConfigMap(corev1.NamespaceDefault, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "radix-config"}, Data: map[string]string{
+		_, err := testEnv.kubeUtil.CreateConfigMap(corev1.NamespaceDefault, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "radix-config"}, Data: map[string]string{
 			"clustername": testClusterName,
 		}})
+		require.NoError(t, err)
 
 		envVars, err := GetEnvironmentVariablesForRadixOperator(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
 
@@ -132,21 +134,21 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	testEnv := setupTestEnv()
 	defer teardownTest()
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
-		//goland:noinspection GoUnhandledErrorResult
-		testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
+		_, err := testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
 			"VAR1":          "val1",
 			"OUTDATED_VAR1": "val1z",
 		}})
+		require.NoError(t, err)
 		existingEnvVarsMetadataConfigMap := corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsMetadataConfigMapName(componentName)}}
-		//goland:noinspection GoUnhandledErrorResult
-		kube.SetEnvVarsMetadataMapToConfigMap(&existingEnvVarsMetadataConfigMap,
+		err = kube.SetEnvVarsMetadataMapToConfigMap(&existingEnvVarsMetadataConfigMap,
 			map[string]kube.EnvVarMetadata{
 				"VAR1":          {RadixConfigValue: "orig-val1"},
 				"OUTDATED_VAR1": {RadixConfigValue: "orig-val1a"},
 				"OUTDATED_VAR2": {RadixConfigValue: "orig-val2a"},
 			})
-		//goland:noinspection GoUnhandledErrorResult
-		testEnv.kubeUtil.CreateConfigMap(namespace, &existingEnvVarsMetadataConfigMap)
+		require.NoError(t, err)
+		_, err = testEnv.kubeUtil.CreateConfigMap(namespace, &existingEnvVarsMetadataConfigMap)
+		require.NoError(t, err)
 
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.WithEnvironmentVariables(map[string]string{
