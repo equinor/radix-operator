@@ -50,7 +50,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, prometheusclient := setupTest()
 
-	if _, err := client.CoreV1().Namespaces().Create(
+	_, err := client.CoreV1().Namespaces().Create(
 		context.TODO(),
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -61,9 +61,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 				},
 			},
 		},
-		metav1.CreateOptions{}); err != nil {
-		require.NoError(t, err)
-	}
+		metav1.CreateOptions{})
+	require.NoError(t, err)
 
 	stop := make(chan struct{})
 	synced := make(chan bool)
@@ -82,9 +81,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
 	go func() {
-		if err := startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop); err != nil {
-			require.NoError(t, err)
-		}
+		err := startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
+		require.NoError(t, err)
 	}()
 
 	// Test
@@ -106,9 +104,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Update deployment should sync. Only actual updates will be handled by the controller
 	noReplicas := 0
 	rd.Spec.Components[0].Replicas = &noReplicas
-	if _, err := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{}); err != nil {
-		require.NoError(t, err)
-	}
+	_, err = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{})
+	require.NoError(t, err)
 
 	op, ok = <-synced
 	assert.True(t, ok)

@@ -484,9 +484,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 
 	// Remove redispassword if sessionstoretype is cookie
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreCookie}, nil)
-	if err := sut.Sync(); err != nil {
-		s.Require().NoError(err)
-	}
+	err = sut.Sync()
+	s.Require().NoError(err)
 	actualSecret, _ = s.kubeClient.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
 	s.Equal(
 		map[string][]byte{
@@ -572,24 +571,18 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 			Rules:            []networkingv1.IngressRule{{Host: "ing2.public"}},
 		},
 	}
-	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServer, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
-	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServerNoRules, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
-	if _, err := s.kubeClient.NetworkingV1().Ingresses("otherns").Create(context.Background(), &ingServerOtherNs, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
-	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingOtherComponent, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
-	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb1, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
-	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb2, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
+	_, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServer, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServerNoRules, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses("otherns").Create(context.Background(), &ingServerOtherNs, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingOtherComponent, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb1, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb2, metav1.CreateOptions{})
+	s.Require().NoError(err)
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
@@ -610,15 +603,15 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	expectedIngWebAnnotations := map[string]string{"annotation2-1": "val2-1", "annotation2-2": "val2-2"}
 	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall, rd.Namespace).Times(2).Return(expectedIngWebAnnotations, nil)
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{s.ingressAnnotationProvider}, s.oauth2Config, ""}
-	err := sut.Sync()
-	s.Nil(err)
+	err = sut.Sync()
+	s.NoError(err)
 
 	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualIngresses.Items, 9)
 	getIngress := func(name string, ingresses []networkingv1.Ingress) *networkingv1.Ingress {
-		for _, ingress := range ingresses {
-			if ingress.Name == name {
-				return &ingress
+		for _, ing := range ingresses {
+			if ing.Name == name {
+				return &ing
 			}
 		}
 		return nil
@@ -677,33 +670,30 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	appName, envName, component1Name, component2Name := "anyapp", "qa", "server", "web"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 
-	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
+	_, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
-	); err != nil {
-		s.Require().NoError(err)
-	}
-	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
+	)
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
-	); err != nil {
-		s.Require().NoError(err)
-	}
-	if _, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
+	)
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
 		context.Background(),
 		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
 			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
 		metav1.CreateOptions{},
-	); err != nil {
-		s.Require().NoError(err)
-	}
+	)
+	s.Require().NoError(err)
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
@@ -714,8 +704,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 		BuildRD()
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(2).Return(&v1.OAuth2{}, nil)
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, ""}
-	err := sut.Sync()
-	s.Nil(err)
+	err = sut.Sync()
+	s.NoError(err)
 
 	// Bootstrap oauth proxy resources for two components
 	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
@@ -921,9 +911,7 @@ func (s *OAuthProxyResourceManagerTestSuite) addDeployment(name, namespace, appN
 		},
 	}
 	_, err := s.kubeClient.AppsV1().Deployments(namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
-	if err != nil {
-		s.Require().NoError(err)
-	}
+	s.Require().NoError(err)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) addSecret(name, namespace, appName, auxComponentName, auxComponentType string) {
@@ -935,9 +923,7 @@ func (s *OAuthProxyResourceManagerTestSuite) addSecret(name, namespace, appName,
 		},
 	}
 	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-	if err != nil {
-		s.Require().NoError(err)
-	}
+	s.Require().NoError(err)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) addService(name, namespace, appName, auxComponentName, auxComponentType string) {
@@ -949,23 +935,19 @@ func (s *OAuthProxyResourceManagerTestSuite) addService(name, namespace, appName
 		},
 	}
 	_, err := s.kubeClient.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
-	if err != nil {
-		s.Require().NoError(err)
-	}
+	s.Require().NoError(err)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) addIngress(name, namespace, appName, auxComponentName, auxComponentType string) {
-	ingress := &networkingv1.Ingress{
+	ing := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
-	if err != nil {
-		s.Require().NoError(err)
-	}
+	_, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.Background(), ing, metav1.CreateOptions{})
+	s.Require().NoError(err)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) addRole(name, namespace, appName, auxComponentName, auxComponentType string) {
@@ -977,9 +959,8 @@ func (s *OAuthProxyResourceManagerTestSuite) addRole(name, namespace, appName, a
 		},
 	}
 	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
-	if err != nil {
-		s.Require().NoError(err)
-	}
+
+	s.Require().NoError(err)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) addRoleBinding(name, namespace, appName, auxComponentName, auxComponentType string) {
@@ -991,9 +972,8 @@ func (s *OAuthProxyResourceManagerTestSuite) addRoleBinding(name, namespace, app
 		},
 	}
 	_, err := s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rolebinding, metav1.CreateOptions{})
-	if err != nil {
-		s.Require().NoError(err)
-	}
+
+	s.Require().NoError(err)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) buildResourceLabels(appName, auxComponentName, auxComponentType string) labels.Set {

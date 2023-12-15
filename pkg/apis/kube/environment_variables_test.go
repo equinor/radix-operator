@@ -101,7 +101,7 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 	namespace := "some-namespace"
 	componentName := "comp1"
 	createEnvVarConfigMapFunc := func(testEnv EnvironmentVariablesTestEnv) {
-		if err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
+		err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "env-vars-" + componentName,
 				Namespace: namespace,
@@ -111,12 +111,12 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 				"VAR2": "val2",
 				"VAR3": "setVal3",
 			},
-		}); err != nil {
-			require.NoError(t, err)
-		}
+		})
+		require.NoError(t, err)
+
 	}
 	createEnvVarMetadataConfigMapFunc := func(testEnv EnvironmentVariablesTestEnv) {
-		if err := createConfigMap(
+		err := createConfigMap(
 			testEnv.kubeUtil,
 			namespace,
 			&corev1.ConfigMap{
@@ -133,9 +133,9 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 							`,
 				},
 			},
-		); err != nil {
-			require.NoError(t, err)
-		}
+		)
+		require.NoError(t, err)
+
 	}
 	t.Run("Get existing", func(t *testing.T) {
 		t.Parallel()
@@ -213,13 +213,12 @@ func Test_SetEnvVarsMetadataMapToConfigMap(t *testing.T) {
 			},
 		}
 
-		if err := SetEnvVarsMetadataMapToConfigMap(&currentMetadataConfigMap, map[string]EnvVarMetadata{
+		err := SetEnvVarsMetadataMapToConfigMap(&currentMetadataConfigMap, map[string]EnvVarMetadata{
 			"VAR1": {RadixConfigValue: "val1changed"},
 			"VAR2": {RadixConfigValue: "added"},
 			// VAR3: removed
-		}); err != nil {
-			require.NoError(t, err)
-		}
+		})
+		require.NoError(t, err)
 
 		assert.NotNil(t, currentMetadataConfigMap.Data)
 		assert.NotNil(t, currentMetadataConfigMap.Data["metadata"])
@@ -262,17 +261,16 @@ func Test_ApplyEnvVarsMetadataConfigMap(t *testing.T) {
 	t.Run("Save changes", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
-		if _, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &corev1.ConfigMap{
+		_, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
-			}}, metav1.CreateOptions{}); err != nil {
-			require.NoError(t, err)
-		}
+			}}, metav1.CreateOptions{})
+		require.NoError(t, err)
 
-		err := testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(namespace, &currentMetadataConfigMap, metadata)
-
+		err = testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(namespace, &currentMetadataConfigMap, metadata)
 		assert.NoError(t, err)
+
 		configMap, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, configMap)

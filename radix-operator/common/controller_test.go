@@ -78,9 +78,8 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		if err := sut.Run(1, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
 	}()
 
 	doneCh := make(chan struct{})
@@ -125,9 +124,8 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		if err := sut.Run(1, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
 	}()
 
 	doneCh := make(chan struct{})

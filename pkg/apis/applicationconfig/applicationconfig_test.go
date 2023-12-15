@@ -215,13 +215,12 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
 	appNamespace := "any-app-app"
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret1", "secret2")); err != nil {
-		require.NoError(t, err)
-	}
+			WithBuildSecrets("secret1", "secret2"))
+	require.NoError(t, err)
 
 	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)

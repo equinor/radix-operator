@@ -155,7 +155,7 @@ func (app *Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccoun
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       "RoleBinding",
+			Kind:       k8s.KindRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: defaults.PipelineAppRoleName,
@@ -187,7 +187,7 @@ func (app *Application) radixTektonRoleBinding(serviceAccount *corev1.ServiceAcc
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       "RoleBinding",
+			Kind:       k8s.KindRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: defaults.RadixTektonAppRoleName,

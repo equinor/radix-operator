@@ -6,9 +6,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const (
+	GroupName = "radix.equinor.com"
+	Version   = "v1"
+)
+
 // SchemeGroupVersion provides the group version
 var SchemeGroupVersion = schema.GroupVersion{
-	Group:   "radix.equinor.com",
+	Group:   GroupName,
 	Version: "v1",
 }
 var (
