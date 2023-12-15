@@ -95,9 +95,8 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 		},
 	)
 	go func() {
-		if err := startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop); err != nil {
-			s.Require().NoError(err)
-		}
+		err := startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+		s.Require().NoError(err)
 	}()
 
 	// Test
@@ -114,9 +113,8 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	// Update  radix job should sync. Controller will skip if an update
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
-	if _, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
+	_, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 
 	op, ok = <-synced
 	s.True(ok)
@@ -130,13 +128,12 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	}
 
 	// Only update of Kubernetes Job is something that the job-controller handles
-	if _, err := s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
 	childJob.ObjectMeta.ResourceVersion = "1234"
-	if _, err := s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 
 	op, ok = <-synced
 	s.True(ok)
@@ -152,9 +149,5 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	if err := controller.Run(4, stop); err != nil {
-		return err
-	}
-
-	return nil
+	return controller.Run(4, stop)
 }

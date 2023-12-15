@@ -6,7 +6,7 @@ import meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="Application",type="string",JSONPath=".spec.appName"
-// +kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.condition"
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.condition"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=radixdnsaliases,scope=Cluster,shortName=rda
 // +kubebuilder:subresource:status

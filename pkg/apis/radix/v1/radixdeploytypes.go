@@ -97,7 +97,6 @@ type RadixDeployComponent struct {
 	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	IngressConfiguration    []string                `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	DNSAppAlias             bool                    `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
-	DNSAlias                []string                `json:"dnsAlias,omitempty" yaml:"dnsAlias,omitempty"`
 	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
 	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
 	MonitoringConfig        MonitoringConfig        `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
@@ -176,10 +175,6 @@ func (deployComponent *RadixDeployComponent) IsPublic() bool {
 
 func (deployComponent *RadixDeployComponent) GetDNSExternalAlias() []string {
 	return deployComponent.DNSExternalAlias
-}
-
-func (deployComponent *RadixDeployComponent) GetDNSAlias() []string {
-	return deployComponent.DNSAlias
 }
 
 func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
@@ -287,10 +282,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetDNSExternalAlias() []strin
 	return nil
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetDNSAlias() []string {
-	return nil
-}
-
 func (deployJobComponent *RadixDeployJobComponent) IsDNSAppAlias() bool {
 	return false
 }
@@ -388,7 +379,6 @@ type RadixCommonDeployComponent interface {
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetPublicPort() string
 	IsPublic() bool
-	GetDNSAlias() []string
 	GetDNSExternalAlias() []string
 	IsDNSAppAlias() bool
 	GetIngressConfiguration() []string

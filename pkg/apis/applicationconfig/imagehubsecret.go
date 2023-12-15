@@ -27,31 +27,6 @@ func GetKubeDPrivateImageHubAnnotationValues(appName string) (key, value string)
 	return fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName), appName
 }
 
-// UpdatePrivateImageHubsSecretsPassword updates the private image hub secret
-func UpdatePrivateImageHubsSecretsPassword(kubeutil *kube.Kube, appName, server, password string) error {
-	ns := utils.GetAppNamespace(appName)
-	secret, _ := kubeutil.GetSecret(ns, defaults.PrivateImageHubSecretName)
-	if secret == nil {
-		return fmt.Errorf("private image hub secret does not exist for app %s", appName)
-	}
-
-	imageHubs, err := GetImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
-	if err != nil {
-		return err
-	}
-
-	if config, ok := imageHubs[server]; ok {
-		config.Password = password
-		imageHubs[server] = config
-		secretValue, err := GetImageHubsSecretValue(imageHubs)
-		if err != nil {
-			return err
-		}
-		return ApplyPrivateImageHubSecret(kubeutil, ns, appName, secretValue)
-	}
-	return fmt.Errorf("private image hub secret does not contain config for server %s", server)
-}
-
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	namespace := utils.GetAppNamespace(app.config.Name)
 	secret, err := app.kubeutil.GetSecret(namespace, defaults.PrivateImageHubSecretName)

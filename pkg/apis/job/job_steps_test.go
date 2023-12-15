@@ -12,6 +12,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -265,19 +266,15 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 }
 
 func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStatusOfJobTestScenario) {
-	if err := s.initScenario(scenario); err != nil {
-		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
-	}
+	err := s.initScenario(scenario)
+	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixjob, nil)
-	if err := job.setStatusOfJob(); err != nil {
-		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
-	}
+	err = job.setStatusOfJob()
+	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	actualRj, err := s.radixClient.RadixV1().RadixJobs(scenario.radixjob.Namespace).Get(context.Background(), scenario.radixjob.Name, metav1.GetOptions{})
-	if err != nil {
-		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
-	}
+	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	assert.Equal(s.T(), scenario.expected.returnsError, err != nil, scenario.name)
 	assert.ElementsMatch(s.T(), scenario.expected.steps, actualRj.Status.Steps, scenario.name)

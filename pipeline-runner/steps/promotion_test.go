@@ -308,8 +308,6 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "mysql", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_TYPE"])
 	assert.Equal(t, "my-db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_NAME"])
 	assert.Equal(t, anyExternalDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
-	assert.Contains(t, rds.Items[0].Spec.Components[0].DNSAlias, anyDNSAlias1)
-	assert.Contains(t, rds.Items[0].Spec.Components[0].DNSAlias, anyDNSAlias2)
 	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
 	assert.Len(t, rds.Items[0].Spec.Components[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYAPPSECRET", rds.Items[0].Spec.Components[0].Secrets[0])

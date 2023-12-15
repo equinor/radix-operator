@@ -30,15 +30,13 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	s.KubeInformerFactory.Start(s.Stop)
 
 	go func() {
-		if err := sut.Run(1, s.Stop); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, s.Stop)
+		s.Require().NoError(err)
 	}()
 
 	ra := utils.ARadixApplication().WithAppName(appName).WithEnvironment("dev", "master").BuildRA()
-	if _, err := s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
+	_, err := s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
+	s.Require().NoError(err)
 
 	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("added app")
@@ -59,29 +57,28 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_Reader_C
 	s.KubeInformerFactory.Start(s.Stop)
 
 	go func() {
-		if err := sut.Run(1, s.Stop); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, s.Stop)
+		s.Require().NoError(err)
 	}()
 
 	ra := utils.ARadixApplication().WithAppName(appName).WithEnvironment("dev", "master").BuildRA()
-	if _, err := s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
+	_, err = s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
 	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("added app")
 
 	rr.Spec.AdGroups = []string{"another-admin-group"}
-	if _, err := s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
+	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+
 	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("AdGroups changed")
 
 	rr.Spec.ReaderAdGroups = []string{"another-reader-group"}
-	if _, err := s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{}); err != nil {
-		s.Require().NoError(err)
-	}
+	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+
 	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("ReaderAdGroups changed")
 }
