@@ -115,7 +115,10 @@ func (s *syncer) handleDeletedRadixDNSAlias() error {
 		return nil
 	}
 
-	if err := s.deletedIngressesForRadixDNSAlias(); err != nil {
+	if err := s.deletedIngresses(); err != nil {
+		return err
+	}
+	if err := s.deletedRbac(); err != nil {
 		return err
 	}
 

@@ -243,18 +243,24 @@ func (kubeutil *Kube) GetRole(namespace, name string) (*rbacv1.Role, error) {
 	return role, nil
 }
 
-// ListClusterRoles List cluster roles
-func (kubeutil *Kube) ListClusterRoles(namespace string) ([]*rbacv1.ClusterRole, error) {
+// ListClusterRolesWithSelector List cluster roles
+func (kubeutil *Kube) ListClusterRolesWithSelector(labelSelectorString string) ([]*rbacv1.ClusterRole, error) {
 	var clusterRoles []*rbacv1.ClusterRole
-	var err error
+	selector, err := labels.Parse(labelSelectorString)
+	if err != nil {
+		return nil, err
+	}
 
 	if kubeutil.ClusterRoleLister != nil {
-		clusterRoles, err = kubeutil.ClusterRoleLister.List(labels.NewSelector())
+		clusterRoles, err = kubeutil.ClusterRoleLister.List(selector)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.kubeClient.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
+		list, err := kubeutil.kubeClient.RbacV1().ClusterRoles().List(context.TODO(),
+			metav1.ListOptions{
+				LabelSelector: labelSelectorString,
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -276,6 +282,15 @@ func (kubeutil *Kube) DeleteRole(namespace, name string) error {
 	err = kubeutil.kubeClient.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete role object: %v", err)
+	}
+	return nil
+}
+
+// DeleteClusterRole Deletes a role in a namespace
+func (kubeutil *Kube) DeleteClusterRole(name string) error {
+	err := kubeutil.kubeClient.RbacV1().ClusterRoles().Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete cluster role object: %v", err)
 	}
 	return nil
 }

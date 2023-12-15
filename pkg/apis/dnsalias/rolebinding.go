@@ -9,9 +9,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	logger "github.com/sirupsen/logrus"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // syncRbac Grants access to Radix DNSAlias to application admin and reader
@@ -22,8 +24,7 @@ func (s *syncer) syncRbac() error {
 		return err
 	}
 	// Admin RBAC
-	clusterRoleName := fmt.Sprintf("%s-%s", defaults.RadixApplicationAdminRadixDNSAliasRoleNamePrefix, appName)
-	adminClusterRole := s.buildDNSAliasClusterRole(clusterRoleName, []string{"get", "list"})
+	adminClusterRole := s.buildDNSAliasClusterRole(s.getClusterRoleNameForAdmin(), []string{"get", "list"})
 	appAdminSubjects, err := utils.GetAppAdminRbacSubjects(rr)
 	if err != nil {
 		return err
@@ -31,8 +32,7 @@ func (s *syncer) syncRbac() error {
 	adminClusterRoleBinding := s.buildDNSAliasClusterRoleBinding(appName, adminClusterRole, appAdminSubjects)
 
 	// Reader RBAC
-	clusterRoleReaderName := fmt.Sprintf("%s-%s", defaults.RadixApplicationReaderRadixDNSAliasRoleNamePrefix, appName)
-	readerClusterRole := s.buildDNSAliasClusterRole(clusterRoleReaderName, []string{"get", "list"})
+	readerClusterRole := s.buildDNSAliasClusterRole(s.getClusterRoleNameForReader(), []string{"get", "list"})
 	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
 	readerClusterRoleBinding := s.buildDNSAliasClusterRoleBinding(appName, readerClusterRole, appReaderSubjects)
 
@@ -52,6 +52,14 @@ func (s *syncer) syncRbac() error {
 	return nil
 }
 
+func (s *syncer) getClusterRoleNameForAdmin() string {
+	return fmt.Sprintf("%s-%s", defaults.RadixApplicationAdminRadixDNSAliasRoleNamePrefix, s.radixDNSAlias.Spec.AppName)
+}
+
+func (s *syncer) getClusterRoleNameForReader() string {
+	return fmt.Sprintf("%s-%s", defaults.RadixApplicationReaderRadixDNSAliasRoleNamePrefix, s.radixDNSAlias.Spec.AppName)
+}
+
 func (s *syncer) buildDNSAliasClusterRole(clusterRoleName string, verbs []string) *rbacv1.ClusterRole {
 	return s.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{radixv1.SchemeGroupVersion.Group},
 		Resources:     []string{radixv1.ResourceRadixDNSAliases},
@@ -68,10 +76,8 @@ func (s *syncer) buildClusterRole(clusterRoleName string, rules ...rbacv1.Policy
 			Kind:       k8s.KindClusterRole,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: s.radixDNSAlias.Spec.AppName,
-			},
+			Name:            clusterRoleName,
+			Labels:          s.getLabelsForDNSAliasRbac(),
 			OwnerReferences: s.getOwnerReference(),
 		},
 		Rules: rules,
@@ -91,10 +97,8 @@ func (s *syncer) buildDNSAliasClusterRoleBinding(appName string, clusterRole *rb
 			Kind:       k8s.KindClusterRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleBindingName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
+			Name:            clusterRoleBindingName,
+			Labels:          s.getLabelsForDNSAliasRbac(),
 			OwnerReferences: ownerReference,
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -110,6 +114,35 @@ func (s *syncer) buildDNSAliasClusterRoleBinding(appName string, clusterRole *rb
 	return clusterRoleBinding
 }
 
+func (s *syncer) getLabelsForDNSAliasRbac() labels.Set {
+	return radixlabels.ForDNSAliasRbac(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.GetName())
+}
+
 func (s *syncer) getOwnerReference() []metav1.OwnerReference {
 	return []metav1.OwnerReference{{APIVersion: radixv1.SchemeGroupVersion.Identifier(), Kind: radixv1.KindRadixDNSAlias, Name: s.radixDNSAlias.GetName(), UID: s.radixDNSAlias.GetUID(), Controller: pointers.Ptr(true)}}
+}
+
+func (s *syncer) deletedRbac() error {
+	selectorForDNSAlias := s.getLabelsForDNSAliasRbac().String()
+	clusterRoleBindings, err := s.kubeUtil.ListClusterRoleBindingsWithSelector(selectorForDNSAlias)
+	if err != nil {
+		return err
+	}
+	for _, binding := range clusterRoleBindings {
+		err := s.kubeUtil.DeleteClusterRoleBinding(binding.GetName())
+		if err != nil {
+			return err
+		}
+	}
+	clusterRoles, err := s.kubeUtil.ListClusterRolesWithSelector(selectorForDNSAlias)
+	if err != nil {
+		return err
+	}
+	for _, role := range clusterRoles {
+		err := s.kubeUtil.DeleteClusterRole(role.GetName())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

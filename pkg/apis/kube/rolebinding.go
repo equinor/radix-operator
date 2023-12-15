@@ -337,18 +337,23 @@ func (kubeutil *Kube) ListRoleBindingsWithSelector(namespace string, labelSelect
 	return roleBindings, nil
 }
 
-// ListClusterRoleBindings List cluster roles
-func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*rbacv1.ClusterRoleBinding, error) {
+// ListClusterRoleBindingsWithSelector List cluster roles
+func (kubeutil *Kube) ListClusterRoleBindingsWithSelector(labelSelectorString string) ([]*rbacv1.ClusterRoleBinding, error) {
 	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
-	var err error
-
 	if kubeutil.ClusterRoleBindingLister != nil {
-		clusterRoleBindings, err = kubeutil.ClusterRoleBindingLister.List(labels.NewSelector())
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
+		}
+		clusterRoleBindings, err = kubeutil.ClusterRoleBindingLister.List(selector)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+		listOptions := metav1.ListOptions{
+			LabelSelector: labelSelectorString,
+		}
+		list, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().List(context.TODO(), listOptions)
 		if err != nil {
 			return nil, err
 		}

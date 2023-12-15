@@ -130,7 +130,7 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 	return ingressConfig, nil
 }
 
-func (s *syncer) deletedIngressesForRadixDNSAlias() error {
+func (s *syncer) deletedIngresses() error {
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	dnsAliasIngressesSelector := radixlabels.ForDNSAliasIngress(aliasSpec.AppName, aliasSpec.Component, s.radixDNSAlias.GetName()).String()

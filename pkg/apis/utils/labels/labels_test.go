@@ -142,6 +142,12 @@ func Test_ForDNSAliasIngress(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func Test_ForDNSAliasRbac(t *testing.T) {
+	actual := ForDNSAliasRbac("any-app", "any-dns-alias")
+	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixAliasLabel: "any-dns-alias"}
+	assert.Equal(t, expected, actual)
+}
+
 func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
 	actual := requirementRadixBatchNameLabelExists()
 	expected := kubelabels.Set{kube.RadixBatchNameLabel: "anyname"}
