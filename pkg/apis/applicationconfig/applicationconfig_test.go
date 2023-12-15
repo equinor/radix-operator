@@ -239,13 +239,12 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
 	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret4", "secret5", "secret6")); err != nil {
-		require.NoError(t, err)
-	}
+			WithBuildSecrets("secret4", "secret5", "secret6"))
+	require.NoError(t, err)
 
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	buildSecrets = getSecretByName(defaults.BuildSecretsName, secrets)
@@ -328,23 +327,21 @@ func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
 func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret1", "secret2")); err != nil {
-		require.NoError(t, err)
-	}
+			WithBuildSecrets("secret1", "secret2"))
+	require.NoError(t, err)
 
 	// Delete secret
 	appNamespace := "any-app-app"
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret2")); err != nil {
-		require.NoError(t, err)
-	}
+			WithBuildSecrets("secret2"))
+	require.NoError(t, err)
 
 	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
@@ -356,13 +353,12 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
 
 	// Delete secret
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets()); err != nil {
-		require.NoError(t, err)
-	}
+			WithBuildSecrets())
+	require.NoError(t, err)
 
 	// Secret is deleted
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -382,13 +378,12 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
-			WithBuildSecrets("secret1", "secret2")); err != nil {
-		require.NoError(t, err)
-	}
+			WithBuildSecrets("secret1", "secret2"))
+	require.NoError(t, err)
 
 	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-reader-build-secrets", roles))
@@ -397,12 +392,11 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	assert.True(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 
 	// Delete secret and verify that role and rolebinding is deleted
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
-			WithEnvironment("dev", "master")); err != nil {
-		require.NoError(t, err)
-	}
+			WithEnvironment("dev", "master"))
+	require.NoError(t, err)
 
 	roles, _ = client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.False(t, roleByNameExists("radix-app-reader-build-secrets", roles))
@@ -415,13 +409,12 @@ func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
 	adminGroups, readerGroups := []string{"admin1", "admin2"}, []string{"reader1", "reader2"}
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithRadixRegistration(utils.ARadixRegistration().WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)).
 			WithAppName("any-app").
-			WithEnvironment("dev", "master")); err != nil {
-		require.NoError(t, err)
-	}
+			WithEnvironment("dev", "master"))
+	require.NoError(t, err)
 
 	type testSpec struct {
 		roleName         string
@@ -568,11 +561,10 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 func Test_RadixEnvironment(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
-			WithAppName("any-app")); err != nil {
-		require.NoError(t, err)
-	}
+			WithAppName("any-app"))
+	require.NoError(t, err)
 
 	rr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), "any-app", metav1.GetOptions{})
 
@@ -625,9 +617,8 @@ func Test_UseBuildKit(t *testing.T) {
 		if testScenario.useBuildKit != nil {
 			ra = ra.WithBuildKit(testScenario.useBuildKit)
 		}
-		if err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra); err != nil {
-			require.NoError(t, err)
-		}
+		err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra)
+		require.NoError(t, err)
 
 		raAfterSync, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.TODO(), testScenario.appName, metav1.GetOptions{})
 

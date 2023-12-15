@@ -302,7 +302,7 @@ func Test_GetEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 	t.Run("Get existing", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
-		if err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
+		err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "env-vars-" + componentName,
 				Namespace: namespace,
@@ -312,10 +312,10 @@ func Test_GetEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 				"VAR2": "val2",
 				"VAR3": "setVal3",
 			},
-		}); err != nil {
-			require.NoError(t, err)
-		}
-		if err := createConfigMap(
+		})
+		require.NoError(t, err)
+
+		err = createConfigMap(
 			testEnv.kubeUtil,
 			namespace,
 			&corev1.ConfigMap{
@@ -332,9 +332,9 @@ func Test_GetEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 							`,
 				},
 			},
-		); err != nil {
-			require.NoError(t, err)
-		}
+		)
+		require.NoError(t, err)
+
 		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(namespace, componentName)
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
@@ -380,7 +380,7 @@ func Test_GetOrCreateEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 	t.Run("Get existing", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
-		if err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
+		err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "env-vars-" + componentName,
 				Namespace: namespace,
@@ -390,10 +390,10 @@ func Test_GetOrCreateEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 				"VAR2": "val2",
 				"VAR3": "setVal3",
 			},
-		}); err != nil {
-			require.NoError(t, err)
-		}
-		if err := createConfigMap(
+		})
+		require.NoError(t, err)
+
+		err = createConfigMap(
 			testEnv.kubeUtil,
 			namespace,
 			&corev1.ConfigMap{
@@ -410,9 +410,8 @@ func Test_GetOrCreateEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 							`,
 				},
 			},
-		); err != nil {
-			require.NoError(t, err)
-		}
+		)
+		require.NoError(t, err)
 
 		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appName, componentName)
 

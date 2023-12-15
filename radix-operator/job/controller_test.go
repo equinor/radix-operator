@@ -149,9 +149,5 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	if err := controller.Run(4, stop); err != nil {
-		return err
-	}
-
-	return nil
+	return controller.Run(4, stop)
 }

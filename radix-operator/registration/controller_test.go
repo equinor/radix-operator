@@ -54,9 +54,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		},
 	)
 	go func() {
-		if err := startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop); err != nil {
-			require.NoError(t, err)
-		}
+		err := startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+		require.NoError(t, err)
 	}()
 
 	// Test
@@ -137,9 +136,5 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	if err := controller.Run(5, stop); err != nil {
-		return err
-	}
-
-	return nil
+	return controller.Run(5, stop)
 }

@@ -169,9 +169,8 @@ func (s *commonControllerTestSuite) Test_ForgetWhenLockKeyAndIdentifierError() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		if err := sut.Run(1, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
 	}()
 
 	doneCh := make(chan struct{})
@@ -212,9 +211,8 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		if err := sut.Run(1, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
 	}()
 
 	doneCh := make(chan struct{})
@@ -253,9 +251,8 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		if err := sut.Run(1, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
 	}()
 
 	doneCh := make(chan struct{})
@@ -295,9 +292,8 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 
 	doneCh := make(chan struct{})
 	go func() {
-		if err := sut.Run(1, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
 		close(doneCh)
 	}()
 
@@ -335,10 +331,9 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShuttingDownTrue() {
 
 	doneCh := make(chan struct{})
 	go func() {
-		if err := sut.Run(1, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, stopCh)
 		close(doneCh)
+		s.Require().NoError(err)
 	}()
 
 	queue.On("ShuttingDown").Return(true).Times(1)
@@ -377,9 +372,8 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		if err := sut.Run(1, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
 	}()
 
 	doneCh := make(chan struct{})
@@ -435,9 +429,8 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	queue.On("ShuttingDown").Return(false)
 
 	go func() {
-		if err := sut.Run(threadiness, stopCh); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(threadiness, stopCh)
+		s.Require().NoError(err)
 	}()
 
 	for i := 0; i < len(testItems); i++ {

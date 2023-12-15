@@ -700,9 +700,8 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				WithEnvironment(scenario.testingRadixDeploymentJob.env).
 				WithActiveFrom(testTime))
 			s.NoError(err)
-			if err := s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config); err != nil {
-				s.Require().NoError(err)
-			}
+			err = s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config)
+			s.Require().NoError(err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
 			s.NoError(err)

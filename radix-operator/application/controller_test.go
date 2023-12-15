@@ -57,9 +57,8 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_Reader_C
 	s.KubeInformerFactory.Start(s.Stop)
 
 	go func() {
-		if err := sut.Run(1, s.Stop); err != nil {
-			s.Require().NoError(err)
-		}
+		err := sut.Run(1, s.Stop)
+		s.Require().NoError(err)
 	}()
 
 	ra := utils.ARadixApplication().WithAppName(appName).WithEnvironment("dev", "master").BuildRA()

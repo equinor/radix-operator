@@ -124,9 +124,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		})
 
 	for _, aservice := range services.Items {
-		if err := client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{}); err != nil {
-			require.NoError(t, err)
-		}
+		err := client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{})
+		require.NoError(t, err)
 
 		op, ok = <-synced
 		assert.True(t, ok)
@@ -155,8 +154,5 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	if err := controller.Run(4, stop); err != nil {
-		return err
-	}
-	return nil
+	return controller.Run(4, stop)
 }

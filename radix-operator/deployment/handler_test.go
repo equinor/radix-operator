@@ -63,36 +63,35 @@ func (s *handlerSuite) Test_Sync() {
 	appName := "any-app"
 	namespace := "any-ns"
 
-	if err := s.radixClient.Tracker().Add(
+	err := s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
 			ObjectMeta: v1.ObjectMeta{Name: inactiveRdName, Namespace: namespace},
 			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive},
 		},
-	); err != nil {
-		s.Require().NoError(err)
-	}
-	if err := s.radixClient.Tracker().Add(
+	)
+	s.Require().NoError(err)
+
+	err = s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
 			ObjectMeta: v1.ObjectMeta{Name: activeRdMissingRrName, Namespace: namespace},
 			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 		},
-	); err != nil {
-		s.Require().NoError(err)
-	}
+	)
+	s.Require().NoError(err)
+
 	activeRd := &radixv1.RadixDeployment{
 		ObjectMeta: v1.ObjectMeta{Name: activeRdName, Namespace: namespace},
 		Spec:       radixv1.RadixDeploymentSpec{AppName: appName},
 		Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 	}
-	if err := s.radixClient.Tracker().Add(activeRd); err != nil {
-		s.Require().NoError(err)
-	}
+	err = s.radixClient.Tracker().Add(activeRd)
+	s.Require().NoError(err)
+
 	rr := &radixv1.RadixRegistration{
 		ObjectMeta: v1.ObjectMeta{Name: appName},
 	}
-	if err := s.radixClient.Tracker().Add(rr); err != nil {
-		s.Require().NoError(err)
-	}
+	err = s.radixClient.Tracker().Add(rr)
+	s.Require().NoError(err)
 
 	s.Run("non-existing RD should not call factory method", func() {
 		ctrl := gomock.NewController(s.T())
