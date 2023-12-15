@@ -3,12 +3,12 @@ package deployment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -242,7 +242,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occurred when setting network policies
 	if len(errs) > 0 {
-		combinedErrs := errors.Concat(errs)
+		combinedErrs := errors.Join(errs...)
 		log.Errorf("%s", combinedErrs)
 		return combinedErrs
 	}
@@ -262,7 +262,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occurred when syncing of components
 	if len(errs) > 0 {
-		return errors.Concat(errs)
+		return errors.Join(errs...)
 	}
 
 	if err := deploy.syncAuxiliaryResources(); err != nil {

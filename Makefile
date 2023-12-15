@@ -68,25 +68,12 @@ echo:
 	@echo "VERSION : " $(VERSION)
 	@echo "TAG : " $(TAG)
 
-# find or download controller-gen
-# download controller-gen if necessary
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0 ;\
-	}
-CONTROLLER_GEN=${GOPATH}/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
-
 .PHONY: test
-test:	
+test:
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
 .PHONY: mocks
-mocks:
+mocks: bootstrap
 	mockgen -source ./pkg/apis/defaults/oauth2.go -destination ./pkg/apis/defaults/oauth2_mock.go -package defaults
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
@@ -126,7 +113,7 @@ CUSTOM_RESOURCE_NAME=radix
 CUSTOM_RESOURCE_VERSION=v1
 
 .PHONY: code-gen
-code-gen: 
+code-gen:
 	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
 
 .PHONY: crds
@@ -142,16 +129,39 @@ radixbatch-crd: temp-crds
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixbatches.yaml $(CRD_CHART_DIR)radixbatch.yaml
 
 .PHONY: temp-crds
-temp-crds: controller-gen
+temp-crds: bootstrap
 	echo "tempcrdrun"
-	${CONTROLLER_GEN} crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
+	controller-gen crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
 
 .PHONY: delete-temp-crds
 delete-temp-crds:
 	rm -rf $(CRD_TEMP_DIR)
 
-.PHONY: staticcheck
-staticcheck:
-	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`
+.PHONY: lint
+lint: bootstrap
+	golangci-lint run --max-same-issues 0 --new
+	staticcheck `go list ./... | grep -v "pkg/client"`
+	go vet `go list ./... | grep -v "pkg/client"`
 
+HAS_SWAGGER       := $(shell command -v swagger;)
+HAS_STATICCHECK   := $(shell command -v staticcheck;)
+HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
+HAS_MOCKGEN       := $(shell command -v golangci-lint;)
+HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
 
+bootstrap:
+ifndef HAS_SWAGGER
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5
+endif
+ifndef HAS_GOLANGCI_LINT
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@1.55.2
+endif
+ifndef HAS_STATICCHECK
+	go install honnef.co/go/tools/cmd/staticcheck@v0.4.6
+endif
+ifndef HAS_MOCKGEN
+	go install github.com/golang/mock/mockgen@v1.6.0
+endif
+ifndef HAS_CONTROLLER_GEN
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0
+endif

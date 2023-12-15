@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,7 +13,6 @@ import (
 
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 
-	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -109,7 +109,7 @@ func getInitParams() (int, int, int, int, int, int, int, float32, error) {
 	kubeClientRateLimitBurst, burstErr := defaults.GetKubeClientRateLimitBurst()
 	kubeClientRateLimitQPS, qpsErr := defaults.GetKubeClientRateLimitQps()
 
-	errCat := errorUtils.Concat([]error{regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr})
+	errCat := errors.Join(regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr)
 	return registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, errCat
 }
 

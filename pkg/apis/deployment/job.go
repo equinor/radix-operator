@@ -2,8 +2,8 @@ package deployment
 
 import (
 	"context"
+	"errors"
 
-	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -63,5 +63,5 @@ func (deploy *Deployment) garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec
 			}
 		}
 	}
-	return errors.Concat(errs)
+	return errors.Join(errs...)
 }

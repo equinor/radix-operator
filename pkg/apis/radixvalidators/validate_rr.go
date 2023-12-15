@@ -2,12 +2,11 @@ package radixvalidators
 
 import (
 	"context"
-	errors2 "errors"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/errors"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -20,7 +19,7 @@ const (
 )
 
 var (
-	ErrInvalidRadixConfigFullName = errors2.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
+	ErrInvalidRadixConfigFullName = errors.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
 
 	requiredRadixRegistrationValidators []RadixRegistrationValidator = []RadixRegistrationValidator{
 		validateRadixRegistrationAppName,
@@ -74,7 +73,7 @@ func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validato
 			errs = append(errs, err)
 		}
 	}
-	return errors.Concat(errs)
+	return errors.Join(errs...)
 }
 
 // GetRadixRegistrationBeInsertedWarnings Get warnings for inserting RadixRegistration

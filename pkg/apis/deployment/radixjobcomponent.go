@@ -1,7 +1,8 @@
 package deployment
 
 import (
-	commonErrors "github.com/equinor/radix-common/utils/errors"
+	"errors"
+
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -75,7 +76,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
-		return nil, commonErrors.Concat(errs)
+		return nil, errors.Join(errs...)
 	}
 
 	image, err := getImagePath(componentName, componentImage, environmentSpecificConfig)
