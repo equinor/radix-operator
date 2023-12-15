@@ -2,7 +2,6 @@ package dnsalias
 
 import (
 	"fmt"
-	"regexp"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
@@ -35,11 +34,8 @@ type syncer struct {
 	ingressAnnotationProviders []ingress.AnnotationProvider
 }
 
-var admissionWebhookErrorExpression *regexp.Regexp
-
 // NewSyncer is the constructor for RadixDNSAlias syncer
 func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, ingressConfiguration ingress.IngressConfiguration, oauth2Config defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
-	admissionWebhookErrorExpression = regexp.MustCompile(`admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "(.*?)" and path "(.*?)" is already defined in ingress (.*?)/(.*?)$`)
 	return &syncer{
 		kubeClient:                 kubeClient,
 		radixClient:                radixClient,
@@ -82,18 +78,9 @@ func (s *syncer) syncAlias() error {
 
 	ing, err := s.syncIngress(namespace, radixDeployComponent)
 	if err != nil {
-		return s.getDNSAliasError(err)
+		return err
 	}
-
 	return s.syncOAuthProxyIngress(namespace, ing, radixDeployComponent)
-}
-
-func (s *syncer) getDNSAliasError(err error) error {
-	if admissionWebhookErrorMatcher := admissionWebhookErrorExpression.FindStringSubmatch(err.Error()); len(admissionWebhookErrorMatcher) == 5 {
-		log.Error(err)
-		return fmt.Errorf("DNS alias %s cannot be used, because the host %s with the path %s is already in use", s.radixDNSAlias.GetName(), admissionWebhookErrorMatcher[1], admissionWebhookErrorMatcher[2])
-	}
-	return err
 }
 
 func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, error) {
