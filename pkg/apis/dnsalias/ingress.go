@@ -119,7 +119,7 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	ingressAnnotations := ingress.GetAnnotationProvider(ingressConfiguration, namespace, oauth2Config)
-	ingressConfig, err := ingress.GetIngressConfig(namespace, aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias))
+	ingressConfig, err := ingress.GetIngressConfig(namespace, aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias, true))
 	if err != nil {
 		return nil, err
 	}

@@ -123,5 +123,5 @@ func (s *syncer) deleteRbac() error {
 }
 
 func (s *syncer) getOwnerReference() []metav1.OwnerReference {
-	return internal.GetOwnerReferences(s.radixDNSAlias)
+	return internal.GetOwnerReferences(s.radixDNSAlias, false)
 }
