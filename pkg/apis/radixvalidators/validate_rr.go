@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	ErrInvalidRadixConfigFullName = fmt.Errorf("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
+	ErrInvalidRadixConfigFullName = stderrors.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
 
 	requiredRadixRegistrationValidators []RadixRegistrationValidator = []RadixRegistrationValidator{
 		validateRadixRegistrationAppName,
