@@ -292,8 +292,11 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 
 			s.SetupTest()
 
-			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
-				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
+			radixDNSAlias := &radixv1.RadixDNSAlias{
+				TypeMeta:   metav1.TypeMeta{Kind: radixv1.KindRadixDNSAlias, APIVersion: radixv1.SchemeGroupVersion.Identifier()},
+				ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
+				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component},
+			}
 			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias), "create existing alias")
 
 			s.registeringRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, ts.adminADGroups, ts.readerADGroups)
@@ -324,9 +327,39 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 					s.Contains(rule.Verbs, "get", "missing rule verb get")
 					s.Contains(rule.Verbs, "list", "missing rule verb list")
 					s.Len(rule.APIGroups, 1, "rule should have 1 api group")
-					s.Equal(radixv1.SchemeGroupVersion.Group, rule.APIGroups[0])
-					s.Contains(rule.Resources, "radixdnsalias", "missing rule resource radixdnsalias")
-					s.Contains(rule.Resources, "radixdnsalias/status", "missing rule resource radixdnsalias/status")
+					s.Equal(radixv1.SchemeGroupVersion.Group, rule.APIGroups[0], "invalid api group")
+					s.Contains(rule.Resources, "radixdnsaliases", "missing rule resource radixdnsalias")
+					s.Contains(rule.Resources, "radixdnsaliases/status", "missing rule resource radixdnsalias/status")
+					s.Len(rule.ResourceNames, 1, "rule should have 1 resource name")
+					s.Contains(rule.ResourceNames, radixDNSAlias.GetName(), "missing resource name %s in the rule", radixDNSAlias.GetName())
+				}
+			}
+
+			clusterRoleBindingList, err := s.getClusterRolesBindingsForAnyAliases()
+			s.Require().NoError(err)
+			s.NotNil(clusterRoleBindingList.Items) // TODO
+
+			s.Len(clusterRoleList.Items, len(ts.expectedClusterRoleNames), "not matching expected cluster role count")
+			if len(clusterRoleList.Items) == len(ts.expectedClusterRoleNames) {
+				for _, role := range clusterRoleList.Items {
+					roleName := role.GetName()
+					_, ok := ts.expectedClusterRoleNames[roleName]
+					s.True(ok, "not found expected role %s", roleName)
+					s.Len(role.GetOwnerReferences(), 1, "expected one object reference")
+					ownerReference := role.GetOwnerReferences()[0]
+					s.Equal(radixDNSAlias.GetName(), ownerReference.Name, "invalid owner reference name")
+					s.Equal(radixDNSAlias.ObjectMeta.UID, ownerReference.UID, "invalid owner reference uid")
+					s.Equal(radixDNSAlias.APIVersion, ownerReference.APIVersion, "invalid owner reference api version")
+					s.Equal(radixDNSAlias.Kind, ownerReference.Kind, "invalid owner reference kind")
+					s.False(*ownerReference.Controller)
+					s.Len(role.Rules, 1, "role should have 1 rule")
+					rule := role.Rules[0]
+					s.Contains(rule.Verbs, "get", "missing rule verb get")
+					s.Contains(rule.Verbs, "list", "missing rule verb list")
+					s.Len(rule.APIGroups, 1, "rule should have 1 api group")
+					s.Equal(radixv1.SchemeGroupVersion.Group, rule.APIGroups[0], "invalid api group")
+					s.Contains(rule.Resources, "radixdnsaliases", "missing rule resource radixdnsalias")
+					s.Contains(rule.Resources, "radixdnsaliases/status", "missing rule resource radixdnsalias/status")
 					s.Len(rule.ResourceNames, 1, "rule should have 1 resource name")
 					s.Contains(rule.ResourceNames, radixDNSAlias.GetName(), "missing resource name %s in the rule", radixDNSAlias.GetName())
 				}
@@ -342,6 +375,10 @@ func (s *syncerTestSuite) getIngressesForAnyAliases(namespace string) (*networki
 
 func (s *syncerTestSuite) getClusterRolesForAnyAliases() (*rbacv1.ClusterRoleList, error) {
 	return s.kubeClient.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
+}
+
+func (s *syncerTestSuite) getClusterRolesBindingsForAnyAliases() (*rbacv1.ClusterRoleBindingList, error) {
+	return s.kubeClient.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
 }
 
 func buildRadixDeployment(appName, component1, component2, envName string, port8080, port9090 int32) *radixv1.RadixDeployment {
