@@ -2,6 +2,8 @@ package common
 
 import (
 	"fmt"
+	"sync"
+
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixscheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	log "github.com/sirupsen/logrus"
@@ -10,7 +12,6 @@ import (
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"sync"
 )
 
 type resourceLocker interface {
@@ -71,7 +72,9 @@ type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
 
 // NewEventRecorder Creates an event recorder for controller
 func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface, logger *log.Entry) record.EventRecorder {
-	radixscheme.AddToScheme(scheme.Scheme)
+	if err := radixscheme.AddToScheme(scheme.Scheme); err != nil {
+		panic(err)
+	}
 	logger.Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(logger.Infof)

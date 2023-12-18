@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -138,9 +140,9 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		return nil, err
 	}
 
-	if job.config.AppBuilderResourcesRequestsMemory == nil || job.config.AppBuilderResourcesRequestsMemory.IsZero() ||
-		job.config.AppBuilderResourcesRequestsCPU == nil || job.config.AppBuilderResourcesRequestsCPU.IsZero() ||
-		job.config.AppBuilderResourcesLimitsMemory == nil || job.config.AppBuilderResourcesLimitsMemory.IsZero() {
+	if job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.IsZero() ||
+		job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.IsZero() ||
+		job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.IsZero() {
 		return nil, fmt.Errorf("invalid or missing app builder resources")
 	}
 
@@ -155,9 +157,9 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
-		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.AppBuilderResourcesRequestsMemory.String()),
-		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.AppBuilderResourcesRequestsCPU.String()),
-		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.AppBuilderResourcesLimitsMemory.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.String()),
 
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, radixTektonImage),
@@ -172,6 +174,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("--%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AppContainerRegistryEnvironmentVariable, appContainerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
+		fmt.Sprintf("--%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, maps.ToString(job.config.DNSConfig.ReservedAppDNSAliases)),
+		fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, strings.Join(job.config.DNSConfig.ReservedDNSAliases, ",")),
 	}
 
 	radixConfigFullName := jobSpec.RadixConfigFullName

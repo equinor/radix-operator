@@ -87,6 +87,12 @@ spec:
       ports:
         - name: http
           port: 8090
+    - name: app2
+      src: .
+      ports:
+      - name: http
+        port: 8080
+      publicPort: http
     - name: compimg1
       image: img:{imageTagName}
       ports:
@@ -96,7 +102,7 @@ spec:
       image: img:{imageTagName}
       ports:
         - name: http
-          port: 8090  
+          port: 8090
       environmentConfig:
         - environment: dev
         - environment: prod
@@ -165,3 +171,7 @@ spec:
   dnsAppAlias:
     environment: prod
     component: app
+  dnsAlias:
+  - environment: prod
+    component: app2
+    alias: my-alias

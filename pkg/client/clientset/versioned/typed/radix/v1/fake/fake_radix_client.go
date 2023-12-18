@@ -40,6 +40,10 @@ func (c *FakeRadixV1) RadixBatches(namespace string) v1.RadixBatchInterface {
 	return &FakeRadixBatches{c, namespace}
 }
 
+func (c *FakeRadixV1) RadixDNSAliases() v1.RadixDNSAliasInterface {
+	return &FakeRadixDNSAliases{c}
+}
+
 func (c *FakeRadixV1) RadixDeployments(namespace string) v1.RadixDeploymentInterface {
 	return &FakeRadixDeployments{c, namespace}
 }

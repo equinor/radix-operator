@@ -20,6 +20,19 @@ buildahImageBuilder: xx
 jobScheduler: radix-job-scheduler:main-latest
 radixTekton: radix-tekton:main-latest
 useImageBuilderCache: 0
+reservedAppDNSAlias:
+  api: radix-api
+  canary: radix-canary-golang
+  console: radix-web-console
+  cost-api: radix-cost-allocation-api
+  webhook: radix-github-webhook
+reservedDNSAlias:
+  - grafana
+  - prometheus
+  - www
+  - app
+  - playground
+  - dev
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com

@@ -75,13 +75,11 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	radixRegistration, err := t.kubeutil.GetRegistration(syncEnvironment.Spec.AppName)
 	if err != nil {
-		// The Registration resource may no longer exist, in which case we stop
-		// processing.
-		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("failed to get RadixRegistartion object: %v", err))
-			return nil
+		if !errors.IsNotFound(err) {
+			return err
 		}
-		return err
+		// The Registration resource may no longer exist, but we proceed to clear resources
+		utilruntime.HandleError(fmt.Errorf("failed to get RadixRegistartion object: %v", err))
 	}
 
 	// get RA error is ignored because nil is accepted

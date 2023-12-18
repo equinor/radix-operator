@@ -7,6 +7,14 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
+const (
+	OAuthProxyPortName                  = "http"
+	OAuthProxyPortNumber          int32 = 4180
+	AuthUrlAnnotation                   = "nginx.ingress.kubernetes.io/auth-url"
+	AuthSigninAnnotation                = "nginx.ingress.kubernetes.io/auth-signin"
+	AuthResponseHeadersAnnotation       = "nginx.ingress.kubernetes.io/auth-response-headers"
+)
+
 // OAuth2Config is implemented by any value that has as MergeWith method
 // The MergeWith method takes an OAuth2 object as input and merges it with an existing OAuth2 object
 // The result of the merge is returned to the caller. The source object must not be modified

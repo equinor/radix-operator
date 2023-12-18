@@ -546,12 +546,12 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      "build-deploy",
-			Branch:            buildBranch,
 			JobName:           rjName,
+			Branch:            buildBranch,
 			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
+			ContainerRegistry: "registry",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}

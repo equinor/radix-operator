@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -14,6 +13,7 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -53,7 +53,10 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			synced <- syncedOk
 		},
 	)
-	go startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+	go func() {
+		err := startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+		require.NoError(t, err)
+	}()
 
 	// Test
 
@@ -123,22 +126,15 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, op)
 }
 
-func startRegistrationController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	radixInformerFactory informers.SharedInformerFactory,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	handler Handler,
-	stop chan struct{}) {
+func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
-	waitForChildrenToSync := false
+	const waitForChildrenToSync = false
 	controller := NewController(client, radixClient, &handler,
 		kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(5, stop)
-
+	return controller.Run(5, stop)
 }

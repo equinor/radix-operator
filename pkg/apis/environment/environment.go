@@ -1,22 +1,22 @@
 package environment
 
 import (
-	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/sirupsen/logrus"
-	rbac "k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/retry"
 )
 
 // Environment is the aggregate-root for manipulating RadixEnvironments
@@ -56,72 +56,72 @@ func NewEnvironment(
 // OnSync is called by the handler when changes are applied and must be
 // reconciled with current state.
 func (env *Environment) OnSync(time metav1.Time) error {
+	re := env.config
 
-	// create a globally unique namespace name
-	namespaceName := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
-
-	err := env.ApplyNamespace(namespaceName)
-	if err != nil {
-		return fmt.Errorf("failed to apply namespace %s: %v", namespaceName, err)
-	}
-
-	err = env.ApplyAdGroupRoleBinding(namespaceName)
-	if err != nil {
-		return fmt.Errorf("failed to apply RBAC on namespace %s: %v", namespaceName, err)
-	}
-
-	err = env.applyRadixTektonEnvRoleBinding(namespaceName)
-	if err != nil {
-		return fmt.Errorf("failed to apply RBAC for radix-tekton-env on namespace %s: %v", namespaceName, err)
-	}
-
-	err = env.ApplyRadixPipelineRunnerRoleBinding(namespaceName)
-	if err != nil {
-		return fmt.Errorf("failed to apply RBAC for radix-pipeline-runner on namespace %s: %v", namespaceName, err)
-	}
-
-	err = env.ApplyLimitRange(namespaceName)
-	if err != nil {
-		return fmt.Errorf("failed to apply limit range on namespace %s: %v", namespaceName, err)
-	}
-
-	err = env.networkPolicy.UpdateEnvEgressRules(env.config.Spec.Egress.Rules, env.config.Spec.Egress.AllowRadix, env.config.Spec.EnvName)
-	if err != nil {
-		errmsg := fmt.Sprintf("failed to add egress rules in %s, environment %s: ", env.config.Spec.AppName, env.config.Spec.EnvName)
-		return fmt.Errorf("%s%v", errmsg, err)
-	}
-
-	isOrphaned := !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
-
-	err = env.updateRadixEnvironmentStatus(env.config, func(currStatus *v1.RadixEnvironmentStatus) {
-		currStatus.Orphaned = isOrphaned
-		// time is parameterized for testability
-		currStatus.Reconciled = time
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update status on environment %s: %v", env.config.Spec.EnvName, err)
-	}
-	env.logger.Debugf("Environment %s reconciled", namespaceName)
-	return nil
-}
-
-func (env *Environment) updateRadixEnvironmentStatus(rEnv *v1.RadixEnvironment, changeStatusFunc func(currStatus *v1.RadixEnvironmentStatus)) error {
-	radixEnvironmentInterface := env.radixclient.RadixV1().RadixEnvironments()
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentEnv, err := radixEnvironmentInterface.Get(context.TODO(), rEnv.GetName(), metav1.GetOptions{})
-		if err != nil {
+	if re.ObjectMeta.DeletionTimestamp != nil {
+		if err := env.handleDeletedRadixEnvironment(re); err != nil {
 			return err
 		}
-		changeStatusFunc(&currentEnv.Status)
-		_, err = radixEnvironmentInterface.UpdateStatus(context.TODO(), currentEnv, metav1.UpdateOptions{})
-		if err == nil && env.config.GetName() == rEnv.GetName() {
-			currentEnv, err = radixEnvironmentInterface.Get(context.TODO(), rEnv.GetName(), metav1.GetOptions{})
-			if err == nil {
-				env.config = currentEnv
-			}
-		}
-		return err
+		return env.syncStatus(re, time)
+	}
+
+	if env.regConfig == nil {
+		return nil // RadixRegistration does not exist, possible it was deleted
+	}
+
+	// create a globally unique namespace name
+	namespaceName := utils.GetEnvironmentNamespace(re.Spec.AppName, re.Spec.EnvName)
+
+	if err := env.ApplyNamespace(namespaceName); err != nil {
+		return fmt.Errorf("failed to apply namespace %s: %v", namespaceName, err)
+	}
+	if err := env.ApplyAdGroupRoleBinding(namespaceName); err != nil {
+		return fmt.Errorf("failed to apply RBAC on namespace %s: %v", namespaceName, err)
+	}
+	if err := env.applyRadixTektonEnvRoleBinding(namespaceName); err != nil {
+		return fmt.Errorf("failed to apply RBAC for radix-tekton-env on namespace %s: %v", namespaceName, err)
+	}
+	if err := env.ApplyRadixPipelineRunnerRoleBinding(namespaceName); err != nil {
+		return fmt.Errorf("failed to apply RBAC for radix-pipeline-runner on namespace %s: %v", namespaceName, err)
+	}
+	if err := env.ApplyLimitRange(namespaceName); err != nil {
+		return fmt.Errorf("failed to apply limit range on namespace %s: %v", namespaceName, err)
+	}
+	if err := env.networkPolicy.UpdateEnvEgressRules(re.Spec.Egress.Rules, re.Spec.Egress.AllowRadix, re.Spec.EnvName); err != nil {
+		return fmt.Errorf("failed to add egress rules in %s, environment %s: %v", re.Spec.AppName, re.Spec.EnvName, err)
+	}
+	return env.syncStatus(re, time)
+}
+
+func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) error {
+	logrus.Debugf("handle deleted RadixEnvironment %s in the application %s", re.Name, re.Spec.AppName)
+	finalizerIndex := slice.FindIndex(re.ObjectMeta.Finalizers, func(val string) bool {
+		return val == kube.RadixEnvironmentFinalizer
 	})
+	if finalizerIndex < 0 {
+		logrus.Infof("missing finalizer %s in the Radix environment %s in the application %s. Exist finalizers: %d. Skip dependency handling",
+			kube.RadixEnvironmentFinalizer, re.Name, re.Spec.AppName, len(re.ObjectMeta.Finalizers))
+		return nil
+	}
+	if err := env.handleDeletedRadixEnvironmentDependencies(re); err != nil {
+		return err
+	}
+	updatingRE := re.DeepCopy()
+	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
+	logrus.Debugf("removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
+		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
+	return env.kubeutil.UpdateRadixEnvironment(updatingRE)
+}
+
+func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEnvironment) error {
+	radixDNSAliasList, err := env.kubeutil.GetRadixDNSAliasWithSelector(radixlabels.Merge(radixlabels.ForApplicationName(re.Spec.AppName), radixlabels.ForEnvironmentName(re.Spec.EnvName)).String())
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("delete %d RadixDNSAlias(es)", len(radixDNSAliasList.Items))
+	return env.kubeutil.DeleteRadixDNSAliases(slice.Reduce(radixDNSAliasList.Items, []*v1.RadixDNSAlias{}, func(acc []*v1.RadixDNSAlias, radixDNSAlias v1.RadixDNSAlias) []*v1.RadixDNSAlias {
+		return append(acc, &radixDNSAlias)
+	})...)
 }
 
 // ApplyNamespace sets up namespace metadata and applies configuration to kubernetes
@@ -139,7 +139,7 @@ func (env *Environment) ApplyNamespace(name string) error {
 		kube.RadixAppLabel:             env.config.Spec.AppName,
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
 	}
-	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels()))
+	nsLabels = labels.Merge(nsLabels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
 	return env.kubeutil.ApplyNamespace(name, nsLabels, env.AsOwnerReference())
 }
 
@@ -159,7 +159,7 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppReaderEnvironmentsRoleName, readerSubjects)
 	readerRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
-	for _, roleBinding := range []*rbac.RoleBinding{adminRoleBinding, readerRoleBinding} {
+	for _, roleBinding := range []*rbacv1.RoleBinding{adminRoleBinding, readerRoleBinding} {
 		err = env.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 		if err != nil {
 			return err
@@ -170,9 +170,9 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 }
 
 func (env *Environment) applyRadixTektonEnvRoleBinding(namespace string) error {
-	roleBinding := &rbac.RoleBinding{
+	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -181,14 +181,14 @@ func (env *Environment) applyRadixTektonEnvRoleBinding(namespace string) error {
 				kube.RadixAppLabel: env.config.Spec.AppName,
 			},
 		},
-		RoleRef: rbac.RoleRef{
-			APIGroup: k8s.RbacApiGroup,
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
 			Name:     defaults.RadixTektonEnvRoleName,
 		},
-		Subjects: []rbac.Subject{
+		Subjects: []rbacv1.Subject{
 			{
-				Kind:      k8s.KindServiceAccount,
+				Kind:      rbacv1.ServiceAccountKind,
 				Name:      defaults.RadixTektonServiceAccountName,
 				Namespace: utils.GetAppNamespace(env.config.Spec.AppName),
 			},
@@ -199,9 +199,9 @@ func (env *Environment) applyRadixTektonEnvRoleBinding(namespace string) error {
 }
 
 func (env *Environment) ApplyRadixPipelineRunnerRoleBinding(namespace string) error {
-	roleBinding := &rbac.RoleBinding{
+	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -210,14 +210,14 @@ func (env *Environment) ApplyRadixPipelineRunnerRoleBinding(namespace string) er
 				kube.RadixAppLabel: env.config.Spec.AppName,
 			},
 		},
-		RoleRef: rbac.RoleRef{
-			APIGroup: k8s.RbacApiGroup,
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
 			Name:     defaults.PipelineEnvRoleName,
 		},
-		Subjects: []rbac.Subject{
+		Subjects: []rbacv1.Subject{
 			{
-				Kind:      k8s.KindServiceAccount,
+				Kind:      rbacv1.ServiceAccountKind,
 				Name:      defaults.PipelineServiceAccountName,
 				Namespace: utils.GetAppNamespace(env.config.Spec.AppName),
 			},
@@ -255,8 +255,8 @@ func (env *Environment) AsOwnerReference() []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixEnvironment",
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixEnvironment,
 			Name:       env.config.Name,
 			UID:        env.config.UID,
 			Controller: &trueVar,

@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -68,23 +71,33 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
 
-	pipelineJobConfig := &jobs.Config{
-		PipelineJobsHistoryLimit:          3,
-		AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
-		AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-		AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+	cfg := &config.Config{
+		DNSConfig: &dnsalias.DNSConfig{
+			DNSZone:               "dev.radix.equinor.com",
+			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
+			ReservedDNSAliases:    []string{"grafana"},
+		},
+		PipelineJobConfig: &pipelinejob.Config{
+			PipelineJobsHistoryLimit:          3,
+			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
+			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
+			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+		},
 	}
 
 	jobHandler := NewHandler(
 		s.kubeUtil.KubeClient(),
 		s.kubeUtil,
 		s.kubeUtil.RadixClient(),
-		pipelineJobConfig,
+		cfg,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+	go func() {
+		err := startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+		s.Require().NoError(err)
+	}()
 
 	// Test
 
@@ -100,7 +113,8 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	// Update  radix job should sync. Controller will skip if an update
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
-	s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
+	_, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 
 	op, ok = <-synced
 	s.True(ok)
@@ -114,24 +128,26 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	}
 
 	// Only update of Kubernetes Job is something that the job-controller handles
-	s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
 	childJob.ObjectMeta.ResourceVersion = "1234"
-	s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 
 	op, ok = <-synced
 	s.True(ok)
 	s.True(op)
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
-	waitForChildrenToSync := false
+	const waitForChildrenToSync = false
 	controller := NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(4, stop)
-
+	return controller.Run(4, stop)
 }

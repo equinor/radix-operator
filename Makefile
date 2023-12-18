@@ -91,11 +91,13 @@ mocks:
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/auxiliaryresourcemanager.go -destination ./pkg/apis/deployment/auxiliaryresourcemanager_mock.go -package deployment
-	mockgen -source ./pkg/apis/deployment/ingressannotationprovider.go -destination ./pkg/apis/deployment/ingressannotationprovider_mock.go -package deployment
+	mockgen -source ./pkg/apis/ingress/ingressannotationprovider.go -destination ./pkg/apis/ingress/ingressannotationprovider_mock.go -package ingress
 	mockgen -source ./pkg/apis/alert/alert.go -destination ./pkg/apis/alert/alert_mock.go -package alert
 	mockgen -source ./pkg/apis/alert/alertfactory.go -destination ./pkg/apis/alert/alertfactory_mock.go -package alert
 	mockgen -source ./pkg/apis/batch/syncer.go -destination ./pkg/apis/batch/syncer_mock.go -package batch
-	mockgen -source ./pkg/apis/batch/syncerfactory.go -destination ./pkg/apis/batch/syncerfactory_mock.go -package batch
+	mockgen -source ./radix-operator/batch/internal/syncerfactory.go -destination ./radix-operator/batch/internal/syncerfactory_mock.go -package internal
+	mockgen -source ./pkg/apis/dnsalias/syncer.go -destination ./pkg/apis/dnsalias/syncer_mock.go -package dnsalias
+	mockgen -source ./radix-operator/dnsalias/internal/syncerfactory.go -destination ./radix-operator/dnsalias/internal/syncerfactory_mock.go -package internal
 	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
 	mockgen -source ./pipeline-runner/internal/wait/job.go -destination ./pipeline-runner/internal/wait/job_mock.go -package wait
 
@@ -130,7 +132,7 @@ code-gen:
 	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
 
 .PHONY: crds
-crds: temp-crds radixapplication-crd radixbatch-crd delete-temp-crds
+crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds
 
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-crds
@@ -140,6 +142,10 @@ radixapplication-crd: temp-crds
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-crds
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixbatches.yaml $(CRD_CHART_DIR)radixbatch.yaml
+
+.PHONY: radixdnsalias-crd
+radixdnsalias-crd: temp-crds
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
 
 .PHONY: temp-crds
 temp-crds: controller-gen
@@ -153,5 +159,9 @@ delete-temp-crds:
 .PHONY: staticcheck
 staticcheck:
 	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`
+
+.PHONY: lint
+lint:
+	golangci-lint run
 
 

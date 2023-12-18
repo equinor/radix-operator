@@ -14,8 +14,8 @@ const (
 )
 
 // Merge multiple maps into one
-func Merge(labels ...map[string]string) map[string]string {
-	return maputils.MergeMaps(labels...)
+func Merge(annotations ...map[string]string) map[string]string {
+	return maputils.MergeMaps(annotations...)
 }
 
 // ForRadixBranch returns annotations describing a branch name

@@ -29,7 +29,9 @@
         "--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
         "--TO_ENVIRONMENT=qa",
         "--IMAGE_TAG_NAME=server=1.23-alpine-slim",
-        "--IMAGE_TAG_NAME=server2=1.22.1-alpine-perl"
+        "--IMAGE_TAG_NAME=server2=1.22.1-alpine-perl",
+        "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
+        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www"
       ]
     },
     {
@@ -50,7 +52,9 @@
         "--DEPLOYMENT_NAME=dev-hyxzv-j9pg34k2",
         "--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
         "--DEBUG=true",
-        "--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io"
+        "--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
+        "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
+        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www"
       ]
     },
     { 
@@ -71,7 +75,9 @@
         "--RADIX_CLUSTER_TYPE=development",
         "--RADIX_ZONE=dev",
         "--RADIX_CLUSTERNAME=weekly-44",
-        "--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io"
+        "--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
+        "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
+        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www"
       ]
     },
     {
@@ -127,7 +133,9 @@
         "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT": "10",
         "RADIX_PIPELINE_JOBS_HISTORY_LIMIT": "5",
         "SECCOMP_PROFILE_FILENAME": "allow-buildah.json",
-        "RADIX_BUILDAH_IMAGE_BUILDER": "quay.io/buildah/stable:v1.31"
+        "RADIX_BUILDAH_IMAGE_BUILDER": "quay.io/buildah/stable:v1.31",
+        "RADIX_RESERVED_APP_DNS_ALIASES": "api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
+        "RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www"
       },
       "args": ["--useOutClusterClient=false"]
     },

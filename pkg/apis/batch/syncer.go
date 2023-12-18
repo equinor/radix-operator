@@ -10,35 +10,39 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Syncer of  RadixBatch
 type Syncer interface {
+	// OnSync Syncs RadixBatch
 	OnSync() error
 }
 
+// NewSyncer Constructor os RadixBatches Syncer
 func NewSyncer(kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	batch *radixv1.RadixBatch) Syncer {
+	kubeUtil *kube.Kube,
+	radixClient radixclient.Interface,
+	radixBatch *radixv1.RadixBatch) Syncer {
 	return &syncer{
-		kubeclient:  kubeclient,
-		kubeutil:    kubeutil,
-		radixclient: radixclient,
-		batch:       batch,
+		kubeClient:  kubeclient,
+		kubeUtil:    kubeUtil,
+		radixClient: radixClient,
+		radixBatch:  radixBatch,
 	}
 }
 
 type syncer struct {
-	kubeclient  kubernetes.Interface
-	kubeutil    *kube.Kube
-	radixclient radixclient.Interface
-	batch       *radixv1.RadixBatch
+	kubeClient  kubernetes.Interface
+	kubeUtil    *kube.Kube
+	radixClient radixclient.Interface
+	radixBatch  *radixv1.RadixBatch
 }
 
+// OnSync Syncs RadixBatches
 func (s *syncer) OnSync() error {
 	if err := s.restoreStatus(); err != nil {
 		return err
 	}
 
-	if isBatchDone(s.batch) {
+	if isBatchDone(s.radixBatch) {
 		return nil
 	}
 
@@ -53,17 +57,17 @@ func (s *syncer) reconcile() error {
 		return err
 	}
 
-	existingJobs, err := s.kubeutil.ListJobsWithSelector(s.batch.GetNamespace(), s.batchIdentifierLabel().String())
+	existingJobs, err := s.kubeUtil.ListJobsWithSelector(s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
 
-	existingServices, err := s.kubeutil.ListServicesWithSelector(s.batch.GetNamespace(), s.batchIdentifierLabel().String())
+	existingServices, err := s.kubeUtil.ListServicesWithSelector(s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
 
-	for i, batchJob := range s.batch.Spec.Jobs {
+	for i, batchJob := range s.radixBatch.Spec.Jobs {
 		if err := s.reconcileService(&batchJob, rd, jobComponent, existingServices); err != nil {
 			return err
 		}
@@ -86,33 +90,33 @@ func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, 
 	rd, err := s.getRadixDeployment()
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil, nil, newReconcileRadixDeploymentNotFoundError(s.batch.Spec.RadixDeploymentJobRef.Name)
+			return nil, nil, newReconcileRadixDeploymentNotFoundError(s.radixBatch.Spec.RadixDeploymentJobRef.Name)
 		}
 		return nil, nil, err
 	}
 
-	jobComponent := rd.GetJobComponentByName(s.batch.Spec.RadixDeploymentJobRef.Job)
+	jobComponent := rd.GetJobComponentByName(s.radixBatch.Spec.RadixDeploymentJobRef.Job)
 	if jobComponent == nil {
-		return nil, nil, newReconcileRadixDeploymentJobSpecNotFoundError(rd.GetName(), s.batch.Spec.RadixDeploymentJobRef.Job)
+		return nil, nil, newReconcileRadixDeploymentJobSpecNotFoundError(rd.GetName(), s.radixBatch.Spec.RadixDeploymentJobRef.Job)
 	}
 
 	return rd, jobComponent, nil
 }
 
 func (s *syncer) getRadixDeployment() (*radixv1.RadixDeployment, error) {
-	return s.kubeutil.GetRadixDeployment(s.batch.GetNamespace(), s.batch.Spec.RadixDeploymentJobRef.Name)
+	return s.kubeUtil.GetRadixDeployment(s.radixBatch.GetNamespace(), s.radixBatch.Spec.RadixDeploymentJobRef.Name)
 }
 
 func (s *syncer) batchIdentifierLabel() labels.Set {
 	return radixlabels.Merge(
-		radixlabels.ForBatchName(s.batch.GetName()),
+		radixlabels.ForBatchName(s.radixBatch.GetName()),
 	)
 }
 
 func (s *syncer) batchJobIdentifierLabel(batchJobName, appName string) labels.Set {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(appName),
-		radixlabels.ForComponentName(s.batch.Spec.RadixDeploymentJobRef.Job),
+		radixlabels.ForComponentName(s.radixBatch.Spec.RadixDeploymentJobRef.Job),
 		s.batchIdentifierLabel(),
 		radixlabels.ForJobScheduleJobType(),
 		radixlabels.ForBatchJobName(batchJobName),

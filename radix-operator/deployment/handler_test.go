@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -62,28 +63,35 @@ func (s *handlerSuite) Test_Sync() {
 	appName := "any-app"
 	namespace := "any-ns"
 
-	s.radixClient.Tracker().Add(
+	err := s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
 			ObjectMeta: v1.ObjectMeta{Name: inactiveRdName, Namespace: namespace},
 			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive},
 		},
 	)
-	s.radixClient.Tracker().Add(
+	s.Require().NoError(err)
+
+	err = s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
 			ObjectMeta: v1.ObjectMeta{Name: activeRdMissingRrName, Namespace: namespace},
 			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 		},
 	)
+	s.Require().NoError(err)
+
 	activeRd := &radixv1.RadixDeployment{
 		ObjectMeta: v1.ObjectMeta{Name: activeRdName, Namespace: namespace},
 		Spec:       radixv1.RadixDeploymentSpec{AppName: appName},
 		Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 	}
-	s.radixClient.Tracker().Add(activeRd)
+	err = s.radixClient.Tracker().Add(activeRd)
+	s.Require().NoError(err)
+
 	rr := &radixv1.RadixRegistration{
 		ObjectMeta: v1.ObjectMeta{Name: appName},
 	}
-	s.radixClient.Tracker().Add(rr)
+	err = s.radixClient.Tracker().Add(rr)
+	s.Require().NoError(err)
 
 	s.Run("non-existing RD should not call factory method", func() {
 		ctrl := gomock.NewController(s.T())
@@ -129,15 +137,15 @@ func (s *handlerSuite) Test_Sync() {
 		syncer.EXPECT().OnSync().Times(1)
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		oauthConfig := defaults.NewOAuth2Config()
-		ingressConfig := deployment.IngressConfiguration{AnnotationConfigurations: []deployment.AnnotationConfiguration{{Name: "test"}}}
-		expectedIngressAnnotations := []deployment.IngressAnnotationProvider{
-			deployment.NewForceSslRedirectAnnotationProvider(),
-			deployment.NewIngressConfigurationAnnotationProvider(ingressConfig),
-			deployment.NewClientCertificateAnnotationProvider(activeRd.Namespace),
-			deployment.NewOAuth2AnnotationProvider(oauthConfig),
+		ingressConfig := ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
+		expectedIngressAnnotations := []ingress.AnnotationProvider{
+			ingress.NewForceSslRedirectAnnotationProvider(),
+			ingress.NewIngressConfigurationAnnotationProvider(ingressConfig),
+			ingress.NewClientCertificateAnnotationProvider(activeRd.Namespace),
+			ingress.NewOAuth2AnnotationProvider(oauthConfig),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, "oauth:123"),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
 		}
 		factory.
 			EXPECT().

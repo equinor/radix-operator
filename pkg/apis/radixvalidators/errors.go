@@ -10,12 +10,12 @@ import (
 
 var (
 	ErrMissingPrivateImageHubUsername                                      = errors.New("missing private image hub username")
-	ErrEnvForDNSAppAliasNotDefined                                         = errors.New("env for dnsapp alias not defined")
-	ErrComponentForDNSAppAliasNotDefined                                   = errors.New("component for dnsapp alias not defined")
+	ErrEnvForDNSAppAliasNotDefined                                         = errors.New("env for dns app alias not defined")
+	ErrComponentForDNSAppAliasNotDefined                                   = errors.New("component for dns app alias not defined")
 	ErrExternalAliasCannotBeEmpty                                          = errors.New("external alias cannot be empty")
-	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dnsexternal alias not defined")
-	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dnsexternal alias not defined")
-	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dnsexternal alias is not marked as public")
+	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dns external alias not defined")
+	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dns external alias not defined")
+	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
 	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
 	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
 	ErrPortSpecificationCannotBeEmptyForComponent                          = errors.New("port specification cannot be empty for component")
@@ -25,7 +25,7 @@ var (
 	ErrSchedulerPortCannotBeEmptyForJob                                    = errors.New("scheduler port cannot be empty for job")
 	ErrPayloadPathCannotBeEmptyForJob                                      = errors.New("payload path cannot be empty for job")
 	ErrMemoryResourceRequirementFormat                                     = errors.New("memory resource requirement format")
-	ErrCPUResourceRequirementFormat                                        = errors.New("cpuresource requirement format")
+	ErrCPUResourceRequirementFormat                                        = errors.New("cpu resource requirement format")
 	ErrInvalidVerificationType                                             = errors.New("invalid verification")
 	ErrResourceRequestOverLimit                                            = errors.New("resource request over limit")
 	ErrInvalidResource                                                     = errors.New("invalid resource")
@@ -54,7 +54,7 @@ var (
 	ErrInvalidUUID                                                         = errors.New("invalid")
 	ErrInvalidEmail                                                        = errors.New("invalid email")
 	ErrInvalidResourceName                                                 = errors.New("invalid resource name")
-	ErrInvalidLowerCaseAlphaNumericDotDashResourceName                     = errors.New("invalid lower case alpha numeric dot dash resource name")
+	ErrInvalidLowerCaseAlphaNumericDashResourceName                        = errors.New("invalid lower case alpha numeric dash resource name")
 	ErrNoRegistrationExistsForApplication                                  = errors.New("no registration exists for application")
 	ErrInvalidConfigBranchName                                             = errors.New("invalid config branch")
 	ErrOauth                                                               = errors.New("oauth error")
@@ -98,6 +98,46 @@ var (
 	ErrMissingAzureIdentity                                                = errors.New("missing identity")
 )
 
+// AliasForDNSAliasNotDefinedError Error when alias is not valid
+func AliasForDNSAliasNotDefinedError() error {
+	return fmt.Errorf("invalid or missing alias for dnsAlias")
+}
+
+// DuplicateAliasForDNSAliasError Error when aliases are duplicate
+func DuplicateAliasForDNSAliasError(alias string) error {
+	return fmt.Errorf("duplicate aliases %s in dnsAliases are not allowed", alias)
+}
+
+// EnvForDNSAliasNotDefinedError Error when env not defined
+func EnvForDNSAliasNotDefinedError(env string) error {
+	return fmt.Errorf("environment %s referred to by dnsAlias is not defined", env)
+}
+
+// ComponentForDNSAliasNotDefinedError Error when component not defined
+func ComponentForDNSAliasNotDefinedError(component string) error {
+	return fmt.Errorf("component %s referred to by dnsAlias is not defined or it is disabled", component)
+}
+
+// ComponentForDNSAliasIsNotMarkedAsPublicError Component is not marked as public
+func ComponentForDNSAliasIsNotMarkedAsPublicError(component string) error {
+	return fmt.Errorf("component %s referred to by dnsAlias is not marked as public", component)
+}
+
+// RadixDNSAliasAlreadyUsedByAnotherApplicationError Error when RadixDNSAlias already used by another application
+func RadixDNSAliasAlreadyUsedByAnotherApplicationError(alias string) error {
+	return fmt.Errorf("DNS alias %s already used by another application", alias)
+}
+
+// RadixDNSAliasIsReservedForRadixPlatformApplicationError Error when RadixDNSAlias is reserved by Radix platform for a Radix application
+func RadixDNSAliasIsReservedForRadixPlatformApplicationError(alias string) error {
+	return fmt.Errorf("DNS alias %s is reserved by Radix platform application", alias)
+}
+
+// RadixDNSAliasIsReservedForRadixPlatformServiceError Error when RadixDNSAlias is reserved by Radix platform for a Radix service
+func RadixDNSAliasIsReservedForRadixPlatformServiceError(alias string) error {
+	return fmt.Errorf("DNS alias %s is reserved by Radix platform service", alias)
+}
+
 // MissingPrivateImageHubUsernameErrorWithMessage Error when username for private image hubs is not defined
 func MissingPrivateImageHubUsernameErrorWithMessage(server string) error {
 	return errors.WithMessage(ErrMissingPrivateImageHubUsername, server)
@@ -108,9 +148,14 @@ func EnvForDNSAppAliasNotDefinedErrorWithMessage(env string) error {
 	return errors.WithMessagef(ErrEnvForDNSAppAliasNotDefined, "env %s referred to by dnsAppAlias is not defined", env)
 }
 
+// ComponentForDNSAppAliasNotDefinedError Error when component not defined
+func ComponentForDNSAppAliasNotDefinedError(component string) error {
+	return fmt.Errorf("component %s referred to by dnsAppAlias is not defined", component)
+}
+
 // ComponentForDNSAppAliasNotDefinedErrorWithMessage Error when env not defined
 func ComponentForDNSAppAliasNotDefinedErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrComponentForDNSAppAliasNotDefined, "component %s referred to by dnsAppAlias is not defined", component)
+	return errors.WithMessagef(ErrComponentForDNSAppAliasNotDefined, "component %s referred to by dnsAppAlias is not defined or it is disabled", component)
 }
 
 // EnvForDNSExternalAliasNotDefinedErrorWithMessage Error when env not defined
@@ -120,7 +165,7 @@ func EnvForDNSExternalAliasNotDefinedErrorWithMessage(env string) error {
 
 // ComponentForDNSExternalAliasNotDefinedErrorWithMessage Error when env not defined
 func ComponentForDNSExternalAliasNotDefinedErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrComponentForDNSExternalAliasNotDefined, "component %s referred to by dnsExternalAlias is not defined", component)
+	return errors.WithMessagef(ErrComponentForDNSExternalAliasNotDefined, "component %s referred to by dnsExternalAlias is not defined or it is disabled", component)
 }
 
 // ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage Component is not marked as public
@@ -298,7 +343,7 @@ func InvalidStringValueMaxLengthErrorWithMessage(resourceName, value string, max
 
 // ResourceNameCannotBeEmptyErrorWithMessage Resource name cannot be left empty
 func ResourceNameCannotBeEmptyErrorWithMessage(resourceName string) error {
-	return errors.WithMessagef(ErrResourceNameCannotBeEmpty, "%s cannot be empty", resourceName)
+	return errors.WithMessagef(ErrResourceNameCannotBeEmpty, "%s is empty", resourceName)
 }
 
 // InvalidUUIDErrorWithMessage Invalid UUID
@@ -313,12 +358,12 @@ func InvalidEmailErrorWithMessage(resourceName, email string) error {
 
 // InvalidResourceNameErrorWithMessage Invalid resource name
 func InvalidResourceNameErrorWithMessage(resourceName, value string) error {
-	return errors.WithMessagef(ErrInvalidResourceName, "%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
+	return errors.WithMessagef(ErrInvalidResourceName, "%s %s can only consist of alphanumeric characters and '-'", resourceName, value)
 }
 
-// InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage Invalid lower case alpha-numeric, dot, dash resource name error
-func InvalidLowerCaseAlphaNumericDotDashResourceNameErrorWithMessage(resourceName, value string) error {
-	return errors.WithMessagef(ErrInvalidLowerCaseAlphaNumericDotDashResourceName, "%s %s can only consist of lower case alphanumeric characters, '.' and '-'", resourceName, value)
+// InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage Invalid lower case alphanumeric, dash resource name error
+func InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage(resourceName, value string) error {
+	return errors.WithMessagef(ErrInvalidLowerCaseAlphaNumericDashResourceName, "%s %s can only consist of lower case alphanumeric characters and '-'", resourceName, value)
 }
 
 // NoRegistrationExistsForApplicationErrorWithMessage No registration exists

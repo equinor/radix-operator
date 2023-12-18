@@ -24,6 +24,8 @@ type RadixApplicationExpansion interface{}
 
 type RadixBatchExpansion interface{}
 
+type RadixDNSAliasExpansion interface{}
+
 type RadixDeploymentExpansion interface{}
 
 type RadixEnvironmentExpansion interface{}

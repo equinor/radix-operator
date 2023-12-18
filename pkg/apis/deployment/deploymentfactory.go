@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -20,7 +21,7 @@ type DeploymentSyncerFactoryFunc func(
 	tenantId string,
 	kubernetesApiPort int32,
 	deploymentHistoryLimit int,
-	ingressAnnotationProviders []IngressAnnotationProvider,
+	ingressAnnotationProviders []ingress.AnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 ) DeploymentSyncer
 
@@ -34,7 +35,7 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	tenantId string,
 	kubernetesApiPort int32,
 	deploymentHistoryLimit int,
-	ingressAnnotationProviders []IngressAnnotationProvider,
+	ingressAnnotationProviders []ingress.AnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 ) DeploymentSyncer {
 	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, deploymentHistoryLimit, ingressAnnotationProviders, auxResourceManagers)
@@ -52,7 +53,7 @@ type DeploymentSyncerFactory interface {
 		tenantId string,
 		kubernetesApiPort int32,
 		deploymentHistoryLimit int,
-		ingressAnnotationProviders []IngressAnnotationProvider,
+		ingressAnnotationProviders []ingress.AnnotationProvider,
 		auxResourceManagers []AuxiliaryResourceManager,
 	) DeploymentSyncer
 }

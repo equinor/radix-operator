@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// GetRadixDeployment Gets radix alert using lister if present
+// GetRadixAlert Gets radix alert using lister if present
 func (kubeutil *Kube) GetRadixAlert(namespace, name string) (*v1.RadixAlert, error) {
 	var alert *v1.RadixAlert
 	var err error

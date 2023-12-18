@@ -1,10 +1,10 @@
 package radixvalidators
 
 import (
+	stderrors "errors"
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/errors"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -62,7 +62,7 @@ func CanRadixDeploymentBeInserted(deploy *radixv1.RadixDeployment) error {
 		errs = append(errs, err)
 	}
 
-	return errors.Concat(errs)
+	return stderrors.Join(errs...)
 }
 
 func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {

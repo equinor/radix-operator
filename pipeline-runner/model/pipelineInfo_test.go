@@ -21,7 +21,7 @@ var (
 
 func Test_DefaultPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName("")
-	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 5, len(p.Steps))
@@ -34,7 +34,7 @@ func Test_DefaultPipeType(t *testing.T) {
 
 func Test_BuildDeployPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 5, len(p.Steps))
@@ -48,7 +48,7 @@ func Test_BuildDeployPipeType(t *testing.T) {
 func Test_BuildAndDefaultNoPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
-	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 4, len(p.Steps))
@@ -176,4 +176,8 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 func Test_NonExistingPipelineType(t *testing.T) {
 	_, err := pipeline.GetPipelineFromName("non existing pipeline")
 	assert.NotNil(t, err)
+}
+
+func getPipelineArguments() *model.PipelineArguments {
+	return &model.PipelineArguments{}
 }

@@ -27,7 +27,7 @@ const (
 	resolvableRepeatInterval = "24h"
 	// How long to wait before sending a notification about new alerts that
 	// are added to a group of alerts for which an initial notification has
-	//# already been sent.
+	// # already been sent.
 	defaultGroupInterval = "1m"
 	// How long to initially wait to send a notification for a group
 	// of alerts. Allows to wait for an inhibiting alert to arrive or collect
@@ -53,8 +53,7 @@ func (syncer *alertSyncer) createOrUpdateAlertManagerConfig() error {
 	if err != nil {
 		return err
 	}
-	syncer.applyAlertManagerConfig(ns, amc)
-	return err
+	return syncer.applyAlertManagerConfig(ns, amc)
 }
 
 func (syncer *alertSyncer) applyAlertManagerConfig(namespace string, alertManagerConfig *v1alpha1.AlertmanagerConfig) error {

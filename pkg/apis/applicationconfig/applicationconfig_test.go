@@ -1,4 +1,4 @@
-package applicationconfig
+package applicationconfig_test
 
 import (
 	"context"
@@ -8,21 +8,21 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -37,27 +37,27 @@ func init() {
 }
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
-	kubeclient := fake.NewSimpleClientset()
-	radixclient := radix.NewSimpleClientset()
+	kubeClient := kubefake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
+	kubeUtil, _ := kube.New(kubeClient, radixClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, "0.0.0.0", "anysubid")
-	return &handlerTestUtils, kubeclient, kubeUtil, radixclient
+	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }
 
 func Test_Create_Radix_Environments(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixClient := setupTest()
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
-	app := NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, radixApp)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp, nil)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
-		err := app.createEnvironments()
+		err := app.OnSync()
 		assert.NoError(t, err)
-		environments, _ := radixclient.RadixV1().RadixEnvironments().List(
+		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.TODO(),
 			metav1.ListOptions{
 				LabelSelector: label,
@@ -66,9 +66,9 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
-		err := app.createEnvironments()
+		err := app.OnSync()
 		assert.NoError(t, err)
-		environments, _ := radixclient.RadixV1().RadixEnvironments().List(
+		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.TODO(),
 			metav1.ListOptions{
 				LabelSelector: label,
@@ -79,10 +79,10 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 func Test_Reconciles_Radix_Environments(t *testing.T) {
 	// Setup
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixClient := setupTest()
 
 	// Create environments manually
-	radixclient.RadixV1().RadixEnvironments().Create(
+	_, err := radixClient.RadixV1().RadixEnvironments().Create(
 		context.TODO(),
 		&radixv1.RadixEnvironment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -90,8 +90,9 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 			},
 		},
 		metav1.CreateOptions{})
+	assert.NoError(t, err)
 
-	radixclient.RadixV1().RadixEnvironments().Create(
+	_, err = radixClient.RadixV1().RadixEnvironments().Create(
 		context.TODO(),
 		&radixv1.RadixEnvironment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -99,6 +100,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 			},
 		},
 		metav1.CreateOptions{})
+	assert.NoError(t, err)
 
 	adGroups := []string{"5678-91011-1234", "9876-54321-0987"}
 	rr := utils.NewRegistrationBuilder().
@@ -112,16 +114,18 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	app := NewApplicationConfig(client, kubeUtil, radixclient, rr, ra)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
-	app.createEnvironments()
-	environments, _ := radixclient.RadixV1().RadixEnvironments().List(
+	err = app.OnSync()
+	assert.NoError(t, err)
+	environments, err := radixClient.RadixV1().RadixEnvironments().List(
 		context.TODO(),
 		metav1.ListOptions{
 			LabelSelector: label,
 		})
+	assert.NoError(t, err)
 	assert.Equal(t, 2, len(environments.Items))
 }
 
@@ -133,7 +137,7 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T)
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := GetTargetEnvironments(branch, ra)
+	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
 	assert.ElementsMatch(t, []string{"prod", "qa"}, targetEnvs)
 }
 
@@ -145,7 +149,7 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_Lis
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := GetTargetEnvironments(branch, ra)
+	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -157,7 +161,7 @@ func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBu
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := GetTargetEnvironments(branch, ra)
+	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -169,7 +173,7 @@ func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
 		WithEnvironmentNoBranch("prod").
 		BuildRA()
 
-	targetEnvs := GetTargetEnvironments(branch, ra)
+	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -179,7 +183,7 @@ func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
 	ra := utils.NewRadixApplicationBuilder().
 		BuildRA()
 
-	targetEnvs := GetTargetEnvironments(branch, ra)
+	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -191,7 +195,7 @@ func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuil
 		WithEnvironment("prod", "").
 		BuildRA()
 
-	targetEnvs := GetTargetEnvironments(branch, ra)
+	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -203,19 +207,20 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := GetTargetEnvironments(branch, ra)
+	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
 	assert.ElementsMatch(t, []string{"feature"}, targetEnvs)
 }
 
 func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest()
 
 	appNamespace := "any-app-app"
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret1", "secret2"))
+	require.NoError(t, err)
 
 	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
@@ -234,11 +239,12 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
 	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret4", "secret5", "secret6"))
+	require.NoError(t, err)
 
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	buildSecrets = getSecretByName(defaults.BuildSecretsName, secrets)
@@ -319,21 +325,23 @@ func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
 }
 
 func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest()
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret1", "secret2"))
+	require.NoError(t, err)
 
 	// Delete secret
 	appNamespace := "any-app-app"
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret2"))
+	require.NoError(t, err)
 
 	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
@@ -345,11 +353,12 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
 
 	// Delete secret
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets())
+	require.NoError(t, err)
 
 	// Secret is deleted
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -367,13 +376,14 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 }
 
 func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest()
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret1", "secret2"))
+	require.NoError(t, err)
 
 	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-reader-build-secrets", roles))
@@ -382,10 +392,11 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	assert.True(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 
 	// Delete secret and verify that role and rolebinding is deleted
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err = applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app").
 			WithEnvironment("dev", "master"))
+	require.NoError(t, err)
 
 	roles, _ = client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.False(t, roleByNameExists("radix-app-reader-build-secrets", roles))
@@ -394,15 +405,16 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	assert.False(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 }
 
-func Test_PrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
+func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest()
 
 	adminGroups, readerGroups := []string{"admin1", "admin2"}, []string{"reader1", "reader2"}
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithRadixRegistration(utils.ARadixRegistration().WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)).
 			WithAppName("any-app").
 			WithEnvironment("dev", "master"))
+	require.NoError(t, err)
 
 	type testSpec struct {
 		roleName         string
@@ -433,7 +445,7 @@ func Test_PrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 	}
 }
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
-	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -447,27 +459,6 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 	assert.Equal(t, "radix-private-image-hubs-sync=any-app", secret.ObjectMeta.Annotations["kubed.appscode.com/sync"])
 }
 
-func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
-	client, appConfig := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
-	pendingSecrets, _ := appConfig.GetPendingPrivateImageHubSecrets()
-
-	assert.Equal(t, "privaterepodeleteme.azurecr.io", pendingSecrets[0])
-
-	appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password")
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	pendingSecrets, _ = appConfig.GetPendingPrivateImageHubSecrets()
-
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOmEtcGFzc3dvcmQ=\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
-	assert.Equal(t, 0, len(pendingSecrets))
-}
-
 func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) {
 	applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
@@ -476,7 +467,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) 
 		},
 	})
 
-	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -502,7 +493,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateUsername(t *testing.T) {
 		},
 	})
 
-	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abb2",
 			Email:    "radix@equinor.com",
@@ -524,7 +515,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T)
 		},
 	})
 
-	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme1.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -538,7 +529,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T)
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
-	client, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -554,7 +545,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
 
-	client, _ = applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ = applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -567,30 +558,17 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		string(secret.Data[corev1.DockerConfigJsonKey]))
 }
 
-func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
-	client, appConfig := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
-	pendingSecrets, _ := appConfig.GetPendingPrivateImageHubSecrets()
-
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-
-	assert.NotNil(t, secret)
-	assert.Equal(t,
-		"{\"auths\":{}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
-	assert.Equal(t, 0, len(pendingSecrets))
-	assert.Error(t, appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password"))
-}
-
 func Test_RadixEnvironment(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest()
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
 			WithAppName("any-app"))
+	require.NoError(t, err)
 
-	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), "any-app", metav1.GetOptions{})
+	rr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), "any-app", metav1.GetOptions{})
 
-	environments, err := radixclient.RadixV1().RadixEnvironments().List(context.TODO(), metav1.ListOptions{})
+	environments, err := radixClient.RadixV1().RadixEnvironments().List(context.TODO(), metav1.ListOptions{})
 
 	t.Run("It creates a single environment", func(t *testing.T) {
 		assert.NoError(t, err)
@@ -632,16 +610,17 @@ func Test_UseBuildKit(t *testing.T) {
 			expectedUseBuildKit: utils.BoolPtr(true),
 		},
 	}
-	tu, client, kubeUtil, radixclient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest()
 
 	for _, testScenario := range testScenarios {
 		ra := utils.ARadixApplication().WithAppName(testScenario.appName)
 		if testScenario.useBuildKit != nil {
 			ra = ra.WithBuildKit(testScenario.useBuildKit)
 		}
-		applyApplicationWithSync(tu, client, kubeUtil, radixclient, ra)
+		err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra)
+		require.NoError(t, err)
 
-		raAfterSync, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.TODO(), testScenario.appName, metav1.GetOptions{})
+		raAfterSync, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.TODO(), testScenario.appName, metav1.GetOptions{})
 
 		var useBuildKit *bool
 		if raAfterSync.Spec.Build == nil {
@@ -657,7 +636,7 @@ func Test_GetConfigBranch_notSet(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().
 		BuildRR()
 
-	assert.Equal(t, ConfigBranchFallback, GetConfigBranch(rr))
+	assert.Equal(t, applicationconfig.ConfigBranchFallback, applicationconfig.GetConfigBranch(rr))
 }
 
 func Test_GetConfigBranch_set(t *testing.T) {
@@ -667,7 +646,7 @@ func Test_GetConfigBranch_set(t *testing.T) {
 		WithConfigBranch(configBranch).
 		BuildRR()
 
-	assert.Equal(t, configBranch, GetConfigBranch(rr))
+	assert.Equal(t, configBranch, applicationconfig.GetConfigBranch(rr))
 }
 
 func Test_IsConfigBranch(t *testing.T) {
@@ -678,11 +657,11 @@ func Test_IsConfigBranch(t *testing.T) {
 		BuildRR()
 
 	t.Run("Branch is configBranch", func(t *testing.T) {
-		assert.True(t, IsConfigBranch(configBranch, rr))
+		assert.True(t, applicationconfig.IsConfigBranch(configBranch, rr))
 	})
 
 	t.Run("Branch is not configBranch", func(t *testing.T) {
-		assert.False(t, IsConfigBranch(otherBranch, rr))
+		assert.False(t, applicationconfig.IsConfigBranch(otherBranch, rr))
 	})
 }
 
@@ -690,8 +669,8 @@ func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixRegistration",
+			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
+			Kind:       radixv1.KindRadixRegistration,
 			Name:       rr.Name,
 			UID:        rr.UID,
 			Controller: &trueVar,
@@ -699,8 +678,8 @@ func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	}
 }
 
-func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *ApplicationConfig) {
-	tu, client, kubeUtil, radixclient := setupTest()
+func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *applicationconfig.ApplicationConfig, *kube.Kube) {
+	tu, client, kubeUtil, radixClient := setupTest()
 	appBuilder := utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master")
@@ -708,34 +687,37 @@ func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEn
 		appBuilder.WithPrivateImageRegistry(key, config.Username, config.Email)
 	}
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient, appBuilder)
-	appConfig := getAppConfig(client, kubeUtil, radixclient, appBuilder)
-	return client, appConfig
+	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, appBuilder)
+	if err != nil {
+		return nil, nil, nil
+	}
+	appConfig := getAppConfig(client, kubeUtil, radixClient, appBuilder)
+	return client, appConfig, kubeUtil
 }
 
-func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) *ApplicationConfig {
+func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) *applicationconfig.ApplicationConfig {
 	ra := applicationBuilder.BuildRA()
-	radixRegistration, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
+	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
 
-	return NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, ra)
+	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 }
 
 func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
+	radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
 
 	ra, err := tu.ApplyApplication(applicationBuilder)
 	if err != nil {
 		return err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
+	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	applicationconfig := NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, ra)
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 
-	err = applicationconfig.OnSync()
+	err = applicationConfig.OnSync()
 	if err != nil {
 		return err
 	}

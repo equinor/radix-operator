@@ -7,6 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
+	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -23,7 +24,7 @@ import (
 // - a secret radix-snyk-service-account with access token to SNYK service account
 
 func main() {
-	pipelineArgs := &model.PipelineArguments{}
+	pipelineArgs := &model.PipelineArguments{DNSConfig: &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)}}
 
 	cmd := &cobra.Command{
 		Use: "run",
@@ -113,12 +114,19 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	var debug string
 	cmd.Flags().StringVar(&debug, "DEBUG", "false", "Debug information")
 	cmd.Flags().StringToStringVar(&pipelineArgs.ImageTagNames, defaults.RadixImageTagNameEnvironmentVariable, make(map[string]string), "Image tag names for components (optional)")
+	cmd.Flags().StringToStringVar(&pipelineArgs.DNSConfig.ReservedAppDNSAliases, defaults.RadixReservedAppDNSAliasesEnvironmentVariable, make(map[string]string), "The list of DNS aliases, reserved for Radix platform Radix application")
+	cmd.Flags().StringSliceVar(&pipelineArgs.DNSConfig.ReservedDNSAliases, defaults.RadixReservedDNSAliasesEnvironmentVariable, make([]string, 0), "The list of DNS aliases, reserved for Radix platform services")
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
 		return fmt.Errorf("failed to parse command arguments. Error: %v", err)
 	}
-
+	if len(pipelineArgs.DNSConfig.ReservedAppDNSAliases) == 0 {
+		return fmt.Errorf("missing DNS aliases, reserved for Radix platform Radix application")
+	}
+	if len(pipelineArgs.DNSConfig.ReservedDNSAliases) == 0 {
+		return fmt.Errorf("missing DNS aliases, reserved for Radix platform services")
+	}
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
 	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(v1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
 	pipelineArgs.UseCache, _ = strconv.ParseBool(useCache)

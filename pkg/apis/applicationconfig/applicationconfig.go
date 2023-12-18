@@ -3,15 +3,17 @@ package applicationconfig
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixTypes "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
 	log "github.com/sirupsen/logrus"
@@ -26,85 +28,48 @@ const ConfigBranchFallback = "master"
 
 // ApplicationConfig Instance variables
 type ApplicationConfig struct {
-	kubeclient   kubernetes.Interface
-	radixclient  radixclient.Interface
-	kubeutil     *kube.Kube
-	registration *v1.RadixRegistration
-	config       *v1.RadixApplication
+	kubeclient     kubernetes.Interface
+	radixclient    radixclient.Interface
+	kubeutil       *kube.Kube
+	registration   *radixv1.RadixRegistration
+	config         *radixv1.RadixApplication
+	dnsAliasConfig *dnsalias.DNSConfig
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(
-	kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	registration *v1.RadixRegistration,
-	config *v1.RadixApplication) *ApplicationConfig {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) *ApplicationConfig {
 	return &ApplicationConfig{
-		kubeclient,
-		radixclient,
-		kubeutil,
-		registration,
-		config}
+		kubeclient:     kubeclient,
+		radixclient:    radixclient,
+		kubeutil:       kubeutil,
+		registration:   registration,
+		config:         config,
+		dnsAliasConfig: dnsAliasConfig,
+	}
 }
 
 // GetRadixApplicationConfig returns the provided config
-func (app *ApplicationConfig) GetRadixApplicationConfig() *v1.RadixApplication {
+func (app *ApplicationConfig) GetRadixApplicationConfig() *radixv1.RadixApplication {
 	return app.config
 }
 
 // GetRadixRegistration returns the provided radix registration
-func (app *ApplicationConfig) GetRadixRegistration() *v1.RadixRegistration {
+func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration {
 	return app.registration
 }
 
-// GetComponent Gets the component for a provided name
-func GetComponent(ra *v1.RadixApplication, name string) v1.RadixCommonComponent {
-	for _, component := range ra.Spec.Components {
-		if strings.EqualFold(component.Name, name) {
-			return &component
-		}
-	}
-	for _, jobComponent := range ra.Spec.Jobs {
-		if strings.EqualFold(jobComponent.Name, name) {
-			return &jobComponent
-		}
-	}
-	return nil
-}
-
-// GetComponentEnvironmentConfig Gets environment config of component
-func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) v1.RadixCommonEnvironmentConfig {
-	// TODO: Add interface for RA + EnvConfig
-	return GetEnvironment(GetComponent(ra, componentName), envName)
-}
-
-// GetEnvironment Gets environment config of component
-func GetEnvironment(component v1.RadixCommonComponent, envName string) v1.RadixCommonEnvironmentConfig {
-	if component == nil {
-		return nil
-	}
-
-	for _, environment := range component.GetEnvironmentConfig() {
-		if strings.EqualFold(environment.GetEnvironment(), envName) {
-			return environment
-		}
-	}
-	return nil
-}
-
 // GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
-func GetConfigBranch(rr *v1.RadixRegistration) string {
+func GetConfigBranch(rr *radixv1.RadixRegistration) string {
 	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
 }
 
 // IsConfigBranch Checks if given branch is where radix config lives
-func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
+func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
 // GetTargetEnvironments Checks if given branch requires deployment to environments
-func GetTargetEnvironments(branchToBuild string, ra *v1.RadixApplication) []string {
+func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) []string {
 	var targetEnvs []string
 	for _, env := range ra.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
@@ -122,6 +87,9 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Debugf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
+			if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
+				return err
+			}
 			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), app.config, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create radix application. %v", err)
@@ -132,21 +100,25 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		return fmt.Errorf("failed to get radix application. %v", err)
 	}
 
-	// Update RA if different
 	log.Debugf("RadixApplication %s exists in namespace %s", app.config.Name, appNamespace)
-	if !reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
-		log.Debugf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
-		// For an update, ResourceVersion of the new object must be the same with the old object
-		app.config.SetResourceVersion(existingRA.GetResourceVersion())
-		_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), app.config, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update existing radix application. %v", err)
-		}
-		log.Infof("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
-	} else {
+	if reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
 		log.Infof("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
+		return nil
 	}
 
+	if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
+		return err
+	}
+
+	// Update RA if different
+	log.Debugf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
+	// For an update, ResourceVersion of the new object must be the same with the old object
+	app.config.SetResourceVersion(existingRA.GetResourceVersion())
+	_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), app.config, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update existing radix application. %v", err)
+	}
+	log.Infof("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
 	return nil
 }
 
@@ -154,32 +126,29 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 // It compares the actual state with the desired, and attempts to
 // converge the two
 func (app *ApplicationConfig) OnSync() error {
-	err := app.createEnvironments()
-	if err != nil {
+	if err := app.createEnvironments(); err != nil {
 		log.Errorf("Failed to create namespaces for app environments %s. %v", app.config.Name, err)
 		return err
 	}
-
-	err = app.syncPrivateImageHubSecrets()
-	if err != nil {
+	if err := app.syncPrivateImageHubSecrets(); err != nil {
 		log.Errorf("Failed to create private image hub secrets. %v", err)
 		return err
 	}
 
-	err = app.syncBuildSecrets()
-	if err != nil {
+	if err := app.syncBuildSecrets(); err != nil {
 		log.Errorf("Failed to create build secrets. %v", err)
 		return err
 	}
-
+	if err := app.syncDNSAliases(); err != nil {
+		return fmt.Errorf("failed to process DNS aliases: %w", err)
+	}
 	return app.syncSubPipelineServiceAccounts()
 }
 
-// createEnvironments Will create environments defined in the radix config
 func (app *ApplicationConfig) createEnvironments() error {
-
+	var errs []error
 	for _, env := range app.config.Spec.Environments {
-		app.applyEnvironment(utils.NewEnvironmentBuilder().
+		err := app.applyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(app.config.Name).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
@@ -191,13 +160,15 @@ func (app *ApplicationConfig) createEnvironments() error {
 			// Only an explicit call to UpdateStatus can update status object, and this is only done by the RadixEnvironment controller.
 			WithOrphaned(false).
 			BuildRE())
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
-
-	return nil
+	return stderrors.Join(errs...)
 }
 
 // applyEnvironment creates an environment or applies changes if it exists
-func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error {
+func (app *ApplicationConfig) applyEnvironment(newRe *radixv1.RadixEnvironment) error {
 	logger := log.WithFields(log.Fields{"environment": newRe.ObjectMeta.Name})
 	logger.Debugf("Apply environment %s", newRe.Name)
 
@@ -230,11 +201,13 @@ func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error
 }
 
 // patchDifference creates a mergepatch, comparing old and new RadixEnvironments and issues the patch to radix
-func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.RadixEnvironment, newRe *v1.RadixEnvironment, logger *log.Entry) error {
+func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *radixv1.RadixEnvironment, newRe *radixv1.RadixEnvironment, logger *log.Entry) error {
 	radixEnvironment := oldRe.DeepCopy()
 	radixEnvironment.ObjectMeta.Labels = newRe.ObjectMeta.Labels
 	radixEnvironment.ObjectMeta.OwnerReferences = newRe.ObjectMeta.OwnerReferences
 	radixEnvironment.ObjectMeta.Annotations = newRe.ObjectMeta.Annotations
+	radixEnvironment.ObjectMeta.Finalizers = newRe.ObjectMeta.Finalizers
+	radixEnvironment.ObjectMeta.DeletionTimestamp = newRe.ObjectMeta.DeletionTimestamp
 	radixEnvironment.Spec = newRe.Spec
 	radixEnvironment.Status = newRe.Status
 
@@ -248,7 +221,7 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.
 		return fmt.Errorf("failed to marshal new RadixEnvironment object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, v1.RadixEnvironment{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, radixv1.RadixEnvironment{})
 	if err != nil {
 		return fmt.Errorf("failed to create patch document for RadixEnvironment object: %v", err)
 	}

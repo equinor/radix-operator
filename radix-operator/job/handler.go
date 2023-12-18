@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -31,11 +32,11 @@ type Handler struct {
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	hasSynced   common.HasSynced
-	config      *job.Config
+	config      *apiconfig.Config
 }
 
 // NewHandler Constructor
-func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, config *job.Config, hasSynced common.HasSynced) Handler {
+func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
 		kubeclient:  kubeclient,

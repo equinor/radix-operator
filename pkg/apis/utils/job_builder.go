@@ -156,8 +156,8 @@ func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 	radixJob := &v1.RadixJob{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixJob",
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixJob,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jb.jobName,
