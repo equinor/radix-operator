@@ -70,7 +70,7 @@ func NewController(kubeClient kubernetes.Interface,
 }
 
 func addEventHandlersForIngresses(ingressInformer networkinginformersv1.IngressInformer, controller *common.Controller) {
-	_, err := ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldIng := oldObj.(metav1.Object)
 			newIng := newObj.(metav1.Object)
@@ -90,14 +90,13 @@ func addEventHandlersForIngresses(ingressInformer networkinginformersv1.IngressI
 			logger.Debugf("deleted Ingress %s", ing.GetName())
 			controller.HandleObject(ing, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
 		},
-	})
-	if err != nil {
-		logger.Errorf("failed to add an event hanflers to the ingressInformer")
+	}); err != nil {
+		panic(err)
 	}
 }
 
 func addEventHandlersForRadixDeployments(radixDeploymentInformer radixinformersv1.RadixDeploymentInformer, controller *common.Controller, radixClient radixclient.Interface) {
-	_, err := radixDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := radixDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			rd := cur.(*radixv1.RadixDeployment)
 			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd)
@@ -111,14 +110,13 @@ func addEventHandlersForRadixDeployments(radixDeploymentInformer radixinformersv
 			rd := newRD.(*radixv1.RadixDeployment)
 			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd)
 		},
-	})
-	if err != nil {
-		logger.Errorf("failed to add an event hanflers to the radixDeploymentInformer")
+	}); err != nil {
+		panic(err)
 	}
 }
 
 func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.RadixDNSAliasInformer, controller *common.Controller) {
-	_, err := radixDNSAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := radixDNSAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			alias := cur.(*radixv1.RadixDNSAlias)
 			logger.Debugf("added RadixDNSAlias %s", alias.GetName())
@@ -156,9 +154,8 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 			}
 			metrics.CustomResourceDeleted(radixv1.KindRadixDNSAlias)
 		},
-	})
-	if err != nil {
-		logger.Errorf("failed to add an event hanflers to the radixDNSAliasInformer")
+	}); err != nil {
+		panic(err)
 	}
 }
 
@@ -175,7 +172,7 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	for _, radixDNSAlias := range radixDNSAliases {
 		logger.Debugf("re-sync RadixDNSAlias %s", radixDNSAlias.GetName())
 		if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
-			logger.Errorf("failed to re-sync RadixDNSAlias %s. Error: %v", radixDNSAlias.GetName(), err)
+			logger.Errorf("failed to enqueue RadixDNSAlias %s. Error: %v", radixDNSAlias.GetName(), err)
 		}
 	}
 }

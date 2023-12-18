@@ -98,7 +98,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			metrics.CustomResourceDeleted(crType)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	if _, err := kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -121,7 +121,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			controller.HandleObject(radixJob, v1.KindRadixJob, getObject)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	if _, err := podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -148,7 +148,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			}
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	return controller

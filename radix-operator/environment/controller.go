@@ -99,7 +99,7 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceDeleted(crType)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
@@ -109,7 +109,7 @@ func NewController(client kubernetes.Interface,
 			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	rolebindingInformer := kubeInformerFactory.Rbac().V1().RoleBindings()
@@ -119,7 +119,7 @@ func NewController(client kubernetes.Interface,
 			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	limitrangeInformer := kubeInformerFactory.Core().V1().LimitRanges()
@@ -129,7 +129,7 @@ func NewController(client kubernetes.Interface,
 			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -164,7 +164,7 @@ func NewController(client kubernetes.Interface,
 			}
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	if _, err := applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -203,7 +203,7 @@ func NewController(client kubernetes.Interface,
 			}
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	return controller

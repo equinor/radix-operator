@@ -13,7 +13,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	log "github.com/sirupsen/logrus"
@@ -124,7 +123,6 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 		return nil, err
 	}
 
-	ingressConfig.ObjectMeta.Annotations = annotations.Merge(ingressConfig.ObjectMeta.Annotations, annotations.ForManagedByRadixDNSAliasIngress(aliasName))
 	ingressConfig.ObjectMeta.Labels[kube.RadixAliasLabel] = aliasName
 	log.Debugf("built the Ingress %s in the environment %s with a host %s", ingressConfig.GetName(), namespace, hostName)
 	return ingressConfig, nil

@@ -95,7 +95,7 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceDeleted(crType)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
@@ -104,7 +104,7 @@ func NewController(client kubernetes.Interface,
 			controller.HandleObject(obj, v1.KindRadixRegistration, getObject)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()

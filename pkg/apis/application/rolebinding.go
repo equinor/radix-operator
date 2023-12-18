@@ -6,6 +6,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -88,6 +89,7 @@ func (app *Application) applyRbacOnPipelineRunner() error {
 	if err = app.giveAccessToRadixDNSAliases(serviceAccount, defaults.RadixPipelineRadixDNSAliasRoleNamePrefix); err != nil {
 		return err
 	}
+
 	return app.givePipelineAccessToAppNamespace(serviceAccount)
 }
 
