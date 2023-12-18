@@ -35,16 +35,13 @@ func (s *syncer) syncRbac() error {
 	if err := s.kubeUtil.ApplyClusterRole(readerClusterRole); err != nil {
 		return err
 	}
-	adminClusterRoleBinding := s.buildDNSAliasClusterRoleBinding(adminClusterRole, appAdminSubjects)
+	adminClusterRoleBinding := s.buildClusterRoleBinding(adminClusterRole, appAdminSubjects)
 	if err := s.kubeUtil.ApplyClusterRoleBinding(adminClusterRoleBinding); err != nil {
 		return err
 	}
 	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
-	readerClusterRoleBinding := s.buildDNSAliasClusterRoleBinding(readerClusterRole, appReaderSubjects)
-	if err := s.kubeUtil.ApplyClusterRoleBinding(readerClusterRoleBinding); err != nil {
-		return err
-	}
-	return nil
+	readerClusterRoleBinding := s.buildClusterRoleBinding(readerClusterRole, appReaderSubjects)
+	return s.kubeUtil.ApplyClusterRoleBinding(readerClusterRoleBinding)
 }
 
 func (s *syncer) getClusterRoleNameForAdmin() string {
@@ -78,7 +75,7 @@ func (s *syncer) buildClusterRole(clusterRoleName string, rules ...rbacv1.Policy
 	}
 }
 
-func (s *syncer) buildDNSAliasClusterRoleBinding(clusterRole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+func (s *syncer) buildClusterRoleBinding(clusterRole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),

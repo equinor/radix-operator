@@ -13,7 +13,7 @@ func GetOwnerReferences(radixDNSAlias *radixv1.RadixDNSAlias) []metav1.OwnerRefe
 		Kind:       radixv1.KindRadixDNSAlias,
 		Name:       radixDNSAlias.Name,
 		UID:        radixDNSAlias.UID,
-		Controller: pointers.Ptr(true),
+		Controller: pointers.Ptr(false),
 	},
 	}
 }
