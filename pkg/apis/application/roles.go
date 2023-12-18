@@ -21,7 +21,7 @@ func (app *Application) buildRRClusterRole(clusterRoleName string, verbs []strin
 
 func (app *Application) buildRadixDNSAliasClusterRole(roleNamePrefix string) *rbacv1.ClusterRole {
 	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
-	return app.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{"radix.equinor.com"},
+	return app.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{v1.SchemeGroupVersion.Group},
 		Resources: []string{v1.ResourceRadixDNSAliases},
 		Verbs:     []string{"list"},
 	})

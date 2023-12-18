@@ -8,7 +8,6 @@ import (
 
 const (
 	GroupName = "radix.equinor.com"
-	Version   = "v1"
 )
 
 // SchemeGroupVersion provides the group version
@@ -62,10 +61,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 }
 
 const (
-
-	// APIVersion API version for Radix objects
-	APIVersion = "radix.equinor.com/v1"
-
 	// KindRadixRegistration RadixRegistration object Kind
 	KindRadixRegistration = "RadixRegistration"
 	// KindRadixEnvironment RadixEnvironment object Kind
@@ -86,6 +81,4 @@ const (
 	ResourceRadixRegistrations = "radixregistrations"
 	// ResourceRadixDNSAliases RadixDNSAliases API resource
 	ResourceRadixDNSAliases = "radixdnsaliases"
-	// ResourceRadixDeployment RadixDeployment API resource
-	ResourceRadixDeployment = "radixdeployments"
 )
