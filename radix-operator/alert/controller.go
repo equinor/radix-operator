@@ -94,7 +94,7 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceDeleted(crType)
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -125,7 +125,7 @@ func NewController(client kubernetes.Interface,
 			}
 		},
 	}); err != nil {
-		utilruntime.HandleError(err)
+		panic(err)
 	}
 
 	return controller
