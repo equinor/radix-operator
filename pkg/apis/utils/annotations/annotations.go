@@ -53,11 +53,6 @@ func ForClusterAutoscalerSafeToEvict(safeToEvict bool) map[string]string {
 	return map[string]string{clusterAutoscaleSafeToEvictAnnotation: fmt.Sprint(safeToEvict)}
 }
 
-// ForManagedByRadixDNSAliasIngress returns annotation with a name of a RadixDNSAlias, managed an ingresses
-func ForManagedByRadixDNSAliasIngress(dnsAliasName string) map[string]string {
-	return map[string]string{kube.ManagedByRadixDNSAliasIngressAnnotation: dnsAliasName}
-}
-
 func forAzureWorkloadIdentityClientId(clientId string) map[string]string {
 	return map[string]string{azureWorkloadIdentityClientIdAnnotation: clientId}
 }
