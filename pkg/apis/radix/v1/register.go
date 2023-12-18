@@ -8,7 +8,6 @@ import (
 
 const (
 	GroupName = "radix.equinor.com"
-	Version   = "v1"
 )
 
 // SchemeGroupVersion provides the group version
@@ -84,6 +83,4 @@ const (
 	ResourceRadixDNSAliases = "radixdnsaliases"
 	// ResourceRadixDNSAliasStatuses RadixDNSAliasStatuses API resource
 	ResourceRadixDNSAliasStatuses = "radixdnsaliases/status"
-	// ResourceRadixDeployment RadixDeployment API resource
-	ResourceRadixDeployment = "radixdeployments"
 )
