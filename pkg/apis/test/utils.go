@@ -104,7 +104,7 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 			WithEnvironmentName(env.Name).
 			WithRegistrationOwner(rr).
 			WithOrphaned(false)); err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
@@ -139,7 +139,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
 			WithRegistrationOwner(rr)); err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
@@ -197,7 +197,7 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder
 func (tu *Utils) ApplyJob(jobBuilder utils.JobBuilder) (*radixv1.RadixJob, error) {
 	if jobBuilder.GetApplicationBuilder() != nil {
 		if _, err := tu.ApplyApplication(jobBuilder.GetApplicationBuilder()); err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
@@ -285,7 +285,7 @@ func SetRequiredEnvironmentVariables() {
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) {
+func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) error {
 	SetRequiredEnvironmentVariables()
 
 	if _, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
@@ -301,10 +301,10 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 			},
 		},
 		metav1.CreateOptions{}); err != nil {
-		panic(err)
+		return err
 	}
 
-	if _, err := tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+	_, err := tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
 		context.TODO(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -317,9 +317,8 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 				"subscriptionId":         subscriptionId,
 			},
 		},
-		metav1.CreateOptions{}); err != nil {
-		panic(err)
-	}
+		metav1.CreateOptions{})
+	return err
 }
 
 // CreateAppNamespace Helper method to creat app namespace

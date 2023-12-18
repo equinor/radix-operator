@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"strings"
-
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,15 +47,15 @@ func (ap *ApplicationBuilderStruct) WithBuildKit(useBuildKit *bool) ApplicationB
 	ap.useBuildKit = useBuildKit
 	return ap
 }
-func (ap *ApplicationBuilderStruct) WithBuildCache(useBuilCache *bool) ApplicationBuilder {
-	ap.useBuildCache = useBuilCache
+func (ap *ApplicationBuilderStruct) WithBuildCache(useBuildCache *bool) ApplicationBuilder {
+	ap.useBuildCache = useBuildCache
 	return ap
 }
 
 // WithPrivateImageRegistry adds a private image hub to application
 func (ap *ApplicationBuilderStruct) WithPrivateImageRegistry(server, username, email string) ApplicationBuilder {
 	if ap.privateImageHubs == nil {
-		ap.privateImageHubs = radixv1.PrivateImageHubEntries(map[string]*radixv1.RadixPrivateImageHubCredential{})
+		ap.privateImageHubs = map[string]*radixv1.RadixPrivateImageHubCredential{}
 	}
 
 	ap.privateImageHubs[server] = &radixv1.RadixPrivateImageHubCredential{
@@ -121,28 +119,7 @@ func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env, component string) Appli
 
 // WithDNSAlias Sets alias for env and component to be the DNS alias like "my-alias.radix.equinor.com" or "my-alias.<clustername>.radix.equinor.com"
 func (ap *ApplicationBuilderStruct) WithDNSAlias(dnsAliases ...radixv1.DNSAlias) ApplicationBuilder {
-	var dnsAliasesToAppend []radixv1.DNSAlias
-	for _, dnsAlias := range dnsAliases {
-		foundExistingAlias := false
-		for i := 0; i < len(ap.dnsAliases); i++ {
-			if strings.EqualFold(dnsAlias.Alias, ap.dnsAliases[i].Alias) {
-				ap.dnsAliases[i].Alias = dnsAlias.Alias
-				ap.dnsAliases[i].Environment = dnsAlias.Environment
-				ap.dnsAliases[i].Component = dnsAlias.Component
-				foundExistingAlias = true
-				break
-			}
-		}
-		if foundExistingAlias {
-			continue
-		}
-		dnsAliasesToAppend = append(dnsAliasesToAppend, radixv1.DNSAlias{
-			Alias:       dnsAlias.Alias,
-			Environment: dnsAlias.Environment,
-			Component:   dnsAlias.Component,
-		})
-	}
-	ap.dnsAliases = append(ap.dnsAliases, dnsAliasesToAppend...)
+	ap.dnsAliases = dnsAliases
 	return ap
 }
 
