@@ -7,6 +7,7 @@ import (
 
 	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -71,6 +72,7 @@ type testClusterRole struct {
 }
 
 type testClusterRoleBinding struct {
+	adGroups []string
 }
 
 type ingressScenario struct {
@@ -257,7 +259,6 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 		alias2             = "alias2"
 		component1Port8080 = 8080
 		component2Port9090 = 9090
-		dnsZone1           = "dev.radix.equinor.com"
 	)
 
 	testDefaultUserGroupID := string(uuid.NewUUID())
@@ -315,6 +316,11 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 					roleName := role.GetName()
 					_, ok := ts.expectedClusterRoleNames[roleName]
 					s.True(ok, "not found expected role %s", roleName)
+					s.Equal(rbacv1.SchemeGroupVersion.Identifier(), role.APIVersion, "invalid api version")
+					s.Equal(k8s.KindClusterRole, role.Kind, "invalid kind")
+					s.Equal(roleName, role.Name, "invalid name")
+					s.Equal(radixDNSAlias.Spec.AppName, role.GetLabels()[kube.RadixAppLabel], "missing or invalid label %s", kube.RadixAppLabel)
+					s.Equal(radixDNSAlias.GetName(), role.GetLabels()[kube.RadixAliasLabel], "missing or invalid label %s", kube.RadixAliasLabel)
 					s.Len(role.GetOwnerReferences(), 1, "expected one object reference")
 					ownerReference := role.GetOwnerReferences()[0]
 					s.Equal(radixDNSAlias.GetName(), ownerReference.Name, "invalid owner reference name")
@@ -339,29 +345,35 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 			s.Require().NoError(err)
 			s.NotNil(clusterRoleBindingList.Items) // TODO
 
-			s.Len(clusterRoleList.Items, len(ts.expectedClusterRoleNames), "not matching expected cluster role count")
-			if len(clusterRoleList.Items) == len(ts.expectedClusterRoleNames) {
-				for _, role := range clusterRoleList.Items {
-					roleName := role.GetName()
-					_, ok := ts.expectedClusterRoleNames[roleName]
-					s.True(ok, "not found expected role %s", roleName)
-					s.Len(role.GetOwnerReferences(), 1, "expected one object reference")
-					ownerReference := role.GetOwnerReferences()[0]
+			s.Len(clusterRoleBindingList.Items, len(ts.expectedClusterRoleBindings), "not matching expected cluster role binding count")
+			if len(clusterRoleBindingList.Items) == len(ts.expectedClusterRoleBindings) {
+				for _, roleBinding := range clusterRoleBindingList.Items {
+					bindingName := roleBinding.GetName()
+					_, ok := ts.expectedClusterRoleNames[bindingName]
+					s.True(ok, "not found expected role binding %s", bindingName)
+					s.Len(roleBinding.GetOwnerReferences(), 1, "expected one object reference")
+					ownerReference := roleBinding.GetOwnerReferences()[0]
 					s.Equal(radixDNSAlias.GetName(), ownerReference.Name, "invalid owner reference name")
 					s.Equal(radixDNSAlias.ObjectMeta.UID, ownerReference.UID, "invalid owner reference uid")
 					s.Equal(radixDNSAlias.APIVersion, ownerReference.APIVersion, "invalid owner reference api version")
 					s.Equal(radixDNSAlias.Kind, ownerReference.Kind, "invalid owner reference kind")
 					s.False(*ownerReference.Controller)
-					s.Len(role.Rules, 1, "role should have 1 rule")
-					rule := role.Rules[0]
-					s.Contains(rule.Verbs, "get", "missing rule verb get")
-					s.Contains(rule.Verbs, "list", "missing rule verb list")
-					s.Len(rule.APIGroups, 1, "rule should have 1 api group")
-					s.Equal(radixv1.SchemeGroupVersion.Group, rule.APIGroups[0], "invalid api group")
-					s.Contains(rule.Resources, "radixdnsaliases", "missing rule resource radixdnsalias")
-					s.Contains(rule.Resources, "radixdnsaliases/status", "missing rule resource radixdnsalias/status")
-					s.Len(rule.ResourceNames, 1, "rule should have 1 resource name")
-					s.Contains(rule.ResourceNames, radixDNSAlias.GetName(), "missing resource name %s in the rule", radixDNSAlias.GetName())
+					s.Len(roleBinding.RoleRef, 1, "role binding should have 1 role ref")
+					roleRef := roleBinding.RoleRef
+					s.Equal(rbacv1.GroupName, roleRef.APIGroup)
+					s.Equal(k8s.KindClusterRole, roleRef.Kind)
+					s.Equal(bindingName, roleRef.Name)
+					s.Len(roleBinding.Subjects, 1, "role binding should have 1 subject")
+					subject := roleBinding.Subjects[0]
+					s.Contains(subject.Name, "get", "missing subject verb get")
+					s.Contains(subject.Verbs, "list", "missing subject verb list")
+					s.Equal(radixv1.SchemeGroupVersion.Group, subject.APIGroup, "invalid api group")
+					expectedBinding, ok := ts.expectedClusterRoleBindings[bindingName]
+					for _, adGroup := range expectedBinding.adGroups {
+						s.Equal(adGroup, subject.Name)
+						s.Equal(rbacv1.GroupName, subject.APIGroup)
+						s.Equal(rbacv1.GroupKind, subject.Kind, "invalid or missing subject group name")
+					}
 				}
 			}
 
