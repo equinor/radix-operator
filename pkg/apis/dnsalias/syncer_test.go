@@ -83,12 +83,12 @@ type ingressScenario struct {
 }
 
 type rbacScenario struct {
-	name                        string
-	dnsAlias                    commonTest.DNSAlias
-	expectedClusterRoleNames    map[string]any
-	expectedClusterRoleBindings map[string]testClusterRoleBinding
-	adminADGroups               []string
-	readerADGroups              []string
+	name                               string
+	dnsAlias                           commonTest.DNSAlias
+	expectedClusterRoleNames           map[string]any
+	expectedClusterRoleBindingSubjects map[string]testClusterRoleBinding
+	adminADGroups                      []string
+	readerADGroups                     []string
 }
 
 func (s *syncerTestSuite) Test_OnSync_ingresses() {
@@ -275,9 +275,51 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 				"radix-platform-user-rda-app1":        true,
 				"radix-platform-user-rda-reader-app1": true,
 			},
-			expectedClusterRoleBindings: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1":        testClusterRoleBinding{},
-				"radix-platform-user-rda-reader-app1": testClusterRoleBinding{},
+			adminADGroups:  nil,
+			readerADGroups: nil,
+			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
+				"radix-platform-user-rda-app1": testClusterRoleBinding{adGroups: []string{testDefaultUserGroupID}},
+			},
+		},
+		{
+			name:     "create rbac for default admin AD group and reader",
+			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1":        true,
+				"radix-platform-user-rda-reader-app1": true,
+			},
+			adminADGroups:  nil,
+			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
+			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
+				"radix-platform-user-rda-app1":        testClusterRoleBinding{adGroups: []string{testDefaultUserGroupID}},
+				"radix-platform-user-rda-reader-app1": testClusterRoleBinding{adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
+			},
+		},
+		{
+			name:     "create rbac for specified admin AD group and reader group",
+			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1":        true,
+				"radix-platform-user-rda-reader-app1": true,
+			},
+			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
+			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
+			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
+				"radix-platform-user-rda-app1":        testClusterRoleBinding{adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
+				"radix-platform-user-rda-reader-app1": testClusterRoleBinding{adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
+			},
+		},
+		{
+			name:     "create rbac for specified admin AD group only",
+			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1":        true,
+				"radix-platform-user-rda-reader-app1": true,
+			},
+			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
+			readerADGroups: nil,
+			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
+				"radix-platform-user-rda-app1": testClusterRoleBinding{adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
 			},
 		},
 	}
@@ -319,8 +361,10 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 					s.Equal(rbacv1.SchemeGroupVersion.Identifier(), role.APIVersion, "invalid api version")
 					s.Equal(k8s.KindClusterRole, role.Kind, "invalid kind")
 					s.Equal(roleName, role.Name, "invalid name")
+
 					s.Equal(radixDNSAlias.Spec.AppName, role.GetLabels()[kube.RadixAppLabel], "missing or invalid label %s", kube.RadixAppLabel)
 					s.Equal(radixDNSAlias.GetName(), role.GetLabels()[kube.RadixAliasLabel], "missing or invalid label %s", kube.RadixAliasLabel)
+
 					s.Len(role.GetOwnerReferences(), 1, "expected one object reference")
 					ownerReference := role.GetOwnerReferences()[0]
 					s.Equal(radixDNSAlias.GetName(), ownerReference.Name, "invalid owner reference name")
@@ -328,6 +372,7 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 					s.Equal(radixDNSAlias.APIVersion, ownerReference.APIVersion, "invalid owner reference api version")
 					s.Equal(radixDNSAlias.Kind, ownerReference.Kind, "invalid owner reference kind")
 					s.False(*ownerReference.Controller)
+
 					s.Len(role.Rules, 1, "role should have 1 rule")
 					rule := role.Rules[0]
 					s.Contains(rule.Verbs, "get", "missing rule verb get")
@@ -345,12 +390,15 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 			s.Require().NoError(err)
 			s.NotNil(clusterRoleBindingList.Items) // TODO
 
-			s.Len(clusterRoleBindingList.Items, len(ts.expectedClusterRoleBindings), "not matching expected cluster role binding count")
-			if len(clusterRoleBindingList.Items) == len(ts.expectedClusterRoleBindings) {
+			s.Len(clusterRoleBindingList.Items, len(ts.expectedClusterRoleBindingSubjects), "not matching expected cluster role binding count")
+			if len(clusterRoleBindingList.Items) == len(ts.expectedClusterRoleBindingSubjects) {
 				for _, roleBinding := range clusterRoleBindingList.Items {
 					bindingName := roleBinding.GetName()
 					_, ok := ts.expectedClusterRoleNames[bindingName]
 					s.True(ok, "not found expected role binding %s", bindingName)
+					expectedClusterRoleBinding, ok := ts.expectedClusterRoleBindingSubjects[bindingName]
+					s.True(ok, "not found expected role binding subjects")
+
 					s.Len(roleBinding.GetOwnerReferences(), 1, "expected one object reference")
 					ownerReference := roleBinding.GetOwnerReferences()[0]
 					s.Equal(radixDNSAlias.GetName(), ownerReference.Name, "invalid owner reference name")
@@ -358,21 +406,16 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 					s.Equal(radixDNSAlias.APIVersion, ownerReference.APIVersion, "invalid owner reference api version")
 					s.Equal(radixDNSAlias.Kind, ownerReference.Kind, "invalid owner reference kind")
 					s.False(*ownerReference.Controller)
-					s.Len(roleBinding.RoleRef, 1, "role binding should have 1 role ref")
+
 					roleRef := roleBinding.RoleRef
-					s.Equal(rbacv1.GroupName, roleRef.APIGroup)
-					s.Equal(k8s.KindClusterRole, roleRef.Kind)
+					s.Equal(rbacv1.GroupName, roleRef.APIGroup, "invalid api group in role binding role ref")
+					s.Equal(k8s.KindClusterRole, roleRef.Kind, "invalid kind in role binding role ref")
 					s.Equal(bindingName, roleRef.Name)
-					s.Len(roleBinding.Subjects, 1, "role binding should have 1 subject")
-					subject := roleBinding.Subjects[0]
-					s.Contains(subject.Name, "get", "missing subject verb get")
-					s.Contains(subject.Verbs, "list", "missing subject verb list")
-					s.Equal(radixv1.SchemeGroupVersion.Group, subject.APIGroup, "invalid api group")
-					expectedBinding, ok := ts.expectedClusterRoleBindings[bindingName]
-					for _, adGroup := range expectedBinding.adGroups {
-						s.Equal(adGroup, subject.Name)
-						s.Equal(rbacv1.GroupName, subject.APIGroup)
-						s.Equal(rbacv1.GroupKind, subject.Kind, "invalid or missing subject group name")
+					s.Len(roleBinding.Subjects, len(expectedClusterRoleBinding.adGroups), "not matching subjects")
+					for _, subject := range roleBinding.Subjects {
+						s.Equal(subject.APIGroup, rbacv1.GroupName, "invalid subject api group")
+						s.Equal(subject.Kind, rbacv1.GroupKind, "invalid subject kind")
+						s.Contains(expectedClusterRoleBinding.adGroups, subject.Name, "missing subject name in expected AD groups")
 					}
 				}
 			}

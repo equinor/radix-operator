@@ -17,8 +17,16 @@ import (
 
 // syncRbac Grants access to Radix DNSAlias to application admin and reader
 func (s *syncer) syncRbac() error {
-	appName := s.radixDNSAlias.Spec.AppName
-	rr, err := s.kubeUtil.GetRegistration(appName)
+	adminRoleName := s.getClusterRoleNameForAdmin()
+	readerRoleName := s.getClusterRoleNameForReader()
+	if err := s.syncClusterRoles(adminRoleName, readerRoleName); err != nil {
+		return err
+	}
+	return s.syncClusterRoleBindings(adminRoleName, readerRoleName)
+}
+
+func (s *syncer) syncClusterRoleBindings(adminRoleName, readerRoleName string) error {
+	rr, err := s.kubeUtil.GetRegistration(s.radixDNSAlias.Spec.AppName)
 	if err != nil {
 		return err
 	}
@@ -26,22 +34,26 @@ func (s *syncer) syncRbac() error {
 	if err != nil {
 		return err
 	}
+	if len(appAdminSubjects) > 0 {
+		adminClusterRoleBinding := s.buildClusterRoleBinding(adminRoleName, appAdminSubjects)
+		if err := s.kubeUtil.ApplyClusterRoleBinding(adminClusterRoleBinding); err != nil {
+			return err
+		}
+	}
+	if appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups); len(appReaderSubjects) > 0 {
+		readerClusterRoleBinding := s.buildClusterRoleBinding(readerRoleName, appReaderSubjects)
+		return s.kubeUtil.ApplyClusterRoleBinding(readerClusterRoleBinding)
+	}
+	return nil
+}
 
-	adminClusterRole := s.buildDNSAliasClusterRole(s.getClusterRoleNameForAdmin(), []string{"get", "list"})
+func (s *syncer) syncClusterRoles(adminRoleName, readerRoleName string) error {
+	adminClusterRole := s.buildDNSAliasClusterRole(adminRoleName, []string{"get", "list"})
 	if err := s.kubeUtil.ApplyClusterRole(adminClusterRole); err != nil {
 		return err
 	}
-	readerClusterRole := s.buildDNSAliasClusterRole(s.getClusterRoleNameForReader(), []string{"get", "list"})
-	if err := s.kubeUtil.ApplyClusterRole(readerClusterRole); err != nil {
-		return err
-	}
-	adminClusterRoleBinding := s.buildClusterRoleBinding(adminClusterRole, appAdminSubjects)
-	if err := s.kubeUtil.ApplyClusterRoleBinding(adminClusterRoleBinding); err != nil {
-		return err
-	}
-	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
-	readerClusterRoleBinding := s.buildClusterRoleBinding(readerClusterRole, appReaderSubjects)
-	return s.kubeUtil.ApplyClusterRoleBinding(readerClusterRoleBinding)
+	readerClusterRole := s.buildDNSAliasClusterRole(readerRoleName, []string{"get", "list"})
+	return s.kubeUtil.ApplyClusterRole(readerClusterRole)
 }
 
 func (s *syncer) getClusterRoleNameForAdmin() string {
@@ -75,21 +87,21 @@ func (s *syncer) buildClusterRole(clusterRoleName string, rules ...rbacv1.Policy
 	}
 }
 
-func (s *syncer) buildClusterRoleBinding(clusterRole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+func (s *syncer) buildClusterRoleBinding(clusterRoleName string, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindClusterRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            clusterRole.Name,
+			Name:            clusterRoleName,
 			Labels:          s.getLabelsForDNSAliasRbac(),
 			OwnerReferences: s.getOwnerReference(),
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
-			Name:     clusterRole.Name,
+			Name:     clusterRoleName,
 		},
 		Subjects: subjects,
 	}
