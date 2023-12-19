@@ -178,6 +178,7 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 	}
 }
 
+//nolint:staticcheck
 func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	// New publicPort does not exist, old public does not exist
 	ra := utils.ARadixApplication().

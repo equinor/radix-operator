@@ -61,7 +61,6 @@ func (s *handlerSuite) Test_NewHandler_ConfigOptionsCalled() {
 }
 
 func (s *handlerSuite) Test_Sync() {
-	const testDeploymentHistoryLimit = 7
 	nonExistingRdName, inactiveRdName, activeRdMissingRrName, activeRdName := "nonexisting-rd", "inactive-rd", "missingrr-rd", "active-rd"
 	appName := "any-app"
 	namespace := "any-ns"

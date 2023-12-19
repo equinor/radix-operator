@@ -29,7 +29,9 @@ func setupSecretsTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixcli
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid")
+	if err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid"); err != nil {
+		panic(err)
+	}
 	return &handlerTestUtils, kubeclient, kubeUtil, radixclient, prometheusclient
 }
 
