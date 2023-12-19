@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
+	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -58,13 +59,18 @@ const testClusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 const testEgressIps = "0.0.0.0"
-const testTenantId = "123456789"
-const testRadixDeploymentHistoryLimit = 10
-const testKubernetesApiPort = 543
+
+// const testTenantId = "123456789"
+// const testRadixDeploymentHistoryLimit = 10
+// const testKubernetesApiPort = 543
 
 var testConfig = config.Config{
-
-	CertificateAutomation: &certificateconfig.AutomationConfig{
+	DeploymentSyncer: deployment.SyncerConfig{
+		TenantID:               "123456789",
+		KubernetesAPIPort:      543,
+		DeploymentHistoryLimit: 10,
+	},
+	CertificateAutomation: certificateconfig.AutomationConfig{
 		ClusterIssuer: "test-cert-issuer",
 		Duration:      10000 * time.Hour,
 		RenewBefore:   5000 * time.Hour,
@@ -1729,7 +1735,9 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 						utils.NewDeployJobComponentBuilder().WithName("job1"),
 					), func(syncer DeploymentSyncer) {
 					if s, ok := syncer.(*Deployment); ok {
-						s.deploymentHistoryLimit = 2
+						newcfg := *s.config
+						newcfg.DeploymentSyncer.DeploymentHistoryLimit = 2
+						s.config = &newcfg
 					}
 				})
 				err := addRadixBatches(radixclient, envNamespace, deploymentName, ts.deploymentsReferencedInJobs[deploymentName])
@@ -2862,7 +2870,9 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	// Current cluster is active cluster
 	deploymentHistoryLimitSetter := func(syncer DeploymentSyncer) {
 		if s, ok := syncer.(*Deployment); ok {
-			s.deploymentHistoryLimit = anyLimit
+			newcfg := *s.config
+			newcfg.DeploymentSyncer.DeploymentHistoryLimit = anyLimit
+			s.config = &newcfg
 		}
 	}
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
@@ -3938,16 +3948,7 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	annotations2 := ingress.NewMockAnnotationProvider(ctrl)
 	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
 
-	syncer := Deployment{
-		kubeclient:                 kubeclient,
-		radixclient:                radixclient,
-		prometheusperatorclient:    prometheusclient,
-		kubeutil:                   kubeUtil,
-		registration:               rr,
-		radixDeployment:            rd,
-		ingressAnnotationProviders: []ingress.AnnotationProvider{annotations1, annotations2},
-	}
-
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, rr, rd, []ingress.AnnotationProvider{annotations1, annotations2}, nil, &config.Config{})
 	err := syncer.OnSync()
 	assert.Nil(t, err)
 	ingresses, _ := kubeclient.NetworkingV1().Ingresses("").List(context.Background(), metav1.ListOptions{})
@@ -3971,16 +3972,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
 	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], "app-dev").Times(1).Return(nil, errors.New("any error"))
 
-	syncer := Deployment{
-		kubeclient:                 kubeclient,
-		radixclient:                radixclient,
-		prometheusperatorclient:    prometheusclient,
-		kubeutil:                   kubeUtil,
-		registration:               rr,
-		radixDeployment:            rd,
-		ingressAnnotationProviders: []ingress.AnnotationProvider{annotations1},
-	}
-
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, rr, rd, []ingress.AnnotationProvider{annotations1}, nil, &config.Config{})
 	err := syncer.OnSync()
 	assert.Error(t, err)
 }
@@ -3998,16 +3990,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect().Times(1).Return(nil)
 	auxResource.EXPECT().Sync().Times(1).Return(nil)
 
-	syncer := Deployment{
-		kubeclient:              kubeclient,
-		radixclient:             radixclient,
-		prometheusperatorclient: prometheusclient,
-		kubeutil:                kubeUtil,
-		registration:            rr,
-		radixDeployment:         rd,
-		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
-	}
-
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err := syncer.OnSync()
 	assert.Nil(t, err)
 }
@@ -4026,16 +4009,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect().Times(1).Return(nil)
 	auxResource.EXPECT().Sync().Times(1).Return(auxErr)
 
-	syncer := Deployment{
-		kubeclient:              kubeclient,
-		radixclient:             radixclient,
-		prometheusperatorclient: prometheusclient,
-		kubeutil:                kubeUtil,
-		registration:            rr,
-		radixDeployment:         rd,
-		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
-	}
-
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err := syncer.OnSync()
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -4054,16 +4028,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect().Times(1).Return(auxErr)
 	auxResource.EXPECT().Sync().Times(0)
 
-	syncer := Deployment{
-		kubeclient:              kubeclient,
-		radixclient:             radixclient,
-		prometheusperatorclient: prometheusclient,
-		kubeutil:                kubeUtil,
-		registration:            rr,
-		radixDeployment:         rd,
-		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
-	}
-
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err := syncer.OnSync()
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -4355,7 +4320,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 		return nil, err
 	}
 
-	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil, &testConfig)
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd /*testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit,*/, nil, nil, &testConfig)
 	modifySyncer(deploymentSyncer)
 	err = deploymentSyncer.OnSync()
 	if err != nil {
@@ -4378,7 +4343,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil, &testConfig)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd /*testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit,*/, nil, nil, &testConfig)
 	err = deployment.OnSync()
 	if err != nil {
 		return err

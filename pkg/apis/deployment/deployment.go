@@ -50,9 +50,6 @@ type Deployment struct {
 	radixDeployment            *v1.RadixDeployment
 	auxResourceManagers        []AuxiliaryResourceManager
 	ingressAnnotationProviders []ingress.AnnotationProvider
-	tenantId                   string
-	kubernetesApiPort          int32
-	deploymentHistoryLimit     int
 	config                     *config.Config
 }
 
@@ -60,7 +57,7 @@ type Deployment struct {
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
@@ -70,9 +67,6 @@ func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, r
 		radixDeployment:            radixDeployment,
 		auxResourceManagers:        auxResourceManagers,
 		ingressAnnotationProviders: ingressAnnotationProviders,
-		tenantId:                   tenantId,
-		kubernetesApiPort:          kubernetesApiPort,
-		deploymentHistoryLimit:     deploymentHistoryLimit,
 		config:                     config,
 	}
 }
@@ -142,7 +136,7 @@ func (deploy *Deployment) OnSync() error {
 		return err
 	}
 
-	deploy.maintainHistoryLimit(deploy.deploymentHistoryLimit)
+	deploy.maintainHistoryLimit(deploy.config.DeploymentSyncer.DeploymentHistoryLimit)
 	metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
 	return nil
 }

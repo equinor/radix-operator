@@ -39,10 +39,6 @@ type syncerTestSuite struct {
 	promClient  *prometheusfake.Clientset
 }
 
-const (
-	testDeploymentHistoryLimit = 10
-)
-
 func TestSyncerTestSuite(t *testing.T) {
 	suite.Run(t, new(syncerTestSuite))
 }
@@ -992,7 +988,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	s.Require().NoError(err)
 	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, "", 0, testDeploymentHistoryLimit, nil, nil, &config.Config{})
+	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, nil, &config.Config{})
 	s.Require().NoError(deploySyncer.OnSync())
 
 	sut := s.createSyncer(batch)

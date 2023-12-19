@@ -19,9 +19,9 @@ func (deploy *Deployment) setDefaultNetworkPolicies() []error {
 
 	networkPolicies := []*v1.NetworkPolicy{
 		defaultIngressNetworkPolicy(appName, env, owner),
-		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.kubernetesApiPort),
+		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config.DeploymentSyncer.KubernetesAPIPort),
 		allowOauthAuxComponentEgressNetworkPolicy(appName, env, owner),
-		allowBatchSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.kubernetesApiPort),
+		allowBatchSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config.DeploymentSyncer.KubernetesAPIPort),
 	}
 
 	var errs []error

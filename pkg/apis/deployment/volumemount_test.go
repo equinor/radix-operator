@@ -8,6 +8,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -95,6 +96,7 @@ func getDeployment(testEnv TestEnv) *Deployment {
 		radixclient:             testEnv.radixclient,
 		kubeutil:                testEnv.kubeUtil,
 		prometheusperatorclient: testEnv.prometheusclient,
+		config:                  &config.Config{},
 	}
 }
 

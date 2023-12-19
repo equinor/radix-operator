@@ -19,9 +19,6 @@ type DeploymentSyncerFactoryFunc func(
 	prometheusperatorclient monitoring.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
-	tenantId string,
-	kubernetesApiPort int32,
-	deploymentHistoryLimit int,
 	ingressAnnotationProviders []ingress.AnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 	config *config.Config,
@@ -34,14 +31,11 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	prometheusperatorclient monitoring.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
-	tenantId string,
-	kubernetesApiPort int32,
-	deploymentHistoryLimit int,
 	ingressAnnotationProviders []ingress.AnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 	config *config.Config,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, deploymentHistoryLimit, ingressAnnotationProviders, auxResourceManagers, config)
+	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, config)
 }
 
 // DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -53,9 +47,6 @@ type DeploymentSyncerFactory interface {
 		prometheusperatorclient monitoring.Interface,
 		registration *v1.RadixRegistration,
 		radixDeployment *v1.RadixDeployment,
-		tenantId string,
-		kubernetesApiPort int32,
-		deploymentHistoryLimit int,
 		ingressAnnotationProviders []ingress.AnnotationProvider,
 		auxResourceManagers []AuxiliaryResourceManager,
 		config *config.Config,
