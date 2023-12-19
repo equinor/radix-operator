@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -67,31 +68,13 @@ type testIngress struct {
 	port      int32
 }
 
-type testClusterRole struct {
-	appName string
-}
-
-type testClusterRoleBinding struct {
-	adGroups []string
-}
-
-type ingressScenario struct {
-	name            string
-	dnsAlias        commonTest.DNSAlias
-	existingIngress map[string]testIngress
-	expectedIngress map[string]testIngress
-}
-
-type rbacScenario struct {
-	name                               string
-	dnsAlias                           commonTest.DNSAlias
-	expectedClusterRoleNames           map[string]any
-	expectedClusterRoleBindingSubjects map[string]testClusterRoleBinding
-	adminADGroups                      []string
-	readerADGroups                     []string
-}
-
 func (s *syncerTestSuite) Test_OnSync_ingresses() {
+	type ingressScenario struct {
+		name            string
+		dnsAlias        commonTest.DNSAlias
+		existingIngress map[string]testIngress
+		expectedIngress map[string]testIngress
+	}
 	const (
 		appName1           = "app1"
 		appName2           = "app2"
@@ -179,7 +162,8 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
 			defer s.T().Cleanup(func() {
 				if len(defaultUserGroupID) > 0 {
-					os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultUserGroupID)
+					err := os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultUserGroupID)
+					s.Require().NoError(err)
 				}
 			})
 			s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, testDefaultUserGroupID)
@@ -187,12 +171,12 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 			s.SetupTest()
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
-			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias), "create existing alias")
+			err := commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias)
+			s.Require().NoError(err, "create existing alias")
 
-			s.registeringRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
-			s.registeringRadixDeployments(rd1, rd2, rd3, rd4)
-			err := registerExistingIngresses(s.kubeClient, ts.existingIngress)
-			s.Require().NoError(err, "create existing ingresses")
+			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
+			s.registerRadixDeployments(rd1, rd2, rd3, rd4)
+			s.registerExistingIngresses(s.kubeClient, ts.existingIngress)
 
 			syncer := s.createSyncer(radixDNSAlias)
 			err = syncer.OnSync()
@@ -248,6 +232,18 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 }
 
 func (s *syncerTestSuite) Test_OnSync_rbac() {
+	type testClusterRoleBinding struct {
+		adGroups []string
+	}
+	type rbacScenario struct {
+		name                               string
+		dnsAlias                           commonTest.DNSAlias
+		expectedClusterRoleNames           map[string]any
+		expectedClusterRoleBindingSubjects map[string]testClusterRoleBinding
+		adminADGroups                      []string
+		readerADGroups                     []string
+		existingClusterRoleBindings        []string
+	}
 	const (
 		appName1           = "app1"
 		appName2           = "app2"
@@ -256,7 +252,6 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 		component1         = "component1"
 		component2         = "component2"
 		alias1             = "alias1"
-		alias2             = "alias2"
 		component1Port8080 = 8080
 		component2Port9090 = 9090
 	)
@@ -278,7 +273,7 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 			adminADGroups:  nil,
 			readerADGroups: nil,
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1": testClusterRoleBinding{adGroups: []string{testDefaultUserGroupID}},
+				"radix-platform-user-rda-app1": {adGroups: []string{testDefaultUserGroupID}},
 			},
 		},
 		{
@@ -291,22 +286,8 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 			adminADGroups:  nil,
 			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1":        testClusterRoleBinding{adGroups: []string{testDefaultUserGroupID}},
-				"radix-platform-user-rda-reader-app1": testClusterRoleBinding{adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
-			},
-		},
-		{
-			name:     "create rbac for specified admin AD group and reader group",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1":        true,
-				"radix-platform-user-rda-reader-app1": true,
-			},
-			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
-			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
-			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1":        testClusterRoleBinding{adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
-				"radix-platform-user-rda-reader-app1": testClusterRoleBinding{adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
+				"radix-platform-user-rda-app1":        {adGroups: []string{testDefaultUserGroupID}},
+				"radix-platform-user-rda-reader-app1": {adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
 			},
 		},
 		{
@@ -319,7 +300,49 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
 			readerADGroups: nil,
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1": testClusterRoleBinding{adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
+				"radix-platform-user-rda-app1": {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
+			},
+		},
+		{
+			name:     "create rbac for specified admin AD group and reader group",
+			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1":        true,
+				"radix-platform-user-rda-reader-app1": true,
+			},
+			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
+			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
+			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
+				"radix-platform-user-rda-app1":        {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
+				"radix-platform-user-rda-reader-app1": {adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
+			},
+		},
+		{
+			name:     "delete existing reader role binding",
+			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1":        true,
+				"radix-platform-user-rda-reader-app1": true,
+			},
+			adminADGroups:               []string{"bde12869-4a59-490c-bf4d-266ba5f783be"},
+			readerADGroups:              nil,
+			existingClusterRoleBindings: []string{"radix-platform-user-rda-app1", "radix-platform-user-rda-reader-app1"},
+			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
+				"radix-platform-user-rda-app1": {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be"}},
+			},
+		},
+		{
+			name:     "not delete existing admin role binding",
+			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1":        true,
+				"radix-platform-user-rda-reader-app1": true,
+			},
+			adminADGroups:               nil,
+			readerADGroups:              nil,
+			existingClusterRoleBindings: []string{"radix-platform-user-rda-app1", "radix-platform-user-rda-reader-app1"},
+			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
+				"radix-platform-user-rda-app1": {adGroups: []string{testDefaultUserGroupID}},
 			},
 		},
 	}
@@ -328,7 +351,8 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
 			defer s.T().Cleanup(func() {
 				if len(defaultUserGroupID) > 0 {
-					os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultUserGroupID)
+					err := os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultUserGroupID)
+					s.Require().NoError(err)
 				}
 			})
 			s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, testDefaultUserGroupID)
@@ -342,8 +366,9 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 			}
 			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias), "create existing alias")
 
-			s.registeringRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, ts.adminADGroups, ts.readerADGroups)
-			s.registeringRadixDeployments(rd1, rd2, rd3, rd4)
+			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, ts.adminADGroups, ts.readerADGroups)
+			s.registerRadixDeployments(rd1, rd2, rd3, rd4)
+			s.registerClusterRoleBindings(radixDNSAlias, ts.existingClusterRoleBindings)
 
 			syncer := s.createSyncer(radixDNSAlias)
 			err := syncer.OnSync()
@@ -453,7 +478,7 @@ func buildRadixDeployment(appName, component1, component2, envName string, port8
 				WithPublicPort("http")).BuildRD()
 }
 
-func (s *syncerTestSuite) registeringRadixRegistration(appName string, defaultAdminADGroup string, adminADGroups []string, readerADGroups []string) {
+func (s *syncerTestSuite) registerRadixRegistration(appName string, defaultAdminADGroup string, adminADGroups []string, readerADGroups []string) {
 	if len(adminADGroups) == 0 {
 		adminADGroups = []string{defaultAdminADGroup}
 	}
@@ -464,18 +489,26 @@ func (s *syncerTestSuite) registeringRadixRegistration(appName string, defaultAd
 			ReaderAdGroups: readerADGroups,
 		},
 	}, metav1.CreateOptions{})
-	s.Require().NoError(err)
+	s.Require().NoError(err, "create existing radix registration %s", appName)
 }
-func (s *syncerTestSuite) registeringRadixDeployments(radixDeployments ...*radixv1.RadixDeployment) {
+
+func (s *syncerTestSuite) registerRadixDeployments(radixDeployments ...*radixv1.RadixDeployment) {
 	for _, rd := range radixDeployments {
 		namespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
 		_, err := s.radixClient.RadixV1().RadixDeployments(namespace).
 			Create(context.Background(), rd, metav1.CreateOptions{})
-		s.Require().NoError(err)
+		s.Require().NoError(err, "create existing radix deployment %s", rd.GetName())
 	}
 }
 
-func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress) error {
+func (s *syncerTestSuite) registerClusterRoleBindings(radixDNSAlias *radixv1.RadixDNSAlias, roleBindings []string) {
+	for _, name := range roleBindings {
+		err := s.kubeUtil.ApplyClusterRoleBinding(internal.BuildClusterRoleBinding(name, nil, radixDNSAlias))
+		s.Require().NoError(err, "create existing cluster role binding %s", name)
+	}
+}
+
+func (s *syncerTestSuite) registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress) {
 	for _, ingProps := range testIngresses {
 		ing := &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
@@ -485,9 +518,6 @@ func registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses ma
 			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.component, defaults.TLSSecretName, ingProps.port),
 		}
 		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, ingProps.appName, ingProps.envName, ing)
-		if err != nil {
-			return err
-		}
+		s.Require().NoError(err, "create existing ingress %s", ing.GetName())
 	}
-	return nil
 }
