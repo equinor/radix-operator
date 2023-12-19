@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/maps"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
+	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -69,12 +70,11 @@ func NewConfig() *apiconfig.Config {
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
 		},
-		DeploymentSyncer: apiconfig.DeploymentSyncerConfig{
-			CertificateAutomation: apiconfig.CertificateAutomationConfig{
-				ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
-				Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
-				RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
-			},
+
+		CertificateAutomation: &certificateconfig.AutomationConfig{
+			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
+			Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
+			RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
 		},
 	}
 }

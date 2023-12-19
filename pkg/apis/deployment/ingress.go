@@ -343,7 +343,7 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
 	ingressSpec := ingress.GetIngressSpec(externalAlias.FQDN, component.GetName(), externalAlias.FQDN, publicPortNumber)
-	annotationProviders := append(deploy.ingressAnnotationProviders, ingress.NewExternalDNSAnnotationProvider(externalAlias.UseCertificateAutomation, deploy.config.DeploymentSyncer.CertificateAutomation))
+	annotationProviders := append(deploy.ingressAnnotationProviders, ingress.NewExternalDNSAnnotationProvider(externalAlias.UseCertificateAutomation, deploy.config.CertificateAutomation.ClusterIssuer, deploy.config.CertificateAutomation.Duration, deploy.config.CertificateAutomation.RenewBefore))
 	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, externalAlias.FQDN, ingressSpec, annotationProviders, ownerReference)
 	if err != nil {
 		return nil, err

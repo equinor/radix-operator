@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -62,12 +63,11 @@ const testRadixDeploymentHistoryLimit = 10
 const testKubernetesApiPort = 543
 
 var testConfig = config.Config{
-	DeploymentSyncer: config.DeploymentSyncerConfig{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			ClusterIssuer: "test-cert-issuer",
-			Duration:      10000 * time.Hour,
-			RenewBefore:   5000 * time.Hour,
-		},
+
+	CertificateAutomation: &certificateconfig.AutomationConfig{
+		ClusterIssuer: "test-cert-issuer",
+		Duration:      10000 * time.Hour,
+		RenewBefore:   5000 * time.Hour,
 	},
 }
 
@@ -821,9 +821,9 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "app", externalDNS3.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 	expectedAnnotations := map[string]string{
 		kube.RadixExternalDNSUseAutomationAnnotation: "true",
-		"cert-manager.io/cluster-issuer":             testConfig.DeploymentSyncer.CertificateAutomation.ClusterIssuer,
-		"cert-manager.io/duration":                   testConfig.DeploymentSyncer.CertificateAutomation.Duration.String(),
-		"cert-manager.io/renew-before":               testConfig.DeploymentSyncer.CertificateAutomation.RenewBefore.String(),
+		"cert-manager.io/cluster-issuer":             testConfig.CertificateAutomation.ClusterIssuer,
+		"cert-manager.io/duration":                   testConfig.CertificateAutomation.Duration.String(),
+		"cert-manager.io/renew-before":               testConfig.CertificateAutomation.RenewBefore.String(),
 	}
 	assert.Equal(t, expectedAnnotations, externalDNS3.Annotations)
 	assert.Equal(t, "external3.alias.com", externalDNS3.Spec.Rules[0].Host, "App should have an external alias")
@@ -2715,9 +2715,9 @@ func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t
 	require.NoError(t, err)
 	expectedAnnotations := map[string]string{
 		kube.RadixExternalDNSUseAutomationAnnotation: "true",
-		"cert-manager.io/cluster-issuer":             testConfig.DeploymentSyncer.CertificateAutomation.ClusterIssuer,
-		"cert-manager.io/duration":                   testConfig.DeploymentSyncer.CertificateAutomation.Duration.String(),
-		"cert-manager.io/renew-before":               testConfig.DeploymentSyncer.CertificateAutomation.RenewBefore.String(),
+		"cert-manager.io/cluster-issuer":             testConfig.CertificateAutomation.ClusterIssuer,
+		"cert-manager.io/duration":                   testConfig.CertificateAutomation.Duration.String(),
+		"cert-manager.io/renew-before":               testConfig.CertificateAutomation.RenewBefore.String(),
 	}
 	assert.Equal(t, expectedAnnotations, ingress.Annotations)
 	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
