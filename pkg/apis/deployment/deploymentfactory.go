@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -23,6 +24,7 @@ type DeploymentSyncerFactoryFunc func(
 	deploymentHistoryLimit int,
 	ingressAnnotationProviders []ingress.AnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
+	config *config.Config,
 ) DeploymentSyncer
 
 func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
@@ -37,8 +39,9 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	deploymentHistoryLimit int,
 	ingressAnnotationProviders []ingress.AnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
+	config *config.Config,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, deploymentHistoryLimit, ingressAnnotationProviders, auxResourceManagers)
+	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, deploymentHistoryLimit, ingressAnnotationProviders, auxResourceManagers, config)
 }
 
 // DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -55,5 +58,6 @@ type DeploymentSyncerFactory interface {
 		deploymentHistoryLimit int,
 		ingressAnnotationProviders []ingress.AnnotationProvider,
 		auxResourceManagers []AuxiliaryResourceManager,
+		config *config.Config,
 	) DeploymentSyncer
 }

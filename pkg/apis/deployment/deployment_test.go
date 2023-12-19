@@ -14,11 +14,12 @@ import (
 	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -30,6 +31,7 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -37,13 +39,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 	secretProvider "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
@@ -56,7 +61,17 @@ const testTenantId = "123456789"
 const testRadixDeploymentHistoryLimit = 10
 const testKubernetesApiPort = 543
 
-func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface, secretProvider.Interface) {
+var testConfig = config.Config{
+	DeploymentSyncer: config.DeploymentSyncerConfig{
+		CertificateAutomation: config.CertificateAutomationConfig{
+			ClusterIssuer: "test-cert-issuer",
+			Duration:      10000 * time.Hour,
+			RenewBefore:   5000 * time.Hour,
+		},
+	},
+}
+
+func setupTest() (*test.Utils, *kubefake.Clientset, *kube.Kube, radixclient.Interface, prometheusclient.Interface, secretProvider.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset()
@@ -123,8 +138,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 8081).
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
-							WithDNSExternalAlias("updated_some.alias.com").
-							WithDNSExternalAlias("updated_another.alias.com").
+							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "updated_some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_external.alias.com", UseCertificateAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "65Mi",
 								"cpu":    "251m",
@@ -163,8 +177,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 8080).
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
-							WithDNSExternalAlias("some.alias.com").
-							WithDNSExternalAlias("another.alias.com").
+							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external.alias.com", UseCertificateAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "64Mi",
 								"cpu":    "250m",
@@ -186,14 +199,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 3000).
 							WithPublicPort("http").
 							WithVolumeMounts(
-								v1.RadixVolumeMount{
-									Type:      v1.MountTypeBlob,
+								radixv1.RadixVolumeMount{
+									Type:      radixv1.MountTypeBlob,
 									Name:      blobVolumeName,
 									Container: "some-container",
 									Path:      "some-path",
 								},
-								v1.RadixVolumeMount{
-									Type:    v1.MountTypeBlobFuse2FuseCsiAzure,
+								radixv1.RadixVolumeMount{
+									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 									Name:    blobCsiAzureVolumeName,
 									Storage: "some-storage",
 									Path:    "some-path2",
@@ -492,14 +505,14 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 								"cpu":    "501m",
 							}).
 							WithVolumeMounts(
-								v1.RadixVolumeMount{
-									Type:      v1.MountTypeBlob,
+								radixv1.RadixVolumeMount{
+									Type:      radixv1.MountTypeBlob,
 									Name:      blobVolumeName,
 									Container: "some-container",
 									Path:      "some-path",
 								},
-								v1.RadixVolumeMount{
-									Type:    v1.MountTypeBlobFuse2FuseCsiAzure,
+								radixv1.RadixVolumeMount{
+									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 									Name:    blobCsiAzureVolumeName,
 									Storage: "some-storage",
 									Path:    "some-path",
@@ -698,8 +711,7 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com"),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}),
 			utils.NewDeployComponentBuilder().
 				WithName("redis").
 				WithPort("http", 6379).
@@ -750,8 +762,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com"),
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "external1.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external2.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external3.alias.com", UseCertificateAutomation: true}),
 			utils.NewDeployComponentBuilder().
 				WithName("redis").
 				WithPort("http", 6379).
@@ -765,12 +776,13 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 7, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
+	assert.Equal(t, 8, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
 	assert.Truef(t, ingressByNameExists("app", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("radixquote", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("edcradix-url-alias", ingresses), "Cluster specific ingress for public component should exist")
-	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have an external alias")
-	assert.Truef(t, ingressByNameExists("another.alias.com", ingresses), "App should have another external alias")
+	assert.Truef(t, ingressByNameExists("external1.alias.com", ingresses), "App should have external1 external alias")
+	assert.Truef(t, ingressByNameExists("external2.alias.com", ingresses), "App should have external2 external alias")
+	assert.Truef(t, ingressByNameExists("external3.alias.com", ingresses), "App should have external3 external alias")
 	assert.Truef(t, ingressByNameExists("app-active-cluster-url-alias", ingresses), "App should have another external alias")
 	assert.Truef(t, ingressByNameExists("radixquote-active-cluster-url-alias", ingresses), "Radixquote should have had an ingress")
 
@@ -780,23 +792,41 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Empty(t, appAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, appAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", appAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Len(t, appAlias.Annotations, 0)
 	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", appAlias.Spec.Rules[0].Host, "App should have an external alias")
 
-	externalAlias := getIngressByName("some.alias.com", ingresses)
-	assert.Equal(t, int32(8080), externalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, externalAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", externalAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, externalAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", externalAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, "some.alias.com", externalAlias.Spec.Rules[0].Host, "App should have an external alias")
+	externalDNS1 := getIngressByName("external1.alias.com", ingresses)
+	assert.Equal(t, int32(8080), externalDNS1.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, externalDNS1.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "true", externalDNS1.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Empty(t, externalDNS1.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", externalDNS1.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, externalDNS1.Annotations)
+	assert.Equal(t, "external1.alias.com", externalDNS1.Spec.Rules[0].Host, "App should have an external alias")
 
-	anotherExternalAlias := getIngressByName("another.alias.com", ingresses)
-	assert.Equal(t, int32(8080), anotherExternalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, anotherExternalAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", anotherExternalAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, anotherExternalAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", anotherExternalAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, "another.alias.com", anotherExternalAlias.Spec.Rules[0].Host, "App should have an external alias")
+	externalDNS2 := getIngressByName("external2.alias.com", ingresses)
+	assert.Equal(t, int32(8080), externalDNS2.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, externalDNS2.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "true", externalDNS2.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Empty(t, externalDNS2.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", externalDNS2.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, externalDNS2.Annotations)
+	assert.Equal(t, "external2.alias.com", externalDNS2.Spec.Rules[0].Host, "App should have an external alias")
+
+	externalDNS3 := getIngressByName("external3.alias.com", ingresses)
+	assert.Equal(t, int32(8080), externalDNS3.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, externalDNS3.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "true", externalDNS3.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Empty(t, externalDNS3.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", externalDNS3.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+	expectedAnnotations := map[string]string{
+		kube.RadixExternalDNSUseAutomationAnnotation: "true",
+		"cert-manager.io/cluster-issuer":             testConfig.DeploymentSyncer.CertificateAutomation.ClusterIssuer,
+		"cert-manager.io/duration":                   testConfig.DeploymentSyncer.CertificateAutomation.Duration.String(),
+		"cert-manager.io/renew-before":               testConfig.DeploymentSyncer.CertificateAutomation.RenewBefore.String(),
+	}
+	assert.Equal(t, expectedAnnotations, externalDNS3.Annotations)
+	assert.Equal(t, "external3.alias.com", externalDNS3.Spec.Rules[0].Host, "App should have an external alias")
 
 	appActiveClusterIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
 	assert.Equal(t, int32(8080), appActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
@@ -817,15 +847,14 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 
 	appAdmAppRole := getRoleByName("radix-app-adm-app", roles)
 	assert.Equal(t, "secrets", appAdmAppRole.Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
-	assert.Equal(t, "some.alias.com", appAdmAppRole.Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
-	assert.Equal(t, "another.alias.com", appAdmAppRole.Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
+	assert.ElementsMatch(t, []string{"external1.alias.com", "external2.alias.com"}, appAdmAppRole.Rules[0].ResourceNames)
 
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
-	assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
+	assert.True(t, secretByNameExists("external1.alias.com", secrets), "TLS certificate for external alias is not properly defined")
+	assert.True(t, secretByNameExists("external2.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
 
-	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("some.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
-	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("another.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
+	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("external1.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
+	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("external2.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
 
 	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.ElementsMatch(t, []string{"radix-app-adm-app", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
@@ -836,11 +865,10 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 	// Test
 	t.Run("app with component use default SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithJobComponents().
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
-		require.NoError(t, err)
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -855,16 +883,15 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		appName, envName, componentName, clientId, newClientId := "any-app", "any-env", "any-component", "any-client-id", "new-client-id"
 
 		// Deploy component with Azure identity must create custom SA
-		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(componentName).
-					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: clientId}}),
 			).
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName))
-		require.NoError(t, err)
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -880,16 +907,15 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
 
 		// Deploy component with new Azure identity must update SA
-		_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(componentName).
-					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: newClientId}}),
+					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: newClientId}}),
 			).
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName))
-		require.NoError(t, err)
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -904,13 +930,12 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
 
-		// Re-deploy component without Azure identity should delete custom SA
-		_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		// Redploy component without Azure identity should delete custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(utils.NewDeployComponentBuilder().WithName(componentName)).
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName))
-		require.NoError(t, err)
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -926,17 +951,16 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 	t.Run("app with component using identity fails if SA exist with missing is-service-account-for-component label", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
-		_, err := client.CoreV1().ServiceAccounts("any-app-any-env").Create(
+		client.CoreV1().ServiceAccounts("any-app-any-env").Create(
 			context.Background(),
 			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName}}},
 			metav1.CreateOptions{})
-		require.NoError(t, err)
 
-		_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(componentName).
-					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: clientId}}),
 			).
 			WithJobComponents().
 			WithAppName(appName).
@@ -948,17 +972,16 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 	t.Run("app with component using identity success if SA exist with correct labels", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
-		_, err := client.CoreV1().ServiceAccounts("any-app-any-env").Create(
+		client.CoreV1().ServiceAccounts("any-app-any-env").Create(
 			context.Background(),
 			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "any-other-label": "any-value"}}},
 			metav1.CreateOptions{})
-		require.NoError(t, err)
 
-		_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(componentName).
-					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: clientId}}),
 			).
 			WithJobComponents().
 			WithAppName(appName).
@@ -978,44 +1001,38 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		appName, envName, componentName, clientId, anyOtherServiceAccountName := "any-app", "any-env", "any-component", "any-client-id", "any-other-serviceaccount"
 
 		// A service account that must not be deleted
-		_, err := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).Create(
+		client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).Create(
 			context.Background(),
 			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: anyOtherServiceAccountName, Labels: map[string]string{kube.RadixComponentLabel: "anything"}}},
 			metav1.CreateOptions{})
-		require.NoError(t, err)
 
 		// Deploy component with Azure identity must create custom SA
-		_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(componentName).
-					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: clientId}}),
 				utils.NewDeployComponentBuilder().
 					WithName("any-other-component").
-					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: clientId}}),
 			).
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName))
-		require.NoError(t, err)
 
-		serviceAccounts, err := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			require.NoError(t, err)
-		}
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 3, len(serviceAccounts.Items), "Number of service accounts was not expected")
 
-		// Re-deploy component without Azure identity should delete custom SA
-		_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		// Redploy component without Azure identity should delete custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(componentName).
-					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: clientId}}),
 			).
 			WithJobComponents().
 			WithAppName(appName).
 			WithEnvironment(envName))
-		require.NoError(t, err)
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 2, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -1025,11 +1042,10 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 	t.Run("app with job use radix-job-scheduler SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents().
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
-		require.NoError(t, err)
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -1045,13 +1061,12 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 
 		// Initial deployment, app is a component
-		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
 				utils.NewDeployComponentBuilder().WithName("comp1")).
 			WithJobComponents().
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
-		require.NoError(t, err)
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -1061,13 +1076,12 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// Change app to be a job
-		_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents().
 			WithJobComponents(
 				utils.NewDeployJobComponentBuilder().WithName("job1")).
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
-		require.NoError(t, err)
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -1083,13 +1097,12 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, defaultServiceAccountName, expectedJobAuxDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// And change app back to a component
-		_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
 				utils.NewDeployComponentBuilder().WithName("comp1")).
 			WithJobComponents().
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
-		require.NoError(t, err)
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -1102,11 +1115,10 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 	t.Run("webhook runs as radix-github-webhook SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithJobComponents().
 			WithAppName("radix-github-webhook").
 			WithEnvironment("test"))
-		require.NoError(t, err)
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -1119,11 +1131,10 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 	t.Run("radix-api runs as radix-api SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithJobComponents().
 			WithAppName("radix-api").
 			WithEnvironment("test"))
-		require.NoError(t, err)
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-api", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
@@ -1139,7 +1150,7 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("test").
 		WithJobComponents().
@@ -1154,7 +1165,6 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 				WithName("app").
 				WithPort("http", 8080).
 				WithPublicPort("http")))
-	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -1242,7 +1252,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	anyEnvironment := "test"
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment(anyEnvironment).
 		WithJobComponents().
@@ -1251,7 +1261,6 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 				WithName("component").
 				WithEnvironmentVariables(nil).
 				WithSecrets(nil)))
-	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	t.Run("validate deploy", func(t *testing.T) {
@@ -1291,12 +1300,11 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	defer teardownTest()
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("test").
 		WithLabel("radix-branch", "master").
 		WithLabel("radix-commit", "4faca8595c5283a9d0f17a623b9255a0d9866a2e"))
-	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 
@@ -1320,7 +1328,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	firstUID = "fda3d224-3115-11e9-b189-06c15a8f2fbb"
 	secondUID = "5a8f2fbb-3115-11e9-b189-06c1fda3d224"
 
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("app1").
 		WithEnvironment("prod").
@@ -1332,7 +1340,6 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 				WithName("app").
 				WithPort("http", 8080).
 				WithPublicPort("http")))
-	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace("app1", "prod")
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -1346,7 +1353,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 
 	time.Sleep(1 * time.Millisecond)
 	// This is one second newer deployment
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("seconddeployment").
@@ -1357,7 +1364,6 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 				WithName("app").
 				WithPort("http", 8080).
 				WithPublicPort("http")))
-	require.NoError(t, err)
 
 	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
@@ -1382,8 +1388,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http"))
 
-	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rdBuilder)
-	require.NoError(t, err)
+	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rdBuilder)
 
 	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
@@ -1399,7 +1404,7 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Test first deployment
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("first_deployment").
 		WithAppName("anyapp1").
 		WithEnvironment("test").
@@ -1410,7 +1415,6 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 			utils.NewDeployComponentBuilder().
 				WithName("second").
 				WithAlwaysPullImageOnDeploy(false)))
-	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
 
@@ -1421,7 +1425,7 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 
 	// Test second deployment
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("second_deployment").
 		WithAppName("anyapp1").
 		WithEnvironment("test").
@@ -1432,7 +1436,6 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 			utils.NewDeployComponentBuilder().
 				WithName("second").
 				WithAlwaysPullImageOnDeploy(false)))
-	require.NoError(t, err)
 
 	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	firstDeployment = getDeploymentByName("first", deployments.Items)
@@ -1445,7 +1448,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp1").
 		WithEnvironment("test").
@@ -1464,7 +1467,6 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 				WithName("app3").
 				WithPort("http", 8080).
 				WithPublicPort("http")))
-	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -1472,7 +1474,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp1").
 		WithEnvironment("test").
@@ -1482,7 +1484,6 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 				WithPort("http", 8081).
 				WithAlwaysPullImageOnDeploy(true).
 				WithPublicPort("http")))
-	require.NoError(t, err)
 
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
@@ -1494,7 +1495,7 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp").
 		WithEnvironment("test").
@@ -1502,20 +1503,18 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithReplicas(test.IntPtr(0))))
-	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(0), *deployments.Items[0].Spec.Replicas)
 
-	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app")))
-	require.NoError(t, err)
 
 	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(1), *deployments.Items[0].Spec.Replicas)
@@ -1527,7 +1526,7 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp").
 		WithEnvironment("test").
@@ -1540,7 +1539,6 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
 			utils.NewDeployComponentBuilder().WithName("comp7").WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
 		))
-	require.NoError(t, err)
 
 	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
 	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
@@ -1578,8 +1576,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 
 	// Simulate HPA scaling up comp1 to 3 replicas
 	comp1.Spec.Replicas = pointers.Ptr[int32](3)
-	_, err = client.AppsV1().Deployments(envNamespace).Update(context.Background(), comp1, metav1.UpdateOptions{})
-	require.NoError(t, err)
+	client.AppsV1().Deployments(envNamespace).Update(context.Background(), comp1, metav1.UpdateOptions{})
 
 	// Resync existing RD should use replicas from current deployment for HPA enabled component
 	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1673,15 +1670,14 @@ func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
 			utils.NewDeployComponentBuilder().WithName("comp1"),
-			utils.NewDeployComponentBuilder().WithName("comp2").WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{}}}),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithSecretRefs(radixv1.RadixSecretRefs{AzureKeyVaults: []radixv1.RadixAzureKeyVault{{}}}),
 		))
-	require.NoError(t, err)
 
 	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
 	assert.Nil(t, comp1.Spec.RevisionHistoryLimit)
@@ -1723,7 +1719,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 			now := time.Now()
 			timeShift := 1
 			for _, deploymentName := range ts.deploymentNames {
-				_, err := applyDeploymentWithModifiedSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.NewDeploymentBuilder().
+				applyDeploymentWithModifiedSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.NewDeploymentBuilder().
 					WithRadixApplication(radixApplication).
 					WithDeploymentName(deploymentName).
 					WithAppName("anyapp").
@@ -1736,9 +1732,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 						s.deploymentHistoryLimit = 2
 					}
 				})
-				require.NoError(t, err)
-
-				err = addRadixBatches(radixclient, envNamespace, deploymentName, ts.deploymentsReferencedInJobs[deploymentName])
+				err := addRadixBatches(radixclient, envNamespace, deploymentName, ts.deploymentsReferencedInJobs[deploymentName])
 				assert.NoError(tt, err)
 				timeShift++
 			}
@@ -1749,7 +1743,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 			assert.NoError(tt, err)
 			assert.NotNil(tt, rbList)
 
-			foundRdNames := slice.Map(rdList.Items, func(rd v1.RadixDeployment) string { return rd.GetName() })
+			foundRdNames := slice.Map(rdList.Items, func(rd radixv1.RadixDeployment) string { return rd.GetName() })
 			assert.True(tt, radixutils.EqualStringLists(ts.expectedDeploymentNames, foundRdNames), fmt.Sprintf("expected %v, got %v", ts.expectedDeploymentNames, foundRdNames))
 		})
 	}
@@ -1758,14 +1752,14 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 func addRadixBatches(radixclient radixclient.Interface, envNamespace string, deploymentName string, jobNames []string) error {
 	var errs []error
 	for _, jobName := range jobNames {
-		_, err := radixclient.RadixV1().RadixBatches(envNamespace).Create(context.TODO(), &v1.RadixBatch{
+		_, err := radixclient.RadixV1().RadixBatches(envNamespace).Create(context.TODO(), &radixv1.RadixBatch{
 			ObjectMeta: metav1.ObjectMeta{Name: deploymentName + jobName},
-			Spec: v1.RadixBatchSpec{
-				RadixDeploymentJobRef: v1.RadixDeploymentJobComponentSelector{
-					LocalObjectReference: v1.LocalObjectReference{Name: deploymentName},
+			Spec: radixv1.RadixBatchSpec{
+				RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+					LocalObjectReference: radixv1.LocalObjectReference{Name: deploymentName},
 					Job:                  jobName,
 				},
-				Jobs: []v1.RadixBatchJob{{Name: radixutils.RandString(5)}},
+				Jobs: []radixv1.RadixBatchJob{{Name: radixutils.RandString(5)}},
 			},
 		}, metav1.CreateOptions{})
 		if err != nil {
@@ -1781,7 +1775,7 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp").
 		WithEnvironment("test").
@@ -1789,20 +1783,18 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithReplicas(test.IntPtr(3))))
-	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(3), *deployments.Items[0].Spec.Replicas)
 
-	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app")))
-	require.NoError(t, err)
 
 	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(1), *deployments.Items[0].Spec.Replicas)
@@ -1813,7 +1805,7 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 	defer teardownTest()
 	// Setup
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("any-app").
 		WithEnvironment("dev").
 		WithComponents(
@@ -1822,7 +1814,6 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true)))
-	require.NoError(t, err)
 
 	// Test
 	ingresses, _ := client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
@@ -1832,7 +1823,7 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have another external alias")
 
 	// Remove app alias from dev
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("any-app").
 		WithEnvironment("dev").
 		WithComponents(
@@ -1841,7 +1832,6 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(false)))
-	require.NoError(t, err)
 
 	ingresses, _ = client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Alias ingress should have been removed")
@@ -2046,14 +2036,14 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 							"memory": "64Mi",
 							"cpu":    "250m",
 						}).
-						WithVolumeMounts([]v1.RadixVolumeMount{
+						WithVolumeMounts([]radixv1.RadixVolumeMount{
 							{
-								Type:      v1.MountTypeBlob,
+								Type:      radixv1.MountTypeBlob,
 								Container: "some-container",
 								Path:      "some-path",
 							},
 							{
-								Type:    v1.MountTypeBlobFuse2FuseCsiAzure,
+								Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 								Storage: "some-storage",
 								Path:    "some-path",
 								GID:     "1000",
@@ -2086,7 +2076,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 	for _, testcase := range testScenarios {
 		t.Run(testcase.environment, func(t *testing.T) {
 
-			envVarsMap := make(v1.EnvVarsMap)
+			envVarsMap := make(radixv1.EnvVarsMap)
 			envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = testcase.expectedGitCommitHash
 			envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = testcase.expectedGitTags
 
@@ -2150,7 +2140,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: "anyImagePath"}
 
-	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
@@ -2182,7 +2172,7 @@ func TestConstructForTargetEnvironment_GetCommitID(t *testing.T) {
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: "anyImagePath"}
 
-	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "commit-abc"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
@@ -2204,6 +2194,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
+			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2222,6 +2213,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
+			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2239,6 +2231,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
+			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2255,6 +2248,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
+			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2290,7 +2284,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	defer teardownTest()
 	// Setup
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithJobComponents().
@@ -2299,8 +2293,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com")))
-	require.NoError(t, err)
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"})))
 
 	// Test
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -2320,7 +2313,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
 
 	// Remove app alias from dev
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithJobComponents().
@@ -2329,7 +2322,6 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http")))
-	require.NoError(t, err)
 
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -2345,7 +2337,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 
 }
 
-func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyReconciled(t *testing.T) {
+func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyReconciled(t *testing.T) {
 	anyAppName := "any-app"
 	anyEnvironment := "dev"
 	anyComponentName := "frontend"
@@ -2356,7 +2348,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	// Setup
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithComponents(
@@ -2364,10 +2356,8 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
 				WithSecrets([]string{"a_secret"})))
-	require.NoError(t, err)
 
 	// Test
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -2391,7 +2381,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for external alias")
 	assert.Equal(t, "another.alias.com", roles.Items[0].Rules[0].ResourceNames[2], "Expected role should be able to access TLS certificate for second external alias")
 
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithComponents(
@@ -2399,10 +2389,8 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithName(anyComponentName).
 				WithPort("http", 8081).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("yet.another.alias.com").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "yet.another.alias.com"}).
 				WithSecrets([]string{"a_secret"})))
-	require.NoError(t, err)
 
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 4, len(ingresses.Items), "Environment should have four ingresses")
@@ -2424,7 +2412,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for external alias")
 	assert.Equal(t, "yet.another.alias.com", roles.Items[0].Rules[0].ResourceNames[2], "Expected role should be able to access TLS certificate for second external alias")
 
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithComponents(
@@ -2432,9 +2420,8 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithName(anyComponentName).
 				WithPort("http", 8081).
 				WithPublicPort("http").
-				WithDNSExternalAlias("yet.another.alias.com").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "yet.another.alias.com"}).
 				WithSecrets([]string{"a_secret"})))
-	require.NoError(t, err)
 
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
@@ -2451,7 +2438,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "yet.another.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
 
 	// Remove app alias from dev
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithComponents(
@@ -2459,7 +2446,6 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http")))
-	require.NoError(t, err)
 
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "External alias ingress should have been removed")
@@ -2490,8 +2476,7 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 
 	// Current cluster is active cluster
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
-	require.NoError(t, err)
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
@@ -2502,8 +2487,7 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 
 	// Current cluster is not active cluster
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "newClusterName")
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
-	require.NoError(t, err)
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Environment should have one ingresses")
 	assert.True(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, testClusterName))
@@ -2527,7 +2511,7 @@ func TestNewDeploymentStatus(t *testing.T) {
 				WithPublicPort("http"))
 
 	rd, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
-	assert.Equal(t, v1.DeploymentActive, rd.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentActive, rd.Status.Condition)
 	assert.True(t, !rd.Status.ActiveFrom.IsZero())
 	assert.True(t, rd.Status.ActiveTo.IsZero())
 
@@ -2546,10 +2530,10 @@ func TestNewDeploymentStatus(t *testing.T) {
 	rd2, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
 	rd, _ = getUpdatedRD(radixclient, rd)
 
-	assert.Equal(t, v1.DeploymentInactive, rd.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentInactive, rd.Status.Condition)
 	assert.Equal(t, rd.Status.ActiveTo, rd2.Status.ActiveFrom)
 
-	assert.Equal(t, v1.DeploymentActive, rd2.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentActive, rd2.Status.Condition)
 	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
 }
 
@@ -2565,9 +2549,9 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 	rd2 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, prometheusclient)
 	rd1, _ = getUpdatedRD(radixclient, rd1)
 
-	assert.Equal(t, v1.DeploymentInactive, rd1.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentInactive, rd1.Status.Condition)
 	assert.Equal(t, rd1.Status.ActiveTo, rd2.Status.ActiveFrom)
-	assert.Equal(t, v1.DeploymentActive, rd2.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentActive, rd2.Status.Condition)
 	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
 
 	time.Sleep(3 * time.Millisecond)
@@ -2575,11 +2559,11 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 	rd1, _ = getUpdatedRD(radixclient, rd1)
 	rd2, _ = getUpdatedRD(radixclient, rd2)
 
-	assert.Equal(t, v1.DeploymentInactive, rd1.Status.Condition)
-	assert.Equal(t, v1.DeploymentInactive, rd2.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentInactive, rd1.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentInactive, rd2.Status.Condition)
 	assert.Equal(t, rd1.Status.ActiveTo, rd2.Status.ActiveFrom)
 	assert.Equal(t, rd2.Status.ActiveTo, rd3.Status.ActiveFrom)
-	assert.Equal(t, v1.DeploymentActive, rd3.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentActive, rd3.Status.Condition)
 	assert.True(t, !rd3.Status.ActiveFrom.IsZero())
 
 	time.Sleep(4 * time.Millisecond)
@@ -2588,21 +2572,21 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 	rd2, _ = getUpdatedRD(radixclient, rd2)
 	rd3, _ = getUpdatedRD(radixclient, rd3)
 
-	assert.Equal(t, v1.DeploymentInactive, rd1.Status.Condition)
-	assert.Equal(t, v1.DeploymentInactive, rd2.Status.Condition)
-	assert.Equal(t, v1.DeploymentInactive, rd3.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentInactive, rd1.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentInactive, rd2.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentInactive, rd3.Status.Condition)
 	assert.Equal(t, rd1.Status.ActiveTo, rd2.Status.ActiveFrom)
 	assert.Equal(t, rd2.Status.ActiveTo, rd3.Status.ActiveFrom)
 	assert.Equal(t, rd3.Status.ActiveTo, rd4.Status.ActiveFrom)
-	assert.Equal(t, v1.DeploymentActive, rd4.Status.Condition)
+	assert.Equal(t, radixv1.DeploymentActive, rd4.Status.Condition)
 	assert.True(t, !rd4.Status.ActiveFrom.IsZero())
 }
 
-func getUpdatedRD(radixclient radixclient.Interface, rd *v1.RadixDeployment) (*v1.RadixDeployment, error) {
+func getUpdatedRD(radixclient radixclient.Interface, rd *radixv1.RadixDeployment) (*radixv1.RadixDeployment, error) {
 	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(context.TODO(), rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
 }
 
-func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusclient prometheusclient.Interface) *v1.RadixDeployment {
+func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusclient prometheusclient.Interface) *radixv1.RadixDeployment {
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
@@ -2625,7 +2609,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	// Setup
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithComponents(
@@ -2633,12 +2617,11 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
 				WithSecrets([]string{"a_secret", "another_secret", "a_third_secret"})))
-	require.NoError(t, err)
 
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Len(t, secrets.Items, 3)
 	anyComponentSecret := getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.NotNil(t, anyComponentSecret, "Component secret is not found")
 
@@ -2653,12 +2636,11 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	secretData["a_third_secret"] = []byte(anySecretValue)
 
 	anyComponentSecret.Data = secretData
-	_, err = client.CoreV1().Secrets(envNamespace).Update(context.TODO(), anyComponentSecret, metav1.UpdateOptions{})
-	require.NoError(t, err)
+	client.CoreV1().Secrets(envNamespace).Update(context.TODO(), anyComponentSecret, metav1.UpdateOptions{})
 
-	// Removing one secret from config and therefor from the deployment
+	// Removing one secret from config and therefore from the deployment
 	// should cause it to disappear
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithComponents(
@@ -2666,14 +2648,207 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
 				WithSecrets([]string{"a_secret", "a_third_secret"})))
-	require.NoError(t, err)
 
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Len(t, secrets.Items, 3)
 	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.True(t, radixutils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
+}
+
+func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t *testing.T) {
+	anyAppName := "any-app"
+	anyEnvironment := "dev"
+	fqdn := "some.alias.com"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
+	defer teardownTest()
+
+	// Initial sync with useAutomation false
+	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("anycomp").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
+		)
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
+	require.NoError(t, err)
+	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	// New sync with useAutomation true
+	var m mock.Mock
+	client.Fake.PrependReactor("*", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetVerb() == "delete" && slice.Any([]string{"ingresses", "secrets"}, func(r string) bool { return r == action.GetResource().Resource }) {
+			deleteAction := action.(kubetesting.DeleteAction)
+			m.MethodCalled(deleteAction.GetVerb(), deleteAction.GetResource().Resource, deleteAction.GetNamespace(), deleteAction.GetName())
+		}
+		return false, nil, nil
+	})
+	m.On("delete", "ingresses", envNamespace, fqdn).Times(1)
+	m.On("delete", "secrets", envNamespace, fqdn).Times(1)
+
+	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("anycomp").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		)
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
+	require.NoError(t, err)
+	m.AssertExpectations(t)
+	ingress, err := client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedAnnotations := map[string]string{
+		kube.RadixExternalDNSUseAutomationAnnotation: "true",
+		"cert-manager.io/cluster-issuer":             testConfig.DeploymentSyncer.CertificateAutomation.ClusterIssuer,
+		"cert-manager.io/duration":                   testConfig.DeploymentSyncer.CertificateAutomation.Duration.String(),
+		"cert-manager.io/renew-before":               testConfig.DeploymentSyncer.CertificateAutomation.RenewBefore.String(),
+	}
+	assert.Equal(t, expectedAnnotations, ingress.Annotations)
+	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.True(t, kubeerrors.IsNotFound(err))
+}
+
+func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressResetSecret(t *testing.T) {
+	anyAppName, anyEnvironment, anyComponent := "any-app", "dev", "anyComp"
+	fqdn := "some.alias.com"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
+	defer teardownTest()
+
+	// Initial sync with useAutomation true
+	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponent).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		)
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
+	require.NoError(t, err)
+	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.True(t, kubeerrors.IsNotFound(err))
+	// Create the TLS secret that cert-manager would normally created
+	tlsSecret := &corev1.Secret{
+		Type:       corev1.SecretTypeTLS,
+		ObjectMeta: metav1.ObjectMeta{Name: fqdn, Namespace: envNamespace},
+		Data: map[string][]byte{
+			corev1.TLSPrivateKeyKey: []byte("anykey"),
+			corev1.TLSCertKey:       []byte("anycert"),
+		},
+	}
+	_, err = client.CoreV1().Secrets(envNamespace).Create(context.Background(), tlsSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// New sync with useAutomation false
+	var m mock.Mock
+	client.Fake.PrependReactor("*", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetVerb() == "delete" && slice.Any([]string{"ingresses", "secrets"}, func(r string) bool { return r == action.GetResource().Resource }) {
+			deleteAction := action.(kubetesting.DeleteAction)
+			m.MethodCalled(deleteAction.GetVerb(), deleteAction.GetResource().Resource, deleteAction.GetNamespace(), deleteAction.GetName())
+		}
+		return false, nil, nil
+	})
+	m.On("delete", "ingresses", envNamespace, fqdn).Times(1)
+
+	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponent).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
+		)
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
+	require.NoError(t, err)
+	m.AssertExpectations(t)
+	ingress, err := client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, ingress.Annotations)
+	secret, err := client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string][]byte{corev1.TLSCertKey: nil, corev1.TLSPrivateKeyKey: nil}, secret.Data)
+	assert.Equal(t, map[string]string{kube.RadixAppLabel: anyAppName, kube.RadixComponentLabel: anyComponent, kube.RadixExternalAliasLabel: "true"}, secret.Labels)
+}
+
+func TestObjectUpdated_ExternalDNS_TLSSecretDataRetainedBetweenSync(t *testing.T) {
+	anyAppName := "any-app"
+	anyEnvironment := "dev"
+	fqdn := "some.alias.com"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	tlsKey, tlsCert := []byte("anytlskey"), []byte("anytlscert")
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
+	defer teardownTest()
+
+	// Initial sync
+	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("anycomp").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
+		)
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd1)
+	require.NoError(t, err)
+	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	secret, err := client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	secret.Data[corev1.TLSPrivateKeyKey] = tlsKey
+	secret.Data[corev1.TLSCertKey] = tlsCert
+	secret, err = client.CoreV1().Secrets(envNamespace).Update(context.Background(), secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	require.Equal(t, tlsKey, secret.Data[corev1.TLSPrivateKeyKey])
+	require.Equal(t, tlsCert, secret.Data[corev1.TLSCertKey])
+
+	// New RD with same external DNS
+	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("anycomp").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
+		)
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rd2)
+	require.NoError(t, err)
+	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.NoError(t, err)
+	secret, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, tlsKey, secret.Data[corev1.TLSPrivateKeyKey])
+	assert.Equal(t, tlsCert, secret.Data[corev1.TLSCertKey])
 }
 
 func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
@@ -2691,7 +2866,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 		}
 	}
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	_, err := applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("firstdeployment").
 			WithAppName(anyAppName).
@@ -2702,9 +2877,8 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")),
 		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
 
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("seconddeployment").
 			WithAppName(anyAppName).
@@ -2715,9 +2889,8 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")),
 		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
 
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("thirddeployment").
 			WithAppName(anyAppName).
@@ -2728,9 +2901,8 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")),
 		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
 
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("fourthdeployment").
 			WithAppName(anyAppName).
@@ -2741,7 +2913,6 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")),
 		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
 
 	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
@@ -2751,7 +2922,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
 	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
 
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
+	applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("fifthdeployment").
 			WithAppName(anyAppName).
@@ -2762,7 +2933,6 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")),
 		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
 
 	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
@@ -2871,14 +3041,14 @@ func TestMonitoringConfig(t *testing.T) {
 		"withMonitoringConfigAndDisabled",
 		"withMonitoringDisabled",
 	}
-	monitoringConfig := v1.MonitoringConfig{PortName: "monitoring", Path: "some/special/path"}
-	ports := []v1.ComponentPort{
+	monitoringConfig := radixv1.MonitoringConfig{PortName: "monitoring", Path: "some/special/path"}
+	ports := []radixv1.ComponentPort{
 		{Name: "public", Port: 8080},
 		{Name: monitoringConfig.PortName, Port: 9001},
 		{Name: "super_secure_public_port", Port: 8443},
 	}
 
-	serviceMonitorTestFunc := func(t *testing.T, compName string, port v1.MonitoringConfig, serviceMonitor *monitoringv1.ServiceMonitor) {
+	serviceMonitorTestFunc := func(t *testing.T, compName string, port radixv1.MonitoringConfig, serviceMonitor *monitoringv1.ServiceMonitor) {
 		assert.Equal(t, port.PortName, serviceMonitor.Spec.Endpoints[0].Port)
 		assert.Equal(t, port.Path, serviceMonitor.Spec.Endpoints[0].Path)
 		assert.Equal(t, fmt.Sprintf("%s-%s-%s", myAppName, myEnvName, compName), serviceMonitor.Spec.JobLabel)
@@ -2926,7 +3096,7 @@ func TestMonitoringConfig(t *testing.T) {
 
 		// serviceMonitor, no monitoringConfig, should use first port
 		serviceMonitor = getServiceMonitorByName(compNames[1], servicemonitors)
-		serviceMonitorTestFunc(t, compNames[1], v1.MonitoringConfig{PortName: ports[0].Name}, serviceMonitor)
+		serviceMonitorTestFunc(t, compNames[1], radixv1.MonitoringConfig{PortName: ports[0].Name}, serviceMonitor)
 
 		// no serviceMonitor, monitoringConfig, should not exist
 		serviceMonitor = getServiceMonitorByName(compNames[2], servicemonitors)
@@ -3552,7 +3722,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 				labels[kube.RadixJobTypeLabel] = kube.RadixJobTypeJobSchedule
 			}
 
-			_, err := client.BatchV1().Jobs(namespace).Create(context.TODO(),
+			client.BatchV1().Jobs(namespace).Create(context.TODO(),
 				&batchv1.Job{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
@@ -3560,7 +3730,6 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 					},
 				},
 				metav1.CreateOptions{})
-			require.NoError(t, err)
 		}
 
 		addSecret := func(client kubernetes.Interface, name, namespace, componentName string) {
@@ -3570,7 +3739,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 				labels[kube.RadixComponentLabel] = componentName
 			}
 
-			_, err := client.CoreV1().Secrets(namespace).Create(context.TODO(),
+			client.CoreV1().Secrets(namespace).Create(context.TODO(),
 				&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
@@ -3578,7 +3747,6 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 					},
 				},
 				metav1.CreateOptions{})
-			require.NoError(t, err)
 		}
 
 		addService := func(client kubernetes.Interface, name, namespace, componentName string) {
@@ -3588,7 +3756,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 				labels[kube.RadixComponentLabel] = componentName
 			}
 
-			_, err := client.CoreV1().Services(namespace).Create(context.TODO(),
+			client.CoreV1().Services(namespace).Create(context.TODO(),
 				&corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
@@ -3596,7 +3764,6 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 					},
 				},
 				metav1.CreateOptions{})
-			require.NoError(t, err)
 		}
 
 		t.Run(theory.name, func(t *testing.T) {
@@ -3625,8 +3792,9 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 			addService(client, "non-job-service1", "app-dev", "")
 			addService(client, "prod-job-service1", "app-prod", "job")
 
-			_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, theory.builder)
-			require.NoError(t, err, "error apply deployment")
+			if _, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, theory.builder); err != nil {
+				assert.FailNow(t, fmt.Sprintf("error apply deployment: %v", err))
+			}
 
 			// Verify expected jobs
 			kubeJobs, _ := client.BatchV1().Jobs("").List(context.TODO(), metav1.ListOptions{LabelSelector: "item-in-test=true"})
@@ -3761,12 +3929,8 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	defer os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithDNSAppAlias(true)).BuildRD()
-	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
-	require.NoError(t, err)
-
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
@@ -3784,14 +3948,14 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 		ingressAnnotationProviders: []ingress.AnnotationProvider{annotations1, annotations2},
 	}
 
-	err = syncer.OnSync()
-	require.NoError(t, err)
+	err := syncer.OnSync()
+	assert.Nil(t, err)
 	ingresses, _ := kubeclient.NetworkingV1().Ingresses("").List(context.Background(), metav1.ListOptions{})
 	assert.Len(t, ingresses.Items, 3)
 	expected := map[string]string{"bar": "y", "baz": "z", "foo": "x"}
 
-	for _, ing := range ingresses.Items {
-		assert.Equal(t, expected, ing.GetAnnotations())
+	for _, ingress := range ingresses.Items {
+		assert.Equal(t, expected, ingress.GetAnnotations())
 	}
 }
 
@@ -3800,12 +3964,8 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
-	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
-	require.NoError(t, err)
-
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
@@ -3821,7 +3981,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 		ingressAnnotationProviders: []ingress.AnnotationProvider{annotations1},
 	}
 
-	err = syncer.OnSync()
+	err := syncer.OnSync()
 	assert.Error(t, err)
 }
 
@@ -3830,12 +3990,8 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
-	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
-	require.NoError(t, err)
-
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	auxResource := NewMockAuxiliaryResourceManager(ctrl)
@@ -3852,8 +4008,8 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 
-	err = syncer.OnSync()
-	assert.NoError(t, err)
+	err := syncer.OnSync()
+	assert.Nil(t, err)
 }
 
 func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
@@ -3861,12 +4017,8 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
-	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
-	require.NoError(t, err)
-
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	auxErr := errors.New("an error")
@@ -3884,7 +4036,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 
-	err = syncer.OnSync()
+	err := syncer.OnSync()
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
 
@@ -3893,12 +4045,8 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
-	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
-	require.NoError(t, err)
-
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	auxErr := errors.New("an error")
@@ -3916,7 +4064,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 
-	err = syncer.OnSync()
+	err := syncer.OnSync()
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
 
@@ -3940,9 +4088,9 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(compName).
 					WithVolumeMounts(
-						v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
+						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
+						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						radixv1.RadixVolumeMount{Type: radixv1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
 					),
 			),
 	)
@@ -3975,9 +4123,9 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployJobComponentBuilder().
 					WithName(jobName).
 					WithVolumeMounts(
-						v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
+						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
+						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						radixv1.RadixVolumeMount{Type: radixv1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
 					),
 			),
 	)
@@ -4011,9 +4159,9 @@ func Test_ComponentSynced_SecretRefs(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(compName).
 					WithSecretRefs(
-						v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
-							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []v1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
-							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []v1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
+						radixv1.RadixSecretRefs{AzureKeyVaults: []radixv1.RadixAzureKeyVault{
+							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
+							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
 						}},
 					),
 			),
@@ -4051,9 +4199,9 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 				utils.NewDeployJobComponentBuilder().
 					WithName(jobName).
 					WithSecretRefs(
-						v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
-							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []v1.RadixAzureKeyVaultItem{{Name: "secret"}}},
-							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []v1.RadixAzureKeyVaultItem{{Name: "secret"}}},
+						radixv1.RadixSecretRefs{AzureKeyVaults: []radixv1.RadixAzureKeyVault{
+							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
+							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
 						}},
 					),
 			),
@@ -4081,13 +4229,13 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 	anyEnvironment := "test"
 	namespace := utils.GetEnvironmentNamespace(appName, anyEnvironment)
 
-	batchFactory := func(name, componentName string) *v1.RadixBatch {
+	batchFactory := func(name, componentName string) *radixv1.RadixBatch {
 		var lbl labels.Set
 		if len(componentName) > 0 {
 			lbl = radixlabels.ForComponentName(componentName)
 		}
 
-		return &v1.RadixBatch{
+		return &radixv1.RadixBatch{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,
 				Labels: lbl,
@@ -4095,25 +4243,17 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 		}
 	}
 
-	_, err := radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch1", "job1"), metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch2", "job1"), metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch3", "job2"), metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch4", "job2"), metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch5", "job3"), metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch6", "job4"), metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch7", ""), metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixBatches("other-ns").Create(context.Background(), batchFactory("batch8", "job1"), metav1.CreateOptions{})
-	require.NoError(t, err)
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch1", "job1"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch2", "job1"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch3", "job2"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch4", "job2"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch5", "job3"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch6", "job4"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch7", ""), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches("other-ns").Create(context.Background(), batchFactory("batch8", "job1"), metav1.CreateOptions{})
 
 	// Test
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(anyEnvironment).
 		WithJobComponents(
@@ -4123,7 +4263,7 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 	)
 	require.NoError(t, err)
 	actualBatches, _ := radixclient.RadixV1().RadixBatches("").List(context.Background(), metav1.ListOptions{})
-	actualBatchNames := slice.Map(actualBatches.Items, func(batch v1.RadixBatch) string { return batch.GetName() })
+	actualBatchNames := slice.Map(actualBatches.Items, func(batch radixv1.RadixBatch) string { return batch.GetName() })
 	expectedBatchNames := []string{"batch1", "batch2", "batch3", "batch4", "batch7", "batch8"}
 	assert.ElementsMatch(t, expectedBatchNames, actualBatchNames)
 }
@@ -4131,26 +4271,26 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 	type scenarioSpec struct {
 		name                 string
-		commonConfig         *v1.Identity
+		commonConfig         *radixv1.Identity
 		configureEnvironment bool
-		environmentConfig    *v1.Identity
-		expected             *v1.Identity
+		environmentConfig    *radixv1.Identity
+		expected             *radixv1.Identity
 	}
 
 	scenarios := []scenarioSpec{
-		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
-		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
-		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &radixv1.Identity{}, configureEnvironment: true, environmentConfig: &radixv1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &radixv1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &radixv1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
 		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
-		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
-		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
-		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
-		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
-		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
-		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
-		{name: "transform clientId with curly to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "{11111111-2222-3333-4444-555555555555}"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
-		{name: "transform clientId with urn:uuid to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "urn:uuid:11111111-2222-3333-4444-555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
-		{name: "transform clientId without dashes to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111222233334444555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &radixv1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &radixv1.Identity{}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{}}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &radixv1.Identity{}, configureEnvironment: true, environmentConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "transform clientId with curly to standard format", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "{11111111-2222-3333-4444-555555555555}"}}, configureEnvironment: false, environmentConfig: nil, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId with urn:uuid to standard format", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "urn:uuid:11111111-2222-3333-4444-555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId without dashes to standard format", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111222233334444555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
 	}
 
 	componentTest := func(scenario scenarioSpec, t *testing.T) {
@@ -4162,7 +4302,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			)
 		}
 		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
-		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(v1.EnvVarsMap), "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(radixv1.EnvVarsMap), "anyhash", "anybuildsecrethash")
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity)
 	}
@@ -4175,7 +4315,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			)
 		}
 		ra := utils.ARadixApplication().WithJobComponents(job).BuildRA()
-		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(v1.EnvVarsMap), "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(radixv1.EnvVarsMap), "anyhash", "anybuildsecrethash")
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity)
 	}
@@ -4193,17 +4333,17 @@ func parseQuantity(value string) resource.Quantity {
 	return q
 }
 
-func applyDeploymentWithSyncForTestEnv(testEnv *testEnvProps, deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
+func applyDeploymentWithSyncForTestEnv(testEnv *testEnvProps, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	return applyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, deploymentBuilder)
 }
 
 func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, prometheusclient prometheusclient.Interface, deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
+	radixclient radixclient.Interface, prometheusclient prometheusclient.Interface, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	return applyDeploymentWithModifiedSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, deploymentBuilder, func(syncer DeploymentSyncer) {})
 }
 
 func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, prometheusclient prometheusclient.Interface, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*v1.RadixDeployment, error) {
+	radixclient radixclient.Interface, prometheusclient prometheusclient.Interface, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*radixv1.RadixDeployment, error) {
 
 	rd, err := tu.ApplyDeployment(deploymentBuilder)
 	if err != nil {
@@ -4215,7 +4355,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 		return nil, err
 	}
 
-	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil)
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil, &testConfig)
 	modifySyncer(deploymentSyncer)
 	err = deploymentSyncer.OnSync()
 	if err != nil {
@@ -4238,7 +4378,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, testRadixDeploymentHistoryLimit, nil, nil, &testConfig)
 	err = deployment.OnSync()
 	if err != nil {
 		return err
@@ -4259,11 +4399,11 @@ func getEnvVariableByNameOnDeployment(kubeclient kubernetes.Interface, name, dep
 	return getEnvVariableByName(name, container.Env, cm)
 }
 
-func radixDeploymentByNameExists(name string, deployments *v1.RadixDeploymentList) bool {
+func radixDeploymentByNameExists(name string, deployments *radixv1.RadixDeploymentList) bool {
 	return getRadixDeploymentByName(name, deployments) != nil
 }
 
-func getRadixDeploymentByName(name string, deployments *v1.RadixDeploymentList) *v1.RadixDeployment {
+func getRadixDeploymentByName(name string, deployments *radixv1.RadixDeploymentList) *radixv1.RadixDeployment {
 	for _, deployment := range deployments.Items {
 		if deployment.Name == name {
 			return &deployment

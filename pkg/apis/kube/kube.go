@@ -26,6 +26,7 @@ const (
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
 	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
+	RadixExternalDNSUseAutomationAnnotation          = "radix.equinor.com/external-dns-use-automation"
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
 )

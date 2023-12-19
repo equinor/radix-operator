@@ -69,5 +69,12 @@ func NewConfig() *apiconfig.Config {
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
 		},
+		DeploymentSyncer: apiconfig.DeploymentSyncerConfig{
+			CertificateAutomation: apiconfig.CertificateAutomationConfig{
+				ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
+				Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
+				RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
+			},
+		},
 	}
 }

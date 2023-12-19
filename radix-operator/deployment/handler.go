@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -109,6 +110,7 @@ type Handler struct {
 	oauth2ProxyDockerImage  string
 	ingressConfiguration    ingress.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
+	config                  *config.Config
 }
 
 // NewHandler Constructor
@@ -116,6 +118,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusperatorclient monitoring.Interface,
+	config *config.Config,
 	options ...HandlerConfigOption) *Handler {
 
 	handler := &Handler{
@@ -123,6 +126,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		radixclient:             radixclient,
 		prometheusperatorclient: prometheusperatorclient,
 		kubeutil:                kubeutil,
+		config:                  config,
 	}
 
 	configureDefaultDeploymentSyncerFactory(handler)
@@ -174,7 +178,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage),
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

@@ -1,13 +1,23 @@
 package ingress
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
+)
+
+const (
+	minCertDuration    = 2160 * time.Hour
+	minCertRenewBefore = 360 * time.Hour
 )
 
 type AnnotationProvider interface {
@@ -124,6 +134,41 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 		if len(authResponseHeaders) > 0 {
 			annotations[defaults.AuthResponseHeadersAnnotation] = strings.Join(authResponseHeaders, ",")
 		}
+	}
+
+	return annotations, nil
+}
+
+func NewExternalDNSAnnotationProvider(useAutomation bool, certAutomationConfig config.CertificateAutomationConfig) AnnotationProvider {
+	return &externalDNSAnnotationProvider{
+		useAutomation:        useAutomation,
+		certAutomationConfig: certAutomationConfig,
+	}
+}
+
+type externalDNSAnnotationProvider struct {
+	useAutomation        bool
+	certAutomationConfig config.CertificateAutomationConfig
+}
+
+func (provider *externalDNSAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+	annotations := map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: strconv.FormatBool(provider.useAutomation)}
+
+	if provider.useAutomation {
+		if len(provider.certAutomationConfig.ClusterIssuer) == 0 {
+			return nil, errors.New("cluster issuer not set in certificate automation config")
+		}
+		duration := provider.certAutomationConfig.Duration
+		if duration < minCertDuration {
+			duration = minCertDuration
+		}
+		renewBefore := provider.certAutomationConfig.RenewBefore
+		if renewBefore < minCertRenewBefore {
+			renewBefore = minCertRenewBefore
+		}
+		annotations["cert-manager.io/cluster-issuer"] = provider.certAutomationConfig.ClusterIssuer
+		annotations["cert-manager.io/duration"] = duration.String()
+		annotations["cert-manager.io/renew-before"] = renewBefore.String()
 	}
 
 	return annotations, nil
