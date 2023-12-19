@@ -3,6 +3,7 @@ package dnsalias
 import (
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
@@ -97,28 +98,55 @@ func (s *syncer) buildClusterRole(clusterRoleName string, rules ...rbacv1.Policy
 }
 
 func (s *syncer) deleteRbac() error {
-	selectorForDNSAlias := s.getLabelsForDNSAliasRbac().String()
-	clusterRoleBindings, err := s.kubeUtil.ListClusterRoleBindingsWithSelector(selectorForDNSAlias)
+	clusterRoles, err := s.kubeUtil.ListClusterRolesWithSelector(s.getLabelsForDNSAliasRbac().String())
 	if err != nil {
 		return err
 	}
-	clusterRoles, err := s.kubeUtil.ListClusterRolesWithSelector(selectorForDNSAlias)
-	if err != nil {
-		return err
-	}
-	for _, binding := range clusterRoleBindings {
-		if err := s.kubeUtil.DeleteClusterRoleBinding(binding.GetName()); err != nil {
-			return err
+	for i := 0; i < len(clusterRoles); i++ {
+		role := clusterRoles[i]
+		s.deleteDNSAliasFromClusterRoleRuleResources(role)
+		if allResourceNamesInRulesAreEmpty(role) {
+			if err := s.kubeUtil.DeleteClusterRole(role.GetName()); err != nil {
+				return err
+			}
+			if err := s.kubeUtil.DeleteClusterRoleBinding(role.GetName()); err != nil {
+				return err
+			}
+			continue
 		}
-	}
-	for _, role := range clusterRoles {
-		if err := s.kubeUtil.DeleteClusterRole(role.GetName()); err != nil {
+		s.deleteDNSAliasFromClusterRoleOwnerReferences(role)
+		if err := s.kubeUtil.ApplyClusterRole(role); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func allResourceNamesInRulesAreEmpty(role *rbacv1.ClusterRole) bool {
+	for _, rule := range role.Rules {
+		if len(rule.ResourceNames) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *syncer) deleteDNSAliasFromClusterRoleOwnerReferences(role *rbacv1.ClusterRole) {
+	if index := slice.FindIndex(role.GetOwnerReferences(), func(ownerReference metav1.OwnerReference) bool {
+		return ownerReference.Kind == radixv1.KindRadixDNSAlias && ownerReference.Name == s.radixDNSAlias.GetName()
+	}); index >= 0 {
+		role.ObjectMeta.OwnerReferences = append(role.ObjectMeta.OwnerReferences[:index], role.ObjectMeta.OwnerReferences[index+1:]...)
+	}
+}
+
+func (s *syncer) deleteDNSAliasFromClusterRoleRuleResources(role *rbacv1.ClusterRole) {
+	for j := 0; j < len(role.Rules); j++ {
+		if index := slice.FindIndex(role.Rules[j].ResourceNames, func(resourceName string) bool { return resourceName == s.radixDNSAlias.GetName() }); index >= 0 {
+			role.Rules[j].ResourceNames = append(role.Rules[j].ResourceNames[:index], role.Rules[j].ResourceNames[index+1:]...)
+		}
+	}
+}
+
 func (s *syncer) getLabelsForDNSAliasRbac() labels.Set {
-	return radixlabels.ForDNSAliasRbac(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.GetName())
+	return radixlabels.ForDNSAliasRbac(s.radixDNSAlias.Spec.AppName)
 }

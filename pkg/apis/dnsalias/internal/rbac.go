@@ -17,7 +17,7 @@ func BuildClusterRoleBinding(clusterRoleName string, subjects []rbacv1.Subject, 
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            clusterRoleName,
-			Labels:          radixlabels.ForDNSAliasRbac(radixDNSAlias.Spec.AppName, radixDNSAlias.GetName()),
+			Labels:          radixlabels.ForDNSAliasRbac(radixDNSAlias.Spec.AppName),
 			OwnerReferences: GetOwnerReferences(radixDNSAlias, false),
 		},
 		RoleRef: rbacv1.RoleRef{

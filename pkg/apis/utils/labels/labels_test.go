@@ -143,8 +143,8 @@ func Test_ForDNSAliasIngress(t *testing.T) {
 }
 
 func Test_ForDNSAliasRbac(t *testing.T) {
-	actual := ForDNSAliasRbac("any-app", "any-dns-alias")
-	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixAliasLabel: "any-dns-alias"}
+	actual := ForDNSAliasRbac("any-app")
+	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixAliasLabel: "true"}
 	assert.Equal(t, expected, actual)
 }
 
