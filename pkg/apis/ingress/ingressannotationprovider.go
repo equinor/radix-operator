@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -138,38 +139,34 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 	return annotations, nil
 }
 
-func NewExternalDNSAnnotationProvider(useCertificateAutomation bool, clusterIssuer string, duration, renewBefore time.Duration) AnnotationProvider {
+func NewExternalDNSAnnotationProvider(useCertificateAutomation bool, automationConfig certificateconfig.AutomationConfig) AnnotationProvider {
 	return &externalDNSAnnotationProvider{
 		useCertificateAutomation: useCertificateAutomation,
-		clusterIssuer:            clusterIssuer,
-		duration:                 duration,
-		renewBefore:              renewBefore,
+		automationConfig:         automationConfig,
 	}
 }
 
 type externalDNSAnnotationProvider struct {
 	useCertificateAutomation bool
-	clusterIssuer            string
-	duration                 time.Duration
-	renewBefore              time.Duration
+	automationConfig         certificateconfig.AutomationConfig
 }
 
 func (provider *externalDNSAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
 	annotations := map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: strconv.FormatBool(provider.useCertificateAutomation)}
 
 	if provider.useCertificateAutomation {
-		if len(provider.clusterIssuer) == 0 {
+		if len(provider.automationConfig.ClusterIssuer) == 0 {
 			return nil, errors.New("cluster issuer not set in certificate automation config")
 		}
-		duration := provider.duration
+		duration := provider.automationConfig.Duration
 		if duration < minCertDuration {
 			duration = minCertDuration
 		}
-		renewBefore := provider.renewBefore
+		renewBefore := provider.automationConfig.RenewBefore
 		if renewBefore < minCertRenewBefore {
 			renewBefore = minCertRenewBefore
 		}
-		annotations["cert-manager.io/cluster-issuer"] = provider.clusterIssuer
+		annotations["cert-manager.io/cluster-issuer"] = provider.automationConfig.ClusterIssuer
 		annotations["cert-manager.io/duration"] = duration.String()
 		annotations["cert-manager.io/renew-before"] = renewBefore.String()
 	}
