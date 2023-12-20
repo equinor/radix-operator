@@ -2627,11 +2627,10 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
 				WithSecrets([]string{"a_secret", "another_secret", "a_third_secret"})))
 	require.NoError(t, err)
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Len(t, secrets.Items, 3)
+	assert.Len(t, secrets.Items, 1)
 	anyComponentSecret := getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.NotNil(t, anyComponentSecret, "Component secret is not found")
 
@@ -2658,11 +2657,10 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
 				WithSecrets([]string{"a_secret", "a_third_secret"})))
 	require.NoError(t, err)
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Len(t, secrets.Items, 3)
+	assert.Len(t, secrets.Items, 1)
 	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.True(t, radixutils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
