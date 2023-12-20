@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -86,7 +86,7 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 	log.Debugf("Cluster role object %s already exists, updating the object now", clusterrole.GetName())
 
 	newClusterRole := oldClusterRole.DeepCopy()
-	newClusterRole.ObjectMeta.OwnerReferences = clusterrole.ObjectMeta.OwnerReferences
+	newClusterRole.ObjectMeta.OwnerReferences = mergeOwnerReferences(oldClusterRole.ObjectMeta.OwnerReferences, clusterrole.ObjectMeta.OwnerReferences)
 	newClusterRole.ObjectMeta.Labels = clusterrole.Labels
 	newClusterRole.Rules = clusterrole.Rules
 
