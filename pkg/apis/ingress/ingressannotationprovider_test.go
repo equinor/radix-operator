@@ -223,7 +223,7 @@ func Test_ExternalDNSAnnotationProvider(t *testing.T) {
 		sut := NewExternalDNSAnnotationProvider(false, "", 0, 0)
 		actualAnnotations, err := sut.GetAnnotations(nil, "")
 		require.NoError(t, err)
-		expectedAnnotations := map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}
+		expectedAnnotations := map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: "false"}
 		assert.Equal(t, expectedAnnotations, actualAnnotations)
 	})
 
@@ -233,10 +233,10 @@ func Test_ExternalDNSAnnotationProvider(t *testing.T) {
 		actualAnnotations, err := sut.GetAnnotations(nil, "")
 		require.NoError(t, err)
 		expectedAnnotations := map[string]string{
-			kube.RadixExternalDNSUseAutomationAnnotation: "true",
-			"cert-manager.io/cluster-issuer":             clusterIssuer,
-			"cert-manager.io/duration":                   duration.String(),
-			"cert-manager.io/renew-before":               renewBefore.String(),
+			kube.RadixExternalDNSUseCertificateAutomationAnnotation: "true",
+			"cert-manager.io/cluster-issuer":                        clusterIssuer,
+			"cert-manager.io/duration":                              duration.String(),
+			"cert-manager.io/renew-before":                          renewBefore.String(),
 		}
 		assert.Equal(t, expectedAnnotations, actualAnnotations)
 	})
@@ -247,10 +247,10 @@ func Test_ExternalDNSAnnotationProvider(t *testing.T) {
 		actualAnnotations, err := sut.GetAnnotations(nil, "")
 		require.NoError(t, err)
 		expectedAnnotations := map[string]string{
-			kube.RadixExternalDNSUseAutomationAnnotation: "true",
-			"cert-manager.io/cluster-issuer":             clusterIssuer,
-			"cert-manager.io/duration":                   duration.String(),
-			"cert-manager.io/renew-before":               (360 * time.Hour).String(),
+			kube.RadixExternalDNSUseCertificateAutomationAnnotation: "true",
+			"cert-manager.io/cluster-issuer":                        clusterIssuer,
+			"cert-manager.io/duration":                              duration.String(),
+			"cert-manager.io/renew-before":                          (360 * time.Hour).String(),
 		}
 		assert.Equal(t, expectedAnnotations, actualAnnotations)
 	})
@@ -261,10 +261,10 @@ func Test_ExternalDNSAnnotationProvider(t *testing.T) {
 		actualAnnotations, err := sut.GetAnnotations(nil, "")
 		require.NoError(t, err)
 		expectedAnnotations := map[string]string{
-			kube.RadixExternalDNSUseAutomationAnnotation: "true",
-			"cert-manager.io/cluster-issuer":             clusterIssuer,
-			"cert-manager.io/duration":                   (2160 * time.Hour).String(),
-			"cert-manager.io/renew-before":               renewBefore.String(),
+			kube.RadixExternalDNSUseCertificateAutomationAnnotation: "true",
+			"cert-manager.io/cluster-issuer":                        clusterIssuer,
+			"cert-manager.io/duration":                              (2160 * time.Hour).String(),
+			"cert-manager.io/renew-before":                          renewBefore.String(),
 		}
 		assert.Equal(t, expectedAnnotations, actualAnnotations)
 	})

@@ -138,26 +138,26 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 	return annotations, nil
 }
 
-func NewExternalDNSAnnotationProvider(useAutomation bool, clusterIssuer string, duration, renewBefore time.Duration) AnnotationProvider {
+func NewExternalDNSAnnotationProvider(useCertificateAutomation bool, clusterIssuer string, duration, renewBefore time.Duration) AnnotationProvider {
 	return &externalDNSAnnotationProvider{
-		useAutomation: useAutomation,
-		clusterIssuer: clusterIssuer,
-		duration:      duration,
-		renewBefore:   renewBefore,
+		useCertificateAutomation: useCertificateAutomation,
+		clusterIssuer:            clusterIssuer,
+		duration:                 duration,
+		renewBefore:              renewBefore,
 	}
 }
 
 type externalDNSAnnotationProvider struct {
-	useAutomation bool
-	clusterIssuer string
-	duration      time.Duration
-	renewBefore   time.Duration
+	useCertificateAutomation bool
+	clusterIssuer            string
+	duration                 time.Duration
+	renewBefore              time.Duration
 }
 
 func (provider *externalDNSAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
-	annotations := map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: strconv.FormatBool(provider.useAutomation)}
+	annotations := map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: strconv.FormatBool(provider.useCertificateAutomation)}
 
-	if provider.useAutomation {
+	if provider.useCertificateAutomation {
 		if len(provider.clusterIssuer) == 0 {
 			return nil, errors.New("cluster issuer not set in certificate automation config")
 		}

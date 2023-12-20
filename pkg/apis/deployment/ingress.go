@@ -138,8 +138,8 @@ func (deploy *Deployment) createOrUpdateExternalDNSIngresses(deployComponent rad
 			if existingIngress, err := deploy.kubeclient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), ingress.Name, metav1.GetOptions{}); err == nil {
 				// Perform updated and deletions of ingress and TLS secret when we change automation flag.
 				// cert-manager does not cleanup its resources (certificates, orders etc) by simply clearing ingress annotation. The ingress must be deleted for this to happen.
-				if useAutomationForExternalDNS(ingress) != useAutomationForExternalDNS(existingIngress) {
-					if useAutomationForExternalDNS(ingress) {
+				if useCertificateAutomationForExternalDNS(ingress) != useCertificateAutomationForExternalDNS(existingIngress) {
+					if useCertificateAutomationForExternalDNS(ingress) {
 						// Delete existing TLS secret if the ingress should use automation since cert-manager will handle the secret lifecycle.
 						if err := deleteTLSSecretForIngress(existingIngress, deploy.kubeclient); err != nil {
 							return err
@@ -258,7 +258,7 @@ func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(comp
 
 		if garbageCollectIngress {
 			// Delete TLS secrets created by cert-manager
-			if useAutomationForExternalDNS(ingress) {
+			if useCertificateAutomationForExternalDNS(ingress) {
 				if err := deleteTLSSecretForIngress(ingress, deploy.kubeclient); err != nil {
 					return err
 				}
@@ -405,8 +405,8 @@ func clearTLSSecretDataForIngress(ing *networkingv1.Ingress, kubeClient kubernet
 	return nil
 }
 
-func useAutomationForExternalDNS(ing *networkingv1.Ingress) bool {
-	if boolStr, ok := ing.Annotations[kube.RadixExternalDNSUseAutomationAnnotation]; ok {
+func useCertificateAutomationForExternalDNS(ing *networkingv1.Ingress) bool {
+	if boolStr, ok := ing.Annotations[kube.RadixExternalDNSUseCertificateAutomationAnnotation]; ok {
 		b, _ := strconv.ParseBool(boolStr)
 		return b
 	}

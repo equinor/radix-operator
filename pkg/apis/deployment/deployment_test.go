@@ -809,7 +809,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "true", externalDNS1.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, externalDNS1.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", externalDNS1.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, externalDNS1.Annotations)
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: "false"}, externalDNS1.Annotations)
 	assert.Equal(t, "external1.alias.com", externalDNS1.Spec.Rules[0].Host, "App should have an external alias")
 
 	externalDNS2 := getIngressByName("external2.alias.com", ingresses)
@@ -818,7 +818,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "true", externalDNS2.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, externalDNS2.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", externalDNS2.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, externalDNS2.Annotations)
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: "false"}, externalDNS2.Annotations)
 	assert.Equal(t, "external2.alias.com", externalDNS2.Spec.Rules[0].Host, "App should have an external alias")
 
 	externalDNS3 := getIngressByName("external3.alias.com", ingresses)
@@ -828,10 +828,10 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Empty(t, externalDNS3.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", externalDNS3.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 	expectedAnnotations := map[string]string{
-		kube.RadixExternalDNSUseAutomationAnnotation: "true",
-		"cert-manager.io/cluster-issuer":             testConfig.CertificateAutomation.ClusterIssuer,
-		"cert-manager.io/duration":                   testConfig.CertificateAutomation.Duration.String(),
-		"cert-manager.io/renew-before":               testConfig.CertificateAutomation.RenewBefore.String(),
+		kube.RadixExternalDNSUseCertificateAutomationAnnotation: "true",
+		"cert-manager.io/cluster-issuer":                        testConfig.CertificateAutomation.ClusterIssuer,
+		"cert-manager.io/duration":                              testConfig.CertificateAutomation.Duration.String(),
+		"cert-manager.io/renew-before":                          testConfig.CertificateAutomation.RenewBefore.String(),
 	}
 	assert.Equal(t, expectedAnnotations, externalDNS3.Annotations)
 	assert.Equal(t, "external3.alias.com", externalDNS3.Spec.Rules[0].Host, "App should have an external alias")
@@ -2676,7 +2676,7 @@ func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 	defer teardownTest()
 
-	// Initial sync with useAutomation false
+	// Initial sync with UseCertificateAutomation false
 	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
@@ -2695,7 +2695,7 @@ func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t
 	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
 	require.NoError(t, err)
 
-	// New sync with useAutomation true
+	// New sync with UseCertificateAutomation true
 	var m mock.Mock
 	client.Fake.PrependReactor("*", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if action.GetVerb() == "delete" && slice.Any([]string{"ingresses", "secrets"}, func(r string) bool { return r == action.GetResource().Resource }) {
@@ -2724,10 +2724,10 @@ func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t
 	ingress, err := client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
 	require.NoError(t, err)
 	expectedAnnotations := map[string]string{
-		kube.RadixExternalDNSUseAutomationAnnotation: "true",
-		"cert-manager.io/cluster-issuer":             testConfig.CertificateAutomation.ClusterIssuer,
-		"cert-manager.io/duration":                   testConfig.CertificateAutomation.Duration.String(),
-		"cert-manager.io/renew-before":               testConfig.CertificateAutomation.RenewBefore.String(),
+		kube.RadixExternalDNSUseCertificateAutomationAnnotation: "true",
+		"cert-manager.io/cluster-issuer":                        testConfig.CertificateAutomation.ClusterIssuer,
+		"cert-manager.io/duration":                              testConfig.CertificateAutomation.Duration.String(),
+		"cert-manager.io/renew-before":                          testConfig.CertificateAutomation.RenewBefore.String(),
 	}
 	assert.Equal(t, expectedAnnotations, ingress.Annotations)
 	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
@@ -2742,7 +2742,7 @@ func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressResetSecret(t 
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 	defer teardownTest()
 
-	// Initial sync with useAutomation true
+	// Initial sync with UseCertificateAutomation true
 	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
@@ -2772,7 +2772,7 @@ func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressResetSecret(t 
 	_, err = client.CoreV1().Secrets(envNamespace).Create(context.Background(), tlsSecret, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	// New sync with useAutomation false
+	// New sync with UseCertificateAutomation false
 	var m mock.Mock
 	client.Fake.PrependReactor("*", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if action.GetVerb() == "delete" && slice.Any([]string{"ingresses", "secrets"}, func(r string) bool { return r == action.GetResource().Resource }) {
@@ -2798,7 +2798,7 @@ func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressResetSecret(t 
 	m.AssertExpectations(t)
 	ingress, err := client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseAutomationAnnotation: "false"}, ingress.Annotations)
+	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: "false"}, ingress.Annotations)
 	secret, err := client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, map[string][]byte{corev1.TLSCertKey: nil, corev1.TLSPrivateKeyKey: nil}, secret.Data)
