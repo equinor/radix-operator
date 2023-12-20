@@ -77,7 +77,9 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 
 		// Create secrets to hold TLS certificates
 		for _, externalAlias := range dnsExternalAlias {
-			// Cert manager will create the TLS secret
+			// Cert manager will create the TLS secret.
+			// When witching from manual to automation, the secret is deleted by createOrUpdateExternalDNSIngresses in ingress.go
+			// When switching from automation to manual, the existing secret data cleared and updated by createOrUpdateExternalDNSIngresses
 			if externalAlias.UseCertificateAutomation {
 				continue
 			}
