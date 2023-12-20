@@ -121,8 +121,9 @@ func (deploy *Deployment) createOrUpdateExternalDNSIngresses(deployComponent rad
 		if existingIngress, err := deploy.kubeclient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), ingress.Name, metav1.GetOptions{}); err == nil {
 			// Perform updated and deletions of ingress and TLS secret when we change automation flag.
 			// cert-manager does not cleanup its resources (certificates, orders etc) by simply clearing ingress annotation. The ingress must be deleted for this to happen.
-			if useCertificateAutomationForExternalDNS(ingress) != useCertificateAutomationForExternalDNS(existingIngress) {
-				if useCertificateAutomationForExternalDNS(ingress) {
+			existingIngressUseAutomation, expectedIngressUseAutomation := useCertificateAutomationForExternalDNS(existingIngress), useCertificateAutomationForExternalDNS(ingress)
+			if expectedIngressUseAutomation != existingIngressUseAutomation {
+				if expectedIngressUseAutomation {
 					// Delete existing TLS secret if the ingress should use automation since cert-manager will handle the secret lifecycle.
 					if err := deploy.deleteTLSSecretForIngress(existingIngress); err != nil {
 						return err
