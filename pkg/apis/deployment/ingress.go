@@ -38,6 +38,7 @@ func (deploy *Deployment) createOrUpdateClusterIngress(deployComponent radixv1.R
 	if err != nil {
 		return err
 	}
+
 	namespace := deploy.radixDeployment.Namespace
 	publicPortNumber := getPublicPortForComponent(deployComponent)
 
@@ -54,31 +55,21 @@ func (deploy *Deployment) createOrUpdateActiveClusterIngress(deployComponent rad
 	if err != nil {
 		return err
 	}
+
+	if !isActiveCluster(clustername) {
+		return deploy.garbageCollectNonActiveClusterIngress(deployComponent)
+	}
+
 	namespace := deploy.radixDeployment.Namespace
 	publicPortNumber := getPublicPortForComponent(deployComponent)
 
-	if isActiveCluster(clustername) {
-		// Create fixed active cluster ingress for this component
-		activeClusterAliasIngress, err := deploy.getActiveClusterAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, deployComponent, namespace, publicPortNumber)
-		if err != nil {
-			return err
-		}
-
-		if activeClusterAliasIngress != nil {
-			err = deploy.kubeutil.ApplyIngress(namespace, activeClusterAliasIngress)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		// Remove existing fixed active cluster ingress for this component
-		err = deploy.garbageCollectNonActiveClusterIngress(deployComponent)
-		if err != nil {
-			return err
-		}
+	// Create fixed active cluster ingress for this component
+	activeClusterAliasIngress, err := deploy.getActiveClusterAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, deployComponent, namespace, publicPortNumber)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return deploy.kubeutil.ApplyIngress(namespace, activeClusterAliasIngress)
 }
 
 func (deploy *Deployment) createOrUpdateAppAliasIngress(deployComponent radixv1.RadixCommonDeployComponent) error {
@@ -86,30 +77,20 @@ func (deploy *Deployment) createOrUpdateAppAliasIngress(deployComponent radixv1.
 	if err != nil {
 		return err
 	}
+
+	if !deployComponent.IsDNSAppAlias() || !isActiveCluster(clustername) {
+		return deploy.garbageCollectAppAliasIngressNoLongerInSpecForComponent(deployComponent)
+	}
+
 	namespace := deploy.radixDeployment.Namespace
 	publicPortNumber := getPublicPortForComponent(deployComponent)
 
-	// Only the active cluster should have the DNS alias, not to cause conflicts between clusters
-	if deployComponent.IsDNSAppAlias() && isActiveCluster(clustername) {
-		appAliasIngress, err := deploy.getAppAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, deployComponent, namespace, publicPortNumber)
-		if err != nil {
-			return err
-		}
-
-		if appAliasIngress != nil {
-			err = deploy.kubeutil.ApplyIngress(namespace, appAliasIngress)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		err := deploy.garbageCollectAppAliasIngressNoLongerInSpecForComponent(deployComponent)
-		if err != nil {
-			return err
-		}
+	appAliasIngress, err := deploy.getAppAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, deployComponent, namespace, publicPortNumber)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return deploy.kubeutil.ApplyIngress(namespace, appAliasIngress)
 }
 
 func (deploy *Deployment) createOrUpdateExternalDNSIngresses(deployComponent radixv1.RadixCommonDeployComponent) error {
@@ -117,55 +98,52 @@ func (deploy *Deployment) createOrUpdateExternalDNSIngresses(deployComponent rad
 	if err != nil {
 		return err
 	}
+
+	externalDNSList := deployComponent.GetExternalDNS()
+
+	if len(externalDNSList) == 0 || !isActiveCluster(clustername) {
+		return deploy.garbageCollectAllExternalAliasIngressesForComponent(deployComponent)
+	}
+
 	namespace := deploy.radixDeployment.Namespace
 	publicPortNumber := getPublicPortForComponent(deployComponent)
 
-	// Only the active cluster should have the DNS external alias, not to cause conflicts between clusters
-	externalDNSList := deployComponent.GetExternalDNS()
-	if len(externalDNSList) > 0 && isActiveCluster(clustername) {
-		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
+	if err := deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent); err != nil {
+		return err
+	}
+
+	for _, externalDNS := range externalDNSList {
+		ingress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, externalDNS, deployComponent, namespace, publicPortNumber)
 		if err != nil {
 			return err
 		}
 
-		for _, externalDNS := range externalDNSList {
-			ingress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, externalDNS, deployComponent, namespace, publicPortNumber)
-			if err != nil {
-				return err
-			}
-
-			if existingIngress, err := deploy.kubeclient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), ingress.Name, metav1.GetOptions{}); err == nil {
-				// Perform updated and deletions of ingress and TLS secret when we change automation flag.
-				// cert-manager does not cleanup its resources (certificates, orders etc) by simply clearing ingress annotation. The ingress must be deleted for this to happen.
-				if useCertificateAutomationForExternalDNS(ingress) != useCertificateAutomationForExternalDNS(existingIngress) {
-					if useCertificateAutomationForExternalDNS(ingress) {
-						// Delete existing TLS secret if the ingress should use automation since cert-manager will handle the secret lifecycle.
-						if err := deploy.deleteTLSSecretForIngress(existingIngress); err != nil {
-							return err
-						}
-					} else {
-						// Clear secret data (key + cert) generated by cert-manager automation when we disable automation.
-						// Labels for the existing secret is updated by method createOrUpdateSecrets
-						if err := deploy.clearTLSSecretDataForIngress(existingIngress); err != nil {
-							return err
-						}
+		if existingIngress, err := deploy.kubeclient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), ingress.Name, metav1.GetOptions{}); err == nil {
+			// Perform updated and deletions of ingress and TLS secret when we change automation flag.
+			// cert-manager does not cleanup its resources (certificates, orders etc) by simply clearing ingress annotation. The ingress must be deleted for this to happen.
+			if useCertificateAutomationForExternalDNS(ingress) != useCertificateAutomationForExternalDNS(existingIngress) {
+				if useCertificateAutomationForExternalDNS(ingress) {
+					// Delete existing TLS secret if the ingress should use automation since cert-manager will handle the secret lifecycle.
+					if err := deploy.deleteTLSSecretForIngress(existingIngress); err != nil {
+						return err
 					}
-
-					if err := deploy.kubeclient.NetworkingV1().Ingresses(existingIngress.Namespace).Delete(context.TODO(), existingIngress.Name, metav1.DeleteOptions{}); err != nil && !kubeerrors.IsNotFound(err) {
+				} else {
+					// Clear secret data (key + cert) generated by cert-manager automation when we disable automation.
+					// Labels for the existing secret is updated by method createOrUpdateSecrets
+					if err := deploy.clearTLSSecretDataForIngress(existingIngress); err != nil {
 						return err
 					}
 				}
-			} else if !kubeerrors.IsNotFound(err) {
-				return err
-			}
 
-			err = deploy.kubeutil.ApplyIngress(namespace, ingress)
-			if err != nil {
-				return err
+				if err := deploy.kubeclient.NetworkingV1().Ingresses(existingIngress.Namespace).Delete(context.TODO(), existingIngress.Name, metav1.DeleteOptions{}); err != nil && !kubeerrors.IsNotFound(err) {
+					return err
+				}
 			}
+		} else if !kubeerrors.IsNotFound(err) {
+			return err
 		}
-	} else {
-		err = deploy.garbageCollectAllExternalAliasIngressesForComponent(deployComponent)
+
+		err = deploy.kubeutil.ApplyIngress(namespace, ingress)
 		if err != nil {
 			return err
 		}
