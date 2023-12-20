@@ -78,9 +78,6 @@ type Handler struct {
 	prometheusperatorclient monitoring.Interface
 	kubeutil                *kube.Kube
 	hasSynced               common.HasSynced
-	// tenantId                string
-	// kubernetesApiPort       int32
-	// deploymentHistoryLimit  int
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
 	ingressConfiguration    ingress.IngressConfiguration
