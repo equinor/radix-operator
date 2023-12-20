@@ -393,7 +393,7 @@ func clearTLSSecretDataForIngress(ing *networkingv1.Ingress, kubeClient kubernet
 	for _, tls := range ing.Spec.TLS {
 		if len(tls.SecretName) > 0 {
 			if secret, err := kubeClient.CoreV1().Secrets(ing.Namespace).Get(context.TODO(), tls.SecretName, metav1.GetOptions{}); err == nil {
-				secret.Data = tlsSecretDefaultData
+				secret.Data = tlsSecretDefaultData()
 				_, err = kubeClient.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 				return err
 			} else if !kubeerrors.IsNotFound(err) {

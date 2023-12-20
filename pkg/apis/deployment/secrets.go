@@ -23,12 +23,12 @@ const (
 	secretUsedBySecretStoreDriverLabel = "secrets-store.csi.k8s.io/used"
 )
 
-var (
-	tlsSecretDefaultData map[string][]byte = map[string][]byte{
+func tlsSecretDefaultData() map[string][]byte {
+	return map[string][]byte{
 		v1.TLSCertKey:       nil,
 		v1.TLSPrivateKeyKey: nil,
 	}
-)
+}
 
 func (deploy *Deployment) createOrUpdateSecrets() error {
 	log.Debugf("Apply empty secrets based on radix deployment obj")
@@ -343,7 +343,7 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	}
 
 	if isExternalAlias {
-		secret.Data = tlsSecretDefaultData
+		secret.Data = tlsSecretDefaultData()
 	}
 
 	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
