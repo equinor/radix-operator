@@ -47,7 +47,7 @@ func TestSyncerTestSuite(t *testing.T) {
 }
 
 func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch) Syncer {
-	return &syncer{kubeclient: s.kubeClient, kubeutil: s.kubeUtil, radixclient: s.radixClient, batch: forJob}
+	return &syncer{kubeClient: s.kubeClient, kubeUtil: s.kubeUtil, radixClient: s.radixClient, radixBatch: forJob}
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -71,7 +71,9 @@ func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, 
 		}
 		desiredConfigMap.Data[envVarName] = envVarValue
 	}
-	kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
+	err := kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
+	s.Require().NoError(err)
+
 	return desiredConfigMap
 }
 
@@ -134,7 +136,7 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 }
 
 func (s *syncerTestSuite) Test_RestoreStatusWithInvalidAnnotationValueShouldReturnErrorAndSkipReconcile() {
-	jobName, namespace := "any-job", "any-ns"
+	jobName := "any-job"
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	batch := &radixv1.RadixBatch{
 		ObjectMeta: metav1.ObjectMeta{Name: batchName, Annotations: map[string]string{kube.RestoredStatusAnnotation: "invalid data"}},

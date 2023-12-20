@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/radix-operator/batch/internal"
 	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
@@ -27,7 +28,7 @@ type handlerTestSuite struct {
 	kubeUtil             *kube.Kube
 	eventRecorder        *record.FakeRecorder
 	mockCtrl             *gomock.Controller
-	syncerFactory        *batch.MockSyncerFactory
+	syncerFactory        *internal.MockSyncerFactory
 	syncer               *batch.MockSyncer
 }
 
@@ -43,7 +44,7 @@ func (s *handlerTestSuite) SetupTest() {
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.eventRecorder = &record.FakeRecorder{}
 	s.mockCtrl = gomock.NewController(s.T())
-	s.syncerFactory = batch.NewMockSyncerFactory(s.mockCtrl)
+	s.syncerFactory = internal.NewMockSyncerFactory(s.mockCtrl)
 	s.syncer = batch.NewMockSyncer(s.mockCtrl)
 }
 

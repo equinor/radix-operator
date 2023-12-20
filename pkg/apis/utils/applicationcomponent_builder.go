@@ -212,7 +212,7 @@ func NewApplicationComponentBuilder() RadixApplicationComponentBuilder {
 	return &radixApplicationComponentBuilder{}
 }
 
-// AnApplicationComponent Constructor for component builder builder containing test data
+// AnApplicationComponent Constructor for component builder containing test data
 func AnApplicationComponent() RadixApplicationComponentBuilder {
 	return &radixApplicationComponentBuilder{
 		name: "app",

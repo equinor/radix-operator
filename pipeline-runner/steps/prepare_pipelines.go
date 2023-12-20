@@ -3,7 +3,9 @@ package steps
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/equinor/radix-common/utils/maps"
 	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -174,6 +176,14 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		{
 			Name:  defaults.RadixGithubWebhookCommitId,
 			Value: getWebhookCommitID(pipelineInfo),
+		},
+		{
+			Name:  defaults.RadixReservedAppDNSAliasesEnvironmentVariable,
+			Value: maps.ToString(pipelineInfo.PipelineArguments.DNSConfig.ReservedAppDNSAliases),
+		},
+		{
+			Name:  defaults.RadixReservedDNSAliasesEnvironmentVariable,
+			Value: strings.Join(pipelineInfo.PipelineArguments.DNSConfig.ReservedDNSAliases, ","),
 		},
 	}
 	sshURL := registration.Spec.CloneURL

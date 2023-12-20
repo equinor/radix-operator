@@ -77,7 +77,10 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 
 	s.KubeInformerFactory.Start(stopCh)
 
-	go sut.Run(1, stopCh)
+	go func() {
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
+	}()
 
 	doneCh := make(chan struct{})
 	item := "ns/item"
@@ -120,7 +123,10 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 
 	s.KubeInformerFactory.Start(stopCh)
 
-	go sut.Run(1, stopCh)
+	go func() {
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
+	}()
 
 	doneCh := make(chan struct{})
 	item := "ns/item"
@@ -162,7 +168,10 @@ func (s *commonControllerTestSuite) Test_ForgetWhenLockKeyAndIdentifierError() {
 
 	s.KubeInformerFactory.Start(stopCh)
 
-	go sut.Run(1, stopCh)
+	go func() {
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
+	}()
 
 	doneCh := make(chan struct{})
 	item := "ns/item"
@@ -201,7 +210,10 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 
 	s.KubeInformerFactory.Start(stopCh)
 
-	go sut.Run(1, stopCh)
+	go func() {
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
+	}()
 
 	doneCh := make(chan struct{})
 	queue.On("ShuttingDown").Return(false).Times(1)
@@ -238,7 +250,10 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 
 	s.KubeInformerFactory.Start(stopCh)
 
-	go sut.Run(1, stopCh)
+	go func() {
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
+	}()
 
 	doneCh := make(chan struct{})
 	item := ""
@@ -277,7 +292,8 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 
 	doneCh := make(chan struct{})
 	go func() {
-		sut.Run(1, stopCh)
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
 		close(doneCh)
 	}()
 
@@ -315,8 +331,9 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShuttingDownTrue() {
 
 	doneCh := make(chan struct{})
 	go func() {
-		sut.Run(1, stopCh)
+		err := sut.Run(1, stopCh)
 		close(doneCh)
+		s.Require().NoError(err)
 	}()
 
 	queue.On("ShuttingDown").Return(true).Times(1)
@@ -354,7 +371,10 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 
 	s.KubeInformerFactory.Start(stopCh)
 
-	go sut.Run(1, stopCh)
+	go func() {
+		err := sut.Run(1, stopCh)
+		s.Require().NoError(err)
+	}()
 
 	doneCh := make(chan struct{})
 	item := "ns/item"
@@ -408,7 +428,10 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	threadiness := 5
 	queue.On("ShuttingDown").Return(false)
 
-	go sut.Run(threadiness, stopCh)
+	go func() {
+		err := sut.Run(threadiness, stopCh)
+		s.Require().NoError(err)
+	}()
 
 	for i := 0; i < len(testItems); i++ {
 		i := i
@@ -446,7 +469,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 
 	select {
 	case <-doneCh:
-		// Check than max number of goroutines didn't exceed threadiness
+		// Check if max number of goroutines didn't exceed threadiness
 		actualMax := <-maxThreadsCh
 		expectedMax := threadiness
 		if len(testItems) < threadiness {

@@ -374,7 +374,7 @@ spec:
                               applies to.
                             maxLength: 63
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           horizontalScaling:
                             description: 'Configuration for automatic horizontal scaling
@@ -880,14 +880,14 @@ spec:
                           description: Defines which port in the ports list where
                             metrics is served.
                           maxLength: 15
-                          pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     name:
                       description: Name of the component.
                       maxLength: 253
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     node:
                       description: 'Defines GPU requirements for the component. More
@@ -910,7 +910,7 @@ spec:
                             description: Name of the port.
                             maxLength: 15
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           port:
                             description: Port number.
@@ -934,7 +934,7 @@ spec:
                       description: 'Defines which port (name) from the ports list
                         that shall be accessible from the internet. More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport'
                       maxLength: 15
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     resources:
                       description: 'Configures CPU and memory resources for the component.
@@ -1079,6 +1079,42 @@ spec:
                 x-kubernetes-list-map-keys:
                 - name
                 x-kubernetes-list-type: map
+              dnsAlias:
+                description: 'List of DNS names and which component and environment
+                  incoming requests shall be routed to. More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias'
+                items:
+                  description: DNSAlias defines mapping between an DNS alias and a
+                    component and environment.
+                  properties:
+                    alias:
+                      description: Alias name, e.g. my-app, which will prefix full
+                        internal alias my-app.radix.equinor.com
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                      type: string
+                    component:
+                      description: Name of the component that shall receive the incoming
+                        requests.
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                      type: string
+                    environment:
+                      description: Name of the environment for the component.
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                      type: string
+                  required:
+                  - alias
+                  - component
+                  - environment
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - alias
+                x-kubernetes-list-type: map
               dnsAppAlias:
                 description: 'Configure a component and environment to be linked to
                   the app alias DNS record. More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsappalias'
@@ -1088,13 +1124,13 @@ spec:
                       requests.
                     maxLength: 63
                     minLength: 1
-                    pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                    pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                     type: string
                   environment:
                     description: Name of the environment for the component.
                     maxLength: 63
                     minLength: 1
-                    pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                    pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                     type: string
                 type: object
               dnsExternalAlias:
@@ -1115,13 +1151,13 @@ spec:
                         requests.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     environment:
                       description: Name of the environment for the component.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                   required:
                   - alias
@@ -1210,7 +1246,7 @@ spec:
                       description: Name of the environment.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                   required:
                   - name
@@ -1264,7 +1300,7 @@ spec:
                               applies to.
                             maxLength: 63
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           identity:
                             description: 'Environment specific configuration for workload
@@ -1726,7 +1762,7 @@ spec:
                           description: Defines which port in the ports list where
                             metrics is served.
                           maxLength: 15
-                          pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     name:
@@ -1734,7 +1770,7 @@ spec:
                         to.
                       maxLength: 253
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     node:
                       description: 'Defines GPU requirements for the job. More info:
@@ -1779,7 +1815,7 @@ spec:
                             description: Name of the port.
                             maxLength: 15
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           port:
                             description: Port number.

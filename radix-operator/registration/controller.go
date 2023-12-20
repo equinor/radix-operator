@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -59,9 +60,11 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -74,7 +77,9 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -89,17 +94,21 @@ func NewController(client kubernetes.Interface,
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixRegistration", getObject)
+			controller.HandleObject(obj, v1.KindRadixRegistration, getObject)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()
-	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldSecret := oldObj.(*corev1.Secret)
 			newSecret := newObj.(*corev1.Secret)
@@ -116,7 +125,7 @@ func NewController(client kubernetes.Interface,
 			if isGitDeployKey(newSecret) && newSecret.Namespace != "" {
 				// Resync, as deploy key is updated. Resync is triggered on namespace, since RR not directly own the
 				// secret
-				controller.HandleObject(namespace, "RadixRegistration", getObject)
+				controller.HandleObject(namespace, v1.KindRadixRegistration, getObject)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -138,10 +147,12 @@ func NewController(client kubernetes.Interface,
 			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {
 				// Resync, as deploy key is deleted. Resync is triggered on namespace, since RR not directly own the
 				// secret
-				controller.HandleObject(namespace, "RadixRegistration", getObject)
+				controller.HandleObject(namespace, v1.KindRadixRegistration, getObject)
 			}
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	return controller
 }

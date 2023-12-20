@@ -7,7 +7,7 @@ import (
 )
 
 // createAppNamespace creates an app namespace with RadixRegistration as owner
-func (app Application) createAppNamespace() error {
+func (app *Application) createAppNamespace() error {
 	registration := app.registration
 	name := utils.GetAppNamespace(registration.Name)
 

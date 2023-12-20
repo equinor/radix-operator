@@ -94,6 +94,13 @@ type RadixApplicationSpec struct {
 	// +optional
 	DNSExternalAlias []ExternalAlias `json:"dnsExternalAlias,omitempty"`
 
+	// List of DNS names and which component and environment incoming requests shall be routed to.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias
+	// +listType=map
+	// +listMapKey=alias
+	// +optional
+	DNSAlias []DNSAlias `json:"dnsAlias,omitempty"`
+
 	// Defines protected container registries used by components or jobs.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#privateimagehubs
 	// +optional
@@ -140,7 +147,7 @@ type Environment struct {
 	// Name of the environment.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Build configuration for the environment.
@@ -212,13 +219,13 @@ type AppAlias struct {
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment,omitempty"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Component string `json:"component,omitempty"`
 }
 
@@ -233,13 +240,34 @@ type ExternalAlias struct {
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Component string `json:"component"`
+}
+
+// DNSAlias defines mapping between an DNS alias and a component and environment.
+type DNSAlias struct {
+	// Alias name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
+	Alias string `json:"alias"`
+
+	// Name of the environment for the component.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Environment string `json:"environment"`
+
+	// Name of the component that shall receive the incoming requests.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Component string `json:"component"`
 }
 
@@ -248,7 +276,7 @@ type ComponentPort struct {
 	// Name of the port.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=15
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Port number.
@@ -279,7 +307,7 @@ type RadixComponent struct {
 	// Name of the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Path to the Dockerfile that builds the component.
@@ -317,7 +345,7 @@ type RadixComponent struct {
 	// Defines which port (name) from the ports list that shall be accessible from the internet.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport
 	// +kubebuilder:validation:MaxLength=15
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	// +optional
 	PublicPort string `json:"publicPort,omitempty"`
 
@@ -384,7 +412,7 @@ type RadixEnvironmentConfig struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
 	// Number of desired replicas.
@@ -460,7 +488,7 @@ type RadixJobComponent struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Path to the Dockerfile that builds the job.
@@ -566,7 +594,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
 	// Enabled or disables collection of custom Prometheus metrics.
@@ -970,7 +998,7 @@ type RadixNode struct {
 type MonitoringConfig struct {
 	// Defines which port in the ports list where metrics is served.
 	// +kubebuilder:validation:MaxLength=15
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	PortName string `json:"portName,omitempty"`
 
 	// Defines the path where metrics is served.

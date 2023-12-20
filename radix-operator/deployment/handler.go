@@ -8,6 +8,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -81,7 +82,7 @@ func WithOAuth2ProxyDockerImage(image string) HandlerConfigOption {
 }
 
 // WithIngressConfiguration sets the list of custom ingress confiigurations
-func WithIngressConfiguration(config deployment.IngressConfiguration) HandlerConfigOption {
+func WithIngressConfiguration(config ingress.IngressConfiguration) HandlerConfigOption {
 	return func(h *Handler) {
 		h.ingressConfiguration = config
 	}
@@ -106,7 +107,7 @@ type Handler struct {
 	deploymentHistoryLimit  int
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
-	ingressConfiguration    deployment.IngressConfiguration
+	ingressConfiguration    ingress.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
 
@@ -167,15 +168,10 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	ingressAnnotations := []deployment.IngressAnnotationProvider{
-		deployment.NewForceSslRedirectAnnotationProvider(),
-		deployment.NewIngressConfigurationAnnotationProvider(t.ingressConfiguration),
-		deployment.NewClientCertificateAnnotationProvider(syncRD.Namespace),
-		deployment.NewOAuth2AnnotationProvider(t.oauth2DefaultConfig),
-	}
+	ingressAnnotations := ingress.GetAnnotationProvider(t.ingressConfiguration, syncRD.Namespace, t.oauth2DefaultConfig)
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
+		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage),
 	}
 
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers)

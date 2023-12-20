@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/batch"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/radix-operator/batch/internal"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,48 +29,48 @@ const (
 	MessageResourceSynced = "RadixBatch synced successfully"
 )
 
-var _ common.Handler = &Handler{}
+var _ common.Handler = &handler{}
 
-// HandlerConfigOption defines a configuration function used for additional configuration of Handler
-type HandlerConfigOption func(*Handler)
+// HandlerConfigOption defines a configuration function used for additional configuration of handler
+type HandlerConfigOption func(*handler)
 
-// WithSyncerFactory configures the SyncerFactory for the Handler
-func WithSyncerFactory(factory batch.SyncerFactory) HandlerConfigOption {
-	return func(h *Handler) {
+// WithSyncerFactory configures the SyncerFactory for the handler
+func WithSyncerFactory(factory internal.SyncerFactory) HandlerConfigOption {
+	return func(h *handler) {
 		h.syncerFactory = factory
 	}
 }
 
-type Handler struct {
+type handler struct {
 	kubeclient    kubernetes.Interface
 	radixclient   radixclient.Interface
 	kubeutil      *kube.Kube
-	syncerFactory batch.SyncerFactory
+	syncerFactory internal.SyncerFactory
 }
 
 func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	options ...HandlerConfigOption) *Handler {
+	options ...HandlerConfigOption) common.Handler {
 
-	handler := &Handler{
+	h := &handler{
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
 	}
 
-	configureDefaultSyncerFactory(handler)
+	configureDefaultSyncerFactory(h)
 
 	for _, option := range options {
-		option(handler)
+		option(h)
 	}
 
-	return handler
+	return h
 }
 
-func (h *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.TODO(), name, v1.GetOptions{})
+func (h *handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.Background(), name, v1.GetOptions{})
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
 		// processing.
@@ -81,19 +82,19 @@ func (h *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	syncRSC := radixBatch.DeepCopy()
-	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncRSC)
+	syncBatch := radixBatch.DeepCopy()
+	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncBatch)
 	err = syncer.OnSync()
 	if err != nil {
-		eventRecorder.Event(syncRSC, corev1.EventTypeWarning, SyncFailed, err.Error())
+		eventRecorder.Event(syncBatch, corev1.EventTypeWarning, SyncFailed, err.Error())
 		// Put back on queue
 		return err
 	}
 
-	eventRecorder.Event(syncRSC, corev1.EventTypeNormal, Synced, MessageResourceSynced)
+	eventRecorder.Event(syncBatch, corev1.EventTypeNormal, Synced, MessageResourceSynced)
 	return nil
 }
 
-func configureDefaultSyncerFactory(h *Handler) {
-	WithSyncerFactory(batch.SyncerFactoryFunc(batch.NewSyncer))(h)
+func configureDefaultSyncerFactory(h *handler) {
+	WithSyncerFactory(internal.SyncerFactoryFunc(batch.NewSyncer))(h)
 }

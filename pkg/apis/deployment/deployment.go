@@ -3,14 +3,15 @@ package deployment
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -47,7 +48,7 @@ type Deployment struct {
 	registration               *v1.RadixRegistration
 	radixDeployment            *v1.RadixDeployment
 	auxResourceManagers        []AuxiliaryResourceManager
-	ingressAnnotationProviders []IngressAnnotationProvider
+	ingressAnnotationProviders []ingress.AnnotationProvider
 	tenantId                   string
 	kubernetesApiPort          int32
 	deploymentHistoryLimit     int
@@ -57,7 +58,7 @@ type Deployment struct {
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
@@ -73,7 +74,7 @@ func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, r
 	}
 }
 
-// GetDeploymentComponent Gets the index of and the component given name
+// GetDeploymentComponent Gets the index of and the component given name. Used by Radix API.
 func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
 	for index, component := range rd.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
@@ -189,8 +190,6 @@ func (deploy *Deployment) restoreStatus() bool {
 }
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
-	stopReconciliation = false
-
 	allRDs, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
 	if err != nil {
 		err = fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
@@ -242,7 +241,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occurred when setting network policies
 	if len(errs) > 0 {
-		combinedErrs := errors.Concat(errs)
+		combinedErrs := stderrors.Join(errs...)
 		log.Errorf("%s", combinedErrs)
 		return combinedErrs
 	}
@@ -262,7 +261,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occurred when syncing of components
 	if len(errs) > 0 {
-		return errors.Concat(errs)
+		return stderrors.Join(errs...)
 	}
 
 	if err := deploy.syncAuxiliaryResources(); err != nil {
@@ -274,6 +273,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 func (deploy *Deployment) syncAuxiliaryResources() error {
 	for _, aux := range deploy.auxResourceManagers {
+		log.Debugf("sync AuxiliaryResource for the RadixDeployment %s", deploy.radixDeployment.GetName())
 		if err := aux.Sync(); err != nil {
 			return err
 		}
@@ -518,6 +518,10 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 
 func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {
 	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
+}
+
+func getLabelSelectorForComponentDefaultAlias(component v1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s", kube.RadixComponentLabel, component.GetName(), kube.RadixDefaultAliasLabel)
 }
 
 func getLabelSelectorForExternalAlias(component v1.RadixCommonDeployComponent) string {

@@ -5,47 +5,44 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	auth "k8s.io/api/rbac/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app Application) rrPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {
-	registration := app.registration
-	appName := registration.Name
-	clusterroleName := fmt.Sprintf("%s-%s", roleNamePrefix, appName)
-	return app.rrClusterRole(clusterroleName, []string{"get"})
+func (app *Application) buildRRClusterRole(clusterRoleName string, verbs []string) *rbacv1.ClusterRole {
+	appName := app.registration.Name
+	return app.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{v1.SchemeGroupVersion.Group},
+		Resources:     []string{v1.ResourceRadixRegistrations},
+		ResourceNames: []string{appName},
+		Verbs:         verbs,
+	})
 }
 
-func (app Application) rrClusterRole(clusterroleName string, verbs []string) *auth.ClusterRole {
-	registration := app.registration
-	appName := registration.Name
+func (app *Application) buildRadixDNSAliasClusterRole(roleNamePrefix string) *rbacv1.ClusterRole {
+	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
+	return app.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{v1.SchemeGroupVersion.Group},
+		Resources: []string{v1.ResourceRadixDNSAliases},
+		Verbs:     []string{"list"},
+	})
+}
 
-	ownerRef := app.getOwnerReference()
-
-	logger.Debugf("Creating clusterrole config %s", clusterroleName)
-
-	clusterrole := &auth.ClusterRole{
+func (app *Application) buildClusterRole(clusterRoleName string, rules ...rbacv1.PolicyRule) *rbacv1.ClusterRole {
+	logger.Debugf("Creating clusterrole config %s", clusterRoleName)
+	clusterRole := &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindClusterRole,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterroleName,
+			Name: clusterRoleName,
 			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
+				kube.RadixAppLabel: app.registration.Name,
 			},
-			OwnerReferences: ownerRef,
+			OwnerReferences: app.getOwnerReference(),
 		},
-		Rules: []auth.PolicyRule{
-			{
-				APIGroups:     []string{"radix.equinor.com"},
-				Resources:     []string{"radixregistrations"},
-				ResourceNames: []string{appName},
-				Verbs:         verbs,
-			},
-		},
+		Rules: rules,
 	}
-	logger.Debugf("Done - creating clusterrole config %s", clusterroleName)
-
-	return clusterrole
+	logger.Debugf("Done - creating clusterrole config %s", clusterRoleName)
+	return clusterRole
 }

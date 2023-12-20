@@ -30,6 +30,8 @@ type Interface interface {
 	RadixApplications() RadixApplicationInformer
 	// RadixBatches returns a RadixBatchInformer.
 	RadixBatches() RadixBatchInformer
+	// RadixDNSAliases returns a RadixDNSAliasInformer.
+	RadixDNSAliases() RadixDNSAliasInformer
 	// RadixDeployments returns a RadixDeploymentInformer.
 	RadixDeployments() RadixDeploymentInformer
 	// RadixEnvironments returns a RadixEnvironmentInformer.
@@ -64,6 +66,11 @@ func (v *version) RadixApplications() RadixApplicationInformer {
 // RadixBatches returns a RadixBatchInformer.
 func (v *version) RadixBatches() RadixBatchInformer {
 	return &radixBatchInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// RadixDNSAliases returns a RadixDNSAliasInformer.
+func (v *version) RadixDNSAliases() RadixDNSAliasInformer {
+	return &radixDNSAliasInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // RadixDeployments returns a RadixDeploymentInformer.

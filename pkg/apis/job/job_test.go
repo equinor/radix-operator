@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -114,7 +117,7 @@ func (s *RadixJobTestSuiteBase) teardownTest() {
 	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
-func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, config *Config) (*radixv1.RadixJob, error) {
+func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, config *config.Config) (*radixv1.RadixJob, error) {
 	rj, err := s.testUtils.ApplyJob(jobBuilder)
 	if err != nil {
 		return nil, err
@@ -128,7 +131,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, co
 	return s.radixClient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.TODO(), rj.Name, metav1.GetOptions{})
 }
 
-func (s *RadixJobTestSuiteBase) runSync(rj *radixv1.RadixJob, config *Config) error {
+func (s *RadixJobTestSuiteBase) runSync(rj *radixv1.RadixJob, config *config.Config) error {
 	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rj, config)
 	return job.OnSync()
 }
@@ -216,6 +219,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_CONTAINER_REGISTRY=%s", s.config.registry),
 				fmt.Sprintf("--RADIX_APP_CONTAINER_REGISTRY=%s", s.config.appRegistry),
 				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
+				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api",
+				"--RADIX_RESERVED_DNS_ALIASES=grafana",
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
@@ -250,6 +255,32 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	s.Equal(expectedPodSpec, podTemplate.Spec)
 }
 
+func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreatedWithTektonImageTag() {
+	appName, jobName, branch, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	config := getConfigWithPipelineJobsHistoryLimit(3)
+	rj, err := s.applyJobWithSync(utils.NewJobBuilder().
+		WithJobName(jobName).
+		WithAppName(appName).
+		WithBranch(branch).
+		WithCommitID(commitID).
+		WithPushImage(true).
+		WithImageTag(imageTag).
+		WithDeploymentName(deploymentName).
+		WithTektonImageTag("test-tekton-image").
+		WithPipelineType(radixv1.BuildDeploy).
+		WithPipelineImageTag(pipelineTag), config)
+	s.Require().NoError(err)
+	s.Equal("test-tekton-image", rj.Spec.TektonImage)
+	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 1)
+	job := jobs.Items[0]
+	podTemplate := job.Spec.Template
+
+	expected := fmt.Sprintf("--%s=radix-tekton:%s", defaults.RadixTektonPipelineImageEnvironmentVariable, "test-tekton-image")
+	actualArgs := podTemplate.Spec.Containers[0].Args
+	assert.Contains(s.T(), actualArgs, expected)
+}
+
 func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	// Setup
@@ -263,7 +294,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -284,7 +317,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -310,7 +345,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
@@ -652,7 +689,9 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName).
 					WithActiveFrom(testTime))
 				s.NoError(err)
-				s.applyJobWithSyncFor(raBuilder, appName, rdJob, config)
+				err = s.applyJobWithSyncFor(raBuilder, appName, rdJob, config)
+				s.Require().NoError(err)
+
 				testTime = testTime.Add(time.Hour)
 			}
 
@@ -661,7 +700,8 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				WithEnvironment(scenario.testingRadixDeploymentJob.env).
 				WithActiveFrom(testTime))
 			s.NoError(err)
-			s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config)
+			err = s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config)
+			s.Require().NoError(err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
 			s.NoError(err)
@@ -785,7 +825,9 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
 			raBuilder := scenario.raBuilder.WithAppName(appName)
-			s.testUtils.ApplyApplication(raBuilder)
+			_, err := s.testUtils.ApplyApplication(raBuilder)
+			s.Require().NoError(err)
+
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				if rdJob.jobStatus == radixv1.JobSucceeded {
 					_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -847,7 +889,7 @@ func (s *RadixJobTestSuite) assertExistRadixJobsWithNames(radixJobList *radixv1.
 	}
 }
 
-func (s *RadixJobTestSuite) applyJobWithSyncFor(raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config *Config) error {
+func (s *RadixJobTestSuite) applyJobWithSyncFor(raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config *config.Config) error {
 	_, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().
 		WithRadixApplication(raBuilder).
 		WithAppName(appName).
@@ -901,9 +943,14 @@ func (s *RadixJobTestSuite) assertStatusEqual(expectedStatus, actualStatus radix
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
+	dnsConfig := dnsalias.DNSConfig{
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
+		ReservedDNSAliases:    []string{"grafana"},
+	}
 	scenarios := []struct {
 		name                                      string
-		config                                    *Config
+		config                                    *config.Config
 		expectedAppBuilderResourcesRequestsCPU    string
 		expectedAppBuilderResourcesRequestsMemory string
 		expectedAppBuilderResourcesLimitsMemory   string
@@ -911,12 +958,14 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 	}{
 		{
 			name: "Configured AppBuilderResources",
-			config: &Config{
-				PipelineJobsHistoryLimit:          3,
-				AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
-				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-				AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
-			},
+			config: &config.Config{
+				DNSConfig: &dnsConfig,
+				PipelineJobConfig: &pipelinejob.Config{
+					PipelineJobsHistoryLimit:          3,
+					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
+					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+				}},
 			expectedError:                             "",
 			expectedAppBuilderResourcesRequestsCPU:    "123m",
 			expectedAppBuilderResourcesRequestsMemory: "1234Mi",
@@ -924,26 +973,32 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		},
 		{
 			name: "Missing config for ResourcesRequestsCPU",
-			config: &Config{
-				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-				AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
-			},
+			config: &config.Config{
+				DNSConfig: &dnsConfig,
+				PipelineJobConfig: &pipelinejob.Config{
+					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+				}},
 			expectedError: "invalid or missing app builder resources",
 		},
 		{
 			name: "Missing config for ResourcesRequestsMemory",
-			config: &Config{
-				AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
-				AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
-			},
+			config: &config.Config{
+				DNSConfig: &dnsConfig,
+				PipelineJobConfig: &pipelinejob.Config{
+					AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
+					AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
+				}},
 			expectedError: "invalid or missing app builder resources",
 		},
 		{
 			name: "Missing config for ResourcesLimitsMemory",
-			config: &Config{
-				AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
-				AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-			},
+			config: &config.Config{
+				DNSConfig: &dnsConfig,
+				PipelineJobConfig: &pipelinejob.Config{
+					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
+					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+				}},
 			expectedError: "invalid or missing app builder resources",
 		},
 	}
@@ -986,11 +1041,17 @@ func getJobContainerArgument(container corev1.Container, variableName string) st
 	return ""
 }
 
-func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *Config {
-	return &Config{
-		PipelineJobsHistoryLimit:          historyLimit,
-		AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
-		AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-		AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
-	}
+func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
+	return &config.Config{
+		DNSConfig: &dnsalias.DNSConfig{
+			DNSZone:               "dev.radix.equinor.com",
+			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
+			ReservedDNSAliases:    []string{"grafana"},
+		},
+		PipelineJobConfig: &pipelinejob.Config{
+			PipelineJobsHistoryLimit:          historyLimit,
+			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
+			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
+			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+		}}
 }

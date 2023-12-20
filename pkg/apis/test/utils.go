@@ -6,13 +6,15 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
@@ -42,7 +44,7 @@ func (tu *Utils) GetKubeUtil() *kube.Kube {
 }
 
 // ApplyRegistration Will help persist an application registration
-func (tu *Utils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder) (*v1.RadixRegistration, error) {
+func (tu *Utils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder) (*radixv1.RadixRegistration, error) {
 	rr := registrationBuilder.BuildRR()
 
 	_, err := tu.radixclient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
@@ -57,7 +59,7 @@ func (tu *Utils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder
 }
 
 // ApplyRegistrationUpdate Will help update a registration
-func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder utils.RegistrationBuilder) (*v1.RadixRegistration, error) {
+func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder utils.RegistrationBuilder) (*radixv1.RadixRegistration, error) {
 	rr := registrationBuilder.BuildRR()
 
 	rrPrev, err := tu.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
@@ -75,9 +77,9 @@ func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder utils.RegistrationB
 }
 
 // ApplyApplication Will help persist an application
-func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (*v1.RadixApplication, error) {
+func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (*radixv1.RadixApplication, error) {
 	regBuilder := applicationBuilder.GetRegistrationBuilder()
-	var rr *v1.RadixRegistration
+	var rr *radixv1.RadixRegistration
 
 	if regBuilder != nil {
 		rr, _ = tu.ApplyRegistration(regBuilder)
@@ -93,22 +95,24 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 
 		return ra, err
 	}
-
+	ra.ObjectMeta.UID = uuid.NewUUID() // imitate new UID, assigned by Kubernetes
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
-		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
+		if _, err := tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
 			WithRegistrationOwner(rr).
-			WithOrphaned(false))
+			WithOrphaned(false)); err != nil {
+			return nil, err
+		}
 	}
 
 	return ra, nil
 }
 
 // ApplyApplicationUpdate Will help update an application
-func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuilder) (*v1.RadixApplication, error) {
+func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuilder) (*radixv1.RadixApplication, error) {
 	ra := applicationBuilder.BuildRA()
 	appNamespace := utils.GetAppNamespace(ra.GetName())
 
@@ -117,7 +121,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 		return ra, err
 	}
 
-	var rr *v1.RadixRegistration
+	var rr *radixv1.RadixRegistration
 	regBuilder := applicationBuilder.GetRegistrationBuilder()
 	if regBuilder != nil {
 		rr, err = tu.ApplyRegistration(regBuilder)
@@ -130,18 +134,20 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
-		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
+		if _, err := tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
-			WithRegistrationOwner(rr))
+			WithRegistrationOwner(rr)); err != nil {
+			return nil, err
+		}
 	}
 
 	return ra, nil
 }
 
 // ApplyDeployment Will help persist a deployment
-func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
+func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	envs := make(map[string]struct{})
 	if deploymentBuilder.GetApplicationBuilder() != nil {
 		ra, _ := tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
@@ -169,7 +175,7 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) (*v1
 }
 
 // ApplyDeploymentUpdate Will help update a deployment
-func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
+func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	rd := deploymentBuilder.BuildRD()
 	envNamespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
 
@@ -188,9 +194,11 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder
 }
 
 // ApplyJob Will help persist a radixjob
-func (tu *Utils) ApplyJob(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
+func (tu *Utils) ApplyJob(jobBuilder utils.JobBuilder) (*radixv1.RadixJob, error) {
 	if jobBuilder.GetApplicationBuilder() != nil {
-		tu.ApplyApplication(jobBuilder.GetApplicationBuilder())
+		if _, err := tu.ApplyApplication(jobBuilder.GetApplicationBuilder()); err != nil {
+			return nil, err
+		}
 	}
 
 	rj := jobBuilder.BuildRJ()
@@ -205,7 +213,7 @@ func (tu *Utils) ApplyJob(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
 }
 
 // ApplyJobUpdate Will help update a radixjob
-func (tu *Utils) ApplyJobUpdate(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
+func (tu *Utils) ApplyJobUpdate(jobBuilder utils.JobBuilder) (*radixv1.RadixJob, error) {
 	rj := jobBuilder.BuildRJ()
 
 	appNamespace := CreateAppNamespace(tu.client, rj.Spec.AppName)
@@ -225,7 +233,7 @@ func (tu *Utils) ApplyJobUpdate(jobBuilder utils.JobBuilder) (*v1.RadixJob, erro
 }
 
 // ApplyEnvironment Will help persist a RadixEnvironment
-func (tu *Utils) ApplyEnvironment(environmentBuilder utils.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
+func (tu *Utils) ApplyEnvironment(environmentBuilder utils.EnvironmentBuilder) (*radixv1.RadixEnvironment, error) {
 	re := environmentBuilder.BuildRE()
 	log.Debugf("%s", re.GetObjectMeta().GetCreationTimestamp())
 
@@ -241,7 +249,7 @@ func (tu *Utils) ApplyEnvironment(environmentBuilder utils.EnvironmentBuilder) (
 }
 
 // ApplyEnvironmentUpdate Will help update a RadixEnvironment
-func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
+func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuilder) (*radixv1.RadixEnvironment, error) {
 	re := environmentBuilder.BuildRE()
 
 	rePrev, err := tu.radixclient.RadixV1().RadixEnvironments().Get(context.TODO(), re.GetName(), metav1.GetOptions{})
@@ -277,10 +285,10 @@ func SetRequiredEnvironmentVariables() {
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) {
+func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) error {
 	SetRequiredEnvironmentVariables()
 
-	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+	if _, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.TODO(),
 		&corev1.Secret{
 			Type: "Opaque",
@@ -292,9 +300,11 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 				"known_hosts": []byte("abcd"),
 			},
 		},
-		metav1.CreateOptions{})
+		metav1.CreateOptions{}); err != nil {
+		return err
+	}
 
-	tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+	_, err := tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
 		context.TODO(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -308,6 +318,7 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 			},
 		},
 		metav1.CreateOptions{})
+	return err
 }
 
 // CreateAppNamespace Helper method to creat app namespace
@@ -335,7 +346,9 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		},
 	}
 
-	kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
+	if _, err := kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{}); err != nil {
+		log.Error(err)
+	}
 }
 
 // IntPtr Helper function to get the pointer of an int
@@ -343,7 +356,7 @@ func IntPtr(i int) *int {
 	return &i
 }
 
-func (tu *Utils) applyRadixDeploymentEnvVarsConfigMaps(rd *v1.RadixDeployment) map[string]*corev1.ConfigMap {
+func (tu *Utils) applyRadixDeploymentEnvVarsConfigMaps(rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
 	envVarConfigMapsMap := map[string]*corev1.ConfigMap{}
 	for _, deployComponent := range rd.Spec.Components {
 		envVarConfigMapsMap[deployComponent.GetName()] = tu.ensurePopulatedEnvVarsConfigMaps(rd, &deployComponent)
@@ -354,7 +367,7 @@ func (tu *Utils) applyRadixDeploymentEnvVarsConfigMaps(rd *v1.RadixDeployment) m
 	return envVarConfigMapsMap
 }
 
-func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(rd *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) *corev1.ConfigMap {
+func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(rd *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent) *corev1.ConfigMap {
 	initialEnvVarsConfigMap, _, _ := tu.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(rd.GetNamespace(), rd.Spec.AppName,
 		deployComponent.GetName())
 	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
@@ -369,7 +382,7 @@ func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(rd *v1.RadixDeployment, deploy
 }
 
 // GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType
-func GetRadixAzureKeyVaultObjectTypePtr(objectType v1.RadixAzureKeyVaultObjectType) *v1.RadixAzureKeyVaultObjectType {
+func GetRadixAzureKeyVaultObjectTypePtr(objectType radixv1.RadixAzureKeyVaultObjectType) *radixv1.RadixAzureKeyVaultObjectType {
 	return &objectType
 }
 
@@ -377,9 +390,58 @@ func GetRadixAzureKeyVaultObjectTypePtr(objectType v1.RadixAzureKeyVaultObjectTy
 func GetAzureKeyVaultTypeSecrets(secrets *corev1.SecretList) *corev1.SecretList {
 	var azureKeyVaultSecrets []corev1.Secret
 	for _, secret := range secrets.Items {
-		if label, ok := secret.ObjectMeta.Labels[kube.RadixSecretRefTypeLabel]; ok && label == string(v1.RadixSecretRefTypeAzureKeyVault) {
+		if label, ok := secret.ObjectMeta.Labels[kube.RadixSecretRefTypeLabel]; ok && label == string(radixv1.RadixSecretRefTypeAzureKeyVault) {
 			azureKeyVaultSecrets = append(azureKeyVaultSecrets, secret)
 		}
 	}
 	return &corev1.SecretList{Items: azureKeyVaultSecrets}
+}
+
+// RegisterRadixDNSAliases Register RadixDNSAliases
+func RegisterRadixDNSAliases(radixClient radixclient.Interface, radixDNSAliasesMap map[string]DNSAlias) error {
+	if radixDNSAliasesMap == nil {
+		return nil
+	}
+	for alias, aliasesSpec := range radixDNSAliasesMap {
+		err := RegisterRadixDNSAliasBySpec(radixClient, alias, aliasesSpec)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RegisterRadixDNSAlias Register RadixDNSAlias by properties
+func RegisterRadixDNSAlias(radixClient radixclient.Interface, appName, componentName, envName, alias string) error {
+	return RegisterRadixDNSAliasBySpec(radixClient, alias, DNSAlias{
+		AppName:     appName,
+		Environment: envName,
+		Component:   componentName,
+	})
+}
+
+// RegisterRadixDNSAliasBySpec Register RadixDNSAlias by its spec
+func RegisterRadixDNSAliasBySpec(radixClient radixclient.Interface, alias string, aliasesSpec DNSAlias) error {
+	_, err := radixClient.RadixV1().RadixDNSAliases().Create(context.Background(),
+		&radixv1.RadixDNSAlias{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       alias,
+				Labels:     labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
+				Finalizers: []string{kube.RadixDNSAliasFinalizer},
+			},
+			Spec: radixv1.RadixDNSAliasSpec{
+				AppName:     aliasesSpec.AppName,
+				Environment: aliasesSpec.Environment,
+				Component:   aliasesSpec.Component,
+			},
+		}, metav1.CreateOptions{})
+	return err
+}
+
+type DNSAlias struct {
+	Alias       string
+	AppName     string
+	Environment string
+	Component   string
+	Port        int
 }

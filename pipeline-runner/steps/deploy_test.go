@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -37,7 +38,8 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientse
 	radixclient := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
-	testUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	err := testUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	require.NoError(t, err)
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 
 	return kubeclient, kubeUtil, radixclient, testUtils
@@ -179,7 +181,12 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	dnsConfig := dnsalias.DNSConfig{
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
+		ReservedDNSAliases:    []string{"grafana"},
+	}
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, &dnsConfig)
 	targetEnvs := application.GetTargetEnvironments("master", ra)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -294,7 +301,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 
 	const commitID = "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
 

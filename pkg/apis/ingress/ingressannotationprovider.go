@@ -1,30 +1,30 @@
-package deployment
+package ingress
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 )
 
-type IngressAnnotationProvider interface {
-	GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error)
+type AnnotationProvider interface {
+	GetAnnotations(component radixv1.RadixCommonDeployComponent, namespace string) (map[string]string, error)
 }
 
-func NewForceSslRedirectAnnotationProvider() IngressAnnotationProvider {
+func NewForceSslRedirectAnnotationProvider() AnnotationProvider {
 	return &forceSslRedirectAnnotationProvider{}
 }
 
 type forceSslRedirectAnnotationProvider struct{}
 
-func (forceSslRedirectAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
+func (forceSslRedirectAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
 	return map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}, nil
 }
 
-func NewIngressConfigurationAnnotationProvider(config IngressConfiguration) IngressAnnotationProvider {
+func NewIngressConfigurationAnnotationProvider(config IngressConfiguration) AnnotationProvider {
 	return &ingressConfigurationAnnotationProvider{config: config}
 }
 
@@ -32,7 +32,7 @@ type ingressConfigurationAnnotationProvider struct {
 	config IngressConfiguration
 }
 
-func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
+func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
 	allAnnotations := make(map[string]string)
 
 	for _, configuration := range component.GetIngressConfiguration() {
@@ -55,32 +55,41 @@ func (provider *ingressConfigurationAnnotationProvider) getAnnotationsFromConfig
 	return nil
 }
 
-func NewClientCertificateAnnotationProvider(certificateNamespace string) IngressAnnotationProvider {
+func NewClientCertificateAnnotationProvider(certificateNamespace string) AnnotationProvider {
 	return &clientCertificateAnnotationProvider{namespace: certificateNamespace}
+}
+
+type ClientCertificateAnnotationProvider interface {
+	AnnotationProvider
+	GetNamespace() string
 }
 
 type clientCertificateAnnotationProvider struct {
 	namespace string
 }
 
-func (provider *clientCertificateAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
-	result := make(map[string]string)
+func (provider *clientCertificateAnnotationProvider) GetNamespace() string {
+	return provider.namespace
+}
+
+func (provider *clientCertificateAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+	annotations := make(map[string]string)
 	if auth := component.GetAuthentication(); auth != nil {
 		if clientCert := auth.ClientCertificate; clientCert != nil {
 			if IsSecretRequiredForClientCertificate(clientCert) {
-				result["nginx.ingress.kubernetes.io/auth-tls-secret"] = fmt.Sprintf("%s/%s", provider.namespace, utils.GetComponentClientCertificateSecretName(component.GetName()))
+				annotations["nginx.ingress.kubernetes.io/auth-tls-secret"] = fmt.Sprintf("%s/%s", provider.namespace, utils.GetComponentClientCertificateSecretName(component.GetName()))
 			}
 
-			certificateConfig := parseClientCertificateConfiguration(*clientCert)
-			result["nginx.ingress.kubernetes.io/auth-tls-verify-client"] = string(*certificateConfig.Verification)
-			result["nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream"] = utils.TernaryString(*certificateConfig.PassCertificateToUpstream, "true", "false")
+			certificateConfig := ParseClientCertificateConfiguration(*clientCert)
+			annotations["nginx.ingress.kubernetes.io/auth-tls-verify-client"] = string(*certificateConfig.Verification)
+			annotations["nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream"] = utils.TernaryString(*certificateConfig.PassCertificateToUpstream, "true", "false")
 		}
 	}
 
-	return result, nil
+	return annotations, nil
 }
 
-func NewOAuth2AnnotationProvider(oauth2DefaultConfig defaults.OAuth2Config) IngressAnnotationProvider {
+func NewOAuth2AnnotationProvider(oauth2DefaultConfig defaults.OAuth2Config) AnnotationProvider {
 	return &oauth2AnnotationProvider{oauth2DefaultConfig: oauth2DefaultConfig}
 }
 
@@ -88,7 +97,7 @@ type oauth2AnnotationProvider struct {
 	oauth2DefaultConfig defaults.OAuth2Config
 }
 
-func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
+func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
@@ -99,11 +108,11 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommo
 
 		svcName := utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
-		// Documentation for Oauth2 proxy auth-request: https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/overview#configuring-for-use-with-the-nginx-auth_request-directive
+		// Documentation for OAuth2 proxy auth-request: https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/overview#configuring-for-use-with-the-nginx-auth_request-directive
 		hostPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
-		servicePath := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d%s", svcName, namespace, oauthProxyPortNumber, oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
-		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", servicePath)
-		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", hostPath)
+		servicePath := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%d%s", "http", svcName, namespace, defaults.OAuthProxyPortNumber, oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
+		annotations[defaults.AuthUrlAnnotation] = fmt.Sprintf("%s/auth", servicePath)
+		annotations[defaults.AuthSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", hostPath)
 
 		var authResponseHeaders []string
 		if oauth.SetXAuthRequestHeaders != nil && *oauth.SetXAuthRequestHeaders {
@@ -113,7 +122,7 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommo
 			authResponseHeaders = append(authResponseHeaders, "Authorization")
 		}
 		if len(authResponseHeaders) > 0 {
-			annotations[authResponseHeadersAnnotation] = strings.Join(authResponseHeaders, ",")
+			annotations[defaults.AuthResponseHeadersAnnotation] = strings.Join(authResponseHeaders, ",")
 		}
 	}
 

@@ -7,6 +7,7 @@ package deployment
 import (
 	reflect "reflect"
 
+	ingress "github.com/equinor/radix-operator/pkg/apis/ingress"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -39,7 +40,7 @@ func (m *MockDeploymentSyncerFactory) EXPECT() *MockDeploymentSyncerFactoryMockR
 }
 
 // CreateDeploymentSyncer mocks base method.
-func (m *MockDeploymentSyncerFactory) CreateDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, prometheusperatorclient versioned0.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
+func (m *MockDeploymentSyncerFactory) CreateDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, prometheusperatorclient versioned0.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, deploymentHistoryLimit int, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateDeploymentSyncer", kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, deploymentHistoryLimit, ingressAnnotationProviders, auxResourceManagers)
 	ret0, _ := ret[0].(DeploymentSyncer)

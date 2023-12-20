@@ -26,9 +26,14 @@ const (
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
 	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
-
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
+)
+
+// Radix Finalizers
+const (
+	RadixEnvironmentFinalizer = "radix.equinor.com/environment-finalizer"
+	RadixDNSAliasFinalizer    = "radix.equinor.com/dnsalias-finalizer"
 )
 
 // Radix Labels
@@ -49,6 +54,8 @@ const (
 	RadixJobTypeJob                     = "job" // Outer job
 	RadixJobTypeBuild                   = "build"
 	RadixJobTypeCloneConfig             = "clone-config"
+	RadixDefaultAliasLabel              = "radix-default-alias"
+	RadixAliasLabel                     = "radix-alias"
 	RadixJobTypePreparePipelines        = "prepare-pipelines"
 	RadixJobTypeRunPipelines            = "run-pipelines"
 	RadixJobTypeJobSchedule             = "job-scheduler"
@@ -81,9 +88,6 @@ const (
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
 	NodeTaintGpuCountKey = "radix-node-gpu-count"
 	NodeTaintJobsKey     = "nodepooltasks"
-
-	// RadixBranchDeprecated Only for backward compatibility
-	RadixBranchDeprecated = "radix-branch"
 )
 
 // RadixBatchType defines value for use with label RadixBatchTypeLabel
@@ -98,6 +102,7 @@ const (
 type RadixSecretType string
 
 const (
+	// RadixSecretJobPayload Used by radix-job-scheduler to label secrets with payloads
 	RadixSecretJobPayload RadixSecretType = "scheduler-job-payload"
 )
 
@@ -111,10 +116,6 @@ const (
 	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
 	// RadixPipelineResultConfigMap Label of a ConfigMap, which keeps a Radix pipeline result
 	RadixPipelineResultConfigMap RadixConfigMapType = "radix-pipeline-result"
-	// RadixPipelineConfigConfigMap Label of a ConfigMap, which keeps a Radix pipeline configuration
-	RadixPipelineConfigConfigMap RadixConfigMapType = "radix-pipeline-config"
-	// RadixPipelineGitInformationConfigMap Label of a ConfigMap, which keeps a Radix pipeline Git information
-	RadixPipelineGitInformationConfigMap RadixConfigMapType = "radix-pipeline-git-information"
 )
 
 // Kube  Struct for accessing lower level kubernetes functions
@@ -127,6 +128,7 @@ type Kube struct {
 	RdLister                 v1Lister.RadixDeploymentLister
 	RbLister                 v1Lister.RadixBatchLister
 	RadixAlertLister         v1Lister.RadixAlertLister
+	RadixDNSAliasLister      v1Lister.RadixDNSAliasLister
 	NamespaceLister          coreListers.NamespaceLister
 	SecretLister             coreListers.SecretLister
 	DeploymentLister         appsv1Listers.DeploymentLister
@@ -173,6 +175,7 @@ func NewWithListers(client kubernetes.Interface,
 		RdLister:                 radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
 		RbLister:                 radixInformerFactory.Radix().V1().RadixBatches().Lister(),
 		RadixAlertLister:         radixInformerFactory.Radix().V1().RadixAlerts().Lister(),
+		RadixDNSAliasLister:      radixInformerFactory.Radix().V1().RadixDNSAliases().Lister(),
 		NamespaceLister:          kubeInformerFactory.Core().V1().Namespaces().Lister(),
 		SecretLister:             kubeInformerFactory.Core().V1().Secrets().Lister(),
 		DeploymentLister:         kubeInformerFactory.Apps().V1().Deployments().Lister(),

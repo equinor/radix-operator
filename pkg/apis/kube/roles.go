@@ -156,7 +156,7 @@ func UpdateDeploymentsRule(deployments []string) RuleBuilder {
 func CreateAppRole(appName, roleName string, customLabels map[string]string, ruleBuilders ...RuleBuilder) *rbacv1.Role {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindRole,
 		},
 		ObjectMeta: metav1.ObjectMeta{

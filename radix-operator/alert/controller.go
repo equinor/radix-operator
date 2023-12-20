@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -60,9 +61,11 @@ func NewController(client kubernetes.Interface,
 	}
 
 	logger.Info("Setting up event handlers")
-	alertInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := alertInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -74,7 +77,9 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixAlert, converted := obj.(*radixv1.RadixAlert)
@@ -88,9 +93,11 @@ func NewController(client kubernetes.Interface,
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			newRr := newObj.(*radixv1.RadixRegistration)
 			oldRr := oldObj.(*radixv1.RadixRegistration)
@@ -111,11 +118,15 @@ func NewController(client kubernetes.Interface,
 			})
 			if err == nil {
 				for _, radixalert := range radixalerts.Items {
-					controller.Enqueue(&radixalert)
+					if _, err := controller.Enqueue(&radixalert); err != nil {
+						utilruntime.HandleError(err)
+					}
 				}
 			}
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	return controller
 }
