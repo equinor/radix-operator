@@ -1,6 +1,7 @@
 package dnsalias
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -49,34 +50,33 @@ func (s *syncer) syncClusterRoleAndBinding(roleName string, subjects []rbacv1.Su
 	if err != nil {
 		return err
 	}
-
-	if len(clusterRoleBinding.Subjects) > 0 {
-		if err := s.syncClusterRole(roleName); err != nil {
-			return err
-		}
-		return s.kubeUtil.ApplyClusterRoleBinding(clusterRoleBinding)
+	if len(clusterRoleBinding.Subjects) == 0 {
+		return s.deleteClusterRoleAndBinding(roleName)
 	}
-
-	if err := s.deleteClusterRoleBinding(roleName); err != nil {
+	if err := s.syncClusterRole(roleName); err != nil {
 		return err
 	}
-	return s.kubeUtil.DeleteClusterRole(roleName)
+	return s.kubeUtil.ApplyClusterRoleBinding(clusterRoleBinding)
 }
 
 func (s *syncer) buildClusterRoleBindingsForSubjects(roleName string, subjects []rbacv1.Subject) (*rbacv1.ClusterRoleBinding, error) {
-	clusterRoleBinding, err := s.kubeUtil.GetClusterRoleBinding(roleName)
+	clusterRoleBinding, err := s.kubeUtil.KubeClient().RbacV1().ClusterRoleBindings().Get(context.Background(), roleName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, err
 		}
 		return internal.BuildClusterRoleBinding(roleName, subjects, s.radixDNSAlias), nil
 	}
-	clusterRoleBinding.Subjects = mergeBindingSubjects(clusterRoleBinding.Subjects, subjects)
+	clusterRoleBinding.Subjects = subjects
+	clusterRoleBinding.ObjectMeta.OwnerReferences = kube.MergeOwnerReferences(clusterRoleBinding.ObjectMeta.OwnerReferences, internal.GetOwnerReferences(s.radixDNSAlias, false)...)
 	return clusterRoleBinding, nil
 }
 
 func (s *syncer) syncClusterRole(roleName string) error {
-	clusterRole := s.buildDNSAliasClusterRole(roleName, []string{"get", "list"})
+	clusterRole, err := s.buildDNSAliasClusterRole(roleName, []string{"get", "list"})
+	if err != nil {
+		return err
+	}
 	return s.kubeUtil.ApplyClusterRole(clusterRole)
 }
 
@@ -88,12 +88,28 @@ func (s *syncer) getClusterRoleNameForReader() string {
 	return fmt.Sprintf("%s-%s", defaults.RadixApplicationReaderRadixDNSAliasRoleNamePrefix, s.radixDNSAlias.Spec.AppName)
 }
 
-func (s *syncer) buildDNSAliasClusterRole(clusterRoleName string, verbs []string) *rbacv1.ClusterRole {
-	return s.buildClusterRole(clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{radixv1.SchemeGroupVersion.Group},
-		Resources:     []string{radixv1.ResourceRadixDNSAliases, radixv1.ResourceRadixDNSAliasStatuses},
-		ResourceNames: []string{s.radixDNSAlias.GetName()},
-		Verbs:         verbs,
-	})
+func (s *syncer) buildDNSAliasClusterRole(clusterRoleName string, verbs []string) (*rbacv1.ClusterRole, error) {
+	resourceNames, err := s.getClusterRoleResourceNames()
+	if err != nil {
+		return nil, err
+	}
+	return s.buildClusterRole(clusterRoleName,
+		rbacv1.PolicyRule{APIGroups: []string{radixv1.SchemeGroupVersion.Group},
+			Resources:     []string{radixv1.ResourceRadixDNSAliases, radixv1.ResourceRadixDNSAliasStatuses},
+			ResourceNames: resourceNames,
+			Verbs:         verbs,
+		}), nil
+}
+
+func (s *syncer) getClusterRoleResourceNames() ([]string, error) {
+	dnsAliases, err := s.kubeUtil.ListRadixDNSAliasWithSelector(radixlabels.ForApplicationName(s.radixDNSAlias.Spec.AppName).String())
+	if err != nil {
+		return nil, err
+	}
+	return slice.Reduce(dnsAliases, []string{}, func(acc []string, dnsAlias *radixv1.RadixDNSAlias) []string {
+		acc = append(acc, dnsAlias.GetName())
+		return acc
+	}), nil
 }
 
 func (s *syncer) buildClusterRole(clusterRoleName string, rules ...rbacv1.PolicyRule) *rbacv1.ClusterRole {
@@ -131,20 +147,9 @@ func (s *syncer) deleteRbacByName(roleName string) error {
 	if len(clusterRole.Rules[0].ResourceNames) == 0 {
 		return s.deleteClusterRoleAndBinding(roleName)
 	}
+
 	clusterRole.ObjectMeta.OwnerReferences = getOwnerReferencesWithout(dnsAliasName, clusterRole)
 	return s.kubeUtil.ApplyClusterRole(clusterRole)
-}
-
-func mergeBindingSubjects(subjects1 []rbacv1.Subject, subjects2 []rbacv1.Subject) []rbacv1.Subject {
-	var mergedSubjects []rbacv1.Subject
-	slice.Reduce(append(subjects1, subjects2...), make(map[string]rbacv1.Subject), func(acc map[string]rbacv1.Subject, subject rbacv1.Subject) map[string]rbacv1.Subject {
-		if _, ok := acc[subject.Name]; !ok {
-			acc[subject.Name] = subject
-			mergedSubjects = append(mergedSubjects)
-		}
-		return acc
-	})
-	return mergedSubjects
 }
 
 func getOwnerReferencesWithout(dnsAliasName string, clusterRole *rbacv1.ClusterRole) []metav1.OwnerReference {

@@ -195,7 +195,7 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *rbacv1.Cluster
 	log.Debugf("Role binding object %s already exists, updating the object now", clusterrolebinding.GetName())
 
 	newClusterRoleBinding := oldClusterRoleBinding.DeepCopy()
-	newClusterRoleBinding.ObjectMeta.OwnerReferences = mergeOwnerReferences(oldClusterRoleBinding.ObjectMeta.OwnerReferences, clusterrolebinding.ObjectMeta.OwnerReferences)
+	newClusterRoleBinding.ObjectMeta.OwnerReferences = MergeOwnerReferences(oldClusterRoleBinding.ObjectMeta.OwnerReferences, clusterrolebinding.ObjectMeta.OwnerReferences...)
 	newClusterRoleBinding.ObjectMeta.Labels = clusterrolebinding.Labels
 	newClusterRoleBinding.Subjects = clusterrolebinding.Subjects
 

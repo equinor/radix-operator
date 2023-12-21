@@ -5,7 +5,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func mergeOwnerReferences(ownerReferences1 []metav1.OwnerReference, ownerReferences2 []metav1.OwnerReference) []metav1.OwnerReference {
+// MergeOwnerReferences Merge lists of owner references
+func MergeOwnerReferences(ownerReferences1 []metav1.OwnerReference, ownerReferences2 ...metav1.OwnerReference) []metav1.OwnerReference {
 	uidMap := make(map[types.UID]bool)
 	var mergedList []metav1.OwnerReference
 	for _, ownerReference := range append(ownerReferences1, ownerReferences2...) {
