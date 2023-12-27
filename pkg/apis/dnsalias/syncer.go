@@ -1,7 +1,6 @@
 package dnsalias
 
 import (
-	"context"
 	"fmt"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -136,10 +135,6 @@ func (s *syncer) handleDeletedRadixDNSAlias() error {
 		kube.RadixEnvironmentFinalizer, updatingAlias.Name, updatingAlias.Spec.AppName, len(updatingAlias.ObjectMeta.Finalizers))
 
 	return s.kubeUtil.UpdateRadixDNSAlias(updatingAlias)
-}
-
-func (s *syncer) deleteClusterRoleBinding(roleBindingName string) error {
-	return s.kubeUtil.KubeClient().RbacV1().ClusterRoleBindings().Delete(context.Background(), roleBindingName, metav1.DeleteOptions{})
 }
 
 func (s *syncer) getExistingClusterRoleOwnerReferences(roleName string) ([]metav1.OwnerReference, error) {

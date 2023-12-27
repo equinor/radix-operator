@@ -244,7 +244,7 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			tu, kubeClient, kubeUtil, radixClient := setupTest()
+			tu, kubeClient, kubeUtil, radixClient := setupTest(t)
 
 			require.NoError(t, commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
 			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder), "register radix application")

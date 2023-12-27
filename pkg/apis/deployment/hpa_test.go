@@ -2,16 +2,17 @@ package deployment
 
 import (
 	"context"
+	"testing"
+
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
-	tu, kubeclient, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	tu, kubeclient, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
 	rrBuilder := utils.ARadixRegistration().WithName("someapp")
 	raBuilder := utils.ARadixApplication().
 		WithRadixRegistration(rrBuilder)

@@ -127,21 +127,6 @@ func (s *syncer) getClusterRoleResourceNames() ([]string, error) {
 	}), nil
 }
 
-func (s *syncer) buildClusterRole(clusterRoleName string, rules ...rbacv1.PolicyRule) *rbacv1.ClusterRole {
-	return &rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindClusterRole,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            clusterRoleName,
-			Labels:          s.getLabelsForDNSAliasRbac(),
-			OwnerReferences: internal.GetOwnerReferences(s.radixDNSAlias, false),
-		},
-		Rules: rules,
-	}
-}
-
 func (s *syncer) deleteRbac() error {
 	if err := s.deleteRbacByName(s.getClusterRoleNameForAdmin()); err != nil {
 		return err
