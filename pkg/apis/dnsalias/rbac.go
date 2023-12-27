@@ -77,6 +77,11 @@ func (s *syncer) syncClusterRole(roleName string) error {
 	if err != nil {
 		return err
 	}
+	ownerReferences, err := s.getExistingClusterRoleOwnerReferences(roleName)
+	if err != nil {
+		return err
+	}
+	clusterRole.ObjectMeta.OwnerReferences = kube.MergeOwnerReferences(clusterRole.GetOwnerReferences(), ownerReferences...)
 	return s.kubeUtil.ApplyClusterRole(clusterRole)
 }
 
@@ -93,12 +98,22 @@ func (s *syncer) buildDNSAliasClusterRole(clusterRoleName string, verbs []string
 	if err != nil {
 		return nil, err
 	}
-	return s.buildClusterRole(clusterRoleName,
-		rbacv1.PolicyRule{APIGroups: []string{radixv1.SchemeGroupVersion.Group},
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+			Kind:       k8s.KindClusterRole,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            clusterRoleName,
+			Labels:          s.getLabelsForDNSAliasRbac(),
+			OwnerReferences: internal.GetOwnerReferences(s.radixDNSAlias, false),
+		},
+		Rules: []rbacv1.PolicyRule{{APIGroups: []string{radixv1.SchemeGroupVersion.Group},
 			Resources:     []string{radixv1.ResourceRadixDNSAliases, radixv1.ResourceRadixDNSAliasStatuses},
 			ResourceNames: resourceNames,
 			Verbs:         verbs,
-		}), nil
+		}},
+	}, nil
 }
 
 func (s *syncer) getClusterRoleResourceNames() ([]string, error) {

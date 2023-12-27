@@ -264,83 +264,85 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 	rd4 := buildRadixDeployment(appName2, component1, component2, envName2, component1Port8080, component2Port9090)
 	scenarios := []rbacScenario{
 		{
-			name:     "create rbac for default admin AD group",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1":        true,
-				"radix-platform-user-rda-reader-app1": true,
-			},
+			name:           "create rbac for default admin AD group",
+			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			adminADGroups:  nil,
 			readerADGroups: nil,
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1": true,
+			},
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
 				"radix-platform-user-rda-app1": {adGroups: []string{testDefaultUserGroupID}},
 			},
 		},
 		{
-			name:     "create rbac for default admin AD group and reader",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			name:           "create rbac for default admin AD group and reader",
+			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			adminADGroups:  nil,
+			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
 			expectedClusterRoleNames: map[string]any{
 				"radix-platform-user-rda-app1":        true,
 				"radix-platform-user-rda-reader-app1": true,
 			},
-			adminADGroups:  nil,
-			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
 				"radix-platform-user-rda-app1":        {adGroups: []string{testDefaultUserGroupID}},
 				"radix-platform-user-rda-reader-app1": {adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
 			},
 		},
 		{
-			name:     "create rbac for specified admin AD group only",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1":        true,
-				"radix-platform-user-rda-reader-app1": true,
-			},
+			name:           "create rbac for specified admin AD group only",
+			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
 			readerADGroups: nil,
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1": true,
+			},
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
 				"radix-platform-user-rda-app1": {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
 			},
 		},
 		{
-			name:     "create rbac for specified admin AD group and reader group",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			name:           "create rbac for specified admin AD group and reader group",
+			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
+			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
 			expectedClusterRoleNames: map[string]any{
 				"radix-platform-user-rda-app1":        true,
 				"radix-platform-user-rda-reader-app1": true,
 			},
-			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
-			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
 				"radix-platform-user-rda-app1":        {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
 				"radix-platform-user-rda-reader-app1": {adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
 			},
 		},
 		{
-			name:     "delete existing reader role binding",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1":        true,
-				"radix-platform-user-rda-reader-app1": true,
+			name:           "delete existing reader role binding",
+			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be"},
+			readerADGroups: nil,
+			existingClusterRoleBindings: []string{
+				"radix-platform-user-rda-app1",
+				"radix-platform-user-rda-reader-app1",
 			},
-			adminADGroups:               []string{"bde12869-4a59-490c-bf4d-266ba5f783be"},
-			readerADGroups:              nil,
-			existingClusterRoleBindings: []string{"radix-platform-user-rda-app1", "radix-platform-user-rda-reader-app1"},
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1": true,
+			},
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
 				"radix-platform-user-rda-app1": {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be"}},
 			},
 		},
 		{
-			name:     "not delete existing admin role binding",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1":        true,
-				"radix-platform-user-rda-reader-app1": true,
+			name:           "not delete existing admin role binding",
+			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			adminADGroups:  nil,
+			readerADGroups: nil,
+			existingClusterRoleBindings: []string{
+				"radix-platform-user-rda-app1",
+				"radix-platform-user-rda-reader-app1",
 			},
-			adminADGroups:               nil,
-			readerADGroups:              nil,
-			existingClusterRoleBindings: []string{"radix-platform-user-rda-app1", "radix-platform-user-rda-reader-app1"},
+			expectedClusterRoleNames: map[string]any{
+				"radix-platform-user-rda-app1": true,
+			},
 			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
 				"radix-platform-user-rda-app1": {adGroups: []string{testDefaultUserGroupID}},
 			},
@@ -359,9 +361,10 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 
 			s.SetupTest()
 
+			ts.dnsAlias.AppName = appName1
 			radixDNSAlias := &radixv1.RadixDNSAlias{
 				TypeMeta:   metav1.TypeMeta{Kind: radixv1.KindRadixDNSAlias, APIVersion: radixv1.SchemeGroupVersion.Identifier()},
-				ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
+				ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName1)},
 				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component},
 			}
 			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias), "create existing alias")
@@ -388,7 +391,7 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 					s.Equal(roleName, role.Name, "invalid name")
 
 					s.Equal(radixDNSAlias.Spec.AppName, role.GetLabels()[kube.RadixAppLabel], "missing or invalid label %s", kube.RadixAppLabel)
-					s.Equal(radixDNSAlias.GetName(), role.GetLabels()[kube.RadixAliasLabel], "missing or invalid label %s", kube.RadixAliasLabel)
+					s.Equal("true", role.GetLabels()[kube.RadixAliasLabel], "missing or invalid label %s", kube.RadixAliasLabel)
 
 					s.Len(role.GetOwnerReferences(), 1, "expected one object reference")
 					ownerReference := role.GetOwnerReferences()[0]

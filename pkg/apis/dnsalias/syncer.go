@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -139,4 +140,15 @@ func (s *syncer) handleDeletedRadixDNSAlias() error {
 
 func (s *syncer) deleteClusterRoleBinding(roleBindingName string) error {
 	return s.kubeUtil.KubeClient().RbacV1().ClusterRoleBindings().Delete(context.Background(), roleBindingName, metav1.DeleteOptions{})
+}
+
+func (s *syncer) getExistingClusterRoleOwnerReferences(roleName string) ([]metav1.OwnerReference, error) {
+	clusterRole, err := s.kubeUtil.GetClusterRole(roleName)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return clusterRole.GetOwnerReferences(), nil
 }

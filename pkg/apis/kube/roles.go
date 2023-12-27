@@ -86,7 +86,7 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 	log.Debugf("Cluster role object %s already exists, updating the object now", clusterrole.GetName())
 
 	newClusterRole := oldClusterRole.DeepCopy()
-	newClusterRole.ObjectMeta.OwnerReferences = MergeOwnerReferences(oldClusterRole.ObjectMeta.OwnerReferences, clusterrole.ObjectMeta.OwnerReferences...)
+	newClusterRole.ObjectMeta.OwnerReferences = clusterrole.ObjectMeta.OwnerReferences
 	newClusterRole.ObjectMeta.Labels = clusterrole.Labels
 	newClusterRole.Rules = clusterrole.Rules
 
