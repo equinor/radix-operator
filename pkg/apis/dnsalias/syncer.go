@@ -13,6 +13,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -64,7 +66,13 @@ func (s *syncer) OnSync() error {
 
 func (s *syncer) syncAlias() error {
 	log.Debugf("syncAlias RadixDNSAlias %s", s.radixDNSAlias.GetName())
+	if err := s.syncIngresses(); err != nil {
+		return err
+	}
+	return s.syncRbac()
+}
 
+func (s *syncer) syncIngresses() error {
 	radixDeployComponent, err := s.getRadixDeployComponent()
 	if err != nil {
 		return err
@@ -75,7 +83,6 @@ func (s *syncer) syncAlias() error {
 
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-
 	ing, err := s.syncIngress(namespace, radixDeployComponent)
 	if err != nil {
 		return err
@@ -115,7 +122,10 @@ func (s *syncer) handleDeletedRadixDNSAlias() error {
 		return nil
 	}
 
-	if err := s.deletedIngressesForRadixDNSAlias(); err != nil {
+	if err := s.deleteIngresses(); err != nil {
+		return err
+	}
+	if err := s.deleteRbac(); err != nil {
 		return err
 	}
 
@@ -125,4 +135,15 @@ func (s *syncer) handleDeletedRadixDNSAlias() error {
 		kube.RadixEnvironmentFinalizer, updatingAlias.Name, updatingAlias.Spec.AppName, len(updatingAlias.ObjectMeta.Finalizers))
 
 	return s.kubeUtil.UpdateRadixDNSAlias(updatingAlias)
+}
+
+func (s *syncer) getExistingClusterRoleOwnerReferences(roleName string) ([]metav1.OwnerReference, error) {
+	clusterRole, err := s.kubeUtil.GetClusterRole(roleName)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return clusterRole.GetOwnerReferences(), nil
 }

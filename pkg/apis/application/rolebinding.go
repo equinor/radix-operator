@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -46,17 +45,17 @@ func (app *Application) applyRbacRadixRegistration() error {
 	// Admin RBAC
 	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
 	adminClusterRole := app.buildRRClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
-	appAdminSubjects, err := getAppAdminSubjects(rr)
+	appAdminSubjects, err := utils.GetAppAdminRbacSubjects(rr)
 	if err != nil {
 		return err
 	}
-	adminClusterRoleBinding := app.rrClusterroleBinding(adminClusterRole, appAdminSubjects)
+	adminClusterRoleBinding := app.rrClusterRoleBinding(adminClusterRole, appAdminSubjects)
 
 	// Reader RBAC
 	clusterRoleReaderName := fmt.Sprintf("radix-platform-user-rr-reader-%s", appName)
 	readerClusterRole := app.buildRRClusterRole(clusterRoleReaderName, []string{"get", "list", "watch"})
 	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
-	readerClusterRoleBinding := app.rrClusterroleBinding(readerClusterRole, appReaderSubjects)
+	readerClusterRoleBinding := app.rrClusterRoleBinding(readerClusterRole, appReaderSubjects)
 
 	// Apply roles and bindings
 	for _, clusterRole := range []*rbacv1.ClusterRole{adminClusterRole, readerClusterRole} {
@@ -76,15 +75,6 @@ func (app *Application) applyRbacRadixRegistration() error {
 	return nil
 }
 
-func getAppAdminSubjects(rr *v1.RadixRegistration) ([]rbacv1.Subject, error) {
-	adGroups, err := utils.GetAdGroups(rr)
-	if err != nil {
-		return nil, err
-	}
-	subjects := kube.GetRoleBindingGroups(adGroups)
-	return subjects, nil
-}
-
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline
 func (app *Application) applyRbacOnPipelineRunner() error {
 	serviceAccount, err := app.applyPipelineServiceAccount()
@@ -98,6 +88,7 @@ func (app *Application) applyRbacOnPipelineRunner() error {
 	if err = app.giveAccessToRadixDNSAliases(serviceAccount, defaults.RadixPipelineRadixDNSAliasRoleNamePrefix); err != nil {
 		return err
 	}
+
 	return app.givePipelineAccessToAppNamespace(serviceAccount)
 }
 
@@ -245,20 +236,20 @@ func (app *Application) clusterRoleBinding(serviceAccount *corev1.ServiceAccount
 	return clusterRoleBinding
 }
 
-func (app *Application) rrClusterroleBinding(clusterrole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+func (app *Application) rrClusterRoleBinding(clusterRole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	clusterroleBindingName := clusterrole.Name
-	logger.Debugf("Create clusterrolebinding config %s", clusterroleBindingName)
+	clusterRoleBindingName := clusterRole.Name
+	logger.Debugf("Create clusterrolebinding config %s", clusterRoleBindingName)
 	ownerReference := app.getOwnerReference()
 
-	clusterrolebinding := &rbacv1.ClusterRoleBinding{
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindClusterRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterroleBindingName,
+			Name: clusterRoleBindingName,
 			Labels: map[string]string{
 				kube.RadixAppLabel: appName,
 			},
@@ -267,12 +258,12 @@ func (app *Application) rrClusterroleBinding(clusterrole *rbacv1.ClusterRole, su
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
-			Name:     clusterrole.Name,
+			Name:     clusterRole.Name,
 		},
 		Subjects: subjects,
 	}
 
-	logger.Debugf("Done - create clusterrolebinding config %s", clusterroleBindingName)
+	logger.Debugf("Done - create clusterrolebinding config %s", clusterRoleBindingName)
 
-	return clusterrolebinding
+	return clusterRoleBinding
 }

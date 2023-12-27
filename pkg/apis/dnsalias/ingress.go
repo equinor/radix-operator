@@ -118,7 +118,7 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	ingressAnnotations := ingress.GetAnnotationProvider(ingressConfiguration, namespace, oauth2Config)
-	ingressConfig, err := ingress.GetIngressConfig(namespace, aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias))
+	ingressConfig, err := ingress.GetIngressConfig(namespace, aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias, true))
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 	return ingressConfig, nil
 }
 
-func (s *syncer) deletedIngressesForRadixDNSAlias() error {
+func (s *syncer) deleteIngresses() error {
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	dnsAliasIngressesSelector := radixlabels.ForDNSAliasIngress(aliasSpec.AppName, aliasSpec.Component, s.radixDNSAlias.GetName()).String()

@@ -7,13 +7,13 @@ import (
 )
 
 // GetOwnerReferences Gets RadixDNSAlias as an owner reference
-func GetOwnerReferences(radixDNSAlias *radixv1.RadixDNSAlias) []metav1.OwnerReference {
+func GetOwnerReferences(radixDNSAlias *radixv1.RadixDNSAlias, isController bool) []metav1.OwnerReference {
 	return []metav1.OwnerReference{{
 		APIVersion: radixv1.SchemeGroupVersion.Identifier(),
 		Kind:       radixv1.KindRadixDNSAlias,
 		Name:       radixDNSAlias.Name,
 		UID:        radixDNSAlias.UID,
-		Controller: pointers.Ptr(true),
+		Controller: pointers.Ptr(isController),
 	},
 	}
 }

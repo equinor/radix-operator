@@ -2,6 +2,8 @@ package deployment
 
 import (
 	"context"
+	"testing"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -9,11 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"testing"
 )
 
 func TestHorizontalScaleChangePDB(t *testing.T) {
-	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
 	defer teardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
@@ -87,7 +88,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 }
 
 func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
 	defer teardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
@@ -160,7 +161,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 }
 
 func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
 	defer teardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
@@ -305,7 +306,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 }
 
 func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
 	defer teardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
@@ -369,7 +370,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 }
 
 func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
 	defer teardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"

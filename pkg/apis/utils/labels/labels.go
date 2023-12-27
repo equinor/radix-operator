@@ -262,3 +262,11 @@ func ForDNSAliasIngress(appName string, componentName, dnsAlias string) kubelabe
 		kube.RadixAliasLabel:     dnsAlias,
 	}
 }
+
+// ForDNSAliasRbac returns labels for DNS alias cluster role and rolebinding
+func ForDNSAliasRbac(appName string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:   appName,
+		kube.RadixAliasLabel: "true",
+	}
+}
