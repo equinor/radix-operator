@@ -3,6 +3,7 @@ package dnsalias
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -148,17 +149,9 @@ func (s *syncer) deleteRbacByName(roleName string) error {
 		return s.deleteClusterRoleAndBinding(roleName)
 	}
 
-	clusterRole.ObjectMeta.OwnerReferences = getOwnerReferencesWithout(dnsAliasName, clusterRole)
+	clusterRole.ObjectMeta.OwnerReferences = slices.DeleteFunc(clusterRole.ObjectMeta.OwnerReferences,
+		func(o metav1.OwnerReference) bool { return o.Name == dnsAliasName })
 	return s.kubeUtil.ApplyClusterRole(clusterRole)
-}
-
-func getOwnerReferencesWithout(dnsAliasName string, clusterRole *rbacv1.ClusterRole) []metav1.OwnerReference {
-	return slice.Reduce(clusterRole.ObjectMeta.OwnerReferences, []metav1.OwnerReference{}, func(acc []metav1.OwnerReference, ownerReference metav1.OwnerReference) []metav1.OwnerReference {
-		if ownerReference.Name != dnsAliasName {
-			acc = append(acc, ownerReference)
-		}
-		return acc
-	})
 }
 
 func getRoleResourceNamesWithout(dnsAliasName string, role *rbacv1.ClusterRole) []string {

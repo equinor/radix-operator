@@ -55,7 +55,7 @@ func (ap *ApplicationBuilderStruct) WithBuildCache(useBuildCache *bool) Applicat
 // WithPrivateImageRegistry adds a private image hub to application
 func (ap *ApplicationBuilderStruct) WithPrivateImageRegistry(server, username, email string) ApplicationBuilder {
 	if ap.privateImageHubs == nil {
-		ap.privateImageHubs = radixv1.PrivateImageHubEntries(map[string]*radixv1.RadixPrivateImageHubCredential{})
+		ap.privateImageHubs = map[string]*radixv1.RadixPrivateImageHubCredential{}
 	}
 
 	ap.privateImageHubs[server] = &radixv1.RadixPrivateImageHubCredential{
