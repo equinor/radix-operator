@@ -2,6 +2,7 @@ package applicationconfig_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -279,6 +280,91 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					assert.Fail(t, fmt.Sprintf("found not expected RadixDNSAlias %s: env %s, component %s, appName %s",
 						radixDNSAlias.GetName(), radixDNSAlias.Spec.Environment, radixDNSAlias.Spec.Component, radixDNSAlias.Spec.AppName))
 				}
+			}
+		})
+	}
+}
+
+func Test_DNSAliases_ValidDNSAliases(t *testing.T) {
+	const (
+		appName1   = "any-app1"
+		appName2   = "any-app2"
+		env1       = "env1"
+		component1 = "server1"
+		component2 = "server2"
+		branch1    = "branch1"
+		portA      = "port-a"
+		port8080   = 8080
+		port9090   = 9090
+		alias1     = "alias1"
+		alias2     = "alias2"
+	)
+	var testScenarios = []struct {
+		name                    string
+		applicationBuilder      utils.ApplicationBuilder
+		existingRadixDNSAliases map[string]commonTest.DNSAlias
+		expectedError           error
+	}{
+		{
+			name: "exist aliases with different appName, failed",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: appName2, Environment: env1, Component: component1, Port: port8080},
+			},
+			expectedError: errors.New("failed to process DNS aliases: DNS Alias any-app1 of the application alias1 is used by another application"),
+		},
+		{
+			name: "exist aliases with same component and port, no error",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "exist different alias with different name, no error",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias2: {AppName: appName2, Environment: env1, Component: component1, Port: port8080},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "exist aliases with different component and port, no error",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: appName1, Environment: env1, Component: component2, Port: port9090},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "no existing aliases, no error",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component2}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			expectedError: nil,
+		},
+	}
+
+	for _, ts := range testScenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			tu, kubeClient, kubeUtil, radixClient := setupTest(t)
+
+			require.NoError(t, commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
+			err := applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder)
+			if ts.expectedError != nil {
+				require.Error(t, err)
+				require.EqualError(t, err, ts.expectedError.Error())
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

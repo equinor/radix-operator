@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 
+	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -19,7 +20,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/strings/slices"
 )
 
 const (
@@ -75,8 +75,8 @@ func addEventHandlersForRadixRegistrations(radixInformerFactory informers.Shared
 			oldRR := oldObj.(*radixv1.RadixRegistration)
 			newRR := newObj.(*radixv1.RadixRegistration)
 			if oldRR.GetResourceVersion() == newRR.GetResourceVersion() &&
-				slices.Equal(oldRR.Spec.AdGroups, newRR.Spec.AdGroups) &&
-				slices.Equal(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) {
+				radixutils.ArrayEqualElements(oldRR.Spec.AdGroups, newRR.Spec.AdGroups) &&
+				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) {
 				return // updating RadixDeployment has the same resource version. Do nothing.
 			}
 			enqueueRadixDNSAliasesForRadixRegistration(controller, radixClient, newRR)
