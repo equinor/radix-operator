@@ -19,6 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -287,8 +288,7 @@ func (o *oauthProxyResourceManager) deleteDeployment(component v1.RadixCommonDep
 }
 
 func (o *oauthProxyResourceManager) deleteIngresses(component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentDefaultIngress(o.rd.Spec.AppName, component)).String()
-	ingresses, err := o.kubeutil.ListIngressesWithSelector(o.rd.Namespace, selector)
+	ingresses, err := o.getComponentAuxIngresses(component)
 	if err != nil {
 		return err
 	}
@@ -363,13 +363,12 @@ func (o *oauthProxyResourceManager) deleteRoles(component v1.RadixCommonDeployCo
 func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCommonDeployComponent) error {
 	namespace := o.rd.Namespace
 	log.Debugf("create of update ingresses for the component %s in the namespace %s", component.GetName(), namespace)
-	listOptions := metav1.ListOptions{LabelSelector: getLabelSelectorForComponentDefaultAlias(component)}
-	ingresses, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(namespace).List(context.TODO(), listOptions)
+	ingresses, err := o.getComponentIngresses(component)
 	if err != nil {
 		return err
 	}
 
-	for _, ing := range ingresses.Items {
+	for _, ing := range ingresses {
 		appName := o.rd.Spec.AppName
 		auxIngress, err := ingress.BuildOAuthProxyIngressForComponentIngress(namespace, component, &ing, o.ingressAnnotationProviders)
 		if err != nil {
@@ -378,12 +377,54 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 		if auxIngress == nil {
 			continue
 		}
-		oauthutil.MergeAuxComponentIngressResourceLabels(auxIngress, appName, component)
+		mergeAuxIngressLabels(appName, component, ing.GetLabels(), auxIngress)
 		if err := o.kubeutil.ApplyIngress(namespace, auxIngress); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func mergeAuxIngressLabels(appName string, component v1.RadixCommonDeployComponent, componentLabels map[string]string, auxIngress *networkingv1.Ingress) {
+	switch {
+	case componentLabels[kube.RadixDefaultAliasLabel] == "true":
+		oauthutil.MergeAuxComponentDefaultAliasIngressLabels(auxIngress, appName, component)
+	case componentLabels[kube.RadixExternalAliasLabel] == "true":
+		oauthutil.MergeAuxComponentExternalAliasIngressLabels(auxIngress, appName, component)
+	case componentLabels[kube.RadixActiveClusterAliasLabel] == "true":
+		oauthutil.MergeAuxComponentActiveClusterAliasIngressLabels(auxIngress, appName, component)
+	}
+}
+
+func (o *oauthProxyResourceManager) getComponentIngresses(component v1.RadixCommonDeployComponent) ([]networkingv1.Ingress, error) {
+	namespace := o.rd.Namespace
+	return o.getIngressesForSelector(namespace,
+		radixlabels.ForComponentDefaultAliasIngress(component),
+		radixlabels.ForComponentExternalAliasIngress(component),
+		radixlabels.ForComponentActiveClusterAliasIngress(component),
+	)
+}
+
+func (o *oauthProxyResourceManager) getComponentAuxIngresses(component v1.RadixCommonDeployComponent) ([]networkingv1.Ingress, error) {
+	appName := o.rd.Spec.AppName
+	return o.getIngressesForSelector(o.rd.Namespace,
+		radixlabels.ForAuxComponentDefaultIngress(appName, component),
+		radixlabels.ForAuxComponentExternalAliasIngress(appName, component),
+		radixlabels.ForAuxComponentActiveClusterAliasIngress(appName, component),
+	)
+}
+
+func (o *oauthProxyResourceManager) getIngressesForSelector(namespace string, selectors ...labels.Set) ([]networkingv1.Ingress, error) {
+	var ingresses []networkingv1.Ingress
+	for _, selector := range selectors {
+		ingressList, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(namespace).
+			List(context.Background(), metav1.ListOptions{LabelSelector: selector.String()})
+		if err != nil {
+			return nil, err
+		}
+		ingresses = append(ingresses, ingressList.Items...)
+	}
+	return ingresses, nil
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateService(component v1.RadixCommonDeployComponent) error {

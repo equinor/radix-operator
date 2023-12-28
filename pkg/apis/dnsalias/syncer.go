@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -122,7 +123,8 @@ func (s *syncer) handleDeletedRadixDNSAlias() error {
 		return nil
 	}
 
-	if err := s.deleteIngresses(); err != nil {
+	selector := radixlabels.ForDNSAliasIngress(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Component, s.radixDNSAlias.GetName())
+	if err := s.deleteIngresses(selector); err != nil {
 		return err
 	}
 	if err := s.deleteRbac(); err != nil {
