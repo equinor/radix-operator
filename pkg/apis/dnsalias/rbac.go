@@ -122,10 +122,7 @@ func (s *syncer) getClusterRoleResourceNames() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return slice.Reduce(dnsAliases, []string{}, func(acc []string, dnsAlias *radixv1.RadixDNSAlias) []string {
-		acc = append(acc, dnsAlias.GetName())
-		return acc
-	}), nil
+	return slice.Map(dnsAliases, func(dnsAlias *radixv1.RadixDNSAlias) string { return dnsAlias.GetName() }), nil
 }
 
 func (s *syncer) deleteRbac() error {
@@ -144,23 +141,15 @@ func (s *syncer) deleteRbacByName(roleName string) error {
 		return s.deleteClusterRoleAndBinding(roleName)
 	}
 	dnsAliasName := s.radixDNSAlias.GetName()
-	clusterRole.Rules[0].ResourceNames = getRoleResourceNamesWithout(dnsAliasName, clusterRole)
+	clusterRole.Rules[0].ResourceNames = slices.DeleteFunc(clusterRole.Rules[0].ResourceNames,
+		func(resourceName string) bool { return resourceName == dnsAliasName })
 	if len(clusterRole.Rules[0].ResourceNames) == 0 {
 		return s.deleteClusterRoleAndBinding(roleName)
 	}
 
 	clusterRole.ObjectMeta.OwnerReferences = slices.DeleteFunc(clusterRole.ObjectMeta.OwnerReferences,
-		func(o metav1.OwnerReference) bool { return o.Name == dnsAliasName })
+		func(ownerReference metav1.OwnerReference) bool { return ownerReference.Name == dnsAliasName })
 	return s.kubeUtil.ApplyClusterRole(clusterRole)
-}
-
-func getRoleResourceNamesWithout(dnsAliasName string, role *rbacv1.ClusterRole) []string {
-	return slice.Reduce(role.Rules[0].ResourceNames, []string{}, func(acc []string, resourceName string) []string {
-		if resourceName != dnsAliasName {
-			acc = append(acc, resourceName)
-		}
-		return acc
-	})
 }
 
 func (s *syncer) deleteClusterRoleAndBinding(roleName string) error {
