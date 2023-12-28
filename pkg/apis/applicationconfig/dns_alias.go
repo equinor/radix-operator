@@ -43,10 +43,8 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 	processedAliases := make(map[string]any)
 	appName := app.registration.Name
 	for _, dnsAlias := range app.config.Spec.DNSAlias {
-		if existingAlias, exists := existingAliases[dnsAlias.Alias]; exists {
+		if existingAlias, exists := existingAliases[dnsAlias.Alias]; exists && existingAlias.Spec.Environment == dnsAlias.Environment {
 			updatingRadixDNSAlias := existingAlias.DeepCopy()
-			updatingRadixDNSAlias.Spec.AppName = appName
-			updatingRadixDNSAlias.Spec.Environment = dnsAlias.Environment
 			updatingRadixDNSAlias.Spec.Component = dnsAlias.Component
 			aliasesToUpdate = append(aliasesToUpdate, updatingRadixDNSAlias)
 			processedAliases[dnsAlias.Alias] = true

@@ -46,10 +46,8 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 	const (
 		appName1       = "any-app1"
-		appName2       = "any-app2"
 		aliasName      = "alias-alias-1"
 		envName1       = "env1"
-		envName2       = "env2"
 		componentName1 = "server1"
 		componentName2 = "server2"
 		dnsZone        = "dev.radix.equinor.com"
@@ -69,20 +67,6 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	alias, err = s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), alias, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on add RadixDNSAlias")
-
-	// Updating the RadixDNSAlias with appName should trigger a sync
-	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	alias.Spec.AppName = appName2
-	alias, err = s.RadixClient.RadixV1().RadixDNSAliases().Update(context.TODO(), alias, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on update appName in the RadixDNSAlias")
-
-	// Updating the RadixDNSAlias with environment should trigger a sync
-	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	alias.Spec.Environment = envName2
-	alias, err = s.RadixClient.RadixV1().RadixDNSAliases().Update(context.TODO(), alias, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on update environment in the RadixDNSAlias")
 
 	// Updating the RadixDNSAlias with component should trigger a sync
 	s.Handler.EXPECT().Sync("", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
