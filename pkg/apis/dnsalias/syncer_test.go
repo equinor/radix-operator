@@ -19,6 +19,7 @@ import (
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -448,6 +449,65 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 				}
 			}
 
+		})
+	}
+}
+
+func (s *syncerTestSuite) Test_OnSync_error() {
+	const (
+		appName1   = "app1"
+		envName1   = "env1"
+		component1 = "component1"
+		alias1     = "alias1"
+	)
+
+	scenarios := []struct {
+		name          string
+		expectedError string
+		hasPublicPort bool
+	}{
+		{
+			name:          "error, because the component has no public port",
+			hasPublicPort: false,
+			expectedError: "component component1 referred to by dnsAlias is not marked as public",
+		},
+		{
+			name:          "no error",
+			hasPublicPort: true,
+			expectedError: "",
+		},
+	}
+	for _, ts := range scenarios {
+		s.T().Run(ts.name, func(t *testing.T) {
+			s.SetupTest()
+
+			radixDNSAlias := &radixv1.RadixDNSAlias{
+				TypeMeta:   metav1.TypeMeta{Kind: radixv1.KindRadixDNSAlias, APIVersion: radixv1.SchemeGroupVersion.Identifier()},
+				ObjectMeta: metav1.ObjectMeta{Name: alias1, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName1)},
+				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: envName1, Component: component1},
+			}
+			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, alias1, commonTest.DNSAlias{
+				Alias: alias1, AppName: appName1, Environment: envName1, Component: component1}), "create existing alias")
+			testDefaultUserGroupID := string(uuid.NewUUID())
+			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
+
+			componentBuilder := utils.NewDeployComponentBuilder().WithImage("radixdev.azurecr.io/some-image1:image.tag").WithName(component1).WithPort("http", 8080)
+			if ts.hasPublicPort {
+				componentBuilder = componentBuilder.WithPublicPort("http")
+			}
+			rd1 := utils.NewDeploymentBuilder().WithRadixApplication(utils.ARadixApplication()).WithAppName(appName1).
+				WithEnvironment(envName1).WithComponents(componentBuilder).BuildRD()
+			s.registerRadixDeployments(rd1)
+
+			syncer := s.createSyncer(radixDNSAlias)
+			err := syncer.OnSync()
+
+			if len(ts.expectedError) > 0 {
+				require.Error(t, err)
+				require.EqualError(t, err, ts.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
