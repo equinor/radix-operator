@@ -30,18 +30,10 @@ jobs:
       - name: Install dependencies
         run: go mod download
       - name: Install GolangCI Lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
-      - name: Install StaticCheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@2023.1.6
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
 
       - name: golangci-lint
-        run: golangci-lint run --timeout=30m --max-same-issues=0 --out-format=github-actions --new
-
-      # Add legacy checks since golangci-lint only tests changed files for now
-      - name: StaticCheck
-        run: staticcheck -f text `go list ./... | grep -v "pkg/client"`
-      - name: Go Vet
-        run: go vet `go list ./... | grep -v "pkg/client"`
+        run: golangci-lint run --timeout=30m --max-same-issues=0 --out-format=github-actions
 
   build-operator:
     name: Build-operator
