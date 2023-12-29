@@ -92,14 +92,6 @@ func Test_Create_Namespace(t *testing.T) {
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }
 
-func createRadixDNSAliasForEnvironment(radixClient radixclient.Interface, aliasName string) error {
-	return test.RegisterRadixDNSAliasBySpec(radixClient, aliasName, test.DNSAlias{
-		AppName:     "testapp",
-		Environment: "testenv",
-		Component:   "testcomponent",
-	})
-}
-
 func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest(t)
 	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
