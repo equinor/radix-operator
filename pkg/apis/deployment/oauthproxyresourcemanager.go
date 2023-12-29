@@ -389,10 +389,12 @@ func mergeAuxIngressLabels(appName string, component v1.RadixCommonDeployCompone
 	switch {
 	case componentLabels[kube.RadixDefaultAliasLabel] == "true":
 		oauthutil.MergeAuxComponentDefaultAliasIngressLabels(auxIngress, appName, component)
-	case componentLabels[kube.RadixExternalAliasLabel] == "true":
-		oauthutil.MergeAuxComponentExternalAliasIngressLabels(auxIngress, appName, component)
 	case componentLabels[kube.RadixActiveClusterAliasLabel] == "true":
 		oauthutil.MergeAuxComponentActiveClusterAliasIngressLabels(auxIngress, appName, component)
+	case componentLabels[kube.RadixAppAliasLabel] == "true":
+		oauthutil.MergeAuxComponentAppAliasIngressLabels(auxIngress, appName, component)
+	case componentLabels[kube.RadixExternalAliasLabel] == "true":
+		oauthutil.MergeAuxComponentExternalAliasIngressLabels(auxIngress, appName, component)
 	}
 }
 
@@ -400,8 +402,9 @@ func (o *oauthProxyResourceManager) getComponentIngresses(component v1.RadixComm
 	namespace := o.rd.Namespace
 	return o.getIngressesForSelector(namespace,
 		radixlabels.ForComponentDefaultAliasIngress(component),
-		radixlabels.ForComponentExternalAliasIngress(component),
 		radixlabels.ForComponentActiveClusterAliasIngress(component),
+		radixlabels.ForComponentAppAliasIngress(component),
+		radixlabels.ForComponentExternalAliasIngress(component),
 	)
 }
 
@@ -409,8 +412,9 @@ func (o *oauthProxyResourceManager) getComponentAuxIngresses(component v1.RadixC
 	appName := o.rd.Spec.AppName
 	return o.getIngressesForSelector(o.rd.Namespace,
 		radixlabels.ForAuxComponentDefaultIngress(appName, component),
-		radixlabels.ForAuxComponentExternalAliasIngress(appName, component),
 		radixlabels.ForAuxComponentActiveClusterAliasIngress(appName, component),
+		radixlabels.ForAuxComponentAppAliasIngress(appName, component),
+		radixlabels.ForAuxComponentExternalAliasIngress(appName, component),
 	)
 }
 
