@@ -2,6 +2,7 @@ package dnsalias_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -61,12 +62,13 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 }
 
 type testIngress struct {
-	appName   string
-	envName   string
-	alias     string
-	host      string
-	component string
-	port      int32
+	appName     string
+	envName     string
+	alias       string
+	host        string
+	component   string
+	serviceName string
+	port        int32
 }
 
 func (s *syncerTestSuite) Test_OnSync_ingresses() {
@@ -101,59 +103,59 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 			name:     "created an ingress",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "created additional ingress for another component",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, port: component1Port8080},
+				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, serviceName: component1, port: component1Port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
-				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "changed port changes port in existing ingress",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component2Port9090},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component2Port9090},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "created additional ingress on another alias for the same component",
 			dnsAlias: commonTest.DNSAlias{Alias: alias2, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
-				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "manually changed port repaired",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component2Port9090},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component2Port9090},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "manually changed host repaired",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: "/manually/edited/host", component: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: "/manually/edited/host", component: component1, serviceName: component1, port: component1Port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 	}
@@ -215,7 +217,7 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 						httpIngressPath := rule.IngressRuleValue.HTTP.Paths[0]
 						s.Assert().Equal("/", httpIngressPath.Path, "rule http path")
 						service := httpIngressPath.Backend.Service
-						s.Assert().Equal(expectedIngress.component, service.Name, "rule backend service name")
+						s.Assert().Equal(expectedIngress.serviceName, service.Name, "rule backend service name")
 						s.Assert().Equal(expectedIngress.port, service.Port.Number, "rule backend service port")
 						if len(ing.ObjectMeta.OwnerReferences) > 0 {
 							ownerRef := ing.ObjectMeta.OwnerReferences[0]
@@ -224,6 +226,135 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 							s.Assert().Equal(radixDNSAlias.GetName(), ownerRef.Name, "ownerRef.Name")
 							s.Assert().Equal(radixDNSAlias.GetUID(), ownerRef.UID, "ownerRef.UID")
 							s.Assert().True(ownerRef.Controller != nil && *ownerRef.Controller, "ownerRef.Controller")
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
+	type ingressScenario struct {
+		name               string
+		dnsAlias           commonTest.DNSAlias
+		existingIngress    map[string]testIngress
+		expectedIngress    map[string]testIngress
+		componentHasOAuth2 bool
+	}
+	const (
+		appName1           = "app1"
+		envName1           = "env1"
+		component1         = "component1"
+		alias1             = "alias1"
+		component1Port8080 = 8080
+		dnsZone1           = "dev.radix.equinor.com"
+	)
+
+	testDefaultUserGroupID := string(uuid.NewUUID())
+
+	scenarios := []ingressScenario{
+		{
+			name:               "created an ingress",
+			componentHasOAuth2: true,
+			dnsAlias:           commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			expectedIngress: map[string]testIngress{
+				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				fmt.Sprintf("alias1.custom-alias-%s", defaults.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, defaults.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
+			},
+		},
+	}
+	for _, ts := range scenarios {
+		s.T().Run(ts.name, func(t *testing.T) {
+
+			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
+			defer s.T().Cleanup(func() {
+				if len(defaultUserGroupID) > 0 {
+					err := os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultUserGroupID)
+					s.Require().NoError(err)
+				}
+			})
+			s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, testDefaultUserGroupID)
+
+			s.SetupTest()
+			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
+				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
+			err := commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias)
+			s.Require().NoError(err, "create existing alias")
+
+			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
+			componentBuilder := utils.NewDeployComponentBuilder().
+				WithImage("radixdev.azurecr.io/some-image1:image.tag").
+				WithName(component1).
+				WithPort("http", component1Port8080).
+				WithPublicPort("http")
+			if ts.componentHasOAuth2 {
+				componentBuilder = componentBuilder.
+					WithAuthentication(&radixv1.Authentication{
+						OAuth2: &radixv1.OAuth2{
+							ClientID: string(uuid.NewUUID()),
+						},
+					})
+			}
+			rd := utils.NewDeploymentBuilder().
+				WithRadixApplication(utils.ARadixApplication()).
+				WithAppName(appName1).
+				WithEnvironment(envName1).
+				WithComponents(componentBuilder).BuildRD()
+			s.registerRadixDeployments(rd)
+			s.registerExistingIngresses(s.kubeClient, ts.existingIngress)
+
+			syncer := s.createSyncer(radixDNSAlias)
+			err = syncer.OnSync()
+			s.Assert().NoError(err)
+
+			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
+			s.Assert().NoError(err)
+
+			// assert ingresses
+			if ts.expectedIngress == nil {
+				s.Assert().Len(ingresses.Items, 0, "not expected ingresses")
+				return
+			}
+
+			s.Len(ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
+			if len(ingresses.Items) == len(ts.expectedIngress) {
+				for _, ing := range ingresses.Items {
+					appNameLabel := ing.GetLabels()[kube.RadixAppLabel]
+					aliasLabel := ing.GetLabels()[kube.RadixAliasLabel]
+					s.Assert().Len(ing.Spec.Rules, 1, "rules count")
+					rule := ing.Spec.Rules[0]
+					expectedIngress, ingressExists := ts.expectedIngress[ing.Name]
+					assert.True(t, ingressExists, "found not expected ingress %s for: appName %s, host %s, service %s, port %d",
+						ing.GetName(), appNameLabel, rule.Host, rule.HTTP.Paths[0].Backend.Service.Name,
+						rule.HTTP.Paths[0].Backend.Service.Port.Number)
+					if ingressExists {
+						s.Assert().Equal(expectedIngress.appName, appNameLabel, "app name")
+						expectedNamespace := utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName)
+						s.Assert().Equal(expectedNamespace, ing.GetNamespace(), "namespace")
+						if componentName, ok := ing.GetLabels()[kube.RadixAuxiliaryComponentLabel]; ok {
+							s.Assert().Equal(expectedIngress.component, componentName, "component name")
+						} else {
+							s.Assert().Equal(expectedIngress.component, ing.GetLabels()[kube.RadixComponentLabel], "component name")
+						}
+						s.Assert().Equal(expectedIngress.alias, aliasLabel, "alias name in the label")
+						s.Assert().Equal(expectedIngress.host, rule.Host, "rule host")
+						s.Assert().Len(rule.IngressRuleValue.HTTP.Paths, 1, "http path count")
+						httpIngressPath := rule.IngressRuleValue.HTTP.Paths[0]
+						s.Assert().Equal("/", httpIngressPath.Path, "rule http path")
+						service := httpIngressPath.Backend.Service
+						s.Assert().Equal(expectedIngress.serviceName, service.Name, "rule backend service name")
+						s.Assert().Equal(expectedIngress.port, service.Port.Number, "rule backend service port")
+						if len(ing.ObjectMeta.OwnerReferences) > 0 {
+							ownerRef := ing.ObjectMeta.OwnerReferences[0]
+							s.Assert().True(ownerRef.Controller != nil && *ownerRef.Controller, "ownerRef.Controller")
+							if _, ok := ing.GetLabels()[kube.RadixAuxiliaryComponentLabel]; ok {
+								s.Assert().Equal(networkingv1.SchemeGroupVersion.Identifier(), ownerRef.APIVersion, "ownerRef.APIVersion")
+								s.Assert().Equal(k8s.KindIngress, ownerRef.Kind, "ownerRef.Kind")
+							} else {
+								s.Assert().Equal(radixv1.SchemeGroupVersion.Identifier(), ownerRef.APIVersion, "ownerRef.APIVersion")
+								s.Assert().Equal(radixv1.KindRadixDNSAlias, ownerRef.Kind, "ownerRef.Kind")
+							}
 						}
 					}
 				}
@@ -578,7 +709,7 @@ func (s *syncerTestSuite) registerExistingIngresses(kubeClient kubernetes.Interf
 				Name:   dnsalias.GetDNSAliasIngressName(ingProps.alias),
 				Labels: radixlabels.ForDNSAliasIngress(ingProps.appName, ingProps.component, ingProps.alias),
 			},
-			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.component, defaults.TLSSecretName, ingProps.port),
+			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.serviceName, defaults.TLSSecretName, ingProps.port),
 		}
 		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, ingProps.appName, ingProps.envName, ing)
 		s.Require().NoError(err, "create existing ingress %s", ing.GetName())
