@@ -26,17 +26,16 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
+func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
-	if err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid"); err != nil {
-		panic(err)
-	}
-	prometheusclient := prometheusfake.NewSimpleClientset()
-	return &handlerTestUtils, client, kubeUtil, radixClient, prometheusclient
+	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	require.NoError(t, err)
+	prometheusClient := prometheusfake.NewSimpleClientset()
+	return &handlerTestUtils, client, kubeUtil, radixClient, prometheusClient
 }
 
 func teardownTest() {
@@ -51,7 +50,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	anyEnvironment := "qa"
 
 	// Setup
-	tu, client, kubeUtil, radixClient, prometheusclient := setupTest()
+	tu, client, kubeUtil, radixClient, prometheusclient := setupTest(t)
 
 	_, err := client.CoreV1().Namespaces().Create(
 		context.TODO(),

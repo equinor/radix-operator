@@ -2,6 +2,7 @@ package applicationconfig_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -50,7 +51,7 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
 				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
 			},
 		},
 		{
@@ -65,8 +66,8 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port9090).WithPublicPort(portA),
 				),
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
-				alias2: {AppName: appName1, Environment: env1, Component: component2, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+				alias2: {AppName: appName1, Environment: env1, Component: component2},
 			},
 		},
 		{
@@ -81,8 +82,8 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port9090).WithPublicPort(portA),
 				),
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
-				alias2: {AppName: appName1, Environment: env2, Component: component1, Port: port8080},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+				alias2: {AppName: appName1, Environment: env2, Component: component1},
 			},
 		},
 		{
@@ -94,8 +95,8 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 				).
 				WithComponents(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
-				alias2: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+				alias2: {AppName: appName1, Environment: env1, Component: component1},
 			},
 		},
 		{
@@ -110,8 +111,8 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port9090).WithPublicPort(portA),
 				),
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
-				alias2: {AppName: appName1, Environment: env2, Component: component2, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+				alias2: {AppName: appName1, Environment: env2, Component: component2},
 			},
 		},
 		{
@@ -120,11 +121,11 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
 				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
 			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias2: {AppName: appName2, Environment: env1, Component: component1, Port: port9090},
+				alias2: {AppName: appName2, Environment: env1, Component: component1},
 			},
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias2: {AppName: appName2, Environment: env1, Component: component1, Port: port9090},
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
+				alias2: {AppName: appName2, Environment: env1, Component: component1},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
 			},
 		},
 		{
@@ -136,10 +137,10 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port9090).WithPublicPort(portA),
 				),
 			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
 			},
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env2, Component: component2, Port: port9090},
+				alias1: {AppName: appName1, Environment: env2, Component: component2},
 			},
 		},
 		{
@@ -150,10 +151,10 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port9090).WithPublicPort(portA),
 				),
 			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
 			},
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
 			},
 		},
 		{
@@ -161,9 +162,9 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
 				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
 				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).
-					WithPorts([]radixv1.ComponentPort{{Name: portA, Port: port8080}, {Name: portB, Port: port9090}}).WithPublicPort(portB)),
+					WithPorts([]radixv1.ComponentPort{{Name: portA}, {Name: portB}}).WithPublicPort(portB)),
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
 			},
 		},
 		{
@@ -178,12 +179,12 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port9090).WithPublicPort(portA),
 				),
 			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
-				alias2: {AppName: appName1, Environment: env2, Component: component2, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+				alias2: {AppName: appName1, Environment: env2, Component: component2},
 			},
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env2, Component: component2, Port: port9090},
-				alias2: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
+				alias1: {AppName: appName1, Environment: env2, Component: component2},
+				alias2: {AppName: appName1, Environment: env1, Component: component1},
 			},
 		},
 		{
@@ -191,7 +192,7 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).WithEnvironment(env2, branch2).
 				WithComponents(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
 			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
 			},
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{},
 		},
@@ -207,15 +208,15 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port9090).WithPublicPort(portA),
 				),
 			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
-				alias2: {AppName: appName1, Environment: env1, Component: component2, Port: port9090},
-				alias3: {AppName: appName1, Environment: env2, Component: component1, Port: port8080},
-				alias4: {AppName: appName2, Environment: env1, Component: component1, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+				alias2: {AppName: appName1, Environment: env1, Component: component2},
+				alias3: {AppName: appName1, Environment: env2, Component: component1},
+				alias4: {AppName: appName2, Environment: env1, Component: component1},
 			},
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
-				alias3: {AppName: appName1, Environment: env2, Component: component1, Port: port8080},
-				alias4: {AppName: appName2, Environment: env1, Component: component1, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+				alias3: {AppName: appName1, Environment: env2, Component: component1},
+				alias4: {AppName: appName2, Environment: env1, Component: component1},
 			},
 		},
 		{
@@ -230,21 +231,21 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					utils.NewApplicationComponentBuilder().WithName(component2).WithPort(portA, port9090).WithPublicPort(portA),
 				),
 			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component1, Port: port8080},
-				alias2: {AppName: appName1, Environment: env1, Component: component2, Port: port9090},
-				alias4: {AppName: appName2, Environment: env1, Component: component1, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+				alias2: {AppName: appName1, Environment: env1, Component: component2},
+				alias4: {AppName: appName2, Environment: env1, Component: component1},
 			},
 			expectedRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: appName1, Environment: env1, Component: component2, Port: port9090},
-				alias3: {AppName: appName1, Environment: env2, Component: component1, Port: port8080},
-				alias4: {AppName: appName2, Environment: env1, Component: component1, Port: port9090},
+				alias1: {AppName: appName1, Environment: env1, Component: component2},
+				alias3: {AppName: appName1, Environment: env2, Component: component1},
+				alias4: {AppName: appName2, Environment: env1, Component: component1},
 			},
 		},
 	}
 
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			tu, kubeClient, kubeUtil, radixClient := setupTest()
+			tu, kubeClient, kubeUtil, radixClient := setupTest(t)
 
 			require.NoError(t, commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
 			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder), "register radix application")
@@ -279,6 +280,90 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 					assert.Fail(t, fmt.Sprintf("found not expected RadixDNSAlias %s: env %s, component %s, appName %s",
 						radixDNSAlias.GetName(), radixDNSAlias.Spec.Environment, radixDNSAlias.Spec.Component, radixDNSAlias.Spec.AppName))
 				}
+			}
+		})
+	}
+}
+
+func Test_DNSAliases_ValidDNSAliases(t *testing.T) {
+	const (
+		appName1   = "any-app1"
+		appName2   = "any-app2"
+		env1       = "env1"
+		component1 = "server1"
+		component2 = "server2"
+		branch1    = "branch1"
+		portA      = "port-a"
+		port8080   = 8080
+		alias1     = "alias1"
+		alias2     = "alias2"
+	)
+	var testScenarios = []struct {
+		name                    string
+		applicationBuilder      utils.ApplicationBuilder
+		existingRadixDNSAliases map[string]commonTest.DNSAlias
+		expectedError           error
+	}{
+		{
+			name: "exist aliases with different appName, failed",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: appName2, Environment: env1, Component: component1},
+			},
+			expectedError: errors.New("failed to process DNS aliases: DNS Alias any-app1 of the application alias1 is used by another application"),
+		},
+		{
+			name: "exist aliases with same component and port, no error",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: appName1, Environment: env1, Component: component1},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "exist different alias with different name, no error",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias2: {AppName: appName2, Environment: env1, Component: component1},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "exist aliases with different component and port, no error",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component1}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
+				alias1: {AppName: appName1, Environment: env1, Component: component2},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "no existing aliases, no error",
+			applicationBuilder: utils.ARadixApplication().WithAppName(appName1).WithEnvironment(env1, branch1).
+				WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: env1, Component: component2}).
+				WithComponent(utils.NewApplicationComponentBuilder().WithName(component1).WithPort(portA, port8080).WithPublicPort(portA)),
+			expectedError: nil,
+		},
+	}
+
+	for _, ts := range testScenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			tu, kubeClient, kubeUtil, radixClient := setupTest(t)
+
+			require.NoError(t, commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
+			err := applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder)
+			if ts.expectedError != nil {
+				require.Error(t, err)
+				require.EqualError(t, err, ts.expectedError.Error())
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

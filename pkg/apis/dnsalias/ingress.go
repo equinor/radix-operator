@@ -19,6 +19,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -78,7 +79,8 @@ func (s *syncer) syncOAuthProxyIngress(namespace string, ing *networkingv1.Ingre
 	authentication := deployComponent.GetAuthentication()
 	oauthEnabled := authentication != nil && authentication.OAuth2 != nil
 	if !oauthEnabled {
-		return s.deleteOAuthAuxIngresses(deployComponent, namespace, appName)
+		selector := radixlabels.ForAuxComponentDNSAliasIngress(s.radixDNSAlias.Spec.AppName, deployComponent, s.radixDNSAlias.GetName())
+		return s.deleteIngresses(selector)
 	}
 	oauth2, err := s.oauth2DefaultConfig.MergeWith(authentication.OAuth2)
 	if err != nil {
@@ -96,12 +98,14 @@ func (s *syncer) syncOAuthProxyIngress(namespace string, ing *networkingv1.Ingre
 	return s.kubeUtil.ApplyIngress(namespace, auxIngress)
 }
 
-func (s *syncer) deleteOAuthAuxIngresses(deployComponent radixv1.RadixCommonDeployComponent, namespace string, appName string) error {
-	oauthAuxIngresses, err := s.kubeUtil.KubeClient().NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForAuxComponentDNSAliasIngress(appName, deployComponent, s.radixDNSAlias.GetName()).String()})
+func (s *syncer) deleteIngresses(selector labels.Set) error {
+	aliasSpec := s.radixDNSAlias.Spec
+	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
+	ingresses, err := s.kubeUtil.KubeClient().NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
 	}
-	return s.kubeUtil.DeleteIngresses(slice.PointersOf(oauthAuxIngresses.Items).([]*networkingv1.Ingress)...)
+	return s.kubeUtil.DeleteIngresses(ingresses.Items...)
 }
 
 func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
@@ -118,7 +122,7 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	ingressAnnotations := ingress.GetAnnotationProvider(ingressConfiguration, namespace, oauth2Config)
-	ingressConfig, err := ingress.GetIngressConfig(namespace, aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias))
+	ingressConfig, err := ingress.GetIngressConfig(namespace, aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias, true))
 	if err != nil {
 		return nil, err
 	}
@@ -126,17 +130,6 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 	ingressConfig.ObjectMeta.Labels[kube.RadixAliasLabel] = aliasName
 	log.Debugf("built the Ingress %s in the environment %s with a host %s", ingressConfig.GetName(), namespace, hostName)
 	return ingressConfig, nil
-}
-
-func (s *syncer) deletedIngressesForRadixDNSAlias() error {
-	aliasSpec := s.radixDNSAlias.Spec
-	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	dnsAliasIngressesSelector := radixlabels.ForDNSAliasIngress(aliasSpec.AppName, aliasSpec.Component, s.radixDNSAlias.GetName()).String()
-	ingresses, err := s.kubeUtil.KubeClient().NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: dnsAliasIngressesSelector})
-	if err != nil {
-		return err
-	}
-	return s.kubeUtil.DeleteIngresses(slice.PointersOf(ingresses.Items).([]*networkingv1.Ingress)...)
 }
 
 func getComponentPublicPort(component radixv1.RadixCommonDeployComponent) *radixv1.ComponentPort {

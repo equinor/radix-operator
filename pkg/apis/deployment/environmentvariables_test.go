@@ -57,7 +57,7 @@ func Test_GetEnvironmentVariables(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	testEnv := setupTestEnv()
+	testEnv := setupTestEnv(t)
 	defer teardownTest()
 
 	t.Run("Get env vars", func(t *testing.T) {
@@ -88,7 +88,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	testEnv := setupTestEnv()
+	testEnv := setupTestEnv(t)
 	defer teardownTest()
 
 	rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
@@ -128,7 +128,7 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	envName := "dev"
 	namespace := utils.GetEnvironmentNamespace(appName, env)
 	componentName := "any-component"
-	testEnv := setupTestEnv()
+	testEnv := setupTestEnv(t)
 	defer teardownTest()
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
 		//goland:noinspection GoUnhandledErrorResult
@@ -271,7 +271,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 	t.Run("Get env vars, secrets and secret-refs for component", func(t *testing.T) {
 		for _, testCase := range scenarios {
 			t.Logf("Test case: %s", testCase.name)
-			testEnv := setupTestEnv()
+			testEnv := setupTestEnv(t)
 			rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 				componentBuilder.
 					WithEnvironmentVariables(testCase.envVars).
@@ -341,7 +341,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 	t.Run("Get env vars, secrets and secret-refs for job component", func(t *testing.T) {
 		for _, testCase := range scenarios {
 			t.Logf("Test case: %s", testCase.name)
-			testEnv := setupTestEnv()
+			testEnv := setupTestEnv(t)
 			rd := testEnv.applyRdJobComponent(t, appName, envName, jobName, func(jobBuilder utils.DeployJobComponentBuilder) {
 				jobBuilder.
 					WithEnvironmentVariables(testCase.envVars).
@@ -441,8 +441,8 @@ func (testEnv *testEnvProps) applyRdJobComponent(t *testing.T, appName string, e
 	return rd
 }
 
-func setupTestEnv() *testEnvProps {
+func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
-	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, testEnv.secretproviderclient = setupTest()
+	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, testEnv.secretproviderclient = setupTest(t)
 	return &testEnv
 }

@@ -178,7 +178,7 @@ func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *rbacv1.RoleBindin
 func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *rbacv1.ClusterRoleBinding) error {
 	logger = logger.WithFields(log.Fields{"clusterRoleBinding": clusterrolebinding.ObjectMeta.Name})
 	logger.Debugf("Apply clusterrolebinding %s", clusterrolebinding.Name)
-	oldClusterRoleBinding, err := kubeutil.getClusterRoleBinding(clusterrolebinding.Name)
+	oldClusterRoleBinding, err := kubeutil.GetClusterRoleBinding(clusterrolebinding.Name)
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterrolebinding, metav1.CreateOptions{})
 		if err != nil {
@@ -337,18 +337,23 @@ func (kubeutil *Kube) ListRoleBindingsWithSelector(namespace string, labelSelect
 	return roleBindings, nil
 }
 
-// ListClusterRoleBindings List cluster roles
-func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*rbacv1.ClusterRoleBinding, error) {
+// ListClusterRoleBindingsWithSelector List cluster roles
+func (kubeutil *Kube) ListClusterRoleBindingsWithSelector(labelSelectorString string) ([]*rbacv1.ClusterRoleBinding, error) {
 	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
-	var err error
-
 	if kubeutil.ClusterRoleBindingLister != nil {
-		clusterRoleBindings, err = kubeutil.ClusterRoleBindingLister.List(labels.NewSelector())
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
+		}
+		clusterRoleBindings, err = kubeutil.ClusterRoleBindingLister.List(selector)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+		listOptions := metav1.ListOptions{
+			LabelSelector: labelSelectorString,
+		}
+		list, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().List(context.TODO(), listOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -361,7 +366,7 @@ func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*rbacv1.Clust
 
 // DeleteClusterRoleBinding Deletes a clusterrolebinding
 func (kubeutil *Kube) DeleteClusterRoleBinding(name string) error {
-	_, err := kubeutil.getClusterRoleBinding(name)
+	_, err := kubeutil.GetClusterRoleBinding(name)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
@@ -389,7 +394,8 @@ func (kubeutil *Kube) DeleteRoleBinding(namespace, name string) error {
 	return nil
 }
 
-func (kubeutil *Kube) getClusterRoleBinding(name string) (*rbacv1.ClusterRoleBinding, error) {
+// GetClusterRoleBinding Gets cluster role binding
+func (kubeutil *Kube) GetClusterRoleBinding(name string) (*rbacv1.ClusterRoleBinding, error) {
 	var clusterRoleBinding *rbacv1.ClusterRoleBinding
 	var err error
 

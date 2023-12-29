@@ -443,5 +443,4 @@ type DNSAlias struct {
 	AppName     string
 	Environment string
 	Component   string
-	Port        int
 }

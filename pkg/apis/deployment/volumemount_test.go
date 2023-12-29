@@ -1665,7 +1665,7 @@ func createExpectedPvc(props expectedPvcScProperties, modify func(*corev1.Persis
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{props.volumeAccessMode},
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(props.requestsVolumeMountSize)}, // it seems correct number is not needed for CSI driver
 			},
 			StorageClassName: utils.StringPtr(props.storageClassName),

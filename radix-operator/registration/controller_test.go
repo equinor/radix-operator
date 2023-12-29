@@ -22,21 +22,20 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
+func setupTest(t *testing.T) (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
-	if err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid"); err != nil {
-		panic(err)
-	}
+	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	require.NoError(t, err)
 	return client, kubeUtil, radixClient
 }
 
 func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
-	client, kubeUtil, radixClient := setupTest()
+	client, kubeUtil, radixClient := setupTest(t)
 
 	stop := make(chan struct{})
 	synced := make(chan bool)

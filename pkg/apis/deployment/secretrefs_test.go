@@ -197,7 +197,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 
 	t.Run("get secret-refs Azure Key vaults credential secrets ", func(t *testing.T) {
 		for _, scenario := range scenarios {
-			testEnv := setupTestEnv()
+			testEnv := setupTestEnv(t)
 			radixDeployment, err := applyRadixDeployWithSyncForSecretRefs(testEnv, appName, environment, scenario)
 
 			assert.NoError(t, err)
@@ -220,7 +220,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 
 	t.Run("get secret-refs secret provider class", func(t *testing.T) {
 		for _, scenario := range scenarios {
-			testEnv := setupTestEnv()
+			testEnv := setupTestEnv(t)
 			rd, err := applyRadixDeployWithSyncForSecretRefs(testEnv, appName, environment, scenario)
 
 			assert.NoError(t, err)
