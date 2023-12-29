@@ -525,7 +525,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	appName, envName, component1Name, component2Name := "anyapp", "qa", "server", "web"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	ingServer := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
@@ -533,14 +533,14 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	ingServerNoRules := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
 		},
 	}
 	ingOtherComponent := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixComponentLabel: "othercomponent", kube.RadixDefaultAliasLabel: "true"}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: "othercomponent", kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
@@ -548,7 +548,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	ingServerOtherNs := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing4", Labels: map[string]string{kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing4", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
@@ -556,7 +556,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	ingWeb1 := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing5", Labels: map[string]string{kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing5", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass1"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing2-tls"}},
@@ -564,11 +564,35 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		},
 	}
 	ingWeb2 := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{Name: "ing6", Labels: map[string]string{kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
+		ObjectMeta: metav1.ObjectMeta{Name: "ing6", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: utils.StringPtr("anyclass2"),
 			TLS:              []networkingv1.IngressTLS{{SecretName: "ing2-tls"}},
 			Rules:            []networkingv1.IngressRule{{Host: "ing2.public"}},
+		},
+	}
+	ingWeb3 := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ingExtAlias", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixExternalAliasLabel: "true"}},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: utils.StringPtr("anyclass3"),
+			TLS:              []networkingv1.IngressTLS{{SecretName: "ing3-tls"}},
+			Rules:            []networkingv1.IngressRule{{Host: "ing3.public"}},
+		},
+	}
+	ingWeb4 := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ingActiveClusterAlias", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixActiveClusterAliasLabel: "true"}},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: utils.StringPtr("anyclass4"),
+			TLS:              []networkingv1.IngressTLS{{SecretName: "ing4-tls"}},
+			Rules:            []networkingv1.IngressRule{{Host: "ing4.public"}},
+		},
+	}
+	ingWeb5 := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ingAppAlias", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixAppAliasLabel: "true"}},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: utils.StringPtr("anyclass5"),
+			TLS:              []networkingv1.IngressTLS{{SecretName: "ing5-tls"}},
+			Rules:            []networkingv1.IngressRule{{Host: "ing5.public"}},
 		},
 	}
 	_, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServer, metav1.CreateOptions{})
@@ -582,6 +606,12 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb1, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb2, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb3, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb4, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb5, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
@@ -601,13 +631,13 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	expectedIngWebCall := rd.Spec.Components[1].DeepCopy()
 	expectedIngWebCall.Authentication.OAuth2.ProxyPrefix = "auth2"
 	expectedIngWebAnnotations := map[string]string{"annotation2-1": "val2-1", "annotation2-2": "val2-2"}
-	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall, rd.Namespace).Times(2).Return(expectedIngWebAnnotations, nil)
+	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall, rd.Namespace).Times(5).Return(expectedIngWebAnnotations, nil)
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{s.ingressAnnotationProvider}, s.oauth2Config, ""}
 	err = sut.Sync()
 	s.NoError(err)
 
 	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualIngresses.Items, 9)
+	s.Len(actualIngresses.Items, 15)
 	getIngress := func(name string, ingresses []networkingv1.Ingress) *networkingv1.Ingress {
 		for _, ing := range ingresses {
 			if ing.Name == name {
@@ -636,7 +666,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	// Ingresses for server component
 	ingressName := fmt.Sprintf("%s-%s", ingServer.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress := getIngress(ingressName, actualIngresses.Items)
-	s.Require().NotNil(actualIngress, "not fount aux ingress %s", ingressName)
+	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngServerAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingServer), actualIngress.OwnerReferences)
 	s.Equal(ingServer.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
@@ -647,7 +677,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	// Ingresses for web component
 	ingressName = fmt.Sprintf("%s-%s", ingWeb1.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress = getIngress(ingressName, actualIngresses.Items)
-	s.Require().NotNil(actualIngress, "not fount aux ingress %s", ingressName)
+	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb1), actualIngress.OwnerReferences)
 	s.Equal(ingWeb1.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
@@ -657,12 +687,42 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 
 	ingressName = fmt.Sprintf("%s-%s", ingWeb2.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress = getIngress(ingressName, actualIngresses.Items)
-	s.Require().NotNil(actualIngress, "not fount aux ingress %s", ingressName)
+	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb2), actualIngress.OwnerReferences)
 	s.Equal(ingWeb2.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
 	s.Equal(ingWeb2.Spec.TLS, actualIngress.Spec.TLS)
 	s.Equal(ingWeb2.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
+	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
+
+	ingressName = fmt.Sprintf("%s-%s", ingWeb3.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	actualIngress = getIngress(ingressName, actualIngresses.Items)
+	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
+	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
+	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb3), actualIngress.OwnerReferences)
+	s.Equal(ingWeb3.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
+	s.Equal(ingWeb3.Spec.TLS, actualIngress.Spec.TLS)
+	s.Equal(ingWeb3.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
+	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
+
+	ingressName = fmt.Sprintf("%s-%s", ingWeb4.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	actualIngress = getIngress(ingressName, actualIngresses.Items)
+	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
+	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
+	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb4), actualIngress.OwnerReferences)
+	s.Equal(ingWeb4.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
+	s.Equal(ingWeb4.Spec.TLS, actualIngress.Spec.TLS)
+	s.Equal(ingWeb4.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
+	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
+
+	ingressName = fmt.Sprintf("%s-%s", ingWeb5.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	actualIngress = getIngress(ingressName, actualIngresses.Items)
+	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
+	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
+	s.ElementsMatch(ingress.GetOwnerReferenceOfIngress(&ingWeb5), actualIngress.OwnerReferences)
+	s.Equal(ingWeb5.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
+	s.Equal(ingWeb5.Spec.TLS, actualIngress.Spec.TLS)
+	s.Equal(ingWeb5.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
 	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
 }
 

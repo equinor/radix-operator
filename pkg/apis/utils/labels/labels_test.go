@@ -142,6 +142,24 @@ func Test_ForDNSAliasIngress(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func Test_ForComponentExternalAliasIngress(t *testing.T) {
+	actual := ForComponentExternalAliasIngress(&v1.RadixDeployComponent{Name: "any-component"})
+	expected := kubelabels.Set{kube.RadixComponentLabel: "any-component", kube.RadixExternalAliasLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForComponentDefaultAliasIngress(t *testing.T) {
+	actual := ForComponentDefaultAliasIngress(&v1.RadixDeployComponent{Name: "any-component"})
+	expected := kubelabels.Set{kube.RadixComponentLabel: "any-component", kube.RadixDefaultAliasLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForComponentActiveClusterAliasIngress(t *testing.T) {
+	actual := ForComponentActiveClusterAliasIngress(&v1.RadixDeployComponent{Name: "any-component"})
+	expected := kubelabels.Set{kube.RadixComponentLabel: "any-component", kube.RadixActiveClusterAliasLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
 func Test_ForDNSAliasRbac(t *testing.T) {
 	actual := ForDNSAliasRbac("any-app")
 	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixAliasLabel: "true"}

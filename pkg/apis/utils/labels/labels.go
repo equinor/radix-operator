@@ -236,21 +236,67 @@ func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) ma
 
 // ForAuxComponentDefaultIngress returns labels for application component aux OAuth proxy default ingress
 func ForAuxComponentDefaultIngress(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixAppLabel:                    appName,
-		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
-		kube.RadixDefaultAliasLabel:           "true",
-	}
+	return forAuxComponentIngress(appName, component, kube.RadixDefaultAliasLabel, "true")
+}
+
+// ForAuxComponentActiveClusterAliasIngress returns labels for application component active cluster alias ingress
+func ForAuxComponentActiveClusterAliasIngress(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return forAuxComponentIngress(appName, component, kube.RadixActiveClusterAliasLabel, "true")
+}
+
+// ForAuxComponentAppAliasIngress returns labels for application component app alias ingress
+func ForAuxComponentAppAliasIngress(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return forAuxComponentIngress(appName, component, kube.RadixAppAliasLabel, "true")
+}
+
+// ForAuxComponentExternalAliasIngress returns labels for application component aux OAuth proxy external alias ingress
+func ForAuxComponentExternalAliasIngress(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return forAuxComponentIngress(appName, component, kube.RadixExternalAliasLabel, "true")
 }
 
 // ForAuxComponentDNSAliasIngress returns labels for application component aux DNS alias ingress OAuth proxy
 func ForAuxComponentDNSAliasIngress(appName string, component v1.RadixCommonDeployComponent, dnsAlias string) kubelabels.Set {
+	return forAuxComponentIngress(appName, component, kube.RadixAliasLabel, dnsAlias)
+}
+
+func forAuxComponentIngress(appName string, component v1.RadixCommonDeployComponent, aliasLabel, aliasLabelValue string) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
 		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
-		kube.RadixAliasLabel:                  dnsAlias,
+		aliasLabel:                            aliasLabelValue,
+	}
+}
+
+// ForComponentDefaultAliasIngress returns labels for application component default alias ingress
+func ForComponentDefaultAliasIngress(component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixComponentLabel:    component.GetName(),
+		kube.RadixDefaultAliasLabel: "true",
+	}
+}
+
+// ForComponentActiveClusterAliasIngress returns labels for application component active cluster alias ingress
+func ForComponentActiveClusterAliasIngress(component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixComponentLabel:          component.GetName(),
+		kube.RadixActiveClusterAliasLabel: "true",
+	}
+}
+
+// ForComponentAppAliasIngress returns labels for application component app alias ingress
+func ForComponentAppAliasIngress(component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixComponentLabel: component.GetName(),
+		kube.RadixAppAliasLabel:  "true",
+	}
+}
+
+// ForComponentExternalAliasIngress returns labels for application component external alias ingress
+func ForComponentExternalAliasIngress(component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixComponentLabel:     component.GetName(),
+		kube.RadixExternalAliasLabel: "true",
 	}
 }
 
