@@ -25,6 +25,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -69,6 +70,7 @@ type testIngress struct {
 	component   string
 	serviceName string
 	port        int32
+	labels      map[string]string
 }
 
 func (s *syncerTestSuite) Test_OnSync_ingresses() {
@@ -110,52 +112,76 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 			name:     "created additional ingress for another component",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, serviceName: component1, port: component1Port8080},
+				"alias2.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component2, alias2),
+					alias:  alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, serviceName: component1, port: component1Port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, serviceName: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias2.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component2, alias2),
+					alias:  alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "changed port changes port in existing ingress",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component2Port9090},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component2Port9090},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "created additional ingress on another alias for the same component",
 			dnsAlias: commonTest.DNSAlias{Alias: alias2, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				"alias2.custom-alias": {appName: appName1, envName: envName1, alias: alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias2.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias2),
+					alias:  alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "manually changed port repaired",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component2Port9090},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component2Port9090},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 		{
 			name:     "manually changed host repaired",
 			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: "/manually/edited/host", component: component1, serviceName: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: "/manually/edited/host", component: component1, serviceName: component1, port: component1Port8080},
 			},
 			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
 			},
 		},
 	}
@@ -255,12 +281,32 @@ func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
 
 	scenarios := []ingressScenario{
 		{
-			name:               "created an ingress",
+			name:               "created an aux ingress",
 			componentHasOAuth2: true,
 			dnsAlias:           commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
 			expectedIngress: map[string]testIngress{
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				fmt.Sprintf("alias1.custom-alias-%s", defaults.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1,
+					labels: getLabelsForAuxComponentDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, defaults.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
+			},
+		},
+		{
+			name:               "deleted an aux ingress",
+			componentHasOAuth2: false,
+			dnsAlias:           commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
+			existingIngress: map[string]testIngress{
+				"alias1.custom-alias": {appName: appName1, envName: envName1,
+					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
+				fmt.Sprintf("alias1.custom-alias-%s", defaults.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1,
+					labels: getLabelsForAuxComponentDNSAliasIngress(appName1, component1, alias1),
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, defaults.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
+			},
+			expectedIngress: map[string]testIngress{
 				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				fmt.Sprintf("alias1.custom-alias-%s", defaults.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, defaults.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
 			},
 		},
 	}
@@ -703,15 +749,24 @@ func (s *syncerTestSuite) registerClusterRoleBindings(radixDNSAlias *radixv1.Rad
 }
 
 func (s *syncerTestSuite) registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress) {
-	for _, ingProps := range testIngresses {
+	for ingName, ingProps := range testIngresses {
 		ing := &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   dnsalias.GetDNSAliasIngressName(ingProps.alias),
-				Labels: radixlabels.ForDNSAliasIngress(ingProps.appName, ingProps.component, ingProps.alias),
+				Name:   ingName,
+				Labels: ingProps.labels,
 			},
 			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.serviceName, defaults.TLSSecretName, ingProps.port),
 		}
 		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, ingProps.appName, ingProps.envName, ing)
 		s.Require().NoError(err, "create existing ingress %s", ing.GetName())
+	}
+}
+
+func getLabelsForAuxComponentDNSAliasIngress(appName, componentName, alias string) map[string]string {
+	return kubelabels.Set{
+		kube.RadixAppLabel:                    appName,
+		kube.RadixAuxiliaryComponentLabel:     componentName,
+		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+		kube.RadixAliasLabel:                  alias,
 	}
 }
