@@ -606,11 +606,6 @@ func validateJobPayload(job *radixv1.RadixJobComponent) error {
 func validatePorts(componentName string, ports []radixv1.ComponentPort) []error {
 	errs := []error{}
 
-	if len(ports) == 0 {
-		err := PortSpecificationCannotBeEmptyForComponentErrorWithMessage(componentName)
-		errs = append(errs, err)
-	}
-
 	for _, port := range ports {
 		if len(port.Name) > maxPortNameLength {
 			err := InvalidPortNameLengthErrorWithMessage(port.Name)

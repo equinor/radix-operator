@@ -12,7 +12,11 @@ import (
 
 func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
-	service := getServiceConfig(deployComponent, deploy.radixDeployment, deployComponent.GetPorts())
+	ports := deployComponent.GetPorts()
+	if len(ports) == 0 {
+		return nil
+	}
+	service := getServiceConfig(deployComponent, deploy.radixDeployment, ports)
 	return deploy.kubeutil.ApplyService(namespace, service)
 }
 
@@ -28,8 +32,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 			continue
 		}
 		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
-			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), service.Name, metav1.DeleteOptions{})
-			if err != nil {
+			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), service.Name, metav1.DeleteOptions{}); err != nil {
 				return err
 			}
 		}
@@ -38,13 +41,21 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	return nil
 }
 
+func (deploy *Deployment) deleteService(service *corev1.Service) error {
+	return deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), service.Name, metav1.DeleteOptions{})
+}
+
 func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service *corev1.Service, componentName RadixComponentName) bool {
-	// Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
 	if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
-		return !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
+		if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
+			return true // Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
+		}
+	} else if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+		return true // Garbage collect service if not defined in RD components or jobs
 	}
-	// Garbage collect service if not defined in RD components or jobs
-	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
+
+	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
+	return commonComponent == nil || len(commonComponent.GetPorts()) == 0
 }
 
 func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {

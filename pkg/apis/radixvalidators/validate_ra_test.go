@@ -137,12 +137,6 @@ func Test_invalid_ra(t *testing.T) {
 		{"component name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixComponentName, "component", defaults.OAuthProxyAuxiliaryComponentSuffix), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Name = oauthAuxSuffixComponentName
 		}},
-		{"invalid port specification. Nil value", radixvalidators.PortSpecificationCannotBeEmptyForComponentErrorWithMessage(validRAFirstComponentName), func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].Ports = nil
-		}},
-		{"invalid port specification. Empty value", radixvalidators.PortSpecificationCannotBeEmptyForComponentErrorWithMessage(validRAFirstComponentName), func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].Ports = []v1.ComponentPort{}
-		}},
 		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("port name", invalidResourceName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Ports[0].Name = invalidResourceName
 		}},

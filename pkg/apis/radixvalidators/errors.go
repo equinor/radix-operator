@@ -183,11 +183,6 @@ func InvalidPortNameLengthErrorWithMessage(value string) error {
 	return errors.WithMessagef(ErrInvalidPortNameLength, "%s (%s) max length is %d", "port name", value, maxPortNameLength)
 }
 
-// PortSpecificationCannotBeEmptyForComponentErrorWithMessage Port cannot be empty for component
-func PortSpecificationCannotBeEmptyForComponentErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrPortSpecificationCannotBeEmptyForComponent, "port specification cannot be empty for %s", component)
-}
-
 // PortNameIsRequiredForPublicComponentErrorWithMessage Port name cannot be empty
 func PortNameIsRequiredForPublicComponentErrorWithMessage(publicPortName, component string) error {
 	return errors.WithMessagef(ErrPortNameIsRequiredForPublicComponent, "%s port name is required for public component %s", publicPortName, component)
