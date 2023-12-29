@@ -51,7 +51,7 @@ func MergeAuxComponentActiveClusterAliasIngressLabels(auxIngress *networkingv1.I
 
 // MergeAuxComponentAppAliasIngressLabels  Merge labels for app alias ingress and aux OAuth proxy
 func MergeAuxComponentAppAliasIngressLabels(auxIngress *networkingv1.Ingress, appName string, component radixv1.RadixCommonDeployComponent) {
-	auxIngress.SetLabels(labels.Merge(auxIngress.GetLabels(), radixlabels.ForAuxComponentActiveClusterAliasIngress(appName, component)))
+	auxIngress.SetLabels(labels.Merge(auxIngress.GetLabels(), radixlabels.ForAuxComponentAppAliasIngress(appName, component)))
 }
 
 // MergeAuxComponentExternalAliasIngressLabels  Merge labels for external alias ingress and aux OAuth proxy
