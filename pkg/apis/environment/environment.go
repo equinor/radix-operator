@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -14,6 +15,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/sirupsen/logrus"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -103,7 +105,13 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) e
 	if err := env.handleDeletedRadixEnvironmentDependencies(re); err != nil {
 		return err
 	}
-	updatingRE := re.DeepCopy()
+	updatingRE, err := env.radixclient.RadixV1().RadixEnvironments().Get(context.Background(), re.GetName(), metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
 	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
 	logrus.Debugf("removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))

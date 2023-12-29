@@ -175,7 +175,7 @@ func (app *ApplicationConfig) applyEnvironment(newRe *radixv1.RadixEnvironment) 
 	repository := app.radixclient.RadixV1().RadixEnvironments()
 
 	// Get environment from cache, instead than for cluster
-	oldRe, err := app.kubeutil.GetEnvironment(newRe.Name)
+	oldRe, err := app.kubeutil.RadixClient().RadixV1().RadixEnvironments().Get(context.TODO(), newRe.Name, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		// Environment does not exist yet
 
