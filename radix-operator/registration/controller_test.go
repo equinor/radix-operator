@@ -3,6 +3,7 @@ package registration
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -11,6 +12,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,10 +39,10 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
 	client, kubeUtil, radixClient := setupTest(t)
 
-	stop := make(chan struct{})
-	synced := make(chan bool)
+	ctx, stopFn := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer stopFn()
 
-	defer close(stop)
+	synced := make(chan bool)
 	defer close(synced)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -55,7 +57,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		},
 	)
 	go func() {
-		err := startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+		err := startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, ctx.Done())
 		require.NoError(t, err)
 	}()
 
@@ -67,16 +69,18 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		log.Fatalf("Could not read configuration data: %v", err)
 	}
 
-	registeredApp, err := radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), registration, metav1.CreateOptions{})
+	registeredApp, err := radixClient.RadixV1().RadixRegistrations().Create(ctx, registration, metav1.CreateOptions{})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, registeredApp)
 
-	op, ok := <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	vals, waitErr := common.WaitForValues(ctx, synced, 2)
+	require.NoError(t, waitErr)
+	require.Len(t, vals, 2)
+	assert.True(t, vals[1])
+	assert.True(t, vals[0])
 
-	syncedRr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), registration.GetName(), metav1.GetOptions{})
+	syncedRr, _ := radixClient.RadixV1().RadixRegistrations().Get(ctx, registration.GetName(), metav1.GetOptions{})
 	lastReconciled := syncedRr.Status.Reconciled
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 
@@ -84,11 +88,13 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	registration.ObjectMeta.Annotations = map[string]string{
 		"update": "test",
 	}
-	updatedApp, err := radixClient.RadixV1().RadixRegistrations().Update(context.TODO(), registration, metav1.UpdateOptions{})
+	updatedApp, err := radixClient.RadixV1().RadixRegistrations().Update(ctx, registration, metav1.UpdateOptions{})
 
-	op, ok = <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	vals, waitErr = common.WaitForValues(ctx, synced, 2)
+	require.NoError(t, err)
+	require.Len(t, vals, 2)
+	assert.True(t, vals[1])
+	assert.True(t, vals[0])
 
 	assert.NoError(t, err)
 	assert.NotNil(t, updatedApp)
@@ -96,38 +102,44 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.Equal(t, "test", updatedApp.Annotations["update"])
 
 	// Delete namespace should sync
-	err = client.CoreV1().Namespaces().Delete(context.TODO(), utils.GetAppNamespace("testapp"), metav1.DeleteOptions{})
+	err = client.CoreV1().Namespaces().Delete(ctx, utils.GetAppNamespace("testapp"), metav1.DeleteOptions{})
 	assert.NoError(t, err)
 
-	op, ok = <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	vals, waitErr = common.WaitForValues(ctx, synced, 2)
+	require.NoError(t, err)
+	require.Len(t, vals, 2)
+	assert.True(t, vals[1])
+	assert.True(t, vals[0])
 
 	// Delete private key secret should sync
-	err = client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Delete(context.TODO(), defaults.GitPrivateKeySecretName, metav1.DeleteOptions{})
+	err = client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Delete(ctx, defaults.GitPrivateKeySecretName, metav1.DeleteOptions{})
 	assert.NoError(t, err)
 
-	op, ok = <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	vals, waitErr = common.WaitForValues(ctx, synced, 2)
+	require.NoError(t, err)
+	require.Len(t, vals, 2)
+	assert.True(t, vals[1])
+	assert.True(t, vals[0])
 
 	// Update private key secret should sync
-	existingSecret, err := client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	existingSecret, err := client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Get(ctx, defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	deployKey, err := utils.GenerateDeployKey()
 	assert.NoError(t, err)
 	existingSecret.Data[defaults.GitPrivateKeySecretKey] = []byte(deployKey.PrivateKey)
 	newSecret := existingSecret.DeepCopy()
 	newSecret.ResourceVersion = "1"
-	_, err = client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
+	_, err = client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Update(ctx, newSecret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
-	op, ok = <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	vals, waitErr = common.WaitForValues(ctx, synced, 2)
+	require.NoError(t, err)
+	require.Len(t, vals, 2)
+	assert.True(t, vals[1])
+	assert.True(t, vals[0])
 }
 
-func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) error {
+func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop <-chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 

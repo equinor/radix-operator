@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -12,6 +13,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	"github.com/equinor/radix-operator/radix-operator/common"
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -65,10 +67,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	stop := make(chan struct{})
+	ctx, stopFn := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer stopFn()
+
 	synced := make(chan bool)
 
-	defer close(stop)
 	defer close(synced)
 
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
@@ -82,7 +85,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
 	go func() {
-		err := startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
+		err := startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, ctx.Done())
 		require.NoError(t, err)
 	}()
 
@@ -94,9 +97,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			WithAppName(anyAppName).
 			WithEnvironment(anyEnvironment))
 
-	op, ok := <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	vals, waitErr := common.WaitForValues(ctx, synced, 2)
+	require.NoError(t, waitErr)
+	require.Len(t, vals, 2)
+	assert.True(t, vals[1])
+	assert.True(t, vals[0])
 
 	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	lastReconciled := syncedRd.Status.Reconciled
@@ -108,9 +113,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	_, err = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
-	op, ok = <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	vals, waitErr = common.WaitForValues(ctx, synced, 2)
+	require.NoError(t, waitErr)
+	require.Len(t, vals, 2)
+	assert.True(t, vals[1])
+	assert.True(t, vals[0])
 
 	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
@@ -128,9 +135,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		err := client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{})
 		require.NoError(t, err)
 
-		op, ok = <-synced
-		assert.True(t, ok)
-		assert.True(t, op)
+		vals, waitErr = common.WaitForValues(ctx, synced, 2)
+		require.NoError(t, waitErr)
+		require.Len(t, vals, 2)
+		assert.True(t, vals[1])
+		assert.True(t, vals[0])
 	}
 
 	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
@@ -141,7 +150,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler, stop chan struct{}) error {
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler, stop <-chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -80,4 +81,17 @@ func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterf
 	eventBroadcaster.StartLogging(logger.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
 	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
+}
+
+func WaitForValues[T any](ctx context.Context, ch <-chan T, n int) ([]T, error) {
+	values := make([]T, n)
+	for i := 0; i < n; i++ {
+		select {
+		case val := <-ch:
+			values[i] = val
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return values, nil
 }
