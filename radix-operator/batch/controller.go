@@ -2,6 +2,7 @@ package batch
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -78,7 +79,11 @@ func NewController(client kubernetes.Interface,
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixBatch, _ := obj.(*radixv1.RadixBatch)
+			radixBatch, converted := obj.(*radixv1.RadixBatch)
+			if !converted {
+				utilruntime.HandleError(errors.New("failed to convert RadixBatch on deletion"))
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(radixBatch)
 			if err == nil {
 				logger.Debugf("RadixBatch object deleted event received for %s. Do nothing", key)

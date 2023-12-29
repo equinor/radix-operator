@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 
+	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -15,7 +16,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
-	networkinginformersv1 "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -42,8 +42,6 @@ func NewController(kubeClient kubernetes.Interface,
 	recorder record.EventRecorder) *common.Controller {
 
 	radixDNSAliasInformer := radixInformerFactory.Radix().V1().RadixDNSAliases()
-	radixDeploymentInformer := radixInformerFactory.Radix().V1().RadixDeployments()
-	ingressInformer := kubeInformerFactory.Networking().V1().Ingresses()
 
 	controller := &common.Controller{
 		Name:                controllerAgentName,
@@ -64,12 +62,32 @@ func NewController(kubeClient kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 	addEventHandlersForRadixDNSAliases(radixDNSAliasInformer, controller)
-	addEventHandlersForRadixDeployments(radixDeploymentInformer, controller, radixClient)
-	addEventHandlersForIngresses(ingressInformer, controller)
+	addEventHandlersForRadixDeployments(radixInformerFactory, controller, radixClient)
+	addEventHandlersForIngresses(kubeInformerFactory, controller)
+	addEventHandlersForRadixRegistrations(radixInformerFactory, controller, radixClient)
 	return controller
 }
 
-func addEventHandlersForIngresses(ingressInformer networkinginformersv1.IngressInformer, controller *common.Controller) {
+func addEventHandlersForRadixRegistrations(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface) {
+	radixRegistrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
+	if _, err := radixRegistrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldRR := oldObj.(*radixv1.RadixRegistration)
+			newRR := newObj.(*radixv1.RadixRegistration)
+			if oldRR.GetResourceVersion() == newRR.GetResourceVersion() &&
+				radixutils.ArrayEqualElements(oldRR.Spec.AdGroups, newRR.Spec.AdGroups) &&
+				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) {
+				return // updating RadixDeployment has the same resource version. Do nothing.
+			}
+			enqueueRadixDNSAliasesForRadixRegistration(controller, radixClient, newRR)
+		},
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func addEventHandlersForIngresses(kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller) {
+	ingressInformer := kubeInformerFactory.Networking().V1().Ingresses()
 	if _, err := ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldIng := oldObj.(metav1.Object)
@@ -95,7 +113,8 @@ func addEventHandlersForIngresses(ingressInformer networkinginformersv1.IngressI
 	}
 }
 
-func addEventHandlersForRadixDeployments(radixDeploymentInformer radixinformersv1.RadixDeploymentInformer, controller *common.Controller, radixClient radixclient.Interface) {
+func addEventHandlersForRadixDeployments(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface) {
+	radixDeploymentInformer := radixInformerFactory.Radix().V1().RadixDeployments()
 	if _, err := radixDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			rd := cur.(*radixv1.RadixDeployment)
@@ -163,7 +182,7 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	if !rd.Status.ActiveTo.IsZero() {
 		return // skip not active RadixDeployments
 	}
-	logger.Debugf("Added or updated an active RadixDeployment %s to application %s in the environment %s. Re-sync relevant RadixDNSAliases", rd.GetName(), rd.Spec.AppName, rd.Spec.Environment)
+	logger.Debugf("Added or updated an active RadixDeployment %s to application %s in the environment %s. Enqueue relevant RadixDNSAliases", rd.GetName(), rd.Spec.AppName, rd.Spec.Environment)
 	radixDNSAliases, err := getRadixDNSAliasForAppAndEnvironment(radixClient, rd.Spec.AppName, rd.Spec.Environment)
 	if err != nil {
 		logger.Errorf("failed to get list of RadixDNSAliases for the application %s", rd.Spec.AppName)
@@ -177,10 +196,35 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	}
 }
 
-func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, appName string, envName string) ([]radixv1.RadixDNSAlias, error) {
+func enqueueRadixDNSAliasesForRadixRegistration(controller *common.Controller, radixClient radixclient.Interface, rr *radixv1.RadixRegistration) {
+	logger.Debugf("Added or updated an RadixRegistration %s. Enqueue relevant RadixDNSAliases", rr.GetName())
+	radixDNSAliases, err := getRadixDNSAliasForApp(radixClient, rr.GetName())
+	if err != nil {
+		logger.Errorf("failed to get list of RadixDNSAliases for the application %s", rr.GetName())
+		return
+	}
+	for _, radixDNSAlias := range radixDNSAliases {
+		logger.Debugf("Enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
+		if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
+			logger.Errorf("failed to enqueue RadixDNSAlias %s. Error: %v", radixDNSAlias.GetName(), err)
+		}
+	}
+}
+
+func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, appName, envName string) ([]radixv1.RadixDNSAlias, error) {
 	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{
 		LabelSelector: radixlabels.Merge(radixlabels.ForApplicationName(appName),
 			radixlabels.ForEnvironmentName(envName)).String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return radixDNSAliasList.Items, err
+}
+
+func getRadixDNSAliasForApp(radixClient radixclient.Interface, appName string) ([]radixv1.RadixDNSAlias, error) {
+	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{
+		LabelSelector: radixlabels.ForApplicationName(appName).String(),
 	})
 	if err != nil {
 		return nil, err

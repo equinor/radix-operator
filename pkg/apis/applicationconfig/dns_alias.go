@@ -2,6 +2,7 @@ package applicationconfig
 
 import (
 	stderrors "errors"
+	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -15,7 +16,10 @@ func (app *ApplicationConfig) syncDNSAliases() error {
 	if err != nil {
 		return err
 	}
-	aliasesToCreate, aliasesToUpdate, aliasesToDelete := app.getDNSAliasesToSync(existingAliases)
+	aliasesToCreate, aliasesToUpdate, aliasesToDelete, err := app.getDNSAliasesToSync(existingAliases)
+	if err != nil {
+		return err
+	}
 	var errs []error
 	// first - delete
 	for _, dnsAlias := range aliasesToDelete {
@@ -38,28 +42,36 @@ func (app *ApplicationConfig) syncDNSAliases() error {
 	return stderrors.Join(errs...)
 }
 
-func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*radixv1.RadixDNSAlias) ([]*radixv1.RadixDNSAlias, []*radixv1.RadixDNSAlias, []*radixv1.RadixDNSAlias) {
+func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*radixv1.RadixDNSAlias) ([]*radixv1.RadixDNSAlias, []*radixv1.RadixDNSAlias, []*radixv1.RadixDNSAlias, error) {
 	var aliasesToCreate, aliasesToUpdate, aliasesToDelete []*radixv1.RadixDNSAlias
 	processedAliases := make(map[string]any)
 	appName := app.registration.Name
+	var errs []error
 	for _, dnsAlias := range app.config.Spec.DNSAlias {
 		if existingAlias, exists := existingAliases[dnsAlias.Alias]; exists {
-			updatingRadixDNSAlias := existingAlias.DeepCopy()
-			updatingRadixDNSAlias.Spec.AppName = appName
-			updatingRadixDNSAlias.Spec.Environment = dnsAlias.Environment
-			updatingRadixDNSAlias.Spec.Component = dnsAlias.Component
-			aliasesToUpdate = append(aliasesToUpdate, updatingRadixDNSAlias)
-			processedAliases[dnsAlias.Alias] = true
-			continue
+			if existingAlias.Spec.AppName != appName {
+				errs = append(errs, fmt.Errorf("DNS Alias %s of the application %s is used by another application", appName, dnsAlias.Alias))
+				continue
+			}
+			if existingAlias.Spec.Environment == dnsAlias.Environment {
+				updatingRadixDNSAlias := existingAlias.DeepCopy()
+				updatingRadixDNSAlias.Spec.Component = dnsAlias.Component
+				aliasesToUpdate = append(aliasesToUpdate, updatingRadixDNSAlias)
+				processedAliases[dnsAlias.Alias] = true
+				continue
+			}
 		}
 		aliasesToCreate = append(aliasesToCreate, app.buildRadixDNSAlias(appName, dnsAlias)) // new alias or an alias with changed environment or component
+	}
+	if len(errs) > 0 {
+		return nil, nil, nil, stderrors.Join(errs...)
 	}
 	for aliasName, dnsAlias := range existingAliases {
 		if _, ok := processedAliases[aliasName]; !ok && strings.EqualFold(dnsAlias.Spec.AppName, appName) {
 			aliasesToDelete = append(aliasesToDelete, dnsAlias)
 		}
 	}
-	return aliasesToCreate, aliasesToUpdate, aliasesToDelete
+	return aliasesToCreate, aliasesToUpdate, aliasesToDelete, nil
 }
 
 func (app *ApplicationConfig) buildRadixDNSAlias(appName string, dnsAlias radixv1.DNSAlias) *radixv1.RadixDNSAlias {

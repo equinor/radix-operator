@@ -44,7 +44,7 @@ func (s *syncer) syncStatus(syncErr error) error {
 	if err != nil {
 		return fmt.Errorf("failed to sync status: %w", err)
 	}
-	return nil
+	return syncErr
 }
 
 func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixDNSAliasStatus)) error {

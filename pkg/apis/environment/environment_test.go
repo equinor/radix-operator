@@ -38,17 +38,18 @@ const (
 	limitDefaultReqestMemory = "123M" // 123'000'000
 )
 
-func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
+func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	fakekube := fake.NewSimpleClientset()
 	fakeradix := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(fakekube, fakeradix, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	require.NoError(t, err)
 
-	os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
-	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
 
@@ -66,7 +67,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 }
 
 func Test_Create_Namespace(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest(t)
 	defer os.Clearenv()
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
@@ -93,7 +94,7 @@ func Test_Create_Namespace(t *testing.T) {
 }
 
 func Test_DeleteEnvironment_Deleted(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest(t)
 	defer os.Clearenv()
 	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
@@ -120,7 +121,7 @@ func Test_DeleteEnvironment_Deleted(t *testing.T) {
 }
 
 func Test_DeleteEnvironment_DeletedDNSAlias(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest(t)
 	defer os.Clearenv()
 	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
@@ -161,7 +162,7 @@ func createRadixDNSAliasForEnvironment(radixClient radixclient.Interface, aliasN
 }
 
 func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest(t)
 	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
 	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "enforceVer")
 	os.Setenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable, "auditLvl")
@@ -200,7 +201,7 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 }
 
 func Test_Create_EgressRules(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest(t)
 	defer os.Clearenv()
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, egressRuleEnvConfigFileName)
 	require.NoError(t, err)
@@ -222,7 +223,7 @@ func Test_Create_EgressRules(t *testing.T) {
 }
 
 func Test_Create_RoleBinding(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest(t)
 	defer os.Clearenv()
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
@@ -248,7 +249,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 }
 
 func Test_Create_LimitRange(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest(t)
 	defer os.Clearenv()
 	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
@@ -269,7 +270,7 @@ func Test_Create_LimitRange(t *testing.T) {
 }
 
 func Test_Orphaned_Status(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest(t)
 	defer os.Clearenv()
 	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)

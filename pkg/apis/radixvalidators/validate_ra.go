@@ -1331,7 +1331,7 @@ func validateExpectedAzureIdentity(azureIdentity radixv1.AzureIdentity) error {
 	if len(strings.TrimSpace(azureIdentity.ClientId)) == 0 {
 		return ResourceNameCannotBeEmptyErrorWithMessage(azureClientIdResourceName)
 	}
-	if _, err := uuid.Parse(azureIdentity.ClientId); err != nil {
+	if err := uuid.Validate(azureIdentity.ClientId); err != nil {
 		return InvalidUUIDErrorWithMessage(azureClientIdResourceName, azureIdentity.ClientId)
 	}
 	return nil

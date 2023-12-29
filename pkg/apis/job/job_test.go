@@ -94,7 +94,8 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.egressIps, s.config.subscriptionID)
+	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.egressIps, s.config.subscriptionID)
+	s.Require().NoError(err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, s.config.clusterType)

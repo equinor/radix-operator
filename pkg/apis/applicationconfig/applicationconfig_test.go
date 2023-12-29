@@ -36,18 +36,19 @@ func init() {
 	log.SetOutput(io.Discard)
 }
 
-func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
+func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	kubeClient := kubefake.NewSimpleClientset()
 	radixClient := radixfake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, "0.0.0.0", "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites(clusterName, "0.0.0.0", "anysubid")
+	require.NoError(t, err)
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }
 
 func Test_Create_Radix_Environments(t *testing.T) {
-	_, client, kubeUtil, radixClient := setupTest()
+	_, client, kubeUtil, radixClient := setupTest(t)
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
@@ -79,7 +80,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 func Test_Reconciles_Radix_Environments(t *testing.T) {
 	// Setup
-	_, client, kubeUtil, radixClient := setupTest()
+	_, client, kubeUtil, radixClient := setupTest(t)
 
 	// Create environments manually
 	_, err := radixClient.RadixV1().RadixEnvironments().Create(
@@ -212,7 +213,7 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 }
 
 func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest(t)
 
 	appNamespace := "any-app-app"
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
@@ -256,7 +257,7 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 }
 
 func Test_SubPipelineServiceAccountsCorrectlySynced(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
+	tu, client, kubeUtil, radixclient := setupTest(t)
 
 	appNamespace := "any-app-app"
 	// Already includes a "test" environment
@@ -289,7 +290,7 @@ func Test_SubPipelineServiceAccountsCorrectlySynced(t *testing.T) {
 	assert.Equal(t, "prod", saProd.Labels[kube.RadixEnvLabel])
 }
 func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
+	tu, client, kubeUtil, radixclient := setupTest(t)
 
 	appNamespace := "any-app-app"
 	// Already includes a "test" environment
@@ -325,7 +326,7 @@ func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
 }
 
 func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest(t)
 
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
@@ -376,7 +377,7 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 }
 
 func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest(t)
 
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
@@ -406,7 +407,7 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 }
 
 func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest(t)
 
 	adminGroups, readerGroups := []string{"admin1", "admin2"}, []string{"reader1", "reader2"}
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
@@ -445,7 +446,7 @@ func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 	}
 }
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -460,14 +461,14 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
 		},
 	})
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -486,14 +487,14 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) 
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateUsername(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
 		},
 	})
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abb2",
 			Email:    "radix@equinor.com",
@@ -508,14 +509,14 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateUsername(t *testing.T) {
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
 		},
 	})
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme1.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -529,7 +530,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T)
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -545,7 +546,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
 
-	client, _, _ = applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
+	client, _, _ = applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
 			Email:    "radix@equinor.com",
@@ -559,7 +560,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 }
 
 func Test_RadixEnvironment(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest(t)
 
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
@@ -610,7 +611,7 @@ func Test_UseBuildKit(t *testing.T) {
 			expectedUseBuildKit: utils.BoolPtr(true),
 		},
 	}
-	tu, client, kubeUtil, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest(t)
 
 	for _, testScenario := range testScenarios {
 		ra := utils.ARadixApplication().WithAppName(testScenario.appName)
@@ -678,8 +679,8 @@ func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	}
 }
 
-func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *applicationconfig.ApplicationConfig, *kube.Kube) {
-	tu, client, kubeUtil, radixClient := setupTest()
+func applyRadixAppWithPrivateImageHub(t *testing.T, privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *applicationconfig.ApplicationConfig, *kube.Kube) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
 	appBuilder := utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master")
