@@ -59,10 +59,7 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	re := env.config
 
 	if re.ObjectMeta.DeletionTimestamp != nil {
-		if err := env.handleDeletedRadixEnvironment(re); err != nil {
-			return err
-		}
-		return env.syncStatus(re, time)
+		return env.handleDeletedRadixEnvironment(re)
 	}
 
 	if env.regConfig == nil {
