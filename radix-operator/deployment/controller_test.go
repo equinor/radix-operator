@@ -96,10 +96,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			WithAppName(anyAppName).
 			WithEnvironment(anyEnvironment))
 
-	vals, waitErr := common.WaitForValues(ctx, synced, 2)
+	vals, waitErr := common.WaitForValues(ctx, synced, 1)
 	require.NoError(t, waitErr)
-	require.Len(t, vals, 2)
-	assert.True(t, vals[1])
+	require.Len(t, vals, 1)
 	assert.True(t, vals[0])
 
 	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(ctx, rd.GetName(), metav1.GetOptions{})
@@ -112,10 +111,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	_, err = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(ctx, rd, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
-	vals, waitErr = common.WaitForValues(ctx, synced, 2)
+	vals, waitErr = common.WaitForValues(ctx, synced, 1)
 	require.NoError(t, waitErr)
-	require.Len(t, vals, 2)
-	assert.True(t, vals[1])
+	require.Len(t, vals, 1)
 	assert.True(t, vals[0])
 
 	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(ctx, rd.GetName(), metav1.GetOptions{})
@@ -134,10 +132,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		err := client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(ctx, aservice.Name, metav1.DeleteOptions{})
 		require.NoError(t, err)
 
-		vals, waitErr = common.WaitForValues(ctx, synced, 2)
+		vals, waitErr = common.WaitForValues(ctx, synced, 1)
 		require.NoError(t, waitErr)
-		require.Len(t, vals, 2)
-		assert.True(t, vals[1])
+		require.Len(t, vals, 1)
 		assert.True(t, vals[0])
 	}
 

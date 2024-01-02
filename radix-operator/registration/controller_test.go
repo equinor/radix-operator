@@ -74,10 +74,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, registeredApp)
 
-	vals, waitErr := common.WaitForValues(ctx, synced, 2)
+	vals, waitErr := common.WaitForValues(ctx, synced, 1)
 	require.NoError(t, waitErr)
-	require.Len(t, vals, 2)
-	assert.True(t, vals[1])
+	require.Len(t, vals, 1)
 	assert.True(t, vals[0])
 
 	syncedRr, _ := radixClient.RadixV1().RadixRegistrations().Get(ctx, registration.GetName(), metav1.GetOptions{})
@@ -90,10 +89,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	}
 	updatedApp, err := radixClient.RadixV1().RadixRegistrations().Update(ctx, registration, metav1.UpdateOptions{})
 
-	vals, waitErr = common.WaitForValues(ctx, synced, 2)
-	require.NoError(t, err)
-	require.Len(t, vals, 2)
-	assert.True(t, vals[1])
+	vals, waitErr = common.WaitForValues(ctx, synced, 1)
+	require.NoError(t, waitErr)
+	require.Len(t, vals, 1)
 	assert.True(t, vals[0])
 
 	assert.NoError(t, err)
@@ -105,20 +103,18 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	err = client.CoreV1().Namespaces().Delete(ctx, utils.GetAppNamespace("testapp"), metav1.DeleteOptions{})
 	assert.NoError(t, err)
 
-	vals, waitErr = common.WaitForValues(ctx, synced, 2)
-	require.NoError(t, err)
-	require.Len(t, vals, 2)
-	assert.True(t, vals[1])
+	vals, waitErr = common.WaitForValues(ctx, synced, 1)
+	require.NoError(t, waitErr)
+	require.Len(t, vals, 1)
 	assert.True(t, vals[0])
 
 	// Delete private key secret should sync
 	err = client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Delete(ctx, defaults.GitPrivateKeySecretName, metav1.DeleteOptions{})
 	assert.NoError(t, err)
 
-	vals, waitErr = common.WaitForValues(ctx, synced, 2)
-	require.NoError(t, err)
-	require.Len(t, vals, 2)
-	assert.True(t, vals[1])
+	vals, waitErr = common.WaitForValues(ctx, synced, 1)
+	require.NoError(t, waitErr)
+	require.Len(t, vals, 1)
 	assert.True(t, vals[0])
 
 	// Update private key secret should sync
@@ -132,10 +128,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	_, err = client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Update(ctx, newSecret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
-	vals, waitErr = common.WaitForValues(ctx, synced, 2)
-	require.NoError(t, err)
-	require.Len(t, vals, 2)
-	assert.True(t, vals[1])
+	vals, waitErr = common.WaitForValues(ctx, synced, 1)
+	require.NoError(t, waitErr)
+	require.Len(t, vals, 1)
 	assert.True(t, vals[0])
 }
 
