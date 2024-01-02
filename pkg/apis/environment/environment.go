@@ -115,7 +115,12 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) e
 	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
 	logrus.Debugf("removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
-	return env.kubeutil.UpdateRadixEnvironment(updatingRE)
+	updated, err := env.kubeutil.UpdateRadixEnvironment(updatingRE)
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("updated RadixEnvironment %s revision %s", re.Name, updated.GetResourceVersion())
+	return nil
 }
 
 func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEnvironment) error {

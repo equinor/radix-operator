@@ -2,8 +2,6 @@ package applicationconfig
 
 import (
 	"context"
-	"encoding/json"
-	stderrors "errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -15,11 +13,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	radixTypes "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -126,7 +122,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 // It compares the actual state with the desired, and attempts to
 // converge the two
 func (app *ApplicationConfig) OnSync() error {
-	if err := app.createEnvironments(); err != nil {
+	if err := app.syncEnvironments(); err != nil {
 		log.Errorf("Failed to create namespaces for app environments %s. %v", app.config.Name, err)
 		return err
 	}
@@ -143,103 +139,4 @@ func (app *ApplicationConfig) OnSync() error {
 		return fmt.Errorf("failed to process DNS aliases: %w", err)
 	}
 	return app.syncSubPipelineServiceAccounts()
-}
-
-func (app *ApplicationConfig) createEnvironments() error {
-	var errs []error
-	for _, env := range app.config.Spec.Environments {
-		err := app.applyEnvironment(utils.NewEnvironmentBuilder().
-			WithAppName(app.config.Name).
-			WithAppLabel().
-			WithEnvironmentName(env.Name).
-			WithRegistrationOwner(app.registration).
-			WithEgressConfig(env.Egress).
-			// Orphaned flag will be set by the environment handler but until
-			// reconciliation we must ensure it is false
-			// Update: It seems Update method does not update status object when using real k8s client, but the fake client does.
-			// Only an explicit call to UpdateStatus can update status object, and this is only done by the RadixEnvironment controller.
-			WithOrphaned(false).
-			BuildRE())
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return stderrors.Join(errs...)
-}
-
-// applyEnvironment creates an environment or applies changes if it exists
-func (app *ApplicationConfig) applyEnvironment(newRe *radixv1.RadixEnvironment) error {
-	logger := log.WithFields(log.Fields{"environment": newRe.ObjectMeta.Name})
-	logger.Debugf("Apply environment %s", newRe.Name)
-
-	repository := app.radixclient.RadixV1().RadixEnvironments()
-
-	// Get environment from cache, instead than for cluster
-	oldRe, err := app.kubeutil.RadixClient().RadixV1().RadixEnvironments().Get(context.TODO(), newRe.Name, metav1.GetOptions{})
-	if err != nil && errors.IsNotFound(err) {
-		// Environment does not exist yet
-
-		newRe, err = repository.Create(context.TODO(), newRe, metav1.CreateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to create RadixEnvironment object: %v", err)
-		}
-		logger.Debugf("Created RadixEnvironment: %s", newRe.Name)
-
-	} else if err != nil {
-		return fmt.Errorf("failed to get RadixEnvironment object: %v", err)
-
-	} else {
-		// Environment already exists
-
-		logger.Debugf("RadixEnvironment object %s already exists, updating the object now", oldRe.Name)
-		err = patchDifference(repository, oldRe, newRe, logger)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// patchDifference creates a mergepatch, comparing old and new RadixEnvironments and issues the patch to radix
-func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *radixv1.RadixEnvironment, newRe *radixv1.RadixEnvironment, logger *log.Entry) error {
-	radixEnvironment := oldRe.DeepCopy()
-	radixEnvironment.ObjectMeta.Labels = newRe.ObjectMeta.Labels
-	radixEnvironment.ObjectMeta.OwnerReferences = newRe.ObjectMeta.OwnerReferences
-	radixEnvironment.ObjectMeta.Annotations = newRe.ObjectMeta.Annotations
-	radixEnvironment.ObjectMeta.Finalizers = newRe.ObjectMeta.Finalizers
-	radixEnvironment.ObjectMeta.DeletionTimestamp = newRe.ObjectMeta.DeletionTimestamp
-	radixEnvironment.Spec = newRe.Spec
-	radixEnvironment.Status = newRe.Status
-
-	oldReJSON, err := json.Marshal(oldRe)
-	if err != nil {
-		return fmt.Errorf("failed to marshal old RadixEnvironment object: %v", err)
-	}
-
-	radixEnvironmentJSON, err := json.Marshal(radixEnvironment)
-	if err != nil {
-		return fmt.Errorf("failed to marshal new RadixEnvironment object: %v", err)
-	}
-
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, radixv1.RadixEnvironment{})
-	if err != nil {
-		return fmt.Errorf("failed to create patch document for RadixEnvironment object: %v", err)
-	}
-
-	if !isEmptyPatch(patchBytes) {
-		// Will perform update as patching does not seem to work for this custom resource
-		patchedEnvironment, err := repository.Update(context.TODO(), radixEnvironment, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to patch RadixEnvironment object: %v", err)
-		}
-		logger.Debugf("Patched RadixEnvironment: %s", patchedEnvironment.Name)
-	} else {
-		logger.Debugf("No need to patch RadixEnvironment: %s ", newRe.Name)
-	}
-
-	return nil
-}
-
-func isEmptyPatch(patchBytes []byte) bool {
-	return string(patchBytes) == "{}"
 }
