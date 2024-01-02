@@ -84,11 +84,15 @@ func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterf
 }
 
 func WaitForValues[T any](ctx context.Context, ch <-chan T, n int) ([]T, error) {
-	values := make([]T, n)
+	var values []T
 	for i := 0; i < n; i++ {
 		select {
-		case val := <-ch:
-			values[i] = val
+		case val, ok := <-ch:
+			if !ok {
+				return values, nil
+			}
+
+			values = append(values, val)
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
