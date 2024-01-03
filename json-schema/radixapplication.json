@@ -919,7 +919,6 @@
                   ],
                   "type": "object"
                 },
-                "minItems": 1,
                 "type": "array",
                 "x-kubernetes-list-map-keys": [
                   "name"
@@ -1076,8 +1075,7 @@
               }
             },
             "required": [
-              "name",
-              "ports"
+              "name"
             ],
             "type": "object"
           },

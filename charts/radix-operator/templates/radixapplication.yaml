@@ -922,7 +922,6 @@ spec:
                         - name
                         - port
                         type: object
-                      minItems: 1
                       type: array
                       x-kubernetes-list-map-keys:
                       - name
@@ -1073,7 +1072,6 @@ spec:
                       type: object
                   required:
                   - name
-                  - ports
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:

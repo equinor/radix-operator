@@ -18,7 +18,6 @@ var (
 	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
 	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
 	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
-	ErrPortSpecificationCannotBeEmptyForComponent                          = errors.New("port specification cannot be empty for component")
 	ErrPortNameIsRequiredForPublicComponent                                = errors.New("port name is required for public component")
 	ErrMonitoringPortNameIsNotFoundComponent                               = errors.New("monitoring port name is not found component")
 	ErrMultipleMatchingPortNames                                           = errors.New("multiple matching port names")
