@@ -938,6 +938,8 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].PublicPort = ""
 				ra.Spec.Components[0].Ports[0].Name = "test"
 				ra.Spec.Components[0].Public = false
+				ra.Spec.Components[0].Authentication.OAuth2 = nil
+				ra.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2 = nil
 			},
 			isValid:    true,
 			isErrorNil: true,
@@ -1027,6 +1029,24 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Ports = newPorts
 				ra.Spec.Components[0].PublicPort = "http"
 				ra.Spec.Components[0].Public = true
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			name: "oauth2 require public port",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].Ports = []v1.ComponentPort{{Name: "http", Port: 1000}}
+				ra.Spec.Components[0].PublicPort = ""
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			name: "oauth2 require ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].Ports = nil
+				ra.Spec.Components[0].PublicPort = ""
 			},
 			isValid:    false,
 			isErrorNil: false,

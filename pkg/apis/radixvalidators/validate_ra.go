@@ -443,7 +443,7 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 			errs = append(errs, err)
 		}
 
-		errs = append(errs, validateOAuth(combinedAuth.OAuth2, component.GetName(), environment.Name)...)
+		errs = append(errs, validateOAuth(combinedAuth.OAuth2, component, environment.Name)...)
 	}
 	return errs
 }
@@ -476,7 +476,14 @@ func validateVerificationType(verificationType *radixv1.VerificationType) error 
 	}
 }
 
-func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string) (errors []error) {
+func componentHasPublicPort(component *radixv1.RadixComponent) bool {
+	return slice.Any(component.GetPorts(),
+		func(p radixv1.ComponentPort) bool {
+			return len(p.Name) > 0 && (p.Name == component.PublicPort || component.Public)
+		})
+}
+
+func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, environmentName string) (errors []error) {
 	if oauth == nil {
 		return
 	}
@@ -486,10 +493,12 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 		errors = append(errors, err)
 		return
 	}
-
+	componentName := component.Name
 	// Validate ClientID
 	if len(strings.TrimSpace(oauthWithDefaults.ClientID)) == 0 {
 		errors = append(errors, OAuthClientIdEmptyErrorWithMessage(componentName, environmentName))
+	} else if !componentHasPublicPort(component) {
+		errors = append(errors, OAuthRequiresPublicPortErrorWithMessage(componentName, environmentName))
 	}
 
 	// Validate ProxyPrefix

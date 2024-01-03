@@ -58,6 +58,7 @@ var (
 	ErrInvalidConfigBranchName                                             = errors.New("invalid config branch")
 	ErrOauth                                                               = errors.New("oauth error")
 	ErrOAuthClientIdEmpty                                                  = errors.Wrap(ErrOauth, "oauth client id empty")
+	ErrOAuthRequiresPublicPort                                             = errors.Wrap(ErrOauth, "oauth requires public port")
 	ErrOAuthProxyPrefixEmpty                                               = errors.Wrap(ErrOauth, "oauth proxy prefix empty")
 	ErrOAuthProxyPrefixIsRoot                                              = errors.Wrap(ErrOauth, "oauth proxy prefix is root")
 	ErrOAuthSessionStoreTypeInvalid                                        = errors.Wrap(ErrOauth, "oauth session store type invalid")
@@ -397,6 +398,10 @@ func oauthCookieStoreMinimalIncorrectPropertyValueErrorWithMessage(err error, co
 
 func OAuthClientIdEmptyErrorWithMessage(componentName, environmentName string) error {
 	return oauthRequiredPropertyEmptyErrorWithMessage(ErrOAuthClientIdEmpty, componentName, environmentName, "clientId")
+}
+
+func OAuthRequiresPublicPortErrorWithMessage(componentName, environmentName string) error {
+	return errors.WithMessagef(ErrOAuthRequiresPublicPort, "component %s in environment %s: required public port when oauth2 with clientId configuration is set", componentName, environmentName)
 }
 
 func OAuthProxyPrefixEmptyErrorWithMessage(componentName, environmentName string) error {
