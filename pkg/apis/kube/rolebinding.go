@@ -178,7 +178,7 @@ func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *rbacv1.RoleBindin
 func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *rbacv1.ClusterRoleBinding) error {
 	logger = logger.WithFields(log.Fields{"clusterRoleBinding": clusterrolebinding.ObjectMeta.Name})
 	logger.Debugf("Apply clusterrolebinding %s", clusterrolebinding.Name)
-	oldClusterRoleBinding, err := kubeutil.GetClusterRoleBinding(clusterrolebinding.Name)
+	oldClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterrolebinding.Name, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterrolebinding, metav1.CreateOptions{})
 		if err != nil {

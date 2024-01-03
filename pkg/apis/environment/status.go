@@ -24,17 +24,21 @@ func (env *Environment) syncStatus(re *radixv1.RadixEnvironment, time metav1.Tim
 func (env *Environment) updateRadixEnvironmentStatus(re *radixv1.RadixEnvironment, changeStatusFunc func(currStatus *radixv1.RadixEnvironmentStatus)) error {
 	radixEnvironmentInterface := env.radixclient.RadixV1().RadixEnvironments()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentEnv, err := radixEnvironmentInterface.Get(context.Background(), re.GetName(), metav1.GetOptions{})
+		name := re.GetName()
+		currentEnv, err := radixEnvironmentInterface.Get(context.Background(), name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentEnv.Status)
-		_, err = radixEnvironmentInterface.UpdateStatus(context.Background(), currentEnv, metav1.UpdateOptions{})
-		if err == nil && env.config.GetName() == re.GetName() {
-			currentEnv, err = radixEnvironmentInterface.Get(context.Background(), re.GetName(), metav1.GetOptions{})
-			if err == nil {
-				env.config = currentEnv
+		updated, err := radixEnvironmentInterface.UpdateStatus(context.Background(), currentEnv, metav1.UpdateOptions{})
+		if err == nil && env.config.GetName() == name {
+			currentEnv, err = radixEnvironmentInterface.Get(context.Background(), name, metav1.GetOptions{})
+			if err != nil {
+				return err
 			}
+			env.config = currentEnv
+			env.logger.Debugf("updated status of RadixEnvironment (revision %s)", updated.GetResourceVersion())
+			return nil
 		}
 		return err
 	})
