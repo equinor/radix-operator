@@ -59,7 +59,7 @@ func (s *syncer) OnSync() error {
 		return fmt.Errorf("failed to update status on DNS alias %s: %v", s.radixDNSAlias.GetName(), err)
 	}
 	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
-		return s.syncStatus(s.handleDeletedRadixDNSAlias())
+		return s.handleDeletedRadixDNSAlias()
 	}
 	return s.syncStatus(s.syncAlias())
 

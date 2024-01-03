@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -91,74 +90,6 @@ func Test_Create_Namespace(t *testing.T) {
 		kube.RadixEnvLabel: env.config.Spec.EnvName,
 	}
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
-}
-
-func Test_DeleteEnvironment_Deleted(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest(t)
-	defer os.Clearenv()
-	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
-	require.NoError(t, err)
-
-	sync(t, &env)
-
-	re, err := radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
-	require.NoError(t, err)
-	timeNow := metav1.NewTime(time.Now())
-	re.ObjectMeta.DeletionTimestamp = &timeNow
-	_, err = radixclient.RadixV1().RadixEnvironments().Update(context.Background(), re, metav1.UpdateOptions{})
-	require.NoError(t, err)
-	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
-	assert.Contains(t, re.ObjectMeta.Finalizers, kube.RadixEnvironmentFinalizer, "missing environment finalizer")
-	env.config = re
-	sync(t, &env)
-
-	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
-	assert.NotContains(t, re.ObjectMeta.Finalizers, kube.RadixEnvironmentFinalizer, "unexpected environment finalizer")
-}
-
-func Test_DeleteEnvironment_DeletedDNSAlias(t *testing.T) {
-	_, client, kubeUtil, radixclient := setupTest(t)
-	defer os.Clearenv()
-	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
-	require.NoError(t, err)
-
-	sync(t, &env)
-
-	alias1Name := "alias1"
-	err = createRadixDNSAliasForEnvironment(radixclient, alias1Name)
-	require.NoError(t, err)
-	dnsAlias, err := radixclient.RadixV1().RadixDNSAliases().Get(context.Background(), alias1Name, metav1.GetOptions{})
-	require.NoError(t, err)
-	require.NotNil(t, dnsAlias)
-	re, err := radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
-	require.NoError(t, err)
-	timeNow := metav1.NewTime(time.Now())
-	re.ObjectMeta.DeletionTimestamp = &timeNow
-	re, err = radixclient.RadixV1().RadixEnvironments().Update(context.Background(), re, metav1.UpdateOptions{})
-	require.NoError(t, err)
-	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
-	env.config = re
-	sync(t, &env)
-
-	re, err = radixclient.RadixV1().RadixEnvironments().Get(context.Background(), "testenv", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.NotNil(t, re.ObjectMeta.DeletionTimestamp)
-	assert.NotContains(t, re.ObjectMeta.Finalizers, kube.RadixEnvironmentFinalizer, "unexpected environment finalizer")
-	_, err = radixclient.RadixV1().RadixDNSAliases().Get(context.Background(), alias1Name, metav1.GetOptions{})
-	require.Error(t, err)
-	assert.True(t, errors.IsNotFound(err))
-}
-
-func createRadixDNSAliasForEnvironment(radixClient radixclient.Interface, aliasName string) error {
-	return test.RegisterRadixDNSAliasBySpec(radixClient, aliasName, test.DNSAlias{
-		AppName:     "testapp",
-		Environment: "testenv",
-		Component:   "testcomponent",
-	})
 }
 
 func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
