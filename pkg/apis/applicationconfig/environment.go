@@ -72,7 +72,7 @@ func (app *ApplicationConfig) updateRadixEnvironment(radixEnvironment *radixv1.R
 		// Will perform update as patching does not seem to work for this custom resource
 		updated, err := app.kubeutil.UpdateRadixEnvironment(newRE)
 		if err != nil {
-			return fmt.Errorf("failed to update RadixEnvironment: %v", err)
+			return err
 		}
 		logger.Debugf("Updated RadixEnvironment (revision %s)", updated.GetResourceVersion())
 		return nil
