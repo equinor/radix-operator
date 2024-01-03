@@ -53,13 +53,13 @@ func (kubeutil *Kube) ListEnvironments() ([]*radixv1.RadixEnvironment, error) {
 	return environments, nil
 }
 
-// UpdateRadixEnvironment Updates changes of Radix environment if any
-func (kubeutil *Kube) UpdateRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment) error {
-	log.Debugf("Update Radix environment %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
-	_, err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Update(context.TODO(), radixEnvironment, metav1.UpdateOptions{})
+// UpdateRadixEnvironment Updates changes of RadixEnvironment if any
+func (kubeutil *Kube) UpdateRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment) (*radixv1.RadixEnvironment, error) {
+	log.Debugf("Update RadixEnvironment %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
+	updated, err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Update(context.TODO(), radixEnvironment, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to patch Radix environment object: %v", err)
+		return nil, fmt.Errorf("failed to update RadixEnvironment object: %v", err)
 	}
-	log.Debugf("Updated Radix environment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
-	return err
+	log.Debugf("Updated RadixEnvironment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
+	return updated, nil
 }

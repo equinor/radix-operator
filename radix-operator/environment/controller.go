@@ -76,11 +76,11 @@ func NewController(client kubernetes.Interface,
 			oldRR := old.(*v1.RadixEnvironment)
 
 			if deepEqual(oldRR, newRR) {
-				logger.Debugf("Environment object is equal to old for %s. Do nothing", newRR.GetName())
+				logger.Debugf("RadixEnvironment %s (revision %s) is equal to old (revision %s). Do nothing", newRR.GetName(), newRR.GetResourceVersion(), oldRR.GetResourceVersion())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
-
+			logger.Debugf("update RadixEnvironment %s (from revision %s to %s)", oldRR.GetName(), oldRR.GetResourceVersion(), newRR.GetResourceVersion())
 			if _, err := controller.Enqueue(cur); err != nil {
 				utilruntime.HandleError(err)
 			}
@@ -89,12 +89,12 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			radixEnvironment, converted := obj.(*v1.RadixEnvironment)
 			if !converted {
-				logger.Errorf("RadixEnvironment object cast failed during deleted event received.")
+				logger.Errorf("RadixEnvironment object cast failed during deleted event received")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixEnvironment)
 			if err == nil {
-				logger.Debugf("Environment object deleted event received for %s. Do nothing", key)
+				logger.Debugf("RadixEnvironment object deleted event received for %s (revision %s). Do nothing", key, radixEnvironment.GetResourceVersion())
 			}
 			metrics.CustomResourceDeleted(crType)
 		},

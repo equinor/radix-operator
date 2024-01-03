@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -87,7 +88,8 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		context.TODO(),
 		&radixv1.RadixEnvironment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "any-app-qa",
+				Name:   "any-app-qa",
+				Labels: labels.Set{kube.RadixAppLabel: "any-app"},
 			},
 		},
 		metav1.CreateOptions{})
@@ -97,7 +99,8 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		context.TODO(),
 		&radixv1.RadixEnvironment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "any-app-prod",
+				Name:   "any-app-prod",
+				Labels: labels.Set{kube.RadixAppLabel: "any-app"},
 			},
 		},
 		metav1.CreateOptions{})
