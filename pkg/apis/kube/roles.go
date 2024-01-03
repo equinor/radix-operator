@@ -70,7 +70,7 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *rbacv1.Role) error {
 // ApplyClusterRole Creates or updates cluster-role
 func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 	logger.Debugf("Apply clusterrole %s", clusterrole.Name)
-	oldClusterRole, err := kubeutil.GetClusterRole(clusterrole.GetName())
+	oldClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Get(context.TODO(), clusterrole.GetName(), metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Create(context.TODO(), clusterrole, metav1.CreateOptions{})
 		if err != nil {
