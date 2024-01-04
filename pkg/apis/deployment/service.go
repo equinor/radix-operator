@@ -41,10 +41,6 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) deleteService(service *corev1.Service) error {
-	return deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), service.Name, metav1.DeleteOptions{})
-}
-
 func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service *corev1.Service, componentName RadixComponentName) bool {
 	if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
 		if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
