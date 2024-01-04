@@ -18,7 +18,6 @@ var (
 	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
 	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
 	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
-	ErrPortSpecificationCannotBeEmptyForComponent                          = errors.New("port specification cannot be empty for component")
 	ErrPortNameIsRequiredForPublicComponent                                = errors.New("port name is required for public component")
 	ErrMonitoringPortNameIsNotFoundComponent                               = errors.New("monitoring port name is not found component")
 	ErrMultipleMatchingPortNames                                           = errors.New("multiple matching port names")
@@ -59,6 +58,7 @@ var (
 	ErrInvalidConfigBranchName                                             = errors.New("invalid config branch")
 	ErrOauth                                                               = errors.New("oauth error")
 	ErrOAuthClientIdEmpty                                                  = errors.Wrap(ErrOauth, "oauth client id empty")
+	ErrOAuthRequiresPublicPort                                             = errors.Wrap(ErrOauth, "oauth requires public port")
 	ErrOAuthProxyPrefixEmpty                                               = errors.Wrap(ErrOauth, "oauth proxy prefix empty")
 	ErrOAuthProxyPrefixIsRoot                                              = errors.Wrap(ErrOauth, "oauth proxy prefix is root")
 	ErrOAuthSessionStoreTypeInvalid                                        = errors.Wrap(ErrOauth, "oauth session store type invalid")
@@ -181,11 +181,6 @@ func EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment, c
 // InvalidPortNameLengthErrorWithMessage Invalid resource length
 func InvalidPortNameLengthErrorWithMessage(value string) error {
 	return errors.WithMessagef(ErrInvalidPortNameLength, "%s (%s) max length is %d", "port name", value, maxPortNameLength)
-}
-
-// PortSpecificationCannotBeEmptyForComponentErrorWithMessage Port cannot be empty for component
-func PortSpecificationCannotBeEmptyForComponentErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrPortSpecificationCannotBeEmptyForComponent, "port specification cannot be empty for %s", component)
 }
 
 // PortNameIsRequiredForPublicComponentErrorWithMessage Port name cannot be empty
@@ -403,6 +398,10 @@ func oauthCookieStoreMinimalIncorrectPropertyValueErrorWithMessage(err error, co
 
 func OAuthClientIdEmptyErrorWithMessage(componentName, environmentName string) error {
 	return oauthRequiredPropertyEmptyErrorWithMessage(ErrOAuthClientIdEmpty, componentName, environmentName, "clientId")
+}
+
+func OAuthRequiresPublicPortErrorWithMessage(componentName, environmentName string) error {
+	return errors.WithMessagef(ErrOAuthRequiresPublicPort, "component %s in environment %s: required public port when oauth2 with clientId configuration is set", componentName, environmentName)
 }
 
 func OAuthProxyPrefixEmptyErrorWithMessage(componentName, environmentName string) error {
