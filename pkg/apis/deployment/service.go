@@ -50,8 +50,7 @@ func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service
 		return true // Garbage collect service if not defined in RD components or jobs
 	}
 
-	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-	return commonComponent == nil || len(commonComponent.GetPorts()) == 0
+	return !componentName.CommonDeployComponentHasPorts(deploy.radixDeployment)
 }
 
 func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
