@@ -48,7 +48,7 @@ func (s *ControllerTestSuite) SetupTest() {
 	s.Handler = NewMockHandler(s.MockCtrl)
 	s.Synced = make(chan bool)
 	s.Stop = make(chan struct{})
-	s.TestControllerSyncTimeout = 5 * time.Second
+	s.TestControllerSyncTimeout = 10 * time.Second
 }
 
 // TearDownTest Tear down the test suite

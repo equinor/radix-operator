@@ -50,6 +50,19 @@ func (t RadixComponentName) GetCommonDeployComponent(rd *v1.RadixDeployment) v1.
 	return nil
 }
 
+// CommonDeployComponentHasPorts Checks id the deploy component has regular or schedule ports
+func (t RadixComponentName) CommonDeployComponentHasPorts(rd *v1.RadixDeployment) bool {
+	if comp := t.findInDeploymentSpecComponentList(rd); comp != nil {
+		return len(comp.GetPorts()) > 0
+	}
+	for _, job := range rd.Spec.Jobs {
+		if strings.EqualFold(job.Name, string(t)) {
+			return len(job.GetPorts()) > 0 || job.SchedulerPort != nil
+		}
+	}
+	return false
+}
+
 // ExistInDeploymentSpecComponentList checks if RadixDeployment has any component with this name
 func (t RadixComponentName) ExistInDeploymentSpecComponentList(rd *v1.RadixDeployment) bool {
 	return t.findInDeploymentSpecComponentList(rd) != nil

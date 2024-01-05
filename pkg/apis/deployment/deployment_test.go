@@ -510,7 +510,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							WithSecrets([]string{outdatedSecret, remainingSecret}).
 							WithAlwaysPullImageOnDeploy(false),
 						utils.NewDeployJobComponentBuilder().
-							WithName(jobName2),
+							WithName(jobName2).WithSchedulerPort(&schedulerPortCreate),
 					).
 					WithComponents()
 
@@ -585,8 +585,14 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate service", testScenario), func(t *testing.T) {
 				services, _ := kubeclient.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedServices := getServicesForRadixComponents(&services.Items)
-				jobNames := []string{jobName}
-				assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
+				var jobNames []string
+				if jobsExist {
+					jobNames = []string{jobName}
+					assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
+				} else {
+					jobNames = []string{jobName, jobName2}
+					assert.Equal(t, 2, len(expectedServices), "Number of services wasn't as expected")
+				}
 
 				for _, job := range jobNames {
 					svc := getServiceByName(job, services)
