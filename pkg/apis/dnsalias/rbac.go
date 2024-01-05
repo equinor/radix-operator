@@ -135,6 +135,9 @@ func (s *syncer) deleteRbac() error {
 func (s *syncer) deleteRbacByName(roleName string) error {
 	clusterRole, err := s.kubeUtil.GetClusterRole(roleName)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return s.kubeUtil.DeleteClusterRoleBinding(roleName)
+		}
 		return err
 	}
 	if len(clusterRole.Rules) == 0 {
