@@ -25,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -544,7 +545,99 @@ func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsali
 		log.Errorf("Radix config not valid.")
 		return nil, err
 	}
+	if err := correctRadixApplication(ra); err != nil {
+		return nil, err
+	}
 	return ra, nil
+}
+
+func correctRadixApplication(ra *radixv1.RadixApplication) error {
+	var errs []error
+	for _, component := range ra.Spec.Components {
+		if err := correctCommonComponent(&component); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for _, component := range ra.Spec.Jobs {
+		if err := correctCommonComponent(&component); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return stderrors.Join(errs...)
+}
+
+func correctCommonComponent(component radixv1.RadixCommonComponent) error {
+	resources := component.GetResources()
+	updatedResources, err := buildResource(&resources)
+	if err != nil {
+		return err
+	}
+	component.SetResources(updatedResources)
+	// if resources.Limits.Memory().Cmp(resource.MustParse("0"))
+	// if memory, ok := resources.Limits[]
+	return nil
+}
+
+func buildResource(source *radixv1.ResourceRequirements) (radixv1.ResourceRequirements, error) {
+	requirements := radixv1.ResourceRequirements{}
+	defaultLimits := map[string]resource.Quantity{}
+
+	// if you only set limit, it will use the same values for request
+	limits := radixv1.ResourceList{}
+	requests := radixv1.ResourceList{}
+
+	for name, limit := range source.Limits {
+		if limit != "" {
+			resName := corev1.ResourceName(name)
+			if resName == corev1.ResourceMemory {
+				continue
+			}
+			quantity, _ := resource.ParseQuantity(limit)
+			limits[resName.String()] = quantity.String()
+		}
+
+		// TODO: We probably should check some hard limit that cannot by exceeded here
+	}
+
+	for name, req := range source.Requests {
+		if req == "" {
+			continue
+		}
+		resName := corev1.ResourceName(name)
+		quantity, err := resource.ParseQuantity(req)
+		if err != nil {
+			return requirements, err
+		}
+		requests[resName.String()] = quantity.String()
+
+		if _, hasLimit := limits[resName.String()]; !hasLimit {
+			if resName == corev1.ResourceMemory {
+				continue
+			}
+			if _, ok := defaultLimits[resName.String()]; !ok {
+				continue // No default limit for this resource
+			}
+			// There is no defined limit, but there is a request
+			reqQuantity := requests[resName.String()]
+			if reqQuantity.Cmp(defaultLimits[resName.String()]) == 1 {
+				// Requested quantity is larger than the default limit
+				// We use the requested value as the limit
+				limits[resName.String()] = requests[resName.String()].DeepCopy()
+
+				// TODO: If we introduce a hard limit, that should not be exceeded here
+			}
+		}
+	}
+	if memory, ok := requests[corev1.ResourceMemory.String()]; ok {
+		limits[corev1.ResourceMemory.String()] = memory
+	}
+	if len(limits) <= 0 && len(requests) <= 0 {
+		return requirements, nil
+	}
+	return radixv1.ResourceRequirements{
+		Limits:   limits,
+		Requests: requests,
+	}, nil
 }
 
 func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {
