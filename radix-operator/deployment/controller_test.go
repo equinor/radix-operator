@@ -103,7 +103,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		require.NoError(t, ctx.Err())
 	}
 
-	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(ctx, rd.GetName(), metav1.GetOptions{})
+	syncedRd, err := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(ctx, rd.GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
 	lastReconciled := syncedRd.Status.Reconciled
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 
