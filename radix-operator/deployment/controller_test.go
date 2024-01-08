@@ -13,7 +13,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	"github.com/equinor/radix-operator/radix-operator/common"
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -91,15 +90,18 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Test
 
 	// Create deployment should sync
-	rd, _ := tu.ApplyDeployment(
+	rd, err := tu.ApplyDeployment(
 		utils.ARadixDeployment().
 			WithAppName(anyAppName).
 			WithEnvironment(anyEnvironment))
-
-	vals, waitErr := common.WaitForValues(ctx, synced, 1)
-	require.NoError(t, waitErr)
-	require.Len(t, vals, 1)
-	assert.True(t, vals[0])
+	require.NoError(t, err)
+	select {
+	case op, ok := <-synced:
+		assert.True(t, op)
+		assert.True(t, ok)
+	case <-ctx.Done():
+		require.NoError(t, ctx.Err())
+	}
 
 	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(ctx, rd.GetName(), metav1.GetOptions{})
 	lastReconciled := syncedRd.Status.Reconciled
@@ -110,11 +112,13 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	rd.Spec.Components[0].Replicas = &noReplicas
 	_, err = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(ctx, rd, metav1.UpdateOptions{})
 	require.NoError(t, err)
-
-	vals, waitErr = common.WaitForValues(ctx, synced, 1)
-	require.NoError(t, waitErr)
-	require.Len(t, vals, 1)
-	assert.True(t, vals[0])
+	select {
+	case op, ok := <-synced:
+		assert.True(t, op)
+		assert.True(t, ok)
+	case <-ctx.Done():
+		require.NoError(t, ctx.Err())
+	}
 
 	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(ctx, rd.GetName(), metav1.GetOptions{})
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
@@ -131,11 +135,13 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	for _, aservice := range services.Items {
 		err := client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(ctx, aservice.Name, metav1.DeleteOptions{})
 		require.NoError(t, err)
-
-		vals, waitErr = common.WaitForValues(ctx, synced, 1)
-		require.NoError(t, waitErr)
-		require.Len(t, vals, 1)
-		assert.True(t, vals[0])
+		select {
+		case op, ok := <-synced:
+			assert.True(t, op)
+			assert.True(t, ok)
+		case <-ctx.Done():
+			require.NoError(t, ctx.Err())
+		}
 	}
 
 	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(ctx, rd.GetName(), metav1.GetOptions{})
