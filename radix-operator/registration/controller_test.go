@@ -88,7 +88,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		"update": "test",
 	}
 	updatedApp, err := radixClient.RadixV1().RadixRegistrations().Update(ctx, registration, metav1.UpdateOptions{})
-
+	require.NoError(t, err)
 	select {
 	case op, ok := <-synced:
 		assert.True(t, op)
@@ -97,7 +97,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		require.NoError(t, ctx.Err())
 	}
 
-	require.NoError(t, err)
 	assert.NotNil(t, updatedApp)
 	assert.NotNil(t, updatedApp.Annotations)
 	assert.Equal(t, "test", updatedApp.Annotations["update"])
@@ -119,9 +118,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 	// Update private key secret should sync
 	existingSecret, err := client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Get(ctx, defaults.GitPrivateKeySecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	deployKey, err := utils.GenerateDeployKey()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	existingSecret.Data[defaults.GitPrivateKeySecretKey] = []byte(deployKey.PrivateKey)
 	newSecret := existingSecret.DeepCopy()
 	newSecret.ResourceVersion = "1"
