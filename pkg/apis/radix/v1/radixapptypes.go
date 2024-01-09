@@ -1346,8 +1346,6 @@ type RadixCommonComponent interface {
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
 	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
 	GetEnabledForEnvironment(environment string) bool
-	// SetResources Sets resources
-	SetResources(resources ResourceRequirements)
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1433,10 +1431,6 @@ func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironme
 
 func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
 	return getEnabledForEnvironment(component, environment)
-}
-
-func (component *RadixComponent) SetResources(requirement ResourceRequirements) {
-	component.Resources = requirement
 }
 
 func (component *RadixJobComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
@@ -1534,10 +1528,6 @@ func (component *RadixJobComponent) GetEnvironmentConfigByName(environment strin
 
 func (component *RadixJobComponent) GetEnabledForEnvironment(environment string) bool {
 	return getEnabledForEnvironment(component, environment)
-}
-
-func (component *RadixJobComponent) SetResources(requirement ResourceRequirements) {
-	component.Resources = requirement
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
