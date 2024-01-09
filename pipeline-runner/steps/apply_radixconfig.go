@@ -545,11 +545,11 @@ func correctRadixApplication(ra *radixv1.RadixApplication) {
 		log.Warnf("%s Converting name to lowercase", err.Error())
 		ra.Name = strings.ToLower(ra.Name)
 	}
-	for _, component := range ra.Spec.Components {
-		component.Resources = buildResource(&component)
+	for i := 0; i < len(ra.Spec.Components); i++ {
+		ra.Spec.Components[i].Resources = buildResource(&ra.Spec.Components[i])
 	}
-	for _, component := range ra.Spec.Jobs {
-		component.Resources = buildResource(&component)
+	for i := 0; i < len(ra.Spec.Jobs); i++ {
+		ra.Spec.Jobs[i].Resources = buildResource(&ra.Spec.Jobs[i])
 	}
 }
 
