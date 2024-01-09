@@ -98,7 +98,7 @@ func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("5")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("5Gi")), "Memory request should be included")
 	assert.True(t, requirements.Limits.Cpu().IsZero())
-	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("5Gi")), "Memory limit should be same as request")
+	assert.True(t, requirements.Limits.Memory().IsZero(), "Memory limit should be not set")
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing.T) {

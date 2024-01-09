@@ -10,7 +10,6 @@ import (
 // See https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-default-namespace/
 const (
 	OperatorDefaultUserGroupEnvironmentVariable             = "RADIXOPERATOR_DEFAULT_USER_GROUP"
-	OperatorEnvLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY"
 	OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"
 	OperatorEnvLimitDefaultRequestCPUEnvironmentVariable    = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
 
@@ -23,11 +22,6 @@ const (
 	OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable    = "RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU"
 )
 
-// GetDefaultMemoryLimitForAppNamespace Gets the default container memory limit for app namespaces defined as an environment variable
-func GetDefaultMemoryLimitForAppNamespace() *resource.Quantity {
-	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultMemoryEnvironmentVariable)
-}
-
 // GetDefaultCPURequestForAppNamespace Gets the default container CPU request for app namespaces defined as an environment variable
 func GetDefaultCPURequestForAppNamespace() *resource.Quantity {
 	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultRequestCPUEnvironmentVariable)
@@ -36,11 +30,6 @@ func GetDefaultCPURequestForAppNamespace() *resource.Quantity {
 // GetDefaultMemoryRequestForAppNamespace Gets the default container memory request for app namespaces defined as an environment variable
 func GetDefaultMemoryRequestForAppNamespace() *resource.Quantity {
 	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultRequestMemoryEnvironmentVariable)
-}
-
-// GetDefaultMemoryLimit Gets the default container memory limit defined as an environment variable
-func GetDefaultMemoryLimit() *resource.Quantity {
-	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultMemoryEnvironmentVariable)
 }
 
 // GetDefaultCPURequest Gets the default container CPU request defined as an environment variable
