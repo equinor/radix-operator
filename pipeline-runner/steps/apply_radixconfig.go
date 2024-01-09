@@ -527,28 +527,24 @@ func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsali
 	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
 	}
+	correctRadixApplication(ra)
 
 	// Validate RA
 	if validate.RAContainsOldPublic(ra) {
 		log.Warnf("component.public is deprecated, please use component.publicPort instead")
 	}
-
-	isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name)
-	if !isAppNameLowercase {
-		log.Warnf("%s Converting name to lowercase", err.Error())
-		ra.Name = strings.ToLower(ra.Name)
-	}
-
-	err = validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig)
-	if err != nil {
+	if err := validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig); err != nil {
 		log.Errorf("Radix config not valid.")
 		return nil, err
 	}
-	correctRadixApplication(ra)
 	return ra, nil
 }
 
 func correctRadixApplication(ra *radixv1.RadixApplication) {
+	if isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name); !isAppNameLowercase {
+		log.Warnf("%s Converting name to lowercase", err.Error())
+		ra.Name = strings.ToLower(ra.Name)
+	}
 	for _, component := range ra.Spec.Components {
 		component.Resources = buildResource(&component)
 	}
@@ -564,6 +560,9 @@ func buildResource(component radixv1.RadixCommonComponent) radixv1.ResourceRequi
 		delete(resources.Limits, memoryReqName)
 	}
 	if requestsMemory, ok := resources.Requests[memoryReqName]; ok {
+		if resources.Limits == nil {
+			resources.Limits = radixv1.ResourceList{}
+		}
 		resources.Limits[memoryReqName] = requestsMemory
 	}
 	return resources
