@@ -153,7 +153,7 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	return nil
 }
 
-func (cli ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
 		return ErrDeployOnlyPipelineDoesNotSupportBuild
 	}
@@ -418,10 +418,10 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 }
 
 func getDockerfile(sourceFolder, dockerfileName string) string {
-	context := getContext(sourceFolder)
+	ctx := getContext(sourceFolder)
 	dockerfileName = getDockerfileName(dockerfileName)
 
-	return fmt.Sprintf("%s%s", context, dockerfileName)
+	return fmt.Sprintf("%s%s", ctx, dockerfileName)
 }
 
 func getDockerfileName(name string) string {
@@ -556,9 +556,8 @@ func correctRadixApplication(ra *radixv1.RadixApplication) {
 func buildResource(component radixv1.RadixCommonComponent) radixv1.ResourceRequirements {
 	memoryReqName := corev1.ResourceMemory.String()
 	resources := component.GetResources()
-	if _, ok := resources.Limits[memoryReqName]; ok {
-		delete(resources.Limits, memoryReqName)
-	}
+	delete(resources.Limits, memoryReqName)
+
 	if requestsMemory, ok := resources.Requests[memoryReqName]; ok {
 		if resources.Limits == nil {
 			resources.Limits = radixv1.ResourceList{}
