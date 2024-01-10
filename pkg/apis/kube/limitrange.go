@@ -68,7 +68,11 @@ func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.Limit
 }
 
 // BuildLimitRange Builds a limit range spec
-func (kubeutil *Kube) BuildLimitRange(namespace, name, appName string, defaultRequestCPU, defaultRequestMemory *resource.Quantity) *corev1.LimitRange {
+func (kubeutil *Kube) BuildLimitRange(namespace, name, appName string, defaultResourceMemory, defaultRequestCPU, defaultRequestMemory *resource.Quantity) *corev1.LimitRange {
+
+	defaultResources := make(corev1.ResourceList)
+	defaultResources[corev1.ResourceMemory] = *defaultResourceMemory
+
 	defaultRequest := make(corev1.ResourceList)
 	defaultRequest[corev1.ResourceCPU] = *defaultRequestCPU
 	defaultRequest[corev1.ResourceMemory] = *defaultRequestMemory
@@ -89,6 +93,7 @@ func (kubeutil *Kube) BuildLimitRange(namespace, name, appName string, defaultRe
 			Limits: []corev1.LimitRangeItem{
 				{
 					Type:           corev1.LimitTypeContainer,
+					Default:        defaultResources,
 					DefaultRequest: defaultRequest,
 				},
 			},

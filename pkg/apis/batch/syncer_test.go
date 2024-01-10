@@ -82,6 +82,7 @@ func (s *syncerTestSuite) SetupTest() {
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
+	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "any-group")

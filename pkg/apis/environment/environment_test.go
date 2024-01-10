@@ -33,6 +33,7 @@ const (
 	namespaceName               = "testapp-testenv"
 
 	limitDefaultReqestCPU    = "234m" // 0.234
+	limitDefaultMemory       = "321M" // 321'000'000
 	limitDefaultReqestMemory = "123M" // 123'000'000
 )
 
@@ -46,6 +47,7 @@ func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radi
 	require.NoError(t, err)
 
 	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
 	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
@@ -193,6 +195,7 @@ func Test_Create_LimitRange(t *testing.T) {
 		limits := limitranges.Items[0].Spec.Limits[0]
 		assert.True(t, limits.Default.Cpu().IsZero())
 		assert.Equal(t, limitDefaultReqestCPU, limits.DefaultRequest.Cpu().String())
+		assert.Equal(t, limitDefaultMemory, limits.Default.Memory().String())
 		assert.Equal(t, limitDefaultReqestMemory, limits.DefaultRequest.Memory().String())
 	})
 }
