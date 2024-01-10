@@ -153,7 +153,7 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	return nil
 }
 
-func (cli ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
 		return ErrDeployOnlyPipelineDoesNotSupportBuild
 	}
@@ -418,10 +418,10 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 }
 
 func getDockerfile(sourceFolder, dockerfileName string) string {
-	context := getContext(sourceFolder)
+	ctx := getContext(sourceFolder)
 	dockerfileName = getDockerfileName(dockerfileName)
 
-	return fmt.Sprintf("%s%s", context, dockerfileName)
+	return fmt.Sprintf("%s%s", ctx, dockerfileName)
 }
 
 func getDockerfileName(name string) string {
@@ -527,24 +527,44 @@ func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsali
 	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
 	}
+	correctRadixApplication(ra)
 
 	// Validate RA
 	if validate.RAContainsOldPublic(ra) {
 		log.Warnf("component.public is deprecated, please use component.publicPort instead")
 	}
-
-	isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name)
-	if !isAppNameLowercase {
-		log.Warnf("%s Converting name to lowercase", err.Error())
-		ra.Name = strings.ToLower(ra.Name)
-	}
-
-	err = validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig)
-	if err != nil {
+	if err := validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig); err != nil {
 		log.Errorf("Radix config not valid.")
 		return nil, err
 	}
 	return ra, nil
+}
+
+func correctRadixApplication(ra *radixv1.RadixApplication) {
+	if isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name); !isAppNameLowercase {
+		log.Warnf("%s Converting name to lowercase", err.Error())
+		ra.Name = strings.ToLower(ra.Name)
+	}
+	for i := 0; i < len(ra.Spec.Components); i++ {
+		ra.Spec.Components[i].Resources = buildResource(&ra.Spec.Components[i])
+	}
+	for i := 0; i < len(ra.Spec.Jobs); i++ {
+		ra.Spec.Jobs[i].Resources = buildResource(&ra.Spec.Jobs[i])
+	}
+}
+
+func buildResource(component radixv1.RadixCommonComponent) radixv1.ResourceRequirements {
+	memoryReqName := corev1.ResourceMemory.String()
+	resources := component.GetResources()
+	delete(resources.Limits, memoryReqName)
+
+	if requestsMemory, ok := resources.Requests[memoryReqName]; ok {
+		if resources.Limits == nil {
+			resources.Limits = radixv1.ResourceList{}
+		}
+		resources.Limits[memoryReqName] = requestsMemory
+	}
+	return resources
 }
 
 func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {

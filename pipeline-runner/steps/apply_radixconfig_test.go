@@ -2,12 +2,14 @@ package steps_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
 	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -16,6 +18,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+)
+
+const (
+	sampleApp = "./testdata/radixconfig.yaml"
 )
 
 func Test_RunApplyConfigTestSuite(t *testing.T) {
@@ -265,4 +271,18 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.NoError(applyStep.Run(&pipeline))
+}
+
+func (s *applyConfigTestSuite) Test_CreateRadixApplication_LimitMemoryIsTakenFromRequestsMemory() {
+	rr := utils.NewRegistrationBuilder().WithName("testapp").BuildRR()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	configFileContent, err := os.ReadFile(sampleApp)
+	s.Require().NoError(err)
+	ra, err := steps.CreateRadixApplication(s.radixClient, &dnsalias.DNSConfig{}, string(configFileContent))
+	s.Require().NoError(err)
+	s.Equal("100Mi", ra.Spec.Components[0].Resources.Limits["memory"], "server1 invalid resource limits memory")
+	s.Equal("100Mi", ra.Spec.Components[1].Resources.Limits["memory"], "server2 invalid resource limits memory")
+	s.Empty(ra.Spec.Components[2].Resources.Limits["memory"], "server3 not expected resource limits memory")
+	s.Empty(ra.Spec.Components[3].Resources.Limits["memory"], "server4 not expected resource limits memory")
 }
