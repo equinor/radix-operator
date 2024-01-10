@@ -242,19 +242,17 @@ const limitRangeName = "mem-cpu-limit-range-env"
 // ApplyLimitRange sets resource usage limits to provided namespace
 func (env *Environment) ApplyLimitRange(namespace string) error {
 
-	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
 	defaultCPURequest := defaults.GetDefaultCPURequest()
 	defaultMemoryRequest := defaults.GetDefaultMemoryRequest()
 
 	// if not all limits are defined, then don't put any limits on namespace
-	if defaultMemoryLimit == nil ||
-		defaultCPURequest == nil ||
+	if defaultCPURequest == nil ||
 		defaultMemoryRequest == nil {
 		env.logger.Warningf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
 		return nil
 	}
 
-	limitRange := env.kubeutil.BuildLimitRange(namespace, limitRangeName, env.config.Spec.AppName, defaultMemoryLimit, defaultCPURequest, defaultMemoryRequest)
+	limitRange := env.kubeutil.BuildLimitRange(namespace, limitRangeName, env.config.Spec.AppName, defaultCPURequest, defaultMemoryRequest)
 	limitRange.SetOwnerReferences(env.AsOwnerReference())
 
 	return env.kubeutil.ApplyLimitRange(namespace, limitRange)
