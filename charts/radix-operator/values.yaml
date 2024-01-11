@@ -62,7 +62,7 @@ app:
     # Limit range on builder job in app namespace
     resources:
       limits:
-        memory: 2000M
+        memory: 500M
       requests:
         memory: 500M
         cpu: 200m
