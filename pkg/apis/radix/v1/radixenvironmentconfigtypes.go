@@ -14,90 +14,99 @@ type RadixCommonEnvironmentConfig interface {
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetReplicas() *int
 	GetIdentity() *Identity
+	GetUseReadOnlyFileSystem() *bool
 	getEnabled() *bool
 }
 
-func (config RadixEnvironmentConfig) GetEnvironment() string {
+func (config *RadixEnvironmentConfig) GetEnvironment() string {
 	return config.Environment
 }
 
-func (config RadixEnvironmentConfig) GetSecretRefs() RadixSecretRefs {
+func (config *RadixEnvironmentConfig) GetSecretRefs() RadixSecretRefs {
 	return config.SecretRefs
 }
 
-func (config RadixEnvironmentConfig) GetVariables() EnvVarsMap {
+func (config *RadixEnvironmentConfig) GetVariables() EnvVarsMap {
 	return config.Variables
 }
 
-func (config RadixEnvironmentConfig) GetResources() ResourceRequirements {
+func (config *RadixEnvironmentConfig) GetResources() ResourceRequirements {
 	return config.Resources
 }
 
-func (config RadixEnvironmentConfig) GetNode() RadixNode {
+func (config *RadixEnvironmentConfig) GetNode() RadixNode {
 	return config.Node
 }
 
-func (config RadixEnvironmentConfig) GetImageTagName() string {
+func (config *RadixEnvironmentConfig) GetImageTagName() string {
 	return config.ImageTagName
 }
 
-func (config RadixEnvironmentConfig) GetHorizontalScaling() *RadixHorizontalScaling {
+func (config *RadixEnvironmentConfig) GetHorizontalScaling() *RadixHorizontalScaling {
 	return config.HorizontalScaling
 }
 
-func (config RadixEnvironmentConfig) GetReplicas() *int {
+func (config *RadixEnvironmentConfig) GetReplicas() *int {
 	return config.Replicas
 }
 
-func (config RadixEnvironmentConfig) GetIdentity() *Identity {
+func (config *RadixEnvironmentConfig) GetIdentity() *Identity {
 	return config.Identity
 }
 
-func (config RadixEnvironmentConfig) getEnabled() *bool {
+func (config *RadixEnvironmentConfig) GetUseReadOnlyFileSystem() *bool {
+	return config.UseReadOnlyFileSystem
+}
+
+func (config *RadixEnvironmentConfig) getEnabled() *bool {
 	return config.Enabled
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetEnvironment() string {
+func (config *RadixJobComponentEnvironmentConfig) GetEnvironment() string {
 	return config.Environment
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetSecretRefs() RadixSecretRefs {
+func (config *RadixJobComponentEnvironmentConfig) GetSecretRefs() RadixSecretRefs {
 	return config.SecretRefs
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetVariables() EnvVarsMap {
+func (config *RadixJobComponentEnvironmentConfig) GetVariables() EnvVarsMap {
 	return config.Variables
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetResources() ResourceRequirements {
+func (config *RadixJobComponentEnvironmentConfig) GetResources() ResourceRequirements {
 	return config.Resources
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetNode() RadixNode {
+func (config *RadixJobComponentEnvironmentConfig) GetNode() RadixNode {
 	return config.Node
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetImageTagName() string {
+func (config *RadixJobComponentEnvironmentConfig) GetImageTagName() string {
 	return config.ImageTagName
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetHorizontalScaling() *RadixHorizontalScaling {
+func (config *RadixJobComponentEnvironmentConfig) GetHorizontalScaling() *RadixHorizontalScaling {
 	return nil
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetReplicas() *int {
+func (config *RadixJobComponentEnvironmentConfig) GetReplicas() *int {
 	return numbers.IntPtr(1)
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetIdentity() *Identity {
+func (config *RadixJobComponentEnvironmentConfig) GetIdentity() *Identity {
 	return config.Identity
 }
 
 // GetNotifications Get job component notifications
-func (config RadixJobComponentEnvironmentConfig) GetNotifications() *Notifications {
+func (config *RadixJobComponentEnvironmentConfig) GetNotifications() *Notifications {
 	return config.Notifications
 }
 
-func (config RadixJobComponentEnvironmentConfig) getEnabled() *bool {
+func (config *RadixJobComponentEnvironmentConfig) GetUseReadOnlyFileSystem() *bool {
+	return config.UseReadOnlyFileSystem
+}
+
+func (config *RadixJobComponentEnvironmentConfig) getEnabled() *bool {
 	return config.Enabled
 }

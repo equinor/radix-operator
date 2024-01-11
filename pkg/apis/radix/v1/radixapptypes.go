@@ -405,6 +405,10 @@ type RadixComponent struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Controls if the filesystem shall be read-only.
+	// +optional
+	UseReadOnlyFileSystem *bool `json:"useReadOnlyFileSystem,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -480,6 +484,10 @@ type RadixEnvironmentConfig struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Controls if the filesystem shall be read-only.
+	// +optional
+	UseReadOnlyFileSystem *bool `json:"useReadOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -586,6 +594,10 @@ type RadixJobComponent struct {
 	// Notifications about batch or job status changes
 	// +optional
 	Notifications *Notifications `json:"notifications,omitempty"`
+
+	// Controls if the filesystem shall be read-only.
+	// +optional
+	UseReadOnlyFileSystem *bool `json:"useReadOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -656,6 +668,10 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Notifications about batch or job status changes
 	// +optional
 	Notifications *Notifications `json:"notifications,omitempty"`
+
+	// Controls if the filesystem shall be read-only.
+	// +optional
+	UseReadOnlyFileSystem *bool `json:"useReadOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -714,6 +730,8 @@ type RadixPrivateImageHubCredential struct {
 	// +optional
 	Email string `json:"email"`
 }
+
+//type RadixEmptyDirVolumeMount
 
 // RadixVolumeMount defines an external storage resource.
 type RadixVolumeMount struct {
@@ -782,6 +800,9 @@ type RadixVolumeMount struct {
 
 	// AzureFile settings for Azure File CSI driver
 	AzureFile *RadixAzureFileVolumeMount `json:"azureFile,omitempty"`
+
+	// EmptyDir settings for EmptyDir volume
+	//EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
 }
 
 // BlobFuse2Protocol Holds protocols of BlobFuse2 Azure Storage FUSE driver
@@ -1346,6 +1367,7 @@ type RadixCommonComponent interface {
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
 	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
 	GetEnabledForEnvironment(environment string) bool
+	GetUseReadOnlyFileSystem() *bool
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1403,7 +1425,7 @@ func (component *RadixComponent) getEnabled() bool {
 func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
-		environmentConfigs = append(environmentConfigs, environmentConfig)
+		environmentConfigs = append(environmentConfigs, &environmentConfig)
 	}
 	return environmentConfigs
 }
@@ -1427,6 +1449,10 @@ func (component *RadixComponent) GetEnvironmentConfigByName(environment string) 
 
 func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
 	return getEnabled(component, envConfig)
+}
+
+func (component *RadixComponent) GetUseReadOnlyFileSystem() *bool {
+	return component.UseReadOnlyFileSystem
 }
 
 func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
@@ -1504,7 +1530,7 @@ func (component *RadixJobComponent) getEnabled() bool {
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
-		environmentConfigs = append(environmentConfigs, environmentConfig)
+		environmentConfigs = append(environmentConfigs, &environmentConfig)
 	}
 	return environmentConfigs
 }
@@ -1528,6 +1554,10 @@ func (component *RadixJobComponent) GetEnvironmentConfigByName(environment strin
 
 func (component *RadixJobComponent) GetEnabledForEnvironment(environment string) bool {
 	return getEnabledForEnvironment(component, environment)
+}
+
+func (component *RadixJobComponent) GetUseReadOnlyFileSystem() *bool {
+	return component.UseReadOnlyFileSystem
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {

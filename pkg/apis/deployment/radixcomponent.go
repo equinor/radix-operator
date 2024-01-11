@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"dario.cat/mergo"
+	commonutils "github.com/equinor/radix-common/utils"
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -63,11 +64,19 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 		deployComponent.Authentication = auth
 		deployComponent.Identity = identity
+		deployComponent.UseReadOnlyFileSystem = getRadixCommonComponentUseReadOnlyFileSystem(&radixComponent, environmentSpecificConfig)
 
 		components = append(components, deployComponent)
 	}
 
 	return components, nil
+}
+
+func getRadixCommonComponentUseReadOnlyFileSystem(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) *bool {
+	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetUseReadOnlyFileSystem() != nil {
+		return environmentSpecificConfig.GetUseReadOnlyFileSystem()
+	}
+	return radixComponent.GetUseReadOnlyFileSystem()
 }
 
 func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) bool {
