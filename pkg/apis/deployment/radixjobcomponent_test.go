@@ -611,3 +611,65 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRadixJobComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
+	const (
+		environment = "dev"
+	)
+	type scenario struct {
+		name                     string
+		useReadOnlyFileSystem    *bool
+		envUseReadOnlyFileSystem *bool
+		expectedUseReadOnlyFile  *bool
+	}
+	jobComponentName1 := "jobComponentA"
+	jobComponentName2 := "jobComponentB"
+	scenarios := []scenario{
+		{
+			name:                    "UseReadOnlyFileSystem set to true in job component",
+			useReadOnlyFileSystem:   utils.BoolPtr(true),
+			expectedUseReadOnlyFile: utils.BoolPtr(true),
+		},
+		{
+			name:                    "UseReadOnlyFileSystem set to false in job component",
+			useReadOnlyFileSystem:   utils.BoolPtr(false),
+			expectedUseReadOnlyFile: utils.BoolPtr(false),
+		},
+		{
+			name:                    "UseReadOnlyFileSystem not set in job component",
+			useReadOnlyFileSystem:   nil,
+			expectedUseReadOnlyFile: nil,
+		},
+		{
+			name:                     "UseReadOnlyFileSystem not set in job component, but set in environment config for dev environment",
+			useReadOnlyFileSystem:    nil,
+			envUseReadOnlyFileSystem: utils.BoolPtr(true),
+			expectedUseReadOnlyFile:  utils.BoolPtr(true),
+		},
+	}
+
+	for _, ts := range scenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			componentImages := make(pipeline.DeployComponentImages)
+			var componentBuilders []utils.RadixApplicationJobComponentBuilder
+			for _, jobComponentName := range []string{jobComponentName1, jobComponentName2} {
+				componentBuilder := utils.NewApplicationJobComponentBuilder().
+					WithName(jobComponentName).
+					WithUseReadOnlyFileSystem(ts.useReadOnlyFileSystem).
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment(environment).
+						WithUseReadOnlyFileSystem(ts.envUseReadOnlyFileSystem))
+				componentBuilders = append(componentBuilders, componentBuilder)
+			}
+
+			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
+
+			deployJobComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap)).JobComponents()
+			assert.NoError(t, err)
+
+			for _, deployJobComponent := range deployJobComponents {
+				assert.Equal(t, ts.expectedUseReadOnlyFile, deployJobComponent.UseReadOnlyFileSystem)
+			}
+		})
+	}
+}

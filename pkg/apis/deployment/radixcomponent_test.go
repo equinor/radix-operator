@@ -295,7 +295,6 @@ func TestGetRadixComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
 	deployComponentProd, _ := GetRadixComponentsForEnv(ra, "prod", componentImages, envVarsMap)
 	assert.Equal(t, ra.Spec.Components[0].EnvironmentConfig[1].UseReadOnlyFileSystem, deployComponentProd[0].UseReadOnlyFileSystem)
 	assert.Equal(t, utils.BoolPtr(false), deployComponentProd[0].UseReadOnlyFileSystem)
-
 }
 
 func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAliases(t *testing.T) {

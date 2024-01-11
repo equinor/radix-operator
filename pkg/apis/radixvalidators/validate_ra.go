@@ -307,10 +307,10 @@ func validateComponents(app *radixv1.RadixApplication) error {
 			errs = append(errs, err)
 		}
 
-		err = validateUseReadOnlyFileSystem(component.UseReadOnlyFileSystem)
+		/*err = validateUseReadOnlyFileSystem(component.UseReadOnlyFileSystem)
 		if err != nil {
 			errs = append(errs, err)
-		}
+		}*/
 
 		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
 
@@ -345,10 +345,10 @@ func validateComponents(app *radixv1.RadixApplication) error {
 				errs = append(errs, err)
 			}
 
-			err = validateUseReadOnlyFileSystem(component.UseReadOnlyFileSystem)
+			/*err = validateUseReadOnlyFileSystem(component.UseReadOnlyFileSystem)
 			if err != nil {
 				errs = append(errs, err)
-			}
+			}*/
 		}
 	}
 
@@ -398,10 +398,10 @@ func validateJobComponents(app *radixv1.RadixApplication) error {
 			errs = append(errs, err)
 		}
 
-		err = validateUseReadOnlyFileSystem(job.UseReadOnlyFileSystem)
+		/*err = validateUseReadOnlyFileSystem(job.UseReadOnlyFileSystem)
 		if err != nil {
 			errs = append(errs, err)
-		}
+		}*/
 
 		for _, environment := range job.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
@@ -424,10 +424,10 @@ func validateJobComponents(app *radixv1.RadixApplication) error {
 				errs = append(errs, err)
 			}
 
-			err = validateUseReadOnlyFileSystem(job.UseReadOnlyFileSystem)
+			/*err = validateUseReadOnlyFileSystem(job.UseReadOnlyFileSystem)
 			if err != nil {
 				errs = append(errs, err)
-			}
+			}*/
 		}
 	}
 
@@ -1320,12 +1320,14 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 	return nil
 }
 
-func validateUseReadOnlyFileSystem(useReadOnlyFileSystem *bool) error {
-	if useReadOnlyFileSystem == nil {
+/*
+	func validateUseReadOnlyFileSystem(useReadOnlyFileSystem *bool) error {
+		if useReadOnlyFileSystem == nil {
+			return nil
+		}
 		return nil
 	}
-	return nil
-}
+*/
 func multipleVolumeTypesDefined(volumeMount *radixv1.RadixVolumeMount) bool {
 	count := 0
 	if len(volumeMount.Type) > 0 {
