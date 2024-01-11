@@ -331,9 +331,9 @@ type RadixComponent struct {
 	Image string `json:"image,omitempty"`
 
 	// List of ports that the component bind to.
-	// +kubebuilder:validation:MinItems=1
 	// +listType=map
 	// +listMapKey=name
+	// +optional
 	Ports []ComponentPort `json:"ports"`
 
 	// Configures the monitoring endpoint exposed by the component.

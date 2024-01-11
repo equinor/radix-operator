@@ -3,7 +3,9 @@ package deployment
 import (
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -55,6 +57,54 @@ func Test_FindCommonComponentInRD(t *testing.T) {
 	nonExistingName := RadixComponentName("nonexisting")
 	nonExisting := nonExistingName.GetCommonDeployComponent(rd)
 	assert.Nil(t, nonExisting)
+
+}
+
+func Test_CommonDeployComponentHasPorts(t *testing.T) {
+	rd := utils.ARadixDeployment().
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("component1").
+				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8080}}),
+			utils.NewDeployComponentBuilder().WithName("component2")).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName("job1").
+				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8080}}).
+				WithSchedulerPort(pointers.Ptr[int32](8081)),
+			utils.NewDeployJobComponentBuilder().WithName("job2").
+				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8080}}),
+			utils.NewDeployJobComponentBuilder().WithName("job3").
+				WithSchedulerPort(pointers.Ptr[int32](8081)),
+			utils.NewDeployJobComponentBuilder().WithName("job4"),
+		).
+		BuildRD()
+
+	componentName := RadixComponentName("component1")
+	hasPorts := componentName.CommonDeployComponentHasPorts(rd)
+	assert.True(t, hasPorts)
+
+	componentName = RadixComponentName("component2")
+	hasPorts = componentName.CommonDeployComponentHasPorts(rd)
+	assert.False(t, hasPorts)
+
+	jobName := RadixComponentName("job1")
+	hasPorts = jobName.CommonDeployComponentHasPorts(rd)
+	assert.True(t, hasPorts)
+
+	jobName = RadixComponentName("job2")
+	hasPorts = jobName.CommonDeployComponentHasPorts(rd)
+	assert.True(t, hasPorts)
+
+	jobName = RadixComponentName("job3")
+	hasPorts = jobName.CommonDeployComponentHasPorts(rd)
+	assert.True(t, hasPorts)
+
+	jobName = RadixComponentName("job4")
+	hasPorts = jobName.CommonDeployComponentHasPorts(rd)
+	assert.False(t, hasPorts)
+
+	nonExistingName := RadixComponentName("nonexisting")
+	hasPorts = nonExistingName.CommonDeployComponentHasPorts(rd)
+	assert.False(t, hasPorts)
 
 }
 

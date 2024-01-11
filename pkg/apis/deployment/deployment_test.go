@@ -466,7 +466,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 						utils.NewDeployJobComponentBuilder().
 							WithName(jobName).
 							WithImage("job:latest").
-							WithPort("http", 3002).
+							WithPorts([]v1.ComponentPort{{Name: "http", Port: 3002}}).
 							WithEnvironmentVariable("a_variable", "a_value").
 							WithMonitoring(true).
 							WithResource(map[string]string{
@@ -496,7 +496,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 						utils.NewDeployJobComponentBuilder().
 							WithName(jobName).
 							WithImage("job:latest").
-							WithPort("http", 3002).
+							WithPorts([]v1.ComponentPort{{Name: "http", Port: 3002}}).
 							WithEnvironmentVariable("a_variable", "a_value").
 							WithMonitoring(true).
 							WithResource(map[string]string{
@@ -524,7 +524,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							WithSecrets([]string{outdatedSecret, remainingSecret}).
 							WithAlwaysPullImageOnDeploy(false),
 						utils.NewDeployJobComponentBuilder().
-							WithName(jobName2),
+							WithName(jobName2).WithSchedulerPort(&schedulerPortCreate),
 					).
 					WithComponents()
 
@@ -600,7 +600,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				services, _ := kubeclient.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedServices := getServicesForRadixComponents(&services.Items)
 				var jobNames []string
-
 				if jobsExist {
 					jobNames = []string{jobName}
 					assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
@@ -3858,7 +3857,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithEnvironment("dev").
 		WithJobComponents().
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("job"),
+			utils.NewDeployComponentBuilder().WithName("job").WithPorts([]v1.ComponentPort{{Name: "http", Port: 8000}}),
 		)
 
 	testTheory(&theoryData{
@@ -3874,7 +3873,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("dev").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job"),
+			utils.NewDeployJobComponentBuilder().WithName("job").WithPorts([]v1.ComponentPort{{Name: "http", Port: 8000}}),
 		).
 		WithComponents()
 
@@ -3891,7 +3890,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("dev").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("compute"),
+			utils.NewDeployJobComponentBuilder().WithName("compute").WithPorts([]v1.ComponentPort{{Name: "http", Port: 8000}}),
 		).
 		WithComponents()
 
@@ -3908,8 +3907,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("prod").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job"),
-			utils.NewDeployJobComponentBuilder().WithName("compute"),
+			utils.NewDeployJobComponentBuilder().WithName("job").WithPorts([]v1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("compute").WithPorts([]v1.ComponentPort{{Name: "http", Port: 8000}}),
 		).
 		WithComponents()
 
