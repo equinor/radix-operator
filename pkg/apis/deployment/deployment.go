@@ -95,18 +95,18 @@ func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.Ra
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages pipeline.DeployComponentImages, env string, defaultEnvVars v1.EnvVarsMap, radixConfigHash, buildSecretHash string) (*v1.RadixDeployment, error) {
+func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTag, branch string, componentImages pipeline.DeployComponentImages, env string, defaultEnvVars v1.EnvVarsMap, radixConfigHash, buildSecretHash string, preservingDeployComponents []v1.RadixDeployComponent, preservingDeployJobComponents []v1.RadixDeployJobComponent) (*v1.RadixDeployment, error) {
 	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
-	components, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars)
+	deployComponents, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars, preservingDeployComponents)
 	if err != nil {
 		return nil, err
 	}
-	jobs, err := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars).JobComponents()
+	jobs, err := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars, preservingDeployJobComponents).JobComponents()
 	if err != nil {
 		return nil, err
 	}
-	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, components, jobs, radixConfigHash, buildSecretHash)
+	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, deployComponents, jobs, radixConfigHash, buildSecretHash)
 	return radixDeployment, nil
 }
 

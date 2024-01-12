@@ -2090,7 +2090,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 			envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = testcase.expectedGitCommitHash
 			envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = testcase.expectedGitTags
 
-			rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, testcase.environment, envVarsMap, "anyhash", "anybuildsecrethash")
+			rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, testcase.environment, envVarsMap, "anyhash", "anybuildsecrethash", nil, nil)
 			require.NoError(t, err)
 
 			assert.Equal(t, testcase.expectedReplicas, *rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
@@ -2154,7 +2154,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
-	rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash")
+	rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash", nil, nil)
 	require.NoError(t, err)
 
 	t.Log(rd.Spec.Components[0].Name)
@@ -2164,7 +2164,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	t.Log(rd.Spec.Components[2].Name)
 	assert.False(t, rd.Spec.Components[2].AlwaysPullImageOnDeploy)
 
-	rd, err = ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "prod", envVarsMap, "anyhash", "anybuildsecrethash")
+	rd, err = ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "prod", envVarsMap, "anyhash", "anybuildsecrethash", nil, nil)
 	require.NoError(t, err)
 
 	t.Log(rd.Spec.Components[0].Name)
@@ -2186,7 +2186,7 @@ func TestConstructForTargetEnvironment_GetCommitID(t *testing.T) {
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "commit-abc"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
-	rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash")
+	rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash", nil, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "commit-abc", rd.ObjectMeta.Labels[kube.RadixCommitLabel])
@@ -4162,7 +4162,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			)
 		}
 		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
-		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(v1.EnvVarsMap), "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(v1.EnvVarsMap), "anyhash", "anybuildsecrethash", nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity)
 	}
@@ -4175,7 +4175,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			)
 		}
 		ra := utils.ARadixApplication().WithJobComponents(job).BuildRA()
-		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(v1.EnvVarsMap), "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(v1.EnvVarsMap), "anyhash", "anybuildsecrethash", nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity)
 	}

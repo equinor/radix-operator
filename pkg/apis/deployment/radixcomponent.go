@@ -12,16 +12,23 @@ var (
 	authTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
-func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars v1.EnvVarsMap) ([]v1.RadixDeployComponent, error) {
+func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars v1.EnvVarsMap, preservingDeployComponents []v1.RadixDeployComponent) ([]v1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
-	var components []v1.RadixDeployComponent
-
+	var deployComponents []v1.RadixDeployComponent
+	preservingDeployComponentMap := slice.Reduce(preservingDeployComponents, make(map[string]v1.RadixDeployComponent), func(acc map[string]v1.RadixDeployComponent, component v1.RadixDeployComponent) map[string]v1.RadixDeployComponent {
+		acc[component.GetName()] = component
+		return acc
+	})
 	for _, radixComponent := range radixApplication.Spec.Components {
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
 		if !radixComponent.GetEnabledForEnv(environmentSpecificConfig) {
 			continue
 		}
 		componentName := radixComponent.Name
+		if preservingDeployComponent, ok := preservingDeployComponentMap[componentName]; ok {
+			deployComponents = append(deployComponents, preservingDeployComponent)
+			continue
+		}
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
 			Public:               false,
@@ -64,10 +71,10 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		deployComponent.Authentication = auth
 		deployComponent.Identity = identity
 
-		components = append(components, deployComponent)
+		deployComponents = append(deployComponents, deployComponent)
 	}
 
-	return components, nil
+	return deployComponents, nil
 }
 
 func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) bool {
