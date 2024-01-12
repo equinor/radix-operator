@@ -71,6 +71,7 @@ type PipelineArguments struct {
 	DeploymentName  string
 	FromEnvironment string
 	ToEnvironment   string
+	Components      []string
 
 	RadixConfigFile string
 	// Security context

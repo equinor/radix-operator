@@ -82,6 +82,9 @@ const (
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"
 
+	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
+	RadixDeployComponentsVariable = "RADIX_DEPLOY_COMPONENTS"
+
 	// RadixPromoteDeploymentEnvironmentVariable Name of Radix Deployment for pipeline
 	RadixPromoteDeploymentEnvironmentVariable = "DEPLOYMENT_NAME"
 

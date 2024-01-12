@@ -202,6 +202,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 			args = append(args, fmt.Sprintf("--%s=%s=%s", defaults.RadixImageTagNameEnvironmentVariable, componentName, imageTagName))
 		}
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixDeployComponentsVariable, strings.Join(jobSpec.Deploy.Components, ",")))
 	}
 
 	return args, nil
