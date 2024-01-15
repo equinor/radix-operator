@@ -160,10 +160,10 @@ func (cli *DeployStepImplementation) getDeployComponents(radixApplication *radix
 		return nil, nil, nil
 	}
 	deployComponents := slice.FindAll(activeRadixDeployment.Spec.Components, func(component radixv1.RadixDeployComponent) bool {
-		return componentNames[component.GetName()]
+		return !componentNames[component.GetName()]
 	})
 	deployJobComponents := slice.FindAll(activeRadixDeployment.Spec.Jobs, func(component radixv1.RadixDeployJobComponent) bool {
-		return componentNames[component.GetName()]
+		return !componentNames[component.GetName()]
 	})
 	return deployComponents, deployJobComponents, nil
 }

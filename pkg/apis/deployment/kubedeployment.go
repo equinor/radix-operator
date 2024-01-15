@@ -175,8 +175,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 }
 
 func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
-	_, commitID := deploy.getRadixBranchAndCommitId()
-
+	commitID := getDeployComponentCommitId(deployComponent)
 	labels := radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
 		radixlabels.ForComponentName(deployComponent.GetName()),
@@ -212,16 +211,17 @@ func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCo
 }
 
 func (deploy *Deployment) getDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
-	_, commitID := deploy.getRadixBranchAndCommitId()
-
-	labels := radixlabels.Merge(
+	commitID := getDeployComponentCommitId(deployComponent)
+	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForComponentType(deployComponent.GetType()),
 		radixlabels.ForCommitId(commitID),
 	)
+}
 
-	return labels
+func getDeployComponentCommitId(deployComponent v1.RadixCommonDeployComponent) string {
+	return deployComponent.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable]
 }
 
 func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
@@ -349,8 +349,7 @@ func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int
 	if len(deployComponent.GetSecretRefs().AzureKeyVaults) > 0 {
 		return pointers.Ptr(int32(0))
 	}
-
-	return nil
+	return pointers.Ptr(int32(10))
 }
 
 func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
@@ -459,6 +458,9 @@ func getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds int32) 
 		},
 		InitialDelaySeconds: initialDelaySeconds,
 		PeriodSeconds:       periodSeconds,
+		TimeoutSeconds:      1,
+		FailureThreshold:    3,
+		SuccessThreshold:    1,
 	}
 }
 
@@ -469,6 +471,7 @@ func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.C
 		containerPort := corev1.ContainerPort{
 			Name:          v.Name,
 			ContainerPort: int32(v.Port),
+			Protocol:      corev1.ProtocolTCP,
 		}
 		ports = append(ports, containerPort)
 	}
