@@ -246,7 +246,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 				assert.Equal(t, azureKeyVault.Name, keyvaultNameSecretParam)
 				tenantIdSecretParam, tenantIdParamsExists := secretProviderClass.Spec.Parameters["tenantId"]
 				assert.True(t, tenantIdParamsExists)
-				assert.Equal(t, testTenantId, tenantIdSecretParam)
+				assert.Equal(t, testConfig.DeploymentSyncer.TenantID, tenantIdSecretParam)
 				objectsSecretParam, objectsSecretParamExists := secretProviderClass.Spec.Parameters["objects"]
 				assert.True(t, objectsSecretParamExists)
 				assert.True(t, len(objectsSecretParam) > 0)

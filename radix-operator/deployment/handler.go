@@ -3,9 +3,8 @@ package deployment
 import (
 	"context"
 	"fmt"
-	"os"
-	"strconv"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -44,29 +43,6 @@ func WithHasSyncedCallback(callback common.HasSynced) HandlerConfigOption {
 	}
 }
 
-// WithTenantIdFromEnvVar configures tenant-id for Handler from an environment variable
-func WithTenantIdFromEnvVar(envVarName string) HandlerConfigOption {
-	return func(h *Handler) {
-		h.tenantId = os.Getenv(envVarName)
-	}
-}
-
-// WithKubernetesApiPortFromEnvVar configures kubernetes api port for Handler from an environment variable
-func WithKubernetesApiPortFromEnvVar(envVarName string) HandlerConfigOption {
-	return func(h *Handler) {
-		var kubernetesApiPort, _ = strconv.ParseInt(os.Getenv(defaults.KubernetesApiPortEnvironmentVariable), 10, 32)
-		h.kubernetesApiPort = int32(kubernetesApiPort)
-	}
-}
-
-// WithDeploymentHistoryLimitFromEnvVar configures deploymentHistoryLimit for Handler from an environment variable
-func WithDeploymentHistoryLimitFromEnvVar(envVarName string) HandlerConfigOption {
-	return func(h *Handler) {
-		deploymentHistoryLimit, _ := strconv.ParseInt(os.Getenv(envVarName), 10, 0)
-		h.deploymentHistoryLimit = int(deploymentHistoryLimit)
-	}
-}
-
 // WithOAuth2DefaultConfig configures default OAuth2 settings
 func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
 	return func(h *Handler) {
@@ -102,13 +78,11 @@ type Handler struct {
 	prometheusperatorclient monitoring.Interface
 	kubeutil                *kube.Kube
 	hasSynced               common.HasSynced
-	tenantId                string
-	kubernetesApiPort       int32
-	deploymentHistoryLimit  int
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
 	ingressConfiguration    ingress.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
+	config                  *config.Config
 }
 
 // NewHandler Constructor
@@ -116,6 +90,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusperatorclient monitoring.Interface,
+	config *config.Config,
 	options ...HandlerConfigOption) *Handler {
 
 	handler := &Handler{
@@ -123,6 +98,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		radixclient:             radixclient,
 		prometheusperatorclient: prometheusperatorclient,
 		kubeutil:                kubeutil,
+		config:                  config,
 	}
 
 	configureDefaultDeploymentSyncerFactory(handler)
@@ -174,7 +150,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage),
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, t.deploymentHistoryLimit, ingressAnnotations, auxResourceManagers)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

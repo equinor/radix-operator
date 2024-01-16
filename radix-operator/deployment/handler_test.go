@@ -1,10 +1,9 @@
 package deployment
 
 import (
-	"os"
-	"strconv"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
@@ -32,6 +31,10 @@ type handlerSuite struct {
 	eventRecorder        *record.FakeRecorder
 }
 
+func Test_HandlerSuite(t *testing.T) {
+	suite.Run(t, new(handlerSuite))
+}
+
 func (s *handlerSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
@@ -42,7 +45,7 @@ func (s *handlerSuite) SetupTest() {
 }
 
 func (s *handlerSuite) Test_NewHandler_DefaultValues() {
-	h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient)
+	h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, &config.Config{})
 	s.Equal(s.kubeClient, h.kubeclient)
 	s.Equal(s.kubeUtil, h.kubeutil)
 	s.Equal(s.radixClient, h.radixclient)
@@ -53,12 +56,11 @@ func (s *handlerSuite) Test_NewHandler_DefaultValues() {
 func (s *handlerSuite) Test_NewHandler_ConfigOptionsCalled() {
 	var called bool
 	configFunc := func(h *Handler) { called = true }
-	NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, configFunc)
+	NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, &config.Config{}, configFunc)
 	s.True(called)
 }
 
 func (s *handlerSuite) Test_Sync() {
-	const testDeploymentHistoryLimit = 7
 	nonExistingRdName, inactiveRdName, activeRdMissingRrName, activeRdName := "nonexisting-rd", "inactive-rd", "missingrr-rd", "active-rd"
 	appName := "any-app"
 	namespace := "any-ns"
@@ -99,7 +101,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(namespace, nonExistingRdName, s.eventRecorder)
@@ -111,7 +113,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(namespace, inactiveRdName, s.eventRecorder)
@@ -123,7 +125,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(namespace, activeRdMissingRrName, s.eventRecorder)
@@ -147,12 +149,13 @@ func (s *handlerSuite) Test_Sync() {
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
 			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
 		}
+		expectedConfig := &config.Config{}
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, rr, activeRd, "1234", int32(543), testDeploymentHistoryLimit, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources)).
+			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, rr, activeRd, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources), expectedConfig).
 			Return(syncer).
 			Times(1)
-		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, prometheusperatorclient: s.promClient, deploymentSyncerFactory: factory, tenantId: "1234", kubernetesApiPort: int32(543), deploymentHistoryLimit: testDeploymentHistoryLimit, oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }}
+		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, prometheusperatorclient: s.promClient, deploymentSyncerFactory: factory, oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }, config: expectedConfig}
 		err := h.Sync(namespace, activeRdName, s.eventRecorder)
 		s.NoError(err)
 		s.True(callbackExecuted)
@@ -165,53 +168,13 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(syncer).
 			Times(1)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil, deploymentSyncerFactory: factory}
 		err := h.Sync(namespace, activeRdName, s.eventRecorder)
 		s.NoError(err)
 	})
-}
-
-func Test_HandlerSuite(t *testing.T) {
-	suite.Run(t, new(handlerSuite))
-}
-
-func Test_WithTenantIdFromEnvVar(t *testing.T) {
-	os.Clearenv()
-	tenantId := "123456789-123456789"
-	os.Setenv("RADIXOPERATOR_TENANT_ID", tenantId)
-
-	h := &Handler{}
-	WithTenantIdFromEnvVar("RADIXOPERATOR_TENANT_ID")(h)
-	assert.Equal(t, tenantId, h.tenantId)
-
-	os.Clearenv()
-}
-
-func Test_WithKubernetesApiPortFromEnvVar(t *testing.T) {
-	os.Clearenv()
-	kubernetesApiPort := int32(1234)
-	os.Setenv("KUBERNETES_SERVICE_PORT", strconv.Itoa(int(kubernetesApiPort)))
-
-	h := &Handler{}
-	WithKubernetesApiPortFromEnvVar("KUBERNETES_SERVICE_PORT")(h)
-	assert.Equal(t, kubernetesApiPort, h.kubernetesApiPort)
-
-	os.Clearenv()
-}
-
-func Test_WithDeploymentHistoryLimitFromEnvVar(t *testing.T) {
-	os.Clearenv()
-	deploymentHistoryLimit := int(7)
-	os.Setenv("RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT", strconv.Itoa(int(deploymentHistoryLimit)))
-
-	h := &Handler{}
-	WithDeploymentHistoryLimitFromEnvVar("RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT")(h)
-	assert.Equal(t, deploymentHistoryLimit, h.deploymentHistoryLimit)
-
-	os.Clearenv()
 }
 
 func Test_WithDeploymentSyncerFactory(t *testing.T) {

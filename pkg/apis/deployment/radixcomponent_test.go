@@ -178,6 +178,7 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 	}
 }
 
+//nolint:staticcheck
 func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	// New publicPort does not exist, old public does not exist
 	ra := utils.ARadixApplication().
@@ -195,8 +196,10 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 
 	deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
+	//lint:ignore SA1019 backward compatilibity test
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "", deployComponent[0].PublicPort)
+	//lint:ignore SA1019 backward compatilibity test
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort exists, old public does not exist
@@ -209,8 +212,10 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPublicPort("http")).BuildRA()
 	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
+	//lint:ignore SA1019 backward compatilibity test
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
+	//lint:ignore SA1019 backward compatilibity test
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort exists, old public exists (ignored)
@@ -224,8 +229,10 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(true)).BuildRA()
 	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
+	//lint:ignore SA1019 backward compatilibity test
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
+	//lint:ignore SA1019 backward compatilibity test
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort does not exist, old public exists (used)
@@ -238,7 +245,9 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(true)).BuildRA()
 	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 	assert.Equal(t, ra.Spec.Components[0].Ports[0].Name, deployComponent[0].PublicPort)
+	//lint:ignore SA1019 backward compatilibity test
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
+	//lint:ignore SA1019 backward compatilibity test
 	assert.Equal(t, false, deployComponent[0].Public)
 }
 
@@ -257,22 +266,19 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 				WithName("componentA"),
 			utils.NewApplicationComponentBuilder().
 				WithName("componentB")).
-		WithDNSExternalAlias("some.alias.com", "prod", "componentA").
-		WithDNSExternalAlias("another.alias.com", "prod", "componentA").
-		WithDNSExternalAlias("athird.alias.com", "prod", "componentB").BuildRA()
+		WithDNSExternalAlias("some.alias.com", "prod", "componentA", true).
+		WithDNSExternalAlias("another.alias.com", "prod", "componentA", false).
+		WithDNSExternalAlias("athird.alias.com", "prod", "componentB", false).BuildRA()
 
 	deployComponent, _ := GetRadixComponentsForEnv(ra, "prod", componentImages, envVarsMap, nil)
 	assert.Equal(t, 2, len(deployComponent))
-	assert.Equal(t, 2, len(deployComponent[0].DNSExternalAlias))
-	assert.Equal(t, "some.alias.com", deployComponent[0].DNSExternalAlias[0])
-	assert.Equal(t, "another.alias.com", deployComponent[0].DNSExternalAlias[1])
-
-	assert.Equal(t, 1, len(deployComponent[1].DNSExternalAlias))
-	assert.Equal(t, "athird.alias.com", deployComponent[1].DNSExternalAlias[0])
+	assert.Len(t, deployComponent, 2)
+	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "some.alias.com", UseCertificateAutomation: true}, {FQDN: "another.alias.com", UseCertificateAutomation: false}}, deployComponent[0].ExternalDNS)
+	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "athird.alias.com", UseCertificateAutomation: false}}, deployComponent[1].ExternalDNS)
 
 	deployComponent, _ = GetRadixComponentsForEnv(ra, "dev", componentImages, envVarsMap, nil)
 	assert.Equal(t, 2, len(deployComponent))
-	assert.Equal(t, 0, len(deployComponent[0].DNSExternalAlias))
+	assert.Len(t, deployComponent[0].ExternalDNS, 0)
 }
 
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *testing.T) {

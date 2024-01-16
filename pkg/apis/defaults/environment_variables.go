@@ -200,4 +200,13 @@ const (
 
 	// RadixReservedDNSAliasesEnvironmentVariable The list of DNS aliases, reserved for Radix platform services
 	RadixReservedDNSAliasesEnvironmentVariable = "RADIX_RESERVED_DNS_ALIASES"
+
+	// RadixCertificateAutomationClusterIssuerVariable Name of cluster isser to use for certificate automation
+	RadixCertificateAutomationClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER"
+
+	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer
+	RadixCertificateAutomationDurationVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION"
+
+	// RadixCertificateAutomationRenewBeforeVariable Defines renew_before for certificates issued by cluster issuer
+	RadixCertificateAutomationRenewBeforeVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE"
 )
