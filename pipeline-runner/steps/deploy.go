@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -139,9 +140,9 @@ func (cli *DeployStepImplementation) validate(pipelineInfo *model.PipelineInfo, 
 	for _, componentName := range pipelineInfo.PipelineArguments.Components {
 		component, ok := componentsMap[componentName]
 		if !ok {
-			errs = append(errs, fmt.Errorf("requested component %q does not exist", componentName))
+			errs = append(errs, fmt.Errorf("requested component %s does not exist", componentName))
 		} else if !component.GetEnabledForEnvironment(env) {
-			errs = append(errs, fmt.Errorf("requested component %q is disabled in the environment %q", componentName, env))
+			errs = append(errs, fmt.Errorf("requested component %s is disabled in the environment %s", componentName, env))
 		}
 	}
 	return errors.Join(errs...)
@@ -151,6 +152,7 @@ func (cli *DeployStepImplementation) getDeployComponents(radixApplication *radix
 	if len(components) == 0 {
 		return nil, nil, nil
 	}
+	log.Infof("Deploy only following component(s): %s", strings.Join(components, ","))
 	componentNames := slice.Reduce(components, make(map[string]bool), func(acc map[string]bool, name string) map[string]bool {
 		acc[name] = true
 		return acc
