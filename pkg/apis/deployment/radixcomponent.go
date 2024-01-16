@@ -5,17 +5,17 @@ import (
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 var (
 	authTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
-func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars v1.EnvVarsMap, preservingDeployComponents []v1.RadixDeployComponent) ([]v1.RadixDeployComponent, error) {
+func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
-	var deployComponents []v1.RadixDeployComponent
-	preservingDeployComponentMap := slice.Reduce(preservingDeployComponents, make(map[string]v1.RadixDeployComponent), func(acc map[string]v1.RadixDeployComponent, component v1.RadixDeployComponent) map[string]v1.RadixDeployComponent {
+	var deployComponents []radixv1.RadixDeployComponent
+	preservingDeployComponentMap := slice.Reduce(preservingDeployComponents, make(map[string]radixv1.RadixDeployComponent), func(acc map[string]radixv1.RadixDeployComponent, component radixv1.RadixDeployComponent) map[string]radixv1.RadixDeployComponent {
 		acc[component.GetName()] = component
 		return acc
 	})
@@ -29,7 +29,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			deployComponents = append(deployComponents, preservingDeployComponent)
 			continue
 		}
-		deployComponent := v1.RadixDeployComponent{
+		deployComponent := radixv1.RadixDeployComponent{
 			Name:                 componentName,
 			Public:               false,
 			IngressConfiguration: radixComponent.IngressConfiguration,
@@ -113,7 +113,7 @@ func GetAuthenticationForComponent(componentAuthentication *radixv1.Authenticati
 	if componentAuthentication != nil {
 		authBase = componentAuthentication.DeepCopy()
 	}
-	authEnv := &v1.Authentication{}
+	authEnv := &radixv1.Authentication{}
 	if environmentAuthentication != nil {
 		authEnv = environmentAuthentication.DeepCopy()
 	}

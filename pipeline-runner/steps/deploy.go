@@ -148,6 +148,9 @@ func (cli *DeployStepImplementation) validate(pipelineInfo *model.PipelineInfo, 
 }
 
 func (cli *DeployStepImplementation) getDeployComponents(radixApplication *radixv1.RadixApplication, env string, components []string) ([]radixv1.RadixDeployComponent, []radixv1.RadixDeployJobComponent, error) {
+	if len(components) == 0 {
+		return nil, nil, nil
+	}
 	componentNames := slice.Reduce(components, make(map[string]bool), func(acc map[string]bool, name string) map[string]bool {
 		acc[name] = true
 		return acc

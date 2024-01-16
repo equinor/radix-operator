@@ -48,6 +48,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
@@ -103,6 +104,8 @@ func teardownTest() {
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	defer teardownTest()
+	commitId := string(uuid.NewUUID())
+	const componentNameApp = "app"
 	for _, componentsExist := range []bool{true, false} {
 		testScenario := utils.TernaryString(componentsExist, "Updating deployment", "Creating deployment")
 
@@ -116,7 +119,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithRadixRegistration(aRadixRegistrationBuilder)
 			environment := "test"
 			appName := "edcradix"
-			componentNameApp := "app"
 			componentNameRedis := "redis"
 			componentNameRadixQuote := "radixquote"
 			outdatedSecret := "outdatedSecret"
@@ -133,6 +135,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					WithImageTag("old_axmz8").
 					WithEnvironment(environment).
 					WithJobComponents().
+					WithLabel(kube.RadixCommitLabel, commitId).
 					WithComponents(
 						utils.NewDeployComponentBuilder().
 							WithImage("old_radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
@@ -140,6 +143,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 8081).
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
+							WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commitId).
 							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "updated_some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_external.alias.com", UseCertificateAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "65Mi",
@@ -172,6 +176,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					WithImageTag("axmz8").
 					WithEnvironment(environment).
 					WithJobComponents().
+					WithLabel(kube.RadixCommitLabel, commitId).
 					WithComponents(
 						utils.NewDeployComponentBuilder().
 							WithImage("radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
@@ -179,6 +184,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 8080).
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
+							WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commitId).
 							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external.alias.com", UseCertificateAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "64Mi",
@@ -284,7 +290,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.Equal(t, int32(1), *getDeploymentByName(componentNameRedis, deployments).Spec.Replicas, "number of replicas was unexpected")
 				}
 
-				assert.Equal(t, 12, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 11, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.True(t, envVariableByNameExistOnDeployment("a_variable", componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRedis, deployments))
@@ -430,6 +436,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 	const jobSchedulerImage = "radix-job-scheduler:latest"
 	defer teardownTest()
+	commitId := string(uuid.NewUUID())
 
 	for _, jobsExist := range []bool{false, true} {
 		testScenario := utils.TernaryString(jobsExist, "Updating deployment", "Creating deployment")
@@ -469,6 +476,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 3002}}).
 							WithEnvironmentVariable("a_variable", "a_value").
 							WithMonitoring(true).
+							WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commitId).
 							WithResource(map[string]string{
 								"memory": "65Mi",
 								"cpu":    "251m",
@@ -498,6 +506,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							WithImage("job:latest").
 							WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 3002}}).
 							WithEnvironmentVariable("a_variable", "a_value").
+							WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commitId).
 							WithMonitoring(true).
 							WithResource(map[string]string{
 								"memory": "65Mi",
@@ -1249,6 +1258,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
 	defer teardownTest()
 	anyEnvironment := "test"
+	commitId := string(uuid.NewUUID())
 
 	// Test
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1259,8 +1269,10 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 			utils.NewDeployComponentBuilder().
 				WithName("component").
 				WithEnvironmentVariables(nil).
+				WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commitId).
 				WithSecrets(nil)))
 	require.NoError(t, err)
+
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
@@ -1278,6 +1290,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.Equal(t, anyContainerRegistry, getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv, nil))
 		assert.Equal(t, dnsZone, getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, testClusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv, cm))
@@ -1299,12 +1312,15 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	defer teardownTest()
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-		WithAppName("app").
-		WithEnvironment("test").
-		WithLabel("radix-branch", "master").
-		WithLabel("radix-commit", "4faca8595c5283a9d0f17a623b9255a0d9866a2e"))
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
+		utils.ARadixDeploymentWithComponentModifier(func(builder utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+			return builder.WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, "4faca8595c5283a9d0f17a623b9255a0d9866a2e")
+		}).
+			WithAppName("app").
+			WithEnvironment("test").
+			WithLabel("radix-branch", "master"))
 	require.NoError(t, err)
+
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 
 	t.Run("validate deploy labels", func(t *testing.T) {
@@ -1680,9 +1696,9 @@ func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
 		))
 	require.NoError(t, err)
 	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
-	assert.Nil(t, comp1.Spec.RevisionHistoryLimit)
+	assert.Equal(t, pointers.Ptr(int32(10)), comp1.Spec.RevisionHistoryLimit, "Invalid default RevisionHistoryLimit")
 	comp2, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
-	assert.Equal(t, pointers.Ptr(int32(0)), comp2.Spec.RevisionHistoryLimit)
+	assert.Equal(t, pointers.Ptr(int32(0)), comp2.Spec.RevisionHistoryLimit, "Invalid RevisionHistoryLimit")
 }
 
 func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *testing.T) {
@@ -2066,7 +2082,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		alwaysPullImageOnDeploy      bool
 	}{
 		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m", 0, "jfkewki8273", "tag1 tag2 tag3", true},
-		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", 2, "plksmfnwi2309", "v1 v2 v1.1", true},
+		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", 2, "plksmfnwi2309", "radixv1 v2 radixv1.1", true},
 	}
 
 	componentImages := make(pipeline.DeployComponentImages)
@@ -4274,7 +4290,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			)
 		}
 		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
-		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(v1.EnvVarsMap), "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(radixv1.EnvVarsMap), "anyhash", "anybuildsecrethash", nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity)
 	}
@@ -4287,7 +4303,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			)
 		}
 		ra := utils.ARadixApplication().WithJobComponents(job).BuildRA()
-		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(v1.EnvVarsMap), "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(radixv1.EnvVarsMap), "anyhash", "anybuildsecrethash", nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity)
 	}
