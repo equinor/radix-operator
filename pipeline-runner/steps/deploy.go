@@ -99,6 +99,9 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	}
 
 	preservingDeployComponents, preservingDeployJobComponents, err := cli.getDeployComponents(pipelineInfo.RadixApplication, env, pipelineInfo.PipelineArguments.Components)
+	if err != nil {
+		return err
+	}
 	radixDeployment, err := deployment.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
 		pipelineInfo.PipelineArguments.JobName,
