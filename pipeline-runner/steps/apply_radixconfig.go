@@ -181,7 +181,7 @@ func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
 			}
 		}
 	}
-	return nil
+	return stderrors.Join(errs...)
 }
 
 func getComponentMap(pipelineInfo *model.PipelineInfo) map[string]radixv1.RadixCommonComponent {
