@@ -103,6 +103,10 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		buildSecretHash,
 	)
 
+	if pipelineInfo.PipelineArguments.PostponedDeployment {
+		radixDeployment.ObjectMeta.Annotations["radix.equinor.com/postponed-deployment"] = "true"
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)
 	}

@@ -56,6 +56,7 @@ type RadixJobSpec struct {
 	Promote             RadixPromoteSpec  `json:"promote" yaml:"promote"`
 	Deploy              RadixDeploySpec   `json:"deploy" yaml:"deploy"`
 	Stop                bool              `json:"stop" yaml:"stop"`
+	PostponeDeployment  bool              `json:"postponeDeployment" yaml:"postponeDeployment"`
 	TriggeredBy         string            `json:"triggeredBy" yaml:"triggeredBy"`
 	RadixConfigFullName string            `json:"radixConfigFullName" yaml:"radixConfigFullName"`
 }
