@@ -2,7 +2,6 @@ package steps
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -75,10 +74,6 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 }
 
 func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineInfo *model.PipelineInfo) error {
-	err := cli.validate(pipelineInfo, env)
-	if err != nil {
-		return err
-	}
 	defaultEnvVars, err := getDefaultEnvVars(pipelineInfo)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve default env vars for RadixDeployment in app  %s. %v", appName, err)
@@ -134,23 +129,6 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	return nil
 }
 
-func (cli *DeployStepImplementation) validate(pipelineInfo *model.PipelineInfo, env string) error {
-	if len(pipelineInfo.PipelineArguments.Components) == 0 {
-		return nil
-	}
-	var errs []error
-	componentsMap := getComponentMap(pipelineInfo)
-	for _, componentName := range pipelineInfo.PipelineArguments.Components {
-		component, ok := componentsMap[componentName]
-		if !ok {
-			errs = append(errs, fmt.Errorf("requested component %s does not exist", componentName))
-		} else if !component.GetEnabledForEnvironment(env) {
-			errs = append(errs, fmt.Errorf("requested component %s is disabled in the environment %s", componentName, env))
-		}
-	}
-	return errors.Join(errs...)
-}
-
 func (cli *DeployStepImplementation) getDeployComponents(radixApplication *radixv1.RadixApplication, env string, components []string) ([]radixv1.RadixDeployComponent, []radixv1.RadixDeployJobComponent, error) {
 	if len(components) == 0 {
 		return nil, nil, nil
@@ -174,18 +152,6 @@ func (cli *DeployStepImplementation) getDeployComponents(radixApplication *radix
 		return !componentNames[component.GetName()]
 	})
 	return deployComponents, deployJobComponents, nil
-}
-
-func getComponentMap(pipelineInfo *model.PipelineInfo) map[string]radixv1.RadixCommonComponent {
-	componentsMap := slice.Reduce(pipelineInfo.RadixApplication.Spec.Components, make(map[string]radixv1.RadixCommonComponent), func(acc map[string]radixv1.RadixCommonComponent, component radixv1.RadixComponent) map[string]radixv1.RadixCommonComponent {
-		acc[component.GetName()] = &component
-		return acc
-	})
-	componentsMap = slice.Reduce(pipelineInfo.RadixApplication.Spec.Jobs, componentsMap, func(acc map[string]radixv1.RadixCommonComponent, jobComponent radixv1.RadixJobComponent) map[string]radixv1.RadixCommonComponent {
-		acc[jobComponent.GetName()] = &jobComponent
-		return acc
-	})
-	return componentsMap
 }
 
 func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) (radixv1.EnvVarsMap, error) {

@@ -157,8 +157,43 @@ func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *mod
 	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
 		return ErrDeployOnlyPipelineDoesNotSupportBuild
 	}
-
+	if err := validateDeployComponents(pipelineInfo); err != nil {
+		return err
+	}
 	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
+}
+
+func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
+	if len(pipelineInfo.PipelineArguments.Components) == 0 {
+		return nil
+	}
+	var errs []error
+	componentsMap := getComponentMap(pipelineInfo)
+	for _, componentName := range pipelineInfo.PipelineArguments.Components {
+		component, ok := componentsMap[componentName]
+		if !ok {
+			errs = append(errs, fmt.Errorf("requested component %s does not exist", componentName))
+			continue
+		}
+		for _, env := range pipelineInfo.TargetEnvironments {
+			if !component.GetEnabledForEnvironment(env) {
+				errs = append(errs, fmt.Errorf("requested component %s is disabled in the environment %s", componentName, env))
+			}
+		}
+	}
+	return nil
+}
+
+func getComponentMap(pipelineInfo *model.PipelineInfo) map[string]radixv1.RadixCommonComponent {
+	componentsMap := slice.Reduce(pipelineInfo.RadixApplication.Spec.Components, make(map[string]radixv1.RadixCommonComponent), func(acc map[string]radixv1.RadixCommonComponent, component radixv1.RadixComponent) map[string]radixv1.RadixCommonComponent {
+		acc[component.GetName()] = &component
+		return acc
+	})
+	componentsMap = slice.Reduce(pipelineInfo.RadixApplication.Spec.Jobs, componentsMap, func(acc map[string]radixv1.RadixCommonComponent, jobComponent radixv1.RadixJobComponent) map[string]radixv1.RadixCommonComponent {
+		acc[jobComponent.GetName()] = &jobComponent
+		return acc
+	})
+	return componentsMap
 }
 
 func printEnvironmentComponentImageSources(imageSources environmentComponentSourceMap) {
