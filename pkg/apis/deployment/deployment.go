@@ -112,7 +112,7 @@ func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, 
 func (deploy *Deployment) OnSync() error {
 	requeue := deploy.restoreStatus()
 
-	if IsRadixDeploymentInactive(deploy.radixDeployment) {
+	if IsRadixDeploymentInactive(deploy.radixDeployment) || deploy.isPostponed() {
 		log.Debugf("Ignoring RadixDeployment %s/%s as it's inactive.", deploy.getNamespace(), deploy.getName())
 		return nil
 	}
@@ -192,7 +192,7 @@ func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 		err = fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
 	}
 
-	if deploy.isLatestInTheEnvironment(allRDs) {
+	if deploy.isLatestInTheEnvironment(allRDs) && !deploy.isPostponed() {
 		// Should always reconcile, because we now skip sync if only status on RD has been modified
 		stopReconciliation = false
 		err = deploy.updateStatusOnActiveDeployment()
@@ -212,6 +212,10 @@ func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 		log.Warnf("RadixDeployment %s was not the latest. Ignoring", deploy.getName())
 	}
 	return
+}
+
+func (deploy *Deployment) isPostponed() bool {
+	return deploy.radixDeployment.GetAnnotations()["radix.equinor.com/postponed-deployment"] == "true"
 }
 
 func (deploy *Deployment) syncDeployment() error {
