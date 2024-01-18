@@ -11,18 +11,14 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -89,22 +85,6 @@ func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.Ra
 		}
 	}
 	return -1, nil
-}
-
-// ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTag, branch string, componentImages pipeline.DeployComponentImages, env string, defaultEnvVars v1.EnvVarsMap, radixConfigHash, buildSecretHash string, preservingDeployComponents []v1.RadixDeployComponent, preservingDeployJobComponents []v1.RadixDeployJobComponent) (*v1.RadixDeployment, error) {
-	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
-	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
-	deployComponents, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars, preservingDeployComponents)
-	if err != nil {
-		return nil, err
-	}
-	jobs, err := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars, preservingDeployJobComponents).JobComponents()
-	if err != nil {
-		return nil, err
-	}
-	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, deployComponents, jobs, radixConfigHash, buildSecretHash)
-	return radixDeployment, nil
 }
 
 // OnSync compares the actual state with the desired, and attempts to
@@ -473,44 +453,6 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
 		}
 	}
 	return nil
-}
-
-func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *v1.RadixDeployment {
-	appName := radixApplication.GetName()
-	deployName := utils.GetDeploymentName(appName, env, imageTag)
-	imagePullSecrets := []corev1.LocalObjectReference{}
-	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
-	}
-	annotations := map[string]string{
-		kube.RadixBranchAnnotation:  branch,
-		kube.RadixGitTagsAnnotation: gitTags,
-		kube.RadixCommitAnnotation:  commitID,
-		kube.RadixBuildSecretHash:   buildSecretHash,
-		kube.RadixConfigHash:        radixConfigHash,
-	}
-
-	radixDeployment := &v1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      deployName,
-			Namespace: utils.GetEnvironmentNamespace(appName, env),
-			Labels: map[string]string{
-				kube.RadixAppLabel:     appName,
-				kube.RadixEnvLabel:     env,
-				kube.RadixCommitLabel:  commitID,
-				kube.RadixJobNameLabel: jobName,
-			},
-			Annotations: annotations,
-		},
-		Spec: v1.RadixDeploymentSpec{
-			AppName:          appName,
-			Environment:      env,
-			Components:       components,
-			Jobs:             jobs,
-			ImagePullSecrets: imagePullSecrets,
-		},
-	}
-	return radixDeployment
 }
 
 func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {

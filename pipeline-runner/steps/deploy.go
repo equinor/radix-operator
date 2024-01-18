@@ -3,12 +3,10 @@ package steps
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -93,12 +91,13 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		return err
 	}
 
-	preservingDeployComponents, preservingDeployJobComponents, err := cli.getDeployComponents(pipelineInfo.RadixApplication, env, pipelineInfo.PipelineArguments.Components)
+	activeRadixDeployment, err := cli.GetKubeutil().GetActiveDeployment(utils.GetEnvironmentNamespace(appName, env))
 	if err != nil {
 		return err
 	}
-	radixDeployment, err := deployment.ConstructForTargetEnvironment(
+	radixDeployment, err := internal.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
+		activeRadixDeployment,
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
 		pipelineInfo.PipelineArguments.Branch,
@@ -107,9 +106,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		defaultEnvVars,
 		radixApplicationHash,
 		buildSecretHash,
-		preservingDeployComponents,
-		preservingDeployJobComponents,
-	)
+		pipelineInfo.PipelineArguments.Components)
 
 	if err != nil {
 		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)
@@ -127,31 +124,6 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	}
 
 	return nil
-}
-
-func (cli *DeployStepImplementation) getDeployComponents(radixApplication *radixv1.RadixApplication, env string, components []string) ([]radixv1.RadixDeployComponent, []radixv1.RadixDeployJobComponent, error) {
-	if len(components) == 0 {
-		return nil, nil, nil
-	}
-	log.Infof("Deploy only following component(s): %s", strings.Join(components, ","))
-	componentNames := slice.Reduce(components, make(map[string]bool), func(acc map[string]bool, name string) map[string]bool {
-		acc[name] = true
-		return acc
-	})
-	activeRadixDeployment, err := cli.GetKubeutil().GetActiveDeployment(utils.GetEnvironmentNamespace(radixApplication.GetName(), env))
-	if err != nil {
-		return nil, nil, err
-	}
-	if activeRadixDeployment == nil {
-		return nil, nil, nil
-	}
-	deployComponents := slice.FindAll(activeRadixDeployment.Spec.Components, func(component radixv1.RadixDeployComponent) bool {
-		return !componentNames[component.GetName()]
-	})
-	deployJobComponents := slice.FindAll(activeRadixDeployment.Spec.Jobs, func(component radixv1.RadixDeployJobComponent) bool {
-		return !componentNames[component.GetName()]
-	})
-	return deployComponents, deployJobComponents, nil
 }
 
 func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) (radixv1.EnvVarsMap, error) {
