@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -14,11 +13,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testing.T) {
-	kubeUtil := setupTest()
 	ra := utils.ARadixApplication().
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", "").
@@ -94,9 +91,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 			envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = testcase.expectedGitCommitHash
 			envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = testcase.expectedGitTags
 
-			activeRadixDeployment, err := kubeUtil.GetActiveDeployment(utils.GetEnvironmentNamespace(ra.GetName(), testcase.environment))
-			require.NoError(t, err)
-			rd, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, testcase.environment, envVarsMap, "anyhash", "anybuildsecrethash", nil)
+			rd, err := ConstructForTargetEnvironment(ra, nil, "anyjob", "anyimageTag", "anybranch", componentImages, testcase.environment, envVarsMap, "anyhash", "anybuildsecrethash", nil)
 			require.NoError(t, err)
 
 			assert.Equal(t, testcase.expectedReplicas, *rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
@@ -192,10 +187,7 @@ func TestConstructForTargetEnvironment_GetCommitID(t *testing.T) {
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "commit-abc"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
-	kubeUtil := setupTest()
-	activeRadixDeployment, err := kubeUtil.GetActiveDeployment(utils.GetEnvironmentNamespace(ra.GetName(), "dev"))
-	require.NoError(t, err)
-	rd, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash", nil)
+	rd, err := ConstructForTargetEnvironment(ra, nil, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash", nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "commit-abc", rd.ObjectMeta.Labels[kube.RadixCommitLabel])
@@ -234,11 +226,8 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("job2-image:tag1").WithSchedulerPort(schedulerPort).
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1))
-
-	namespace := utils.GetEnvironmentNamespace("anyapp", "dev")
-	kubeUtil := setupTest()
-	_, err := kubeUtil.RadixClient().RadixV1().RadixDeployments(namespace).Create(context.Background(), rdBuilder.BuildRD(), metav1.CreateOptions{})
-	require.NoError(t, err)
+	activeRadixDeployment := rdBuilder.BuildRD()
+	ra := rdBuilder.GetApplicationBuilder().BuildRA()
 
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["comp1"] = pipeline.DeployComponentImage{ImagePath: "comp1-image:tag2"}
@@ -249,10 +238,6 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = commit2
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTag2
-
-	activeRadixDeployment, err := kubeUtil.GetActiveDeployment(namespace)
-	require.NoError(t, err)
-	ra := rdBuilder.GetApplicationBuilder().BuildRA()
 
 	t.Run("deploy only specific components", func(t *testing.T) {
 		rd, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash",
@@ -329,7 +314,6 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 		environmentConfig    *radixv1.Identity
 		expected             *radixv1.Identity
 	}
-	kubeUtil := setupTest()
 
 	scenarios := []scenarioSpec{
 		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &radixv1.Identity{}, configureEnvironment: true, environmentConfig: &radixv1.Identity{}, expected: nil},
@@ -356,9 +340,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			)
 		}
 		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
-		activeRadixDeployment, err := kubeUtil.GetActiveDeployment(utils.GetEnvironmentNamespace(ra.GetName(), envName))
-		require.NoError(t, err)
-		rd, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(radixv1.EnvVarsMap), "anyhash", "anybuildsecrethash", nil)
+		rd, err := ConstructForTargetEnvironment(ra, nil, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(radixv1.EnvVarsMap), "anyhash", "anybuildsecrethash", nil)
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity)
 	}
@@ -371,9 +353,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			)
 		}
 		ra := utils.ARadixApplication().WithJobComponents(job).BuildRA()
-		activeRadixDeployment, err := kubeUtil.GetActiveDeployment(utils.GetEnvironmentNamespace(ra.GetName(), envName))
-		require.NoError(t, err)
-		rd, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(radixv1.EnvVarsMap), "anyhash", "anybuildsecrethash", nil)
+		rd, err := ConstructForTargetEnvironment(ra, nil, "anyjob", "anyimage", "anybranch", make(pipeline.DeployComponentImages), envName, make(radixv1.EnvVarsMap), "anyhash", "anybuildsecrethash", nil)
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity)
 	}
