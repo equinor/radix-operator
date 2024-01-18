@@ -106,7 +106,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		defaultEnvVars,
 		radixApplicationHash,
 		buildSecretHash,
-		pipelineInfo.PipelineArguments.Components)
+		pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	if err != nil {
 		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)

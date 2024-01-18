@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -15,20 +16,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// PreservingDeployComponents DeployComponents, not to be updated during deployment, but transferred from an active deployment
+type PreservingDeployComponents struct {
+	DeployComponents    []radixv1.RadixDeployComponent
+	DeployJobComponents []radixv1.RadixDeployJobComponent
+}
+
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *radixv1.RadixApplication, activeRadixDeployment *radixv1.RadixDeployment, jobName, imageTag, branch string, componentImages pipeline.DeployComponentImages, env string, defaultEnvVars radixv1.EnvVarsMap, radixConfigHash, buildSecretHash string, componentsToDeploy []string) (*radixv1.RadixDeployment, error) {
-	preservingDeployComponents, preservingDeployJobComponents, err := getDeployComponents(activeRadixDeployment, componentsToDeploy)
+func ConstructForTargetEnvironment(config *radixv1.RadixApplication, activeRadixDeployment *radixv1.RadixDeployment, jobName, imageTag, branch string,
+	componentImages pipeline.DeployComponentImages, env string, defaultEnvVars radixv1.EnvVarsMap, radixConfigHash, buildSecretHash string,
+	componentsToDeploy []string) (*radixv1.RadixDeployment, error) {
+
+	preservingDeployComponents, err := getPreservingDeployComponents(activeRadixDeployment, componentsToDeploy)
 	if err != nil {
 		return nil, err
 	}
 
 	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
-	deployComponents, err := deployment.GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars, preservingDeployComponents)
+	deployComponents, err := deployment.GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
 	if err != nil {
 		return nil, err
 	}
-	jobs, err := deployment.NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars, preservingDeployJobComponents).JobComponents()
+	jobs, err := deployment.NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars, preservingDeployComponents.DeployJobComponents).JobComponents()
 	if err != nil {
 		return nil, err
 	}
@@ -74,20 +84,24 @@ func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, j
 	return radixDeployment
 }
 
-func getDeployComponents(activeRadixDeployment *radixv1.RadixDeployment, components []string) ([]radixv1.RadixDeployComponent, []radixv1.RadixDeployJobComponent, error) {
-	if activeRadixDeployment == nil || len(components) == 0 {
-		return nil, nil, nil
+func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeployment, componentsToDeploy []string) (PreservingDeployComponents, error) {
+	preservingDeployComponents := PreservingDeployComponents{}
+	if activeRadixDeployment == nil || len(componentsToDeploy) == 0 {
+		return preservingDeployComponents, nil
 	}
-	log.Infof("Deploy only following component(s): %s", strings.Join(components, ","))
-	componentNames := slice.Reduce(components, make(map[string]bool), func(acc map[string]bool, name string) map[string]bool {
+	log.Infof("Deploy only following component(s): %s", strings.Join(componentsToDeploy, ","))
+	componentNames := slice.Reduce(componentsToDeploy, make(map[string]bool), func(acc map[string]bool, name string) map[string]bool {
 		acc[name] = true
 		return acc
 	})
-	deployComponents := slice.FindAll(activeRadixDeployment.Spec.Components, func(component radixv1.RadixDeployComponent) bool {
+	preservingDeployComponents.DeployComponents = slice.FindAll(activeRadixDeployment.Spec.Components, func(component radixv1.RadixDeployComponent) bool {
 		return !componentNames[component.GetName()]
 	})
-	deployJobComponents := slice.FindAll(activeRadixDeployment.Spec.Jobs, func(component radixv1.RadixDeployJobComponent) bool {
+	preservingDeployComponents.DeployJobComponents = slice.FindAll(activeRadixDeployment.Spec.Jobs, func(component radixv1.RadixDeployJobComponent) bool {
 		return !componentNames[component.GetName()]
 	})
-	return deployComponents, deployJobComponents, nil
+	if len(preservingDeployComponents.DeployComponents)+len(preservingDeployComponents.DeployJobComponents) != len(componentsToDeploy) {
+		return PreservingDeployComponents{}, errors.New("not all components of jobs requested for deployment found")
+	}
+	return preservingDeployComponents, nil
 }

@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"context"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -12,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testing.T) {
@@ -157,10 +160,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
-	kubeUtil := setupTest()
-	activeRadixDeployment, err := kubeUtil.GetActiveDeployment(utils.GetEnvironmentNamespace(ra.GetName(), "dev"))
-	require.NoError(t, err)
-	rd, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash", nil)
+	rd, err := ConstructForTargetEnvironment(ra, nil, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash", nil)
 	require.NoError(t, err)
 
 	t.Log(rd.Spec.Components[0].Name)
@@ -170,9 +170,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	t.Log(rd.Spec.Components[2].Name)
 	assert.False(t, rd.Spec.Components[2].AlwaysPullImageOnDeploy)
 
-	activeRadixDeployment, err = kubeUtil.GetActiveDeployment(utils.GetEnvironmentNamespace(ra.GetName(), "prod"))
-	require.NoError(t, err)
-	rd, err = ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, "prod", envVarsMap, "anyhash", "anybuildsecrethash", nil)
+	rd, err = ConstructForTargetEnvironment(ra, nil, "anyjob", "anyimageTag", "anybranch", componentImages, "prod", envVarsMap, "anyhash", "anybuildsecrethash", nil)
 	require.NoError(t, err)
 
 	t.Log(rd.Spec.Components[0].Name)
@@ -201,6 +199,126 @@ func TestConstructForTargetEnvironment_GetCommitID(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "commit-abc", rd.ObjectMeta.Labels[kube.RadixCommitLabel])
+}
+
+func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
+	raBuilder := utils.ARadixApplication().
+		WithEnvironment("prod", "dev").
+		WithComponents(
+			utils.AnApplicationComponent().WithName("comp1").WithImage("comp1-image:tag1"),
+			utils.AnApplicationComponent().WithName("comp2").WithImage("comp2-image:tag1"),
+		).
+		WithJobComponents(
+			utils.AnApplicationJobComponent().WithName("job1").WithImage("job1-image:tag1"),
+			utils.AnApplicationJobComponent().WithName("job2").WithImage("job2-image:tag1"),
+		)
+	schedulerPort := pointers.Ptr(int32(8080))
+	const (
+		commit1 = "commit1"
+		commit2 = "commit2"
+		gitTag1 = "git-tag1"
+		gitTag2 = "git-tag2"
+	)
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithRadixApplication(raBuilder).WithAppName("anyapp").
+		WithEnvironment("dev").
+		WithComponent(utils.NewDeployComponentBuilder().WithName("comp1").WithImage("comp1-image:tag1").
+			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
+			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1)).
+		WithComponent(utils.NewDeployComponentBuilder().WithName("comp2").WithImage("comp2-image:tag1").
+			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
+			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1)).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job1").WithImage("job1-image:tag1").WithSchedulerPort(schedulerPort).
+			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
+			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1)).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("job2-image:tag1").WithSchedulerPort(schedulerPort).
+			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
+			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1))
+
+	namespace := utils.GetEnvironmentNamespace("anyapp", "dev")
+	kubeUtil := setupTest()
+	_, err := kubeUtil.RadixClient().RadixV1().RadixDeployments(namespace).Create(context.Background(), rdBuilder.BuildRD(), metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["comp1"] = pipeline.DeployComponentImage{ImagePath: "comp1-image:tag2"}
+	componentImages["comp2"] = pipeline.DeployComponentImage{ImagePath: "comp2-image:tag2"}
+	componentImages["job1"] = pipeline.DeployComponentImage{ImagePath: "job1-image:tag2"}
+	componentImages["job2"] = pipeline.DeployComponentImage{ImagePath: "job2-image:tag2"}
+
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = commit2
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTag2
+
+	activeRadixDeployment, err := kubeUtil.GetActiveDeployment(namespace)
+	require.NoError(t, err)
+	ra := rdBuilder.GetApplicationBuilder().BuildRA()
+
+	t.Run("deploy only specific components", func(t *testing.T) {
+		rd, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash",
+			[]string{"comp1", "job1"})
+		require.NoError(t, err)
+
+		comp1, ok := slice.FindFirst(rd.Spec.Components, func(component radixv1.RadixDeployComponent) bool { return component.GetName() == "comp1" })
+		require.True(t, ok)
+		assert.Equal(t, "comp1-image:tag2", comp1.GetImage())
+		assert.Equal(t, commit2, comp1.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, gitTag2, comp1.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
+
+		comp2, ok := slice.FindFirst(rd.Spec.Components, func(component radixv1.RadixDeployComponent) bool { return component.GetName() == "comp2" })
+		require.True(t, ok)
+		assert.Equal(t, "comp2-image:tag1", comp2.GetImage())
+		assert.Equal(t, commit1, comp2.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, gitTag1, comp2.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
+
+		job1, ok := slice.FindFirst(rd.Spec.Jobs, func(job radixv1.RadixDeployJobComponent) bool { return job.GetName() == "job1" })
+		require.True(t, ok)
+		assert.Equal(t, "job1-image:tag2", job1.GetImage())
+		assert.Equal(t, commit2, job1.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, gitTag2, job1.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
+
+		job2, ok := slice.FindFirst(rd.Spec.Jobs, func(job radixv1.RadixDeployJobComponent) bool { return job.GetName() == "job2" })
+		require.True(t, ok)
+		assert.Equal(t, "job2-image:tag1", job2.GetImage())
+		assert.Equal(t, commit1, job2.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, gitTag1, job2.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
+	})
+
+	t.Run("deploy all components", func(t *testing.T) {
+		rd, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash",
+			nil)
+		require.NoError(t, err)
+
+		comp1, ok := slice.FindFirst(rd.Spec.Components, func(component radixv1.RadixDeployComponent) bool { return component.GetName() == "comp1" })
+		require.True(t, ok)
+		assert.Equal(t, "comp1-image:tag2", comp1.GetImage())
+		assert.Equal(t, commit2, comp1.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, gitTag2, comp1.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
+
+		comp2, ok := slice.FindFirst(rd.Spec.Components, func(component radixv1.RadixDeployComponent) bool { return component.GetName() == "comp2" })
+		require.True(t, ok)
+		assert.Equal(t, "comp2-image:tag2", comp2.GetImage())
+		assert.Equal(t, commit2, comp2.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, gitTag2, comp2.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
+
+		job1, ok := slice.FindFirst(rd.Spec.Jobs, func(job radixv1.RadixDeployJobComponent) bool { return job.GetName() == "job1" })
+		require.True(t, ok)
+		assert.Equal(t, "job1-image:tag2", job1.GetImage())
+		assert.Equal(t, commit2, job1.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, gitTag2, job1.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
+
+		job2, ok := slice.FindFirst(rd.Spec.Jobs, func(job radixv1.RadixDeployJobComponent) bool { return job.GetName() == "job2" })
+		require.True(t, ok)
+		assert.Equal(t, "job2-image:tag2", job2.GetImage())
+		assert.Equal(t, commit2, job2.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, gitTag2, job2.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
+	})
+
+	t.Run("deploy all components", func(t *testing.T) {
+		_, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash",
+			[]string{"not-existing-comp", "comp1"})
+		assert.EqualError(t, err, "not all components of jobs requested for deployment found")
+	})
 }
 
 func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {

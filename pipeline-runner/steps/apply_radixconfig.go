@@ -164,12 +164,12 @@ func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *mod
 }
 
 func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
-	if len(pipelineInfo.PipelineArguments.Components) == 0 {
+	if len(pipelineInfo.PipelineArguments.ComponentsToDeploy) == 0 {
 		return nil
 	}
 	var errs []error
 	componentsMap := getComponentMap(pipelineInfo)
-	for _, componentName := range pipelineInfo.PipelineArguments.Components {
+	for _, componentName := range pipelineInfo.PipelineArguments.ComponentsToDeploy {
 		component, ok := componentsMap[componentName]
 		if !ok {
 			errs = append(errs, fmt.Errorf("requested component %s does not exist", componentName))
