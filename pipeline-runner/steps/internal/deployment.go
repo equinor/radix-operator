@@ -90,8 +90,11 @@ func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeploymen
 		return preservingDeployComponents, nil
 	}
 	log.Infof("Deploy only following component(s): %s", strings.Join(componentsToDeploy, ","))
-	componentNames := slice.Reduce(componentsToDeploy, make(map[string]bool), func(acc map[string]bool, name string) map[string]bool {
-		acc[name] = true
+	componentNames := slice.Reduce(componentsToDeploy, make(map[string]bool), func(acc map[string]bool, componentName string) map[string]bool {
+		componentName = strings.TrimSpace(componentName)
+		if len(componentName) > 0 {
+			acc[componentName] = true
+		}
 		return acc
 	})
 	preservingDeployComponents.DeployComponents = slice.FindAll(activeRadixDeployment.Spec.Components, func(component radixv1.RadixDeployComponent) bool {

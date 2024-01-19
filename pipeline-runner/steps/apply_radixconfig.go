@@ -170,6 +170,10 @@ func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
 	var errs []error
 	componentsMap := getComponentMap(pipelineInfo)
 	for _, componentName := range pipelineInfo.PipelineArguments.ComponentsToDeploy {
+		componentName = strings.TrimSpace(componentName)
+		if len(componentName) == 0 {
+			continue
+		}
 		component, ok := componentsMap[componentName]
 		if !ok {
 			errs = append(errs, fmt.Errorf("requested component %s does not exist", componentName))
