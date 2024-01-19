@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -37,10 +38,6 @@ type syncerTestSuite struct {
 	kubeUtil    *kube.Kube
 	promClient  *prometheusfake.Clientset
 }
-
-const (
-	testDeploymentHistoryLimit = 10
-)
 
 func TestSyncerTestSuite(t *testing.T) {
 	suite.Run(t, new(syncerTestSuite))
@@ -991,7 +988,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	s.Require().NoError(err)
 	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, "", 0, testDeploymentHistoryLimit, nil, nil)
+	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, nil, &config.Config{})
 	s.Require().NoError(deploySyncer.OnSync())
 
 	sut := s.createSyncer(batch)

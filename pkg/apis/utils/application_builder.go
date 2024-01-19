@@ -21,7 +21,7 @@ type ApplicationBuilder interface {
 	WithJobComponents(components ...RadixApplicationJobComponentBuilder) ApplicationBuilder
 	WithDNSAppAlias(env, component string) ApplicationBuilder
 	WithDNSAlias(dnsAliases ...radixv1.DNSAlias) ApplicationBuilder
-	WithDNSExternalAlias(alias, env, component string) ApplicationBuilder
+	WithDNSExternalAlias(alias, env, component string, useCertificateAutomation bool) ApplicationBuilder
 	WithPrivateImageRegistry(server, username, email string) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRA() *radixv1.RadixApplication
@@ -124,15 +124,16 @@ func (ap *ApplicationBuilderStruct) WithDNSAlias(dnsAliases ...radixv1.DNSAlias)
 }
 
 // WithDNSExternalAlias Sets env + component to the external alias
-func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string, useCertificateAutomation bool) ApplicationBuilder {
 	if ap.externalAppAlias == nil {
 		ap.externalAppAlias = make([]radixv1.ExternalAlias, 0)
 	}
 
 	externalAlias := radixv1.ExternalAlias{
-		Alias:       alias,
-		Environment: env,
-		Component:   component,
+		Alias:                    alias,
+		Environment:              env,
+		Component:                component,
+		UseCertificateAutomation: useCertificateAutomation,
 	}
 
 	ap.externalAppAlias = append(ap.externalAppAlias, externalAlias)

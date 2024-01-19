@@ -12,7 +12,8 @@ type DeployComponentBuilder interface {
 	WithPorts([]v1.ComponentPort) DeployComponentBuilder
 	WithEnvironmentVariable(string, string) DeployComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
-	WithPublic(bool) DeployComponentBuilder // Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
+	// Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
+	WithPublic(bool) DeployComponentBuilder
 	WithPublicPort(string) DeployComponentBuilder
 	WithMonitoring(bool) DeployComponentBuilder
 	WithMonitoringConfig(v1.MonitoringConfig) DeployComponentBuilder
@@ -27,7 +28,9 @@ type DeployComponentBuilder interface {
 	WithSecrets([]string) DeployComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
-	WithDNSExternalAlias(string) DeployComponentBuilder
+	// Deprecated: For backwards compatibility WithDNSExternalAliases is still supported, new code should use WithPublicPort instead
+	WithDNSExternalAliases(...string) DeployComponentBuilder
+	WithExternalDNS(...v1.RadixDeployExternalDNS) DeployComponentBuilder
 	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder
 	WithRunAsNonRoot(bool) DeployComponentBuilder
 	WithAuthentication(*v1.Authentication) DeployComponentBuilder
@@ -36,12 +39,13 @@ type DeployComponentBuilder interface {
 }
 
 type deployComponentBuilder struct {
-	name                    string
-	runAsNonRoot            bool
-	image                   string
-	ports                   []v1.ComponentPort
-	environmentVariables    map[string]string
-	public                  bool // Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
+	name                 string
+	runAsNonRoot         bool
+	image                string
+	ports                []v1.ComponentPort
+	environmentVariables map[string]string
+	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
+	public                  bool
 	publicPort              string
 	monitoring              bool
 	monitoringConfig        v1.MonitoringConfig
@@ -51,13 +55,15 @@ type deployComponentBuilder struct {
 	secrets                 []string
 	secretRefs              v1.RadixSecretRefs
 	dnsappalias             bool
-	externalAppAlias        []string
-	resources               v1.ResourceRequirements
-	horizontalScaling       *v1.RadixHorizontalScaling
-	volumeMounts            []v1.RadixVolumeMount
-	node                    v1.RadixNode
-	authentication          *v1.Authentication
-	identity                *v1.Identity
+	// Deprecated: For backwards comptibility externalAppAlias is still supported, new code should use publicPort instead
+	externalAppAlias  []string
+	externalDNS       []v1.RadixDeployExternalDNS
+	resources         v1.ResourceRequirements
+	horizontalScaling *v1.RadixHorizontalScaling
+	volumeMounts      []v1.RadixVolumeMount
+	node              v1.RadixNode
+	authentication    *v1.Authentication
+	identity          *v1.Identity
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployComponentBuilder {
@@ -105,12 +111,13 @@ func (dcb *deployComponentBuilder) WithDNSAppAlias(createDNSAppAlias bool) Deplo
 	return dcb
 }
 
-func (dcb *deployComponentBuilder) WithDNSExternalAlias(alias string) DeployComponentBuilder {
-	if dcb.externalAppAlias == nil {
-		dcb.externalAppAlias = make([]string, 0)
-	}
+func (dcb *deployComponentBuilder) WithDNSExternalAliases(alias ...string) DeployComponentBuilder {
+	dcb.externalAppAlias = alias
+	return dcb
+}
 
-	dcb.externalAppAlias = append(dcb.externalAppAlias, alias)
+func (dcb *deployComponentBuilder) WithExternalDNS(externalDNS ...v1.RadixDeployExternalDNS) DeployComponentBuilder {
+	dcb.externalDNS = externalDNS
 	return dcb
 }
 
@@ -251,6 +258,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		EnvironmentVariables:    dcb.environmentVariables,
 		DNSAppAlias:             dcb.dnsappalias,
 		DNSExternalAlias:        dcb.externalAppAlias,
+		ExternalDNS:             dcb.externalDNS,
 		Resources:               dcb.resources,
 		HorizontalScaling:       dcb.horizontalScaling,
 		VolumeMounts:            dcb.volumeMounts,

@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/slice"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -13,10 +14,10 @@ import (
 
 // RadixDeployment describe a deployment
 type RadixDeployment struct {
-	meta_v1.TypeMeta   `json:",inline" yaml:",inline"`
-	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec               RadixDeploymentSpec `json:"spec" yaml:"spec"`
-	Status             RadixDeployStatus   `json:"status" yaml:"status"`
+	meta_v1.TypeMeta   `json:",inline"`
+	meta_v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec               RadixDeploymentSpec `json:"spec"`
+	Status             RadixDeployStatus   `json:"status"`
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found
@@ -49,10 +50,10 @@ func (rd *RadixDeployment) GetCommonComponentByName(name string) RadixCommonDepl
 
 // RadixDeployStatus is the status for a rd
 type RadixDeployStatus struct {
-	ActiveFrom meta_v1.Time         `json:"activeFrom" yaml:"activeFrom"`
-	ActiveTo   meta_v1.Time         `json:"activeTo" yaml:"activeTo"`
-	Condition  RadixDeployCondition `json:"condition" yaml:"condition"`
-	Reconciled meta_v1.Time         `json:"reconciled" yaml:"reconciled"`
+	ActiveFrom meta_v1.Time         `json:"activeFrom"`
+	ActiveTo   meta_v1.Time         `json:"activeTo"`
+	Condition  RadixDeployCondition `json:"condition"`
+	Reconciled meta_v1.Time         `json:"reconciled"`
 }
 
 // RadixDeployCondition Holds the condition of a component
@@ -68,45 +69,62 @@ const (
 
 // RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
-	AppName          string                         `json:"appname" yaml:"appname"`
+	AppName          string                         `json:"appname"`
 	Components       []RadixDeployComponent         `json:"components"`
 	Jobs             []RadixDeployJobComponent      `json:"jobs"`
-	Environment      string                         `json:"environment" yaml:"environment"`
-	ImagePullSecrets []core_v1.LocalObjectReference `json:"imagePullSecrets" yaml:"imagePullSecrets"`
+	Environment      string                         `json:"environment"`
+	ImagePullSecrets []core_v1.LocalObjectReference `json:"imagePullSecrets"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixDeploymentList is a list of Radix deployments
 type RadixDeploymentList struct {
-	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
-	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
-	Items            []RadixDeployment `json:"items" yaml:"items"`
+	meta_v1.TypeMeta `json:",inline"`
+	meta_v1.ListMeta `json:"metadata"`
+	Items            []RadixDeployment `json:"items"`
+}
+
+// RadixDeployExternalDNS is the spec for an external DNS alias
+type RadixDeployExternalDNS struct {
+	// Fully qualified domain name (FQDN), e.g. myapp.example.com.
+	// +kubebuilder:validation:MinLength=4
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:Pattern=`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`
+	FQDN string `json:"fqdn"`
+
+	// Enable automatic issuing and renewal of TLS certificate
+	// +kubebuilder:default:=false
+	// +optional
+	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
 }
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
-	Name                    string                  `json:"name" yaml:"name"`
-	Image                   string                  `json:"image" yaml:"image"`
-	Ports                   []ComponentPort         `json:"ports" yaml:"ports"`
-	Replicas                *int                    `json:"replicas" yaml:"replicas"`
-	Public                  bool                    `json:"public" yaml:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
-	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
-	EnvironmentVariables    EnvVarsMap              `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
-	Secrets                 []string                `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
-	IngressConfiguration    []string                `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
-	DNSAppAlias             bool                    `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
-	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
-	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
-	MonitoringConfig        MonitoringConfig        `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
-	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
-	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
-	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
-	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
-	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
-	Identity                *Identity               `json:"identity,omitempty" yaml:"identity,omitempty"`
+	Name     string          `json:"name"`
+	Image    string          `json:"image"`
+	Ports    []ComponentPort `json:"ports"`
+	Replicas *int            `json:"replicas"`
+	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
+	Public               bool                     `json:"public"`
+	PublicPort           string                   `json:"publicPort,omitempty"`
+	EnvironmentVariables EnvVarsMap               `json:"environmentVariables,omitempty"`
+	Secrets              []string                 `json:"secrets,omitempty"`
+	SecretRefs           RadixSecretRefs          `json:"secretRefs,omitempty"`
+	IngressConfiguration []string                 `json:"ingressConfiguration,omitempty"`
+	DNSAppAlias          bool                     `json:"dnsAppAlias,omitempty"`
+	ExternalDNS          []RadixDeployExternalDNS `json:"externalDNS,omitempty"`
+	// Deprecated: For backward compatibility we must still support this field. New code should use ExternalDNS instead.
+	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty"`
+	Monitoring              bool                    `json:"monitoring"`
+	MonitoringConfig        MonitoringConfig        `json:"monitoringConfig,omitempty"`
+	Resources               ResourceRequirements    `json:"resources,omitempty"`
+	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
+	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy"`
+	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty"`
+	Node                    RadixNode               `json:"node,omitempty"`
+	Authentication          *Authentication         `json:"authentication,omitempty"`
+	Identity                *Identity               `json:"identity,omitempty"`
 	UseReadOnlyFileSystem   *bool                   `json:"useReadOnlyFileSystem,omitempty" yaml:"useReadOnlyFileSystem,omitempty"`
 }
 
@@ -174,8 +192,13 @@ func (deployComponent *RadixDeployComponent) IsPublic() bool {
 	return len(deployComponent.PublicPort) > 0
 }
 
-func (deployComponent *RadixDeployComponent) GetDNSExternalAlias() []string {
-	return deployComponent.DNSExternalAlias
+func (deployComponent *RadixDeployComponent) GetExternalDNS() []RadixDeployExternalDNS {
+	if len(deployComponent.ExternalDNS) > 0 {
+		return deployComponent.ExternalDNS
+	}
+	return slice.Map(deployComponent.DNSExternalAlias, func(alias string) RadixDeployExternalDNS {
+		return RadixDeployExternalDNS{FQDN: alias, UseCertificateAutomation: false}
+	})
 }
 
 func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
@@ -283,10 +306,9 @@ func (deployJobComponent *RadixDeployJobComponent) IsPublic() bool {
 	return false
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetDNSExternalAlias() []string {
+func (deployJobComponent *RadixDeployJobComponent) GetExternalDNS() []RadixDeployExternalDNS {
 	return nil
 }
-
 func (deployJobComponent *RadixDeployJobComponent) IsDNSAppAlias() bool {
 	return false
 }
@@ -341,24 +363,24 @@ func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 // RadixDeployJobComponent defines a single job component within a RadixDeployment
 // The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
-	Name                    string                    `json:"name" yaml:"name"`
-	Environment             string                    `json:"environment" yaml:"environment"`
-	Image                   string                    `json:"image" yaml:"image"`
-	Ports                   []ComponentPort           `json:"ports" yaml:"ports"`
-	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
-	Secrets                 []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
-	Monitoring              bool                      `json:"monitoring" yaml:"monitoring"`
-	MonitoringConfig        MonitoringConfig          `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
-	Resources               ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
-	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	SchedulerPort           *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
-	Payload                 *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
-	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
-	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
-	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
-	BackoffLimit            *int32                    `json:"backoffLimit,omitempty" yaml:"backoffLimit,omitempty"`
-	Identity                *Identity                 `json:"identity,omitempty" yaml:"identity,omitempty"`
+	Name                    string                    `json:"name"`
+	Environment             string                    `json:"environment"`
+	Image                   string                    `json:"image"`
+	Ports                   []ComponentPort           `json:"ports"`
+	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty"`
+	Secrets                 []string                  `json:"secrets,omitempty"`
+	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty"`
+	Monitoring              bool                      `json:"monitoring"`
+	MonitoringConfig        MonitoringConfig          `json:"monitoringConfig,omitempty"`
+	Resources               ResourceRequirements      `json:"resources,omitempty"`
+	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty"`
+	SchedulerPort           *int32                    `json:"schedulerPort,omitempty"`
+	Payload                 *RadixJobComponentPayload `json:"payload,omitempty"`
+	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy"`
+	Node                    RadixNode                 `json:"node,omitempty"`
+	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty"`
+	BackoffLimit            *int32                    `json:"backoffLimit,omitempty"`
+	Identity                *Identity                 `json:"identity,omitempty"`
 	Notifications           *Notifications            `json:"notifications,omitempty"`
 	UseReadOnlyFileSystem   *bool                     `json:"useReadOnlyFileSystem,omitempty" yaml:"useReadOnlyFileSystem,omitempty"`
 }
@@ -389,7 +411,7 @@ type RadixCommonDeployComponent interface {
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetPublicPort() string
 	IsPublic() bool
-	GetDNSExternalAlias() []string
+	GetExternalDNS() []RadixDeployExternalDNS
 	IsDNSAppAlias() bool
 	GetIngressConfiguration() []string
 	GetNode() *RadixNode
