@@ -1430,6 +1430,7 @@ func (component *RadixComponent) getEnabled() bool {
 func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
+		environmentConfig := environmentConfig
 		environmentConfigs = append(environmentConfigs, &environmentConfig)
 	}
 	return environmentConfigs
@@ -1535,6 +1536,7 @@ func (component *RadixJobComponent) getEnabled() bool {
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
+		environmentConfig := environmentConfig
 		environmentConfigs = append(environmentConfigs, &environmentConfig)
 	}
 	return environmentConfigs
