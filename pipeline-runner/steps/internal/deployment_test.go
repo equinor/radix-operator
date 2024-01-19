@@ -298,12 +298,6 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 		assert.Equal(t, commit2, job2.GetEnvironmentVariables()[defaults.RadixCommitHashEnvironmentVariable])
 		assert.Equal(t, gitTag2, job2.GetEnvironmentVariables()[defaults.RadixGitTagsEnvironmentVariable])
 	})
-
-	t.Run("deploy all components", func(t *testing.T) {
-		_, err := ConstructForTargetEnvironment(ra, activeRadixDeployment, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap, "anyhash", "anybuildsecrethash",
-			[]string{"not-existing-comp", "comp1"})
-		assert.EqualError(t, err, "not all components of jobs requested for deployment found")
-	})
 }
 
 func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {

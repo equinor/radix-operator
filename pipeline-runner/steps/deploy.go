@@ -91,13 +91,13 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		return err
 	}
 
-	activeRadixDeployment, err := cli.GetKubeutil().GetActiveDeployment(utils.GetEnvironmentNamespace(appName, env))
+	currentRd, err := internal.GetCurrentRadixDeployment(cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, env))
 	if err != nil {
 		return err
 	}
 	radixDeployment, err := internal.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
-		activeRadixDeployment,
+		currentRd,
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
 		pipelineInfo.PipelineArguments.Branch,

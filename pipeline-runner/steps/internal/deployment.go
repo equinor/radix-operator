@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"errors"
+	"context"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -103,8 +104,26 @@ func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeploymen
 	preservingDeployComponents.DeployJobComponents = slice.FindAll(activeRadixDeployment.Spec.Jobs, func(component radixv1.RadixDeployJobComponent) bool {
 		return !componentNames[component.GetName()]
 	})
-	if len(preservingDeployComponents.DeployComponents)+len(preservingDeployComponents.DeployJobComponents) != len(componentsToDeploy) {
-		return PreservingDeployComponents{}, errors.New("not all components of jobs requested for deployment found")
-	}
 	return preservingDeployComponents, nil
+}
+
+// GetCurrentRadixDeployment Returns active RadixDeployment if it exists and if it is available to get
+func GetCurrentRadixDeployment(kubeUtil *kube.Kube, namespace string) (*radixv1.RadixDeployment, error) {
+	var currentRd *radixv1.RadixDeployment
+	// For new applications, or applications with new environments defined in radixconfig, the namespace
+	// or rolebinding may not be configured yet by radix-operator.
+	// We skip getting active deployment if namespace does not exist or pipeline-runner does not have access
+
+	if _, err := kubeUtil.KubeClient().CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{}); err != nil {
+		if !kubeerrors.IsNotFound(err) && !kubeerrors.IsForbidden(err) {
+			return nil, err
+		}
+		log.Infof("namespace for environment does not exist yet: %v", err)
+	} else {
+		currentRd, err = kubeUtil.GetActiveDeployment(namespace)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return currentRd, nil
 }
