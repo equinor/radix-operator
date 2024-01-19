@@ -260,14 +260,21 @@ func TestGetRadixComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
 
 	// Test cases with different values for UseReadOnlyFileSystem
 	testCases := []struct {
-		description           string
-		useReadOnlyFileSystem *bool
+		description              string
+		useReadOnlyFileSystem    *bool
+		useReadOnlyFileSystemEnv *bool
 
 		expectedUseReadOnlyFile *bool
 	}{
-		{"UseReadOnlyFileSystem set to true in component", utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"UseReadOnlyFileSystem set to false in component", utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"UseReadOnlyFileSystem not set in component", nil, nil},
+		{"UseReadOnlyFileSystem is nil", nil, nil, nil},
+		{"UseReadOnlyFileSystem is nil", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"UseReadOnlyFileSystem is nil", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"UseReadOnlyFileSystem is true", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
+		{"UseReadOnlyFileSystem is true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"UseReadOnlyFileSystem is true", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"UseReadOnlyFileSystem is false", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
+		{"UseReadOnlyFileSystem is false", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"UseReadOnlyFileSystem is false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
 	}
 
 	for _, testCase := range testCases {
@@ -276,34 +283,19 @@ func TestGetRadixComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
 				WithComponents(
 					utils.NewApplicationComponentBuilder().
 						WithName(componentName).
-						WithUseReadOnlyFileSystem(testCase.useReadOnlyFileSystem)).BuildRA()
+						WithUseReadOnlyFileSystem(testCase.useReadOnlyFileSystem).
+						WithEnvironmentConfigs(
+							utils.AnEnvironmentConfig().
+								WithEnvironment(env).
+								WithUseReadOnlyFileSystem(testCase.useReadOnlyFileSystemEnv),
+							utils.AnEnvironmentConfig().
+								WithEnvironment("prod").WithUseReadOnlyFileSystem(utils.BoolPtr(false)),
+						)).BuildRA()
 
 			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap)
 			assert.Equal(t, testCase.expectedUseReadOnlyFile, deployComponent[0].UseReadOnlyFileSystem)
 		})
 	}
-
-	// useReadOnlyFileSystem not set in component, but set in environment config for dev environment and not set for prod environment
-	ra := utils.ARadixApplication().
-		WithComponents(
-			utils.AnApplicationComponent().
-				WithName(componentName).
-				WithEnvironmentConfigs(
-					utils.AnEnvironmentConfig().
-						WithEnvironment(env).
-						WithUseReadOnlyFileSystem(utils.BoolPtr(true)),
-					utils.AnEnvironmentConfig().
-						WithEnvironment("prod").WithUseReadOnlyFileSystem(utils.BoolPtr(false)),
-				),
-		).BuildRA()
-
-	deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap)
-	// component should not have useReadOnlyFileSystem set, but environment config should have useReadOnlyFileSystem
-	assert.Equal(t, ra.Spec.Components[0].EnvironmentConfig[0].UseReadOnlyFileSystem, deployComponent[0].UseReadOnlyFileSystem)
-	assert.Equal(t, utils.BoolPtr(true), deployComponent[0].UseReadOnlyFileSystem)
-	deployComponentProd, _ := GetRadixComponentsForEnv(ra, "prod", componentImages, envVarsMap)
-	assert.Equal(t, ra.Spec.Components[0].EnvironmentConfig[1].UseReadOnlyFileSystem, deployComponentProd[0].UseReadOnlyFileSystem)
-	assert.Equal(t, utils.BoolPtr(false), deployComponentProd[0].UseReadOnlyFileSystem)
 }
 
 func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAliases(t *testing.T) {

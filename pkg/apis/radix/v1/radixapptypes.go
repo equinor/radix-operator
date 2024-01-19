@@ -736,8 +736,6 @@ type RadixPrivateImageHubCredential struct {
 	Email string `json:"email"`
 }
 
-//type RadixEmptyDirVolumeMount
-
 // RadixVolumeMount defines an external storage resource.
 type RadixVolumeMount struct {
 	// Type defines the storage type.
@@ -808,6 +806,12 @@ type RadixVolumeMount struct {
 
 	// EmptyDir settings for EmptyDir volume
 	//EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
+}
+
+type RadixEmptyDirVolumeMount struct {
+	// SizeLimit defines the size of the emptyDir volume
+	// +kubebuilder:validation:Required
+	SizeLimit string `json:"sizeLimit"`
 }
 
 // BlobFuse2Protocol Holds protocols of BlobFuse2 Azure Storage FUSE driver
