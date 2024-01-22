@@ -279,24 +279,28 @@ func NewDeploymentBuilder() DeploymentBuilder {
 	}
 }
 
-// ARadixDeployment Constructor for deployment builder containing test data
-func ARadixDeployment() DeploymentBuilder {
+// ARadixDeploymentWithComponentModifier Constructor for deployment builder containing test data, with modifier
+func ARadixDeploymentWithComponentModifier(m func(builder DeployComponentBuilder) DeployComponentBuilder) DeploymentBuilder {
 	replicas := 1
 	builder := NewDeploymentBuilder().
 		WithRadixApplication(ARadixApplication()).
 		WithAppName("someapp").
 		WithImageTag("imagetag").
 		WithEnvironment("test").
-		WithComponent(NewDeployComponentBuilder().
+		WithComponent(m(NewDeployComponentBuilder().
 			WithImage("radixdev.azurecr.io/some-image:imagetag").
 			WithName("app").
 			WithPort("http", 8080).
 			WithPublicPort("http").
-			WithReplicas(&replicas)).
+			WithReplicas(&replicas))).
 		WithJobComponent(NewDeployJobComponentBuilder().
 			WithName("job").
 			WithImage("radixdev.azurecr.io/job:imagetag").
 			WithSchedulerPort(numbers.Int32Ptr(8080)))
-
 	return builder
+}
+
+// ARadixDeployment Constructor for deployment builder containing test data
+func ARadixDeployment() DeploymentBuilder {
+	return ARadixDeploymentWithComponentModifier(func(builder DeployComponentBuilder) DeployComponentBuilder { return builder })
 }

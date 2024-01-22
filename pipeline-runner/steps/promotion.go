@@ -180,7 +180,7 @@ func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment
 
 func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
 	newEnvJobs, err := deployment.
-		NewJobComponentsBuilder(radixConfig, environment, componentImages, defaultEnvVars).
+		NewJobComponentsBuilder(radixConfig, environment, componentImages, defaultEnvVars, nil).
 		JobComponents()
 	if err != nil {
 		return err
@@ -205,7 +205,7 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 }
 
 func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, componentImages, defaultEnvVars)
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, componentImages, defaultEnvVars, nil)
 	if err != nil {
 		return err
 	}
