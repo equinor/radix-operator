@@ -6,6 +6,8 @@ import (
 
 	"github.com/equinor/radix-common/utils/maps"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
+	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
+	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -68,6 +70,16 @@ func NewConfig() *apiconfig.Config {
 			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
+		},
+		CertificateAutomation: certificateconfig.AutomationConfig{
+			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
+			Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
+			RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
+		},
+		DeploymentSyncer: deployment.SyncerConfig{
+			TenantID:               viper.GetString(defaults.OperatorTenantIdEnvironmentVariable),
+			KubernetesAPIPort:      viper.GetInt32(defaults.KubernetesApiPortEnvironmentVariable),
+			DeploymentHistoryLimit: viper.GetInt(defaults.DeploymentsHistoryLimitEnvironmentVariable),
 		},
 	}
 }

@@ -86,7 +86,7 @@ func main() {
 	startController(createRegistrationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), registrationControllerThreads, stop)
 	startController(createApplicationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg.DNSConfig), applicationControllerThreads, stop)
 	startController(createEnvironmentController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), environmentControllerThreads, stop)
-	startController(createDeploymentController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration), deploymentControllerThreads, stop)
+	startController(createDeploymentController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads, stop)
 	startController(createJobController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg), jobControllerThreads, stop)
 	startController(createAlertController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder), alertControllerThreads, stop)
 	startController(createBatchController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), 1, stop)
@@ -213,7 +213,7 @@ func createDNSAliasesController(kubeUtil *kube.Kube,
 
 func createDeploymentController(kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory,
-	recorder record.EventRecorder, oauthDefaultConfig defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) *common.Controller {
+	recorder record.EventRecorder, oauthDefaultConfig defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration, config *apiconfig.Config) *common.Controller {
 
 	oauth2DockerImage := os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable)
 	if oauth2DockerImage == "" {
@@ -224,9 +224,7 @@ func createDeploymentController(kubeUtil *kube.Kube, prometheusOperatorClient mo
 		kubeUtil,
 		kubeUtil.RadixClient(),
 		prometheusOperatorClient,
-		deployment.WithTenantIdFromEnvVar(defaults.OperatorTenantIdEnvironmentVariable),
-		deployment.WithKubernetesApiPortFromEnvVar(defaults.KubernetesApiPortEnvironmentVariable),
-		deployment.WithDeploymentHistoryLimitFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable),
+		config,
 		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
 		deployment.WithIngressConfiguration(ingressConfiguration),
 		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),

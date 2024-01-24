@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -91,8 +91,13 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		return err
 	}
 
-	radixDeployment, err := deployment.ConstructForTargetEnvironment(
+	currentRd, err := internal.GetCurrentRadixDeployment(cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, env))
+	if err != nil {
+		return err
+	}
+	radixDeployment, err := internal.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
+		currentRd,
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
 		pipelineInfo.PipelineArguments.Branch,
@@ -101,7 +106,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		defaultEnvVars,
 		radixApplicationHash,
 		buildSecretHash,
-	)
+		pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	if err != nil {
 		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)

@@ -1170,6 +1170,11 @@
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
+              },
+              "useCertificateAutomation": {
+                "default": false,
+                "description": "Enable automatic issuing and renewal of TLS certificate",
+                "type": "boolean"
               }
             },
             "required": [
