@@ -420,6 +420,21 @@ type RadixEnvironmentConfig struct {
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
+	// Path to the Dockerfile that builds the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src
+	// +optional
+	SourceFolder string `json:"src,omitempty"`
+
+	// Name of the Dockerfile that builds the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
+	// +optional
+	DockerfileName string `json:"dockerfileName,omitempty"`
+
+	// Name of an existing container image to use when running the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image
+	// +optional
+	Image string `json:"image,omitempty"`
+
 	// Number of desired replicas.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas
 	// +kubebuilder:validation:Minimum=0
@@ -602,6 +617,20 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
+	// Name of an existing container image to use when running the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2
+	// +optional
+	Image string `json:"image,omitempty"`
+
+	// Path to the Dockerfile that builds the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src
+	// +optional
+	SourceFolder string `json:"src,omitempty"`
+
+	// Name of the Dockerfile that builds the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
+	// +optional
+	DockerfileName string `json:"dockerfileName,omitempty"`
 	// Enabled or disables collection of custom Prometheus metrics.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring-2
 	// +optional
@@ -1313,6 +1342,14 @@ type Notifications struct {
 	Webhook *string `json:"webhook,omitempty"`
 }
 
+// ComponentSource Source of a component
+type ComponentSource struct {
+	// Source folder
+	Folder string
+	// Source docker file name
+	DockefileName string
+}
+
 // RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
 	// GetName Gets component name
@@ -1323,6 +1360,10 @@ type RadixCommonComponent interface {
 	GetSourceFolder() string
 	// GetImage Gets component image
 	GetImage() string
+	// GetImageForEnvironment Gets image for the environment
+	GetImageForEnvironment(environment string) string
+	// GetSourceForEnvironment Gets source for the environment
+	GetSourceForEnvironment(environment string) ComponentSource
 	// GetNode Gets component node parameters
 	GetNode() *RadixNode
 	// GetVariables Gets component environment variables
@@ -1345,10 +1386,10 @@ type RadixCommonComponent interface {
 	GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig
 	// getEnabled Gets the component status if it is enabled in the application
 	getEnabled() bool
-	// GetEnabledForEnv Gets the component status if it is enabled in the application for an environment
-	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
 	// GetEnvironmentConfigByName  Gets component environment configuration by its name
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
+	// GetEnabledForEnvironmentConfig Gets the component status if it is enabled in the application for an environment config
+	GetEnabledForEnvironmentConfig(RadixCommonEnvironmentConfig) bool
 	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
 	GetEnabledForEnvironment(environment string) bool
 }
@@ -1367,6 +1408,14 @@ func (component *RadixComponent) GetSourceFolder() string {
 
 func (component *RadixComponent) GetImage() string {
 	return component.Image
+}
+
+func (component *RadixComponent) GetImageForEnvironment(environment string) string {
+	return getImageForEnvironment(component, environment)
+}
+
+func (component *RadixComponent) GetSourceForEnvironment(environment string) ComponentSource {
+	return getSourceForEnvironment(component, environment)
 }
 
 func (component *RadixComponent) GetNode() *RadixNode {
@@ -1430,7 +1479,7 @@ func (component *RadixComponent) GetEnvironmentConfigByName(environment string) 
 	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
 }
 
-func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
+func (component *RadixComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
 	return getEnabled(component, envConfig)
 }
 
@@ -1438,7 +1487,7 @@ func (component *RadixComponent) GetEnabledForEnvironment(environment string) bo
 	return getEnabledForEnvironment(component, environment)
 }
 
-func (component *RadixJobComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
+func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
 	return getEnabled(component, envConfig)
 }
 
@@ -1463,6 +1512,14 @@ func (component *RadixJobComponent) GetSourceFolder() string {
 
 func (component *RadixJobComponent) GetImage() string {
 	return component.Image
+}
+
+func (component *RadixJobComponent) GetImageForEnvironment(environment string) string {
+	return getImageForEnvironment(component, environment)
+}
+
+func (component *RadixJobComponent) GetSourceForEnvironment(environment string) ComponentSource {
+	return getSourceForEnvironment(component, environment)
 }
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
@@ -1549,5 +1606,42 @@ func getEnabledForEnvironment(component RadixCommonComponent, environment string
 	if len(environmentConfigsMap) == 0 {
 		return component.getEnabled()
 	}
-	return component.GetEnabledForEnv(environmentConfigsMap[environment])
+	return component.GetEnabledForEnvironmentConfig(environmentConfigsMap[environment])
+}
+
+func getImageForEnvironment(component RadixCommonComponent, environment string) string {
+	environmentConfigsMap := component.GetEnvironmentConfigsMap()
+	if len(environmentConfigsMap) == 0 {
+		return component.GetImage()
+	}
+	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
+		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
+		if envConfigEnabled && len(strings.TrimSpace(envConfig.GetImage())) > 0 {
+			return strings.TrimSpace(envConfig.GetImage())
+		}
+	}
+	return component.GetImage()
+}
+
+func getSourceForEnvironment(component RadixCommonComponent, environment string) ComponentSource {
+	environmentConfigsMap := component.GetEnvironmentConfigsMap()
+	source := ComponentSource{
+		Folder:        component.GetSourceFolder(),
+		DockefileName: component.GetDockerfileName(),
+	}
+	if len(environmentConfigsMap) == 0 {
+		return source
+	}
+	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
+		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
+		if envConfigEnabled {
+			if sourceFolder := strings.TrimSpace(envConfig.GetSourceFolder()); len(sourceFolder) > 0 {
+				source.Folder = sourceFolder
+			}
+			if dockerfileName := strings.TrimSpace(envConfig.GetDockerfileName()); len(dockerfileName) > 0 {
+				source.DockefileName = dockerfileName
+			}
+		}
+	}
+	return source
 }

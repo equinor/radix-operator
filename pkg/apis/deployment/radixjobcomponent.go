@@ -47,7 +47,7 @@ func (c *jobComponentsBuilder) JobComponents() ([]v1.RadixDeployJobComponent, er
 			continue
 		}
 		environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
-		if !radixJobComponent.GetEnabledForEnv(environmentSpecificConfig) {
+		if !radixJobComponent.GetEnabledForEnvironmentConfig(environmentSpecificConfig) {
 			continue
 		}
 		deployJob, err := c.buildJobComponent(radixJobComponent, environmentSpecificConfig, c.defaultEnvVars)

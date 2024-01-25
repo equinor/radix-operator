@@ -353,6 +353,10 @@
                       },
                       "type": "object"
                     },
+                    "dockerfileName": {
+                      "description": "Name of the Dockerfile that builds the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename",
+                      "type": "string"
+                    },
                     "enabled": {
                       "description": "Controls if the component shall be deployed to this environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled",
                       "type": "boolean"
@@ -439,6 +443,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "image": {
+                      "description": "Name of an existing container image to use when running the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#image",
+                      "type": "string"
                     },
                     "imageTagName": {
                       "description": "The imageTagName allows for flexible configuration of fixed images, built outside of Radix, to be configured with separate tag for each environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname",
@@ -586,6 +594,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "src": {
+                      "description": "Path to the Dockerfile that builds the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#src",
+                      "type": "string"
                     },
                     "variables": {
                       "additionalProperties": {
@@ -1328,6 +1340,10 @@
                       "minimum": 0,
                       "type": "integer"
                     },
+                    "dockerfileName": {
+                      "description": "Name of the Dockerfile that builds the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename",
+                      "type": "string"
+                    },
                     "enabled": {
                       "description": "Controls if the job shall be deployed to this environment.",
                       "type": "boolean"
@@ -1357,6 +1373,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "image": {
+                      "description": "Name of an existing container image to use when running the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2",
+                      "type": "string"
                     },
                     "imageTagName": {
                       "description": "The imageTagName allows for flexible configuration of fixed images, built outside of Radix, to be configured with separate tag for each environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname-2",
@@ -1511,6 +1531,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "src": {
+                      "description": "Path to the Dockerfile that builds the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#src",
+                      "type": "string"
                     },
                     "timeLimitSeconds": {
                       "description": "Environment specific value for the maximum number of seconds the job can run. More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2",

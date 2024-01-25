@@ -365,6 +365,10 @@ spec:
                                     type: boolean
                                 type: object
                             type: object
+                          dockerfileName:
+                            description: 'Name of the Dockerfile that builds the component.
+                              More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename'
+                            type: string
                           enabled:
                             description: 'Controls if the component shall be deployed
                               to this environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled'
@@ -442,6 +446,10 @@ spec:
                                 - clientId
                                 type: object
                             type: object
+                          image:
+                            description: 'Name of an existing container image to use
+                              when running the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#image'
+                            type: string
                           imageTagName:
                             description: 'The imageTagName allows for flexible configuration
                               of fixed images, built outside of Radix, to be configured
@@ -592,6 +600,10 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                          src:
+                            description: 'Path to the Dockerfile that builds the component.
+                              More info: https://www.radix.equinor.com/references/reference-radix-config/#src'
+                            type: string
                           variables:
                             additionalProperties:
                               type: string
@@ -1293,6 +1305,10 @@ spec:
                             format: int32
                             minimum: 0
                             type: integer
+                          dockerfileName:
+                            description: 'Name of the Dockerfile that builds the component.
+                              More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename'
+                            type: string
                           enabled:
                             description: Controls if the job shall be deployed to
                               this environment.
@@ -1320,6 +1336,10 @@ spec:
                                 - clientId
                                 type: object
                             type: object
+                          image:
+                            description: 'Name of an existing container image to use
+                              when running the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2'
+                            type: string
                           imageTagName:
                             description: 'The imageTagName allows for flexible configuration
                               of fixed images, built outside of Radix, to be configured
@@ -1478,6 +1498,10 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                          src:
+                            description: 'Path to the Dockerfile that builds the component.
+                              More info: https://www.radix.equinor.com/references/reference-radix-config/#src'
+                            type: string
                           timeLimitSeconds:
                             description: 'Environment specific value for the maximum
                               number of seconds the job can run. More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2'
