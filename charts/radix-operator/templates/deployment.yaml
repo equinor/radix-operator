@@ -163,11 +163,11 @@ spec:
             - name: RADIX_RESERVED_DNS_ALIASES
               value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.reservedDNSAlias | quote }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER
-              value: {{ .Values.ingress.certificate.clusterIssuer }}
+              value: {{ .Values.ingress.certificate.automation.clusterIssuer }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
-              value: {{ .Values.ingress.certificate.duration }}
+              value: {{ .Values.ingress.certificate.automation.duration }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE
-              value: {{ .Values.ingress.certificate.renewBefore }}              
+              value: {{ .Values.ingress.certificate.automation.renewBefore }}              
           livenessProbe:
             httpGet:
               path: /healthz
