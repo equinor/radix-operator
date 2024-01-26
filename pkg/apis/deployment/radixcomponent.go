@@ -4,6 +4,7 @@ import (
 	"dario.cat/mergo"
 	commonutils "github.com/equinor/radix-common/utils"
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -12,16 +13,23 @@ var (
 	authTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
-func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap) ([]radixv1.RadixDeployComponent, error) {
+func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
-	var components []radixv1.RadixDeployComponent
-
+	var deployComponents []radixv1.RadixDeployComponent
+	preservingDeployComponentMap := slice.Reduce(preservingDeployComponents, make(map[string]radixv1.RadixDeployComponent), func(acc map[string]radixv1.RadixDeployComponent, component radixv1.RadixDeployComponent) map[string]radixv1.RadixDeployComponent {
+		acc[component.GetName()] = component
+		return acc
+	})
 	for _, radixComponent := range radixApplication.Spec.Components {
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
 		if !radixComponent.GetEnabledForEnv(environmentSpecificConfig) {
 			continue
 		}
 		componentName := radixComponent.Name
+		if preservingDeployComponent, ok := preservingDeployComponentMap[componentName]; ok {
+			deployComponents = append(deployComponents, preservingDeployComponent)
+			continue
+		}
 		deployComponent := radixv1.RadixDeployComponent{
 			Name:                 componentName,
 			Public:               false,
@@ -65,10 +73,10 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 		deployComponent.Identity = identity
 		deployComponent.UseReadOnlyFileSystem = getRadixCommonComponentUseReadOnlyFileSystem(&radixComponent, environmentSpecificConfig)
 
-		components = append(components, deployComponent)
+		deployComponents = append(deployComponents, deployComponent)
 	}
 
-	return components, nil
+	return deployComponents, nil
 }
 
 func getRadixCommonComponentUseReadOnlyFileSystem(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *bool {

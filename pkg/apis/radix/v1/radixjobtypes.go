@@ -134,6 +134,12 @@ type RadixDeploySpec struct {
 	//
 	// required: false
 	CommitID string `json:"commitID" yaml:"commitID"`
+
+	// ComponentsToDeploy List of components to deploy
+	// OPTIONAL If specified, only these components are deployed
+	//
+	// required: false
+	ComponentsToDeploy []string `json:"componentsToDeploy"  yaml:"componentsToDeploy"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

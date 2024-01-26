@@ -1549,6 +1549,11 @@ func (in *RadixDeploySpec) DeepCopyInto(out *RadixDeploySpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.ComponentsToDeploy != nil {
+		in, out := &in.ComponentsToDeploy, &out.ComponentsToDeploy
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

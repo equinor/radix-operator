@@ -64,13 +64,14 @@ type PipelineArguments struct {
 	JobName      string
 	Branch       string
 	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
-	CommitID        string
-	ImageTag        string
-	UseCache        bool
-	PushImage       bool
-	DeploymentName  string
-	FromEnvironment string
-	ToEnvironment   string
+	CommitID           string
+	ImageTag           string
+	UseCache           bool
+	PushImage          bool
+	DeploymentName     string
+	FromEnvironment    string
+	ToEnvironment      string
+	ComponentsToDeploy []string
 
 	RadixConfigFile string
 	// Security context

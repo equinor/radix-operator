@@ -4,6 +4,7 @@ import (
 	stderrors "errors"
 
 	"github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -15,26 +16,36 @@ type JobComponentsBuilder interface {
 }
 
 type jobComponentsBuilder struct {
-	ra              *v1.RadixApplication
-	env             string
-	componentImages pipeline.DeployComponentImages
-	defaultEnvVars  v1.EnvVarsMap
+	ra                            *v1.RadixApplication
+	env                           string
+	componentImages               pipeline.DeployComponentImages
+	defaultEnvVars                v1.EnvVarsMap
+	preservingDeployJobComponents []v1.RadixDeployJobComponent
 }
 
 // NewJobComponentsBuilder constructor for JobComponentsBuilder
-func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars v1.EnvVarsMap) JobComponentsBuilder {
+func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars v1.EnvVarsMap, preservingDeployJobComponents []v1.RadixDeployJobComponent) JobComponentsBuilder {
 	return &jobComponentsBuilder{
-		ra:              ra,
-		env:             env,
-		componentImages: componentImages,
-		defaultEnvVars:  defaultEnvVars,
+		ra:                            ra,
+		env:                           env,
+		componentImages:               componentImages,
+		defaultEnvVars:                defaultEnvVars,
+		preservingDeployJobComponents: preservingDeployJobComponents,
 	}
 }
 
 func (c *jobComponentsBuilder) JobComponents() ([]v1.RadixDeployJobComponent, error) {
 	var jobs []v1.RadixDeployJobComponent
+	preservingDeployJobComponentMap := slice.Reduce(c.preservingDeployJobComponents, make(map[string]v1.RadixDeployJobComponent), func(acc map[string]v1.RadixDeployJobComponent, jobComponent v1.RadixDeployJobComponent) map[string]v1.RadixDeployJobComponent {
+		acc[jobComponent.GetName()] = jobComponent
+		return acc
+	})
 
 	for _, radixJobComponent := range c.ra.Spec.Jobs {
+		if preservingDeployComponent, ok := preservingDeployJobComponentMap[radixJobComponent.GetName()]; ok {
+			jobs = append(jobs, preservingDeployComponent)
+			continue
+		}
 		environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
 		if !radixJobComponent.GetEnabledForEnv(environmentSpecificConfig) {
 			continue
