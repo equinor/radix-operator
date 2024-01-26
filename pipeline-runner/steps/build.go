@@ -129,15 +129,14 @@ func (step *BuildStepImplementation) getJobOwnerReferences(pipelineInfo *model.P
 
 func (step *BuildStepImplementation) getJobDescription(job *batchv1.Job) string {
 	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("job %s to build components", job.Name))
-	if appName, ok := job.GetLabels()[kube.RadixAppLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" for app %s", appName))
+	builder.WriteString(fmt.Sprintf("the job %s to build", job.Name))
+	if componentName, ok := job.GetLabels()[kube.RadixComponentLabel]; ok {
+		builder.WriteString(fmt.Sprintf(" the component %s", componentName))
+	} else {
+		builder.WriteString(" components")
 	}
 	if envName, ok := job.GetLabels()[kube.RadixEnvLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" environment %s", envName))
-	}
-	if componentName, ok := job.GetLabels()[kube.RadixComponentLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" component %s", componentName))
+		builder.WriteString(fmt.Sprintf(" in the environment %s", envName))
 	}
 	return builder.String()
 }
