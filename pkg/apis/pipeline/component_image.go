@@ -24,3 +24,6 @@ type BuildComponentImage struct {
 
 // BuildComponentImages maps component names with build information
 type BuildComponentImages map[string]BuildComponentImage
+
+// EnvironmentBuildComponentImages maps component names with build information for environment
+type EnvironmentBuildComponentImages map[string]BuildComponentImages
