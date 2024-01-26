@@ -14,6 +14,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -44,22 +46,22 @@ func (step *BuildStepImplementation) Init(kubeclient kubernetes.Interface, radix
 }
 
 // ImplementationForType Override of default step method
-func (cli *BuildStepImplementation) ImplementationForType() pipeline.StepType {
-	return cli.stepType
+func (step *BuildStepImplementation) ImplementationForType() pipeline.StepType {
+	return step.stepType
 }
 
 // SucceededMsg Override of default step method
-func (cli *BuildStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: build step for application %s", cli.GetAppName())
+func (step *BuildStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Succeded: build step for application %s", step.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *BuildStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed to build application %s. Error: %v", cli.GetAppName(), err)
+func (step *BuildStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed to build application %s. Error: %v", step.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+func (step *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 
@@ -69,38 +71,47 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	}
 
 	if len(pipelineInfo.BuildComponentImages) == 0 {
-		log.Infof("No component in app %s requires building", cli.GetAppName())
+		log.Infof("No component in app %s requires building", step.GetAppName())
 		return nil
 	}
 
-	log.Infof("Building app %s for branch %s and commit %s", cli.GetAppName(), branch, commitID)
+	log.Infof("Building app %s for branch %s and commit %s", step.GetAppName(), branch, commitID)
 
-	namespace := utils.GetAppNamespace(cli.GetAppName())
+	namespace := utils.GetAppNamespace(step.GetAppName())
 	buildSecrets, err := getBuildSecretsAsVariables(pipelineInfo)
 	if err != nil {
 		return err
 	}
 
-	job, err := createACRBuildJob(cli.GetRegistration(), pipelineInfo, buildSecrets)
+	jobs, err := step.buildACRBuildJobs(pipelineInfo, buildSecrets)
 	if err != nil {
 		return err
 	}
 
+	return step.createACRBuildJobs(pipelineInfo, jobs, namespace, err)
+}
+
+func (step *BuildStepImplementation) createACRBuildJobs(pipelineInfo *model.PipelineInfo, jobs []*batchv1.Job, namespace string, err error) error {
+	var ownerReference []metav1.OwnerReference
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		ownerReference, err = jobUtil.GetOwnerReferenceOfJob(step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
 			return err
 		}
-
-		job.OwnerReferences = ownerReference
 	}
 
-	log.Infof("Apply job (%s) to build components for app %s", job.Name, cli.GetAppName())
-	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
-	if err != nil {
-		return err
+	g := errgroup.Group{}
+	for _, job := range jobs {
+		g.Go(func() error {
+			job.OwnerReferences = ownerReference
+			log.Infof("Apply job %s to build components for app %s", job.Name, step.GetAppName())
+			job, err = step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+			return step.jobWaiter.Wait(job)
+		})
 	}
-
-	return cli.jobWaiter.Wait(job)
+	return g.Wait()
 }

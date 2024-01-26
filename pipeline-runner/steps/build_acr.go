@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -36,7 +35,8 @@ type void struct{}
 
 var member void
 
-func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
+func (step *BuildStepImplementation) buildACRBuildJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
+	rr := step.GetRegistration()
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
@@ -91,7 +91,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 			},
 		},
 	}
-	return &job, nil
+	return []*batchv1.Job{&job}, nil
 }
 
 func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []corev1.Volume {
