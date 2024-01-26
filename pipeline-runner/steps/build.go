@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -87,31 +88,56 @@ func (step *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error
 	if err != nil {
 		return err
 	}
-
-	return step.createACRBuildJobs(pipelineInfo, jobs, namespace, err)
+	return step.createACRBuildJobs(pipelineInfo, jobs, namespace)
 }
 
-func (step *BuildStepImplementation) createACRBuildJobs(pipelineInfo *model.PipelineInfo, jobs []*batchv1.Job, namespace string, err error) error {
-	var ownerReference []metav1.OwnerReference
-	// When debugging pipeline there will be no RJ
-	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err = jobUtil.GetOwnerReferenceOfJob(step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
-		if err != nil {
-			return err
-		}
+func (step *BuildStepImplementation) createACRBuildJobs(pipelineInfo *model.PipelineInfo, jobs []*batchv1.Job, namespace string) error {
+	ownerReference, err := step.getJobOwnerReferences(pipelineInfo, namespace)
+	if err != nil {
+		return err
 	}
 
 	g := errgroup.Group{}
 	for _, job := range jobs {
+		job := job
 		g.Go(func() error {
 			job.OwnerReferences = ownerReference
-			log.Infof("Apply job %s to build components for app %s", job.Name, step.GetAppName())
+			jobDescription := step.getJobDescription(job)
+			log.Infof("Apply %s", jobDescription)
 			job, err = step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 			if err != nil {
+				log.Errorf("failed %s", jobDescription)
 				return err
 			}
 			return step.jobWaiter.Wait(job)
 		})
 	}
 	return g.Wait()
+}
+
+func (step *BuildStepImplementation) getJobOwnerReferences(pipelineInfo *model.PipelineInfo, namespace string) ([]metav1.OwnerReference, error) {
+	// When debugging pipeline there will be no RJ
+	if pipelineInfo.PipelineArguments.Debug {
+		return nil, nil
+	}
+	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	if err != nil {
+		return nil, err
+	}
+	return ownerReference, nil
+}
+
+func (step *BuildStepImplementation) getJobDescription(job *batchv1.Job) string {
+	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("job %s to build components", job.Name))
+	if appName, ok := job.GetLabels()[kube.RadixAppLabel]; ok {
+		builder.WriteString(fmt.Sprintf(" for app %s", appName))
+	}
+	if envName, ok := job.GetLabels()[kube.RadixEnvLabel]; ok {
+		builder.WriteString(fmt.Sprintf(" environment %s", envName))
+	}
+	if componentName, ok := job.GetLabels()[kube.RadixComponentLabel]; ok {
+		builder.WriteString(fmt.Sprintf(" component %s", componentName))
+	}
+	return builder.String()
 }

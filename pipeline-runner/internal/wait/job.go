@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	logger "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -51,7 +52,7 @@ func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) erro
 				case currJob.Status.Succeeded == 1:
 					errChan <- nil
 				case currJob.Status.Failed == 1:
-					errChan <- fmt.Errorf("job failed. See log for more details")
+					errChan <- fmt.Errorf("job failed. See log of the %s job %s for more details", currJob.GetLabels()[kube.RadixJobTypeLabel], currJob.GetName())
 				}
 			}
 		},

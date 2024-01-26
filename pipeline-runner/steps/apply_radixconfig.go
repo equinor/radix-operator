@@ -289,7 +289,7 @@ func getComponentSources(envName string, components []radixv1.RadixCommonCompone
 func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, componentImageSourceMap environmentComponentImageSourceMap) {
 	pipelineInfo.BuildComponentImages = make(pipeline.EnvironmentBuildComponentImages)
 	for envName := range componentImageSourceMap {
-		buildComponentImages := make(pipeline.BuildComponentImages)
+		var buildComponentImages []pipeline.BuildComponentImage
 		for imageSourceIndex := 0; imageSourceIndex < len(componentImageSourceMap[envName]); imageSourceIndex++ {
 			imageSource := componentImageSourceMap[envName][imageSourceIndex]
 			if imageSource.ImageSource != fromBuild {
@@ -298,13 +298,14 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			componentName := imageSource.ComponentName
 			imageName := fmt.Sprintf("%s-%s", envName, componentName)
 			imagePath := operatorutils.GetImagePath(pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.RadixApplication.GetName(), imageName, pipelineInfo.PipelineArguments.ImageTag)
-			buildComponentImages[componentName] = pipeline.BuildComponentImage{
+			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
+				ComponentName: componentName,
 				ContainerName: fmt.Sprintf("build-%s-%s", envName, componentName),
 				Context:       getContext(imageSource.Source.Folder),
 				Dockerfile:    getDockerfileName(imageSource.Source.DockefileName),
 				ImageName:     imageName,
 				ImagePath:     imagePath,
-			}
+			})
 			componentImageSourceMap[envName][imageSourceIndex].Image = imagePath
 		}
 		if len(buildComponentImages) > 0 {
@@ -324,7 +325,14 @@ func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInf
 					Build:        cis.ImageSource == fromBuild,
 				}
 				if cis.ImageSource == fromBuild {
-					deployComponentImage.ImagePath = buildComponentImages[cis.ComponentName].ImagePath
+					if buildComponentImage, ok := slice.FindFirst(buildComponentImages,
+						func(componentImage pipeline.BuildComponentImage) bool {
+							return componentImage.ComponentName == cis.ComponentName
+						}); ok {
+						deployComponentImage.ImagePath = buildComponentImage.ImagePath
+					} else {
+						panic(fmt.Errorf("missing buildComponentImage for the imageSource with ImageSource == fromBuild for environment %s", envName)) // this should not happen, otherwise cis.ImageSource is not consistent
+					}
 				} else {
 					deployComponentImage.ImagePath = cis.Image
 				}
