@@ -368,7 +368,7 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTa
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
 			},
 			Annotations: map[string]string{
-				kube.RadixComponentImagesAnnotation: string(componentImageAnnotation),
+				kube.RadixBuildComponentsAnnotation: string(componentImageAnnotation),
 			},
 		},
 	}

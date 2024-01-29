@@ -433,12 +433,14 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 		return fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, s, pipeline.PipelineArguments.ImageTag)
 	}
 	expectedJobContainers := []jobContainerSpec{
-		{Name: "build-multi-component", Docker: "client.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("multi-component")},
-		{Name: "build-multi-component-1", Docker: "calc.Dockerfile", Context: "/workspace/calc/", Image: imageNameFunc("multi-component-1")},
-		{Name: "build-client-component-4", Docker: "client.Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("client-component-4")},
-		{Name: "build-client-component-6", Docker: "client.Dockerfile", Context: "/workspace/client3/", Image: imageNameFunc("client-component-6")},
-		{Name: "build-calc-4", Docker: "calc.Dockerfile", Context: "/workspace/calc2/", Image: imageNameFunc("calc-4")},
-		{Name: "build-calc-6", Docker: "calc.Dockerfile", Context: "/workspace/calc3/", Image: imageNameFunc("calc-6")},
+		{Name: "build-client-component-1-dev", Docker: "client.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev-client-component-1")},
+		{Name: "build-client-component-2-dev", Docker: "client.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev-client-component-2")},
+		{Name: "build-calc-1-dev", Docker: "calc.Dockerfile", Context: "/workspace/calc/", Image: imageNameFunc("dev-calc-1")},
+		{Name: "build-calc-2-dev", Docker: "calc.Dockerfile", Context: "/workspace/calc/", Image: imageNameFunc("dev-calc-2")},
+		{Name: "build-client-component-4-dev", Docker: "client.Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev-client-component-4")},
+		{Name: "build-client-component-6-dev", Docker: "client.Dockerfile", Context: "/workspace/client3/", Image: imageNameFunc("dev-client-component-6")},
+		{Name: "build-calc-4-dev", Docker: "calc.Dockerfile", Context: "/workspace/calc2/", Image: imageNameFunc("dev-calc-4")},
+		{Name: "build-calc-6-dev", Docker: "calc.Dockerfile", Context: "/workspace/calc3/", Image: imageNameFunc("dev-calc-6")},
 	}
 	actualJobContainers := slice.Map(job.Spec.Template.Spec.Containers, func(c corev1.Container) jobContainerSpec {
 		getEnv := func(env string) string {
@@ -454,7 +456,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 			Context: getEnv("CONTEXT"),
 		}
 	})
-	s.ElementsMatch(expectedJobContainers, actualJobContainers)
+	s.Require().ElementsMatch(expectedJobContainers, actualJobContainers)
 
 	// Check RadixDeployment component and job images
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
@@ -465,25 +467,25 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 		Image string
 	}
 	expectedDeployComponents := []deployComponentSpec{
-		{Name: "client-component-1", Image: imageNameFunc("multi-component")},
-		{Name: "client-component-2", Image: imageNameFunc("multi-component")},
-		{Name: "client-component-4", Image: imageNameFunc("client-component-4")},
-		{Name: "client-component-6", Image: imageNameFunc("client-component-6")},
+		{Name: "client-component-1", Image: imageNameFunc("dev-client-component-1")},
+		{Name: "client-component-2", Image: imageNameFunc("dev-client-component-2")},
+		{Name: "client-component-4", Image: imageNameFunc("dev-client-component-4")},
+		{Name: "client-component-6", Image: imageNameFunc("dev-client-component-6")},
 	}
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedJobComponents := []deployComponentSpec{
-		{Name: "calc-1", Image: imageNameFunc("multi-component-1")},
-		{Name: "calc-2", Image: imageNameFunc("multi-component-1")},
-		{Name: "calc-4", Image: imageNameFunc("calc-4")},
-		{Name: "calc-6", Image: imageNameFunc("calc-6")},
+		{Name: "calc-1", Image: imageNameFunc("dev-calc-1")},
+		{Name: "calc-2", Image: imageNameFunc("dev-calc-2")},
+		{Name: "calc-4", Image: imageNameFunc("dev-calc-4")},
+		{Name: "calc-6", Image: imageNameFunc("dev-calc-6")},
 	}
 	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.ElementsMatch(expectedJobComponents, actualJobComponents)
+	s.Require().ElementsMatch(expectedJobComponents, actualJobComponents)
 }
 
 func (s *buildTestSuite) Test_BuildChangedComponents() {
@@ -577,16 +579,17 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		return fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, s, pipeline.PipelineArguments.ImageTag)
 	}
 	expectedJobContainers := []string{
-		"build-comp-changed",
-		"build-comp-new",
-		"build-job-changed",
-		"build-job-new",
-		"build-comp-common1-changed",
-		"build-job-common2-changed",
-		"build-multi-component",
+		"build-comp-changed-dev",
+		"build-comp-new-dev",
+		"build-comp-common1-changed-dev",
+		"build-comp-common3-changed-dev",
+		"build-job-changed-dev",
+		"build-job-new-dev",
+		"build-job-common2-changed-dev",
+		"build-job-common3-changed-dev",
 	}
 	actualJobContainers := slice.Map(job.Spec.Template.Spec.Containers, func(c corev1.Container) string { return c.Name })
-	s.ElementsMatch(expectedJobContainers, actualJobContainers)
+	s.Require().ElementsMatch(expectedJobContainers, actualJobContainers)
 
 	// Check RadixDeployment component and job images
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{LabelSelector: labels.ForPipelineJobName(rjName).String()})
@@ -597,31 +600,31 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		Image string
 	}
 	expectedDeployComponents := []deployComponentSpec{
-		{Name: "comp-changed", Image: imageNameFunc("comp-changed")},
-		{Name: "comp-new", Image: imageNameFunc("comp-new")},
-		{Name: "comp-unchanged", Image: "comp-unchanged-current:anytag"},
-		{Name: "comp-deployonly", Image: "comp-deployonly:anytag"},
-		{Name: "comp-common1-changed", Image: imageNameFunc("comp-common1-changed")},
-		{Name: "comp-common2-unchanged", Image: "comp-common2-unchanged:anytag"},
-		{Name: "comp-common3-changed", Image: imageNameFunc("multi-component")},
+		{Name: "comp-changed", Image: imageNameFunc("dev-comp-changed")},
+		{Name: "comp-new", Image: imageNameFunc("dev-comp-new")},
+		{Name: "comp-unchanged", Image: "dev-comp-unchanged-current:anytag"},
+		{Name: "comp-common1-changed", Image: imageNameFunc("dev-comp-common1-changed")},
+		{Name: "comp-common2-unchanged", Image: "dev-comp-common2-unchanged:anytag"},
+		{Name: "comp-common3-changed", Image: imageNameFunc("dev-comp-common3-changed")},
+		{Name: "comp-deployonly", Image: "dev-comp-deployonly:anytag"},
 	}
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedJobComponents := []deployComponentSpec{
-		{Name: "job-changed", Image: imageNameFunc("job-changed")},
-		{Name: "job-new", Image: imageNameFunc("job-new")},
-		{Name: "job-unchanged", Image: "job-unchanged-current:anytag"},
-		{Name: "job-deployonly", Image: "job-deployonly:anytag"},
-		{Name: "job-common1-unchanged", Image: "job-common1-unchanged:anytag"},
-		{Name: "job-common2-changed", Image: imageNameFunc("job-common2-changed")},
-		{Name: "job-common3-changed", Image: imageNameFunc("multi-component")},
+		{Name: "job-changed", Image: imageNameFunc("dev-job-changed")},
+		{Name: "job-new", Image: imageNameFunc("dev-job-new")},
+		{Name: "job-unchanged", Image: "dev-job-unchanged-current:anytag"},
+		{Name: "job-deployonly", Image: "dev-job-deployonly:anytag"},
+		{Name: "job-common1-unchanged", Image: "dev-job-common1-unchanged:anytag"},
+		{Name: "job-common2-changed", Image: imageNameFunc("dev-job-common2-changed:anytag")},
+		{Name: "job-common3-changed", Image: imageNameFunc("dev-job-common3-changed:anytag")},
 	}
 	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.ElementsMatch(expectedJobComponents, actualJobComponents)
+	s.Require().ElementsMatch(expectedJobComponents, actualJobComponents)
 }
 
 func (s *buildTestSuite) Test_DetectComponentsToBuild() {

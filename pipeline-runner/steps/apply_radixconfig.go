@@ -319,13 +319,13 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInfo, environmentImageSourceMap environmentComponentImageSourceMap) {
 	pipelineInfo.DeployEnvironmentComponentImages = make(pipeline.DeployEnvironmentComponentImages)
 	for envName, imageSources := range environmentImageSourceMap {
-		if buildComponentImages, ok := pipelineInfo.BuildComponentImages[envName]; ok {
-			pipelineInfo.DeployEnvironmentComponentImages[envName] = slice.Reduce(imageSources, make(pipeline.DeployComponentImages), func(acc pipeline.DeployComponentImages, cis componentImageSource) pipeline.DeployComponentImages {
-				deployComponentImage := pipeline.DeployComponentImage{
-					ImageTagName: pipelineInfo.PipelineArguments.ImageTagNames[cis.ComponentName],
-					Build:        cis.ImageSource == fromBuild,
-				}
-				if cis.ImageSource == fromBuild {
+		pipelineInfo.DeployEnvironmentComponentImages[envName] = slice.Reduce(imageSources, make(pipeline.DeployComponentImages), func(acc pipeline.DeployComponentImages, cis componentImageSource) pipeline.DeployComponentImages {
+			deployComponentImage := pipeline.DeployComponentImage{
+				ImageTagName: pipelineInfo.PipelineArguments.ImageTagNames[cis.ComponentName],
+				Build:        cis.ImageSource == fromBuild,
+			}
+			if cis.ImageSource == fromBuild {
+				if buildComponentImages, ok := pipelineInfo.BuildComponentImages[envName]; ok {
 					if buildComponentImage, ok := slice.FindFirst(buildComponentImages,
 						func(componentImage pipeline.BuildComponentImage) bool {
 							return componentImage.ComponentName == cis.ComponentName
@@ -334,13 +334,13 @@ func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInf
 					} else {
 						panic(fmt.Errorf("missing buildComponentImage for the imageSource with ImageSource == fromBuild for environment %s", envName)) // this should not happen, otherwise cis.ImageSource is not consistent
 					}
-				} else {
-					deployComponentImage.ImagePath = cis.Image
 				}
-				acc[cis.ComponentName] = deployComponentImage
-				return acc
-			})
-		}
+			} else {
+				deployComponentImage.ImagePath = cis.Image
+			}
+			acc[cis.ComponentName] = deployComponentImage
+			return acc
+		})
 	}
 }
 
