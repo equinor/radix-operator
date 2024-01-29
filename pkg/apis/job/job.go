@@ -463,13 +463,19 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			steps = append(steps, getJobStepWithNoComponents(pod.GetName(), &containerStatus))
 		}
 
-		componentImages := make([]pipeline.BuildComponentImage, 0)
+		componentImages := make(pipeline.BuildComponentImages, 0)
 		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
 			return nil, err
 		}
 
+		buildComponents := make([]pipeline.BuildComponentImage, 0)
+		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixBuildComponentsAnnotation, &buildComponents); err != nil {
+			return nil, err
+		}
+
 		for _, containerStatus := range pod.Status.ContainerStatuses {
-			components := getComponentsForContainer(containerStatus.Name, componentImages)
+			components := getComponentImagesForContainer(containerStatus.Name, componentImages)
+			components = append(components, getComponentsForContainer(containerStatus.Name, buildComponents)...)
 			step := getJobStep(pod.GetName(), &containerStatus, components)
 			if _, ok := foundPrepareStepNames[step.Name]; ok {
 				continue
@@ -494,10 +500,20 @@ func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj int
 
 func getComponentsForContainer(name string, componentImages []pipeline.BuildComponentImage) []string {
 	components := make([]string, 0)
-
 	for _, componentImage := range componentImages {
 		if strings.EqualFold(componentImage.ContainerName, name) {
 			components = append(components, componentImage.ComponentName)
+		}
+	}
+	sort.Strings(components)
+	return components
+}
+
+func getComponentImagesForContainer(name string, componentImages pipeline.BuildComponentImages) []string {
+	components := make([]string, 0)
+	for componentName, componentImage := range componentImages {
+		if strings.EqualFold(componentImage.ContainerName, name) {
+			components = append(components, componentName)
 		}
 	}
 	sort.Strings(components)

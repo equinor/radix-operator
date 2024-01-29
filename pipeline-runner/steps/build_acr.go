@@ -75,7 +75,7 @@ func buildACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
-	jobName := pipelineInfo.PipelineArguments.JobName
+	pipelineJobName := pipelineInfo.PipelineArguments.JobName
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
 	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildComponentImages, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
@@ -91,13 +91,13 @@ func buildACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo
 		buildPodSecurityContext = &pipelineInfo.PipelineArguments.BuildKitPodSecurityContext
 	}
 
-	jobName = fmt.Sprintf("radix-builder-%s-%s-%s", timestamp, imageTag, hash)
-	log.Debugf("build a job %s", jobName)
+	buildJobName := fmt.Sprintf("radix-builder-%s-%s-%s", timestamp, imageTag, hash)
+	log.Debugf("build a job %s", buildJobName)
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: jobName,
+			Name: buildJobName,
 			Labels: map[string]string{
-				kube.RadixJobNameLabel:  jobName,
+				kube.RadixJobNameLabel:  pipelineJobName,
 				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s-%s", appName, imageTag, hash),
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
@@ -105,14 +105,14 @@ func buildACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo
 			},
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation:          branch,
-				kube.RadixComponentImagesAnnotation: string(componentImagesAnnotation),
+				kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 			},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      radixlabels.ForPipelineJobName(jobName),
+					Labels:      radixlabels.ForPipelineJobName(pipelineJobName),
 					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{

@@ -300,7 +300,8 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			imagePath := operatorutils.GetImagePath(pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.RadixApplication.GetName(), imageName, pipelineInfo.PipelineArguments.ImageTag)
 			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
 				ComponentName: componentName,
-				ContainerName: fmt.Sprintf("build-%s-%s", envName, componentName),
+				EnvName:       envName,
+				ContainerName: fmt.Sprintf("build-%s-%s", componentName, envName),
 				Context:       getContext(imageSource.Source.Folder),
 				Dockerfile:    getDockerfileName(imageSource.Source.DockefileName),
 				ImageName:     imageName,
