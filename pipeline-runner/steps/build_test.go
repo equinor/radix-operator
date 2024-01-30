@@ -179,7 +179,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.ElementsMatch(expectedCloneVolumeMounts, cloneContainer.VolumeMounts)
 	// Check containers
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	s.Equal(fmt.Sprintf("build-%s", compName), job.Spec.Template.Spec.Containers[0].Name)
+	s.Equal(fmt.Sprintf("build-%s-%s", compName, envName), job.Spec.Template.Spec.Containers[0].Name)
 	s.Equal("registry/builder:latest", job.Spec.Template.Spec.Containers[0].Image)
 	s.Len(job.Spec.Template.Spec.Containers[0].Args, 0)
 	s.Len(job.Spec.Template.Spec.Containers[0].Command, 0)
@@ -191,14 +191,14 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	expectedEnv := []corev1.EnvVar{
 		{Name: "DOCKER_FILE_NAME", Value: "Dockerfile"},
 		{Name: "DOCKER_REGISTRY", Value: pipeline.PipelineArguments.ContainerRegistry},
-		{Name: "IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag)},
+		{Name: "IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.ImageTag)},
 		{Name: "CONTEXT", Value: "/workspace/"},
 		{Name: "PUSH", Value: ""},
 		{Name: "AZURE_CREDENTIALS", Value: "/radix-image-builder/.azure/sp_credentials.json"},
 		{Name: "SUBSCRIPTION_ID", Value: pipeline.PipelineArguments.SubscriptionId},
-		{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
-		{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
-		{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s", appName, compName)},
+		{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
+		{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
+		{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s-%s", appName, envName, compName)},
 		{Name: "CACHE", Value: "--no-cache"},
 		{Name: "RADIX_ZONE", Value: pipeline.PipelineArguments.RadixZone},
 		{Name: "BRANCH", Value: pipeline.PipelineArguments.Branch},
@@ -218,7 +218,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.Greater(len(rd.GetAnnotations()[kube.RadixConfigHash]), 0)
 	s.Require().Len(rd.Spec.Components, 1)
 	s.Equal(compName, rd.Spec.Components[0].Name)
-	s.Equal(fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag), rd.Spec.Components[0].Image)
+	s.Equal(fmt.Sprintf("%s/%s-%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.ImageTag), rd.Spec.Components[0].Image)
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
@@ -525,16 +525,16 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		WithAnnotations(map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(ra), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(nil)}).
 		WithCondition(radixv1.DeploymentActive).
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp-changed").WithImage("comp-changed-current:anytag"),
-			utils.NewDeployComponentBuilder().WithName("comp-unchanged").WithImage("comp-unchanged-current:anytag"),
-			utils.NewDeployComponentBuilder().WithName("comp-common1-changed").WithImage("comp-common1-changed:anytag"),
-			utils.NewDeployComponentBuilder().WithName("comp-common2-unchanged").WithImage("comp-common2-unchanged:anytag"),
+			utils.NewDeployComponentBuilder().WithName("comp-changed").WithImage("dev-comp-changed-current:anytag"),
+			utils.NewDeployComponentBuilder().WithName("comp-unchanged").WithImage("dev-comp-unchanged-current:anytag"),
+			utils.NewDeployComponentBuilder().WithName("comp-common1-changed").WithImage("dev-comp-common1-changed:anytag"),
+			utils.NewDeployComponentBuilder().WithName("comp-common2-unchanged").WithImage("dev-comp-common2-unchanged:anytag"),
 		).
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job-changed").WithImage("job-changed-current:anytag"),
-			utils.NewDeployJobComponentBuilder().WithName("job-unchanged").WithImage("job-unchanged-current:anytag"),
-			utils.NewDeployJobComponentBuilder().WithName("job-common1-unchanged").WithImage("job-common1-unchanged:anytag"),
-			utils.NewDeployJobComponentBuilder().WithName("job-common2-changed").WithImage("job-common2-changed:anytag"),
+			utils.NewDeployJobComponentBuilder().WithName("job-changed").WithImage("dev-job-changed-current:anytag"),
+			utils.NewDeployJobComponentBuilder().WithName("job-unchanged").WithImage("dev-job-unchanged-current:anytag"),
+			utils.NewDeployJobComponentBuilder().WithName("job-common1-unchanged").WithImage("dev-job-common1-unchanged:anytag"),
+			utils.NewDeployJobComponentBuilder().WithName("job-common2-changed").WithImage("dev-job-common2-changed:anytag"),
 		).
 		BuildRD()
 	_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), currentRd, metav1.CreateOptions{})
@@ -606,7 +606,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		{Name: "comp-common1-changed", Image: imageNameFunc("dev-comp-common1-changed")},
 		{Name: "comp-common2-unchanged", Image: "dev-comp-common2-unchanged:anytag"},
 		{Name: "comp-common3-changed", Image: imageNameFunc("dev-comp-common3-changed")},
-		{Name: "comp-deployonly", Image: "dev-comp-deployonly:anytag"},
+		{Name: "comp-deployonly", Image: "comp-deployonly:anytag"},
 	}
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
@@ -616,10 +616,10 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		{Name: "job-changed", Image: imageNameFunc("dev-job-changed")},
 		{Name: "job-new", Image: imageNameFunc("dev-job-new")},
 		{Name: "job-unchanged", Image: "dev-job-unchanged-current:anytag"},
-		{Name: "job-deployonly", Image: "dev-job-deployonly:anytag"},
 		{Name: "job-common1-unchanged", Image: "dev-job-common1-unchanged:anytag"},
-		{Name: "job-common2-changed", Image: imageNameFunc("dev-job-common2-changed:anytag")},
-		{Name: "job-common3-changed", Image: imageNameFunc("dev-job-common3-changed:anytag")},
+		{Name: "job-common2-changed", Image: imageNameFunc("dev-job-common2-changed")},
+		{Name: "job-common3-changed", Image: imageNameFunc("dev-job-common3-changed")},
+		{Name: "job-deployonly", Image: "job-deployonly:anytag"},
 	}
 	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
@@ -1353,7 +1353,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
-	appName, rjName, compName, sourceFolder, dockerFile := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile"
+	appName, rjName, compName, sourceFolder, dockerFile, envName := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile", "dev"
 	prepareConfigMapName := "preparecm"
 	gitConfigMapName, gitHash, gitTags := "gitcm", "githash", "gittags"
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
@@ -1421,14 +1421,14 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	expectedEnv := []corev1.EnvVar{
 		{Name: "DOCKER_FILE_NAME", Value: dockerFile},
 		{Name: "DOCKER_REGISTRY", Value: pipeline.PipelineArguments.ContainerRegistry},
-		{Name: "IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag)},
+		{Name: "IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.ImageTag)},
 		{Name: "CONTEXT", Value: "/workspace/path2/"},
 		{Name: "PUSH", Value: ""},
 		{Name: "AZURE_CREDENTIALS", Value: "/radix-image-builder/.azure/sp_credentials.json"},
 		{Name: "SUBSCRIPTION_ID", Value: pipeline.PipelineArguments.SubscriptionId},
-		{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
-		{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
-		{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s", appName, compName)},
+		{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
+		{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
+		{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s-%s", appName, envName, compName)},
 		{Name: "CACHE", Value: "--no-cache"},
 		{Name: "RADIX_ZONE", Value: pipeline.PipelineArguments.RadixZone},
 		{Name: "BRANCH", Value: pipeline.PipelineArguments.Branch},
@@ -1449,7 +1449,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
-	appName, rjName, compName, sourceFolder, dockerFile := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile"
+	appName, rjName, compName, sourceFolder, dockerFile, envName := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile", "dev"
 	prepareConfigMapName := "preparecm"
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -1505,13 +1505,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 			"--layers ",
 			fmt.Sprintf("--cache-to=%s/%s/cache ", pipeline.PipelineArguments.AppContainerRegistry, appName),
 			fmt.Sprintf("--cache-from=%s/%s/cache ", pipeline.PipelineArguments.AppContainerRegistry, appName),
-			fmt.Sprintf("--tag %s/%s-%s:%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("--tag %s/%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("--tag %s/%s-%s-%s:%s ", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("--tag %s/%s-%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("--tag %s/%s-%s-%s:%s-%s ", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
 			"/workspace/path2/ && ",
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s:%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s:%s-%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
-			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s-%s:%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s-%s:%s-%s && ", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag),
+			fmt.Sprintf("/usr/bin/buildah push --storage-driver=overlay %s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag),
 		},
 		"",
 	)
