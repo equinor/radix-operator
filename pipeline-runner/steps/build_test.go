@@ -167,7 +167,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 
 	// Check init containers
 	s.Len(job.Spec.Template.Spec.InitContainers, 2)
-	s.Require().ElementsMatch([]string{"internal-nslookup", "clone"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
+	s.ElementsMatch([]string{"internal-nslookup", "clone"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 	cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 	s.Equal("alpine/git:user", cloneContainer.Image)
 	s.Equal([]string{"/bin/sh", "-c"}, cloneContainer.Command)
@@ -294,15 +294,19 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 		return fmt.Sprintf("%s/%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, s, pipeline.PipelineArguments.ImageTag)
 	}
 	expectedJobContainers := []jobContainerSpec{
-		{Name: "build-multi-component", Docker: "client.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("multi-component")},
-		{Name: "build-multi-component-1", Docker: "server.Dockerfile", Context: "/workspace/server/", Image: imageNameFunc("multi-component-1")},
-		{Name: "build-single-component", Docker: "Dockerfile", Context: "/workspace/", Image: imageNameFunc("single-component")},
-		{Name: "build-multi-component-2", Docker: "compute.Dockerfile", Context: "/workspace/compute/", Image: imageNameFunc("multi-component-2")},
-		{Name: "build-compute-shared-with-different-dockerfile-1", Docker: "compute-custom1.Dockerfile", Context: "/workspace/compute-with-different-dockerfile/", Image: imageNameFunc("compute-shared-with-different-dockerfile-1")},
-		{Name: "build-compute-shared-with-different-dockerfile-2", Docker: "compute-custom2.Dockerfile", Context: "/workspace/compute-with-different-dockerfile/", Image: imageNameFunc("compute-shared-with-different-dockerfile-2")},
-		{Name: "build-compute-shared-with-different-dockerfile-3", Docker: "compute-custom3.Dockerfile", Context: "/workspace/compute-with-different-dockerfile/", Image: imageNameFunc("compute-shared-with-different-dockerfile-3")},
-		{Name: "build-single-job", Docker: "job.Dockerfile", Context: "/workspace/job/", Image: imageNameFunc("single-job")},
-		{Name: "build-multi-component-3", Docker: "calc.Dockerfile", Context: "/workspace/calc/", Image: imageNameFunc("multi-component-3")},
+		{Name: "build-client-component-1-dev", Docker: "client.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev-client-component-1")},
+		{Name: "build-client-component-2-dev", Docker: "client.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev-client-component-2")},
+		{Name: "build-server-component-1-dev", Docker: "server.Dockerfile", Context: "/workspace/server/", Image: imageNameFunc("dev-server-component-1")},
+		{Name: "build-server-component-2-dev", Docker: "server.Dockerfile", Context: "/workspace/server/", Image: imageNameFunc("dev-server-component-2")},
+		{Name: "build-single-component-dev", Docker: "Dockerfile", Context: "/workspace/", Image: imageNameFunc("dev-single-component")},
+		{Name: "build-compute-shared-1-dev", Docker: "compute.Dockerfile", Context: "/workspace/compute/", Image: imageNameFunc("dev-compute-shared-1")},
+		{Name: "build-compute-shared-with-different-dockerfile-1-dev", Docker: "compute-custom1.Dockerfile", Context: "/workspace/compute-with-different-dockerfile/", Image: imageNameFunc("dev-compute-shared-with-different-dockerfile-1")},
+		{Name: "build-compute-shared-with-different-dockerfile-2-dev", Docker: "compute-custom2.Dockerfile", Context: "/workspace/compute-with-different-dockerfile/", Image: imageNameFunc("dev-compute-shared-with-different-dockerfile-2")},
+		{Name: "build-compute-shared-2-dev", Docker: "compute.Dockerfile", Context: "/workspace/compute/", Image: imageNameFunc("dev-compute-shared-2")},
+		{Name: "build-compute-shared-with-different-dockerfile-3-dev", Docker: "compute-custom3.Dockerfile", Context: "/workspace/compute-with-different-dockerfile/", Image: imageNameFunc("dev-compute-shared-with-different-dockerfile-3")},
+		{Name: "build-single-job-dev", Docker: "job.Dockerfile", Context: "/workspace/job/", Image: imageNameFunc("dev-single-job")},
+		{Name: "build-calc-1-dev", Docker: "calc.Dockerfile", Context: "/workspace/calc/", Image: imageNameFunc("dev-calc-1")},
+		{Name: "build-calc-2-dev", Docker: "calc.Dockerfile", Context: "/workspace/calc/", Image: imageNameFunc("dev-calc-2")},
 	}
 	actualJobContainers := slice.Map(job.Spec.Template.Spec.Containers, func(c corev1.Container) jobContainerSpec {
 		getEnv := func(env string) string {
@@ -329,27 +333,27 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 		Image string
 	}
 	expectedDeployComponents := []deployComponentSpec{
-		{Name: "client-component-1", Image: imageNameFunc("multi-component")},
-		{Name: "client-component-2", Image: imageNameFunc("multi-component")},
-		{Name: "server-component-1", Image: imageNameFunc("multi-component-1")},
-		{Name: "server-component-2", Image: imageNameFunc("multi-component-1")},
-		{Name: "single-component", Image: imageNameFunc("single-component")},
+		{Name: "client-component-1", Image: imageNameFunc("dev-client-component-1")},
+		{Name: "client-component-2", Image: imageNameFunc("dev-client-component-2")},
+		{Name: "server-component-1", Image: imageNameFunc("dev-server-component-1")},
+		{Name: "server-component-2", Image: imageNameFunc("dev-server-component-2")},
+		{Name: "single-component", Image: imageNameFunc("dev-single-component")},
 		{Name: "public-image-component", Image: "swaggerapi/swagger-ui"},
 		{Name: "private-hub-component", Image: "radixcanary.azurecr.io/nginx:latest"},
-		{Name: "compute-shared-1", Image: imageNameFunc("multi-component-2")},
-		{Name: "compute-shared-with-different-dockerfile-1", Image: imageNameFunc("compute-shared-with-different-dockerfile-1")},
-		{Name: "compute-shared-with-different-dockerfile-2", Image: imageNameFunc("compute-shared-with-different-dockerfile-2")},
+		{Name: "compute-shared-1", Image: imageNameFunc("dev-compute-shared-1")},
+		{Name: "compute-shared-with-different-dockerfile-1", Image: imageNameFunc("dev-compute-shared-with-different-dockerfile-1")},
+		{Name: "compute-shared-with-different-dockerfile-2", Image: imageNameFunc("dev-compute-shared-with-different-dockerfile-2")},
 	}
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
 	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedJobComponents := []deployComponentSpec{
-		{Name: "compute-shared-2", Image: imageNameFunc("multi-component-2")},
-		{Name: "compute-shared-with-different-dockerfile-3", Image: imageNameFunc("compute-shared-with-different-dockerfile-3")},
-		{Name: "single-job", Image: imageNameFunc("single-job")},
-		{Name: "calc-1", Image: imageNameFunc("multi-component-3")},
-		{Name: "calc-2", Image: imageNameFunc("multi-component-3")},
+		{Name: "compute-shared-2", Image: imageNameFunc("dev-compute-shared-2")},
+		{Name: "compute-shared-with-different-dockerfile-3", Image: imageNameFunc("dev-compute-shared-with-different-dockerfile-3")},
+		{Name: "single-job", Image: imageNameFunc("dev-single-job")},
+		{Name: "calc-1", Image: imageNameFunc("dev-calc-1")},
+		{Name: "calc-2", Image: imageNameFunc("dev-calc-2")},
 		{Name: "public-job-component", Image: "job/job:latest"},
 	}
 	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
@@ -456,7 +460,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 			Context: getEnv("CONTEXT"),
 		}
 	})
-	s.Require().ElementsMatch(expectedJobContainers, actualJobContainers)
+	s.ElementsMatch(expectedJobContainers, actualJobContainers)
 
 	// Check RadixDeployment component and job images
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
@@ -475,7 +479,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedJobComponents := []deployComponentSpec{
 		{Name: "calc-1", Image: imageNameFunc("dev-calc-1")},
 		{Name: "calc-2", Image: imageNameFunc("dev-calc-2")},
@@ -485,7 +489,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedJobComponents, actualJobComponents)
+	s.ElementsMatch(expectedJobComponents, actualJobComponents)
 }
 
 func (s *buildTestSuite) Test_BuildChangedComponents() {
@@ -589,7 +593,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		"build-job-common3-changed-dev",
 	}
 	actualJobContainers := slice.Map(job.Spec.Template.Spec.Containers, func(c corev1.Container) string { return c.Name })
-	s.Require().ElementsMatch(expectedJobContainers, actualJobContainers)
+	s.ElementsMatch(expectedJobContainers, actualJobContainers)
 
 	// Check RadixDeployment component and job images
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{LabelSelector: labels.ForPipelineJobName(rjName).String()})
@@ -611,7 +615,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedJobComponents := []deployComponentSpec{
 		{Name: "job-changed", Image: imageNameFunc("dev-job-changed")},
 		{Name: "job-new", Image: imageNameFunc("dev-job-new")},
@@ -624,7 +628,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedJobComponents, actualJobComponents)
+	s.ElementsMatch(expectedJobComponents, actualJobComponents)
 }
 
 func (s *buildTestSuite) Test_DetectComponentsToBuild() {
@@ -708,9 +712,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component changed - build component",
@@ -728,8 +732,8 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
+			expectedJobContainers:    []string{"build-comp-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
 			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: "job-current:anytag"}},
 		},
 		{
@@ -748,9 +752,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-job"},
+			expectedJobContainers:    []string{"build-job-dev"},
 			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: "comp-current:anytag"}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged - no build job",
@@ -788,9 +792,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 			skipEnvNamespace:         true,
 		},
 		{
@@ -809,9 +813,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged - no build job",
@@ -849,9 +853,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "radixconfig hash missing, buildsecret hash unchanged, component unchanged, job unchanged - build all",
@@ -869,9 +873,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret hash changed, component unchanged, job unchanged - build all",
@@ -889,9 +893,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret magic hash, component unchanged, job unchanged - build all",
@@ -909,9 +913,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret magic hash, no build secret, component unchanged, job unchanged - no build job",
@@ -951,9 +955,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret hash missing, component unchanged, job unchanged - build all",
@@ -971,9 +975,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "missing current RD, component unchanged, job unchanged - build all",
@@ -985,9 +989,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 		{
 			name: "no current RD, component unchanged, job unchanged - build all",
@@ -1005,9 +1009,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					},
 				},
 			},
-			expectedJobContainers:    []string{"build-comp", "build-job"},
-			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("comp")}},
-			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("job")}},
+			expectedJobContainers:    []string{"build-comp-dev", "build-job-dev"},
+			expectedDeployComponents: []deployComponentSpec{{Name: "comp", Image: imageNameFunc("dev-comp")}},
+			expectedDeployJobs:       []deployComponentSpec{{Name: "job", Image: imageNameFunc("dev-job")}},
 		},
 	}
 
