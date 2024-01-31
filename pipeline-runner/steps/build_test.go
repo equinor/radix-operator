@@ -1635,7 +1635,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 					utils.NewComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
 					utils.NewComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image4:some-tag"),
 				),
-			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("component-4").WithImage("some-image1:some-tag"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("component-4").WithImage("some-image1:some-tag").
+				WithEnvironmentConfigs(
+					utils.NewComponentEnvironmentBuilder().WithEnvironment(envName1),
+					utils.NewComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
+					utils.NewComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
+					utils.NewComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image5:some-tag"),
+				),
 			// utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("component-5").WithImage("some-image2:{imageTagName}"),
 		).
 		// WithJobComponents(
@@ -1694,9 +1700,11 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "build-component-1-dev2", Docker: "client.Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev2-component-1")},
 		{Name: "build-component-2-dev2", Docker: "client.Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev2-component-2")},
 		{Name: "build-component-3-dev2", Docker: "Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev2-component-3")},
+		{Name: "build-component-4-dev2", Docker: "Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev2-component-4")},
 		{Name: "build-component-1-dev3", Docker: "client2.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev3-component-1")},
 		{Name: "build-component-2-dev3", Docker: "client2.Dockerfile", Context: "/workspace/", Image: imageNameFunc("dev3-component-2")},
 		{Name: "build-component-3-dev3", Docker: "client2.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev3-component-3")},
+		{Name: "build-component-4-dev3", Docker: "client2.Dockerfile", Context: "/workspace/", Image: imageNameFunc("dev3-component-4")},
 	}
 	actualJobContainers := slice.Map(job.Spec.Template.Spec.Containers, func(c corev1.Container) jobContainerSpec {
 		getEnv := func(env string) string {
@@ -1742,7 +1750,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "component-1", Image: imageNameFunc("dev2-component-1")},
 		{Name: "component-2", Image: imageNameFunc("dev2-component-2")},
 		{Name: "component-3", Image: imageNameFunc("dev2-component-3")},
-		{Name: "component-4", Image: "some-image1:some-tag"},
+		{Name: "component-4", Image: imageNameFunc("dev2-component-4")},
 		// {Name: "private-hub-component", Image: "radixcanary.azurecr.io/nginx:latest"},
 	}
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
@@ -1758,7 +1766,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "component-1", Image: imageNameFunc("dev3-component-1")},
 		{Name: "component-2", Image: imageNameFunc("dev3-component-2")},
 		{Name: "component-3", Image: imageNameFunc("dev3-component-3")},
-		{Name: "component-4", Image: "some-image1:some-tag"},
+		{Name: "component-4", Image: imageNameFunc("dev3-component-4")},
 		// {Name: "private-hub-component", Image: "radixcanary.azurecr.io/nginx:latest"},
 	}
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
@@ -1774,7 +1782,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "component-1", Image: "some-image2:some-tag"},
 		{Name: "component-2", Image: "some-image3:some-tag"},
 		{Name: "component-3", Image: "some-image4:some-tag"},
-		{Name: "component-4", Image: "some-image1:some-tag"},
+		{Name: "component-4", Image: "some-image5:some-tag"},
 		// {Name: "private-hub-component", Image: "radixcanary.azurecr.io/nginx:latest"},
 	}
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {

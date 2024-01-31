@@ -1616,8 +1616,13 @@ func getImageForEnvironment(component RadixCommonComponent, environment string) 
 	}
 	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
 		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
-		if envConfigEnabled && len(strings.TrimSpace(envConfig.GetImage())) > 0 {
-			return strings.TrimSpace(envConfig.GetImage())
+		if envConfigEnabled {
+			if len(strings.TrimSpace(envConfig.GetImage())) > 0 {
+				return strings.TrimSpace(envConfig.GetImage())
+			}
+			if len(strings.TrimSpace(envConfig.GetSourceFolder()))+len(strings.TrimSpace(envConfig.GetDockerfileName())) > 0 {
+				return ""
+			}
 		}
 	}
 	return component.GetImage()
