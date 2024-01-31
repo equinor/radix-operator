@@ -5,6 +5,9 @@ import v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 // RadixJobComponentEnvironmentConfigBuilder Handles construction of RA job component environment
 type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithEnvironment(string) RadixJobComponentEnvironmentConfigBuilder
+	WithSourceFolder(string) RadixJobComponentEnvironmentConfigBuilder
+	WithDockerfileName(string) RadixJobComponentEnvironmentConfigBuilder
+	WithImage(string) RadixJobComponentEnvironmentConfigBuilder
 	WithEnvironmentVariable(string, string) RadixJobComponentEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixJobComponentEnvironmentConfigBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixJobComponentEnvironmentConfigBuilder
@@ -23,6 +26,9 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 
 type radixJobComponentEnvironmentConfigBuilder struct {
 	environment      string
+	sourceFolder     string
+	dockerfileName   string
+	image            string
 	variables        v1.EnvVarsMap
 	resources        v1.ResourceRequirements
 	volumeMounts     []v1.RadixVolumeMount
@@ -66,6 +72,20 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithEnvironment(environmen
 	return ceb
 }
 
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithSourceFolder(sourceFolder string) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.sourceFolder = sourceFolder
+	return ceb
+}
+
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithDockerfileName(dockerfileName string) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.dockerfileName = dockerfileName
+	return ceb
+}
+
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithImage(image string) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.image = image
+	return ceb
+}
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithEnvironmentVariable(name, value string) RadixJobComponentEnvironmentConfigBuilder {
 	if ceb.variables == nil {
 		ceb.variables = make(v1.EnvVarsMap)
@@ -118,6 +138,9 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithNotifications(notifica
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
 		Environment:      ceb.environment,
+		SourceFolder:     ceb.sourceFolder,
+		DockerfileName:   ceb.dockerfileName,
+		Image:            ceb.image,
 		Variables:        ceb.variables,
 		Resources:        ceb.resources,
 		VolumeMounts:     ceb.volumeMounts,
