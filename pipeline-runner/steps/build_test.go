@@ -1600,7 +1600,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
-	appName, envName1, envName2, envName3, envName4, rjName, buildBranch /*jobPort*/, _ := "anyapp", "dev1", "dev2", "dev3", "dev4", "anyrj", "anybranch", pointers.Ptr[int32](9999)
+	appName, envName1, envName2, envName3, envName4, rjName, buildBranch, jobPort := "anyapp", "dev1", "dev2", "dev3", "dev4", "anyrj", "anybranch", pointers.Ptr[int32](9999)
 	prepareConfigMapName := "preparecm"
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
@@ -1642,16 +1642,37 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 					utils.NewComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
 					utils.NewComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image5:some-tag"),
 				),
-			// utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("component-5").WithImage("some-image2:{imageTagName}"),
 		).
-		// WithJobComponents(
-		// 	utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("compute-shared-2").WithDockerfileName("compute.Dockerfile").WithSourceFolder("./compute/"),
-		// 	utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("compute-shared-with-different-dockerfile-3").WithSourceFolder("./compute-with-different-dockerfile/").WithDockerfileName("compute-custom3.Dockerfile"),
-		// 	utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("single-job").WithDockerfileName("job.Dockerfile").WithSourceFolder("./job/"),
-		// 	utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-1").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
-		// 	utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-2").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
-		// 	utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("public-job-component").WithImage("job/job:latest"),
-		// ).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-1").WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile").WithSchedulerPort(jobPort).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName1),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image2:some-tag"),
+				),
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-2").WithDockerfileName("client.Dockerfile").WithSchedulerPort(jobPort).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName1),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image3:some-tag"),
+				),
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-3").WithSourceFolder("./client/").WithSchedulerPort(jobPort).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName1),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image4:some-tag"),
+				),
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-4").WithImage("some-image1:some-tag").WithSchedulerPort(jobPort).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName1),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image5:some-tag"),
+				),
+		).
 		BuildRA()
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
@@ -1705,6 +1726,17 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "build-component-2-dev3", Docker: "client2.Dockerfile", Context: "/workspace/", Image: imageNameFunc("dev3-component-2")},
 		{Name: "build-component-3-dev3", Docker: "client2.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev3-component-3")},
 		{Name: "build-component-4-dev3", Docker: "client2.Dockerfile", Context: "/workspace/", Image: imageNameFunc("dev3-component-4")},
+		{Name: "build-job-1-dev1", Docker: "client.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev1-job-1")},
+		{Name: "build-job-2-dev1", Docker: "client.Dockerfile", Context: "/workspace/", Image: imageNameFunc("dev1-job-2")},
+		{Name: "build-job-3-dev1", Docker: "Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev1-job-3")},
+		{Name: "build-job-1-dev2", Docker: "client.Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev2-job-1")},
+		{Name: "build-job-2-dev2", Docker: "client.Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev2-job-2")},
+		{Name: "build-job-3-dev2", Docker: "Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev2-job-3")},
+		{Name: "build-job-4-dev2", Docker: "Dockerfile", Context: "/workspace/client2/", Image: imageNameFunc("dev2-job-4")},
+		{Name: "build-job-1-dev3", Docker: "client2.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev3-job-1")},
+		{Name: "build-job-2-dev3", Docker: "client2.Dockerfile", Context: "/workspace/", Image: imageNameFunc("dev3-job-2")},
+		{Name: "build-job-3-dev3", Docker: "client2.Dockerfile", Context: "/workspace/client/", Image: imageNameFunc("dev3-job-3")},
+		{Name: "build-job-4-dev3", Docker: "client2.Dockerfile", Context: "/workspace/", Image: imageNameFunc("dev3-job-4")},
 	}
 	actualJobContainers := slice.Map(job.Spec.Template.Spec.Containers, func(c corev1.Container) jobContainerSpec {
 		getEnv := func(env string) string {
@@ -1735,9 +1767,18 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "component-2", Image: imageNameFunc("dev1-component-2")},
 		{Name: "component-3", Image: imageNameFunc("dev1-component-3")},
 		{Name: "component-4", Image: "some-image1:some-tag"},
-		// {Name: "private-hub-component", Image: "radixcanary.azurecr.io/nginx:latest"},
 	}
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Image: c.Image}
+	})
+	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	expectedDeployComponents = []deployComponentSpec{
+		{Name: "job-1", Image: imageNameFunc("dev1-job-1")},
+		{Name: "job-2", Image: imageNameFunc("dev1-job-2")},
+		{Name: "job-3", Image: imageNameFunc("dev1-job-3")},
+		{Name: "job-4", Image: "some-image1:some-tag"},
+	}
+	actualDeployComponents = slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
 	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
@@ -1751,9 +1792,18 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "component-2", Image: imageNameFunc("dev2-component-2")},
 		{Name: "component-3", Image: imageNameFunc("dev2-component-3")},
 		{Name: "component-4", Image: imageNameFunc("dev2-component-4")},
-		// {Name: "private-hub-component", Image: "radixcanary.azurecr.io/nginx:latest"},
 	}
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Image: c.Image}
+	})
+	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	expectedDeployComponents = []deployComponentSpec{
+		{Name: "job-1", Image: imageNameFunc("dev2-job-1")},
+		{Name: "job-2", Image: imageNameFunc("dev2-job-2")},
+		{Name: "job-3", Image: imageNameFunc("dev2-job-3")},
+		{Name: "job-4", Image: imageNameFunc("dev2-job-4")},
+	}
+	actualDeployComponents = slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
 	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
@@ -1767,9 +1817,18 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "component-2", Image: imageNameFunc("dev3-component-2")},
 		{Name: "component-3", Image: imageNameFunc("dev3-component-3")},
 		{Name: "component-4", Image: imageNameFunc("dev3-component-4")},
-		// {Name: "private-hub-component", Image: "radixcanary.azurecr.io/nginx:latest"},
 	}
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Image: c.Image}
+	})
+	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	expectedDeployComponents = []deployComponentSpec{
+		{Name: "job-1", Image: imageNameFunc("dev3-job-1")},
+		{Name: "job-2", Image: imageNameFunc("dev3-job-2")},
+		{Name: "job-3", Image: imageNameFunc("dev3-job-3")},
+		{Name: "job-4", Image: imageNameFunc("dev3-job-4")},
+	}
+	actualDeployComponents = slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
 	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
@@ -1783,22 +1842,19 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		{Name: "component-2", Image: "some-image3:some-tag"},
 		{Name: "component-3", Image: "some-image4:some-tag"},
 		{Name: "component-4", Image: "some-image5:some-tag"},
-		// {Name: "private-hub-component", Image: "radixcanary.azurecr.io/nginx:latest"},
 	}
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
 	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
-	// expectedJobComponents := []deployComponentSpec{
-	// 	{Name: "compute-shared-2", Image: imageNameFunc("dev-compute-shared-2")},
-	// 	{Name: "compute-shared-with-different-dockerfile-3", Image: imageNameFunc("dev-compute-shared-with-different-dockerfile-3")},
-	// 	{Name: "single-job", Image: imageNameFunc("dev-single-job")},
-	// 	{Name: "calc-1", Image: imageNameFunc("dev-calc-1")},
-	// 	{Name: "calc-2", Image: imageNameFunc("dev-calc-2")},
-	// 	{Name: "public-job-component", Image: "job/job:latest"},
-	// }
-	// actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
-	// 	return deployComponentSpec{Name: c.Name, Image: c.Image}
-	// })
-	// s.ElementsMatch(expectedJobComponents, actualJobComponents)
+	expectedDeployComponents = []deployComponentSpec{
+		{Name: "job-1", Image: "some-image2:some-tag"},
+		{Name: "job-2", Image: "some-image3:some-tag"},
+		{Name: "job-3", Image: "some-image4:some-tag"},
+		{Name: "job-4", Image: "some-image5:some-tag"},
+	}
+	actualDeployComponents = slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Image: c.Image}
+	})
+	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
 }
