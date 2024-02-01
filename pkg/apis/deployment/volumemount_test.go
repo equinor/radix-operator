@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
-
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -991,7 +990,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
 			return deploymentVolumesTestScenario{
-				name:  "Set ReadWriteOnce volume",
+				name:  "Set ReadWriteMany volume",
 				props: props,
 				radixVolumeMounts: []v1.RadixVolumeMount{
 					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
@@ -1417,7 +1416,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expec
 		storageClassName:        "sc-any-app-some-env-csi-az-blob-some-component-volume1-storage1",
 		radixVolumeMountType:    v1.MountTypeBlobFuse2FuseCsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
+		volumeAccessMode:        corev1.ReadOnlyMany, // default access mode
 		volumeName:              "csi-az-blob-some-component-volume1-storage1",
 		scProvisioner:           v1.ProvisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
@@ -1446,7 +1445,7 @@ func getPropsCsiBlobFuse2Volume1Storage1(modify func(*expectedPvcScProperties)) 
 		storageClassName:        "sc-any-app-some-env-csi-blobfuse2-fuse2-some-component-volume1-storage1",
 		radixVolumeMountType:    v1.MountTypeBlobFuse2Fuse2CsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
+		volumeAccessMode:        corev1.ReadOnlyMany, // default access mode
 		volumeName:              "csi-blobfuse2-fuse2-some-component-volume1-storage1",
 		scProvisioner:           v1.ProvisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
@@ -1475,7 +1474,7 @@ func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expec
 		storageClassName:        "sc-any-app-some-env-csi-az-file-some-component-volume2-storage2",
 		radixVolumeMountType:    v1.MountTypeAzureFileCsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
+		volumeAccessMode:        corev1.ReadOnlyMany, // default access mode
 		volumeName:              "csi-az-file-some-component-volume2-storage2",
 		scProvisioner:           v1.ProvisionerFileCsiAzure,
 		scSecretName:            "some-component-volume2-csiazurecreds",
