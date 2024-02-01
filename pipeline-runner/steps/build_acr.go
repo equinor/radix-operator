@@ -308,7 +308,10 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 	containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.ImageName)
 	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
-	targetEnvs := strings.Join(pipelineInfo.TargetEnvironments, ",")
+	targetEnvs := componentImage.EnvName
+	if len(targetEnvs) == 0 {
+		targetEnvs = strings.Join(pipelineInfo.TargetEnvironments, ",")
+	}
 	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
 	envVars := []corev1.EnvVar{

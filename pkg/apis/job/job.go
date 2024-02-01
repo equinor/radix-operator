@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/slice"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -453,6 +455,14 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 		}
 
 		pod := jobStepPod.Items[0]
+		componentImages := make(pipeline.BuildComponentImages, 0)
+		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
+			return nil, err
+		}
+		buildComponents := make([]pipeline.BuildComponentImage, 0)
+		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixBuildComponentsAnnotation, &buildComponents); err != nil {
+			return nil, err
+		}
 		for _, containerStatus := range pod.Status.InitContainerStatuses {
 			if strings.HasPrefix(containerStatus.Name, git.InternalContainerPrefix) {
 				continue
@@ -460,17 +470,11 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			if _, ok := foundPrepareStepNames[containerStatus.Name]; ok {
 				continue
 			}
-			steps = append(steps, getJobStepWithNoComponents(pod.GetName(), &containerStatus))
-		}
-
-		componentImages := make(pipeline.BuildComponentImages, 0)
-		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
-			return nil, err
-		}
-
-		buildComponents := make([]pipeline.BuildComponentImage, 0)
-		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixBuildComponentsAnnotation, &buildComponents); err != nil {
-			return nil, err
+			step := getJobStepWithNoComponents(pod.GetName(), &containerStatus)
+			if containerStatus.Name == git.CloneContainerName {
+				step.Components = getContainerNames(componentImages, buildComponents)
+			}
+			steps = append(steps, step)
 		}
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
@@ -485,6 +489,13 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 	}
 
 	return steps, nil
+}
+
+func getContainerNames(buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImagesList []pipeline.BuildComponentImage) []string {
+	return append(maps.GetKeysFromMap(buildComponentImagesMap),
+		slice.Map(buildComponentImagesList, func(componentImage pipeline.BuildComponentImage) string {
+			return fmt.Sprintf("%s-%s", componentImage.ComponentName, componentImage.EnvName)
+		})...)
 }
 
 func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj interface{}) error {
