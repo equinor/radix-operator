@@ -1,4 +1,4 @@
-package job
+package pipelinejob
 
 import "k8s.io/apimachinery/pkg/api/resource"
 

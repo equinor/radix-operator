@@ -12,7 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -197,7 +197,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 
 	t.Run("get secret-refs Azure Key vaults credential secrets ", func(t *testing.T) {
 		for _, scenario := range scenarios {
-			testEnv := setupTestEnv()
+			testEnv := setupTestEnv(t)
 			radixDeployment, err := applyRadixDeployWithSyncForSecretRefs(testEnv, appName, environment, scenario)
 
 			assert.NoError(t, err)
@@ -220,7 +220,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 
 	t.Run("get secret-refs secret provider class", func(t *testing.T) {
 		for _, scenario := range scenarios {
-			testEnv := setupTestEnv()
+			testEnv := setupTestEnv(t)
 			rd, err := applyRadixDeployWithSyncForSecretRefs(testEnv, appName, environment, scenario)
 
 			assert.NoError(t, err)
@@ -246,7 +246,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 				assert.Equal(t, azureKeyVault.Name, keyvaultNameSecretParam)
 				tenantIdSecretParam, tenantIdParamsExists := secretProviderClass.Spec.Parameters["tenantId"]
 				assert.True(t, tenantIdParamsExists)
-				assert.Equal(t, testTenantId, tenantIdSecretParam)
+				assert.Equal(t, testConfig.DeploymentSyncer.TenantID, tenantIdSecretParam)
 				objectsSecretParam, objectsSecretParamExists := secretProviderClass.Spec.Parameters["objects"]
 				assert.True(t, objectsSecretParamExists)
 				assert.True(t, len(objectsSecretParam) > 0)
@@ -323,7 +323,7 @@ func Test_GetRadixComponentsForEnv_AzureKeyVault(t *testing.T) {
 			}
 			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
 			sut := GetRadixComponentsForEnv
-			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+			components, err := sut(ra, envName, make(pipeline.DeployComponentImages), make(v1.EnvVarsMap), nil)
 			require.NoError(t, err)
 			azureKeyVaults := components[0].SecretRefs.AzureKeyVaults
 			assert.EqualValues(t, sortAzureKeyVaults(scenario.expected), sortAzureKeyVaults(azureKeyVaults))
@@ -372,7 +372,7 @@ func Test_GetRadixComponentsForEnv_AzureKeyVaultUseIAzureIdentity(t *testing.T) 
 			}
 			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
 			sut := GetRadixComponentsForEnv
-			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+			components, err := sut(ra, envName, make(pipeline.DeployComponentImages), make(v1.EnvVarsMap), nil)
 			require.NoError(t, err)
 			azureKeyVaults := components[0].SecretRefs.AzureKeyVaults
 			if len(azureKeyVaults) == 0 {

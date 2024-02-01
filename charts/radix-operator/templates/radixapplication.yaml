@@ -48,6 +48,11 @@ spec:
                     items:
                       type: string
                     type: array
+                  useBuildCache:
+                    description: 'Defaults to true and requires useBuildKit to have
+                      an effect. Note: All layers will be cached and can be available
+                      for other Radix Apps. Do not add secrets to a Dockerfile layer.'
+                    type: boolean
                   useBuildKit:
                     description: 'Enables BuildKit when building Dockerfile. More
                       info about BuildKit: https://docs.docker.com/build/buildkit/'
@@ -369,7 +374,7 @@ spec:
                               applies to.
                             maxLength: 63
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           horizontalScaling:
                             description: 'Configuration for automatic horizontal scaling
@@ -742,11 +747,6 @@ spec:
                                           description: Enable streaming mode. Default
                                             true.
                                           type: boolean
-                                        fileCaching:
-                                          description: Optional. File name based caching.
-                                            Default is false which specifies file
-                                            handle based caching.
-                                          type: boolean
                                         maxBlocksPerFile:
                                           description: Optional. The maximum number
                                             of blocks to be cached in memory.
@@ -880,14 +880,14 @@ spec:
                           description: Defines which port in the ports list where
                             metrics is served.
                           maxLength: 15
-                          pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     name:
                       description: Name of the component.
                       maxLength: 253
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     node:
                       description: 'Defines GPU requirements for the component. More
@@ -910,7 +910,7 @@ spec:
                             description: Name of the port.
                             maxLength: 15
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           port:
                             description: Port number.
@@ -922,7 +922,6 @@ spec:
                         - name
                         - port
                         type: object
-                      minItems: 1
                       type: array
                       x-kubernetes-list-map-keys:
                       - name
@@ -934,7 +933,7 @@ spec:
                       description: 'Defines which port (name) from the ports list
                         that shall be accessible from the internet. More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport'
                       maxLength: 15
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     resources:
                       description: 'Configures CPU and memory resources for the component.
@@ -1073,11 +1072,46 @@ spec:
                       type: object
                   required:
                   - name
-                  - ports
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:
                 - name
+                x-kubernetes-list-type: map
+              dnsAlias:
+                description: 'List of DNS names and which component and environment
+                  incoming requests shall be routed to. More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias'
+                items:
+                  description: DNSAlias defines mapping between an DNS alias and a
+                    component and environment.
+                  properties:
+                    alias:
+                      description: Alias name, e.g. my-app, which will prefix full
+                        internal alias my-app.radix.equinor.com
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                      type: string
+                    component:
+                      description: Name of the component that shall receive the incoming
+                        requests.
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                      type: string
+                    environment:
+                      description: Name of the environment for the component.
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                      type: string
+                  required:
+                  - alias
+                  - component
+                  - environment
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - alias
                 x-kubernetes-list-type: map
               dnsAppAlias:
                 description: 'Configure a component and environment to be linked to
@@ -1088,13 +1122,13 @@ spec:
                       requests.
                     maxLength: 63
                     minLength: 1
-                    pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                    pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                     type: string
                   environment:
                     description: Name of the environment for the component.
                     maxLength: 63
                     minLength: 1
-                    pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                    pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                     type: string
                 type: object
               dnsExternalAlias:
@@ -1115,14 +1149,18 @@ spec:
                         requests.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     environment:
                       description: Name of the environment for the component.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
+                    useCertificateAutomation:
+                      default: false
+                      description: Enable automatic issuing and renewal of TLS certificate
+                      type: boolean
                   required:
                   - alias
                   - component
@@ -1210,7 +1248,7 @@ spec:
                       description: Name of the environment.
                       maxLength: 63
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                   required:
                   - name
@@ -1264,7 +1302,7 @@ spec:
                               applies to.
                             maxLength: 63
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           identity:
                             description: 'Environment specific configuration for workload
@@ -1599,11 +1637,6 @@ spec:
                                           description: Enable streaming mode. Default
                                             true.
                                           type: boolean
-                                        fileCaching:
-                                          description: Optional. File name based caching.
-                                            Default is false which specifies file
-                                            handle based caching.
-                                          type: boolean
                                         maxBlocksPerFile:
                                           description: Optional. The maximum number
                                             of blocks to be cached in memory.
@@ -1731,7 +1764,7 @@ spec:
                           description: Defines which port in the ports list where
                             metrics is served.
                           maxLength: 15
-                          pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     name:
@@ -1739,7 +1772,7 @@ spec:
                         to.
                       maxLength: 253
                       minLength: 1
-                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     node:
                       description: 'Defines GPU requirements for the job. More info:
@@ -1784,7 +1817,7 @@ spec:
                             description: Name of the port.
                             maxLength: 15
                             minLength: 1
-                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           port:
                             description: Port number.
@@ -1961,7 +1994,6 @@ spec:
                   properties:
                     email:
                       description: The email address linked to the username.
-                      minLength: 3
                       type: string
                     username:
                       description: Username with permission to pull images. The password
@@ -1969,7 +2001,6 @@ spec:
                       minLength: 1
                       type: string
                   required:
-                  - email
                   - username
                   type: object
                 description: 'Defines protected container registries used by components

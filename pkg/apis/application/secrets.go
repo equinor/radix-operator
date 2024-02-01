@@ -14,7 +14,7 @@ import (
 )
 
 // ApplySecretsForPipelines creates secrets needed by pipeline to run
-func (app Application) applySecretsForPipelines() error {
+func (app *Application) applySecretsForPipelines() error {
 	radixRegistration := app.registration
 
 	log.Debugf("Apply secrets for pipelines")
@@ -31,7 +31,7 @@ func (app Application) applySecretsForPipelines() error {
 	return nil
 }
 
-func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error {
+func (app *Application) applyGitDeployKeyToBuildNamespace(namespace string) error {
 	radixRegistration := app.registration
 	secret, err := app.kubeutil.GetSecret(namespace, defaults.GitPrivateKeySecretName)
 	if err != nil {
@@ -103,7 +103,7 @@ func deriveKeyPairFromSecret(secret *corev1.Secret) (*utils.DeployKey, error) {
 	return deployKey, nil
 }
 
-func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNamespace string) error {
+func (app *Application) applyServicePrincipalACRSecretToBuildNamespace(buildNamespace string) error {
 	servicePrincipalSecretForBuild, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRServicePrincipleSecretName)
 	if err != nil {
 		return err
@@ -114,7 +114,12 @@ func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNames
 		return err
 	}
 
-	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild} {
+	tokenSecretForAppRegistry, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRTokenPasswordAppRegistrySecretName)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild, tokenSecretForAppRegistry} {
 		_, err = app.kubeutil.ApplySecret(buildNamespace, secret)
 		if err != nil {
 			return err
@@ -124,7 +129,7 @@ func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNames
 	return nil
 }
 
-func (app Application) createNewGitDeployKey(namespace, deployKey string, registration *v1.RadixRegistration) (*corev1.Secret, error) {
+func (app *Application) createNewGitDeployKey(namespace, deployKey string, registration *v1.RadixRegistration) (*corev1.Secret, error) {
 	knownHostsSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, "radix-known-hosts-git")
 	if err != nil {
 		log.Errorf("Failed to get known hosts secret. %v", err)
@@ -147,7 +152,7 @@ func (app Application) createNewGitDeployKey(namespace, deployKey string, regist
 	return &secret, nil
 }
 
-func (app Application) createNewServicePrincipalACRSecret(namespace, secretName string) (*corev1.Secret, error) {
+func (app *Application) createNewServicePrincipalACRSecret(namespace, secretName string) (*corev1.Secret, error) {
 	servicePrincipalSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, secretName)
 	if err != nil {
 		log.Errorf("Failed to get %s secret from default. %v", secretName, err)
@@ -170,13 +175,13 @@ func (app Application) createNewServicePrincipalACRSecret(namespace, secretName 
 	return &secret, nil
 }
 
-func (app Application) gitPrivateKeyExists(secret *corev1.Secret) bool {
+func (app *Application) gitPrivateKeyExists(secret *corev1.Secret) bool {
 	if secret == nil {
 		return false
 	}
 	return len(strings.TrimSpace(string(secret.Data[defaults.GitPrivateKeySecretKey]))) > 0
 }
-func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) *corev1.ConfigMap {
+func (app *Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) *corev1.ConfigMap {
 	// Create a configmap with the public key
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

@@ -52,8 +52,8 @@ func isBatchJobDone(batch *radixv1.RadixBatch, batchJobName string) bool {
 func ownerReference(job *radixv1.RadixBatch) []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixBatch",
+			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
+			Kind:       radixv1.KindRadixBatch,
 			Name:       job.Name,
 			UID:        job.UID,
 			Controller: utils.BoolPtr(true),

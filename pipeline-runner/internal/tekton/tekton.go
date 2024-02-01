@@ -2,17 +2,20 @@ package utils
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
-	"time"
 )
 
 const (
@@ -40,6 +43,10 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      radixlabels.ForPipelineJobName(jobName),
+					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
+				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.RadixTektonServiceAccountName,
 					SecurityContext:    &pipelineInfo.PipelineArguments.PodSecurityContext,
@@ -56,8 +63,8 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 					},
 					Volumes:       getJobVolumes(),
 					RestartPolicy: "Never",
-					Affinity:      utils.GetPodSpecAffinity(nil, appName, "", false, true),
-					Tolerations:   utils.GetPodSpecTolerations(nil, false, true),
+					Affinity:      utils.GetPipelineJobPodSpecAffinity(),
+					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},
 		},

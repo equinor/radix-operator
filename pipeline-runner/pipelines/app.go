@@ -1,4 +1,4 @@
-package onpush
+package pipelines
 
 import (
 	"context"
@@ -13,12 +13,12 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	secretsstorevclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
+	"sigs.k8s.io/yaml"
 )
 
 // PipelineRunner Instance variables
@@ -32,9 +32,8 @@ type PipelineRunner struct {
 	pipelineInfo             *model.PipelineInfo
 }
 
-// InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
-
+// NewRunner constructor
+func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
 		definition:               definition,
@@ -96,7 +95,7 @@ func (cli *PipelineRunner) TearDown() {
 		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.RadixConfigMapName, namespace, err)
 	}
 
-	if cli.pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
+	if cli.pipelineInfo.IsPipelineType(v1.BuildDeploy) {
 		err = cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.GitConfigMapName)
 		if err != nil && !k8sErrors.IsNotFound(err) {
 			log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.GitConfigMapName, namespace, err)
@@ -106,10 +105,10 @@ func (cli *PipelineRunner) TearDown() {
 
 func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, steps.NewPreparePipelinesStep())
+	stepImplementations = append(stepImplementations, steps.NewPreparePipelinesStep(nil))
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
-	stepImplementations = append(stepImplementations, steps.NewBuildStep())
-	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep())
+	stepImplementations = append(stepImplementations, steps.NewBuildStep(nil))
+	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep(nil))
 	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(cli.kubeclient)))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 

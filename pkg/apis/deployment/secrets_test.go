@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -16,13 +15,14 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupSecretsTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
+func setupSecretsTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
@@ -30,24 +30,25 @@ func setupSecretsTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixcli
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, egressIps)
+	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid")
+	require.NoError(t, err)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixclient, prometheusclient
 }
 
 func teardownSecretsTest() {
 	// Cleanup setup
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
+	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+	_ = os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+	_ = os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
+	_ = os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	_ = os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 }
 
 func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 	// Setup
-	testUtils, client, kubeUtil, radixclient, prometheusclient := setupSecretsTest()
+	testUtils, client, kubeUtil, radixclient, prometheusclient := setupSecretsTest(t)
 	appName, environment := "edcradix", "test"
 	componentName1, componentName2, componentName3, componentName4 := "component1", "component2", "component3", "component4"
 	verificationOn, verificationOff := v1.VerificationTypeOn, v1.VerificationTypeOff
@@ -128,35 +129,4 @@ func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 	})
 
 	teardownSecretsTest()
-}
-
-func Test_IsSecretRequiredForClientCertificate(t *testing.T) {
-	type scenario struct {
-		clientCertificate *v1.ClientCertificate
-		expectedResult    bool
-	}
-	scenarios := []scenario{
-		{clientCertificate: nil, expectedResult: false},
-		{clientCertificate: &v1.ClientCertificate{Verification: getVerificationTypePtr(v1.VerificationTypeOff)}, expectedResult: false},
-		{clientCertificate: &v1.ClientCertificate{Verification: getVerificationTypePtr(v1.VerificationTypeOptional)}, expectedResult: true},
-		{clientCertificate: &v1.ClientCertificate{Verification: getVerificationTypePtr(v1.VerificationTypeOptionalNoCa)}, expectedResult: true},
-		{clientCertificate: &v1.ClientCertificate{Verification: getVerificationTypePtr(v1.VerificationTypeOn)}, expectedResult: true},
-		{clientCertificate: &v1.ClientCertificate{}, expectedResult: false},
-		{clientCertificate: &v1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)}, expectedResult: false},
-		{clientCertificate: &v1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(true)}, expectedResult: true},
-		{clientCertificate: &v1.ClientCertificate{Verification: getVerificationTypePtr(v1.VerificationTypeOff), PassCertificateToUpstream: pointers.Ptr(true)}, expectedResult: true},
-		{clientCertificate: &v1.ClientCertificate{Verification: getVerificationTypePtr(v1.VerificationTypeOff), PassCertificateToUpstream: pointers.Ptr(false)}, expectedResult: false},
-		{clientCertificate: &v1.ClientCertificate{Verification: getVerificationTypePtr(v1.VerificationTypeOptional), PassCertificateToUpstream: pointers.Ptr(true)}, expectedResult: true},
-		{clientCertificate: &v1.ClientCertificate{Verification: getVerificationTypePtr(v1.VerificationTypeOptional), PassCertificateToUpstream: pointers.Ptr(false)}, expectedResult: true},
-	}
-
-	for _, ts := range scenarios {
-		t.Run("", func(t *testing.T) {
-			assert.Equal(t, ts.expectedResult, IsSecretRequiredForClientCertificate(ts.clientCertificate))
-		})
-	}
-}
-
-func getVerificationTypePtr(verificationType v1.VerificationType) *v1.VerificationType {
-	return &verificationType
 }

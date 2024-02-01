@@ -3,21 +3,16 @@ package common
 import (
 	"errors"
 	"fmt"
-
 	"time"
-
-	"golang.org/x/sync/errgroup"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-
 	log "github.com/sirupsen/logrus"
-
+	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -84,7 +79,9 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 	errorGroup.SetLimit(threadiness)
 	defer func() {
 		c.Log.Info("Waiting for workers to complete")
-		errorGroup.Wait()
+		if err := errorGroup.Wait(); err != nil {
+			log.Error(err)
+		}
 		c.Log.Info("Workers completed")
 	}()
 
@@ -96,7 +93,9 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 	for c.processNext(&errorGroup, stopCh, locker) {
 	}
 
-	errorGroup.Wait()
+	if err := errorGroup.Wait(); err != nil {
+		log.Error(err)
+	}
 }
 
 func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struct{}, locker resourceLocker) bool {
@@ -131,7 +130,8 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 
 		if !locker.TryGetLock(lockKey) {
 			c.Log.Debugf("Lock for %s was busy, requeuing %s", lockKey, identifier)
-			c.WorkQueue.AddRateLimited(identifier)
+			// Use AddAfter instead of AddRateLimited. AddRateLimited can potentially cause a delay of 1000 seconds
+			c.WorkQueue.AddAfter(identifier, 100*time.Millisecond)
 			return nil
 		}
 		defer func() {

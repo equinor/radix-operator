@@ -1,6 +1,7 @@
 package radixvalidators
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -11,9 +12,11 @@ import (
 	"unicode"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	errorUtils "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
@@ -26,10 +29,6 @@ import (
 
 const (
 	maximumNumberOfEgressRules = 1000
-	maxPortNameLength          = 15
-	minimumPortNumber          = 1024
-	maximumPortNumber          = 65535
-	cpuRegex                   = "^[0-9]+m$"
 	azureClientIdResourceName  = "identity.azure.clientId"
 )
 
@@ -37,23 +36,52 @@ var (
 	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
 	blobFuse2Protocols          = []string{string(radixv1.BlobFuse2ProtocolFuse2), string(radixv1.BlobFuse2ProtocolNfs)}
+
+	requiredRadixApplicationValidators = []RadixApplicationValidator{
+		validateRadixApplicationAppName,
+		validateComponents,
+		validateJobComponents,
+		validateNoDuplicateComponentAndJobNames,
+		validateEnvNames,
+		validateEnvironmentEgressRules,
+		validateVariables,
+		validateSecrets,
+		validateBranchNames,
+		validateDNSAppAlias,
+		validateDNSExternalAlias,
+		validatePrivateImageHubs,
+		validateHPAConfigForRA,
+		validateVolumeMountConfigForRA,
+		ValidateNotificationsForRA,
+	}
 )
 
-// CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
-func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication) (bool, error) {
-	isValid, errs := CanRadixApplicationBeInsertedErrors(client, app)
-	if isValid {
-		return true, nil
-	}
+// RadixApplicationValidator defines a validator function for a RadixApplication
+type RadixApplicationValidator func(radixApplication *radixv1.RadixApplication) error
 
-	return false, errorUtils.Concat(errs)
+// CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
+func CanRadixApplicationBeInserted(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig, additionalValidators ...RadixApplicationValidator) error {
+
+	validators := append(requiredRadixApplicationValidators,
+		validateDoesRRExistFactory(radixClient),
+		validateDNSAliasFactory(radixClient, dnsAliasConfig),
+	)
+	validators = append(validators, additionalValidators...)
+
+	return validateRadixApplication(app, validators...)
+}
+
+// IsRadixApplicationValid Checks if application config is valid without server validation
+func IsRadixApplicationValid(app *radixv1.RadixApplication, additionalValidators ...RadixApplicationValidator) error {
+	validators := append(requiredRadixApplicationValidators, additionalValidators...)
+	return validateRadixApplication(app, validators...)
 }
 
 // IsApplicationNameLowercase checks if the application name has any uppercase letters
 func IsApplicationNameLowercase(appName string) (bool, error) {
 	for _, r := range appName {
 		if unicode.IsUpper(r) && unicode.IsLetter(r) {
-			return false, ApplicationNameNotLowercaseError(appName)
+			return false, ApplicationNameNotLowercaseErrorWithMessage(appName)
 		}
 	}
 
@@ -65,102 +93,41 @@ func duplicatePathForAzureKeyVault(path, azureKeyVaultName, component string) er
 		path, azureKeyVaultName, component)
 }
 
-// CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
-func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
-	errs := []error{}
-	err := validateAppName(app.Name)
-	if err != nil {
-		errs = append(errs, err)
+func validateRadixApplication(radixApplication *radixv1.RadixApplication, validators ...RadixApplicationValidator) error {
+	var errs []error
+	for _, v := range validators {
+		if err := v(radixApplication); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
-	componentErrs := validateComponents(app)
-	if len(componentErrs) > 0 {
-		errs = append(errs, componentErrs...)
-	}
-
-	jobErrs := validateJobComponents(app)
-	if len(jobErrs) > 0 {
-		errs = append(errs, jobErrs...)
-	}
-
-	if err = validateNoDuplicateComponentAndJobNames(app); err != nil {
-		errs = append(errs, err)
-	}
-
-	err = validateEnvNames(app)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	errs = append(errs, validateEnvironmentEgressRules(app)...)
-
-	err = validateVariables(app)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = validateSecrets(app)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = validateBranchNames(app)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = validateDoesRRExist(client, app.Name)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	dnsErrors := validateDNSAppAlias(app)
-	if len(dnsErrors) > 0 {
-		errs = append(errs, dnsErrors...)
-	}
-
-	dnsErrors = validateDNSExternalAlias(app)
-	if len(dnsErrors) > 0 {
-		errs = append(errs, dnsErrors...)
-	}
-
-	dnsErrors = validatePrivateImageHubs(app)
-	if len(dnsErrors) > 0 {
-		errs = append(errs, dnsErrors...)
-	}
-
-	err = validateHPAConfigForRA(app)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = validateVolumeMountConfigForRA(app)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = ValidateNotificationsForRA(app)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	if len(errs) == 0 {
-		return true, nil
-	}
-	return false, errs
+	return errors.Join(errs...)
 }
 
-func validatePrivateImageHubs(app *radixv1.RadixApplication) []error {
-	errs := []error{}
+func validateRadixApplicationAppName(app *radixv1.RadixApplication) error {
+	return validateAppName(app.Name)
+}
+
+func validateDoesRRExistFactory(client radixclient.Interface) RadixApplicationValidator {
+	return func(radixApplication *radixv1.RadixApplication) error {
+		return validateDoesRRExist(client, radixApplication.Name)
+	}
+}
+
+func validateDNSAliasFactory(client radixclient.Interface, dnsAliasConfig *dnsalias.DNSConfig) RadixApplicationValidator {
+	return func(radixApplication *radixv1.RadixApplication) error {
+		return validateDNSAlias(client, radixApplication, dnsAliasConfig)
+	}
+}
+
+func validatePrivateImageHubs(app *radixv1.RadixApplication) error {
+	var errs []error
 	for server, config := range app.Spec.PrivateImageHubs {
 		if config.Username == "" {
-			errs = append(errs, MissingPrivateImageHubUsernameError(server))
-		}
-		if config.Email == "" {
-			errs = append(errs, MissingPrivateImageHubEmailError(server))
+			errs = append(errs, MissingPrivateImageHubUsernameErrorWithMessage(server))
 		}
 	}
-	return errs
+	return errors.Join(errs...)
 }
 
 // RAContainsOldPublic Checks to see if the radix config is using the deprecated config for public port
@@ -173,55 +140,116 @@ func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 	return false
 }
 
-func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
-	errs := []error{}
-	alias := app.Spec.DNSAppAlias
-	if alias.Component == "" && alias.Environment == "" {
-		return errs
-	}
-
-	if !doesEnvExist(app, alias.Environment) {
-		errs = append(errs, EnvForDNSAppAliasNotDefinedError(alias.Environment))
-	}
-	if !doesComponentExistInEnvironment(app, alias.Component, alias.Environment) {
-		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(alias.Component))
-	}
-	return errs
+func validateDNSAppAlias(app *radixv1.RadixApplication) error {
+	return validateDNSAppAliasComponentAndEnvironmentAvailable(app)
 }
 
-func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
+func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) error {
+	var errs []error
+	radixDNSAliasMap, err := kube.GetRadixDNSAliasMap(radixClient)
+	if err != nil {
+		return err
+	}
+	uniqueAliasNames := make(map[string]struct{})
+	for _, dnsAlias := range app.Spec.DNSAlias {
+		if _, ok := uniqueAliasNames[dnsAlias.Alias]; ok {
+			errs = append(errs, DuplicateAliasForDNSAliasError(dnsAlias.Alias))
+		} else if err = validateRequiredResourceName("dnsAlias alias", dnsAlias.Alias); err != nil {
+			errs = append(errs, err)
+		}
+		uniqueAliasNames[dnsAlias.Alias] = struct{}{}
+		componentNameIsValid, environmentNameIsValid := true, true
+		if err = validateRequiredResourceName("dnsAlias component", dnsAlias.Component); err != nil {
+			errs = append(errs, err)
+			componentNameIsValid = false
+		}
+		if err = validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment); err != nil {
+			errs = append(errs, err)
+			environmentNameIsValid = false
+		}
+		if !componentNameIsValid || !environmentNameIsValid {
+			continue
+		}
+		if err = validateDNSAliasComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if !doesComponentHaveAPublicPort(app, dnsAlias.Component) {
+			errs = append(errs, ComponentForDNSAliasIsNotMarkedAsPublicError(dnsAlias.Component))
+			continue
+		}
+		if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Alias]; ok && radixDNSAlias.Spec.AppName != app.Name {
+			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Alias))
+		}
+		if reservingAppName, aliasReserved := dnsAliasConfig.ReservedAppDNSAliases[dnsAlias.Alias]; aliasReserved && reservingAppName != app.Name {
+			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformApplicationError(dnsAlias.Alias))
+		}
+		if slice.Any(dnsAliasConfig.ReservedDNSAliases, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Alias }) {
+			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformServiceError(dnsAlias.Alias))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func validateDNSAppAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication) error {
+	alias := app.Spec.DNSAppAlias
+	if alias.Component == "" && alias.Environment == "" {
+		return nil
+	}
+
+	var errs []error
+	if !doesEnvExist(app, alias.Environment) {
+		errs = append(errs, EnvForDNSAppAliasNotDefinedErrorWithMessage(alias.Environment))
+	}
+	if !doesComponentExistInEnvironment(app, alias.Component, alias.Environment) {
+		errs = append(errs, ComponentForDNSAppAliasNotDefinedErrorWithMessage(alias.Component))
+	}
+	return errors.Join(errs...)
+}
+
+func validateDNSAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) error {
+	if !doesEnvExist(app, environment) {
+		return EnvForDNSAliasNotDefinedError(environment)
+	}
+	if !doesComponentExistInEnvironment(app, component, environment) {
+		return ComponentForDNSAliasNotDefinedError(component)
+	}
+	return nil
+}
+
+func validateDNSExternalAlias(app *radixv1.RadixApplication) error {
 	errs := []error{}
 
 	distinctAlias := make(map[string]bool)
 
 	for _, externalAlias := range app.Spec.DNSExternalAlias {
 		if externalAlias.Alias == "" && externalAlias.Component == "" && externalAlias.Environment == "" {
-			return errs
+			return nil
 		}
 
 		distinctAlias[externalAlias.Alias] = true
 
 		if externalAlias.Alias == "" {
-			errs = append(errs, ExternalAliasCannotBeEmptyError())
+			errs = append(errs, ErrExternalAliasCannotBeEmpty)
 		}
 
 		if !doesEnvExist(app, externalAlias.Environment) {
-			errs = append(errs, EnvForDNSExternalAliasNotDefinedError(externalAlias.Environment))
+			errs = append(errs, EnvForDNSExternalAliasNotDefinedErrorWithMessage(externalAlias.Environment))
 		}
 		if !doesComponentExistInEnvironment(app, externalAlias.Component, externalAlias.Environment) {
-			errs = append(errs, ComponentForDNSExternalAliasNotDefinedError(externalAlias.Component))
+			errs = append(errs, ComponentForDNSExternalAliasNotDefinedErrorWithMessage(externalAlias.Component))
 		}
 
 		if !doesComponentHaveAPublicPort(app, externalAlias.Component) {
-			errs = append(errs, ComponentForDNSExternalAliasIsNotMarkedAsPublicError(externalAlias.Component))
+			errs = append(errs, ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage(externalAlias.Component))
 		}
 	}
 
 	if len(distinctAlias) < len(app.Spec.DNSExternalAlias) {
-		errs = append(errs, DuplicateExternalAliasError())
+		errs = append(errs, DuplicateExternalAliasErrorWithMessage())
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
 func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) error {
@@ -240,30 +268,17 @@ func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) erro
 		}
 	}
 	if len(duplicates) > 0 {
-		return DuplicateComponentOrJobNameError(duplicates)
+		return DuplicateComponentOrJobNameErrorWithMessage(duplicates)
 	}
 	return nil
 }
 
-func validateComponents(app *radixv1.RadixApplication) []error {
+func validateComponents(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, component := range app.Spec.Components {
 		if component.Image != "" &&
 			(component.SourceFolder != "" || component.DockerfileName != "") {
-			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(component.Name))
-		}
-
-		if usesDynamicTaggingForDeployOnly(component.Image) {
-			if len(component.EnvironmentConfig) == 0 {
-				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(component.Name))
-			} else {
-				for _, environment := range component.EnvironmentConfig {
-					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
-						errs = append(errs,
-							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(component.Name, environment.Environment))
-					}
-				}
-			}
+			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(component.Name))
 		}
 
 		err := validateComponentName(component.Name, "component")
@@ -301,7 +316,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
-				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, component.Name)
+				err = EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, component.Name)
 				errs = append(errs, err)
 			}
 
@@ -317,7 +332,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 
 			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
 				errs = append(errs,
-					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(component.Name, environment.Environment))
+					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(component.Name, environment.Environment))
 			}
 
 			err = validateIdentity(environment.Identity)
@@ -327,27 +342,14 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 		}
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
-func validateJobComponents(app *radixv1.RadixApplication) []error {
+func validateJobComponents(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, job := range app.Spec.Jobs {
 		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
-			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(job.Name))
-		}
-
-		if usesDynamicTaggingForDeployOnly(job.Image) {
-			if len(job.EnvironmentConfig) == 0 {
-				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(job.Name))
-			} else {
-				for _, environment := range job.EnvironmentConfig {
-					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
-						errs = append(errs,
-							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(job.Name, environment.Environment))
-					}
-				}
-			}
+			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(job.Name))
 		}
 
 		err := validateComponentName(job.Name, "job")
@@ -388,7 +390,7 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 
 		for _, environment := range job.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
-				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, job.Name)
+				err = EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, job.Name)
 				errs = append(errs, err)
 			}
 
@@ -399,7 +401,7 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 
 			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
 				errs = append(errs,
-					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(job.Name, environment.Environment))
+					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(job.Name, environment.Environment))
 			}
 
 			err = validateIdentity(environment.Identity)
@@ -409,7 +411,7 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 		}
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
 func validateAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment) []error {
@@ -423,7 +425,7 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 		return nil
 	}
 
-	var errors []error
+	var errs []error
 	for _, environment := range environments {
 		environmentAuth := envAuthConfigGetter(environment.Name)
 		if componentAuth == nil && environmentAuth == nil {
@@ -431,19 +433,19 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 		}
 		combinedAuth, err := deployment.GetAuthenticationForComponent(componentAuth, environmentAuth)
 		if err != nil {
-			errors = append(errors, err)
+			errs = append(errs, err)
 		}
 		if combinedAuth == nil {
 			continue
 		}
 
 		if err := validateClientCertificate(combinedAuth.ClientCertificate); err != nil {
-			errors = append(errors, err)
+			errs = append(errs, err)
 		}
 
-		errors = append(errors, validateOAuth(combinedAuth.OAuth2, component.GetName(), environment.Name)...)
+		errs = append(errs, validateOAuth(combinedAuth.OAuth2, component, environment.Name)...)
 	}
-	return errors
+	return errs
 }
 
 func validateClientCertificate(clientCertificate *radixv1.ClientCertificate) error {
@@ -468,13 +470,20 @@ func validateVerificationType(verificationType *radixv1.VerificationType) error 
 
 	actualValue := string(*verificationType)
 	if !commonUtils.ContainsString(validValues, actualValue) {
-		return InvalidVerificationType(actualValue)
+		return InvalidVerificationTypeWithMessage(actualValue)
 	} else {
 		return nil
 	}
 }
 
-func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string) (errors []error) {
+func componentHasPublicPort(component *radixv1.RadixComponent) bool {
+	return slice.Any(component.GetPorts(),
+		func(p radixv1.ComponentPort) bool {
+			return len(p.Name) > 0 && (p.Name == component.PublicPort || component.Public)
+		})
+}
+
+func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, environmentName string) (errors []error) {
 	if oauth == nil {
 		return
 	}
@@ -484,62 +493,64 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 		errors = append(errors, err)
 		return
 	}
-
+	componentName := component.Name
 	// Validate ClientID
 	if len(strings.TrimSpace(oauthWithDefaults.ClientID)) == 0 {
-		errors = append(errors, OAuthClientIdEmptyError(componentName, environmentName))
+		errors = append(errors, OAuthClientIdEmptyErrorWithMessage(componentName, environmentName))
+	} else if !componentHasPublicPort(component) {
+		errors = append(errors, OAuthRequiresPublicPortErrorWithMessage(componentName, environmentName))
 	}
 
 	// Validate ProxyPrefix
 	if len(strings.TrimSpace(oauthWithDefaults.ProxyPrefix)) == 0 {
-		errors = append(errors, OAuthProxyPrefixEmptyError(componentName, environmentName))
+		errors = append(errors, OAuthProxyPrefixEmptyErrorWithMessage(componentName, environmentName))
 	} else if oauthutil.SanitizePathPrefix(oauthWithDefaults.ProxyPrefix) == "/" {
-		errors = append(errors, OAuthProxyPrefixIsRootError(componentName, environmentName))
+		errors = append(errors, OAuthProxyPrefixIsRootErrorWithMessage(componentName, environmentName))
 	}
 
 	// Validate SessionStoreType
 	if !commonUtils.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
-		errors = append(errors, OAuthSessionStoreTypeInvalidError(componentName, environmentName, oauthWithDefaults.SessionStoreType))
+		errors = append(errors, OAuthSessionStoreTypeInvalidErrorWithMessage(componentName, environmentName, oauthWithDefaults.SessionStoreType))
 	}
 
 	// Validate RedisStore
 	if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreRedis {
 		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
-			errors = append(errors, OAuthRedisStoreEmptyError(componentName, environmentName))
+			errors = append(errors, OAuthRedisStoreEmptyErrorWithMessage(componentName, environmentName))
 		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {
-			errors = append(errors, OAuthRedisStoreConnectionURLEmptyError(componentName, environmentName))
+			errors = append(errors, OAuthRedisStoreConnectionURLEmptyErrorWithMessage(componentName, environmentName))
 		}
 	}
 
 	// Validate OIDC config
 	if oidc := oauthWithDefaults.OIDC; oidc == nil {
-		errors = append(errors, OAuthOidcEmptyError(componentName, environmentName))
+		errors = append(errors, OAuthOidcEmptyErrorWithMessage(componentName, environmentName))
 	} else {
 		if oidc.SkipDiscovery == nil {
-			errors = append(errors, OAuthOidcSkipDiscoveryEmptyError(componentName, environmentName))
+			errors = append(errors, OAuthOidcSkipDiscoveryEmptyErrorWithMessage(componentName, environmentName))
 		} else if *oidc.SkipDiscovery {
 			// Validate URLs when SkipDiscovery=true
 			if len(strings.TrimSpace(oidc.JWKSURL)) == 0 {
-				errors = append(errors, OAuthOidcJwksUrlEmptyError(componentName, environmentName))
+				errors = append(errors, OAuthOidcJwksUrlEmptyErrorWithMessage(componentName, environmentName))
 			}
 			if len(strings.TrimSpace(oauthWithDefaults.LoginURL)) == 0 {
-				errors = append(errors, OAuthLoginUrlEmptyError(componentName, environmentName))
+				errors = append(errors, OAuthLoginUrlEmptyErrorWithMessage(componentName, environmentName))
 			}
 			if len(strings.TrimSpace(oauthWithDefaults.RedeemURL)) == 0 {
-				errors = append(errors, OAuthRedeemUrlEmptyError(componentName, environmentName))
+				errors = append(errors, OAuthRedeemUrlEmptyErrorWithMessage(componentName, environmentName))
 			}
 		}
 	}
 
 	// Validate Cookie
 	if cookie := oauthWithDefaults.Cookie; cookie == nil {
-		errors = append(errors, OAuthCookieEmptyError(componentName, environmentName))
+		errors = append(errors, OAuthCookieEmptyErrorWithMessage(componentName, environmentName))
 	} else {
 		if len(strings.TrimSpace(cookie.Name)) == 0 {
-			errors = append(errors, OAuthCookieNameEmptyError(componentName, environmentName))
+			errors = append(errors, OAuthCookieNameEmptyErrorWithMessage(componentName, environmentName))
 		}
 		if !commonUtils.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
-			errors = append(errors, OAuthCookieSameSiteInvalidError(componentName, environmentName, cookie.SameSite))
+			errors = append(errors, OAuthCookieSameSiteInvalidErrorWithMessage(componentName, environmentName, cookie.SameSite))
 		}
 
 		// Validate Expire and Refresh
@@ -547,41 +558,36 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 
 		expire, err := time.ParseDuration(cookie.Expire)
 		if err != nil || expire < 0 {
-			errors = append(errors, OAuthCookieExpireInvalidError(componentName, environmentName, cookie.Expire))
+			errors = append(errors, OAuthCookieExpireInvalidErrorWithMessage(componentName, environmentName, cookie.Expire))
 			expireValid = false
 		}
 		refresh, err := time.ParseDuration(cookie.Refresh)
 		if err != nil || refresh < 0 {
-			errors = append(errors, OAuthCookieRefreshInvalidError(componentName, environmentName, cookie.Refresh))
+			errors = append(errors, OAuthCookieRefreshInvalidErrorWithMessage(componentName, environmentName, cookie.Refresh))
 			refreshValid = false
 		}
 		if expireValid && refreshValid && !(refresh < expire) {
-			errors = append(errors, OAuthCookieRefreshMustBeLessThanExpireError(componentName, environmentName))
+			errors = append(errors, OAuthCookieRefreshMustBeLessThanExpireErrorWithMessage(componentName, environmentName))
 		}
 
 		// Validate required settings when sessionStore=cookie and cookieStore.minimal=true
 		if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreCookie && oauthWithDefaults.CookieStore != nil && oauthWithDefaults.CookieStore.Minimal != nil && *oauthWithDefaults.CookieStore.Minimal {
 			// Refresh must be 0
 			if refreshValid && refresh != 0 {
-				errors = append(errors, OAuthCookieStoreMinimalIncorrectCookieRefreshIntervalError(componentName, environmentName))
+				errors = append(errors, OAuthCookieStoreMinimalIncorrectCookieRefreshIntervalErrorWithMessage(componentName, environmentName))
 			}
 			// SetXAuthRequestHeaders must be false
 			if oauthWithDefaults.SetXAuthRequestHeaders == nil || *oauthWithDefaults.SetXAuthRequestHeaders {
-				errors = append(errors, OAuthCookieStoreMinimalIncorrectSetXAuthRequestHeadersError(componentName, environmentName))
+				errors = append(errors, OAuthCookieStoreMinimalIncorrectSetXAuthRequestHeadersErrorWithMessage(componentName, environmentName))
 			}
 			// SetAuthorizationHeader must be false
 			if oauthWithDefaults.SetAuthorizationHeader == nil || *oauthWithDefaults.SetAuthorizationHeader {
-				errors = append(errors, OAuthCookieStoreMinimalIncorrectSetAuthorizationHeaderError(componentName, environmentName))
+				errors = append(errors, OAuthCookieStoreMinimalIncorrectSetAuthorizationHeaderErrorWithMessage(componentName, environmentName))
 			}
 		}
 	}
 
 	return
-}
-
-func usesDynamicTaggingForDeployOnly(componentImage string) bool {
-	return componentImage != "" &&
-		strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
 func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
@@ -592,7 +598,7 @@ func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, component
 
 func validateJobSchedulerPort(job *radixv1.RadixJobComponent) error {
 	if job.SchedulerPort == nil {
-		return SchedulerPortCannotBeEmptyForJobError(job.Name)
+		return SchedulerPortCannotBeEmptyForJobErrorWithMessage(job.Name)
 	}
 
 	return nil
@@ -600,7 +606,7 @@ func validateJobSchedulerPort(job *radixv1.RadixJobComponent) error {
 
 func validateJobPayload(job *radixv1.RadixJobComponent) error {
 	if job.Payload != nil && job.Payload.Path == "" {
-		return PayloadPathCannotBeEmptyForJobError(job.Name)
+		return PayloadPathCannotBeEmptyForJobErrorWithMessage(job.Name)
 	}
 
 	return nil
@@ -609,14 +615,9 @@ func validateJobPayload(job *radixv1.RadixJobComponent) error {
 func validatePorts(componentName string, ports []radixv1.ComponentPort) []error {
 	errs := []error{}
 
-	if len(ports) == 0 {
-		err := PortSpecificationCannotBeEmptyForComponentError(componentName)
-		errs = append(errs, err)
-	}
-
 	for _, port := range ports {
 		if len(port.Name) > maxPortNameLength {
-			err := InvalidPortNameLengthError(port.Name)
+			err := InvalidPortNameLengthErrorWithMessage(port.Name)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -628,7 +629,7 @@ func validatePorts(componentName string, ports []radixv1.ComponentPort) []error 
 		}
 
 		if port.Port < minimumPortNumber || port.Port > maximumPortNumber {
-			if err := InvalidPortNumberError(port.Port); err != nil {
+			if err := InvalidPortNumberErrorWithMessage(port.Port); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -649,10 +650,10 @@ func validatePublicPort(component radixv1.RadixComponent) []error {
 			}
 		}
 		if matchingPortName < 1 {
-			errs = append(errs, PortNameIsRequiredForPublicComponentError(publicPortName, component.Name))
+			errs = append(errs, PortNameIsRequiredForPublicComponentErrorWithMessage(publicPortName, component.Name))
 		}
 		if matchingPortName > 1 {
-			errs = append(errs, MultipleMatchingPortNamesError(matchingPortName, publicPortName, component.Name))
+			errs = append(errs, MultipleMatchingPortNamesErrorWithMessage(matchingPortName, publicPortName, component.Name))
 		}
 	}
 
@@ -672,7 +673,7 @@ func validateMonitoring(component radixv1.RadixCommonComponent) error {
 		}
 
 		if !isValidPort {
-			return MonitoringPortNameIsNotFoundComponentError(monitoringConfig.PortName, component.GetName())
+			return MonitoringPortNameIsNotFoundComponentErrorWithMessage(monitoringConfig.PortName, component.GetName())
 		}
 	}
 	return nil
@@ -699,7 +700,7 @@ func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirem
 			errs = append(errs, err)
 		}
 		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
-			errs = append(errs, ResourceRequestOverLimitError(name, value, limit.String()))
+			errs = append(errs, ResourceRequestOverLimitErrorWithMessage(name, value, limit.String()))
 		}
 	}
 	return errs
@@ -711,17 +712,17 @@ func validateQuantity(name, value string) (resource.Quantity, error) {
 	if name == "memory" {
 		quantity, err = resource.ParseQuantity(value)
 		if err != nil {
-			return quantity, MemoryResourceRequirementFormatError(value)
+			return quantity, MemoryResourceRequirementFormatErrorWithMessage(value)
 		}
 	} else if name == "cpu" {
 		quantity, err = resource.ParseQuantity(value)
 		re := regexp.MustCompile(cpuRegex)
 		isValid := re.MatchString(value)
 		if err != nil || !isValid {
-			return quantity, CPUResourceRequirementFormatError(value)
+			return quantity, CPUResourceRequirementFormatErrorWithMessage(value)
 		}
 	} else {
-		return quantity, InvalidResourceError(name)
+		return quantity, InvalidResourceErrorWithMessage(name)
 	}
 
 	return quantity, nil
@@ -798,7 +799,7 @@ func validateSecretNames(resourceName string, secrets []string) error {
 	existingSecret := make(map[string]bool)
 	for _, secret := range secrets {
 		if _, exists := existingSecret[secret]; exists {
-			return duplicateSecretName(secret)
+			return duplicateSecretNameWithMessage(secret)
 		}
 		existingSecret[secret] = true
 		if err := validateVariableName(resourceName, secret); err != nil {
@@ -829,7 +830,7 @@ func validateSecretRefs(commonComponent radixv1.RadixCommonComponent, secretRefs
 	existingAzureKeyVaultPath := make(map[string]bool)
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
 		if _, exists := existingAzureKeyVaultName[azureKeyVault.Name]; exists {
-			return duplicateAzureKeyVaultName(azureKeyVault.Name)
+			return duplicateAzureKeyVaultNameWithMessage(azureKeyVault.Name)
 		}
 		existingAzureKeyVaultName[azureKeyVault.Name] = true
 		path := azureKeyVault.Path
@@ -842,14 +843,14 @@ func validateSecretRefs(commonComponent radixv1.RadixCommonComponent, secretRefs
 		useAzureIdentity := azureKeyVault.UseAzureIdentity
 		if useAzureIdentity != nil && *useAzureIdentity {
 			if !azureIdentityIsSet(commonComponent) {
-				return missingIdentityError(azureKeyVault.Name, commonComponent.GetName())
+				return MissingAzureIdentityErrorWithMessage(azureKeyVault.Name, commonComponent.GetName())
 			}
 			// TODO: validate for env-chain
 		}
 		for _, keyVaultItem := range azureKeyVault.Items {
 			if len(keyVaultItem.EnvVar) > 0 {
 				if _, exists := existingVariableName[keyVaultItem.EnvVar]; exists {
-					return duplicateEnvVarName(keyVaultItem.EnvVar)
+					return duplicateEnvVarNameWithMessage(keyVaultItem.EnvVar)
 				}
 				existingVariableName[keyVaultItem.EnvVar] = true
 				if err := validateVariableName("Azure Key vault secret references environment variable name", keyVaultItem.EnvVar); err != nil {
@@ -861,7 +862,7 @@ func validateSecretRefs(commonComponent radixv1.RadixCommonComponent, secretRefs
 			}
 			if keyVaultItem.Alias != nil && len(*keyVaultItem.Alias) > 0 {
 				if _, exists := existingAlias[*keyVaultItem.Alias]; exists {
-					return duplicateAlias(*keyVaultItem.Alias)
+					return duplicateAliasWithMessage(*keyVaultItem.Alias)
 				}
 				existingAlias[*keyVaultItem.Alias] = true
 				if err := validateVariableName("Azure Key vault item alias name", *keyVaultItem.Alias); err != nil {
@@ -952,7 +953,7 @@ func validateVariableNames(resourceName string, variables radixv1.EnvVarsMap) er
 	existingVariableName := make(map[string]bool)
 	for envVarName := range variables {
 		if _, exists := existingVariableName[envVarName]; exists {
-			return duplicateEnvVarName(envVarName)
+			return duplicateEnvVarNameWithMessage(envVarName)
 		}
 		existingVariableName[envVarName] = true
 		if err := validateVariableName(resourceName, envVarName); err != nil {
@@ -966,7 +967,7 @@ func validateConflictingEnvironmentAndSecretNames(componentName string, secrets 
 	for _, secret := range secrets {
 		for _, envVarMap := range envsEnvVarMap {
 			if _, contains := envVarMap[secret]; contains {
-				return SecretNameConflictsWithEnvironmentVariable(componentName, secret)
+				return SecretNameConflictsWithEnvironmentVariableWithMessage(componentName, secret)
 			}
 		}
 	}
@@ -978,7 +979,7 @@ func validateConflictingEnvironmentAndSecretRefsNames(component radixv1.RadixCom
 		for _, item := range azureKeyVault.Items {
 			for _, envVarMap := range envsEnvVarMap {
 				if _, contains := envVarMap[item.EnvVar]; contains {
-					return secretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+					return secretRefEnvVarNameConflictsWithEnvironmentVariableWithMessage(component.GetName(), item.EnvVar)
 				}
 			}
 		}
@@ -988,7 +989,7 @@ func validateConflictingEnvironmentAndSecretRefsNames(component radixv1.RadixCom
 			for _, item := range azureKeyVault.Items {
 				if envVarMap, ok := envsEnvVarMap[environmentConfig.GetEnvironment()]; ok {
 					if _, contains := envVarMap[item.EnvVar]; contains {
-						return secretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+						return secretRefEnvVarNameConflictsWithEnvironmentVariableWithMessage(component.GetName(), item.EnvVar)
 					}
 				}
 			}
@@ -1004,12 +1005,12 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 		}
 
 		if len(env.Build.From) > 253 {
-			return InvalidStringValueMaxLengthError("branch from", env.Build.From, 253)
+			return InvalidStringValueMaxLengthErrorWithMessage("branch from", env.Build.From, 253)
 		}
 
 		isValid := branch.IsValidPattern(env.Build.From)
 		if !isValid {
-			return InvalidBranchNameError(env.Build.From)
+			return InvalidBranchNameErrorWithMessage(env.Build.From)
 		}
 	}
 	return nil
@@ -1036,7 +1037,7 @@ func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
 	return nil
 }
 
-func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
+func validateEnvironmentEgressRules(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, env := range app.Spec.Environments {
 		if len(env.Egress.Rules) > maximumNumberOfEgressRules {
@@ -1065,10 +1066,8 @@ func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 			}
 		}
 	}
-	if len(errs) != 0 {
-		return errs
-	}
-	return nil
+
+	return errors.Join(errs...)
 }
 
 func validateEgressRulePort(port int32) error {
@@ -1084,18 +1083,18 @@ func validateEgressRulePortProtocol(protocol string) error {
 	if commonUtils.ContainsString(validProtocols, upperCaseProtocol) {
 		return nil
 	} else {
-		return InvalidEgressPortProtocolError(protocol, validProtocols)
+		return InvalidEgressPortProtocolErrorWithMessage(protocol, validProtocols)
 	}
 }
 
 func validateEgressRuleIpMask(ipMask string) error {
 	ipAddr, _, err := net.ParseCIDR(ipMask)
 	if err != nil {
-		return NotValidCidrError(err.Error())
+		return NotValidCidrErrorWithMessage(err.Error())
 	}
 	ipV4Addr := ipAddr.To4()
 	if ipV4Addr == nil {
-		return NotValidIPv4CidrError(ipMask)
+		return NotValidIPv4CidrErrorWithMessage(ipMask)
 	}
 
 	return nil
@@ -1117,7 +1116,7 @@ func validateIllegalPrefixInVariableName(resourceName string, value string) erro
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
 	if len(value) > 253 {
-		return InvalidStringValueMaxLengthError(resourceName, value, 253)
+		return InvalidStringValueMaxLengthErrorWithMessage(resourceName, value, 253)
 	}
 
 	re := regexp.MustCompile(regexpExpression)
@@ -1126,7 +1125,7 @@ func validateResourceWithRegexp(resourceName, value, regexpExpression string) er
 	if isValid {
 		return nil
 	}
-	return InvalidResourceNameError(resourceName, value)
+	return InvalidResourceNameErrorWithMessage(resourceName, value)
 }
 
 func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
@@ -1140,13 +1139,13 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 			maxReplicas := envConfig.HorizontalScaling.MaxReplicas
 			minReplicas := envConfig.HorizontalScaling.MinReplicas
 			if maxReplicas == 0 {
-				return MaxReplicasForHPANotSetOrZeroError(componentName, environment)
+				return MaxReplicasForHPANotSetOrZeroErrorWithMessage(componentName, environment)
 			}
 			if minReplicas != nil && *minReplicas > maxReplicas {
-				return MinReplicasGreaterThanMaxReplicasError(componentName, environment)
+				return MinReplicasGreaterThanMaxReplicasErrorWithMessage(componentName, environment)
 			}
 			if envConfig.HorizontalScaling.RadixHorizontalScalingResources != nil && envConfig.HorizontalScaling.RadixHorizontalScalingResources.Cpu == nil && envConfig.HorizontalScaling.RadixHorizontalScalingResources.Memory == nil {
-				return NoScalingResourceSetError(componentName, environment)
+				return NoScalingResourceSetErrorWithMessage(componentName, environment)
 			}
 		}
 	}
@@ -1187,7 +1186,7 @@ func ValidateNotificationsForRA(app *radixv1.RadixApplication) error {
 			}
 		}
 	}
-	return errorUtils.Concat(errs)
+	return errors.Join(errs...)
 }
 
 // ValidateNotifications Validate specified Notifications for the RadixApplication
@@ -1198,30 +1197,30 @@ func ValidateNotifications(app *radixv1.RadixApplication, notifications *radixv1
 	webhook := strings.ToLower(strings.TrimSpace(*notifications.Webhook))
 	webhookUrl, err := url.Parse(webhook)
 	if err != nil {
-		return InvalidWebhookUrl(jobComponentName, environment)
+		return InvalidWebhookUrlWithMessage(jobComponentName, environment)
 	}
 	if len(webhookUrl.Scheme) > 0 && webhookUrl.Scheme != "https" && webhookUrl.Scheme != "http" {
-		return NotAllowedSchemeInWebhookUrl(webhookUrl.Scheme, jobComponentName, environment)
+		return NotAllowedSchemeInWebhookUrlWithMessage(webhookUrl.Scheme, jobComponentName, environment)
 	}
 	if len(webhookUrl.Port()) == 0 {
-		return MissingPortInWebhookUrl(jobComponentName, environment)
+		return MissingPortInWebhookUrlWithMessage(jobComponentName, environment)
 	}
 	targetRadixComponent, targetRadixJobComponent := getRadixCommonComponentByName(app, webhookUrl.Hostname())
 	if targetRadixComponent == nil && targetRadixJobComponent == nil {
-		return OnlyAppComponentAllowedInWebhookUrl(jobComponentName, environment)
+		return OnlyAppComponentAllowedInWebhookUrlWithMessage(jobComponentName, environment)
 	}
 	if targetRadixComponent != nil {
 		componentPort := getComponentPort(targetRadixComponent, webhookUrl.Port())
 		if componentPort == nil {
-			return InvalidPortInWebhookUrl(webhookUrl.Port(), targetRadixComponent.GetName(), jobComponentName, environment)
+			return InvalidPortInWebhookUrlWithMessage(webhookUrl.Port(), targetRadixComponent.GetName(), jobComponentName, environment)
 		}
 		if strings.EqualFold(componentPort.Name, targetRadixComponent.PublicPort) {
-			return InvalidUseOfPublicPortInWebhookUrl(webhookUrl.Port(), targetRadixComponent.GetName(), jobComponentName, environment)
+			return InvalidUseOfPublicPortInWebhookUrlWithMessage(webhookUrl.Port(), targetRadixComponent.GetName(), jobComponentName, environment)
 		}
 	} else if targetRadixJobComponent != nil {
 		componentPort := getComponentPort(targetRadixJobComponent, webhookUrl.Port())
 		if componentPort == nil {
-			return InvalidPortInWebhookUrl(webhookUrl.Port(), targetRadixJobComponent.GetName(), jobComponentName, environment)
+			return InvalidPortInWebhookUrlWithMessage(webhookUrl.Port(), targetRadixJobComponent.GetName(), jobComponentName, environment)
 		}
 	}
 	return nil
@@ -1262,20 +1261,20 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 		volumeMountStorage := deployment.GetRadixVolumeMountStorage(&volumeMount)
 		switch {
 		case len(volumeMount.Type) == 0 && volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil:
-			return emptyVolumeMountTypeOrDriverSectionError(componentName, environment)
+			return emptyVolumeMountTypeOrDriverSectionErrorWithMessage(componentName, environment)
 		case multipleVolumeTypesDefined(&volumeMount):
-			return multipleVolumeMountTypesDefinedError(componentName, environment)
+			return multipleVolumeMountTypesDefinedErrorWithMessage(componentName, environment)
 		case strings.TrimSpace(volumeMount.Name) == "" ||
 			strings.TrimSpace(volumeMount.Path) == "":
-			return emptyVolumeMountNameOrPathError(componentName, environment)
+			return emptyVolumeMountNameOrPathErrorWithMessage(componentName, environment)
 		case volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil && len(volumeMount.Type) > 0 && len(volumeMountStorage) == 0:
-			return emptyVolumeMountStorageError(componentName, environment)
+			return emptyVolumeMountStorageErrorWithMessage(componentName, environment)
 		case volumeMount.BlobFuse2 != nil:
 			switch {
 			case len(volumeMount.BlobFuse2.Container) == 0:
-				return emptyBlobFuse2VolumeMountContainerError(componentName, environment)
+				return emptyBlobFuse2VolumeMountContainerErrorWithMessage(componentName, environment)
 			case len(string(volumeMount.BlobFuse2.Protocol)) > 0 && !commonUtils.ContainsString(blobFuse2Protocols, string(volumeMount.BlobFuse2.Protocol)):
-				return unsupportedBlobFuse2VolumeMountProtocolError(componentName, environment)
+				return unsupportedBlobFuse2VolumeMountProtocolErrorWithMessage(componentName, environment)
 			}
 			fallthrough
 		case radixv1.IsKnownVolumeMount(volumeMountType):
@@ -1285,16 +1284,16 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 				}
 				volumeMountConfigMap := mountsInComponent[volumeMountType]
 				if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
-					return duplicateNameForVolumeMountType(volumeMount.Name, volumeMountType, componentName, environment)
+					return duplicateNameForVolumeMountTypeWithMessage(volumeMount.Name, volumeMountType, componentName, environment)
 				}
 				volumeMountConfigMap.names[volumeMount.Name] = true
 				if _, exists := volumeMountConfigMap.path[volumeMount.Path]; exists {
-					return duplicatePathForVolumeMountType(volumeMount.Path, volumeMountType, componentName, environment)
+					return duplicatePathForVolumeMountTypeWithMessage(volumeMount.Path, volumeMountType, componentName, environment)
 				}
 				volumeMountConfigMap.path[volumeMount.Path] = true
 			}
 		default:
-			return unknownVolumeMountTypeError(volumeMountType, componentName, environment)
+			return unknownVolumeMountTypeErrorWithMessage(volumeMountType, componentName, environment)
 		}
 	}
 
@@ -1334,10 +1333,10 @@ func validateAzureIdentity(azureIdentity *radixv1.AzureIdentity) error {
 
 func validateExpectedAzureIdentity(azureIdentity radixv1.AzureIdentity) error {
 	if len(strings.TrimSpace(azureIdentity.ClientId)) == 0 {
-		return ResourceNameCannotBeEmptyError(azureClientIdResourceName)
+		return ResourceNameCannotBeEmptyErrorWithMessage(azureClientIdResourceName)
 	}
-	if _, err := uuid.Parse(azureIdentity.ClientId); err != nil {
-		return InvalidUUIDError(azureClientIdResourceName, azureIdentity.ClientId)
+	if err := uuid.Validate(azureIdentity.ClientId); err != nil {
+		return InvalidUUIDErrorWithMessage(azureClientIdResourceName, azureIdentity.ClientId)
 	}
 	return nil
 }
@@ -1359,11 +1358,6 @@ func doesComponentExistInEnvironment(app *radixv1.RadixApplication, componentNam
 
 func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
 	return getEnv(app, name) != nil
-}
-
-func doesEnvExistAndIsMappedToBranch(app *radixv1.RadixApplication, name string) bool {
-	env := getEnv(app, name)
-	return env != nil && env.Build.From != ""
 }
 
 func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
@@ -1391,7 +1385,7 @@ func validateComponentName(componentName, componentType string) error {
 
 	for _, aux := range []string{defaults.OAuthProxyAuxiliaryComponentSuffix} {
 		if strings.HasSuffix(componentName, fmt.Sprintf("-%s", aux)) {
-			return ComponentNameReservedSuffixError(componentName, componentType, string(aux))
+			return ComponentNameReservedSuffixErrorWithMessage(componentName, componentType, string(aux))
 		}
 	}
 	return nil

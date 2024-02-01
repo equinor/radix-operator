@@ -32,7 +32,7 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 
 	oldNamespace, err := kubeutil.getNamespace(name)
 	if err != nil && k8errs.IsNotFound(err) {
-		log.Debugf("Namespace object %s doesn't exists, create the object", name)
+		log.Debugf("namespace object %s doesn't exists, create the object", name)
 		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 		return err
 	}
@@ -114,7 +114,7 @@ func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
 		return err
 	}
 
-	log.Infof("Namespace %s exists and is active", namespace)
+	log.Infof("namespace %s exists and is active", namespace)
 	return nil
 
 }
@@ -127,7 +127,7 @@ func waitForNamespace(client kubernetes.Interface, namespace string) error {
 		ns, err := client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 		if err != nil {
 			if k8errs.IsNotFound(err) || k8errs.IsForbidden(err) {
-				return false, nil //the environment namespace or the rolebinding for the cluster-role radix-pipeline-env are not yet created
+				return false, nil // the environment namespace or the rolebinding for the cluster-role radix-pipeline-env are not yet created
 			}
 			return false, err
 		}

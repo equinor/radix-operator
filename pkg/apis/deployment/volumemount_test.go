@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -94,6 +95,7 @@ func getDeployment(testEnv TestEnv) *Deployment {
 		radixclient:             testEnv.radixclient,
 		kubeutil:                testEnv.kubeUtil,
 		prometheusperatorclient: testEnv.prometheusclient,
+		config:                  &config.Config{},
 	}
 }
 
@@ -1038,6 +1040,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						sc.MountOptions = []string{
 							"--file-cache-timeout-in-seconds=120",
 							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
 							"-o allow_other",
 							"-o attr_timeout=120",
 							"-o entry_timeout=120",
@@ -1068,7 +1071,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 							BufferSize:       pointers.Ptr(uint64(103)),
 							MaxBuffers:       pointers.Ptr(uint64(104)),
 							MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-							FileCaching:      pointers.Ptr(true),
 						}
 					}),
 				},
@@ -1085,6 +1087,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						sc.MountOptions = []string{
 							"--file-cache-timeout-in-seconds=120",
 							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
 							"-o allow_other",
 							"-o attr_timeout=120",
 							"-o entry_timeout=120",
@@ -1096,7 +1099,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 							"--buffer-size-mb=103",
 							"--max-buffers=104",
 							"--max-blocks-per-file=105",
-							"--file-caching=true",
 							"--use-adls=false",
 						}
 					}),
@@ -1122,7 +1124,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 							BufferSize:       pointers.Ptr(uint64(103)),
 							MaxBuffers:       pointers.Ptr(uint64(104)),
 							MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-							FileCaching:      pointers.Ptr(true),
 						}
 					}),
 				},
@@ -1139,6 +1140,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						sc.MountOptions = []string{
 							"--file-cache-timeout-in-seconds=120",
 							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
 							"-o allow_other",
 							"-o attr_timeout=120",
 							"-o entry_timeout=120",
@@ -1579,6 +1581,7 @@ func createExpectedStorageClass(props expectedPvcScProperties, modify func(class
 	mountOptions := []string{
 		"--file-cache-timeout-in-seconds=120",
 		"--use-attr-cache=true",
+		"--cancel-list-on-mount-seconds=0",
 		"-o allow_other",
 		"-o attr_timeout=120",
 		"-o entry_timeout=120",
@@ -1661,7 +1664,7 @@ func createExpectedPvc(props expectedPvcScProperties, modify func(*corev1.Persis
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{props.volumeAccessMode},
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(props.requestsVolumeMountSize)}, // it seems correct number is not needed for CSI driver
 			},
 			StorageClassName: utils.StringPtr(props.storageClassName),

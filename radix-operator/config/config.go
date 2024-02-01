@@ -2,28 +2,26 @@ package config
 
 import (
 	"strconv"
+	"strings"
 
+	"github.com/equinor/radix-common/utils/maps"
+	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
+	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
+	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/job"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
-type LogLevel string
-
-const (
-	LogLevelInfo  LogLevel = "INFO"
-	LogLevelError LogLevel = "ERROR"
-	LogLevelDebug LogLevel = "DEBUG"
-)
-
-var logLevels = map[string]bool{string(LogLevelInfo): true, string(LogLevelDebug): true, string(LogLevelError): true}
-
-func getLogLevel() string {
+func getLogLevel() log.Level {
 	logLevel := viper.GetString(defaults.LogLevel)
-	if _, ok := logLevels[logLevel]; ok {
-		return logLevel
+	level, err := log.ParseLevel(logLevel)
+	if err != nil {
+		return log.InfoLevel
 	}
-	return string(LogLevelInfo)
+	return level
 }
 
 // Gets pipeline job history limit per each list, grouped by pipeline branch and job status
@@ -36,6 +34,18 @@ func getDeploymentsHistoryLimitPerEnvironment() int {
 	return getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
 }
 
+func getDNSZone() string {
+	return viper.GetString(defaults.OperatorDNSZoneEnvironmentVariable)
+}
+
+func getDNSAliasAppReserved() map[string]string {
+	return maps.FromString(viper.GetString(defaults.RadixReservedAppDNSAliasesEnvironmentVariable))
+}
+
+func getDNSAliasReserved() []string {
+	return strings.Split(viper.GetString(defaults.RadixReservedDNSAliasesEnvironmentVariable), ",")
+}
+
 func getIntFromEnvVar(envVarName string, defaultValue int) int {
 	val, err := strconv.Atoi(viper.GetString(envVarName))
 	if err != nil {
@@ -44,23 +54,32 @@ func getIntFromEnvVar(envVarName string, defaultValue int) int {
 	return val
 }
 
-// Config from environment variables
-type Config struct {
-	LogLevel          string
-	PipelineJobConfig *job.Config
-}
-
 // NewConfig New instance of the Config
-func NewConfig() *Config {
+func NewConfig() *apiconfig.Config {
 	viper.AutomaticEnv()
-	return &Config{
+	return &apiconfig.Config{
 		LogLevel: getLogLevel(),
-		PipelineJobConfig: &job.Config{
+		DNSConfig: &dnsalias.DNSConfig{
+			DNSZone:               getDNSZone(),
+			ReservedAppDNSAliases: getDNSAliasAppReserved(),
+			ReservedDNSAliases:    getDNSAliasReserved(),
+		},
+		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
 			DeploymentsHistoryLimitPerEnvironment: getDeploymentsHistoryLimitPerEnvironment(),
 			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
+		},
+		CertificateAutomation: certificateconfig.AutomationConfig{
+			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
+			Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
+			RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
+		},
+		DeploymentSyncer: deployment.SyncerConfig{
+			TenantID:               viper.GetString(defaults.OperatorTenantIdEnvironmentVariable),
+			KubernetesAPIPort:      viper.GetInt32(defaults.KubernetesApiPortEnvironmentVariable),
+			DeploymentHistoryLimit: viper.GetInt(defaults.DeploymentsHistoryLimitEnvironmentVariable),
 		},
 	}
 }

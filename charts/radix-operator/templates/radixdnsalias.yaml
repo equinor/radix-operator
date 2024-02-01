@@ -1,0 +1,102 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
+  name: radixdnsaliases.radix.equinor.com
+spec:
+  group: radix.equinor.com
+  names:
+    kind: RadixDNSAlias
+    listKind: RadixDNSAliasList
+    plural: radixdnsaliases
+    shortNames:
+    - rda
+    singular: radixdnsalias
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.appName
+      name: Application
+      type: string
+    - jsonPath: .status.condition
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: RadixDNSAlias is a Custom Resource Definition
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RadixDNSAliasSpec is the spec for an RadixDNSAlias
+            properties:
+              appName:
+                description: Name of the application the DNS alias used in.
+                maxLength: 253
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
+              component:
+                description: Name of the component that shall receive the incoming
+                  requests.
+                maxLength: 63
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                type: string
+              environment:
+                description: Name of the environment for the component.
+                maxLength: 63
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
+            required:
+            - appName
+            - component
+            - environment
+            type: object
+          status:
+            description: RadixDNSAliasStatus is the status for an RadixDNSAlias
+            properties:
+              condition:
+                description: Condition of the RadixDNSAlias creating or updating
+                type: string
+              message:
+                description: A human-readable message indicating details about the
+                  condition.
+                type: string
+              reconciled:
+                description: Reconciled The timestamp when the RadixDNSAlias was reconciled
+                format: date-time
+                type: string
+            type: object
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

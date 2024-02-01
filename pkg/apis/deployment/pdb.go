@@ -2,8 +2,9 @@ package deployment
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
-	"github.com/equinor/radix-common/utils/errors"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -80,7 +81,7 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComp
 		}
 	}
 
-	return errors.Concat(errs)
+	return stderrors.Join(errs...)
 }
 
 func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() error {
@@ -112,5 +113,5 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() err
 		}
 
 	}
-	return errors.Concat(errs)
+	return stderrors.Join(errs...)
 }

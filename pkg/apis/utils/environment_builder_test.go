@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/stretchr/testify/assert"
 )
 
 func Test_RadixEnvironment_Defaults(t *testing.T) {
@@ -19,15 +19,15 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 	nilTime := (*meta.Time)(nil)
 
 	// TypeMeta
-	assert.Equal(t, "radix.equinor.com/v1", re.TypeMeta.APIVersion)
-	assert.Equal(t, "RadixEnvironment", re.TypeMeta.Kind)
+	assert.Equal(t, v1.SchemeGroupVersion.Identifier(), re.TypeMeta.APIVersion)
+	assert.Equal(t, v1.KindRadixEnvironment, re.TypeMeta.Kind)
 
 	// ObjectMeta
 	assert.Len(t, re.ObjectMeta.Annotations, 0)
 	assert.Equal(t, minTime, re.ObjectMeta.CreationTimestamp)
 	assert.Equal(t, (*int64)(nil), re.ObjectMeta.DeletionGracePeriodSeconds)
 	assert.Equal(t, nilTime, re.ObjectMeta.DeletionTimestamp)
-	assert.Len(t, re.ObjectMeta.Finalizers, 0)
+	assert.ElementsMatch(t, re.ObjectMeta.Finalizers, []string{kube.RadixEnvironmentFinalizer})
 	assert.Equal(t, "", re.ObjectMeta.GenerateName)
 	assert.Equal(t, int64(0), re.ObjectMeta.Generation)
 	assert.Len(t, re.ObjectMeta.Labels, 0)
@@ -110,7 +110,7 @@ func Test_WithRegistrationOwner(t *testing.T) {
 
 	assert.Len(t, re.ObjectMeta.OwnerReferences, 1)
 	assert.Equal(t, "RR", re.ObjectMeta.OwnerReferences[0].Name)
-	assert.Equal(t, "RadixRegistration", re.ObjectMeta.OwnerReferences[0].Kind)
+	assert.Equal(t, v1.KindRadixRegistration, re.ObjectMeta.OwnerReferences[0].Kind)
 }
 
 func Test_WithRegistrationBuilder(t *testing.T) {
@@ -121,7 +121,7 @@ func Test_WithRegistrationBuilder(t *testing.T) {
 
 	assert.Len(t, re.ObjectMeta.OwnerReferences, 1)
 	assert.Equal(t, "RR", re.ObjectMeta.OwnerReferences[0].Name)
-	assert.Equal(t, "RadixRegistration", re.ObjectMeta.OwnerReferences[0].Kind)
+	assert.Equal(t, v1.KindRadixRegistration, re.ObjectMeta.OwnerReferences[0].Kind)
 }
 
 func Test_WithResourceVersion(t *testing.T) {

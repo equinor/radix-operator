@@ -23,9 +23,9 @@ func GetRoleBindingGroups(groups []string) []rbacv1.Subject {
 	subjects := []rbacv1.Subject{}
 	for _, group := range groups {
 		subjects = append(subjects, rbacv1.Subject{
-			Kind:     k8s.KindGroup,
+			Kind:     rbacv1.GroupKind,
 			Name:     group,
-			APIGroup: k8s.RbacApiGroup,
+			APIGroup: rbacv1.GroupName,
 		})
 	}
 	return subjects
@@ -83,7 +83,7 @@ func GetRolebindingToRoleForSubjectsWithLabels(appName, roleName string, subject
 func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *rbacv1.RoleBinding {
 	subjects := []rbacv1.Subject{
 		{
-			Kind:      k8s.KindServiceAccount,
+			Kind:      rbacv1.ServiceAccountKind,
 			Name:      serviceAccountName,
 			Namespace: serviceAccountNamespace,
 		}}
@@ -95,7 +95,7 @@ func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountNam
 func GetRolebindingToClusterRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *rbacv1.RoleBinding {
 	subjects := []rbacv1.Subject{
 		{
-			Kind:      k8s.KindServiceAccount,
+			Kind:      rbacv1.ServiceAccountKind,
 			Name:      serviceAccountName,
 			Namespace: serviceAccountNamespace,
 		}}
@@ -106,7 +106,7 @@ func GetRolebindingToClusterRoleForServiceAccountWithLabels(roleName, serviceAcc
 func getRoleBindingForSubjects(roleName, kind string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -114,7 +114,7 @@ func getRoleBindingForSubjects(roleName, kind string, subjects []rbacv1.Subject,
 			Labels: labels,
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: k8s.RbacApiGroup,
+			APIGroup: rbacv1.GroupName,
 			Kind:     kind,
 			Name:     roleName,
 		},
@@ -178,7 +178,7 @@ func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *rbacv1.RoleBindin
 func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *rbacv1.ClusterRoleBinding) error {
 	logger = logger.WithFields(log.Fields{"clusterRoleBinding": clusterrolebinding.ObjectMeta.Name})
 	logger.Debugf("Apply clusterrolebinding %s", clusterrolebinding.Name)
-	oldClusterRoleBinding, err := kubeutil.getClusterRoleBinding(clusterrolebinding.Name)
+	oldClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterrolebinding.Name, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterrolebinding, metav1.CreateOptions{})
 		if err != nil {
@@ -231,7 +231,7 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *rbacv1.Cluster
 func (kubeutil *Kube) ApplyClusterRoleBindingToServiceAccount(roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
 	rolebinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindClusterRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -239,13 +239,13 @@ func (kubeutil *Kube) ApplyClusterRoleBindingToServiceAccount(roleName string, s
 			OwnerReferences: ownerReference,
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: k8s.RbacApiGroup,
+			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
 			Name:     roleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      k8s.KindServiceAccount,
+				Kind:      rbacv1.ServiceAccountKind,
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
 			},
@@ -258,7 +258,7 @@ func (kubeutil *Kube) ApplyClusterRoleBindingToServiceAccount(roleName string, s
 func (kubeutil *Kube) ApplyRoleBindingToServiceAccount(roleKind, roleName, namespace string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -267,13 +267,13 @@ func (kubeutil *Kube) ApplyRoleBindingToServiceAccount(roleKind, roleName, names
 			OwnerReferences: ownerReference,
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: k8s.RbacApiGroup,
+			APIGroup: rbacv1.GroupName,
 			Kind:     roleKind,
 			Name:     roleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      k8s.KindServiceAccount,
+				Kind:      rbacv1.ServiceAccountKind,
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
 			},
@@ -337,18 +337,23 @@ func (kubeutil *Kube) ListRoleBindingsWithSelector(namespace string, labelSelect
 	return roleBindings, nil
 }
 
-// ListClusterRoleBindings List cluster roles
-func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*rbacv1.ClusterRoleBinding, error) {
+// ListClusterRoleBindingsWithSelector List cluster roles
+func (kubeutil *Kube) ListClusterRoleBindingsWithSelector(labelSelectorString string) ([]*rbacv1.ClusterRoleBinding, error) {
 	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
-	var err error
-
 	if kubeutil.ClusterRoleBindingLister != nil {
-		clusterRoleBindings, err = kubeutil.ClusterRoleBindingLister.List(labels.NewSelector())
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
+		}
+		clusterRoleBindings, err = kubeutil.ClusterRoleBindingLister.List(selector)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+		listOptions := metav1.ListOptions{
+			LabelSelector: labelSelectorString,
+		}
+		list, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().List(context.TODO(), listOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -361,7 +366,7 @@ func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*rbacv1.Clust
 
 // DeleteClusterRoleBinding Deletes a clusterrolebinding
 func (kubeutil *Kube) DeleteClusterRoleBinding(name string) error {
-	_, err := kubeutil.getClusterRoleBinding(name)
+	_, err := kubeutil.GetClusterRoleBinding(name)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
@@ -389,7 +394,8 @@ func (kubeutil *Kube) DeleteRoleBinding(namespace, name string) error {
 	return nil
 }
 
-func (kubeutil *Kube) getClusterRoleBinding(name string) (*rbacv1.ClusterRoleBinding, error) {
+// GetClusterRoleBinding Gets cluster role binding
+func (kubeutil *Kube) GetClusterRoleBinding(name string) (*rbacv1.ClusterRoleBinding, error) {
 	var clusterRoleBinding *rbacv1.ClusterRoleBinding
 	var err error
 

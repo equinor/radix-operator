@@ -27,7 +27,12 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
-	go sut.Run(5, s.Stop)
+	go func() {
+		err := sut.Run(5, s.Stop)
+		if err != nil {
+			s.Require().NoError(err)
+		}
+	}()
 
 	batch := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: batchName, Namespace: namespace}}
 
@@ -56,7 +61,7 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 		Namespace:       namespace,
 		ResourceVersion: "1",
 		OwnerReferences: []metav1.OwnerReference{
-			{APIVersion: "radix.equinor.com/v1", Kind: "RadixBatch", Name: batchName, Controller: utils.BoolPtr(true)},
+			{APIVersion: v1.SchemeGroupVersion.Identifier(), Kind: v1.KindRadixBatch, Name: batchName, Controller: utils.BoolPtr(true)},
 		},
 	}}
 	s.Handler.EXPECT().Sync(namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)

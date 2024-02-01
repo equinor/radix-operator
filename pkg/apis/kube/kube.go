@@ -17,67 +17,78 @@ import (
 
 // Radix Annotations
 const (
-	RadixBranchAnnotation          = "radix-branch"
-	RadixGitTagsAnnotation         = "radix.equinor.com/radix-git-tags"
-	RadixCommitAnnotation          = "radix.equinor.com/radix-commit"
-	RadixComponentImagesAnnotation = "radix-component-images"
-	RadixDeploymentNameAnnotation  = "radix-deployment-name"
-
+	RadixBranchAnnotation                              = "radix-branch"
+	RadixGitTagsAnnotation                             = "radix.equinor.com/radix-git-tags"
+	RadixCommitAnnotation                              = "radix.equinor.com/radix-commit"
+	RadixConfigHash                                    = "radix.equinor.com/radix-config-hash"
+	RadixBuildSecretHash                               = "radix.equinor.com/build-secret-hash"
+	RadixComponentImagesAnnotation                     = "radix-component-images"
+	RadixDeploymentNameAnnotation                      = "radix-deployment-name"
+	RadixDeploymentPromotedFromDeploymentAnnotation    = "radix.equinor.com/radix-deployment-promoted-from-deployment"
+	RadixDeploymentPromotedFromEnvironmentAnnotation   = "radix.equinor.com/radix-deployment-promoted-from-environment"
+	RadixExternalDNSUseCertificateAutomationAnnotation = "radix.equinor.com/external-dns-use-certificate-automation"
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
 )
 
+// Radix Finalizers
+const (
+	RadixEnvironmentFinalizer = "radix.equinor.com/environment-finalizer"
+	RadixDNSAliasFinalizer    = "radix.equinor.com/dnsalias-finalizer"
+)
+
 // Radix Labels
 const (
-	K8sAppLabel                        = "k8s-app"
-	RadixAppLabel                      = "radix-app"
-	RadixEnvLabel                      = "radix-env"
-	RadixComponentLabel                = "radix-component"
-	RadixDeploymentLabel               = "radix-deployment"
-	RadixComponentTypeLabel            = "radix-component-type"
-	RadixJobNameLabel                  = "radix-job-name"
-	RadixAuxiliaryComponentLabel       = "radix-aux-component"
-	RadixAuxiliaryComponentTypeLabel   = "radix-aux-component-type"
-	RadixBuildLabel                    = "radix-build"
-	RadixCommitLabel                   = "radix-commit"
-	RadixImageTagLabel                 = "radix-image-tag"
-	RadixJobTypeLabel                  = "radix-job-type"
-	RadixJobTypeJob                    = "job" // Outer job
-	RadixJobTypeBuild                  = "build"
-	RadixJobTypeCloneConfig            = "clone-config"
-	RadixJobTypePreparePipelines       = "prepare-pipelines"
-	RadixJobTypeRunPipelines           = "run-pipelines"
-	RadixJobTypeJobSchedule            = "job-scheduler"
-	RadixJobTypeBatchSchedule          = "batch-scheduler"
-	RadixAppAliasLabel                 = "radix-app-alias"
-	RadixExternalAliasLabel            = "radix-app-external-alias"
-	RadixActiveClusterAliasLabel       = "radix-app-active-cluster-alias"
-	RadixMountTypeLabel                = "mount-type"
-	RadixVolumeMountNameLabel          = "radix-volume-mount-name"
-	RadixGpuLabel                      = "radix-node-gpu"
-	RadixGpuCountLabel                 = "radix-node-gpu-count"
-	RadixJobNodeLabel                  = "nodepooltasks"
-	RadixNamespace                     = "radix-namespace"
-	RadixConfigMapTypeLabel            = "radix-config-map-type"
-	RadixSecretTypeLabel               = "radix-secret-type"
-	RadixSecretRefTypeLabel            = "radix-secret-ref-type"
-	RadixSecretRefNameLabel            = "radix-secret-ref-name"
-	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
-	RadixPodIsJobSchedulerLabel        = "is-job-scheduler-pod"
-	RadixPodIsJobAuxObjectLabel        = "is-job-aux-object"
-	IsServiceAccountForComponent       = "is-service-account-for-component"
-	RadixBatchNameLabel                = "radix-batch-name"
-	RadixBatchJobNameLabel             = "radix-batch-job-name"
-	RadixBatchTypeLabel                = "radix-batch-type"
-	RadixAccessValidationLabel         = "radix-access-validation"
+	K8sAppLabel                         = "k8s-app"
+	RadixAppLabel                       = "radix-app"
+	RadixEnvLabel                       = "radix-env"
+	RadixComponentLabel                 = "radix-component"
+	RadixDeploymentLabel                = "radix-deployment"
+	RadixComponentTypeLabel             = "radix-component-type"
+	RadixJobNameLabel                   = "radix-job-name"
+	RadixAuxiliaryComponentLabel        = "radix-aux-component"
+	RadixAuxiliaryComponentTypeLabel    = "radix-aux-component-type"
+	RadixBuildLabel                     = "radix-build"
+	RadixCommitLabel                    = "radix-commit"
+	RadixImageTagLabel                  = "radix-image-tag"
+	RadixJobTypeLabel                   = "radix-job-type"
+	RadixJobTypeJob                     = "job" // Outer job
+	RadixJobTypeBuild                   = "build"
+	RadixJobTypeCloneConfig             = "clone-config"
+	RadixJobTypePreparePipelines        = "prepare-pipelines"
+	RadixJobTypeRunPipelines            = "run-pipelines"
+	RadixJobTypeJobSchedule             = "job-scheduler"
+	RadixJobTypeBatchSchedule           = "batch-scheduler"
+	RadixDefaultAliasLabel              = "radix-default-alias"
+	RadixActiveClusterAliasLabel        = "radix-app-active-cluster-alias"
+	RadixAppAliasLabel                  = "radix-app-alias"
+	RadixExternalAliasLabel             = "radix-app-external-alias"
+	RadixAliasLabel                     = "radix-alias"
+	RadixMountTypeLabel                 = "mount-type"
+	RadixVolumeMountNameLabel           = "radix-volume-mount-name"
+	RadixGpuLabel                       = "radix-node-gpu"
+	RadixGpuCountLabel                  = "radix-node-gpu-count"
+	RadixJobNodeLabel                   = "nodepooltasks"
+	RadixNamespace                      = "radix-namespace"
+	RadixConfigMapTypeLabel             = "radix-config-map-type"
+	RadixSecretTypeLabel                = "radix-secret-type"
+	RadixSecretRefTypeLabel             = "radix-secret-ref-type"
+	RadixSecretRefNameLabel             = "radix-secret-ref-name"
+	RadixUserDefinedNetworkPolicyLabel  = "is-user-defined"
+	RadixPodIsJobSchedulerLabel         = "is-job-scheduler-pod"
+	RadixPodIsJobAuxObjectLabel         = "is-job-aux-object"
+	IsServiceAccountForComponent        = "is-service-account-for-component"
+	IsServiceAccountForSubPipelineLabel = "is-service-account-for-subpipeline"
+	RadixBatchNameLabel                 = "radix-batch-name"
+	RadixBatchJobNameLabel              = "radix-batch-job-name"
+	RadixBatchTypeLabel                 = "radix-batch-type"
+	RadixAccessValidationLabel          = "radix-access-validation"
+	RadixPipelineTypeLabels             = "radix-pipeline"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
 	NodeTaintGpuCountKey = "radix-node-gpu-count"
 	NodeTaintJobsKey     = "nodepooltasks"
-
-	// RadixBranchDeprecated Only for backward compatibility
-	RadixBranchDeprecated = "radix-branch"
 )
 
 // RadixBatchType defines value for use with label RadixBatchTypeLabel
@@ -92,6 +103,7 @@ const (
 type RadixSecretType string
 
 const (
+	// RadixSecretJobPayload Used by radix-job-scheduler to label secrets with payloads
 	RadixSecretJobPayload RadixSecretType = "scheduler-job-payload"
 )
 
@@ -105,10 +117,6 @@ const (
 	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
 	// RadixPipelineResultConfigMap Label of a ConfigMap, which keeps a Radix pipeline result
 	RadixPipelineResultConfigMap RadixConfigMapType = "radix-pipeline-result"
-	// RadixPipelineConfigConfigMap Label of a ConfigMap, which keeps a Radix pipeline configuration
-	RadixPipelineConfigConfigMap RadixConfigMapType = "radix-pipeline-config"
-	// RadixPipelineGitInformationConfigMap Label of a ConfigMap, which keeps a Radix pipeline Git information
-	RadixPipelineGitInformationConfigMap RadixConfigMapType = "radix-pipeline-git-information"
 )
 
 // Kube  Struct for accessing lower level kubernetes functions
@@ -121,6 +129,7 @@ type Kube struct {
 	RdLister                 v1Lister.RadixDeploymentLister
 	RbLister                 v1Lister.RadixBatchLister
 	RadixAlertLister         v1Lister.RadixAlertLister
+	RadixDNSAliasLister      v1Lister.RadixDNSAliasLister
 	NamespaceLister          coreListers.NamespaceLister
 	SecretLister             coreListers.SecretLister
 	DeploymentLister         appsv1Listers.DeploymentLister
@@ -167,6 +176,7 @@ func NewWithListers(client kubernetes.Interface,
 		RdLister:                 radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
 		RbLister:                 radixInformerFactory.Radix().V1().RadixBatches().Lister(),
 		RadixAlertLister:         radixInformerFactory.Radix().V1().RadixAlerts().Lister(),
+		RadixDNSAliasLister:      radixInformerFactory.Radix().V1().RadixDNSAliases().Lister(),
 		NamespaceLister:          kubeInformerFactory.Core().V1().Namespaces().Lister(),
 		SecretLister:             kubeInformerFactory.Core().V1().Secrets().Lister(),
 		DeploymentLister:         kubeInformerFactory.Apps().V1().Deployments().Lister(),

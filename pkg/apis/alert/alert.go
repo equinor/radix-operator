@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-//AlertSyncer defines interface for syncing a RadixAlert
+// AlertSyncer defines interface for syncing a RadixAlert
 type AlertSyncer interface {
 	OnSync() error
 }
@@ -109,8 +109,8 @@ func (syncer *alertSyncer) updateRadixAlertStatus(changeStatusFunc func(currStat
 func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixAlert",
+			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
+			Kind:       radixv1.KindRadixAlert,
 			Name:       syncer.radixAlert.Name,
 			UID:        syncer.radixAlert.UID,
 			Controller: commonUtils.BoolPtr(true),

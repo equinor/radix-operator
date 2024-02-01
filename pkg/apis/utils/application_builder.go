@@ -1,7 +1,7 @@
 package utils
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -9,20 +9,22 @@ import (
 // ApplicationBuilder Handles construction of RA
 type ApplicationBuilder interface {
 	WithRadixRegistration(RegistrationBuilder) ApplicationBuilder
-	WithAppName(string) ApplicationBuilder
-	WithBuildSecrets(...string) ApplicationBuilder
-	WithBuildKit(*bool) ApplicationBuilder
-	WithEnvironment(string, string) ApplicationBuilder
-	WithEnvironmentNoBranch(string) ApplicationBuilder
-	WithComponent(RadixApplicationComponentBuilder) ApplicationBuilder
-	WithComponents(...RadixApplicationComponentBuilder) ApplicationBuilder
-	WithJobComponent(RadixApplicationJobComponentBuilder) ApplicationBuilder
-	WithJobComponents(...RadixApplicationJobComponentBuilder) ApplicationBuilder
-	WithDNSAppAlias(string, string) ApplicationBuilder
-	WithDNSExternalAlias(string, string, string) ApplicationBuilder
-	WithPrivateImageRegistry(string, string, string) ApplicationBuilder
+	WithAppName(appName string) ApplicationBuilder
+	WithBuildSecrets(buildSecrets ...string) ApplicationBuilder
+	WithBuildKit(useBuildKit *bool) ApplicationBuilder
+	WithBuildCache(*bool) ApplicationBuilder
+	WithEnvironment(environment, buildFrom string) ApplicationBuilder
+	WithEnvironmentNoBranch(environment string) ApplicationBuilder
+	WithComponent(components RadixApplicationComponentBuilder) ApplicationBuilder
+	WithComponents(components ...RadixApplicationComponentBuilder) ApplicationBuilder
+	WithJobComponent(component RadixApplicationJobComponentBuilder) ApplicationBuilder
+	WithJobComponents(components ...RadixApplicationJobComponentBuilder) ApplicationBuilder
+	WithDNSAppAlias(env, component string) ApplicationBuilder
+	WithDNSAlias(dnsAliases ...radixv1.DNSAlias) ApplicationBuilder
+	WithDNSExternalAlias(alias, env, component string, useCertificateAutomation bool) ApplicationBuilder
+	WithPrivateImageRegistry(server, username, email string) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
-	BuildRA() *v1.RadixApplication
+	BuildRA() *radixv1.RadixApplication
 }
 
 // ApplicationBuilderStruct Instance variables
@@ -31,26 +33,32 @@ type ApplicationBuilderStruct struct {
 	appName             string
 	buildSecrets        []string
 	useBuildKit         *bool
-	environments        []v1.Environment
+	useBuildCache       *bool
+	environments        []radixv1.Environment
 	components          []RadixApplicationComponentBuilder
 	jobComponents       []RadixApplicationJobComponentBuilder
-	dnsAppAlias         v1.AppAlias
-	externalAppAlias    []v1.ExternalAlias
-	privateImageHubs    v1.PrivateImageHubEntries
+	dnsAppAlias         radixv1.AppAlias
+	dnsAliases          []radixv1.DNSAlias
+	externalAppAlias    []radixv1.ExternalAlias
+	privateImageHubs    radixv1.PrivateImageHubEntries
 }
 
 func (ap *ApplicationBuilderStruct) WithBuildKit(useBuildKit *bool) ApplicationBuilder {
 	ap.useBuildKit = useBuildKit
 	return ap
 }
+func (ap *ApplicationBuilderStruct) WithBuildCache(useBuildCache *bool) ApplicationBuilder {
+	ap.useBuildCache = useBuildCache
+	return ap
+}
 
 // WithPrivateImageRegistry adds a private image hub to application
 func (ap *ApplicationBuilderStruct) WithPrivateImageRegistry(server, username, email string) ApplicationBuilder {
 	if ap.privateImageHubs == nil {
-		ap.privateImageHubs = v1.PrivateImageHubEntries(map[string]*v1.RadixPrivateImageHubCredential{})
+		ap.privateImageHubs = map[string]*radixv1.RadixPrivateImageHubCredential{}
 	}
 
-	ap.privateImageHubs[server] = &v1.RadixPrivateImageHubCredential{
+	ap.privateImageHubs[server] = &radixv1.RadixPrivateImageHubCredential{
 		Username: username,
 		Email:    email,
 	}
@@ -81,9 +89,9 @@ func (ap *ApplicationBuilderStruct) WithBuildSecrets(buildSecrets ...string) App
 
 // WithEnvironment Appends to environment-build list
 func (ap *ApplicationBuilderStruct) WithEnvironment(environment, buildFrom string) ApplicationBuilder {
-	ap.environments = append(ap.environments, v1.Environment{
+	ap.environments = append(ap.environments, radixv1.Environment{
 		Name: environment,
-		Build: v1.EnvBuild{
+		Build: radixv1.EnvBuild{
 			From: buildFrom,
 		},
 	})
@@ -93,32 +101,39 @@ func (ap *ApplicationBuilderStruct) WithEnvironment(environment, buildFrom strin
 
 // WithEnvironmentNoBranch Appends environment with no branch mapping to config
 func (ap *ApplicationBuilderStruct) WithEnvironmentNoBranch(environment string) ApplicationBuilder {
-	ap.environments = append(ap.environments, v1.Environment{
+	ap.environments = append(ap.environments, radixv1.Environment{
 		Name: environment,
 	})
 
 	return ap
 }
 
-// WithDNSAppAlias Sets env + component to be the app alias
-func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env string, component string) ApplicationBuilder {
-	ap.dnsAppAlias = v1.AppAlias{
+// WithDNSAppAlias Sets env + component to be the app alias like "frontend-myapp-prod.radix.equinor.com" or "frontend-myapp-prod.<clustername>.radix.equinor.com"
+func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env, component string) ApplicationBuilder {
+	ap.dnsAppAlias = radixv1.AppAlias{
 		Environment: env,
 		Component:   component,
 	}
 	return ap
 }
 
+// WithDNSAlias Sets alias for env and component to be the DNS alias like "my-alias.radix.equinor.com" or "my-alias.<clustername>.radix.equinor.com"
+func (ap *ApplicationBuilderStruct) WithDNSAlias(dnsAliases ...radixv1.DNSAlias) ApplicationBuilder {
+	ap.dnsAliases = dnsAliases
+	return ap
+}
+
 // WithDNSExternalAlias Sets env + component to the external alias
-func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string, useCertificateAutomation bool) ApplicationBuilder {
 	if ap.externalAppAlias == nil {
-		ap.externalAppAlias = make([]v1.ExternalAlias, 0)
+		ap.externalAppAlias = make([]radixv1.ExternalAlias, 0)
 	}
 
-	externalAlias := v1.ExternalAlias{
-		Alias:       alias,
-		Environment: env,
-		Component:   component,
+	externalAlias := radixv1.ExternalAlias{
+		Alias:                    alias,
+		Environment:              env,
+		Component:                component,
+		UseCertificateAutomation: useCertificateAutomation,
 	}
 
 	ap.externalAppAlias = append(ap.externalAppAlias, externalAlias)
@@ -159,41 +174,43 @@ func (ap *ApplicationBuilderStruct) GetRegistrationBuilder() RegistrationBuilder
 }
 
 // BuildRA Builds RA
-func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
-	var components = make([]v1.RadixComponent, 0)
+func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
+	var components = make([]radixv1.RadixComponent, 0)
 	for _, comp := range ap.components {
 		components = append(components, comp.BuildComponent())
 	}
 
-	var jobComponents = make([]v1.RadixJobComponent, 0)
+	var jobComponents = make([]radixv1.RadixJobComponent, 0)
 	for _, comp := range ap.jobComponents {
 		jobComponents = append(jobComponents, comp.BuildJobComponent())
 	}
-	var build *v1.BuildSpec
+	var build *radixv1.BuildSpec
 	if ap.useBuildKit == nil && ap.buildSecrets == nil {
 		build = nil
 	} else {
-		build = &v1.BuildSpec{
-			Secrets:     ap.buildSecrets,
-			UseBuildKit: ap.useBuildKit,
+		build = &radixv1.BuildSpec{
+			Secrets:       ap.buildSecrets,
+			UseBuildKit:   ap.useBuildKit,
+			UseBuildCache: ap.useBuildCache,
 		}
 	}
 
-	radixApplication := &v1.RadixApplication{
+	radixApplication := &radixv1.RadixApplication{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixApplication",
+			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
+			Kind:       radixv1.KindRadixApplication,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ap.appName,
 			Namespace: GetAppNamespace(ap.appName),
 		},
-		Spec: v1.RadixApplicationSpec{
+		Spec: radixv1.RadixApplicationSpec{
 			Build:            build,
 			Components:       components,
 			Jobs:             jobComponents,
 			Environments:     ap.environments,
 			DNSAppAlias:      ap.dnsAppAlias,
+			DNSAlias:         ap.dnsAliases,
 			DNSExternalAlias: ap.externalAppAlias,
 			PrivateImageHubs: ap.privateImageHubs,
 		},
@@ -212,7 +229,7 @@ func ARadixApplication() ApplicationBuilder {
 		WithRadixRegistration(ARadixRegistration()).
 		WithAppName("anyapp").
 		WithEnvironment("test", "master").
-		WithComponent(AnApplicationComponent()).
+		WithComponent(AnApplicationComponent().WithPort("http", 8080).WithPublicPort("http")).
 		WithJobComponent(
 			AnApplicationJobComponent().
 				WithSchedulerPort(numbers.Int32Ptr(8888)),

@@ -8,9 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-
+	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -23,6 +21,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 )
@@ -34,11 +34,11 @@ type Job struct {
 	kubeutil                  *kube.Kube
 	radixJob                  *v1.RadixJob
 	originalRadixJobCondition v1.RadixJobCondition
-	config                    *Config
+	config                    *apiconfig.Config
 }
 
 // NewJob Constructor
-func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, radixJob *v1.RadixJob, config *Config) Job {
+func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, radixJob *v1.RadixJob, config *apiconfig.Config) Job {
 	originalRadixJobStatus := radixJob.Status.Condition
 
 	return Job{
@@ -463,7 +463,7 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			steps = append(steps, getJobStepWithNoComponents(pod.GetName(), &containerStatus))
 		}
 
-		componentImages := make(map[string]pipeline.ComponentImage)
+		componentImages := make(pipeline.BuildComponentImages)
 		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
 			return nil, err
 		}
@@ -492,7 +492,7 @@ func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj int
 	return nil
 }
 
-func getComponentsForContainer(name string, componentImages map[string]pipeline.ComponentImage) []string {
+func getComponentsForContainer(name string, componentImages pipeline.BuildComponentImages) []string {
 	components := make([]string, 0)
 
 	for component, componentImage := range componentImages {

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -70,7 +70,7 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *rbacv1.Role) error {
 // ApplyClusterRole Creates or updates cluster-role
 func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 	logger.Debugf("Apply clusterrole %s", clusterrole.Name)
-	oldClusterRole, err := kubeutil.GetClusterRole(clusterrole.GetName())
+	oldClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Get(context.TODO(), clusterrole.GetName(), metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Create(context.TODO(), clusterrole, metav1.CreateOptions{})
 		if err != nil {
@@ -156,7 +156,7 @@ func UpdateDeploymentsRule(deployments []string) RuleBuilder {
 func CreateAppRole(appName, roleName string, customLabels map[string]string, ruleBuilders ...RuleBuilder) *rbacv1.Role {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: k8s.RbacApiVersion,
+			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
 			Kind:       k8s.KindRole,
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -243,18 +243,24 @@ func (kubeutil *Kube) GetRole(namespace, name string) (*rbacv1.Role, error) {
 	return role, nil
 }
 
-// ListClusterRoles List cluster roles
-func (kubeutil *Kube) ListClusterRoles(namespace string) ([]*rbacv1.ClusterRole, error) {
+// ListClusterRolesWithSelector List cluster roles
+func (kubeutil *Kube) ListClusterRolesWithSelector(labelSelectorString string) ([]*rbacv1.ClusterRole, error) {
 	var clusterRoles []*rbacv1.ClusterRole
-	var err error
+	selector, err := labels.Parse(labelSelectorString)
+	if err != nil {
+		return nil, err
+	}
 
 	if kubeutil.ClusterRoleLister != nil {
-		clusterRoles, err = kubeutil.ClusterRoleLister.List(labels.NewSelector())
+		clusterRoles, err = kubeutil.ClusterRoleLister.List(selector)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.kubeClient.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
+		list, err := kubeutil.kubeClient.RbacV1().ClusterRoles().List(context.TODO(),
+			metav1.ListOptions{
+				LabelSelector: labelSelectorString,
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -276,6 +282,15 @@ func (kubeutil *Kube) DeleteRole(namespace, name string) error {
 	err = kubeutil.kubeClient.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete role object: %v", err)
+	}
+	return nil
+}
+
+// DeleteClusterRole Deletes a role in a namespace
+func (kubeutil *Kube) DeleteClusterRole(name string) error {
+	err := kubeutil.kubeClient.RbacV1().ClusterRoles().Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete cluster role object: %v", err)
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -15,6 +16,7 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
@@ -24,20 +26,16 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-const (
-	clusterName = "AnyClusterName"
-	egressIps   = "0.0.0.0"
-)
-
-func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
+func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, egressIps)
-	prometheusclient := prometheusfake.NewSimpleClientset()
-	return &handlerTestUtils, client, kubeUtil, radixClient, prometheusclient
+	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	require.NoError(t, err)
+	prometheusClient := prometheusfake.NewSimpleClientset()
+	return &handlerTestUtils, client, kubeUtil, radixClient, prometheusClient
 }
 
 func teardownTest() {
@@ -52,9 +50,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	anyEnvironment := "qa"
 
 	// Setup
-	tu, client, kubeUtil, radixClient, prometheusclient := setupTest()
+	tu, client, kubeUtil, radixClient, prometheusclient := setupTest(t)
 
-	client.CoreV1().Namespaces().Create(
+	_, err := client.CoreV1().Namespaces().Create(
 		context.TODO(),
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -66,6 +64,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			},
 		},
 		metav1.CreateOptions{})
+	require.NoError(t, err)
 
 	stop := make(chan struct{})
 	synced := make(chan bool)
@@ -81,9 +80,13 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		kubeUtil,
 		radixClient,
 		prometheusclient,
+		&config.Config{},
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
-	go startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
+	go func() {
+		err := startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
+		require.NoError(t, err)
+	}()
 
 	// Test
 
@@ -104,7 +107,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Update deployment should sync. Only actual updates will be handled by the controller
 	noReplicas := 0
 	rd.Spec.Components[0].Replicas = &noReplicas
-	radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{})
+	_, err = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{})
+	require.NoError(t, err)
 
 	op, ok = <-synced
 	assert.True(t, ok)
@@ -123,7 +127,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		})
 
 	for _, aservice := range services.Items {
-		client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{})
+		err := client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{})
+		require.NoError(t, err)
 
 		op, ok = <-synced
 		assert.True(t, ok)
@@ -138,15 +143,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startDeploymentController(client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	radixInformerFactory informers.SharedInformerFactory,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	handler *Handler, stop chan struct{}) {
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler, stop chan struct{}) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
-	waitForChildrenToSync := false
+	const waitForChildrenToSync = false
 	controller := NewController(
 		client, radixClient, handler,
 		kubeInformerFactory,
@@ -156,6 +157,5 @@ func startDeploymentController(client kubernetes.Interface,
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(4, stop)
-
+	return controller.Run(4, stop)
 }

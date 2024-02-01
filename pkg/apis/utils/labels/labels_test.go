@@ -112,6 +112,60 @@ func Test_ForAccessValidation(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func Test_ForPipelineJobName(t *testing.T) {
+	actual := ForPipelineJobName("anypipelinejobname")
+	expected := kubelabels.Set{kube.RadixJobNameLabel: "anypipelinejobname"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForPipelineJobType(t *testing.T) {
+	actual := ForPipelineJobType()
+	expected := kubelabels.Set{kube.RadixJobTypeLabel: kube.RadixJobTypeJob}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForPipelineJobPipelineType(t *testing.T) {
+	actual := ForPipelineJobPipelineType("anypipelinetype")
+	expected := kubelabels.Set{kube.RadixPipelineTypeLabels: "anypipelinetype"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForRadixImageTag(t *testing.T) {
+	actual := ForRadixImageTag("anyimagetag")
+	expected := kubelabels.Set{kube.RadixImageTagLabel: "anyimagetag"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForDNSAliasIngress(t *testing.T) {
+	actual := ForDNSAliasIngress("any-app", "any-component", "any-dns-alias")
+	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixComponentLabel: "any-component", kube.RadixAliasLabel: "any-dns-alias"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForComponentExternalAliasIngress(t *testing.T) {
+	actual := ForComponentExternalAliasIngress(&v1.RadixDeployComponent{Name: "any-component"})
+	expected := kubelabels.Set{kube.RadixComponentLabel: "any-component", kube.RadixExternalAliasLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForComponentDefaultAliasIngress(t *testing.T) {
+	actual := ForComponentDefaultAliasIngress(&v1.RadixDeployComponent{Name: "any-component"})
+	expected := kubelabels.Set{kube.RadixComponentLabel: "any-component", kube.RadixDefaultAliasLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForComponentActiveClusterAliasIngress(t *testing.T) {
+	actual := ForComponentActiveClusterAliasIngress(&v1.RadixDeployComponent{Name: "any-component"})
+	expected := kubelabels.Set{kube.RadixComponentLabel: "any-component", kube.RadixActiveClusterAliasLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForDNSAliasRbac(t *testing.T) {
+	actual := ForDNSAliasRbac("any-app")
+	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixAliasLabel: "true"}
+	assert.Equal(t, expected, actual)
+}
+
 func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
 	actual := requirementRadixBatchNameLabelExists()
 	expected := kubelabels.Set{kube.RadixBatchNameLabel: "anyname"}

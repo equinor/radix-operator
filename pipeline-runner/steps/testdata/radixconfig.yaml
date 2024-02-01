@@ -1,0 +1,39 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: testapp
+spec:
+  environments:
+  - name: dev
+    build:
+      from: main
+  components:
+  - name: server1
+    src: server
+    resources:
+      requests:
+        memory: 100Mi
+        cpu: 100m
+  - name: server2
+    src: server
+    resources:
+      requests:
+        memory: 100Mi
+        cpu: 100m
+      limits:
+        memory: 200Mi
+        cpu: 200m
+  - name: server3
+    src: server
+    resources:
+      requests:
+        cpu: 100m
+      limits:
+        memory: 200Mi
+        cpu: 200m
+  - name: server4
+    src: server
+    resources:
+      limits:
+        memory: 200Mi
+        cpu: 200m

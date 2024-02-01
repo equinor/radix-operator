@@ -77,7 +77,7 @@ func getRadixCommonComponentNode(radixComponent v1.RadixCommonComponent, environ
 	return node
 }
 
-func getImagePath(componentName string, componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) (string, error) {
+func getImagePath(componentName string, componentImage pipeline.DeployComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) (string, error) {
 	image := componentImage.ImagePath
 	if componentImage.Build {
 		return image, nil
@@ -91,21 +91,14 @@ func getImagePath(componentName string, componentImage *pipeline.ComponentImage,
 		// For deploy-only images, we will replace the dynamic tag with the tag from the environment config
 		return strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName), nil
 	}
-	if len(imageTagName) > 0 {
-		return "", errorNotExpectedImageTagNameInImage(componentName, imageTagName)
-	}
 	return image, nil
-}
-
-func errorNotExpectedImageTagNameInImage(componentImageName, imageTagName string) error {
-	return fmt.Errorf("image property for a component %s does not have a dynamic imageTagName but it is provided: %s", componentImageName, imageTagName)
 }
 
 func errorMissingExpectedDynamicImageTagName(componentName string) error {
 	return fmt.Errorf(fmt.Sprintf("component %s is missing an expected dynamic imageTagName for its image", componentName))
 }
 
-func getImageTagName(componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
+func getImageTagName(componentImage pipeline.DeployComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
 	if componentImage.ImageTagName != "" {
 		return componentImage.ImageTagName // provided via radix-api build request
 	}

@@ -111,12 +111,12 @@ func (kubeutil *Kube) GetServiceAccount(namespace, name string) (*corev1.Service
 	return serviceAccount, nil
 }
 
-// List service accounts in namespace
+// ListServiceAccounts List service accounts in namespace
 func (kubeutil *Kube) ListServiceAccounts(namespace string) ([]*corev1.ServiceAccount, error) {
 	return kubeutil.ListServiceAccountsWithSelector(namespace, "")
 }
 
-// List service accounts with selector in namespace
+// ListServiceAccountsWithSelector List service accounts with selector in namespace
 func (kubeutil *Kube) ListServiceAccountsWithSelector(namespace string, labelSelectorString string) ([]*corev1.ServiceAccount, error) {
 	var serviceAccounts []*corev1.ServiceAccount
 

@@ -3,65 +3,83 @@ package steps
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/equinor/radix-common/utils/maps"
+	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
+	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // RunPipelinesStepImplementation Step to run Tekton pipelines
 type RunPipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
+	jobWaiter internalwait.JobCompletionWaiter
 }
 
-// NewRunPipelinesStep Constructor
-func NewRunPipelinesStep() model.Step {
+// NewRunPipelinesStep Constructor.
+// jobWaiter is optional and will be set by Init(...) function if nil.
+func NewRunPipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
 	return &RunPipelinesStepImplementation{
-		stepType: pipeline.RunPipelinesStep,
+		stepType:  pipeline.RunPipelinesStep,
+		jobWaiter: jobWaiter,
+	}
+}
+
+func (step *RunPipelinesStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+	if step.jobWaiter == nil {
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(kubeclient)
 	}
 }
 
 // ImplementationForType Override of default step method
-func (cli *RunPipelinesStepImplementation) ImplementationForType() pipeline.StepType {
-	return cli.stepType
+func (step *RunPipelinesStepImplementation) ImplementationForType() pipeline.StepType {
+	return step.stepType
 }
 
 // SucceededMsg Override of default step method
-func (cli *RunPipelinesStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: run pipelines step for application %s", cli.GetAppName())
+func (step *RunPipelinesStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Succeded: run pipelines step for application %s", step.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *RunPipelinesStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed run pipelines for the application %s. Error: %v", cli.GetAppName(), err)
+func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed run pipelines for the application %s. Error: %v", step.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+func (step *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.PrepareBuildContext != nil && len(pipelineInfo.PrepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
 		log.Infof("There is no configured sub-pipelines. Skip the step.")
 		return nil
 	}
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
-	appName := cli.GetAppName()
+	appName := step.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
 	log.Infof("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
-	job := cli.getRunTektonPipelinesJobConfig(pipelineInfo)
+	job := step.getRunTektonPipelinesJobConfig(pipelineInfo)
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
 			return err
 		}
@@ -70,17 +88,17 @@ func (cli *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo)
 	}
 
 	log.Infof("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
-	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	job, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 
-	return cli.GetKubeutil().WaitForCompletionOf(job)
+	return step.jobWaiter.Wait(job)
 }
 
-func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
+func (step *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
 	PipelineInfo) *batchv1.Job {
-	appName := cli.GetAppName()
+	appName := step.GetAppName()
 	action := pipelineDefaults.RadixPipelineActionRun
 	envVars := []corev1.EnvVar{
 		{
@@ -127,6 +145,14 @@ func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipeli
 			Name:  defaults.LogLevel,
 			Value: pipelineInfo.PipelineArguments.LogLevel,
 		},
+		{
+			Name:  defaults.RadixReservedAppDNSAliasesEnvironmentVariable,
+			Value: maps.ToString(pipelineInfo.PipelineArguments.DNSConfig.ReservedAppDNSAliases),
+		},
+		{
+			Name:  defaults.RadixReservedDNSAliasesEnvironmentVariable,
+			Value: strings.Join(pipelineInfo.PipelineArguments.DNSConfig.ReservedDNSAliases, ","),
+		},
 	}
-	return pipelineUtils.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
+	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
 }

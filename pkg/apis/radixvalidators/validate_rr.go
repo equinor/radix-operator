@@ -2,25 +2,25 @@ package radixvalidators
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"regexp"
 	"strings"
 
-	errorUtils "github.com/equinor/radix-common/utils/errors"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	radixConfigFullNamePattern             = "^(\\/*[a-zA-Z0-9_\\.\\-]+)+((\\.yaml)|(\\.yml))$"
-	invalidRadixConfigFullNameErrorMessage = "invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information"
+	radixConfigFullNamePattern = `^(\/*[a-zA-Z0-9_\.\-]+)+((\.yaml)|(\.yml))$`
 )
 
 var (
+	ErrInvalidRadixConfigFullName = stderrors.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
+
 	requiredRadixRegistrationValidators []RadixRegistrationValidator = []RadixRegistrationValidator{
 		validateRadixRegistrationAppName,
 		validateRadixRegistrationGitSSHUrl,
@@ -37,7 +37,7 @@ type RadixRegistrationValidator func(radixRegistration *v1.RadixRegistration) er
 // RequireConfigurationItem validates that ConfigurationItem for a RadixRegistration set
 func RequireConfigurationItem(rr *v1.RadixRegistration) error {
 	if len(strings.TrimSpace(rr.Spec.ConfigurationItem)) == 0 {
-		return ResourceNameCannotBeEmptyError("configuration item")
+		return ResourceNameCannotBeEmptyErrorWithMessage("configuration item")
 	}
 
 	return nil
@@ -46,7 +46,7 @@ func RequireConfigurationItem(rr *v1.RadixRegistration) error {
 // RequireAdGroups validates that AdGroups contains minimum one item
 func RequireAdGroups(rr *v1.RadixRegistration) error {
 	if len(rr.Spec.AdGroups) == 0 {
-		return ResourceNameCannotBeEmptyError("AD groups")
+		return ResourceNameCannotBeEmptyErrorWithMessage("AD groups")
 	}
 
 	return nil
@@ -73,7 +73,7 @@ func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validato
 			errs = append(errs, err)
 		}
 	}
-	return errorUtils.Concat(errs)
+	return stderrors.Join(errs...)
 }
 
 // GetRadixRegistrationBeInsertedWarnings Get warnings for inserting RadixRegistration
@@ -114,25 +114,25 @@ func validateRadixRegistrationConfigurationItem(rr *v1.RadixRegistration) error 
 
 func validateConfigurationItem(value string) error {
 	if len(value) > 100 {
-		return InvalidStringValueMaxLengthError("configuration item", value, 100)
+		return InvalidStringValueMaxLengthErrorWithMessage("configuration item", value, 100)
 	}
 	return nil
 }
 
 func validateRequiredResourceName(resourceName, value string) error {
 	if len(value) > 253 {
-		return InvalidStringValueMaxLengthError(resourceName, value, 253)
+		return InvalidStringValueMaxLengthErrorWithMessage(resourceName, value, 253)
 	}
 
 	if value == "" {
-		return ResourceNameCannotBeEmptyError(resourceName)
+		return ResourceNameCannotBeEmptyErrorWithMessage(resourceName)
 	}
 
-	re := regexp.MustCompile(`^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$`)
+	re := regexp.MustCompile(resourceNameTemplate)
 
 	isValid := re.MatchString(value)
 	if !isValid {
-		return InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value)
+		return InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage(resourceName, value)
 	}
 
 	return nil
@@ -202,8 +202,8 @@ func validateSSHKey(deployKey string) error {
 func validateDoesRRExist(client radixclient.Interface, appName string) error {
 	_, err := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
 	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return NoRegistrationExistsForApplicationError(appName)
+		if errors.IsNotFound(err) {
+			return NoRegistrationExistsForApplicationErrorWithMessage(appName)
 		}
 		return err
 	}
@@ -216,11 +216,11 @@ func validateRadixRegistrationConfigBranch(rr *v1.RadixRegistration) error {
 
 func validateConfigBranch(name string) error {
 	if name == "" {
-		return ResourceNameCannotBeEmptyError("branch name")
+		return ResourceNameCannotBeEmptyErrorWithMessage("branch name")
 	}
 
 	if !branch.IsValidName(name) {
-		return InvalidConfigBranchName(name)
+		return InvalidConfigBranchNameWithMessage(name)
 	}
 
 	return nil
@@ -229,14 +229,14 @@ func validateConfigBranch(name string) error {
 // ValidateRadixConfigFullName Validates the radixconfig file name and path
 func ValidateRadixConfigFullName(radixConfigFullName string) error {
 	if len(radixConfigFullName) == 0 {
-		return nil //for empty radixConfigFullName it is used default radixconfig.yaml file name
+		return nil // for empty radixConfigFullName it is used default radixconfig.yaml file name
 	}
 	matched, err := regexp.Match(radixConfigFullNamePattern, []byte(radixConfigFullName))
 	if err != nil {
 		return err
 	}
 	if !matched {
-		return errors.New(invalidRadixConfigFullNameErrorMessage)
+		return ErrInvalidRadixConfigFullName
 	}
 	return nil
 }

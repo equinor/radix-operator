@@ -26,6 +26,34 @@ type RadixApplication struct {
 	Spec RadixApplicationSpec `json:"spec"`
 }
 
+// GetComponentByName returns the component matching the name parameter, or nil if not found
+func (ra *RadixApplication) GetComponentByName(name string) *RadixComponent {
+	for _, comp := range ra.Spec.Components {
+		if comp.GetName() == name {
+			return &comp
+		}
+	}
+	return nil
+}
+
+// GetJobComponentByName returns the job matching the name parameter, or nil if not found
+func (ra *RadixApplication) GetJobComponentByName(name string) *RadixJobComponent {
+	for _, job := range ra.Spec.Jobs {
+		if job.GetName() == name {
+			return &job
+		}
+	}
+	return nil
+}
+
+// GetCommonComponentByName returns the job or component matching the name parameter, or nil if not found
+func (ra *RadixApplication) GetCommonComponentByName(name string) RadixCommonComponent {
+	if comp := ra.GetComponentByName(name); comp != nil {
+		return comp
+	}
+	return ra.GetJobComponentByName(name)
+}
+
 // RadixApplicationSpec is the specification for an application.
 type RadixApplicationSpec struct {
 	// Build contains configuration used by pipeline jobs.
@@ -66,6 +94,13 @@ type RadixApplicationSpec struct {
 	// +optional
 	DNSExternalAlias []ExternalAlias `json:"dnsExternalAlias,omitempty"`
 
+	// List of DNS names and which component and environment incoming requests shall be routed to.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias
+	// +listType=map
+	// +listMapKey=alias
+	// +optional
+	DNSAlias []DNSAlias `json:"dnsAlias,omitempty"`
+
 	// Defines protected container registries used by components or jobs.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#privateimagehubs
 	// +optional
@@ -100,6 +135,11 @@ type BuildSpec struct {
 	// More info about BuildKit: https://docs.docker.com/build/buildkit/
 	// +optional
 	UseBuildKit *bool `json:"useBuildKit,omitempty"`
+
+	// Defaults to true and requires useBuildKit to have an effect.
+	// Note: All layers will be cached and can be available for other Radix Apps. Do not add secrets to a Dockerfile layer.
+	// +optional
+	UseBuildCache *bool `json:"useBuildCache,omitempty"`
 }
 
 // Environment contains environment specific configuration.
@@ -107,7 +147,7 @@ type Environment struct {
 	// Name of the environment.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Build configuration for the environment.
@@ -179,13 +219,13 @@ type AppAlias struct {
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment,omitempty"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Component string `json:"component,omitempty"`
 }
 
@@ -200,13 +240,39 @@ type ExternalAlias struct {
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Component string `json:"component"`
+
+	// Enable automatic issuing and renewal of TLS certificate
+	// +kubebuilder:default:=false
+	// +optional
+	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
+}
+
+// DNSAlias defines mapping between an DNS alias and a component and environment.
+type DNSAlias struct {
+	// Alias name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
+	Alias string `json:"alias"`
+
+	// Name of the environment for the component.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Environment string `json:"environment"`
+
+	// Name of the component that shall receive the incoming requests.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Component string `json:"component"`
 }
 
@@ -215,7 +281,7 @@ type ComponentPort struct {
 	// Name of the port.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=15
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Port number.
@@ -246,7 +312,7 @@ type RadixComponent struct {
 	// Name of the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Path to the Dockerfile that builds the component.
@@ -265,9 +331,9 @@ type RadixComponent struct {
 	Image string `json:"image,omitempty"`
 
 	// List of ports that the component bind to.
-	// +kubebuilder:validation:MinItems=1
 	// +listType=map
 	// +listMapKey=name
+	// +optional
 	Ports []ComponentPort `json:"ports"`
 
 	// Configures the monitoring endpoint exposed by the component.
@@ -284,7 +350,7 @@ type RadixComponent struct {
 	// Defines which port (name) from the ports list that shall be accessible from the internet.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport
 	// +kubebuilder:validation:MaxLength=15
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	// +optional
 	PublicPort string `json:"publicPort,omitempty"`
 
@@ -351,7 +417,7 @@ type RadixEnvironmentConfig struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
 	// Number of desired replicas.
@@ -427,7 +493,7 @@ type RadixJobComponent struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Path to the Dockerfile that builds the job.
@@ -533,7 +599,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
 	// Enabled or disables collection of custom Prometheus metrics.
@@ -650,7 +716,7 @@ type RadixPrivateImageHubCredential struct {
 	Username string `json:"username"`
 
 	// The email address linked to the username.
-	// +kubebuilder:validation:MinLength=3
+	// +optional
 	Email string `json:"email"`
 }
 
@@ -852,9 +918,6 @@ type RadixVolumeMountStreaming struct {
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	MaxBlocksPerFile *uint64 `json:"maxBlocksPerFile,omitempty"`
-	// Optional. File name based caching. Default is false which specifies file handle based caching.
-	// +optional
-	FileCaching *bool `json:"fileCaching,omitempty"`
 }
 
 // MountType Holds types of mount
@@ -940,7 +1003,7 @@ type RadixNode struct {
 type MonitoringConfig struct {
 	// Defines which port in the ports list where metrics is served.
 	// +kubebuilder:validation:MaxLength=15
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	PortName string `json:"portName,omitempty"`
 
 	// Defines the path where metrics is served.
@@ -1254,6 +1317,8 @@ type Notifications struct {
 type RadixCommonComponent interface {
 	// GetName Gets component name
 	GetName() string
+	// GetDockerfileName Gets component docker file name
+	GetDockerfileName() string
 	// GetSourceFolder Gets component source folder
 	GetSourceFolder() string
 	// GetImage Gets component image
@@ -1284,11 +1349,16 @@ type RadixCommonComponent interface {
 	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
 	// GetEnvironmentConfigByName  Gets component environment configuration by its name
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
-	GetEnabledForAnyEnvironment(environments []string) bool
+	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
+	GetEnabledForEnvironment(environment string) bool
 }
 
 func (component *RadixComponent) GetName() string {
 	return component.Name
+}
+
+func (component *RadixComponent) GetDockerfileName() string {
+	return component.DockerfileName
 }
 
 func (component *RadixComponent) GetSourceFolder() string {
@@ -1364,8 +1434,8 @@ func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironme
 	return getEnabled(component, envConfig)
 }
 
-func (component *RadixComponent) GetEnabledForAnyEnvironment(environments []string) bool {
-	return getEnabledForAnyEnvironment(component, environments)
+func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
+	return getEnabledForEnvironment(component, environment)
 }
 
 func (component *RadixJobComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
@@ -1381,6 +1451,10 @@ func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironment
 
 func (component *RadixJobComponent) GetName() string {
 	return component.Name
+}
+
+func (component *RadixJobComponent) GetDockerfileName() string {
+	return component.DockerfileName
 }
 
 func (component *RadixJobComponent) GetSourceFolder() string {
@@ -1457,8 +1531,8 @@ func (component *RadixJobComponent) GetEnvironmentConfigByName(environment strin
 	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
 }
 
-func (component *RadixJobComponent) GetEnabledForAnyEnvironment(environments []string) bool {
-	return getEnabledForAnyEnvironment(component, environments)
+func (component *RadixJobComponent) GetEnabledForEnvironment(environment string) bool {
+	return getEnabledForEnvironment(component, environment)
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
@@ -1470,15 +1544,10 @@ func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCo
 	return nil
 }
 
-func getEnabledForAnyEnvironment(component RadixCommonComponent, environments []string) bool {
+func getEnabledForEnvironment(component RadixCommonComponent, environment string) bool {
 	environmentConfigsMap := component.GetEnvironmentConfigsMap()
 	if len(environmentConfigsMap) == 0 {
 		return component.getEnabled()
 	}
-	for _, envName := range environments {
-		if component.GetEnabledForEnv(environmentConfigsMap[envName]) {
-			return true
-		}
-	}
-	return false
+	return component.GetEnabledForEnv(environmentConfigsMap[environment])
 }

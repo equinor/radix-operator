@@ -2,6 +2,7 @@ package batch
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -11,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -57,9 +59,11 @@ func NewController(client kubernetes.Interface,
 	}
 
 	logger.Info("Setting up event handlers")
-	batchInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := batchInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -70,33 +74,41 @@ func NewController(client kubernetes.Interface,
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
-
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixBatch, _ := obj.(*radixv1.RadixBatch)
+			radixBatch, converted := obj.(*radixv1.RadixBatch)
+			if !converted {
+				utilruntime.HandleError(errors.New("failed to convert RadixBatch on deletion"))
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(radixBatch)
 			if err == nil {
 				logger.Debugf("RadixBatch object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
-	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldMeta := oldObj.(metav1.Object)
 			newMeta := newObj.(metav1.Object)
 			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
 				return
 			}
-			controller.HandleObject(newObj, "RadixBatch", getOwner)
+			controller.HandleObject(newObj, radixv1.KindRadixBatch, getOwner)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixBatch", getOwner)
+			controller.HandleObject(obj, radixv1.KindRadixBatch, getOwner)
 		},
-	})
-
+	}); err != nil {
+		panic(err)
+	}
 	return controller
 }
 

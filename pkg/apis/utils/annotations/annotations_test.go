@@ -40,3 +40,13 @@ func Test_ForServiceAccountWithRadixIdentity(t *testing.T) {
 	expected := map[string]string{"azure.workload.identity/client-id": "anyclientid"}
 	assert.Equal(t, expected, actual)
 }
+
+func Test_ForClusterAutoscalerSafeToEvict(t *testing.T) {
+	actual := ForClusterAutoscalerSafeToEvict(false)
+	expected := map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
+	assert.Equal(t, expected, actual)
+
+	actual = ForClusterAutoscalerSafeToEvict(true)
+	expected = map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
+	assert.Equal(t, expected, actual)
+}

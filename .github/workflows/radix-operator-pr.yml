@@ -4,6 +4,37 @@ on:
     branches:
     - master
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - name: Install dependencies
+        run: go mod download
+      - name: Run Tests
+        run: CGO_ENABLED=0 GOOS=linux go test `go list ./... | grep -v "pkg/client"` -timeout 2m
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - name: Install dependencies
+        run: go mod download
+      - name: Install GolangCI Lint
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+
+      - name: golangci-lint
+        run: golangci-lint run --timeout=30m --max-same-issues=0 --out-format=github-actions
+
   build-operator:
     name: Build-operator
     runs-on: ubuntu-latest
@@ -14,6 +45,7 @@ jobs:
         REF: ${{ github. sha }}
         DOCKER_BUILDKIT: 1
       run: docker build -t radix-operator:${REF##*/} -f operator.Dockerfile .
+
   build-pipeline:
     name: Build-pipeline
     runs-on: ubuntu-latest

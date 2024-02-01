@@ -7,6 +7,7 @@ import (
 	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -59,9 +60,11 @@ func NewController(client kubernetes.Interface,
 	}
 
 	logger.Info("Setting up event handlers")
-	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -73,7 +76,9 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixApplication, converted := obj.(*v1.RadixApplication)
@@ -87,8 +92,10 @@ func NewController(client kubernetes.Interface,
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	}); err != nil {
+		panic(err)
+	}
+	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
@@ -105,10 +112,14 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 			logger.Debugf("update Radix Application due to changed admin or reader AD groups")
-			controller.Enqueue(ra)
+			if _, err := controller.Enqueue(ra); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceUpdated(crType)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	return controller
 }

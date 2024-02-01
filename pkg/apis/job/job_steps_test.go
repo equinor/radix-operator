@@ -12,6 +12,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -179,7 +180,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-5", "app-5", "a_tag"),
 			s.getPreparePipelineJob("prepare-pipeline-5", "job-5", "app-5", "a_tag"),
-			s.getBuildJob("build-job-5", "job-5", "app-5", "a_tag", map[string]pipeline.ComponentImage{
+			s.getBuildJob("build-job-5", "job-5", "app-5", "a_tag", pipeline.BuildComponentImages{
 				"comp":   {ContainerName: "build-app"},
 				"multi1": {ContainerName: "build-multi"},
 				"multi3": {ContainerName: "build-multi"},
@@ -227,7 +228,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-1", "app-1", "a_tag"),
 			s.getPreparePipelineJob("prepare-pipeline-1", "job-1", "app-1", "a_tag"),
-			s.getBuildJob("build-job-1", "job-1", "app-1", "a_tag", map[string]pipeline.ComponentImage{}),
+			s.getBuildJob("build-job-1", "job-1", "app-1", "a_tag", pipeline.BuildComponentImages{}),
 			s.getRunPipelineJob("run-pipeline-1", "job-1", "app-1", "a_tag"),
 		},
 		pods: []*corev1.Pod{
@@ -265,19 +266,15 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 }
 
 func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStatusOfJobTestScenario) {
-	if err := s.initScenario(scenario); err != nil {
-		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
-	}
+	err := s.initScenario(scenario)
+	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixjob, nil)
-	if err := job.setStatusOfJob(); err != nil {
-		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
-	}
+	err = job.setStatusOfJob()
+	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	actualRj, err := s.radixClient.RadixV1().RadixJobs(scenario.radixjob.Namespace).Get(context.Background(), scenario.radixjob.Name, metav1.GetOptions{})
-	if err != nil {
-		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
-	}
+	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	assert.Equal(s.T(), scenario.expected.returnsError, err != nil, scenario.name)
 	assert.ElementsMatch(s.T(), scenario.expected.steps, actualRj.Status.Steps, scenario.name)
@@ -356,7 +353,7 @@ func (s *RadixJobStepTestSuite) getRunPipelineJob(name, radixJobName, appName, i
 	}
 }
 
-func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTag string, componentImages map[string]pipeline.ComponentImage) *batchv1.Job {
+func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTag string, componentImages pipeline.BuildComponentImages) *batchv1.Job {
 	componentImageAnnotation, _ := json.Marshal(&componentImages)
 
 	return &batchv1.Job{
@@ -403,7 +400,7 @@ func (s *RadixJobStepTestSuite) getBuildDeployJob(jobName, appName string) utils
 	jb := utils.NewJobBuilder().
 		WithJobName(jobName).
 		WithAppName(appName).
-		WithPipeline(v1.BuildDeploy).
+		WithPipelineType(v1.BuildDeploy).
 		WithStatus(
 			utils.NewJobStatusBuilder().
 				WithCondition(v1.JobRunning),

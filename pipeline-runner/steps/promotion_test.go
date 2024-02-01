@@ -1,4 +1,4 @@
-package steps
+package steps_test
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 )
 
@@ -41,28 +42,31 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 	// Setup
 	kubeclient, kube, radixclient, commonTestUtils := setupTest(t)
 
-	commonTestUtils.ApplyDeployment(utils.
+	_, err := commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
 		WithDeploymentName(anyDeployment1).
 		WithAppName(anyApp1).
 		WithEnvironment(anyProdEnvironment).
 		WithImageTag(anyImageTag))
+	require.NoError(t, err)
 
-	commonTestUtils.ApplyDeployment(utils.
+	_, err = commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
 		WithDeploymentName(anyDeployment2).
 		WithAppName(anyApp1).
 		WithEnvironment(anyDevEnvironment).
 		WithImageTag(anyImageTag))
+	require.NoError(t, err)
 
-	commonTestUtils.ApplyDeployment(utils.
+	_, err = commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
 		WithDeploymentName(anyDeployment3).
 		WithAppName(anyApp2).
 		WithEnvironment(anyDevEnvironment).
 		WithImageTag(anyImageTag))
+	require.NoError(t, err)
 
-	commonTestUtils.ApplyDeployment(utils.
+	_, err = commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
 		WithDeploymentName(anyDeployment4).
 		WithAppName(anyApp4).
@@ -71,8 +75,9 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 		WithComponent(utils.
 			NewDeployComponentBuilder().
 			WithName(nonExistingComponent)))
+	require.NoError(t, err)
 
-	commonTestUtils.ApplyDeployment(utils.
+	_, err = commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
 		WithDeploymentName(anyDeployment5).
 		WithAppName(anyApp5).
@@ -81,6 +86,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 		WithJobComponent(utils.
 			NewDeployJobComponentBuilder().
 			WithName(nonExistingJobComponent)))
+	require.NoError(t, err)
 
 	test.CreateEnvNamespace(kubeclient, anyApp2, anyProdEnvironment)
 
@@ -94,23 +100,23 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 		deploymentName  string
 		expectedError   error
 	}{
-		{"empty from environment", anyApp1, "", anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, EmptyArgument("From environment")},
-		{"empty to environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, "", anyDeployment2, EmptyArgument("To environment")},
-		{"empty image tag", anyApp1, anyDevEnvironment, "", anyJobName, anyProdEnvironment, anyDeployment2, EmptyArgument("Image tag")},
-		{"empty job name", anyApp1, anyDevEnvironment, anyImageTag, "", anyProdEnvironment, anyDeployment2, EmptyArgument("Job name")},
-		{"empty deployment name", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyProdEnvironment, "", EmptyArgument("Deployment name")},
-		{"promote from non-existing environment", anyApp1, anyQAEnvironment, anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, NonExistingFromEnvironment(anyQAEnvironment)},
-		{"promote to non-existing environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyQAEnvironment, anyDeployment2, NonExistingToEnvironment(anyQAEnvironment)},
-		{"promote non-existing deployment", anyApp2, anyDevEnvironment, "nopqrst", anyJobName, anyProdEnvironment, "non-existing", NonExistingDeployment("non-existing")},
-		{"promote deployment with non-existing component", anyApp4, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment4, NonExistingComponentName(anyApp4, nonExistingComponent)},
-		{"promote deployment with non-existing job component", anyApp5, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment5, NonExistingComponentName(anyApp5, nonExistingJobComponent)},
+		{"empty from environment", anyApp1, "", anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, steps.EmptyArgument("From environment")},
+		{"empty to environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, "", anyDeployment2, steps.EmptyArgument("To environment")},
+		{"empty image tag", anyApp1, anyDevEnvironment, "", anyJobName, anyProdEnvironment, anyDeployment2, steps.EmptyArgument("Image tag")},
+		{"empty job name", anyApp1, anyDevEnvironment, anyImageTag, "", anyProdEnvironment, anyDeployment2, steps.EmptyArgument("Job name")},
+		{"empty deployment name", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyProdEnvironment, "", steps.EmptyArgument("Deployment name")},
+		{"promote from non-existing environment", anyApp1, anyQAEnvironment, anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, steps.NonExistingFromEnvironment(anyQAEnvironment)},
+		{"promote to non-existing environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyQAEnvironment, anyDeployment2, steps.NonExistingToEnvironment(anyQAEnvironment)},
+		{"promote non-existing deployment", anyApp2, anyDevEnvironment, "nopqrst", anyJobName, anyProdEnvironment, "non-existing", steps.NonExistingDeployment("non-existing")},
+		{"promote deployment with non-existing component", anyApp4, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment4, steps.NonExistingComponentName(anyApp4, nonExistingComponent)},
+		{"promote deployment with non-existing job component", anyApp5, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment5, steps.NonExistingComponentName(anyApp5, nonExistingJobComponent)},
 	}
 
 	for _, scenario := range testScenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), scenario.appName, metav1.GetOptions{})
 
-			cli := NewPromoteStep()
+			cli := steps.NewPromoteStep()
 			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
 
 			pipelineInfo := &model.PipelineInfo{
@@ -124,8 +130,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 				},
 			}
 
-			err := cli.Run(pipelineInfo)
-			assert.Error(t, err)
+			err = cli.Run(pipelineInfo)
 
 			if scenario.expectedError != nil {
 				assert.Equal(t, scenario.expectedError.Error(), err.Error())
@@ -142,7 +147,9 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	anyPromoteJobName := "any-promote-job"
 	anyProdEnvironment := "prod"
 	anyDevEnvironment := "dev"
-	anyDNSAlias := "a-dns-alias"
+	anyDNSAlias1 := "a-dns-alias1"
+	anyDNSAlias2 := "a-dns-alias2"
+	anyExternalDNSAlias := "an-external-dns-alias"
 	prodNode := v1.RadixNode{Gpu: "prod-gpu", GpuCount: "2"}
 
 	// Setup
@@ -150,7 +157,18 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 
 	secretType := v1.RadixAzureKeyVaultObjectTypeSecret
 	keyType := v1.RadixAzureKeyVaultObjectTypeKey
-	commonTestUtils.ApplyDeployment(
+	componentName1 := "app"
+	dnsAlias1 := v1.DNSAlias{
+		Alias:       anyDNSAlias1,
+		Environment: anyProdEnvironment,
+		Component:   componentName1,
+	}
+	dnsAlias2 := v1.DNSAlias{
+		Alias:       anyDNSAlias2,
+		Environment: anyProdEnvironment,
+		Component:   componentName1,
+	}
+	_, err := commonTestUtils.ApplyDeployment(
 		utils.NewDeploymentBuilder().
 			WithComponent(
 				utils.NewDeployComponentBuilder().
@@ -173,7 +191,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithEnvironment(anyDevEnvironment, "master").
 					WithEnvironment(anyProdEnvironment, "").
 					WithDNSAppAlias(anyProdEnvironment, "app").
-					WithDNSExternalAlias(anyDNSAlias, anyProdEnvironment, "app").
+					WithDNSExternalAlias(anyExternalDNSAlias, anyProdEnvironment, "app", false).
+					WithDNSAlias(dnsAlias1, dnsAlias2).
 					WithComponents(
 						utils.AnApplicationComponent().
 							WithName("app").
@@ -247,6 +266,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 			WithEnvironment(anyDevEnvironment).
 			WithImageTag(anyImageTag).
 			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
+	require.NoError(t, err)
 
 	// Create prod environment without any deployments
 	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
@@ -254,7 +274,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
-	cli := NewPromoteStep()
+	cli := steps.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -268,13 +288,13 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
+	err = cli.Run(pipelineInfo)
+	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
@@ -287,7 +307,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "5678", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
 	assert.Equal(t, "mysql", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_TYPE"])
 	assert.Equal(t, "my-db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_NAME"])
-	assert.Equal(t, anyDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
+	assert.ElementsMatch(t, []v1.RadixDeployExternalDNS{{FQDN: anyExternalDNSAlias, UseCertificateAutomation: false}}, rds.Items[0].Spec.Components[0].ExternalDNS)
 	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
 	assert.Len(t, rds.Items[0].Spec.Components[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYAPPSECRET", rds.Items[0].Spec.Components[0].Secrets[0])
@@ -334,7 +354,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	// Setup
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
-	commonTestUtils.ApplyDeployment(
+	_, err := commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
@@ -371,6 +391,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 			WithEnvironment(anyDevEnvironment).
 			WithImageTag(anyImageTag).
 			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
+	require.NoError(t, err)
 
 	// Create prod environment without any deployments
 	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
@@ -378,7 +399,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
-	cli := NewPromoteStep()
+	cli := steps.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -392,13 +413,13 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
+	err = cli.Run(pipelineInfo)
+	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
@@ -429,7 +450,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
 	verification := v1.VerificationTypeOptional
-	commonTestUtils.ApplyDeployment(
+	_, err := commonTestUtils.ApplyDeployment(
 		utils.NewDeploymentBuilder().
 			WithAppName(anyApp).
 			WithDeploymentName(anyDeploymentName).
@@ -463,14 +484,16 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 								),
 							),
 					)))
+	require.NoError(t, err)
 
-	// Create prod environment without any deployments
+	// Create environments
 	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+	test.CreateEnvNamespace(kubeclient, anyApp, anyDevEnvironment)
 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
-	cli := NewPromoteStep()
+	cli := steps.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -484,13 +507,13 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
+	err = cli.Run(pipelineInfo)
+	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
@@ -518,7 +541,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	// Setup
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
-	commonTestUtils.ApplyDeployment(
+	_, err := commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
@@ -578,6 +601,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 			WithEnvironment(anyDevEnvironment).
 			WithImageTag(anyImageTag).
 			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
+	require.NoError(t, err)
 
 	// Create prod environment without any deployments
 	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
@@ -585,7 +609,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
-	cli := NewPromoteStep()
+	cli := steps.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -599,13 +623,13 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
+	err = cli.Run(pipelineInfo)
+	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
@@ -634,18 +658,19 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	// Setup
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
-	commonTestUtils.ApplyDeployment(
+	_, err := commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
 			WithAppName(anyApp).
 			WithDeploymentName(anyDeploymentName).
 			WithEnvironment(anyDevEnvironment).
 			WithImageTag(anyImageTag).
 			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
+	require.NoError(t, err)
 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
-	cli := NewPromoteStep()
+	cli := steps.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -659,13 +684,13 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
+	err = cli.Run(pipelineInfo)
+	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyDevEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(rds.Items))
@@ -716,7 +741,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 				jobEnvironmentConfigs = append(jobEnvironmentConfigs, utils.AJobComponentEnvironmentConfig().WithEnvironment(anyProdEnvironment).WithIdentity(scenario.environmentConfig))
 			}
 
-			commonTestUtils.ApplyDeployment(
+			_, err := commonTestUtils.ApplyDeployment(
 				utils.NewDeploymentBuilder().
 					WithComponents(
 						utils.NewDeployComponentBuilder().
@@ -755,6 +780,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 									WithEnvironmentConfigs(jobEnvironmentConfigs...),
 							)),
 			)
+			require.NoError(t, err)
 
 			// Create prod environment without any deployments
 			test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
@@ -762,7 +788,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
 			ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
-			cli := NewPromoteStep()
+			cli := steps.NewPromoteStep()
 			cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 			pipelineInfo := &model.PipelineInfo{
@@ -776,9 +802,9 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 				},
 			}
 
-			applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+			applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 			pipelineInfo.SetApplicationConfig(applicationConfig)
-			err := cli.Run(pipelineInfo)
+			err = cli.Run(pipelineInfo)
 			require.NoError(t, err)
 
 			rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
@@ -788,4 +814,69 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 		})
 
 	}
+}
+
+func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
+	srcDeploymentName := "deployment-1"
+	anyImageTag := "abcdef"
+	anyPromoteJobName := "any-promote-job"
+	dstEnv := "test"
+	srcEnv := "dev"
+	srcDeploymentCommitID := "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
+	srcRadixConfigHash := "sha256-a5d1565b32252be05910e459eb7551fd0fd6e0d513f7728c54ca5507c9b11387"
+
+	// Setup
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
+
+	_, err := commonTestUtils.ApplyDeployment(
+		utils.NewDeploymentBuilder().
+			WithRadixApplication(
+				utils.NewRadixApplicationBuilder().
+					WithRadixRegistration(utils.ARadixRegistration()).
+					WithAppName(anyAppName).
+					WithEnvironment(srcEnv, "dev-branch").
+					WithEnvironment(dstEnv, "test-branch").
+					WithComponent(utils.NewApplicationComponentBuilder().WithName("comp1"))).
+			WithAppName(anyAppName).
+			WithDeploymentName(srcDeploymentName).
+			WithEnvironment(srcEnv).
+			WithImageTag(anyImageTag).
+			WithLabel(kube.RadixCommitLabel, srcDeploymentCommitID).
+			WithAnnotations(map[string]string{kube.RadixConfigHash: srcRadixConfigHash}))
+
+	require.NoError(t, err)
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyAppName, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyAppName)).Get(context.TODO(), anyAppName, metav1.GetOptions{})
+
+	cli := steps.NewPromoteStep()
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: srcEnv,
+			ToEnvironment:   dstEnv,
+			DeploymentName:  srcDeploymentName,
+			JobName:         anyPromoteJobName,
+			ImageTag:        anyImageTag,
+			CommitID:        anyCommitID,
+		},
+	}
+
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+	err = cli.Run(pipelineInfo)
+	require.NoError(t, err)
+
+	rds, err := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyAppName, dstEnv)).List(context.TODO(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Len(t, rds.Items, 1)
+	promotedRD := rds.Items[0]
+	assert.Equal(t, srcEnv, promotedRD.GetAnnotations()[kube.RadixDeploymentPromotedFromEnvironmentAnnotation])
+	assert.Equal(t, srcDeploymentName, promotedRD.GetAnnotations()[kube.RadixDeploymentPromotedFromDeploymentAnnotation])
+	assert.Equal(t, srcRadixConfigHash, promotedRD.GetAnnotations()[kube.RadixConfigHash])
+	assert.Equal(t, srcDeploymentCommitID, promotedRD.GetLabels()[kube.RadixCommitLabel])
 }

@@ -1,12 +1,11 @@
 package radixvalidators
 
 import (
+	stderrors "errors"
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/errors"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 )
 
 const (
@@ -42,7 +41,7 @@ func GitTagsContainIllegalChars(gitTags string) error {
 }
 
 // CanRadixDeploymentBeInserted Checks if RD is valid
-func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.RadixDeployment) (bool, error) {
+func CanRadixDeploymentBeInserted(deploy *radixv1.RadixDeployment) error {
 	// todo! ensure that all rules are valid
 	errs := []error{}
 	err := validateAppName(deploy.Name)
@@ -63,10 +62,7 @@ func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.
 		errs = append(errs, err)
 	}
 
-	if len(errs) <= 0 {
-		return true, nil
-	}
-	return false, errors.Concat(errs)
+	return stderrors.Join(errs...)
 }
 
 func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {
@@ -124,10 +120,10 @@ func validateHPAConfigForRD(component *radixv1.RadixDeployComponent, environment
 		minReplicas := component.HorizontalScaling.MinReplicas
 
 		if maxReplicas == 0 {
-			return MaxReplicasForHPANotSetOrZeroError(component.Name, environmentName)
+			return MaxReplicasForHPANotSetOrZeroErrorWithMessage(component.Name, environmentName)
 		}
 		if minReplicas != nil && *minReplicas > maxReplicas {
-			return MinReplicasGreaterThanMaxReplicasError(component.Name, environmentName)
+			return MinReplicasGreaterThanMaxReplicasErrorWithMessage(component.Name, environmentName)
 		}
 	}
 
@@ -136,7 +132,7 @@ func validateHPAConfigForRD(component *radixv1.RadixDeployComponent, environment
 
 func validateDeployJobSchedulerPort(job *radixv1.RadixDeployJobComponent) error {
 	if job.SchedulerPort == nil {
-		return SchedulerPortCannotBeEmptyForJobError(job.Name)
+		return SchedulerPortCannotBeEmptyForJobErrorWithMessage(job.Name)
 	}
 
 	return nil
@@ -144,7 +140,7 @@ func validateDeployJobSchedulerPort(job *radixv1.RadixDeployJobComponent) error 
 
 func validateDeployJobPayload(job *radixv1.RadixDeployJobComponent) error {
 	if job.Payload != nil && job.Payload.Path == "" {
-		return PayloadPathCannotBeEmptyForJobError(job.Name)
+		return PayloadPathCannotBeEmptyForJobErrorWithMessage(job.Name)
 	}
 
 	return nil

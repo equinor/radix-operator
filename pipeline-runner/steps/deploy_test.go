@@ -1,32 +1,49 @@
-package steps
+package steps_test
 
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
+	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/stretchr/testify/require"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
 const (
-	anyClusterName       = "AnyClusterName"
-	anyContainerRegistry = "any.container.registry"
-	anyAppName           = "any-app"
-	anyJobName           = "any-job-name"
-	anyImageTag          = "anytag"
-	anyCommitID          = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
-	anyGitTags           = "some tags go here"
-	egressIps            = "0.0.0.0"
+	anyAppName  = "any-app"
+	anyJobName  = "any-job-name"
+	anyImageTag = "anytag"
+	anyCommitID = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
+	anyGitTags  = "some tags go here"
 )
+
+func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils) {
+	// Setup
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
+	err := testUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	require.NoError(t, err)
+	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
+
+	return kubeclient, kubeUtil, radixclient, testUtils
+}
 
 // FakeNamespaceWatcher Unit tests doesn't handle muliti-threading well
 type FakeNamespaceWatcher struct {
@@ -57,11 +74,10 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 				WithName(anyComponentName)).
 		BuildRA()
 
-	cli := NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)
+	targetEnvs := application.GetTargetEnvironments(anyNoMappedBranch, ra)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -71,11 +87,10 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 			CommitID: anyCommitID,
 		},
 		TargetEnvironments: targetEnvs,
-		BranchIsMapped:     branchIsMapped,
 	}
 
 	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	radixJobList, err := radixclient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
 	assert.NoError(t, err)
 	assert.Empty(t, radixJobList.Items)
@@ -110,7 +125,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
-						WithReplicas(test.IntPtr(4)),
+						WithReplicas(commonTest.IntPtr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithAuthentication(
@@ -121,7 +136,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 								},
 							},
 						).
-						WithReplicas(test.IntPtr(4))),
+						WithReplicas(commonTest.IntPtr(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
 				WithPublicPort("").
@@ -163,11 +178,16 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli := NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy("master")
+	dnsConfig := dnsalias.DNSConfig{
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
+		ReservedDNSAliases:    []string{"grafana"},
+	}
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, &dnsConfig)
+	targetEnvs := application.GetTargetEnvironments("master", ra)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -176,7 +196,6 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 			Branch:   "master",
 			CommitID: anyCommitID,
 		},
-		BranchIsMapped:     branchIsMapped,
 		TargetEnvironments: targetEnvs,
 		GitCommitHash:      anyCommitID,
 		GitTags:            anyGitTags,
@@ -188,6 +207,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
+	require.NoError(t, err)
 	rds, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").List(context.TODO(), metav1.ListOptions{})
 
 	t.Run("validate deploy", func(t *testing.T) {
@@ -262,4 +282,52 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 		assert.Equal(t, "500m", rdDev.Spec.Components[1].Resources.Limits["cpu"])
 	})
 
+}
+
+func TestDeploy_SetCommitID_whenSet(t *testing.T) {
+	kubeclient, kubeUtil, radixclient, _ := setupTest(t)
+
+	rr := utils.ARadixRegistration().
+		WithName(anyAppName).
+		BuildRR()
+
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(anyAppName).
+		WithEnvironment("dev", "master").
+		WithComponents(utils.AnApplicationComponent().WithName("app")).
+		BuildRA()
+
+	// Prometheus doesn´t contain any fake
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
+
+	const commitID = "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			JobName:  anyJobName,
+			ImageTag: anyImageTag,
+			Branch:   "master",
+			CommitID: anyCommitID,
+		},
+		TargetEnvironments: []string{"master"},
+		GitCommitHash:      commitID,
+		GitTags:            "",
+	}
+
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+	err := cli.Run(pipelineInfo)
+	require.NoError(t, err)
+	rds, err := radixclient.RadixV1().RadixDeployments("any-app-dev").List(context.TODO(), metav1.ListOptions{})
+
+	assert.NoError(t, err)
+	require.Len(t, rds.Items, 1)
+	rd := rds.Items[0]
+	assert.Equal(t, commitID, rd.ObjectMeta.Labels[kube.RadixCommitLabel])
 }

@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -63,7 +64,7 @@ func NewController(client kubernetes.Interface,
 	}
 
 	logger.Info("Setting up event handlers")
-	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixDeployment, _ := cur.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(radixDeployment) {
@@ -72,7 +73,9 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -90,7 +93,9 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -105,11 +110,13 @@ func NewController(client kubernetes.Interface,
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	// Only the service informer works with this, because it makes use of patch
 	// if not it will end up in an endless loop (deployment, ingress etc.)
-	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			service := obj.(*corev1.Service)
 			logger.Debugf("Service object added event received for %s. Do nothing", service.Name)
@@ -120,14 +127,16 @@ func NewController(client kubernetes.Interface,
 			if newService.ResourceVersion == oldService.ResourceVersion {
 				return
 			}
-			controller.HandleObject(cur, "RadixDeployment", getObject)
+			controller.HandleObject(cur, v1.KindRadixDeployment, getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixDeployment", getObject)
+			controller.HandleObject(obj, v1.KindRadixDeployment, getObject)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
@@ -154,12 +163,16 @@ func NewController(client kubernetes.Interface,
 				for _, rd := range rds.Items {
 					if !deployment.IsRadixDeploymentInactive(&rd) {
 						obj := &rd
-						controller.Enqueue(obj)
+						if _, err := controller.Enqueue(obj); err != nil {
+							utilruntime.HandleError(err)
+						}
 					}
 				}
 			}
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	return controller
 }

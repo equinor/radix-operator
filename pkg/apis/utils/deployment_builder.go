@@ -5,10 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -246,8 +245,8 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 
 	radixDeployment := &v1.RadixDeployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixDeployment",
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixDeployment,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              deployName,
@@ -280,24 +279,28 @@ func NewDeploymentBuilder() DeploymentBuilder {
 	}
 }
 
-// ARadixDeployment Constructor for deployment builder containing test data
-func ARadixDeployment() DeploymentBuilder {
+// ARadixDeploymentWithComponentModifier Constructor for deployment builder containing test data, with modifier
+func ARadixDeploymentWithComponentModifier(m func(builder DeployComponentBuilder) DeployComponentBuilder) DeploymentBuilder {
 	replicas := 1
 	builder := NewDeploymentBuilder().
 		WithRadixApplication(ARadixApplication()).
 		WithAppName("someapp").
 		WithImageTag("imagetag").
 		WithEnvironment("test").
-		WithComponent(NewDeployComponentBuilder().
+		WithComponent(m(NewDeployComponentBuilder().
 			WithImage("radixdev.azurecr.io/some-image:imagetag").
 			WithName("app").
 			WithPort("http", 8080).
 			WithPublicPort("http").
-			WithReplicas(&replicas)).
+			WithReplicas(&replicas))).
 		WithJobComponent(NewDeployJobComponentBuilder().
 			WithName("job").
 			WithImage("radixdev.azurecr.io/job:imagetag").
 			WithSchedulerPort(numbers.Int32Ptr(8080)))
-
 	return builder
+}
+
+// ARadixDeployment Constructor for deployment builder containing test data
+func ARadixDeployment() DeploymentBuilder {
+	return ARadixDeploymentWithComponentModifier(func(builder DeployComponentBuilder) DeployComponentBuilder { return builder })
 }

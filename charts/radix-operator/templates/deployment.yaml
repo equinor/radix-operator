@@ -102,6 +102,8 @@ spec:
               value: {{ .Values.logLevel }}
             - name: RADIX_CONTAINER_REGISTRY
               value: {{ .Values.containerRegistry }}
+            - name: RADIX_APP_CONTAINER_REGISTRY
+              value: {{ .Values.appContainerRegistry }}
             - name: RADIXOPERATOR_TENANT_ID
               value: {{ .Values.tenantId }}
             - name: RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL
@@ -156,6 +158,16 @@ spec:
               value: {{ .Values.seccompProfile.fileNameOnNode }}
             - name: RADIX_BUILDAH_IMAGE_BUILDER
               value: {{ .Values.buildahImageBuilder }}
+            - name: RADIX_RESERVED_APP_DNS_ALIASES
+              value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.reservedAppDNSAlias | quote }}
+            - name: RADIX_RESERVED_DNS_ALIASES
+              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.reservedDNSAlias | quote }}
+            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER
+              value: {{ .Values.ingress.certificate.automation.clusterIssuer }}
+            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
+              value: {{ .Values.ingress.certificate.automation.duration }}
+            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE
+              value: {{ .Values.ingress.certificate.automation.renewBefore }}              
           livenessProbe:
             httpGet:
               path: /healthz

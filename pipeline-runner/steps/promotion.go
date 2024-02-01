@@ -108,10 +108,15 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	radixDeployment = rd.DeepCopy()
 	radixDeployment.Name = utils.GetDeploymentName(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 
+	if radixDeployment.GetAnnotations() == nil {
+		radixDeployment.ObjectMeta.Annotations = make(map[string]string)
+	}
 	if _, isRestored := radixDeployment.Annotations[kube.RestoredStatusAnnotation]; isRestored {
 		// RA-817: Promotion reuses annotation - RD get inactive status
 		radixDeployment.Annotations[kube.RestoredStatusAnnotation] = ""
 	}
+	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromDeploymentAnnotation] = rd.GetName()
+	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation] = pipelineInfo.PipelineArguments.FromEnvironment
 
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs
@@ -119,13 +124,13 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(radixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.ComponentImages)
+	err = mergeWithRadixApplication(radixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
 	if err != nil {
 		return err
 	}
 
-	isValid, err := radixvalidators.CanRadixDeploymentBeInserted(cli.GetRadixclient(), radixDeployment)
-	if !isValid {
+	err = radixvalidators.CanRadixDeploymentBeInserted(radixDeployment)
+	if err != nil {
 		return err
 	}
 
@@ -160,7 +165,7 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 	return nil
 }
 
-func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, componentImages map[string]pipeline.ComponentImage) error {
+func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
 	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
 	if err := mergeComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
 		return err
@@ -173,9 +178,9 @@ func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment
 	return nil
 }
 
-func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages map[string]pipeline.ComponentImage) error {
+func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
 	newEnvJobs, err := deployment.
-		NewJobComponentsBuilder(radixConfig, environment, componentImages, defaultEnvVars).
+		NewJobComponentsBuilder(radixConfig, environment, componentImages, defaultEnvVars, nil).
 		JobComponents()
 	if err != nil {
 		return err
@@ -199,8 +204,8 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 	return nil
 }
 
-func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages map[string]pipeline.ComponentImage) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, componentImages, defaultEnvVars)
+func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, componentImages, defaultEnvVars, nil)
 	if err != nil {
 		return err
 	}

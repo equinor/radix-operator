@@ -22,6 +22,9 @@ const (
 	// ContainerRegistryEnvironmentVariable The name of the container registry
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
 
+	// AppContainerRegistryEnvironmentVariable The name of the app container registry
+	AppContainerRegistryEnvironmentVariable = "RADIX_APP_CONTAINER_REGISTRY"
+
 	// AzureSubscriptionIdEnvironmentVariable The Azure subscription ID
 	AzureSubscriptionIdEnvironmentVariable = "AZURE_SUBSCRIPTION_ID"
 
@@ -79,6 +82,9 @@ const (
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"
 
+	// RadixComponentsToDeployVariable The optional list of components, which need to be deployed instead of all components
+	RadixComponentsToDeployVariable = "RADIX_COMPONENTS_TO_DEPLOY"
+
 	// RadixPromoteDeploymentEnvironmentVariable Name of Radix Deployment for pipeline
 	RadixPromoteDeploymentEnvironmentVariable = "DEPLOYMENT_NAME"
 
@@ -110,7 +116,7 @@ const (
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
 
 	// RadixTektonPipelineImageEnvironmentVariable Points to the utility image for preparing radixconfig copying
-	///config/file to/map and preparing Tekton resources
+	// /config/file to/map and preparing Tekton resources
 	RadixTektonPipelineImageEnvironmentVariable = "RADIX_TEKTON_IMAGE"
 
 	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
@@ -188,4 +194,19 @@ const (
 
 	// RadixBuildahImageBuilderEnvironmentVariable The container image used for running the buildah engine
 	RadixBuildahImageBuilderEnvironmentVariable = "RADIX_BUILDAH_IMAGE_BUILDER"
+
+	// RadixReservedAppDNSAliasesEnvironmentVariable The list of DNS aliases, reserved for Radix platform Radix application
+	RadixReservedAppDNSAliasesEnvironmentVariable = "RADIX_RESERVED_APP_DNS_ALIASES"
+
+	// RadixReservedDNSAliasesEnvironmentVariable The list of DNS aliases, reserved for Radix platform services
+	RadixReservedDNSAliasesEnvironmentVariable = "RADIX_RESERVED_DNS_ALIASES"
+
+	// RadixCertificateAutomationClusterIssuerVariable Name of cluster isser to use for certificate automation
+	RadixCertificateAutomationClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER"
+
+	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer
+	RadixCertificateAutomationDurationVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION"
+
+	// RadixCertificateAutomationRenewBeforeVariable Defines renew_before for certificates issued by cluster issuer
+	RadixCertificateAutomationRenewBeforeVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE"
 )

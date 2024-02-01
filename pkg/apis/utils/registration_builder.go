@@ -180,8 +180,8 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 
 	radixRegistration := &v1.RadixRegistration{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixRegistration",
+			APIVersion: v1.SchemeGroupVersion.Identifier(),
+			Kind:       v1.KindRadixRegistration,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: rb.name,

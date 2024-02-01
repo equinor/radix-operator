@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -63,9 +64,11 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 
-	environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -73,53 +76,63 @@ func NewController(client kubernetes.Interface,
 			oldRR := old.(*v1.RadixEnvironment)
 
 			if deepEqual(oldRR, newRR) {
-				logger.Debugf("Environment object is equal to old for %s. Do nothing", newRR.GetName())
+				logger.Debugf("RadixEnvironment %s (revision %s) is equal to old (revision %s). Do nothing", newRR.GetName(), newRR.GetResourceVersion(), oldRR.GetResourceVersion())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
-
-			controller.Enqueue(cur)
+			logger.Debugf("update RadixEnvironment %s (from revision %s to %s)", oldRR.GetName(), oldRR.GetResourceVersion(), newRR.GetResourceVersion())
+			if _, err := controller.Enqueue(cur); err != nil {
+				utilruntime.HandleError(err)
+			}
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixEnvironment, converted := obj.(*v1.RadixEnvironment)
 			if !converted {
-				logger.Errorf("RadixEnvironment object cast failed during deleted event received.")
+				logger.Errorf("RadixEnvironment object cast failed during deleted event received")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixEnvironment)
 			if err == nil {
-				logger.Debugf("Environment object deleted event received for %s. Do nothing", key)
+				logger.Debugf("RadixEnvironment object deleted event received for %s (revision %s). Do nothing", key, radixEnvironment.GetResourceVersion())
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this namespace
-			controller.HandleObject(obj, "RadixEnvironment", getOwner)
+			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	rolebindingInformer := kubeInformerFactory.Rbac().V1().RoleBindings()
-	rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this role-binding
-			controller.HandleObject(obj, "RadixEnvironment", getOwner)
+			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	limitrangeInformer := kubeInformerFactory.Core().V1().LimitRanges()
-	limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this limit-range
-			controller.HandleObject(obj, "RadixEnvironment", getOwner)
+			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
@@ -144,13 +157,17 @@ func NewController(client kubernetes.Interface,
 			if err == nil {
 				for _, environment := range environments.Items {
 					// Will sync the environment
-					controller.Enqueue(&environment)
+					if _, err := controller.Enqueue(&environment); err != nil {
+						utilruntime.HandleError(err)
+					}
 				}
 			}
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
-	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newRa := cur.(*v1.RadixApplication)
 			oldRa := old.(*v1.RadixApplication)
@@ -163,7 +180,9 @@ func NewController(client kubernetes.Interface,
 				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
-					controller.Enqueue(re)
+					if _, err := controller.Enqueue(re); err != nil {
+						utilruntime.HandleError(err)
+					}
 				}
 			}
 		},
@@ -177,11 +196,15 @@ func NewController(client kubernetes.Interface,
 				uniqueName := utils.GetEnvironmentNamespace(radixApplication.Name, env.Name)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
-					controller.Enqueue(re)
+					if _, err := controller.Enqueue(re); err != nil {
+						utilruntime.HandleError(err)
+					}
 				}
 			}
 		},
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	return controller
 }
@@ -189,7 +212,9 @@ func NewController(client kubernetes.Interface,
 func deepEqual(old, new *v1.RadixEnvironment) bool {
 	if !reflect.DeepEqual(new.Spec, old.Spec) ||
 		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
-		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
+		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) ||
+		!reflect.DeepEqual(new.ObjectMeta.DeletionTimestamp, old.ObjectMeta.DeletionTimestamp) ||
+		!reflect.DeepEqual(new.ObjectMeta.Finalizers, old.ObjectMeta.Finalizers) {
 		return false
 	}
 

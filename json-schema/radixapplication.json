@@ -25,6 +25,10 @@
               },
               "type": "array"
             },
+            "useBuildCache": {
+              "description": "Defaults to true and requires useBuildKit to have an effect. Note: All layers will be cached and can be available for other Radix Apps. Do not add secrets to a Dockerfile layer.",
+              "type": "boolean"
+            },
             "useBuildKit": {
               "description": "Enables BuildKit when building Dockerfile. More info about BuildKit: https://docs.docker.com/build/buildkit/",
               "type": "boolean"
@@ -357,7 +361,7 @@
                       "description": "Name of the environment which the settings applies to.",
                       "maxLength": 63,
                       "minLength": 1,
-                      "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "horizontalScaling": {
@@ -725,10 +729,6 @@
                                     "description": "Enable streaming mode. Default true.",
                                     "type": "boolean"
                                   },
-                                  "fileCaching": {
-                                    "description": "Optional. File name based caching. Default is false which specifies file handle based caching.",
-                                    "type": "boolean"
-                                  },
                                   "maxBlocksPerFile": {
                                     "description": "Optional. The maximum number of blocks to be cached in memory.",
                                     "format": "int64",
@@ -866,7 +866,7 @@
                   "portName": {
                     "description": "Defines which port in the ports list where metrics is served.",
                     "maxLength": 15,
-                    "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },
@@ -876,7 +876,7 @@
                 "description": "Name of the component.",
                 "maxLength": 253,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
               "node": {
@@ -902,7 +902,7 @@
                       "description": "Name of the port.",
                       "maxLength": 15,
                       "minLength": 1,
-                      "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "port": {
@@ -919,7 +919,6 @@
                   ],
                   "type": "object"
                 },
-                "minItems": 1,
                 "type": "array",
                 "x-kubernetes-list-map-keys": [
                   "name"
@@ -933,7 +932,7 @@
               "publicPort": {
                 "description": "Defines which port (name) from the ports list that shall be accessible from the internet. More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport",
                 "maxLength": 15,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
               "resources": {
@@ -1076,14 +1075,53 @@
               }
             },
             "required": [
-              "name",
-              "ports"
+              "name"
             ],
             "type": "object"
           },
           "type": "array",
           "x-kubernetes-list-map-keys": [
             "name"
+          ],
+          "x-kubernetes-list-type": "map"
+        },
+        "dnsAlias": {
+          "description": "List of DNS names and which component and environment incoming requests shall be routed to. More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias",
+          "items": {
+            "description": "DNSAlias defines mapping between an DNS alias and a component and environment.",
+            "properties": {
+              "alias": {
+                "description": "Alias name, e.g. my-app, which will prefix full internal alias my-app.radix.equinor.com",
+                "maxLength": 63,
+                "minLength": 1,
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
+                "type": "string"
+              },
+              "component": {
+                "description": "Name of the component that shall receive the incoming requests.",
+                "maxLength": 63,
+                "minLength": 1,
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
+                "type": "string"
+              },
+              "environment": {
+                "description": "Name of the environment for the component.",
+                "maxLength": 63,
+                "minLength": 1,
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "alias",
+              "component",
+              "environment"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "x-kubernetes-list-map-keys": [
+            "alias"
           ],
           "x-kubernetes-list-type": "map"
         },
@@ -1094,14 +1132,14 @@
               "description": "Name of the component that shall receive the incoming requests.",
               "maxLength": 63,
               "minLength": 1,
-              "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+              "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
               "type": "string"
             },
             "environment": {
               "description": "Name of the environment for the component.",
               "maxLength": 63,
               "minLength": 1,
-              "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+              "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
               "type": "string"
             }
           },
@@ -1123,15 +1161,20 @@
                 "description": "Name of the component that shall receive the incoming requests.",
                 "maxLength": 63,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
               "environment": {
                 "description": "Name of the environment for the component.",
                 "maxLength": 63,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
+              },
+              "useCertificateAutomation": {
+                "default": false,
+                "description": "Enable automatic issuing and renewal of TLS certificate",
+                "type": "boolean"
               }
             },
             "required": [
@@ -1239,7 +1282,7 @@
                 "description": "Name of the environment.",
                 "maxLength": 63,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               }
             },
@@ -1293,7 +1336,7 @@
                       "description": "Name of the environment which the settings applies to.",
                       "maxLength": 63,
                       "minLength": 1,
-                      "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "identity": {
@@ -1616,10 +1659,6 @@
                                     "description": "Enable streaming mode. Default true.",
                                     "type": "boolean"
                                   },
-                                  "fileCaching": {
-                                    "description": "Optional. File name based caching. Default is false which specifies file handle based caching.",
-                                    "type": "boolean"
-                                  },
                                   "maxBlocksPerFile": {
                                     "description": "Optional. The maximum number of blocks to be cached in memory.",
                                     "format": "int64",
@@ -1750,7 +1789,7 @@
                   "portName": {
                     "description": "Defines which port in the ports list where metrics is served.",
                     "maxLength": 15,
-                    "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },
@@ -1760,7 +1799,7 @@
                 "description": "Name of the environment which the settings applies to.",
                 "maxLength": 253,
                 "minLength": 1,
-                "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
               "node": {
@@ -1812,7 +1851,7 @@
                       "description": "Name of the port.",
                       "maxLength": 15,
                       "minLength": 1,
-                      "pattern": "^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$",
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "port": {
@@ -2003,7 +2042,6 @@
             "properties": {
               "email": {
                 "description": "The email address linked to the username.",
-                "minLength": 3,
                 "type": "string"
               },
               "username": {
@@ -2013,7 +2051,6 @@
               }
             },
             "required": [
-              "email",
               "username"
             ],
             "type": "object"

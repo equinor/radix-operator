@@ -25,26 +25,14 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 		return nil
 	}
 
-	currentDeploymentJSON, err := json.Marshal(currentDeployment)
+	patchBytes, err := getDeploymentPatch(currentDeployment, desiredDeployment)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old deployment object: %v", err)
+		return err
 	}
-
-	desiredDeploymentJSON, err := json.Marshal(desiredDeployment)
-	if err != nil {
-		return fmt.Errorf("failed to marshal new deployment object: %v", err)
-	}
-
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(currentDeploymentJSON, desiredDeploymentJSON, appsv1.Deployment{})
-	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch deployment objects: %v", err)
-	}
-
 	if IsEmptyPatch(patchBytes) {
 		log.Debugf("No need to patch deployment: %s ", currentDeployment.GetName())
 		return nil
 	}
-
 	log.Debugf("Patch: %s", string(patchBytes))
 	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(context.Background(), currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
@@ -52,6 +40,33 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 	}
 	log.Debugf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	return nil
+}
+
+func getDeploymentPatch(currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) ([]byte, error) {
+	currentDeploymentJSON, err := deserializeDeployment(currentDeployment)
+	if err != nil {
+		return nil, err
+	}
+	desiredDeploymentJSON, err := deserializeDeployment(desiredDeployment)
+	if err != nil {
+		return nil, err
+	}
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(currentDeploymentJSON, desiredDeploymentJSON, appsv1.Deployment{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create two way merge patch deployment objects: %v", err)
+	}
+	return patchBytes, nil
+}
+
+func deserializeDeployment(deployment *appsv1.Deployment) ([]byte, error) {
+	deployment = deployment.DeepCopy()
+	deployment.ObjectMeta.ManagedFields = nil
+	delete(deployment.ObjectMeta.Annotations, "deployment.kubernetes.io/revision")
+	currentDeploymentJSON, err := json.Marshal(deployment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal old deployment object: %v", err)
+	}
+	return currentDeploymentJSON, nil
 }
 
 // CreateDeployment Created deployment

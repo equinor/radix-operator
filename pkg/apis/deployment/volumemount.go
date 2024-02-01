@@ -37,7 +37,7 @@ const (
 	csiVolumeNodeMountPathTemplate       = "%s/%s/%s/%s/%s/%s" // <volumeRootMount>/<namespace>/<radixvolumeid>/<componentname>/<radixvolumename>/<storage>
 
 	csiStorageClassProvisionerSecretNameParameter       = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
-	csiStorageClassProvisionerSecretNamespaceParameter  = "csi.storage.k8s.io/provisioner-secret-namespace" // Namespace of the secret
+	csiStorageClassProvisionerSecretNamespaceParameter  = "csi.storage.k8s.io/provisioner-secret-namespace" // namespace of the secret
 	csiStorageClassNodeStageSecretNameParameter         = "csi.storage.k8s.io/node-stage-secret-name"       // Usually equal to csiStorageClassProvisionerSecretNameParameter
 	csiStorageClassNodeStageSecretNamespaceParameter    = "csi.storage.k8s.io/node-stage-secret-namespace"  // Usually equal to csiStorageClassProvisionerSecretNamespaceParameter
 	csiAzureStorageClassSkuNameParameter                = "skuName"                                         // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
@@ -53,7 +53,6 @@ const (
 	csiStorageClassStreamingMaxBuffersMountOption       = "max-buffers"                                     // The total number of buffers to be cached in memory (in MB).
 	csiStorageClassStreamingBlockSizeMountOption        = "block-size-mb"                                   // The size of each block to be cached in memory (in MB).
 	csiStorageClassStreamingBufferSizeMountOption       = "buffer-size-mb"                                  // The size of each buffer to be cached in memory (in MB).
-	csiStorageClassStreamingFileCachingMountOption      = "file-caching"                                    // File name based caching. Default is false which specifies file handle based caching.
 	csiStorageClassProtocolParameter                    = "protocol"                                        // Protocol
 	csiStorageClassProtocolParameterFuse                = "fuse"                                            // Protocol "blobfuse"
 	csiStorageClassProtocolParameterFuse2               = "fuse2"                                           // Protocol "blobfuse2"
@@ -492,7 +491,7 @@ func (deploy *Deployment) createPersistentVolumeClaim(appName, namespace, compon
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{volumeAccessMode},
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: requestsVolumeMountSize}, // it seems correct number is not needed for CSI driver
 			},
 			StorageClassName: &storageClassName,
@@ -576,6 +575,7 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 		// fmt.Sprintf("--%s=%s", csiStorageClassTmpPathMountOption, tmpPath),//TODO fix this path to be able to mount on external mount
 		"--file-cache-timeout-in-seconds=120",
 		"--use-attr-cache=true",
+		"--cancel-list-on-mount-seconds=0",
 		"-o allow_other",
 		"-o attr_timeout=120",
 		"-o entry_timeout=120",
@@ -623,9 +623,6 @@ func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []st
 	}
 	if streaming.MaxBlocksPerFile != nil {
 		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *streaming.MaxBlocksPerFile))
-	}
-	if streaming.FileCaching != nil {
-		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingFileCachingMountOption, *streaming.FileCaching))
 	}
 	return mountOptions
 }

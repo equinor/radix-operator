@@ -43,8 +43,26 @@ const (
 	// RadixTektonAppRoleName Role of user to apply radixconfig to configmap and process Tekton objects
 	RadixTektonAppRoleName = "radix-tekton-app"
 
-	// RadixTektonEnvRoleName Role of user to get app environment data for prepare pipeline job
+	// RadixTektonEnvRoleName Role to get app environment data for prepare pipeline job
 	RadixTektonEnvRoleName = "radix-tekton-env"
+
+	// RadixPipelineRRRoleNamePrefix Role of to get RadixRegistrations for pipeline job
+	RadixPipelineRRRoleNamePrefix = "radix-pipeline-rr"
+
+	// RadixPipelineRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for pipeline job
+	RadixPipelineRadixDNSAliasRoleNamePrefix = "radix-pipeline-rda"
+
+	// RadixApplicationAdminRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for application admin
+	RadixApplicationAdminRadixDNSAliasRoleNamePrefix = "radix-platform-user-rda"
+
+	// RadixApplicationReaderRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for application reader
+	RadixApplicationReaderRadixDNSAliasRoleNamePrefix = "radix-platform-user-rda-reader"
+
+	// RadixTektonRRRoleNamePrefix Role of to get RadixRegistrations for prepare pipeline job
+	RadixTektonRRRoleNamePrefix = "radix-tekton-rr"
+
+	// RadixTektonRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for prepare pipeline job
+	RadixTektonRadixDNSAliasRoleNamePrefix = "radix-tekton-rda"
 
 	// PlatformUserRoleName Name of platform user cluster role
 	PlatformUserRoleName = "radix-platform-user"
