@@ -3,6 +3,7 @@ package wait
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	logger "github.com/sirupsen/logrus"
@@ -52,7 +53,7 @@ func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) erro
 				case currJob.Status.Succeeded == 1:
 					errChan <- nil
 				case currJob.Status.Failed == 1:
-					errChan <- fmt.Errorf("job failed. See log of the %s job %s for more details", currJob.GetLabels()[kube.RadixJobTypeLabel], currJob.GetName())
+					errChan <- fmt.Errorf("job failed. See more details in the log of the job %s", getJobDescription(currJob))
 				}
 			}
 		},
@@ -105,6 +106,20 @@ func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) erro
 
 	err := <-errChan
 	return err
+}
+
+func getJobDescription(job *batchv1.Job) string {
+	var lines []string
+	if jobType, ok := job.GetLabels()[kube.RadixJobTypeLabel]; ok {
+		lines = append(lines, jobType)
+	}
+	if componentName, ok := job.GetLabels()[kube.RadixComponentLabel]; ok {
+		lines = append(lines, fmt.Sprintf("for the component %s", componentName))
+	}
+	if envName, ok := job.GetLabels()[kube.RadixEnvLabel]; ok {
+		lines = append(lines, fmt.Sprintf("for the environment %s", envName))
+	}
+	return strings.Join(lines, " ")
 }
 
 func checkPodIsTerminatedOrFailed(containerStatuses *[]corev1.ContainerStatus) error {
