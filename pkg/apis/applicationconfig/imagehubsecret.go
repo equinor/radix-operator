@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-common/pkg/docker"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,14 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getKubeDAnnotation(appName string) string {
-	key, value := GetKubeDPrivateImageHubAnnotationValues(appName)
-	return fmt.Sprintf("%s=%s", key, value)
-}
-
-// GetKubeDPrivateImageHubAnnotationValues gets value and key to use for namespace annotation to pick up private image hubs
-func GetKubeDPrivateImageHubAnnotationValues(appName string) (key, value string) {
-	return fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName), appName
+func getSyncTargetAnnotation(appName string) string {
+	return fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, appName)
 }
 
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
@@ -107,7 +100,8 @@ func ApplyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretV
 			Name:      defaults.PrivateImageHubSecretName,
 			Namespace: ns,
 			Annotations: map[string]string{
-				"kubed.appscode.com/sync": getKubeDAnnotation(appName),
+				"kubed.appscode.com/sync":                         getSyncTargetAnnotation(appName),
+				"replicator.v1.mittwald.de/replicate-to-matching": getSyncTargetAnnotation(appName),
 			},
 			Labels: map[string]string{
 				kube.RadixAppLabel: appName,
