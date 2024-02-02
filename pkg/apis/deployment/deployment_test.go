@@ -105,6 +105,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	defer teardownTest()
 	commitId := string(uuid.NewUUID())
 	const componentNameApp = "app"
+	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
+
 	for _, componentsExist := range []bool{true, false} {
 		testScenario := utils.TernaryString(componentsExist, "Updating deployment", "Creating deployment")
 
@@ -113,7 +115,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		_ = os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
 
 		t.Run("Test Suite", func(t *testing.T) {
-			aRadixRegistrationBuilder := utils.ARadixRegistration()
+			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)
 			aRadixApplicationBuilder := utils.ARadixApplication().
 				WithRadixRegistration(aRadixRegistrationBuilder)
 			environment := "test"
@@ -420,7 +422,10 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				assert.ElementsMatch(t, []string{"radix-app-adm-radixquote", "radix-app-adm-app", "radix-app-reader-radixquote", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
-				assert.Equal(t, 1, len(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
+				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
+				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-app", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
+				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
+				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-app", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
@@ -436,6 +441,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 	const jobSchedulerImage = "radix-job-scheduler:latest"
 	defer teardownTest()
 	commitId := string(uuid.NewUUID())
+	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
 
 	for _, jobsExist := range []bool{false, true} {
 		testScenario := utils.TernaryString(jobsExist, "Updating deployment", "Creating deployment")
@@ -445,7 +451,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 		os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, jobSchedulerImage)
 
 		t.Run("Test Suite", func(t *testing.T) {
-			aRadixRegistrationBuilder := utils.ARadixRegistration()
+			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)
 			aRadixApplicationBuilder := utils.ARadixApplication().
 				WithRadixRegistration(aRadixRegistrationBuilder)
 			environment := "test"
@@ -659,7 +665,8 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.ElementsMatch(t, []string{"radix-app-adm-job", "radix-app-reader-job", defaults.RadixJobSchedulerRoleName}, getRoleBindingNames(rolebindings))
-				assert.Equal(t, 1, len(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
+				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
+				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-job", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
