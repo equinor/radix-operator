@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1274,72 +1275,119 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 		return nil
 	}
 
-	mountsInComponent := make(map[string]volumeMountConfigMaps)
-
-	for _, volumeMount := range volumeMounts {
-		volumeMountType := string(deployment.GetCsiAzureVolumeMountType(&volumeMount))
-		volumeMountStorage := deployment.GetRadixVolumeMountStorage(&volumeMount)
-		switch {
-		case len(volumeMount.Type) == 0 && volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil:
-			return emptyVolumeMountTypeOrDriverSectionErrorWithMessage(componentName, environment)
-		case multipleVolumeTypesDefined(&volumeMount):
-			return multipleVolumeMountTypesDefinedErrorWithMessage(componentName, environment)
-		case strings.TrimSpace(volumeMount.Name) == "" ||
-			strings.TrimSpace(volumeMount.Path) == "":
+	for _, v := range volumeMounts {
+		if strings.TrimSpace(v.Name) == "" || strings.TrimSpace(v.Path) == "" {
 			return emptyVolumeMountNameOrPathErrorWithMessage(componentName, environment)
-		case volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil && len(volumeMount.Type) > 0 && len(volumeMountStorage) == 0:
-			return emptyVolumeMountStorageErrorWithMessage(componentName, environment)
-		case volumeMount.BlobFuse2 != nil:
-			switch {
-			case len(volumeMount.BlobFuse2.Container) == 0:
-				return emptyBlobFuse2VolumeMountContainerErrorWithMessage(componentName, environment)
-			case len(string(volumeMount.BlobFuse2.Protocol)) > 0 && !commonUtils.ContainsString(blobFuse2Protocols, string(volumeMount.BlobFuse2.Protocol)):
-				return unsupportedBlobFuse2VolumeMountProtocolErrorWithMessage(componentName, environment)
+		}
+
+		if len(slice.FindAll(volumeMounts, func(rvm radixv1.RadixVolumeMount) bool { return rvm.Name == v.Name })) > 1 {
+			return volumeMountValidationError(&v, componentName, environment, ErrDuplicateNameForVolumeMount)
+		}
+
+		if len(slice.FindAll(volumeMounts, func(rvm radixv1.RadixVolumeMount) bool { return rvm.Path == v.Path })) > 1 {
+			return volumeMountValidationError(&v, componentName, environment, ErrDuplicatePathForVolumeMount)
+		}
+
+		volumeSourceCount := len(slice.FindAll(
+			[]bool{v.HasDeprecatedVolume(), v.HasBlobFuse2(), v.HasAzureFile(), v.HasEmptyDir()},
+			func(b bool) bool { return b }),
+		)
+		if volumeSourceCount > 1 {
+			return multipleVolumeMountTypesDefinedErrorWithMessage(componentName, environment)
+		}
+
+		switch {
+		case v.HasDeprecatedVolume():
+			if err := validateVolumeMountDeprecatedSource(&v, componentName, environment); err != nil {
+				return err
 			}
-			fallthrough
-		case radixv1.IsKnownVolumeMount(volumeMountType):
-			{
-				if _, exists := mountsInComponent[volumeMountType]; !exists {
-					mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), path: make(map[string]bool)}
-				}
-				volumeMountConfigMap := mountsInComponent[volumeMountType]
-				if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
-					return duplicateNameForVolumeMountTypeWithMessage(volumeMount.Name, volumeMountType, componentName, environment)
-				}
-				volumeMountConfigMap.names[volumeMount.Name] = true
-				if _, exists := volumeMountConfigMap.path[volumeMount.Path]; exists {
-					return duplicatePathForVolumeMountTypeWithMessage(volumeMount.Path, volumeMountType, componentName, environment)
-				}
-				volumeMountConfigMap.path[volumeMount.Path] = true
+		case v.HasBlobFuse2():
+			if err := validateVolumeMountBlobFuse2(&v, componentName, environment); err != nil {
+				return err
+			}
+		case v.HasAzureFile():
+			if err := validateVolumeMountAzureFile(&v, componentName, environment); err != nil {
+				return err
+			}
+		case v.HasEmptyDir():
+			if err := validateVolumeMountEmptyDir(&v, componentName, environment); err != nil {
+				return err
 			}
 		default:
-			return unknownVolumeMountTypeErrorWithMessage(volumeMountType, componentName, environment)
+			return emptyVolumeMountTypeOrDriverSectionErrorWithMessage(componentName, environment)
 		}
 	}
 
 	return nil
 }
 
-/*
-	func validateUseReadOnlyFileSystem(useReadOnlyFileSystem *bool) error {
-		if useReadOnlyFileSystem == nil {
-			return nil
-		}
+func validateVolumeMountEmptyDir(v *radixv1.RadixVolumeMount, componentName, environment string) error {
+	return nil
+}
+
+func validateVolumeMountAzureFile(v *radixv1.RadixVolumeMount, componentName, environment string) error {
+	return errors.New("azureFile is not yet supported")
+}
+
+func validateVolumeMountBlobFuse2(v *radixv1.RadixVolumeMount, componentName, environment string) error {
+	return nil
+}
+
+func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount, componentName, environment string) error {
+
+	if !slices.Contains([]radixv1.MountType{radixv1.MountTypeBlob, radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure}, v.Type) {
+		return volumeMountValidationError(v, componentName, environment, ErrunknownVolumeMountType)
+	}
+
+	if v.Type == radixv1.MountTypeBlob && len(v.Container) == 0 {
 		return nil
 	}
-*/
-func multipleVolumeTypesDefined(volumeMount *radixv1.RadixVolumeMount) bool {
-	count := 0
-	if len(volumeMount.Type) > 0 {
-		count++
-	}
-	if volumeMount.BlobFuse2 != nil {
-		count++
-	}
-	if volumeMount.AzureFile != nil {
-		count++
-	}
-	return count > 1
+
+	return nil
+
+	/*
+		for _, volumeMount := range volumeMounts {
+			volumeMountType := string(deployment.GetCsiAzureVolumeMountType(&volumeMount))
+			volumeMountStorage := deployment.GetRadixVolumeMountStorage(&volumeMount)
+			switch {
+			case len(volumeMount.Type) == 0 && volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil:
+				return emptyVolumeMountTypeOrDriverSectionErrorWithMessage(componentName, environment)
+			case multipleVolumeTypesDefined(&volumeMount):
+				return multipleVolumeMountTypesDefinedErrorWithMessage(componentName, environment)
+			case strings.TrimSpace(volumeMount.Name) == "" ||
+				strings.TrimSpace(volumeMount.Path) == "":
+				return emptyVolumeMountNameOrPathErrorWithMessage(componentName, environment)
+			case volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil && len(volumeMount.Type) > 0 && len(volumeMountStorage) == 0:
+				return emptyVolumeMountStorageErrorWithMessage(componentName, environment)
+			case volumeMount.BlobFuse2 != nil:
+				switch {
+				case len(volumeMount.BlobFuse2.Container) == 0:
+					return emptyBlobFuse2VolumeMountContainerErrorWithMessage(componentName, environment)
+				case len(string(volumeMount.BlobFuse2.Protocol)) > 0 && !commonUtils.ContainsString(blobFuse2Protocols, string(volumeMount.BlobFuse2.Protocol)):
+					return unsupportedBlobFuse2VolumeMountProtocolErrorWithMessage(componentName, environment)
+				}
+				fallthrough
+			case radixv1.IsKnownVolumeMount(volumeMountType):
+				{
+					if _, exists := mountsInComponent[volumeMountType]; !exists {
+						mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), path: make(map[string]bool)}
+					}
+					volumeMountConfigMap := mountsInComponent[volumeMountType]
+					if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
+						return duplicateNameForVolumeMountTypeWithMessage(volumeMount.Name, volumeMountType, componentName, environment)
+					}
+					volumeMountConfigMap.names[volumeMount.Name] = true
+					if _, exists := volumeMountConfigMap.path[volumeMount.Path]; exists {
+						return duplicatePathForVolumeMountTypeWithMessage(volumeMount.Path, volumeMountType, componentName, environment)
+					}
+					volumeMountConfigMap.path[volumeMount.Path] = true
+				}
+			default:
+				return unknownVolumeMountTypeErrorWithMessage(volumeMountType, componentName, environment)
+			}
+		}
+	*/
+
 }
 
 func validateIdentity(identity *radixv1.Identity) error {
@@ -1367,11 +1415,6 @@ func validateExpectedAzureIdentity(azureIdentity radixv1.AzureIdentity) error {
 		return InvalidUUIDErrorWithMessage(azureClientIdResourceName, azureIdentity.ClientId)
 	}
 	return nil
-}
-
-type volumeMountConfigMaps struct {
-	names map[string]bool
-	path  map[string]bool
 }
 
 func doesComponentExistInEnvironment(app *radixv1.RadixApplication, componentName string, environment string) bool {

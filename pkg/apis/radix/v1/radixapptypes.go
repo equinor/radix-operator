@@ -805,7 +805,23 @@ type RadixVolumeMount struct {
 	AzureFile *RadixAzureFileVolumeMount `json:"azureFile,omitempty"`
 
 	// EmptyDir settings for EmptyDir volume
-	//EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
+	EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
+}
+
+func (v *RadixVolumeMount) HasDeprecatedVolume() bool {
+	return len(v.Type) > 0
+}
+
+func (v *RadixVolumeMount) HasBlobFuse2() bool {
+	return v.BlobFuse2 != nil
+}
+
+func (v *RadixVolumeMount) HasAzureFile() bool {
+	return v.AzureFile != nil
+}
+
+func (v *RadixVolumeMount) HasEmptyDir() bool {
+	return v.EmptyDir != nil
 }
 
 type RadixEmptyDirVolumeMount struct {

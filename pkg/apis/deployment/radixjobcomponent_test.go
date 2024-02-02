@@ -650,7 +650,7 @@ func TestGetRadixJobComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
 
-			deployJobComponent, err := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap)).JobComponents()
+			deployJobComponent, err := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap), nil).JobComponents()
 			assert.NoError(t, err)
 
 			assert.Equal(t, ts.expectedUseReadOnlyFile, deployJobComponent[0].UseReadOnlyFileSystem)

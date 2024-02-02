@@ -292,7 +292,7 @@ func TestGetRadixComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
 								WithEnvironment("prod").WithUseReadOnlyFileSystem(utils.BoolPtr(false)),
 						)).BuildRA()
 
-			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap)
+			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 			assert.Equal(t, testCase.expectedUseReadOnlyFile, deployComponent[0].UseReadOnlyFileSystem)
 		})
 	}

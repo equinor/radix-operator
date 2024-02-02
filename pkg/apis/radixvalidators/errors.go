@@ -39,8 +39,8 @@ var (
 	ErrEmptyVolumeMountStorage                                             = errors.New("empty volume mount storage")
 	ErrEmptyBlobFuse2VolumeMountContainer                                  = errors.New("empty blob fuse 2 volume mount container")
 	ErrUnsupportedBlobFuse2VolumeMountProtocol                             = errors.New("unsupported blob fuse 2 volume mount protocol")
-	ErrDuplicatePathForVolumeMountType                                     = errors.New("duplicate path for volume mount")
-	ErrDuplicateNameForVolumeMountType                                     = errors.New("duplicate name for volume mount")
+	ErrDuplicatePathForVolumeMount                                         = errors.New("duplicate path for volume mount")
+	ErrDuplicateNameForVolumeMount                                         = errors.New("duplicate name for volume mount")
 	ErrunknownVolumeMountType                                              = errors.New("unknown volume mount type")
 	ErrApplicationNameNotLowercase                                         = errors.New("application name not lowercase")
 	ErrPublicImageComponentCannotHaveSourceOrDockerfileSet                 = errors.New("public image component cannot have source or dockerfile")
@@ -281,19 +281,8 @@ func unsupportedBlobFuse2VolumeMountProtocolErrorWithMessage(component, environm
 	return errors.WithMessagef(ErrUnsupportedBlobFuse2VolumeMountProtocol, "unsupported BlobFuse2 volume mount protocol of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-func duplicatePathForVolumeMountTypeWithMessage(path, volumeMountType, component, environment string) error {
-	return errors.WithMessagef(ErrDuplicatePathForVolumeMountType, "duplicate path %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
-		path, volumeMountType, component, environment)
-}
-
-func duplicateNameForVolumeMountTypeWithMessage(name, volumeMountType, component, environment string) error {
-	return errors.WithMessagef(ErrDuplicateNameForVolumeMountType, "duplicate names %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
-		name, volumeMountType, component, environment)
-}
-
-func unknownVolumeMountTypeErrorWithMessage(volumeMountType, component, environment string) error {
-	return errors.WithMessagef(ErrunknownVolumeMountType, "not recognized volume mount type %s for component %s in environment %s. See documentation for more info",
-		volumeMountType, component, environment)
+func volumeMountValidationError(volumeMount *radixv1.RadixVolumeMount, componentName, environment string, cause error) error {
+	return fmt.Errorf("volumeMount %s for component %s and environment %s failed validation: %w", volumeMount.Name, componentName, environment, cause)
 }
 
 // ApplicationNameNotLowercaseErrorWithMessage Indicates that application name contains upper case letters
