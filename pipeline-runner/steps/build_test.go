@@ -1752,7 +1752,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 			Context: getEnv("CONTEXT"),
 		}
 	})
-	s.Require().ElementsMatch(expectedJobContainers, actualJobContainers)
+	s.ElementsMatch(expectedJobContainers, actualJobContainers)
 
 	// Check RadixDeployment component and job images
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName1)).List(context.Background(), metav1.ListOptions{})
@@ -1771,7 +1771,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedDeployComponents = []deployComponentSpec{
 		{Name: "job-1", Image: imageNameFunc("dev1-job-1")},
 		{Name: "job-2", Image: imageNameFunc("dev1-job-2")},
@@ -1781,7 +1781,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	actualDeployComponents = slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 
 	// Check RadixDeployment component and job images
 	rds, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName2)).List(context.Background(), metav1.ListOptions{})
@@ -1796,7 +1796,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedDeployComponents = []deployComponentSpec{
 		{Name: "job-1", Image: imageNameFunc("dev2-job-1")},
 		{Name: "job-2", Image: imageNameFunc("dev2-job-2")},
@@ -1806,7 +1806,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	actualDeployComponents = slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 
 	// Check RadixDeployment component and job images
 	rds, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName3)).List(context.Background(), metav1.ListOptions{})
@@ -1821,7 +1821,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedDeployComponents = []deployComponentSpec{
 		{Name: "job-1", Image: imageNameFunc("dev3-job-1")},
 		{Name: "job-2", Image: imageNameFunc("dev3-job-2")},
@@ -1831,7 +1831,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	actualDeployComponents = slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 
 	// Check RadixDeployment component and job images
 	rds, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName4)).List(context.Background(), metav1.ListOptions{})
@@ -1846,7 +1846,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	actualDeployComponents = slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 	expectedDeployComponents = []deployComponentSpec{
 		{Name: "job-1", Image: "some-image2:some-tag"},
 		{Name: "job-2", Image: "some-image3:some-tag"},
@@ -1856,5 +1856,5 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	actualDeployComponents = slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
 	})
-	s.Require().ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
 }

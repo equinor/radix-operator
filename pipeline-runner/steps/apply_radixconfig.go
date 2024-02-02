@@ -295,13 +295,15 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			if imageSource.ImageSource != fromBuild {
 				continue
 			}
-			componentName := imageSource.ComponentName
-			imageName := fmt.Sprintf("%s-%s", envName, componentName)
+			componentName := strings.ToLower(imageSource.ComponentName)
+			envNameForName := getLengthLimitedName(envName)
+			imageName := fmt.Sprintf("%s-%s", envNameForName, componentName)
+			containerName := fmt.Sprintf("build-%s-%s", componentName, envNameForName)
 			imagePath := operatorutils.GetImagePath(pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.RadixApplication.GetName(), imageName, pipelineInfo.PipelineArguments.ImageTag)
 			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
 				ComponentName: componentName,
 				EnvName:       envName,
-				ContainerName: fmt.Sprintf("build-%s-%s", componentName, envName),
+				ContainerName: containerName,
 				Context:       getContext(imageSource.Source.Folder),
 				Dockerfile:    getDockerfileName(imageSource.Source.DockefileName),
 				ImageName:     imageName,
@@ -313,6 +315,14 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			pipelineInfo.BuildComponentImages[envName] = buildComponentImages
 		}
 	}
+}
+
+func getLengthLimitedName(name string) string {
+	validatedName := strings.ToLower(name)
+	if len(validatedName) > 10 {
+		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandString(4)))
+	}
+	return validatedName
 }
 
 // Set information about components and image to use for each environment when creating RadixDeployments
