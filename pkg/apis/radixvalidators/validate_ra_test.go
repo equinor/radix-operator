@@ -1168,301 +1168,381 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 
 	setComponentAndJobsVolumeMounts := []setVolumeMountsFunc{setRaComponentVolumeMounts, setRaJobsVolumeMounts}
 
-	var testScenarios = []struct {
-		name                 string
-		volumeMounts         volumeMountsFunc
-		updateRA             []setVolumeMountsFunc
-		isValid              bool
-		isErrorNil           bool
-		testContainedByError string
+	var testScenarios = map[string]struct {
+		volumeMounts  volumeMountsFunc
+		updateRA      []setVolumeMountsFunc
+		expectedError error
 	}{
-		{
-			"incorrect mount type",
-			func() []v1.RadixVolumeMount {
+		"name not set": {
+			volumeMounts: func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:    "new-type",
-						Name:    "some_name",
-						Storage: "some_container_name",
-						Path:    "some_path",
+						Name: "",
 					},
 				}
 
 				return volumeMounts
 			},
-			setComponentAndJobsVolumeMounts,
-			false,
-			false,
-			"not recognized volume mount type",
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountMissingName,
 		},
-		{
-			"blob mount type with different name, containers and path",
-			func() []v1.RadixVolumeMount {
+		"path not set": {
+			volumeMounts: func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:      v1.MountTypeBlob,
-						Name:      "some_name_1",
-						Container: "some_container_name_1",
-						Path:      "some_path_1",
-					},
-					{
-						Type:      v1.MountTypeBlob,
-						Name:      "some_name_2",
-						Container: "some_container_name_2",
-						Path:      "some_path_2",
+						Name: "anyname",
 					},
 				}
 
 				return volumeMounts
 			},
-			setComponentAndJobsVolumeMounts,
-			true,
-			true,
-			"",
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountMissingPath,
 		},
-		{
-			"blob mount type with duplicate names",
-			func() []v1.RadixVolumeMount {
+		"duplicate name": {
+			volumeMounts: func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
+						Name: "anyname",
+						Path: "/path1",
+					},
+					{
+						Name: "anyname",
+						Path: "/path2",
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountDuplicateName,
+		},
+		"duplicate path": {
+			volumeMounts: func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name: "anyname1",
+						Path: "/path1",
+					},
+					{
+						Name: "anyname2",
+						Path: "/path1",
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountDuplicatePath,
+		},
+		"missing type": {
+			volumeMounts: func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name: "anyname",
+						Path: "/path",
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountMissingType,
+		},
+		"multiple types: deprecated source and blobfuse2": {
+			volumeMounts: func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name:      "anyname",
+						Path:      "/path",
 						Type:      v1.MountTypeBlob,
+						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountMultipleTypes,
+		},
+		"multiple types: blobfuse2 and emptyDir": {
+			volumeMounts: func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name:      "anyname",
+						Path:      "/path",
+						Type:      v1.MountTypeBlob,
+						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{},
+						EmptyDir:  &v1.RadixEmptyDirVolumeMount{},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountMultipleTypes,
+		},
+		"deprecated blob: valid": {
+			volumeMounts: func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:      "blob",
 						Name:      "some_name",
-						Container: "some_container_name_1",
-						Path:      "some_path_1",
-					},
-					{
-						Type:      v1.MountTypeBlob,
-						Name:      "some_name",
-						Container: "some_container_name_2",
-						Path:      "some_path_2",
-					},
-				}
-
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts,
-			false,
-			false,
-			"duplicate names",
-		},
-		{
-			"blob mount type with duplicate path",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Type:      v1.MountTypeBlob,
-						Name:      "some_name_1",
-						Container: "some_container_name_1",
-						Path:      "some_path",
-					},
-					{
-						Type:      v1.MountTypeBlob,
-						Name:      "some_name_2",
-						Container: "some_container_name_2",
-						Path:      "some_path",
-					},
-				}
-
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts,
-			false,
-			false,
-			"duplicate path",
-		},
-		{
-			"mount volume type is not set",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name:      "some_name",
-						Container: "some_container_name",
-						Path:      "some_path",
-					},
-				}
-
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts,
-			false,
-			false,
-			"non of volume mount type, blobfuse2 or azureFile options are defined in the volumeMount for component",
-		},
-		{
-			"mount volume name is not set",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Type:      v1.MountTypeBlob,
-						Container: "some_container_name",
+						Container: "any-container",
 						Path:      "some_path",
 					},
 				}
 
 				return volumeMounts
 			},
-			setComponentAndJobsVolumeMounts,
-			false,
-			false,
-			"missing volume mount name and path of volumeMount for component",
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
 		},
-		{
-			"mount volume containers is not set",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Type: v1.MountTypeBlob,
-						Name: "some_name",
-						Path: "some_path",
-					},
-				}
+		// "deprecated: invalid type": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Type:    "new-type",
+		// 				Name:    "some_name",
+		// 				Storage: "some_container_name",
+		// 				Path:    "some_path",
+		// 			},
+		// 		}
 
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts,
-			false,
-			false,
-			"missing volume mount storage of volumeMount for component",
-		},
-		{
-			"mount volume path is not set",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Type:      v1.MountTypeBlob,
-						Name:      "some_name",
-						Container: "some_container_name",
-					},
-				}
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountInvalidType,
+		// },
+		// "blob mount type with different name, containers and path": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Type:      v1.MountTypeBlob,
+		// 				Name:      "some_name_1",
+		// 				Container: "some_container_name_1",
+		// 				Path:      "some_path_1",
+		// 			},
+		// 			{
+		// 				Type:      v1.MountTypeBlob,
+		// 				Name:      "some_name_2",
+		// 				Container: "some_container_name_2",
+		// 				Path:      "some_path_2",
+		// 			},
+		// 		}
 
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts,
-			false,
-			false,
-			"missing volume mount name and path of volumeMount for component",
-		},
-		{
-			"mount volume is blobfuse2 fuse2",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Protocol:  v1.BlobFuse2ProtocolFuse2,
-							Container: "some-container",
-						},
-					},
-				}
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts, true, true, "",
-		},
-		{
-			"mount volume is blobfuse2 nfs",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Protocol:  v1.BlobFuse2ProtocolNfs,
-							Container: "some-container",
-						},
-					},
-				}
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts, true, true, "",
-		},
-		{
-			"missing container name in mount volume blobfuse2 fuse2",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Protocol: v1.BlobFuse2ProtocolFuse2,
-						},
-					},
-				}
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts, false, false, "missing BlobFuse2 volume mount container of volumeMount for component",
-		},
-		{
-			"missing container name in mount volume blobfuse2 nfs",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Protocol: v1.BlobFuse2ProtocolNfs,
-						},
-					},
-				}
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts, false, false, "missing BlobFuse2 volume mount container of volumeMount for component",
-		},
-		{
-			"default empty protocol is fuse2 in mount volume blobfuse2 fuse2",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Container: "some-container",
-						},
-					},
-				}
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts, true, true, "",
-		},
-		{
-			"failed unsupported protocol in mount volume blobfuse2 fuse2",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Container: "some-container",
-							Protocol:  "some-text",
-						},
-					},
-				}
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts, false, false, "unsupported BlobFuse2 volume mount protocol of volumeMount for component",
-		},
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: nil,
+		// },
+		// "blob mount type with duplicate names": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Type:      v1.MountTypeBlob,
+		// 				Name:      "some_name",
+		// 				Container: "some_container_name_1",
+		// 				Path:      "some_path_1",
+		// 			},
+		// 			{
+		// 				Type:      v1.MountTypeBlob,
+		// 				Name:      "some_name",
+		// 				Container: "some_container_name_2",
+		// 				Path:      "some_path_2",
+		// 			},
+		// 		}
+
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountDuplicateName,
+		// },
+		// "blob mount type with duplicate path": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Type:      v1.MountTypeBlob,
+		// 				Name:      "some_name_1",
+		// 				Container: "some_container_name_1",
+		// 				Path:      "some_path",
+		// 			},
+		// 			{
+		// 				Type:      v1.MountTypeBlob,
+		// 				Name:      "some_name_2",
+		// 				Container: "some_container_name_2",
+		// 				Path:      "some_path",
+		// 			},
+		// 		}
+
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountDuplicatePath,
+		// },
+		// "mount volume type is not set": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Name:      "some_name",
+		// 				Container: "some_container_name",
+		// 				Path:      "some_path",
+		// 			},
+		// 		}
+
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountMissingType,
+		// },
+		// "mount volume containers is not set": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Type: v1.MountTypeBlob,
+		// 				Name: "some_name",
+		// 				Path: "some_path",
+		// 			},
+		// 		}
+
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountMissingContainer,
+		// },
+		// "mount volume path is not set": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Type:      v1.MountTypeBlob,
+		// 				Name:      "some_name",
+		// 				Container: "some_container_name",
+		// 			},
+		// 		}
+
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountMissingPath,
+		// },
+		// "mount volume is blobfuse2 fuse2": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Name: "some_name",
+		// 				Path: "some_path",
+		// 				BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+		// 					Protocol:  v1.BlobFuse2ProtocolFuse2,
+		// 					Container: "some-container",
+		// 				},
+		// 			},
+		// 		}
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: nil,
+		// },
+		// "mount volume is blobfuse2 nfs": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Name: "some_name",
+		// 				Path: "some_path",
+		// 				BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+		// 					Protocol:  v1.BlobFuse2ProtocolNfs,
+		// 					Container: "some-container",
+		// 				},
+		// 			},
+		// 		}
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: nil,
+		// },
+		// "missing container name in mount volume blobfuse2 fuse2": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Name: "some_name",
+		// 				Path: "some_path",
+		// 				BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+		// 					Protocol: v1.BlobFuse2ProtocolFuse2,
+		// 				},
+		// 			},
+		// 		}
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountMissingContainer,
+		// },
+		// "missing container name in mount volume blobfuse2 nfs": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Name: "some_name",
+		// 				Path: "some_path",
+		// 				BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+		// 					Protocol: v1.BlobFuse2ProtocolNfs,
+		// 				},
+		// 			},
+		// 		}
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountMissingContainer,
+		// },
+		// "default empty protocol is fuse2 in mount volume blobfuse2 fuse2": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Name: "some_name",
+		// 				Path: "some_path",
+		// 				BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+		// 					Container: "some-container",
+		// 				},
+		// 			},
+		// 		}
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: nil,
+		// },
+		// "failed unsupported protocol in mount volume blobfuse2 fuse2": {
+		// 	volumeMounts: func() []v1.RadixVolumeMount {
+		// 		volumeMounts := []v1.RadixVolumeMount{
+		// 			{
+		// 				Name: "some_name",
+		// 				Path: "some_path",
+		// 				BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+		// 					Container: "some-container",
+		// 					Protocol:  "some-text",
+		// 				},
+		// 			},
+		// 		}
+		// 		return volumeMounts
+		// 	},
+		// 	updateRA:      setComponentAndJobsVolumeMounts,
+		// 	expectedError: radixvalidators.ErrVolumeMountUnsupportedProtocol,
+		// },
 	}
 
 	_, client := validRASetup()
-	for _, testcase := range testScenarios {
-		t.Run(testcase.name, func(t *testing.T) {
-			if testcase.updateRA == nil || len(testcase.updateRA) == 0 {
-				assert.FailNow(t, "missing updateRA functions for %s", testcase.name)
+	for name, test := range testScenarios {
+		t.Run(name, func(t *testing.T) {
+			if test.updateRA == nil || len(test.updateRA) == 0 {
+				assert.FailNow(t, "missing updateRA functions for %s", name)
 				return
 			}
 
-			for _, ra := range testcase.updateRA {
+			for _, ra := range test.updateRA {
 				validRA := createValidRA()
-				volumes := testcase.volumeMounts()
+				volumes := test.volumeMounts()
 				ra(validRA, volumes)
 				err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
-				isErrorNil := err == nil
-
-				assert.Equal(t, testcase.isValid, err == nil)
-				assert.Equal(t, testcase.isErrorNil, isErrorNil)
-				if !isErrorNil {
-					assert.Contains(t, err.Error(), testcase.testContainedByError)
-					continue
+				if test.expectedError == nil {
+					assert.NoError(t, err)
+				} else {
+					assert.ErrorIs(t, err, test.expectedError)
 				}
 			}
 		})

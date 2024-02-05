@@ -33,15 +33,18 @@ var (
 	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpanot set or zero")
 	ErrMinReplicasGreaterThanMaxReplicas                                   = errors.New("min replicas greater than max replicas")
 	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set")
-	ErrEmptyVolumeMountTypeOrDriverSection                                 = errors.New("empty volume mount type or driver section")
-	ErrMultipleVolumeMountTypesDefined                                     = errors.New("multiple volume mount types defined")
-	ErrEmptyVolumeMountNameOrPath                                          = errors.New("empty volume mount name or path")
-	ErrEmptyVolumeMountStorage                                             = errors.New("empty volume mount storage")
-	ErrEmptyBlobFuse2VolumeMountContainer                                  = errors.New("empty blob fuse 2 volume mount container")
-	ErrUnsupportedBlobFuse2VolumeMountProtocol                             = errors.New("unsupported blob fuse 2 volume mount protocol")
-	ErrDuplicatePathForVolumeMount                                         = errors.New("duplicate path for volume mount")
-	ErrDuplicateNameForVolumeMount                                         = errors.New("duplicate name for volume mount")
-	ErrunknownVolumeMountType                                              = errors.New("unknown volume mount type")
+	ErrVolumeMountMissingType                                              = errors.New("no types defined")
+	ErrVolumeMountInvalidType                                              = errors.New("invalid type")
+	ErrVolumeMountMultipleTypes                                            = errors.New("multiple types defined")
+	ErrVolumeMountMissingName                                              = errors.New("name not set")
+	ErrVolumeMountDuplicateName                                            = errors.New("duplicate name")
+	ErrVolumeMountMissingPath                                              = errors.New("path not set")
+	ErrVolumeMountDuplicatePath                                            = errors.New("duplicate path")
+	ErrVolumeMountMissingStorage                                           = errors.New("storage not set")
+	ErrVolumeMountMissingContainer                                         = errors.New("container not set")
+	ErrVolumeMountUnsupportedProtocol                                      = errors.New("unsupported protocol")
+	ErrVolumeMountInvalidRequestsStorage                                   = errors.New("requestsStorage is invalid")
+	ErrVolumeMountInvalidSizeLimit                                         = errors.New("sizeLimit is invalid")
 	ErrApplicationNameNotLowercase                                         = errors.New("application name not lowercase")
 	ErrPublicImageComponentCannotHaveSourceOrDockerfileSet                 = errors.New("public image component cannot have source or dockerfile")
 	ErrComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag = errors.New("component with tag in environment config for environment requires dynamic")
@@ -257,32 +260,24 @@ func NoScalingResourceSetErrorWithMessage(component, environment string) error {
 	return errors.WithMessagef(ErrNoScalingResourceSet, "no scaling resource is set for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-func emptyVolumeMountTypeOrDriverSectionErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrEmptyVolumeMountTypeOrDriverSection, "non of volume mount type, blobfuse2 or azureFile options are defined in the volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+func volumeMountValidationError(name string, cause error) error {
+	return fmt.Errorf("volumeMount %s failed validation. %w", name, cause)
 }
 
-func multipleVolumeMountTypesDefinedErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrMultipleVolumeMountTypesDefined, "multiple volume mount types defined in the volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+func volumeMountDeprecatedSourceValidationError(cause error) error {
+	return fmt.Errorf("deprecated arguments failed validation. %w", cause)
 }
 
-func emptyVolumeMountNameOrPathErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrEmptyVolumeMountNameOrPath, "missing volume mount name and path of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+func volumeMountBlobFuse2ValidationError(cause error) error {
+	return fmt.Errorf("blobFuse2 failed validation. %w", cause)
 }
 
-func emptyVolumeMountStorageErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrEmptyVolumeMountStorage, "missing volume mount storage of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+func volumeMountAzureFileValidationError(cause error) error {
+	return fmt.Errorf("azureFile failed validation. %w", cause)
 }
 
-func emptyBlobFuse2VolumeMountContainerErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrEmptyBlobFuse2VolumeMountContainer, "missing BlobFuse2 volume mount container of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
-}
-
-func unsupportedBlobFuse2VolumeMountProtocolErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrUnsupportedBlobFuse2VolumeMountProtocol, "unsupported BlobFuse2 volume mount protocol of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
-}
-
-func volumeMountValidationError(volumeMount *radixv1.RadixVolumeMount, componentName, environment string, cause error) error {
-	return fmt.Errorf("volumeMount %s for component %s and environment %s failed validation: %w", volumeMount.Name, componentName, environment, cause)
+func volumeMountEmptyDirValidationError(cause error) error {
+	return fmt.Errorf("emptyDir failed validation. %w", cause)
 }
 
 // ApplicationNameNotLowercaseErrorWithMessage Indicates that application name contains upper case letters

@@ -592,6 +592,9 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                          useReadOnlyFileSystem:
+                            description: Controls if the filesystem shall be read-only.
+                            type: boolean
                           variables:
                             additionalProperties:
                               type: string
@@ -726,6 +729,12 @@ spec:
                                     skuName:
                                       description: 'SKU Type of Azure storage. More
                                         info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types'
+                                      enum:
+                                      - Standard_LRS
+                                      - Premium_LRS
+                                      - Standard_GRS
+                                      - Standard_RAGRS
+                                      - ""
                                       type: string
                                     streaming:
                                       description: 'Configure Streaming mode. Used
@@ -781,11 +790,23 @@ spec:
                                         Default false. This must be turned on when
                                         HNS enabled account is mounted.
                                       type: boolean
+                                  required:
+                                  - container
                                   type: object
                                 container:
                                   description: 'Deprecated. Only required by the deprecated
                                     type: blob.'
                                   type: string
+                                emptyDir:
+                                  description: EmptyDir settings for EmptyDir volume
+                                  properties:
+                                    sizeLimit:
+                                      description: SizeLimit defines the size of the
+                                        emptyDir volume
+                                      type: string
+                                  required:
+                                  - sizeLimit
+                                  type: object
                                 gid:
                                   description: GID defines the group ID (number) which
                                     will be set as owner of the mounted volume. Deprecated,
@@ -1064,6 +1085,9 @@ spec:
                       description: 'Path to the Dockerfile that builds the component.
                         More info: https://www.radix.equinor.com/references/reference-radix-config/#src'
                       type: string
+                    useReadOnlyFileSystem:
+                      description: Controls if the filesystem shall be read-only.
+                      type: boolean
                     variables:
                       additionalProperties:
                         type: string
@@ -1483,6 +1507,9 @@ spec:
                               number of seconds the job can run. More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2'
                             format: int64
                             type: integer
+                          useReadOnlyFileSystem:
+                            description: Controls if the filesystem shall be read-only.
+                            type: boolean
                           variables:
                             additionalProperties:
                               type: string
@@ -1616,6 +1643,12 @@ spec:
                                     skuName:
                                       description: 'SKU Type of Azure storage. More
                                         info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types'
+                                      enum:
+                                      - Standard_LRS
+                                      - Premium_LRS
+                                      - Standard_GRS
+                                      - Standard_RAGRS
+                                      - ""
                                       type: string
                                     streaming:
                                       description: 'Configure Streaming mode. Used
@@ -1671,11 +1704,23 @@ spec:
                                         Default false. This must be turned on when
                                         HNS enabled account is mounted.
                                       type: boolean
+                                  required:
+                                  - container
                                   type: object
                                 container:
                                   description: 'Deprecated. Only required by the deprecated
                                     type: blob.'
                                   type: string
+                                emptyDir:
+                                  description: EmptyDir settings for EmptyDir volume
+                                  properties:
+                                    sizeLimit:
+                                      description: SizeLimit defines the size of the
+                                        emptyDir volume
+                                      type: string
+                                  required:
+                                  - sizeLimit
+                                  type: object
                                 gid:
                                   description: GID defines the group ID (number) which
                                     will be set as owner of the mounted volume. Deprecated,
@@ -1974,6 +2019,9 @@ spec:
                         More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds'
                       format: int64
                       type: integer
+                    useReadOnlyFileSystem:
+                      description: Controls if the filesystem shall be read-only.
+                      type: boolean
                     variables:
                       additionalProperties:
                         type: string
