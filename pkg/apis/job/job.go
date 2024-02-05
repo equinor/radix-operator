@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -60,7 +60,7 @@ func (job *Job) OnSync() error {
 	appName := job.radixJob.Spec.AppName
 	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.GetNamespace()).Get(context.TODO(), appName, metav1.GetOptions{})
 	if err != nil {
-		if !k8sErrors.IsNotFound(err) {
+		if !errors.IsNotFound(err) {
 			return err
 		}
 		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", appName)
@@ -83,7 +83,7 @@ func (job *Job) OnSync() error {
 	}
 
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-	if k8sErrors.IsNotFound(err) {
+	if errors.IsNotFound(err) {
 		err = job.createPipelineJob()
 		if err != nil {
 			return err
@@ -236,11 +236,11 @@ func IsRadixJobDone(rj *v1.RadixJob) bool {
 
 func (job *Job) setStatusOfJob() error {
 	pipelineJob, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-	if k8sErrors.IsNotFound(err) {
-		// No kubernetes job created yet, so nothing to sync
-		return nil
-	}
 	if err != nil {
+		if errors.IsNotFound(err) {
+			// No kubernetes job created yet, so nothing to sync
+			return nil
+		}
 		return err
 	}
 
@@ -314,7 +314,7 @@ func (job *Job) getStoppedSteps(isRunning bool) (*[]v1.RadixJobStep, error) {
 	}
 	// Delete pipeline job
 	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), job.radixJob.Name, metav1.DeleteOptions{})
-	if err != nil && !k8sErrors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) {
 		return nil, err
 	}
 
@@ -354,7 +354,7 @@ func (job *Job) deleteStepJobs() error {
 			}
 
 			err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), kubernetesJob.Name, metav1.DeleteOptions{})
-			if err != nil && !k8sErrors.IsNotFound(err) {
+			if err != nil && !errors.IsNotFound(err) {
 				return err
 			}
 
@@ -455,7 +455,7 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 		}
 
 		pod := jobStepPod.Items[0]
-		componentImages := make(pipeline.BuildComponentImages, 0)
+		componentImages := make(pipeline.BuildComponentImages)
 		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
 			return nil, err
 		}

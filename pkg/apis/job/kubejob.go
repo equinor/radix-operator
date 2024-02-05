@@ -30,9 +30,11 @@ const (
 	workerImage = "radix-pipeline"
 	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
 	ResultContent = "ResultContent"
-	runAsUser     = 1000
-	runAsGroup    = 1000
-	fsGroup       = 1000
+	// PipelineBuildContext PrepareBuildContext content from the prepare pipeline job
+	PipelineBuildContext = "buildContext"
+	runAsUser            = 1000
+	runAsGroup           = 1000
+	fsGroup              = 1000
 )
 
 func (job *Job) createPipelineJob() error {
