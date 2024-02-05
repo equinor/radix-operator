@@ -142,13 +142,6 @@ func (cli *PipelineRunner) CreateResultConfigMap() error {
 		},
 		Data: map[string]string{jobs.ResultContent: string(resultContent)},
 	}
-	if cli.pipelineInfo.PrepareBuildContext != nil {
-		buildContext, err := yaml.Marshal(cli.pipelineInfo.PrepareBuildContext)
-		if err != nil {
-			return err
-		}
-		configMap.Data[jobs.PipelineBuildContext] = string(buildContext)
-	}
 	log.Debugf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 	_, err = cli.kubeUtil.CreateConfigMap(utils.GetAppNamespace(cli.appName), &configMap)
 	return err
