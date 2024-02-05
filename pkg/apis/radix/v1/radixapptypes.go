@@ -847,11 +847,10 @@ type RadixBlobFuse2VolumeMount struct {
 	// Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.
 	// +kubebuilder:validation:Enum=fuse2;nfs;""
 	// +optional
-	Protocol BlobFuse2Protocol `json:"protocol"`
+	Protocol BlobFuse2Protocol `json:"protocol,omitempty"`
 
 	// Container. Name of the container in the external storage resource.
-	// +optional
-	Container string `json:"container,omitempty"`
+	Container string `json:"container"`
 
 	// GID defines the group ID (number) which will be set as owner of the mounted volume.
 	// +optional
@@ -863,6 +862,7 @@ type RadixBlobFuse2VolumeMount struct {
 
 	// SKU Type of Azure storage.
 	// More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+	// +kubebuilder:validation:Enum=Standard_LRS;Premium_LRS;Standard_GRS;Standard_RAGRS;""
 	// +optional
 	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 

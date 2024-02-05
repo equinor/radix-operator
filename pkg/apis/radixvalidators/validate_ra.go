@@ -1302,15 +1302,15 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 				return err
 			}
 		case v.HasBlobFuse2():
-			if err := validateVolumeMountBlobFuse2(&v, componentName, environment); err != nil {
+			if err := validateVolumeMountBlobFuse2(v.BlobFuse2, componentName, environment); err != nil {
 				return err
 			}
 		case v.HasAzureFile():
-			if err := validateVolumeMountAzureFile(&v, componentName, environment); err != nil {
+			if err := validateVolumeMountAzureFile(v.AzureFile, componentName, environment); err != nil {
 				return err
 			}
 		case v.HasEmptyDir():
-			if err := validateVolumeMountEmptyDir(&v, componentName, environment); err != nil {
+			if err := validateVolumeMountEmptyDir(v.EmptyDir, componentName, environment); err != nil {
 				return err
 			}
 		default:
@@ -1321,73 +1321,57 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 	return nil
 }
 
-func validateVolumeMountEmptyDir(v *radixv1.RadixVolumeMount, componentName, environment string) error {
-	return nil
-}
-
-func validateVolumeMountAzureFile(v *radixv1.RadixVolumeMount, componentName, environment string) error {
-	return errors.New("azureFile is not yet supported")
-}
-
-func validateVolumeMountBlobFuse2(v *radixv1.RadixVolumeMount, componentName, environment string) error {
-	return nil
-}
-
 func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount, componentName, environment string) error {
-
 	if !slices.Contains([]radixv1.MountType{radixv1.MountTypeBlob, radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure}, v.Type) {
 		return volumeMountValidationError(v, componentName, environment, ErrunknownVolumeMountType)
 	}
 
-	if v.Type == radixv1.MountTypeBlob && len(v.Container) == 0 {
+	if len(v.RequestsStorage) > 0 {
+		if _, err := resource.ParseQuantity(v.RequestsStorage); err != nil {
+			return err
+		}
+	}
+
+	switch v.Type {
+	case radixv1.MountTypeBlob:
+		if len(v.Container) == 0 {
+			return emptyVolumeMountStorageErrorWithMessage(componentName, environment)
+		}
+		return nil
+	case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure:
+		if len(v.Storage) == 0 {
+			return emptyVolumeMountStorageErrorWithMessage(componentName, environment)
+		}
 		return nil
 	}
 
 	return nil
+}
 
-	/*
-		for _, volumeMount := range volumeMounts {
-			volumeMountType := string(deployment.GetCsiAzureVolumeMountType(&volumeMount))
-			volumeMountStorage := deployment.GetRadixVolumeMountStorage(&volumeMount)
-			switch {
-			case len(volumeMount.Type) == 0 && volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil:
-				return emptyVolumeMountTypeOrDriverSectionErrorWithMessage(componentName, environment)
-			case multipleVolumeTypesDefined(&volumeMount):
-				return multipleVolumeMountTypesDefinedErrorWithMessage(componentName, environment)
-			case strings.TrimSpace(volumeMount.Name) == "" ||
-				strings.TrimSpace(volumeMount.Path) == "":
-				return emptyVolumeMountNameOrPathErrorWithMessage(componentName, environment)
-			case volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil && len(volumeMount.Type) > 0 && len(volumeMountStorage) == 0:
-				return emptyVolumeMountStorageErrorWithMessage(componentName, environment)
-			case volumeMount.BlobFuse2 != nil:
-				switch {
-				case len(volumeMount.BlobFuse2.Container) == 0:
-					return emptyBlobFuse2VolumeMountContainerErrorWithMessage(componentName, environment)
-				case len(string(volumeMount.BlobFuse2.Protocol)) > 0 && !commonUtils.ContainsString(blobFuse2Protocols, string(volumeMount.BlobFuse2.Protocol)):
-					return unsupportedBlobFuse2VolumeMountProtocolErrorWithMessage(componentName, environment)
-				}
-				fallthrough
-			case radixv1.IsKnownVolumeMount(volumeMountType):
-				{
-					if _, exists := mountsInComponent[volumeMountType]; !exists {
-						mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), path: make(map[string]bool)}
-					}
-					volumeMountConfigMap := mountsInComponent[volumeMountType]
-					if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
-						return duplicateNameForVolumeMountTypeWithMessage(volumeMount.Name, volumeMountType, componentName, environment)
-					}
-					volumeMountConfigMap.names[volumeMount.Name] = true
-					if _, exists := volumeMountConfigMap.path[volumeMount.Path]; exists {
-						return duplicatePathForVolumeMountTypeWithMessage(volumeMount.Path, volumeMountType, componentName, environment)
-					}
-					volumeMountConfigMap.path[volumeMount.Path] = true
-				}
-			default:
-				return unknownVolumeMountTypeErrorWithMessage(volumeMountType, componentName, environment)
-			}
+func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount, componentName, environment string) error {
+	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, radixv1.BlobFuse2ProtocolNfs, ""}, fuse2.Protocol) {
+		return unsupportedBlobFuse2VolumeMountProtocolErrorWithMessage(componentName, environment)
+	}
+
+	if len(fuse2.Container) == 0 {
+		return emptyBlobFuse2VolumeMountContainerErrorWithMessage(componentName, environment)
+	}
+
+	if len(fuse2.RequestsStorage) > 0 {
+		if _, err := resource.ParseQuantity(fuse2.RequestsStorage); err != nil {
+			return err
 		}
-	*/
+	}
+	return nil
+}
 
+func validateVolumeMountAzureFile(_ *radixv1.RadixAzureFileVolumeMount, componentName, environment string) error {
+	return errors.New("azureFile is not yet supported")
+}
+
+func validateVolumeMountEmptyDir(emptyDir *radixv1.RadixEmptyDirVolumeMount, componentName, environment string) error {
+	_, err := resource.ParseQuantity(emptyDir.SizeLimit)
+	return err
 }
 
 func validateIdentity(identity *radixv1.Identity) error {
