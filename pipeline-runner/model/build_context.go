@@ -19,9 +19,9 @@ type EnvironmentSubPipelineToRun struct {
 // PrepareBuildContext Provide optional build instruction from the prepare job to the pipeline job
 type PrepareBuildContext struct {
 	// EnvironmentsToBuild List of environments with component names, which need to be built
-	EnvironmentsToBuild []EnvironmentToBuild `json:"environmentsToBuild,omitempty"`
+	EnvironmentsToBuild []EnvironmentToBuild
 	// ChangedRadixConfig Radix Config file was changed
-	ChangedRadixConfig bool `json:"changedRadixConfig,omitempty"`
+	ChangedRadixConfig bool
 	// EnvironmentSubPipelinesToRun Sub-pipeline pipeline file named, if they are configured to be run
-	EnvironmentSubPipelinesToRun []EnvironmentSubPipelineToRun `json:"environmentSubPipelinesToRun,omitempty"`
+	EnvironmentSubPipelinesToRun []EnvironmentSubPipelineToRun
 }
