@@ -87,7 +87,7 @@ func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, j
 
 func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeployment, componentsToDeploy []string) (PreservingDeployComponents, error) {
 	preservingDeployComponents := PreservingDeployComponents{}
-	if activeRadixDeployment == nil || len(componentsToDeploy) == 0 {
+	if activeRadixDeployment == nil {
 		return preservingDeployComponents, nil
 	}
 	log.Infof("Deploy only following component(s): %s", strings.Join(componentsToDeploy, ","))
