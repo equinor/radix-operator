@@ -798,6 +798,7 @@
                           },
                           "name": {
                             "description": "User-defined name of the volume mount. Must be unique for the component.",
+                            "maxLength": 40,
                             "minLength": 1,
                             "type": "string"
                           },
@@ -1759,6 +1760,7 @@
                           },
                           "name": {
                             "description": "User-defined name of the volume mount. Must be unique for the component.",
+                            "maxLength": 40,
                             "minLength": 1,
                             "type": "string"
                           },

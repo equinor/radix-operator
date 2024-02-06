@@ -33,7 +33,7 @@ const (
 
 	// csiVolumeNameTemplate                = "%s-%s-%s-%s"       // <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"         // pvc-<volumename>-<randomstring5>
-	csiStorageClassNameTemplate          = "sc-%s-%s"          // sc-<namespace>-<volumename>
+	csiStorageClassNameTemplate          = "sc-%s-%s-%s"       // sc-<namespace>-<componentName>-<volumename>
 	csiVolumeNodeMountPathTemplate       = "%s/%s/%s/%s/%s/%s" // <volumeRootMount>/<namespace>/<radixvolumeid>/<componentname>/<radixvolumename>/<storage>
 
 	csiStorageClassProvisionerSecretNameParameter       = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
@@ -336,8 +336,8 @@ func createCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMo
 }
 
 // GetCsiAzureStorageClassName hold a name of CSI volume storage class
-func GetCsiAzureStorageClassName(namespace, volumeName string) string {
-	return fmt.Sprintf(csiStorageClassNameTemplate, namespace, volumeName) // volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
+func GetCsiAzureStorageClassName(namespace, componentName, volumeName string) string {
+	return fmt.Sprintf(csiStorageClassNameTemplate, namespace, componentName, volumeName)
 }
 
 func getBlobFuseVolume(namespace, environment, componentName string, volumeMount *radixv1.RadixVolumeMount) corev1.Volume {
@@ -849,7 +849,7 @@ func (deploy *Deployment) getOrCreateCsiAzureVolumeMountStorageClass(appName, vo
 	if !foundProvisioner {
 		return nil, false, fmt.Errorf("not found Storage Class provisioner for volume mount type %s", string(GetCsiAzureVolumeMountType(radixVolumeMount)))
 	}
-	storageClassName := GetCsiAzureStorageClassName(namespace, volumeName)
+	storageClassName := GetCsiAzureStorageClassName(namespace, componentName, volumeName)
 	csiVolumeSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
 	if existingStorageClass, exists := scMap[storageClassName]; exists {
 		desiredStorageClass := existingStorageClass.DeepCopy()

@@ -747,6 +747,7 @@ type RadixVolumeMount struct {
 	// User-defined name of the volume mount.
 	// Must be unique for the component.
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=40
 	Name string `json:"name"`
 
 	// Deprecated. Only required by the deprecated type: blob.
