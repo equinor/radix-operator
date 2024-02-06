@@ -1352,7 +1352,7 @@ func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
 
 func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) error {
 	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, radixv1.BlobFuse2ProtocolNfs, ""}, fuse2.Protocol) {
-		return volumeMountBlobFuse2ValidationError(ErrVolumeMountUnsupportedProtocol)
+		return volumeMountBlobFuse2ValidationError(ErrVolumeMountInvalidProtocol)
 	}
 
 	if len(fuse2.Container) == 0 {
@@ -1368,7 +1368,7 @@ func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) erro
 }
 
 func validateVolumeMountAzureFile(_ *radixv1.RadixAzureFileVolumeMount) error {
-	return volumeMountAzureFileValidationError(errors.New("not supported"))
+	return volumeMountAzureFileValidationError(ErrVolumeMountTypeNotImplemented)
 }
 
 func validateVolumeMountEmptyDir(emptyDir *radixv1.RadixEmptyDirVolumeMount) error {
