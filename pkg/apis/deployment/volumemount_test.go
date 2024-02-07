@@ -281,11 +281,11 @@ func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "volume1", Container: "storageName1", Path: "TestPath1"},
-			expectedVolumeName: "radix-vm-volume1",
+			expectedVolumeName: "blobfuse-app-volume1",
 		},
 		{
 			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "volume2", Container: "storageName2", Path: "TestPath2"},
-			expectedVolumeName: "radix-vm-volume2",
+			expectedVolumeName: "blobfuse-app-volume2",
 		},
 	}
 	suite.T().Run("One Blobfuse Azure volume mount", func(t *testing.T) {
@@ -333,32 +333,34 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		{
 			name:                  "Blob CSI Azure volume",
 			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-			expectedVolumeName:    "radix-vm-volume1",
+			expectedVolumeName:    "csi-az-blob-some-component-volume1-storage1",
 			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-volume1-storage1",
 		},
 		{
 			name:                  "File CSI Azure volume",
 			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-			expectedVolumeName:    "radix-vm-volume1",
+			expectedVolumeName:    "csi-az-file-some-component-volume1-storage1",
 			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-volume1-storage1",
 		},
 		{
-			name:                  "Blob CSI Azure volume",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
-			expectedVolumeName:    "radix-vm-volume-with-long-name",
-			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-volume-with-long-name-storageN-",
+			name:                       "Blob CSI Azure volume",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
+			expectedVolumeName:         "csi-az-blob-some-component-volume-with-long-name-storageN-",
+			expectedVolumeNameIsPrefix: true,
+			expectedPvcNamePrefix:      "pvc-csi-az-blob-some-component-volume-with-long-name-storageN-",
 		},
 		{
-			name:                  "File CSI Azure volume",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
-			expectedVolumeName:    "radix-vm-volume-with-long-name",
-			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-volume-with-long-name-storageN-",
+			name:                       "File CSI Azure volume",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
+			expectedVolumeName:         "csi-az-file-some-component-volume-with-long-name-storageN-",
+			expectedVolumeNameIsPrefix: true,
+			expectedPvcNamePrefix:      "pvc-csi-az-file-some-component-volume-with-long-name-storageN-",
 		},
 	}
 	blobFuseScenario := volumeMountTestScenario{
 		name:               "Blob Azure FlexVolume",
 		radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "volume1", Container: "storage1", Path: "path1"},
-		expectedVolumeName: "radix-vm-volume1",
+		expectedVolumeName: "blobfuse-some-component-volume1",
 	}
 	suite.T().Run("CSI Azure volumes", func(t *testing.T) {
 		t.Parallel()
@@ -438,7 +440,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "Blob CSI Azure volume, PVS phase: Bound",
 				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-				expectedVolumeName:    "radix-vm-volume1",
+				expectedVolumeName:    "csi-az-blob-some-component-volume1-storage1",
 				expectedPvcNamePrefix: "existing-blob-pvc-name1",
 			},
 			pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
@@ -451,7 +453,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "Blob CSI Azure volume, PVS phase: Pending",
 				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-				expectedVolumeName:    "radix-vm-volume2",
+				expectedVolumeName:    "csi-az-blob-some-component-volume2-storage2",
 				expectedPvcNamePrefix: "existing-blob-pvc-name2",
 			},
 			pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
@@ -464,7 +466,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "File CSI Azure volume, PVS phase: Bound",
 				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume3", Storage: "storage3", Path: "path3", GID: "1000"},
-				expectedVolumeName:    "radix-vm-volume3",
+				expectedVolumeName:    "csi-az-file-some-component-volume3-storage3",
 				expectedPvcNamePrefix: "existing-file-pvc-name1",
 			},
 			pvc: createPvc(namespace, componentName, v1.MountTypeAzureFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
@@ -477,7 +479,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "File CSI Azure volume, PVS phase: Pending",
 				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume4", Storage: "storage4", Path: "path4", GID: "1000"},
-				expectedVolumeName:    "radix-vm-volume4",
+				expectedVolumeName:    "csi-az-file-some-component-volume4-storage4",
 				expectedPvcNamePrefix: "existing-file-pvc-name2",
 			},
 			pvc: createPvc(namespace, componentName, v1.MountTypeAzureFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
@@ -533,7 +535,7 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "Blob CSI Azure volume, Status phase: Bound",
 				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-				expectedVolumeName:    "radix-vm-blob-volume1",
+				expectedVolumeName:    "csi-az-blob-some-component-blob-volume1-storage1",
 				expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume1-storage1",
 			},
 			pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimBound }),
@@ -542,7 +544,7 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "Blob CSI Azure volume, Status phase: Pending",
 				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-				expectedVolumeName:    "radix-vm-blob-volume2",
+				expectedVolumeName:    "csi-az-blob-some-component-blob-volume2-storage2",
 				expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume2-storage2",
 			},
 			pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimPending }),
@@ -551,7 +553,7 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "File CSI Azure volume, Status phase: Bound",
 				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume1", Storage: "storage3", Path: "path3", GID: "1000"},
-				expectedVolumeName:    "radix-vm-file-volume1",
+				expectedVolumeName:    "csi-az-file-some-component-file-volume1-storage3",
 				expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume1-storage3",
 			},
 			pvc: createPvc(namespace, componentName, v1.MountTypeAzureFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimBound }),
@@ -560,7 +562,7 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "File CSI Azure volume, Status phase: Pending",
 				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume2", Storage: "storage4", Path: "path4", GID: "1000"},
-				expectedVolumeName:    "radix-vm-file-volume2",
+				expectedVolumeName:    "csi-az-file-some-component-file-volume2-storage4",
 				expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume2-storage4",
 			},
 			pvc: createPvc(namespace, componentName, v1.MountTypeAzureFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimPending }),
@@ -634,38 +636,40 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 		{
 			name:                  "Blob CSI Azure volume, Status phase: Bound",
 			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-			expectedVolumeName:    "radix-vm-blob-volume1",
+			expectedVolumeName:    "csi-az-blob-some-component-blob-volume1-storage1",
 			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume1-storage1",
 		},
 		{
 			name:                  "Blob CSI Azure volume, Status phase: Pending",
 			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-			expectedVolumeName:    "radix-vm-blob-volume2",
+			expectedVolumeName:    "csi-az-blob-some-component-blob-volume2-storage2",
 			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume2-storage2",
 		},
 		{
 			name:                  "File CSI Azure volume, Status phase: Bound",
 			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume1", Storage: "storage3", Path: "path3", GID: "1000"},
-			expectedVolumeName:    "radix-vm-file-volume1",
+			expectedVolumeName:    "csi-az-file-some-component-file-volume1-storage3",
 			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume1-storage3",
 		},
 		{
 			name:                  "File CSI Azure volume, Status phase: Pending",
 			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume2", Storage: "storage4", Path: "path4", GID: "1000"},
-			expectedVolumeName:    "radix-vm-file-volume2",
+			expectedVolumeName:    "csi-az-file-some-component-file-volume2-storage4",
 			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume2-storage4",
 		},
 		{
-			name:                  "Blob CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume-with-long-name", Storage: "storage-with-long-name", Path: "path2", GID: "1000"},
-			expectedVolumeName:    "radix-vm-blob-volume-with-long-name",
-			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume-with-long-name-",
+			name:                       "Blob CSI Azure volume, Status phase: Pending",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume-with-long-name", Storage: "storage-with-long-name", Path: "path2", GID: "1000"},
+			expectedVolumeName:         "csi-az-blob-some-component-blob-volume-with-long-name-sto-",
+			expectedVolumeNameIsPrefix: true,
+			expectedPvcNamePrefix:      "pvc-csi-az-blob-some-component-blob-volume-with-long-name-",
 		},
 		{
-			name:                  "File CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume-with-long-name", Storage: "storage-with-long-name", Path: "path4", GID: "1000"},
-			expectedVolumeName:    "radix-vm-file-volume-with-long-name",
-			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume-with-long-name-",
+			name:                       "File CSI Azure volume, Status phase: Pending",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume-with-long-name", Storage: "storage-with-long-name", Path: "path4", GID: "1000"},
+			expectedVolumeName:         "csi-az-file-some-component-file-volume-with-long-name-sto-",
+			expectedVolumeNameIsPrefix: true,
+			expectedPvcNamePrefix:      "pvc-csi-az-file-some-component-file-volume-with-long-name-",
 		},
 	}
 
@@ -716,19 +720,18 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 	scenarios := []volumeMountTestScenario{
 		{
 			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
-			expectedVolumeName: "radix-vm-volume1",
+			expectedVolumeName: "csi-az-file-app-volume1-storageName1",
 		},
 		{
 			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
-			expectedVolumeName: "radix-vm-volume2",
+			expectedVolumeName: "csi-az-file-app-volume2-storageName2",
 		},
 		{
-			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: strings.Repeat("a", 100), Storage: "storageName3", Path: "TestPath3"},
-			expectedVolumeName:         "radix-vm-" + strings.Repeat("a", 48) + "-",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath3"},
+			expectedVolumeName:         "csi-az-file-app-volume-with-long-name-storageName-with-lo-",
 			expectedVolumeNameIsPrefix: true,
 		},
 	}
-
 	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
@@ -806,354 +809,354 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			getScenario(getPropsCsiFileVolume2Storage2(nil)),
 		}
 	}()...)
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	type scenarioProperties struct {
-	// 		changedNewRadixVolumeName        string
-	// 		changedNewRadixVolumeStorageName string
-	// 		expectedVolumeName               string
-	// 		expectedNewSecretName            string
-	// 		expectedNewPvcName               string
-	// 		expectedNewStorageClassName      string
-	// 		expectedNewScTmpPath             string
-	// 	}
-	// 	getScenario := func(props expectedPvcScProperties, scenarioProps scenarioProperties) deploymentVolumesTestScenario {
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Update storage in existing volume name and storage",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {
-	// 					vm.Name = scenarioProps.changedNewRadixVolumeName
-	// 					vm.Storage = scenarioProps.changedNewRadixVolumeStorageName
-	// 				}),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createVolume(props, func(v *corev1.Volume) {
-	// 					v.Name = scenarioProps.expectedVolumeName
-	// 				}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-	// 			},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-	// 					pvc.ObjectMeta.Name = scenarioProps.expectedNewPvcName
-	// 					pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
-	// 					pvc.Spec.StorageClassName = utils.StringPtr(scenarioProps.expectedNewStorageClassName)
-	// 				}),
-	// 			},
-	// 			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
-	// 			},
-	// 			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
-	// 					sc.ObjectMeta.Name = scenarioProps.expectedNewStorageClassName
-	// 					sc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
-	// 					// setStorageClassMountOption(sc, "--tmp-path", scenarioProps.expectedNewScTmpPath) //TODO: this option does not work with blobfuse2 in some reason - investigate to make use separate disk volume for csi volumes
-	// 					setStorageClassStorageParameter(props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName, sc)
-	// 					sc.Parameters[csiStorageClassProvisionerSecretNameParameter] = scenarioProps.expectedNewSecretName
-	// 					sc.Parameters[csiStorageClassNodeStageSecretNameParameter] = scenarioProps.expectedNewSecretName
-	// 				}),
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil), scenarioProperties{
-	// 			changedNewRadixVolumeName:        "volume101",
-	// 			changedNewRadixVolumeStorageName: "storage101",
-	// 			expectedVolumeName:               "radix-vm-volume101",
-	// 			expectedNewSecretName:            "some-component-volume101-csiazurecreds",
-	// 			expectedNewPvcName:               "pvc-csi-az-blob-some-component-volume101-storage101-12345",
-	// 			expectedNewStorageClassName:      "sc-any-app-some-env-csi-az-blob-some-component-volume101-storage101",
-	// 			expectedNewScTmpPath:             "/tmp/any-app-some-env/csi-az-blob/some-component/volume101/storage101",
-	// 		}),
-	// 		getScenario(getPropsCsiFileVolume2Storage2(nil), scenarioProperties{
-	// 			changedNewRadixVolumeName:        "volume101",
-	// 			changedNewRadixVolumeStorageName: "storage101",
-	// 			expectedVolumeName:               "radix-vm-volume101",
-	// 			expectedNewSecretName:            "some-component-volume101-csiazurecreds",
-	// 			expectedNewPvcName:               "pvc-csi-az-file-some-component-volume101-storage101-12345",
-	// 			expectedNewStorageClassName:      "sc-any-app-some-env-csi-az-file-some-component-volume101-storage101",
-	// 			expectedNewScTmpPath:             "/tmp/any-app-some-env/csi-az-file/some-component/volume101/storage101",
-	// 		}),
-	// 	}
-	// }()...)
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
-	// 		storageClassForAnotherNamespace := createRandomStorageClass(props, utils.RandString(10), utils.RandString(10))
-	// 		storageClassForAnotherComponent := createRandomStorageClass(props, props.namespace, utils.RandString(10))
-	// 		pvcForAnotherNamespace := createRandomPvc(props, utils.RandString(10), utils.RandString(10))
-	// 		pvcForAnotherComponent := createRandomPvc(props, props.namespace, utils.RandString(10))
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Garbage collect orphaned PVCs and StorageClasses",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createVolume(props, func(v *corev1.Volume) {}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
-	// 				createRandomPvc(props, props.namespace, props.componentName),
-	// 				pvcForAnotherNamespace,
-	// 				pvcForAnotherComponent,
-	// 			},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-	// 				pvcForAnotherNamespace,
-	// 				pvcForAnotherComponent,
-	// 			},
-	// 			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
-	// 				createRandomStorageClass(props, props.namespace, props.componentName),
-	// 				storageClassForAnotherNamespace,
-	// 				storageClassForAnotherComponent,
-	// 			},
-	// 			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
-	// 				storageClassForAnotherNamespace,
-	// 				storageClassForAnotherComponent,
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-	// 		getScenario(getPropsCsiFileVolume2Storage2(nil)),
-	// 	}
-	// }()...)
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Set readonly volume",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createVolume(props, func(v *corev1.Volume) {}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
-	// 				createRandomPvc(props, props.namespace, props.componentName),
-	// 			},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-	// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
-	// 				}),
-	// 			},
-	// 			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
-	// 				createRandomStorageClass(props, props.namespace, props.componentName),
-	// 			},
-	// 			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
-	// 					sc.MountOptions = append(sc.MountOptions, "-o ro")
-	// 				}),
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-	// 		getScenario(getPropsCsiFileVolume2Storage2(nil)),
-	// 	}
-	// }()...)
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Set ReadWriteOnce volume",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteOnce) }),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createVolume(props, func(v *corev1.Volume) {}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
-	// 				createRandomPvc(props, props.namespace, props.componentName),
-	// 			},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-	// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-	// 				}),
-	// 			},
-	// 			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
-	// 				createRandomStorageClass(props, props.namespace, props.componentName),
-	// 			},
-	// 			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-	// 		getScenario(getPropsCsiFileVolume2Storage2(nil)),
-	// 	}
-	// }()...)
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Set ReadWriteOnce volume",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createVolume(props, func(v *corev1.Volume) {}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
-	// 				createRandomPvc(props, props.namespace, props.componentName),
-	// 			},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-	// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
-	// 				}),
-	// 			},
-	// 			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
-	// 				createRandomStorageClass(props, props.namespace, props.componentName),
-	// 			},
-	// 			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-	// 		getScenario(getPropsCsiFileVolume2Storage2(nil)),
-	// 	}
-	// }()...)
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Create new BlobFuse2 volume has streaming by default and streaming options not set",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createVolume(props, func(v *corev1.Volume) {}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-	// 			},
-	// 			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
-	// 			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
-	// 					sc.MountOptions = []string{
-	// 						"--file-cache-timeout-in-seconds=120",
-	// 						"--use-attr-cache=true",
-	// 						"--cancel-list-on-mount-seconds=0",
-	// 						"-o allow_other",
-	// 						"-o attr_timeout=120",
-	// 						"-o entry_timeout=120",
-	// 						"-o negative_timeout=120",
-	// 						"-o gid=1000",
-	// 						"--streaming=true",
-	// 						"--use-adls=false",
-	// 					}
-	// 				}),
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
-	// 	}
-	// }()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		type scenarioProperties struct {
+			changedNewRadixVolumeName        string
+			changedNewRadixVolumeStorageName string
+			expectedVolumeName               string
+			expectedNewSecretName            string
+			expectedNewPvcName               string
+			expectedNewStorageClassName      string
+			expectedNewScTmpPath             string
+		}
+		getScenario := func(props expectedPvcScProperties, scenarioProps scenarioProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Update storage in existing volume name and storage",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {
+						vm.Name = scenarioProps.changedNewRadixVolumeName
+						vm.Storage = scenarioProps.changedNewRadixVolumeStorageName
+					}),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {
+						v.Name = scenarioProps.expectedVolumeName
+					}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+				},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
+						pvc.ObjectMeta.Name = scenarioProps.expectedNewPvcName
+						pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
+						pvc.Spec.StorageClassName = utils.StringPtr(scenarioProps.expectedNewStorageClassName)
+					}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
+				},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
+						sc.ObjectMeta.Name = scenarioProps.expectedNewStorageClassName
+						sc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
+						// setStorageClassMountOption(sc, "--tmp-path", scenarioProps.expectedNewScTmpPath) //TODO: this option does not work with blobfuse2 in some reason - investigate to make use separate disk volume for csi volumes
+						setStorageClassStorageParameter(props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName, sc)
+						sc.Parameters[csiStorageClassProvisionerSecretNameParameter] = scenarioProps.expectedNewSecretName
+						sc.Parameters[csiStorageClassNodeStageSecretNameParameter] = scenarioProps.expectedNewSecretName
+					}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil), scenarioProperties{
+				changedNewRadixVolumeName:        "volume101",
+				changedNewRadixVolumeStorageName: "storage101",
+				expectedVolumeName:               "csi-az-blob-some-component-volume101-storage101",
+				expectedNewSecretName:            "some-component-volume101-csiazurecreds",
+				expectedNewPvcName:               "pvc-csi-az-blob-some-component-volume101-storage101-12345",
+				expectedNewStorageClassName:      "sc-any-app-some-env-csi-az-blob-some-component-volume101-storage101",
+				expectedNewScTmpPath:             "/tmp/any-app-some-env/csi-az-blob/some-component/volume101/storage101",
+			}),
+			getScenario(getPropsCsiFileVolume2Storage2(nil), scenarioProperties{
+				changedNewRadixVolumeName:        "volume101",
+				changedNewRadixVolumeStorageName: "storage101",
+				expectedVolumeName:               "csi-az-file-some-component-volume101-storage101",
+				expectedNewSecretName:            "some-component-volume101-csiazurecreds",
+				expectedNewPvcName:               "pvc-csi-az-file-some-component-volume101-storage101-12345",
+				expectedNewStorageClassName:      "sc-any-app-some-env-csi-az-file-some-component-volume101-storage101",
+				expectedNewScTmpPath:             "/tmp/any-app-some-env/csi-az-file/some-component/volume101/storage101",
+			}),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			storageClassForAnotherNamespace := createRandomStorageClass(props, utils.RandString(10), utils.RandString(10))
+			storageClassForAnotherComponent := createRandomStorageClass(props, props.namespace, utils.RandString(10))
+			pvcForAnotherNamespace := createRandomPvc(props, utils.RandString(10), utils.RandString(10))
+			pvcForAnotherComponent := createRandomPvc(props, props.namespace, utils.RandString(10))
+			return deploymentVolumesTestScenario{
+				name:  "Garbage collect orphaned PVCs and StorageClasses",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+					createRandomPvc(props, props.namespace, props.componentName),
+					pvcForAnotherNamespace,
+					pvcForAnotherComponent,
+				},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+					pvcForAnotherNamespace,
+					pvcForAnotherComponent,
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
+					createRandomStorageClass(props, props.namespace, props.componentName),
+					storageClassForAnotherNamespace,
+					storageClassForAnotherComponent,
+				},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
+					storageClassForAnotherNamespace,
+					storageClassForAnotherComponent,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+			getScenario(getPropsCsiFileVolume2Storage2(nil)),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Set readonly volume",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+					createRandomPvc(props, props.namespace, props.componentName),
+				},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
+						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+					}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
+					createRandomStorageClass(props, props.namespace, props.componentName),
+				},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
+						sc.MountOptions = append(sc.MountOptions, "-o ro")
+					}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+			getScenario(getPropsCsiFileVolume2Storage2(nil)),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Set ReadWriteOnce volume",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteOnce) }),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+					createRandomPvc(props, props.namespace, props.componentName),
+				},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
+						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+					}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
+					createRandomStorageClass(props, props.namespace, props.componentName),
+				},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+			getScenario(getPropsCsiFileVolume2Storage2(nil)),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Set ReadWriteOnce volume",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+					createRandomPvc(props, props.namespace, props.componentName),
+				},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
+						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+					}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
+					createRandomStorageClass(props, props.namespace, props.componentName),
+				},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+			getScenario(getPropsCsiFileVolume2Storage2(nil)),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Create new BlobFuse2 volume has streaming by default and streaming options not set",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
+						sc.MountOptions = []string{
+							"--file-cache-timeout-in-seconds=120",
+							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
+							"-o allow_other",
+							"-o attr_timeout=120",
+							"-o entry_timeout=120",
+							"-o negative_timeout=120",
+							"-o gid=1000",
+							"--streaming=true",
+							"--use-adls=false",
+						}
+					}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
+		}
+	}()...)
 
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Create new BlobFuse2 volume has implicit streaming by default and streaming options set",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {
-	// 					vm.BlobFuse2.Streaming = &v1.RadixVolumeMountStreaming{
-	// 						StreamCache:      pointers.Ptr(uint64(101)),
-	// 						BlockSize:        pointers.Ptr(uint64(102)),
-	// 						BufferSize:       pointers.Ptr(uint64(103)),
-	// 						MaxBuffers:       pointers.Ptr(uint64(104)),
-	// 						MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-	// 					}
-	// 				}),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createVolume(props, func(v *corev1.Volume) {}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-	// 			},
-	// 			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
-	// 			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
-	// 					sc.MountOptions = []string{
-	// 						"--file-cache-timeout-in-seconds=120",
-	// 						"--use-attr-cache=true",
-	// 						"--cancel-list-on-mount-seconds=0",
-	// 						"-o allow_other",
-	// 						"-o attr_timeout=120",
-	// 						"-o entry_timeout=120",
-	// 						"-o negative_timeout=120",
-	// 						"-o gid=1000",
-	// 						"--streaming=true",
-	// 						"--stream-cache-mb=101",
-	// 						"--block-size-mb=102",
-	// 						"--buffer-size-mb=103",
-	// 						"--max-buffers=104",
-	// 						"--max-blocks-per-file=105",
-	// 						"--use-adls=false",
-	// 					}
-	// 				}),
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
-	// 	}
-	// }()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Create new BlobFuse2 volume has implicit streaming by default and streaming options set",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {
+						vm.BlobFuse2.Streaming = &v1.RadixVolumeMountStreaming{
+							StreamCache:      pointers.Ptr(uint64(101)),
+							BlockSize:        pointers.Ptr(uint64(102)),
+							BufferSize:       pointers.Ptr(uint64(103)),
+							MaxBuffers:       pointers.Ptr(uint64(104)),
+							MaxBlocksPerFile: pointers.Ptr(uint64(105)),
+						}
+					}),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
+						sc.MountOptions = []string{
+							"--file-cache-timeout-in-seconds=120",
+							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
+							"-o allow_other",
+							"-o attr_timeout=120",
+							"-o entry_timeout=120",
+							"-o negative_timeout=120",
+							"-o gid=1000",
+							"--streaming=true",
+							"--stream-cache-mb=101",
+							"--block-size-mb=102",
+							"--buffer-size-mb=103",
+							"--max-buffers=104",
+							"--max-blocks-per-file=105",
+							"--use-adls=false",
+						}
+					}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
+		}
+	}()...)
 
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Create new BlobFuse2 volume has disabled streaming",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {
-	// 					vm.BlobFuse2.Streaming = &v1.RadixVolumeMountStreaming{
-	// 						Enabled:          pointers.Ptr(false),
-	// 						StreamCache:      pointers.Ptr(uint64(101)),
-	// 						BlockSize:        pointers.Ptr(uint64(102)),
-	// 						BufferSize:       pointers.Ptr(uint64(103)),
-	// 						MaxBuffers:       pointers.Ptr(uint64(104)),
-	// 						MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-	// 					}
-	// 				}),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createVolume(props, func(v *corev1.Volume) {}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-	// 			},
-	// 			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
-	// 			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-	// 				createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
-	// 					sc.MountOptions = []string{
-	// 						"--file-cache-timeout-in-seconds=120",
-	// 						"--use-attr-cache=true",
-	// 						"--cancel-list-on-mount-seconds=0",
-	// 						"-o allow_other",
-	// 						"-o attr_timeout=120",
-	// 						"-o entry_timeout=120",
-	// 						"-o negative_timeout=120",
-	// 						"-o gid=1000",
-	// 						"--use-adls=false",
-	// 					}
-	// 				}),
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
-	// 	}
-	// }()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Create new BlobFuse2 volume has disabled streaming",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {
+						vm.BlobFuse2.Streaming = &v1.RadixVolumeMountStreaming{
+							Enabled:          pointers.Ptr(false),
+							StreamCache:      pointers.Ptr(uint64(101)),
+							BlockSize:        pointers.Ptr(uint64(102)),
+							BufferSize:       pointers.Ptr(uint64(103)),
+							MaxBuffers:       pointers.Ptr(uint64(104)),
+							MaxBlocksPerFile: pointers.Ptr(uint64(105)),
+						}
+					}),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
+						sc.MountOptions = []string{
+							"--file-cache-timeout-in-seconds=120",
+							"--use-attr-cache=true",
+							"--cancel-list-on-mount-seconds=0",
+							"-o allow_other",
+							"-o attr_timeout=120",
+							"-o entry_timeout=120",
+							"-o negative_timeout=120",
+							"-o gid=1000",
+							"--use-adls=false",
+						}
+					}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
+		}
+	}()...)
 
 	suite.T().Run("CSI Azure volume PVCs and StorageClasses", func(t *testing.T) {
 		t.Parallel()
@@ -1415,7 +1418,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expec
 		radixVolumeMountType:    v1.MountTypeBlobFuse2FuseCsiAzure,
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
-		volumeName:              "radix-vm-volume1",
+		volumeName:              "csi-az-blob-some-component-volume1-storage1",
 		scProvisioner:           v1.ProvisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
 		scTmpPath:               "/tmp/any-app-some-env/csi-az-blob/some-component/volume1/storage1",
@@ -1444,7 +1447,7 @@ func getPropsCsiBlobFuse2Volume1Storage1(modify func(*expectedPvcScProperties)) 
 		radixVolumeMountType:    v1.MountTypeBlobFuse2Fuse2CsiAzure,
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
-		volumeName:              "radix-vm-volume1",
+		volumeName:              "csi-blobfuse2-fuse2-some-component-volume1-storage1",
 		scProvisioner:           v1.ProvisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
 		scTmpPath:               "/tmp/any-app-some-env/csi-blobfuse2-fuse2/some-component/volume1/storage1",
@@ -1473,7 +1476,7 @@ func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expec
 		radixVolumeMountType:    v1.MountTypeAzureFileCsiAzure,
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
-		volumeName:              "radix-vm-volume2",
+		volumeName:              "csi-az-file-some-component-volume2-storage2",
 		scProvisioner:           v1.ProvisionerFileCsiAzure,
 		scSecretName:            "some-component-volume2-csiazurecreds",
 		scTmpPath:               "/tmp/any-app-some-env/csi-az-file/some-component/volume2/storage2",
