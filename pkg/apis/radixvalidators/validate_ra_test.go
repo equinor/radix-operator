@@ -18,6 +18,7 @@ import (
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -1536,7 +1537,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Name: "some_name",
 						Path: "some_path",
 						EmptyDir: &radixv1.RadixEmptyDirVolumeMount{
-							SizeLimit: "50M",
+							SizeLimit: resource.MustParse("50M"),
 						},
 					},
 				}
@@ -1559,24 +1560,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				return volumeMounts
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountInvalidSizeLimit,
-		},
-		"emptyDir: invalid sizeLimit": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						EmptyDir: &radixv1.RadixEmptyDirVolumeMount{
-							SizeLimit: "50x",
-						},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountInvalidSizeLimit,
+			expectedError: radixvalidators.ErrVolumeMountMissingSizeLimit,
 		},
 	}
 

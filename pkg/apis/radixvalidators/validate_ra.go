@@ -1372,8 +1372,8 @@ func validateVolumeMountAzureFile(_ *radixv1.RadixAzureFileVolumeMount) error {
 }
 
 func validateVolumeMountEmptyDir(emptyDir *radixv1.RadixEmptyDirVolumeMount) error {
-	if _, err := resource.ParseQuantity(emptyDir.SizeLimit); err != nil {
-		return volumeMountEmptyDirValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidSizeLimit, err))
+	if emptyDir.SizeLimit.IsZero() {
+		return volumeMountEmptyDirValidationError(ErrVolumeMountMissingSizeLimit)
 	}
 	return nil
 }

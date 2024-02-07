@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -828,7 +829,7 @@ func (v *RadixVolumeMount) HasEmptyDir() bool {
 type RadixEmptyDirVolumeMount struct {
 	// SizeLimit defines the size of the emptyDir volume
 	// +kubebuilder:validation:Required
-	SizeLimit string `json:"sizeLimit"`
+	SizeLimit resource.Quantity `json:"sizeLimit"`
 }
 
 // BlobFuse2Protocol Holds protocols of BlobFuse2 Azure Storage FUSE driver

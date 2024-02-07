@@ -44,7 +44,7 @@ var (
 	ErrVolumeMountMissingContainer                                         = errors.New("container not set")
 	ErrVolumeMountInvalidProtocol                                          = errors.New("invalid protocol")
 	ErrVolumeMountInvalidRequestsStorage                                   = errors.New("requestsStorage is invalid")
-	ErrVolumeMountInvalidSizeLimit                                         = errors.New("sizeLimit is invalid")
+	ErrVolumeMountMissingSizeLimit                                         = errors.New("sizeLimit is not set")
 	ErrVolumeMountTypeNotImplemented                                       = errors.New("type not implemented")
 	ErrApplicationNameNotLowercase                                         = errors.New("application name not lowercase")
 	ErrPublicImageComponentCannotHaveSourceOrDockerfileSet                 = errors.New("public image component cannot have source or dockerfile")
