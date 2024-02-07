@@ -1010,12 +1010,6 @@ func GetCsiAzureStorageClassProvisioners() []string {
 	return []string{ProvisionerBlobCsiAzure, ProvisionerFileCsiAzure}
 }
 
-// IsKnownVolumeMount Gets if volume mount is supported
-func IsKnownVolumeMount(volumeMount string) bool {
-	return IsKnownBlobFlexVolumeMount(volumeMount) ||
-		IsKnownCsiAzureVolumeMount(volumeMount)
-}
-
 // IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
 func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	switch volumeMount {
@@ -1023,11 +1017,6 @@ func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 		return true
 	}
 	return false
-}
-
-// IsKnownBlobFlexVolumeMount Supported volume mount type Azure Blobfuse
-func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
-	return volumeMount == string(MountTypeBlob)
 }
 
 // RadixNode defines node attributes, where container should be scheduled

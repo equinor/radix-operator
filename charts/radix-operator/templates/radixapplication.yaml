@@ -801,9 +801,13 @@ spec:
                                   description: EmptyDir settings for EmptyDir volume
                                   properties:
                                     sizeLimit:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: SizeLimit defines the size of the
                                         emptyDir volume
-                                      type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
                                   required:
                                   - sizeLimit
                                   type: object
@@ -1716,9 +1720,13 @@ spec:
                                   description: EmptyDir settings for EmptyDir volume
                                   properties:
                                     sizeLimit:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
                                       description: SizeLimit defines the size of the
                                         emptyDir volume
-                                      type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
                                   required:
                                   - sizeLimit
                                   type: object
