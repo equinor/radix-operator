@@ -85,13 +85,15 @@ func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, j
 
 func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeployment, envName string, buildContext *model.PrepareBuildContext, componentsToDeploy []string) (PreservingDeployComponents, error) {
 	preservingDeployComponents := PreservingDeployComponents{}
-	existEnvironmentComponentsToBuild := buildContext != nil && !buildContext.ChangedRadixConfig && len(buildContext.EnvironmentsToBuild) > 0
+	existEnvironmentComponentsToBuild := buildContext != nil && !buildContext.ChangedRadixConfig && slice.Any(buildContext.EnvironmentsToBuild, func(environmentToBuild model.EnvironmentToBuild) bool {
+		return len(environmentToBuild.Components) > 0
+	})
 	if activeRadixDeployment == nil || (len(componentsToDeploy) == 0 && !existEnvironmentComponentsToBuild) {
 		return preservingDeployComponents, nil
 	}
 	if len(componentsToDeploy) == 0 && existEnvironmentComponentsToBuild {
 		componentsToDeploy = slice.Reduce(buildContext.EnvironmentsToBuild, make([]string, 0), func(acc []string, envComponentsToBuild model.EnvironmentToBuild) []string {
-			if envName == envComponentsToBuild.Environment {
+			if envName == envComponentsToBuild.Environment && len(envComponentsToBuild.Components) > 0 {
 				return append(acc, envComponentsToBuild.Components...)
 			}
 			return acc
