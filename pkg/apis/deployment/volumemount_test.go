@@ -17,6 +17,7 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1371,6 +1372,32 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			}
 		}
 	})
+}
+
+func Test_EmptyDir(t *testing.T) {
+	appName, envName, compName := "anyapp", "anyenv", "anycomp"
+
+	tu, kubeclient, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
+	builder := utils.NewDeploymentBuilder().
+		WithRadixApplication(utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))).
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName(compName).WithVolumeMounts(
+				v1.RadixVolumeMount{Name: "cache", Path: "/cache", EmptyDir: &v1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("50M")}},
+				v1.RadixVolumeMount{Name: "log", Path: "/log", EmptyDir: &v1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("100M")}},
+			),
+		)
+
+	rd, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, builder)
+	require.NoError(t, err)
+	assert.NotNil(t, rd)
+
+	deployment, err := kubeclient.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).Get(context.Background(), compName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 2)
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 2)
+
 }
 
 func createRandomStorageClass(props expectedPvcScProperties, namespace, componentName string) storagev1.StorageClass {
