@@ -43,9 +43,7 @@ func (step *BuildStepImplementation) buildACRBuildJobs(pipelineInfo *model.Pipel
 func (step *BuildStepImplementation) buildACRBuildJobsForACRTasks(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
 	var buildComponentImages []pipeline.BuildComponentImage
 	for _, envComponentImages := range pipelineInfo.BuildComponentImages {
-		for _, componentImage := range envComponentImages {
-			buildComponentImages = append(buildComponentImages, componentImage)
-		}
+		buildComponentImages = append(buildComponentImages, envComponentImages...)
 	}
 	log.Debug("build a build-job")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))

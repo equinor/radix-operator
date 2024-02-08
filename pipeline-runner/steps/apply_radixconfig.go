@@ -275,7 +275,7 @@ func getComponentSources(envName string, components []radixv1.RadixCommonCompone
 		} else {
 			imageSource.ImageSource = fromDeployment
 			deployComponent := currentRadixDeployment.GetCommonComponentByName(component.GetName())
-			if deployComponent == nil {
+			if commonutils.IsNil(deployComponent) {
 				continue // component not found in current deployment
 			}
 			imageSource.Image = deployComponent.GetImage()
