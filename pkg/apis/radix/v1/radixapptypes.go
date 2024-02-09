@@ -980,45 +980,6 @@ const (
 	MountTypeAzureFileCsiAzure MountType = "azure-file"
 )
 
-// These are valid storage class provisioners
-const (
-	// ProvisionerBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
-	ProvisionerBlobCsiAzure string = "blob.csi.azure.com"
-	// ProvisionerFileCsiAzure Use of azure/csi driver for files in Azure storage account
-	ProvisionerFileCsiAzure string = "file.csi.azure.com"
-)
-
-// GetStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
-func GetStorageClassProvisionerByVolumeMountType(radixVolumeMount *RadixVolumeMount) (string, bool) {
-	if radixVolumeMount.BlobFuse2 != nil {
-		return ProvisionerBlobCsiAzure, true
-	}
-	if radixVolumeMount.AzureFile != nil {
-		return ProvisionerFileCsiAzure, true
-	}
-	switch radixVolumeMount.Type {
-	case MountTypeBlobFuse2FuseCsiAzure, MountTypeBlobFuse2Fuse2CsiAzure, MountTypeBlobFuse2NfsCsiAzure:
-		return ProvisionerBlobCsiAzure, true
-	case MountTypeAzureFileCsiAzure:
-		return ProvisionerFileCsiAzure, true
-	}
-	return "", false
-}
-
-// GetCsiAzureStorageClassProvisioners CSI Azure provisioners
-func GetCsiAzureStorageClassProvisioners() []string {
-	return []string{ProvisionerBlobCsiAzure, ProvisionerFileCsiAzure}
-}
-
-// IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
-func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
-	switch volumeMount {
-	case string(MountTypeBlobFuse2FuseCsiAzure), string(MountTypeBlobFuse2Fuse2CsiAzure), string(MountTypeBlobFuse2NfsCsiAzure), string(MountTypeAzureFileCsiAzure):
-		return true
-	}
-	return false
-}
-
 // RadixNode defines node attributes, where container should be scheduled
 type RadixNode struct {
 	// Defines rules for allowed GPU types.

@@ -65,6 +65,40 @@ const (
 	volumeNameMaxLength = 63
 )
 
+// These are valid storage class provisioners
+const (
+	// provisionerBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
+	provisionerBlobCsiAzure string = "blob.csi.azure.com"
+	// provisionerFileCsiAzure Use of azure/csi driver for files in Azure storage account
+	provisionerFileCsiAzure string = "file.csi.azure.com"
+)
+
+// getStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
+func getStorageClassProvisionerByVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) (string, bool) {
+	if radixVolumeMount.BlobFuse2 != nil {
+		return provisionerBlobCsiAzure, true
+	}
+	if radixVolumeMount.AzureFile != nil {
+		return provisionerFileCsiAzure, true
+	}
+	switch radixVolumeMount.Type {
+	case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure, radixv1.MountTypeBlobFuse2NfsCsiAzure:
+		return provisionerBlobCsiAzure, true
+	case radixv1.MountTypeAzureFileCsiAzure:
+		return provisionerFileCsiAzure, true
+	}
+	return "", false
+}
+
+// isKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
+func isKnownCsiAzureVolumeMount(volumeMount string) bool {
+	switch volumeMount {
+	case string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeAzureFileCsiAzure):
+		return true
+	}
+	return false
+}
+
 // GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
 func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.VolumeMount, error) {
 	componentName := deployComponent.GetName()
@@ -780,12 +814,11 @@ func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(exclud
 	if err != nil {
 		return err
 	}
-	csiAzureStorageClassProvisioners := radixv1.GetCsiAzureStorageClassProvisioners()
 	for _, pv := range pvList.Items {
 		switch {
 		case pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Kind != persistentVolumeClaimKind:
 			continue
-		case pv.Spec.CSI == nil || !slice.ContainsString(csiAzureStorageClassProvisioners, pv.Spec.CSI.Driver):
+		case pv.Spec.CSI == nil || !slice.ContainsString([]string{provisionerBlobCsiAzure, provisionerFileCsiAzure}, pv.Spec.CSI.Driver):
 			continue
 		case slice.ContainsString(excludePvcNames, pv.Spec.ClaimRef.Name):
 			continue
@@ -914,7 +947,7 @@ func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(storageClass *stor
 
 // getOrCreateCsiAzureVolumeMountStorageClass returns creates or existing StorageClass, storageClassIsCreated=true, if created; error, if any
 func (deploy *Deployment) getOrCreateCsiAzureVolumeMountStorageClass(appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, volumeName string, scMap map[string]*storagev1.StorageClass) (*storagev1.StorageClass, bool, error) {
-	var volumeMountProvisioner, foundProvisioner = radixv1.GetStorageClassProvisionerByVolumeMountType(radixVolumeMount)
+	var volumeMountProvisioner, foundProvisioner = getStorageClassProvisionerByVolumeMountType(radixVolumeMount)
 	if !foundProvisioner {
 		return nil, false, fmt.Errorf("not found Storage Class provisioner for volume mount type %s", string(GetCsiAzureVolumeMountType(radixVolumeMount)))
 	}
@@ -967,7 +1000,7 @@ func findCsiAzureVolumeForComponent(volumeMountMap map[string]*radixv1.RadixVolu
 		return false
 	}
 	for _, radixVolumeMount := range volumeMounts {
-		if radixVolumeMount.BlobFuse2 == nil && radixVolumeMount.AzureFile == nil && !radixv1.IsKnownCsiAzureVolumeMount(string(GetCsiAzureVolumeMountType(&radixVolumeMount))) {
+		if radixVolumeMount.BlobFuse2 == nil && radixVolumeMount.AzureFile == nil && !isKnownCsiAzureVolumeMount(string(GetCsiAzureVolumeMountType(&radixVolumeMount))) {
 			continue
 		}
 		radixVolumeMount := radixVolumeMount

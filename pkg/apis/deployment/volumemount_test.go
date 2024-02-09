@@ -1445,7 +1445,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expec
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadOnlyMany, // default access mode
 		volumeName:              "csi-az-blob-some-component-volume1-storage1",
-		scProvisioner:           v1.ProvisionerBlobCsiAzure,
+		scProvisioner:           provisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
 		scTmpPath:               "/tmp/any-app-some-env/csi-az-blob/some-component/volume1/storage1",
 		scGid:                   "1000",
@@ -1474,7 +1474,7 @@ func getPropsCsiBlobFuse2Volume1Storage1(modify func(*expectedPvcScProperties)) 
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadOnlyMany, // default access mode
 		volumeName:              "csi-blobfuse2-fuse2-some-component-volume1-storage1",
-		scProvisioner:           v1.ProvisionerBlobCsiAzure,
+		scProvisioner:           provisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
 		scTmpPath:               "/tmp/any-app-some-env/csi-blobfuse2-fuse2/some-component/volume1/storage1",
 		scGid:                   "1000",
@@ -1503,7 +1503,7 @@ func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expec
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadOnlyMany, // default access mode
 		volumeName:              "csi-az-file-some-component-volume2-storage2",
-		scProvisioner:           v1.ProvisionerFileCsiAzure,
+		scProvisioner:           provisionerFileCsiAzure,
 		scSecretName:            "some-component-volume2-csiazurecreds",
 		scTmpPath:               "/tmp/any-app-some-env/csi-az-file/some-component/volume2/storage2",
 		scGid:                   "1000",
