@@ -1258,8 +1258,6 @@ func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 			},
 		},
 	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-	s.Require().NoError(err)
 
 	type expectedJobStatusSpec struct {
 		name  string
@@ -1321,6 +1319,8 @@ func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 	for _, scenario := range scenarios {
 		scenario := scenario
 		s.Run(scenario.testName, func() {
+			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
 			for jobName, stop := range scenario.stopStatus {
 				i := slice.FindIndex(batch.Spec.Jobs, func(j radixv1.RadixBatchJob) bool { return j.Name == jobName })
 				batch.Spec.Jobs[i].Stop = pointers.Ptr(stop)
