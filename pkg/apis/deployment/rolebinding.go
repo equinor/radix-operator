@@ -42,12 +42,12 @@ func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(component radixv1
 		return err
 	}
 	adminRole := kube.CreateManageSecretRole(registration.Name, adminRoleName, secretNames, extraLabels)
-	adminRoleBinding := roleBindingAppSecrets(registration, adminRole, adminGroups)
+	adminRoleBinding := roleBindingAppSecrets(registration.Name, adminRole, adminGroups)
 
 	// App reader role and rolebinding
 	readerRoleName := fmt.Sprintf("radix-app-reader-%s", component.GetName())
 	readerRole := kube.CreateReadSecretRole(registration.Name, readerRoleName, secretNames, extraLabels)
-	readerRoleBinding := roleBindingAppSecrets(registration, readerRole, registration.Spec.ReaderAdGroups)
+	readerRoleBinding := roleBindingAppSecrets(registration.Name, readerRole, registration.Spec.ReaderAdGroups)
 
 	// Apply roles and rolebindings
 	for _, role := range []*rbacv1.Role{adminRole, readerRole} {
@@ -107,9 +107,8 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 	return nil
 }
 
-func roleBindingAppSecrets(registration *radixv1.RadixRegistration, role *rbacv1.Role, groups []string) *rbacv1.RoleBinding {
-	adGroups, _ := utils.GetAdGroups(registration)
+func roleBindingAppSecrets(appName string, role *rbacv1.Role, groups []string) *rbacv1.RoleBinding {
 	roleName := role.ObjectMeta.Name
-	subjects := kube.GetRoleBindingGroups(adGroups)
-	return kube.GetRolebindingToRoleForSubjectsWithLabels(registration.Name, roleName, subjects, role.Labels)
+	subjects := kube.GetRoleBindingGroups(groups)
+	return kube.GetRolebindingToRoleForSubjectsWithLabels(appName, roleName, subjects, role.Labels)
 }
