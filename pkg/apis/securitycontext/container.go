@@ -56,7 +56,11 @@ func WithContainerCapabilities(capabilities []corev1.Capability) ContainerOption
 		}
 	}
 }
-
+func WithUseReadOnlyFileSystem(readOnly *bool) ContainerOption {
+	return func(securityContext *corev1.SecurityContext) {
+		securityContext.ReadOnlyRootFilesystem = readOnly
+	}
+}
 func Container(options ...ContainerOption) *corev1.SecurityContext {
 	securityContext := &corev1.SecurityContext{
 		AllowPrivilegeEscalation: commonUtils.BoolPtr(false),
