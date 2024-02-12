@@ -919,7 +919,6 @@
                   ],
                   "type": "object"
                 },
-                "minItems": 1,
                 "type": "array",
                 "x-kubernetes-list-map-keys": [
                   "name"
@@ -1076,8 +1075,7 @@
               }
             },
             "required": [
-              "name",
-              "ports"
+              "name"
             ],
             "type": "object"
           },
@@ -1172,6 +1170,11 @@
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
+              },
+              "useCertificateAutomation": {
+                "default": false,
+                "description": "Enable automatic issuing and renewal of TLS certificate",
+                "type": "boolean"
               }
             },
             "required": [

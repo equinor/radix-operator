@@ -248,6 +248,11 @@ type ExternalAlias struct {
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Component string `json:"component"`
+
+	// Enable automatic issuing and renewal of TLS certificate
+	// +kubebuilder:default:=false
+	// +optional
+	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
 }
 
 // DNSAlias defines mapping between an DNS alias and a component and environment.
@@ -326,9 +331,9 @@ type RadixComponent struct {
 	Image string `json:"image,omitempty"`
 
 	// List of ports that the component bind to.
-	// +kubebuilder:validation:MinItems=1
 	// +listType=map
 	// +listMapKey=name
+	// +optional
 	Ports []ComponentPort `json:"ports"`
 
 	// Configures the monitoring endpoint exposed by the component.

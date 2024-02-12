@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -153,12 +154,51 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *
 	return nil
 }
 
-func (cli ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
 		return ErrDeployOnlyPipelineDoesNotSupportBuild
 	}
-
+	if err := validateDeployComponents(pipelineInfo); err != nil {
+		return err
+	}
 	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
+}
+
+func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
+	if len(pipelineInfo.PipelineArguments.ComponentsToDeploy) == 0 {
+		return nil
+	}
+	var errs []error
+	componentsMap := getComponentMap(pipelineInfo)
+	for _, componentName := range pipelineInfo.PipelineArguments.ComponentsToDeploy {
+		componentName = strings.TrimSpace(componentName)
+		if len(componentName) == 0 {
+			continue
+		}
+		component, ok := componentsMap[componentName]
+		if !ok {
+			errs = append(errs, fmt.Errorf("requested component %s does not exist", componentName))
+			continue
+		}
+		for _, env := range pipelineInfo.TargetEnvironments {
+			if !component.GetEnabledForEnvironment(env) {
+				errs = append(errs, fmt.Errorf("requested component %s is disabled in the environment %s", componentName, env))
+			}
+		}
+	}
+	return stderrors.Join(errs...)
+}
+
+func getComponentMap(pipelineInfo *model.PipelineInfo) map[string]radixv1.RadixCommonComponent {
+	componentsMap := slice.Reduce(pipelineInfo.RadixApplication.Spec.Components, make(map[string]radixv1.RadixCommonComponent), func(acc map[string]radixv1.RadixCommonComponent, component radixv1.RadixComponent) map[string]radixv1.RadixCommonComponent {
+		acc[component.GetName()] = &component
+		return acc
+	})
+	componentsMap = slice.Reduce(pipelineInfo.RadixApplication.Spec.Jobs, componentsMap, func(acc map[string]radixv1.RadixCommonComponent, jobComponent radixv1.RadixJobComponent) map[string]radixv1.RadixCommonComponent {
+		acc[jobComponent.GetName()] = &jobComponent
+		return acc
+	})
+	return componentsMap
 }
 
 func printEnvironmentComponentImageSources(imageSources environmentComponentSourceMap) {
@@ -216,7 +256,7 @@ func getEnvironmentComponentImageSource(targetEnvironments []string, prepareBuil
 	for _, envName := range targetEnvironments {
 		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
 
-		currentRd, err := getCurrentRadixDeployment(kubeUtil, envNamespace)
+		currentRd, err := internal.GetCurrentRadixDeployment(kubeUtil, envNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -254,26 +294,6 @@ func getComponentSources(components []radixv1.RadixCommonComponent, mustBuildCom
 		componentSource = append(componentSource, componentImageSource{ComponentName: comp.GetName(), ImageSource: source})
 	}
 	return componentSource
-}
-
-func getCurrentRadixDeployment(kubeUtil *kube.Kube, namespace string) (*radixv1.RadixDeployment, error) {
-	var currentRd *radixv1.RadixDeployment
-	// For new applications, or applications with new environments defined in radixconfig, the namespace
-	// or rolebinding may not be configured yet by radix-operator.
-	// We skip getting active deployment if namespace does not exist or pipeline-runner does not have access
-
-	if _, err := kubeUtil.KubeClient().CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{}); err != nil {
-		if !kubeerrors.IsNotFound(err) && !kubeerrors.IsForbidden(err) {
-			return nil, err
-		}
-		log.Infof("namespace for environment does not exist yet: %v", err)
-	} else {
-		currentRd, err = kubeUtil.GetActiveDeployment(namespace)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return currentRd, nil
 }
 
 // Generate list of distinct components to build across all environments
@@ -418,10 +438,10 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 }
 
 func getDockerfile(sourceFolder, dockerfileName string) string {
-	context := getContext(sourceFolder)
+	ctx := getContext(sourceFolder)
 	dockerfileName = getDockerfileName(dockerfileName)
 
-	return fmt.Sprintf("%s%s", context, dockerfileName)
+	return fmt.Sprintf("%s%s", ctx, dockerfileName)
 }
 
 func getDockerfileName(name string) string {
@@ -527,24 +547,44 @@ func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsali
 	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
 	}
+	correctRadixApplication(ra)
 
 	// Validate RA
 	if validate.RAContainsOldPublic(ra) {
 		log.Warnf("component.public is deprecated, please use component.publicPort instead")
 	}
-
-	isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name)
-	if !isAppNameLowercase {
-		log.Warnf("%s Converting name to lowercase", err.Error())
-		ra.Name = strings.ToLower(ra.Name)
-	}
-
-	err = validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig)
-	if err != nil {
+	if err := validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig); err != nil {
 		log.Errorf("Radix config not valid.")
 		return nil, err
 	}
 	return ra, nil
+}
+
+func correctRadixApplication(ra *radixv1.RadixApplication) {
+	if isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name); !isAppNameLowercase {
+		log.Warnf("%s Converting name to lowercase", err.Error())
+		ra.Name = strings.ToLower(ra.Name)
+	}
+	for i := 0; i < len(ra.Spec.Components); i++ {
+		ra.Spec.Components[i].Resources = buildResource(&ra.Spec.Components[i])
+	}
+	for i := 0; i < len(ra.Spec.Jobs); i++ {
+		ra.Spec.Jobs[i].Resources = buildResource(&ra.Spec.Jobs[i])
+	}
+}
+
+func buildResource(component radixv1.RadixCommonComponent) radixv1.ResourceRequirements {
+	memoryReqName := corev1.ResourceMemory.String()
+	resources := component.GetResources()
+	delete(resources.Limits, memoryReqName)
+
+	if requestsMemory, ok := resources.Requests[memoryReqName]; ok {
+		if resources.Limits == nil {
+			resources.Limits = radixv1.ResourceList{}
+		}
+		resources.Limits[memoryReqName] = requestsMemory
+	}
+	return resources
 }
 
 func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {

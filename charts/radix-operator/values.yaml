@@ -62,7 +62,7 @@ app:
     # Limit range on builder job in app namespace
     resources:
       limits:
-        memory: 2000M
+        memory: 500M
       requests:
         memory: 500M
         cpu: 200m
@@ -100,6 +100,11 @@ resources:
     memory: 1Gi
 
 ingress:
+  certificate:
+    automation:
+      clusterIssuer: ""
+      duration: "2160h"
+      renewBefore: "720h"
   configuration:
     - name: websocketfriendly
       annotations:

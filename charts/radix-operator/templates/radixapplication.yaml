@@ -922,7 +922,6 @@ spec:
                         - name
                         - port
                         type: object
-                      minItems: 1
                       type: array
                       x-kubernetes-list-map-keys:
                       - name
@@ -1073,7 +1072,6 @@ spec:
                       type: object
                   required:
                   - name
-                  - ports
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:
@@ -1159,6 +1157,10 @@ spec:
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
+                    useCertificateAutomation:
+                      default: false
+                      description: Enable automatic issuing and renewal of TLS certificate
+                      type: boolean
                   required:
                   - alias
                   - component

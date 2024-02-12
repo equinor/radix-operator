@@ -189,6 +189,7 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 		return
 	}
 	for _, radixDNSAlias := range radixDNSAliases {
+		radixDNSAlias := radixDNSAlias
 		logger.Debugf("re-sync RadixDNSAlias %s", radixDNSAlias.GetName())
 		if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
 			logger.Errorf("failed to enqueue RadixDNSAlias %s. Error: %v", radixDNSAlias.GetName(), err)
@@ -204,6 +205,7 @@ func enqueueRadixDNSAliasesForRadixRegistration(controller *common.Controller, r
 		return
 	}
 	for _, radixDNSAlias := range radixDNSAliases {
+		radixDNSAlias := radixDNSAlias
 		logger.Debugf("Enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
 		if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
 			logger.Errorf("failed to enqueue RadixDNSAlias %s. Error: %v", radixDNSAlias.GetName(), err)

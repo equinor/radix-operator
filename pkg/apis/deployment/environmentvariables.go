@@ -232,7 +232,6 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 	} else {
 		log.Debugf("No ports defined for the component")
 	}
-	envVarSet.Add(defaults.RadixCommitHashEnvironmentVariable, radixDeploymentLabels[kube.RadixCommitLabel])
 
 	activeClusterEgressIps, err := envVarsSource.getClusterActiveEgressIps()
 	if err != nil {

@@ -47,6 +47,15 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 
+	// Create registration should sync
+	registration, err := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
+	if err != nil {
+		log.Fatalf("Could not read configuration data: %v", err)
+	}
+	registeredApp, err := radixClient.RadixV1().RadixRegistrations().Create(ctx, registration, metav1.CreateOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, registeredApp)
+
 	registrationHandler := NewHandler(
 		client,
 		kubeUtil,
@@ -61,16 +70,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	}()
 
 	// Test
-
-	// Create registration should sync
-	registration, err := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
-	if err != nil {
-		log.Fatalf("Could not read configuration data: %v", err)
-	}
-
-	registeredApp, err := radixClient.RadixV1().RadixRegistrations().Create(ctx, registration, metav1.CreateOptions{})
-	require.NoError(t, err)
-	require.NotNil(t, registeredApp)
 	select {
 	case op, ok := <-synced:
 		assert.True(t, op)

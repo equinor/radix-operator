@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -80,6 +81,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		kubeUtil,
 		radixClient,
 		prometheusclient,
+		&config.Config{},
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
 	go func() {

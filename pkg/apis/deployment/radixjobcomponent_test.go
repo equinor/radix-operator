@@ -517,9 +517,9 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 	type scenario struct {
 		name                           string
 		componentImages                map[string]string
-		externalImageTagNames          map[string]string //map[component-name]image-tag
-		environmentConfigImageTagNames map[string]string //map[component-name]image-tag
-		expectedJobComponentImage      map[string]string //map[component-name]image
+		externalImageTagNames          map[string]string // map[component-name]image-tag
+		environmentConfigImageTagNames map[string]string // map[component-name]image-tag
+		expectedJobComponentImage      map[string]string // map[component-name]image
 		expectedError                  error
 	}
 	componentName1 := "componentA"
@@ -588,7 +588,7 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
 
-			deployJobComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap)).JobComponents()
+			deployJobComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap), nil).JobComponents()
 			if err != nil && ts.expectedError == nil {
 				assert.Fail(t, fmt.Sprintf("unexpected error %v", err))
 				return
