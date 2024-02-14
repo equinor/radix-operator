@@ -125,7 +125,7 @@ type RadixDeployComponent struct {
 	Node                    RadixNode               `json:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty"`
 	Identity                *Identity               `json:"identity,omitempty"`
-	UseReadOnlyFileSystem   *bool                   `json:"useReadOnlyFileSystem,omitempty" yaml:"useReadOnlyFileSystem,omitempty"`
+	ReadOnlyFileSystem      *bool                   `json:"readOnlyFileSystem,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -221,8 +221,8 @@ func (deployComponent *RadixDeployComponent) GetIdentity() *Identity {
 	return deployComponent.Identity
 }
 
-func (deployComponent *RadixDeployComponent) GetUseReadOnlyFileSystem() *bool {
-	return deployComponent.UseReadOnlyFileSystem
+func (deployComponent *RadixDeployComponent) GetReadOnlyFileSystem() *bool {
+	return deployComponent.ReadOnlyFileSystem
 }
 
 func (deployComponent *RadixDeployComponent) SetName(name string) {
@@ -333,8 +333,8 @@ func (deployJobComponent *RadixDeployJobComponent) GetNotifications() *Notificat
 	return deployJobComponent.Notifications
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetUseReadOnlyFileSystem() *bool {
-	return deployJobComponent.UseReadOnlyFileSystem
+func (deployJobComponent *RadixDeployJobComponent) GetReadOnlyFileSystem() *bool {
+	return deployJobComponent.ReadOnlyFileSystem
 }
 
 func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
@@ -382,7 +382,7 @@ type RadixDeployJobComponent struct {
 	BackoffLimit            *int32                    `json:"backoffLimit,omitempty"`
 	Identity                *Identity                 `json:"identity,omitempty"`
 	Notifications           *Notifications            `json:"notifications,omitempty"`
-	UseReadOnlyFileSystem   *bool                     `json:"useReadOnlyFileSystem,omitempty" yaml:"useReadOnlyFileSystem,omitempty"`
+	ReadOnlyFileSystem      *bool                     `json:"readOnlyFileSystem,omitempty"`
 }
 
 type RadixComponentType string
@@ -419,7 +419,7 @@ type RadixCommonDeployComponent interface {
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
 	GetIdentity() *Identity
-	GetUseReadOnlyFileSystem() *bool
+	GetReadOnlyFileSystem() *bool
 }
 
 // RadixCommonDeployComponentFactory defines a common component factory

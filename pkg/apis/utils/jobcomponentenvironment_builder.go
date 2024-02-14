@@ -18,26 +18,26 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithEnabled(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithIdentity(*v1.Identity) RadixJobComponentEnvironmentConfigBuilder
 	WithNotifications(*v1.Notifications) RadixJobComponentEnvironmentConfigBuilder
-	WithUseReadOnlyFileSystem(*bool) RadixJobComponentEnvironmentConfigBuilder
+	WithReadOnlyFileSystem(*bool) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
 type radixJobComponentEnvironmentConfigBuilder struct {
-	environment           string
-	variables             v1.EnvVarsMap
-	resources             v1.ResourceRequirements
-	volumeMounts          []v1.RadixVolumeMount
-	imageTagName          string
-	monitoring            bool
-	node                  v1.RadixNode
-	runAsNonRoot          bool
-	secretRefs            v1.RadixSecretRefs
-	timeLimitSeconds      *int64
-	backoffLimit          *int32
-	enabled               *bool
-	identity              *v1.Identity
-	notifications         *v1.Notifications
-	useReadOnlyFileSystem *bool
+	environment        string
+	variables          v1.EnvVarsMap
+	resources          v1.ResourceRequirements
+	volumeMounts       []v1.RadixVolumeMount
+	imageTagName       string
+	monitoring         bool
+	node               v1.RadixNode
+	runAsNonRoot       bool
+	secretRefs         v1.RadixSecretRefs
+	timeLimitSeconds   *int64
+	backoffLimit       *int32
+	enabled            *bool
+	identity           *v1.Identity
+	notifications      *v1.Notifications
+	readOnlyFileSystem *bool
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -116,26 +116,26 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithNotifications(notifica
 	ceb.notifications = notifications
 	return ceb
 }
-func (ceb *radixJobComponentEnvironmentConfigBuilder) WithUseReadOnlyFileSystem(useReadOnlyFileSystem *bool) RadixJobComponentEnvironmentConfigBuilder {
-	ceb.useReadOnlyFileSystem = useReadOnlyFileSystem
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithReadOnlyFileSystem(readOnlyFileSystem *bool) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.readOnlyFileSystem = readOnlyFileSystem
 	return ceb
 }
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
-		Environment:           ceb.environment,
-		Variables:             ceb.variables,
-		Resources:             ceb.resources,
-		VolumeMounts:          ceb.volumeMounts,
-		Monitoring:            ceb.monitoring,
-		ImageTagName:          ceb.imageTagName,
-		Node:                  ceb.node,
-		SecretRefs:            ceb.secretRefs,
-		TimeLimitSeconds:      ceb.timeLimitSeconds,
-		BackoffLimit:          ceb.backoffLimit,
-		Enabled:               ceb.enabled,
-		Identity:              ceb.identity,
-		Notifications:         ceb.notifications,
-		UseReadOnlyFileSystem: ceb.useReadOnlyFileSystem,
+		Environment:        ceb.environment,
+		Variables:          ceb.variables,
+		Resources:          ceb.resources,
+		VolumeMounts:       ceb.volumeMounts,
+		Monitoring:         ceb.monitoring,
+		ImageTagName:       ceb.imageTagName,
+		Node:               ceb.node,
+		SecretRefs:         ceb.secretRefs,
+		TimeLimitSeconds:   ceb.timeLimitSeconds,
+		BackoffLimit:       ceb.backoffLimit,
+		Enabled:            ceb.enabled,
+		Identity:           ceb.identity,
+		Notifications:      ceb.notifications,
+		ReadOnlyFileSystem: ceb.readOnlyFileSystem,
 	}
 }
 

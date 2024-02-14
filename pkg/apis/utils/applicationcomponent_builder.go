@@ -28,7 +28,7 @@ type RadixApplicationComponentBuilder interface {
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixApplicationComponentBuilder
 	WithEnabled(bool) RadixApplicationComponentBuilder
 	WithIdentity(*v1.Identity) RadixApplicationComponentBuilder
-	WithUseReadOnlyFileSystem(*bool) RadixApplicationComponentBuilder
+	WithReadOnlyFileSystem(*bool) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -53,7 +53,7 @@ type radixApplicationComponentBuilder struct {
 	volumeMounts            []v1.RadixVolumeMount
 	enabled                 *bool
 	identity                *v1.Identity
-	useReadOnlyFileSystem   *bool
+	readOnlyFileSystem      *bool
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -180,8 +180,8 @@ func (rcb *radixApplicationComponentBuilder) WithCommonResource(request map[stri
 	return rcb
 }
 
-func (rcb *radixApplicationComponentBuilder) WithUseReadOnlyFileSystem(useReadOnlyFileSystem *bool) RadixApplicationComponentBuilder {
-	rcb.useReadOnlyFileSystem = useReadOnlyFileSystem
+func (rcb *radixApplicationComponentBuilder) WithReadOnlyFileSystem(readOnlyFileSystem *bool) RadixApplicationComponentBuilder {
+	rcb.readOnlyFileSystem = readOnlyFileSystem
 	return rcb
 }
 
@@ -211,7 +211,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Authentication:          rcb.authentication,
 		Enabled:                 rcb.enabled,
 		Identity:                rcb.identity,
-		UseReadOnlyFileSystem:   rcb.useReadOnlyFileSystem,
+		ReadOnlyFileSystem:      rcb.readOnlyFileSystem,
 	}
 }
 

@@ -1228,8 +1228,8 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.UseReadOnlyFileSystem != nil {
-		in, out := &in.UseReadOnlyFileSystem, &out.UseReadOnlyFileSystem
+	if in.ReadOnlyFileSystem != nil {
+		in, out := &in.ReadOnlyFileSystem, &out.ReadOnlyFileSystem
 		*out = new(bool)
 		**out = **in
 	}
@@ -1409,8 +1409,8 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		*out = new(Identity)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.UseReadOnlyFileSystem != nil {
-		in, out := &in.UseReadOnlyFileSystem, &out.UseReadOnlyFileSystem
+	if in.ReadOnlyFileSystem != nil {
+		in, out := &in.ReadOnlyFileSystem, &out.ReadOnlyFileSystem
 		*out = new(bool)
 		**out = **in
 	}
@@ -1520,8 +1520,8 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		*out = new(Notifications)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.UseReadOnlyFileSystem != nil {
-		in, out := &in.UseReadOnlyFileSystem, &out.UseReadOnlyFileSystem
+	if in.ReadOnlyFileSystem != nil {
+		in, out := &in.ReadOnlyFileSystem, &out.ReadOnlyFileSystem
 		*out = new(bool)
 		**out = **in
 	}
@@ -1809,8 +1809,8 @@ func (in *RadixEnvironmentConfig) DeepCopyInto(out *RadixEnvironmentConfig) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.UseReadOnlyFileSystem != nil {
-		in, out := &in.UseReadOnlyFileSystem, &out.UseReadOnlyFileSystem
+	if in.ReadOnlyFileSystem != nil {
+		in, out := &in.ReadOnlyFileSystem, &out.ReadOnlyFileSystem
 		*out = new(bool)
 		**out = **in
 	}
@@ -2061,8 +2061,8 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(Notifications)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.UseReadOnlyFileSystem != nil {
-		in, out := &in.UseReadOnlyFileSystem, &out.UseReadOnlyFileSystem
+	if in.ReadOnlyFileSystem != nil {
+		in, out := &in.ReadOnlyFileSystem, &out.ReadOnlyFileSystem
 		*out = new(bool)
 		**out = **in
 	}
@@ -2124,8 +2124,8 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 		*out = new(Notifications)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.UseReadOnlyFileSystem != nil {
-		in, out := &in.UseReadOnlyFileSystem, &out.UseReadOnlyFileSystem
+	if in.ReadOnlyFileSystem != nil {
+		in, out := &in.ReadOnlyFileSystem, &out.ReadOnlyFileSystem
 		*out = new(bool)
 		**out = **in
 	}

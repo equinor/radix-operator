@@ -843,8 +843,8 @@ func (s *syncerTestSuite) Test_ReadOnlyFileSystem() {
 					AppName: appName,
 					Jobs: []radixv1.RadixDeployJobComponent{
 						{
-							Name:                  "anyjob",
-							UseReadOnlyFileSystem: test.readOnlyFileSystem,
+							Name:               "anyjob",
+							ReadOnlyFileSystem: test.readOnlyFileSystem,
 						},
 					},
 				},

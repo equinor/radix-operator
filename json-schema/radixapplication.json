@@ -462,6 +462,10 @@
                       },
                       "type": "object"
                     },
+                    "readOnlyFileSystem": {
+                      "description": "Controls if the filesystem shall be read-only.",
+                      "type": "boolean"
+                    },
                     "replicas": {
                       "description": "Number of desired replicas. More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas",
                       "minimum": 0,
@@ -586,10 +590,6 @@
                         }
                       },
                       "type": "object"
-                    },
-                    "useReadOnlyFileSystem": {
-                      "description": "Controls if the filesystem shall be read-only.",
-                      "type": "boolean"
                     },
                     "variables": {
                       "additionalProperties": {
@@ -972,6 +972,10 @@
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
+              "readOnlyFileSystem": {
+                "description": "Controls if the filesystem shall be read-only.",
+                "type": "boolean"
+              },
               "resources": {
                 "description": "Configures CPU and memory resources for the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common",
                 "properties": {
@@ -1102,10 +1106,6 @@
               "src": {
                 "description": "Path to the Dockerfile that builds the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#src",
                 "type": "string"
-              },
-              "useReadOnlyFileSystem": {
-                "description": "Controls if the filesystem shall be read-only.",
-                "type": "boolean"
               },
               "variables": {
                 "additionalProperties": {
@@ -1433,6 +1433,10 @@
                       },
                       "type": "object"
                     },
+                    "readOnlyFileSystem": {
+                      "description": "Controls if the filesystem shall be read-only.",
+                      "type": "boolean"
+                    },
                     "resources": {
                       "description": "Environment specific configuration for CPU and memory resources. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3",
                       "properties": {
@@ -1557,10 +1561,6 @@
                       "description": "Environment specific value for the maximum number of seconds the job can run. More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2",
                       "format": "int64",
                       "type": "integer"
-                    },
-                    "useReadOnlyFileSystem": {
-                      "description": "Controls if the filesystem shall be read-only.",
-                      "type": "boolean"
                     },
                     "variables": {
                       "additionalProperties": {
@@ -1952,6 +1952,10 @@
                 ],
                 "x-kubernetes-list-type": "map"
               },
+              "readOnlyFileSystem": {
+                "description": "Controls if the filesystem shall be read-only.",
+                "type": "boolean"
+              },
               "resources": {
                 "description": "Configures CPU and memory resources for the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common-2",
                 "properties": {
@@ -2094,10 +2098,6 @@
                 "description": "The maximum number of seconds the job can run. More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds",
                 "format": "int64",
                 "type": "integer"
-              },
-              "useReadOnlyFileSystem": {
-                "description": "Controls if the filesystem shall be read-only.",
-                "type": "boolean"
               },
               "variables": {
                 "additionalProperties": {

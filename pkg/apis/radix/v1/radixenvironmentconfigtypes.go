@@ -14,7 +14,7 @@ type RadixCommonEnvironmentConfig interface {
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetReplicas() *int
 	GetIdentity() *Identity
-	GetUseReadOnlyFileSystem() *bool
+	GetReadOnlyFileSystem() *bool
 	getEnabled() *bool
 }
 
@@ -54,8 +54,8 @@ func (config *RadixEnvironmentConfig) GetIdentity() *Identity {
 	return config.Identity
 }
 
-func (config *RadixEnvironmentConfig) GetUseReadOnlyFileSystem() *bool {
-	return config.UseReadOnlyFileSystem
+func (config *RadixEnvironmentConfig) GetReadOnlyFileSystem() *bool {
+	return config.ReadOnlyFileSystem
 }
 
 func (config *RadixEnvironmentConfig) getEnabled() *bool {
@@ -103,8 +103,8 @@ func (config *RadixJobComponentEnvironmentConfig) GetNotifications() *Notificati
 	return config.Notifications
 }
 
-func (config *RadixJobComponentEnvironmentConfig) GetUseReadOnlyFileSystem() *bool {
-	return config.UseReadOnlyFileSystem
+func (config *RadixJobComponentEnvironmentConfig) GetReadOnlyFileSystem() *bool {
+	return config.ReadOnlyFileSystem
 }
 
 func (config *RadixJobComponentEnvironmentConfig) getEnabled() *bool {

@@ -785,7 +785,7 @@ func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
 				WithComponents(
 					utils.NewDeployComponentBuilder().
 						WithName("app").
-						WithUseReadOnlyFileSystem(test.readOnlyFileSystem)))
+						WithReadOnlyFileSystem(test.readOnlyFileSystem)))
 
 			assert.NoError(t, err)
 			deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})

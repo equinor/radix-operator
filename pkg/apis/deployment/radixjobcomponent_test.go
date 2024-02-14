@@ -612,27 +612,27 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 	}
 }
 
-func TestGetRadixJobComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
+func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 	const (
 		environment = "dev"
 	)
-	// Test cases with different values for UseReadOnlyFileSystem
+	// Test cases with different values for ReadOnlyFileSystem
 	testCases := []struct {
-		name                     string
-		useReadOnlyFileSystem    *bool
-		useReadOnlyFileSystemEnv *bool
+		name                  string
+		readOnlyFileSystem    *bool
+		readOnlyFileSystemEnv *bool
 
-		expectedUseReadOnlyFile *bool
+		expectedReadOnlyFile *bool
 	}{
-		{"UseReadOnlyFileSystem is nil", nil, nil, nil},
-		{"UseReadOnlyFileSystem is nil", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"UseReadOnlyFileSystem is nil", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"UseReadOnlyFileSystem is true", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
-		{"UseReadOnlyFileSystem is true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"UseReadOnlyFileSystem is true", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"UseReadOnlyFileSystem is false", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
-		{"UseReadOnlyFileSystem is false", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"UseReadOnlyFileSystem is false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"ReadOnlyFileSystem is nil", nil, nil, nil},
+		{"ReadOnlyFileSystem is nil", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"ReadOnlyFileSystem is nil", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"ReadOnlyFileSystem is true", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
+		{"ReadOnlyFileSystem is true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"ReadOnlyFileSystem is true", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"ReadOnlyFileSystem is false", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
+		{"ReadOnlyFileSystem is false", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"ReadOnlyFileSystem is false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
 	}
 
 	for _, ts := range testCases {
@@ -642,10 +642,10 @@ func TestGetRadixJobComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
 
 			componentBuilder := utils.NewApplicationJobComponentBuilder().
 				WithName("jobComponentName").
-				WithUseReadOnlyFileSystem(ts.useReadOnlyFileSystem).
+				WithReadOnlyFileSystem(ts.readOnlyFileSystem).
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().
 					WithEnvironment(environment).
-					WithUseReadOnlyFileSystem(ts.useReadOnlyFileSystemEnv))
+					WithReadOnlyFileSystem(ts.readOnlyFileSystemEnv))
 			componentBuilders = append(componentBuilders, componentBuilder)
 
 			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
@@ -653,7 +653,7 @@ func TestGetRadixJobComponentsForEnv_UseReadOnlyFileSystem(t *testing.T) {
 			deployJobComponent, err := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap), nil).JobComponents()
 			assert.NoError(t, err)
 
-			assert.Equal(t, ts.expectedUseReadOnlyFile, deployJobComponent[0].UseReadOnlyFileSystem)
+			assert.Equal(t, ts.expectedReadOnlyFile, deployJobComponent[0].ReadOnlyFileSystem)
 
 		})
 	}

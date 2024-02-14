@@ -35,7 +35,7 @@ type DeployComponentBuilder interface {
 	WithRunAsNonRoot(bool) DeployComponentBuilder
 	WithAuthentication(*v1.Authentication) DeployComponentBuilder
 	WithIdentity(*v1.Identity) DeployComponentBuilder
-	WithUseReadOnlyFileSystem(*bool) DeployComponentBuilder
+	WithReadOnlyFileSystem(*bool) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -57,15 +57,15 @@ type deployComponentBuilder struct {
 	secretRefs              v1.RadixSecretRefs
 	dnsappalias             bool
 	// Deprecated: For backwards comptibility externalAppAlias is still supported, new code should use publicPort instead
-	externalAppAlias      []string
-	externalDNS           []v1.RadixDeployExternalDNS
-	resources             v1.ResourceRequirements
-	horizontalScaling     *v1.RadixHorizontalScaling
-	volumeMounts          []v1.RadixVolumeMount
-	node                  v1.RadixNode
-	authentication        *v1.Authentication
-	identity              *v1.Identity
-	useReadOnlyFileSystem *bool
+	externalAppAlias   []string
+	externalDNS        []v1.RadixDeployExternalDNS
+	resources          v1.ResourceRequirements
+	horizontalScaling  *v1.RadixHorizontalScaling
+	volumeMounts       []v1.RadixVolumeMount
+	node               v1.RadixNode
+	authentication     *v1.Authentication
+	identity           *v1.Identity
+	readOnlyFileSystem *bool
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployComponentBuilder {
@@ -244,8 +244,8 @@ func (dcb *deployComponentBuilder) WithIdentity(identity *v1.Identity) DeployCom
 	return dcb
 }
 
-func (dcb *deployComponentBuilder) WithUseReadOnlyFileSystem(useReadOnlyFileSystem *bool) DeployComponentBuilder {
-	dcb.useReadOnlyFileSystem = useReadOnlyFileSystem
+func (dcb *deployComponentBuilder) WithReadOnlyFileSystem(readOnlyFileSystem *bool) DeployComponentBuilder {
+	dcb.readOnlyFileSystem = readOnlyFileSystem
 	return dcb
 }
 
@@ -273,7 +273,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Node:                    dcb.node,
 		Authentication:          dcb.authentication,
 		Identity:                dcb.identity,
-		UseReadOnlyFileSystem:   dcb.useReadOnlyFileSystem,
+		ReadOnlyFileSystem:      dcb.readOnlyFileSystem,
 	}
 }
 

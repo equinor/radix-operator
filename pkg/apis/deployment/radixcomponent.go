@@ -71,7 +71,7 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 		deployComponent.Authentication = auth
 		deployComponent.Identity = identity
-		deployComponent.UseReadOnlyFileSystem = getRadixCommonComponentUseReadOnlyFileSystem(&radixComponent, environmentSpecificConfig)
+		deployComponent.ReadOnlyFileSystem = getRadixCommonComponentReadOnlyFileSystem(&radixComponent, environmentSpecificConfig)
 
 		deployComponents = append(deployComponents, deployComponent)
 	}
@@ -79,11 +79,11 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 	return deployComponents, nil
 }
 
-func getRadixCommonComponentUseReadOnlyFileSystem(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *bool {
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetUseReadOnlyFileSystem() != nil {
-		return environmentSpecificConfig.GetUseReadOnlyFileSystem()
+func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *bool {
+	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetReadOnlyFileSystem() != nil {
+		return environmentSpecificConfig.GetReadOnlyFileSystem()
 	}
-	return radixComponent.GetUseReadOnlyFileSystem()
+	return radixComponent.GetReadOnlyFileSystem()
 }
 
 func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *radixv1.RadixComponent, environmentSpecificConfig *radixv1.RadixEnvironmentConfig) bool {

@@ -56,7 +56,7 @@ func WithContainerCapabilities(capabilities []corev1.Capability) ContainerOption
 		}
 	}
 }
-func WithUseReadOnlyFileSystem(readOnly *bool) ContainerOption {
+func WithReadOnlyRootFileSystem(readOnly *bool) ContainerOption {
 	return func(securityContext *corev1.SecurityContext) {
 		securityContext.ReadOnlyRootFilesystem = readOnly
 	}

@@ -414,7 +414,7 @@ type RadixComponent struct {
 
 	// Controls if the filesystem shall be read-only.
 	// +optional
-	UseReadOnlyFileSystem *bool `json:"useReadOnlyFileSystem,omitempty"`
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -493,7 +493,7 @@ type RadixEnvironmentConfig struct {
 
 	// Controls if the filesystem shall be read-only.
 	// +optional
-	UseReadOnlyFileSystem *bool `json:"useReadOnlyFileSystem,omitempty"`
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -603,7 +603,7 @@ type RadixJobComponent struct {
 
 	// Controls if the filesystem shall be read-only.
 	// +optional
-	UseReadOnlyFileSystem *bool `json:"useReadOnlyFileSystem,omitempty"`
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -677,7 +677,7 @@ type RadixJobComponentEnvironmentConfig struct {
 
 	// Controls if the filesystem shall be read-only.
 	// +optional
-	UseReadOnlyFileSystem *bool `json:"useReadOnlyFileSystem,omitempty"`
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -1344,7 +1344,8 @@ type RadixCommonComponent interface {
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
 	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
 	GetEnabledForEnvironment(environment string) bool
-	GetUseReadOnlyFileSystem() *bool
+	// GetReadOnlyFileSystem Gets if filesystem shall be read-only
+	GetReadOnlyFileSystem() *bool
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1429,8 +1430,8 @@ func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironme
 	return getEnabled(component, envConfig)
 }
 
-func (component *RadixComponent) GetUseReadOnlyFileSystem() *bool {
-	return component.UseReadOnlyFileSystem
+func (component *RadixComponent) GetReadOnlyFileSystem() *bool {
+	return component.ReadOnlyFileSystem
 }
 
 func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
@@ -1535,8 +1536,8 @@ func (component *RadixJobComponent) GetEnabledForEnvironment(environment string)
 	return getEnabledForEnvironment(component, environment)
 }
 
-func (component *RadixJobComponent) GetUseReadOnlyFileSystem() *bool {
-	return component.UseReadOnlyFileSystem
+func (component *RadixJobComponent) GetReadOnlyFileSystem() *bool {
+	return component.ReadOnlyFileSystem
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
