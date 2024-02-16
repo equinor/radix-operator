@@ -624,15 +624,15 @@ func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 
 		expectedReadOnlyFile *bool
 	}{
-		{"ReadOnlyFileSystem is nil", nil, nil, nil},
-		{"ReadOnlyFileSystem is nil", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"ReadOnlyFileSystem is nil", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"ReadOnlyFileSystem is true", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
-		{"ReadOnlyFileSystem is true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"ReadOnlyFileSystem is true", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"ReadOnlyFileSystem is false", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
-		{"ReadOnlyFileSystem is false", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"ReadOnlyFileSystem is false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"No configuration set", nil, nil, nil},
+		{"Env controls when readOnlyFileSystem is nil, set to true", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"Env controls when readOnlyFileSystem is nil, set to false", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"readOnlyFileSystem set to true, no env config", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
+		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"Env overrides to false when both is set", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"readOnlyFileSystem set to false, no env config", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
+		{"Env overrides to true when both is set", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
 	}
 
 	for _, ts := range testCases {
