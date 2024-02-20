@@ -4,7 +4,6 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	commonutils "github.com/equinor/radix-common/utils"
@@ -20,7 +19,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -295,34 +293,14 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			if imageSource.ImageSource != fromBuild {
 				continue
 			}
-			componentName := strings.ToLower(imageSource.ComponentName)
-			envNameForName := getLengthLimitedName(envName)
-			imageName := fmt.Sprintf("%s-%s", envNameForName, componentName)
-			containerName := fmt.Sprintf("build-%s-%s", componentName, envNameForName)
-			imagePath := operatorutils.GetImagePath(pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.RadixApplication.GetName(), imageName, pipelineInfo.PipelineArguments.ImageTag)
-			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
-				ComponentName: componentName,
-				EnvName:       envName,
-				ContainerName: containerName,
-				Context:       getContext(imageSource.Source.Folder),
-				Dockerfile:    getDockerfileName(imageSource.Source.DockefileName),
-				ImageName:     imageName,
-				ImagePath:     imagePath,
-			})
-			componentImageSourceMap[envName][imageSourceIndex].Image = imagePath
+			buildComponentImage := model.NewBuildComponentImage(pipelineInfo, envName, imageSource.ComponentName, imageSource.Source)
+			buildComponentImages = append(buildComponentImages, buildComponentImage)
+			componentImageSourceMap[envName][imageSourceIndex].Image = buildComponentImage.GetImagePath()
 		}
 		if len(buildComponentImages) > 0 {
 			pipelineInfo.BuildComponentImages[envName] = buildComponentImages
 		}
 	}
-}
-
-func getLengthLimitedName(name string) string {
-	validatedName := strings.ToLower(name)
-	if len(validatedName) > 10 {
-		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandString(4)))
-	}
-	return validatedName
 }
 
 // Set information about components and image to use for each environment when creating RadixDeployments
@@ -338,9 +316,9 @@ func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInf
 				if buildComponentImages, ok := pipelineInfo.BuildComponentImages[envName]; ok {
 					if buildComponentImage, ok := slice.FindFirst(buildComponentImages,
 						func(componentImage pipeline.BuildComponentImage) bool {
-							return componentImage.ComponentName == cis.ComponentName
+							return componentImage.GetComponentName() == cis.ComponentName
 						}); ok {
-						deployComponentImage.ImagePath = buildComponentImage.ImagePath
+						deployComponentImage.ImagePath = buildComponentImage.GetImagePath()
 					} else {
 						panic(fmt.Errorf("missing buildComponentImage for the imageSource with ImageSource == fromBuild for environment %s", envName)) // this should not happen, otherwise cis.ImageSource is not consistent
 					}
@@ -414,18 +392,6 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 		return slice.Any(envBuildContext.Components, func(s string) bool { return s == comp.GetName() }) ||
 			commonutils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
 	}, nil
-}
-
-func getDockerfileName(name string) string {
-	if name == "" {
-		return "Dockerfile"
-	}
-	return name
-}
-
-func getContext(sourceFolder string) string {
-	sourceRoot := filepath.Join("/", sourceFolder)
-	return fmt.Sprintf("%s/", filepath.Join(git.Workspace, sourceRoot))
 }
 
 func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComponent {

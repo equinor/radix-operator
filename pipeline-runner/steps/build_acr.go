@@ -56,13 +56,13 @@ func (step *BuildStepImplementation) buildACRBuildJobsForBuildKit(rr *v1.RadixRe
 	for envName, buildComponentImages := range pipelineInfo.BuildComponentImages {
 		log.Debugf("build a build-kit jobs for the env %s", envName)
 		for _, componentImage := range buildComponentImages {
-			log.Debugf("build a job for the image %s", componentImage.ImageName)
-			hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
+			log.Debugf("build a job for the image %s", componentImage.GetImageName())
+			hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.GetComponentName())))
 
 			job := buildACRBuildJob(rr, pipelineInfo, buildSecrets, hash, componentImage)
 
 			job.ObjectMeta.Labels[kube.RadixEnvLabel] = envName
-			job.ObjectMeta.Labels[kube.RadixComponentLabel] = componentImage.ComponentName
+			job.ObjectMeta.Labels[kube.RadixComponentLabel] = componentImage.GetComponentName()
 			jobs = append(jobs, job)
 		}
 	}
@@ -193,14 +193,14 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 
 	for _, componentImage := range buildComponentImages {
 		// For extra meta information about an image
-		clusterTypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterType, imageTag))
-		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
+		clusterTypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.GetImageName(), fmt.Sprintf("%s-%s", clusterType, imageTag))
+		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.GetImageName(), fmt.Sprintf("%s-%s", clusterName, imageTag))
 		envVars := getContainerEnvVars(appName, pipelineInfo, componentImage, buildSecrets, clusterTypeImage, clusterNameImage)
 		command := getContainerCommand(pipelineInfo, containerRegistry, secretMountsArgsString, componentImage, clusterTypeImage, clusterNameImage)
 		resources := getContainerResources(pipelineInfo)
 
 		container := corev1.Container{
-			Name:            componentImage.ContainerName,
+			Name:            componentImage.GetContainerName(),
 			Image:           imageBuilder,
 			Command:         command,
 			ImagePullPolicy: corev1.PullAlways,
@@ -303,10 +303,10 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 	if !pipelineInfo.PipelineArguments.UseCache {
 		useCache = "--no-cache"
 	}
-	containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.ImageName)
+	containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.GetImageName())
 	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
-	targetEnvs := componentImage.EnvName
+	targetEnvs := componentImage.GetEnvName()
 	if len(targetEnvs) == 0 {
 		targetEnvs = strings.Join(pipelineInfo.TargetEnvironments, ",")
 	}
@@ -315,7 +315,7 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 	envVars := []corev1.EnvVar{
 		{
 			Name:  "DOCKER_FILE_NAME",
-			Value: componentImage.Dockerfile,
+			Value: componentImage.GetDockerfile(),
 		},
 		{
 			Name:  "DOCKER_REGISTRY",
@@ -323,11 +323,11 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 		},
 		{
 			Name:  "IMAGE",
-			Value: componentImage.ImagePath,
+			Value: componentImage.GetImagePath(),
 		},
 		{
 			Name:  "CONTEXT",
-			Value: componentImage.Context,
+			Value: componentImage.GetContext(),
 		},
 		{
 			Name:  "PUSH",
@@ -424,13 +424,13 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString string,
 	buildah := commandbuilder.NewCommand("/usr/bin/buildah build")
 	commandList.AddCmd(buildah)
 
-	context := componentImage.Context
+	context := componentImage.GetContext()
 	buildah.
 		AddArgf("--storage-driver=overlay").
 		AddArgf("--isolation=chroot").
 		AddArgf("--jobs 0").
 		AddArgf(secretArgsString).
-		AddArgf("--file %s%s", context, componentImage.Dockerfile).
+		AddArgf("--file %s%s", context, componentImage.GetDockerfile()).
 		AddArgf(`--build-arg RADIX_GIT_COMMIT_HASH="${RADIX_GIT_COMMIT_HASH}"`).
 		AddArgf(`--build-arg RADIX_GIT_TAGS="${RADIX_GIT_TAGS}"`).
 		AddArgf(`--build-arg BRANCH="${BRANCH}"`).
@@ -443,7 +443,7 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString string,
 			AddArgf("--cache-from=%s", cacheImagePath)
 	}
 
-	imageTag := componentImage.ImagePath
+	imageTag := componentImage.GetImagePath()
 	if pushImage {
 		buildah.
 			AddArgf("--tag %s", imageTag).

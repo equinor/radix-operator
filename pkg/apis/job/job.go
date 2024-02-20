@@ -494,7 +494,11 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 func getContainerNames(buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImagesList []pipeline.BuildComponentImage) []string {
 	return append(maps.GetKeysFromMap(buildComponentImagesMap),
 		slice.Map(buildComponentImagesList, func(componentImage pipeline.BuildComponentImage) string {
-			return fmt.Sprintf("%s-%s", componentImage.ComponentName, componentImage.EnvName)
+			envName := componentImage.GetEnvName()
+			if len(envName) == 0 {
+				return componentImage.GetComponentName()
+			}
+			return fmt.Sprintf("%s-%s", componentImage.GetComponentName(), envName)
 		})...)
 }
 
@@ -512,8 +516,8 @@ func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj int
 func getComponentsForContainer(name string, componentImages []pipeline.BuildComponentImage) []string {
 	components := make([]string, 0)
 	for _, componentImage := range componentImages {
-		if strings.EqualFold(componentImage.ContainerName, name) {
-			components = append(components, componentImage.ComponentName)
+		if strings.EqualFold(name, componentImage.GetContainerName()) {
+			components = append(components, name)
 		}
 	}
 	sort.Strings(components)
@@ -523,7 +527,7 @@ func getComponentsForContainer(name string, componentImages []pipeline.BuildComp
 func getComponentImagesForContainer(name string, componentImages pipeline.BuildComponentImages) []string {
 	components := make([]string, 0)
 	for componentName, componentImage := range componentImages {
-		if strings.EqualFold(componentImage.ContainerName, name) {
+		if strings.EqualFold(componentImage.GetContainerName(), name) {
 			components = append(components, componentName)
 		}
 	}

@@ -100,6 +100,7 @@ mocks:
 	mockgen -source ./radix-operator/dnsalias/internal/syncerfactory.go -destination ./radix-operator/dnsalias/internal/syncerfactory_mock.go -package internal
 	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
 	mockgen -source ./pipeline-runner/internal/wait/job.go -destination ./pipeline-runner/internal/wait/job_mock.go -package wait
+	mockgen -source ./pkg/apis/pipeline/component_image.go -destination ./pkg/apis/pipeline/component_image_mock.go -package pipeline
 
 .PHONY: build-pipeline
 build-pipeline:

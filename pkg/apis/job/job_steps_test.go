@@ -11,10 +11,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +22,7 @@ import (
 
 type RadixJobStepTestSuite struct {
 	RadixJobTestSuiteBase
+	ctrl *gomock.Controller
 }
 
 type setStatusOfJobTestScenarioExpected struct {
@@ -49,6 +50,11 @@ type getJobStepWithContainerNameScenario struct {
 
 func TestRadixJobStepTestSuite(t *testing.T) {
 	suite.Run(t, new(RadixJobStepTestSuite))
+}
+
+func (s *RadixJobStepTestSuite) SetupTest() {
+	s.setupTest()
+	s.ctrl = gomock.NewController(s.T())
 }
 
 func (s *RadixJobStepTestSuite) TestIt() {
@@ -181,10 +187,10 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 			s.getPipelineJob("job-5", "app-5", "a_tag"),
 			s.getPreparePipelineJob("prepare-pipeline-5", "job-5", "app-5", "a_tag"),
 			s.getBuildJob("build-job-5", "job-5", "app-5", "a_tag", []pipeline.BuildComponentImage{
-				{ComponentName: "comp", ContainerName: "build-app"},
-				{ComponentName: "multi1", ContainerName: "build-multi"},
-				{ComponentName: "multi3", ContainerName: "build-multi"},
-				{ComponentName: "multi2", ContainerName: "build-multi"},
+				s.getComponentImageMockFor("comp", "build-app"),
+				s.getComponentImageMockFor("multi1", "build-multi"),
+				s.getComponentImageMockFor("multi3", "build-multi"),
+				s.getComponentImageMockFor("multi2", "build-multi"),
 			}),
 			s.getRunPipelineJob("run-pipeline-5", "job-5", "app-5", "a_tag"),
 		},
@@ -219,6 +225,13 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 	}
 
 	s.testSetStatusOfJobTestScenario(&scenario)
+}
+
+func (s *RadixJobStepTestSuite) getComponentImageMockFor(componentName, containerName string) *pipeline.MockBuildComponentImage {
+	componentImage := pipeline.NewMockBuildComponentImage(s.ctrl)
+	componentImage.EXPECT().GetComponentName().Return(componentName).Times(1)
+	componentImage.EXPECT().GetContainerName().Return(containerName).Times(1)
+	return componentImage
 }
 
 func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
