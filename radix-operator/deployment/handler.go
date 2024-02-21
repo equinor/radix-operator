@@ -14,6 +14,7 @@ import (
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 
+	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,6 +77,7 @@ type Handler struct {
 	kubeclient              kubernetes.Interface
 	radixclient             radixclient.Interface
 	prometheusperatorclient monitoring.Interface
+	certClient              certclient.Interface
 	kubeutil                *kube.Kube
 	hasSynced               common.HasSynced
 	oauth2DefaultConfig     defaults.OAuth2Config
@@ -90,6 +92,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusperatorclient monitoring.Interface,
+	certClient certclient.Interface,
 	config *config.Config,
 	options ...HandlerConfigOption) *Handler {
 
@@ -97,6 +100,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeclient:              kubeclient,
 		radixclient:             radixclient,
 		prometheusperatorclient: prometheusperatorclient,
+		certClient:              certClient,
 		kubeutil:                kubeutil,
 		config:                  config,
 	}
@@ -150,7 +154,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage),
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

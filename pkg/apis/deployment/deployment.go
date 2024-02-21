@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -42,6 +43,7 @@ type Deployment struct {
 	radixclient                radixclient.Interface
 	kubeutil                   *kube.Kube
 	prometheusperatorclient    monitoring.Interface
+	certClient                 certclient.Interface
 	registration               *v1.RadixRegistration
 	radixDeployment            *v1.RadixDeployment
 	auxResourceManagers        []AuxiliaryResourceManager
@@ -53,12 +55,13 @@ type Deployment struct {
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
 		kubeutil:                   kubeutil,
 		prometheusperatorclient:    prometheusperatorclient,
+		certClient:                 certClient,
 		registration:               registration,
 		radixDeployment:            radixDeployment,
 		auxResourceManagers:        auxResourceManagers,

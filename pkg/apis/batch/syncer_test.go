@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
@@ -37,6 +38,7 @@ type syncerTestSuite struct {
 	radixClient *fakeradix.Clientset
 	kubeUtil    *kube.Kube
 	promClient  *prometheusfake.Clientset
+	certClient  *certfake.Clientset
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -78,6 +80,7 @@ func (s *syncerTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
+	s.certClient = certfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
@@ -988,7 +991,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	s.Require().NoError(err)
 	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, nil, &config.Config{})
+	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.certClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, nil, &config.Config{})
 	s.Require().NoError(deploySyncer.OnSync())
 
 	sut := s.createSyncer(batch)
