@@ -251,6 +251,53 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	assert.Equal(t, false, deployComponent[0].Public)
 }
 
+func TestGetRadixComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	// Test cases with different values for ReadOnlyFileSystem
+	testCases := []struct {
+		description           string
+		readOnlyFileSystem    *bool
+		readOnlyFileSystemEnv *bool
+
+		expectedReadOnlyFilesystem *bool
+	}{
+		{"No configuration set", nil, nil, nil},
+		{"Env controls when readOnlyFileSystem is nil, set to true", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"Env controls when readOnlyFileSystem is nil, set to false", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"readOnlyFileSystem set to true, no env config", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
+		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"Env overrides to false when both is set", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"readOnlyFileSystem set to false, no env config", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
+		{"Env overrides to true when both is set", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			ra := utils.ARadixApplication().
+				WithComponents(
+					utils.NewApplicationComponentBuilder().
+						WithName(componentName).
+						WithReadOnlyFileSystem(testCase.readOnlyFileSystem).
+						WithEnvironmentConfigs(
+							utils.AnEnvironmentConfig().
+								WithEnvironment(env).
+								WithReadOnlyFileSystem(testCase.readOnlyFileSystemEnv),
+							utils.AnEnvironmentConfig().
+								WithEnvironment("prod").WithReadOnlyFileSystem(utils.BoolPtr(false)),
+						)).BuildRA()
+
+			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
+			assert.Equal(t, testCase.expectedReadOnlyFilesystem, deployComponent[0].ReadOnlyFileSystem)
+		})
+	}
+}
+
 func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAliases(t *testing.T) {
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}

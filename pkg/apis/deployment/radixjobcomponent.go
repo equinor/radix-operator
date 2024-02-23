@@ -111,6 +111,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		TimeLimitSeconds:     getRadixJobComponentTimeLimitSeconds(radixJobComponent, environmentSpecificConfig),
 		Identity:             identity,
 		Notifications:        notifications,
+		ReadOnlyFileSystem:   getRadixCommonComponentReadOnlyFileSystem(&radixJobComponent, environmentSpecificConfig),
 	}
 
 	if environmentSpecificConfig != nil {

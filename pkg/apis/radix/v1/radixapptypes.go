@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -410,6 +411,10 @@ type RadixComponent struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Controls if the filesystem shall be read-only.
+	// +optional
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -500,6 +505,10 @@ type RadixEnvironmentConfig struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Controls if the filesystem shall be read-only.
+	// +optional
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -606,6 +615,10 @@ type RadixJobComponent struct {
 	// Notifications about batch or job status changes
 	// +optional
 	Notifications *Notifications `json:"notifications,omitempty"`
+
+	// Controls if the filesystem shall be read-only.
+	// +optional
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -690,6 +703,10 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Notifications about batch or job status changes
 	// +optional
 	Notifications *Notifications `json:"notifications,omitempty"`
+
+	// Controls if the filesystem shall be read-only.
+	// +optional
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -760,6 +777,7 @@ type RadixVolumeMount struct {
 	// User-defined name of the volume mount.
 	// Must be unique for the component.
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=40
 	Name string `json:"name"`
 
 	// Deprecated. Only required by the deprecated type: blob.
@@ -816,6 +834,31 @@ type RadixVolumeMount struct {
 
 	// AzureFile settings for Azure File CSI driver
 	AzureFile *RadixAzureFileVolumeMount `json:"azureFile,omitempty"`
+
+	// EmptyDir settings for EmptyDir volume
+	EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
+}
+
+func (v *RadixVolumeMount) HasDeprecatedVolume() bool {
+	return len(v.Type) > 0
+}
+
+func (v *RadixVolumeMount) HasBlobFuse2() bool {
+	return v.BlobFuse2 != nil
+}
+
+func (v *RadixVolumeMount) HasAzureFile() bool {
+	return v.AzureFile != nil
+}
+
+func (v *RadixVolumeMount) HasEmptyDir() bool {
+	return v.EmptyDir != nil
+}
+
+type RadixEmptyDirVolumeMount struct {
+	// SizeLimit defines the size of the emptyDir volume
+	// +kubebuilder:validation:Required
+	SizeLimit resource.Quantity `json:"sizeLimit"`
 }
 
 // BlobFuse2Protocol Holds protocols of BlobFuse2 Azure Storage FUSE driver
@@ -835,11 +878,10 @@ type RadixBlobFuse2VolumeMount struct {
 	// Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.
 	// +kubebuilder:validation:Enum=fuse2;nfs;""
 	// +optional
-	Protocol BlobFuse2Protocol `json:"protocol"`
+	Protocol BlobFuse2Protocol `json:"protocol,omitempty"`
 
 	// Container. Name of the container in the external storage resource.
-	// +optional
-	Container string `json:"container,omitempty"`
+	Container string `json:"container"`
 
 	// GID defines the group ID (number) which will be set as owner of the mounted volume.
 	// +optional
@@ -851,6 +893,7 @@ type RadixBlobFuse2VolumeMount struct {
 
 	// SKU Type of Azure storage.
 	// More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+	// +kubebuilder:validation:Enum=Standard_LRS;Premium_LRS;Standard_GRS;Standard_RAGRS;""
 	// +optional
 	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 
@@ -965,56 +1008,6 @@ const (
 	// MountTypeAzureFileCsiAzure Use of azure/csi driver for Azure File in Azure storage account
 	MountTypeAzureFileCsiAzure MountType = "azure-file"
 )
-
-// These are valid storage class provisioners
-const (
-	// ProvisionerBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
-	ProvisionerBlobCsiAzure string = "blob.csi.azure.com"
-	// ProvisionerFileCsiAzure Use of azure/csi driver for files in Azure storage account
-	ProvisionerFileCsiAzure string = "file.csi.azure.com"
-)
-
-// GetStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
-func GetStorageClassProvisionerByVolumeMountType(radixVolumeMount *RadixVolumeMount) (string, bool) {
-	if radixVolumeMount.BlobFuse2 != nil {
-		return ProvisionerBlobCsiAzure, true
-	}
-	if radixVolumeMount.AzureFile != nil {
-		return ProvisionerFileCsiAzure, true
-	}
-	switch radixVolumeMount.Type {
-	case MountTypeBlobFuse2FuseCsiAzure, MountTypeBlobFuse2Fuse2CsiAzure, MountTypeBlobFuse2NfsCsiAzure:
-		return ProvisionerBlobCsiAzure, true
-	case MountTypeAzureFileCsiAzure:
-		return ProvisionerFileCsiAzure, true
-	}
-	return "", false
-}
-
-// GetCsiAzureStorageClassProvisioners CSI Azure provisioners
-func GetCsiAzureStorageClassProvisioners() []string {
-	return []string{ProvisionerBlobCsiAzure, ProvisionerFileCsiAzure}
-}
-
-// IsKnownVolumeMount Gets if volume mount is supported
-func IsKnownVolumeMount(volumeMount string) bool {
-	return IsKnownBlobFlexVolumeMount(volumeMount) ||
-		IsKnownCsiAzureVolumeMount(volumeMount)
-}
-
-// IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
-func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
-	switch volumeMount {
-	case string(MountTypeBlobFuse2FuseCsiAzure), string(MountTypeBlobFuse2Fuse2CsiAzure), string(MountTypeBlobFuse2NfsCsiAzure), string(MountTypeAzureFileCsiAzure):
-		return true
-	}
-	return false
-}
-
-// IsKnownBlobFlexVolumeMount Supported volume mount type Azure Blobfuse
-func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
-	return volumeMount == string(MountTypeBlob)
-}
 
 // RadixNode defines node attributes, where container should be scheduled
 type RadixNode struct {
@@ -1392,6 +1385,8 @@ type RadixCommonComponent interface {
 	GetEnabledForEnvironmentConfig(RadixCommonEnvironmentConfig) bool
 	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
 	GetEnabledForEnvironment(environment string) bool
+	// GetReadOnlyFileSystem Gets if filesystem shall be read-only
+	GetReadOnlyFileSystem() *bool
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1457,7 +1452,8 @@ func (component *RadixComponent) getEnabled() bool {
 func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
-		environmentConfigs = append(environmentConfigs, environmentConfig)
+		environmentConfig := environmentConfig
+		environmentConfigs = append(environmentConfigs, &environmentConfig)
 	}
 	return environmentConfigs
 }
@@ -1481,6 +1477,10 @@ func (component *RadixComponent) GetEnvironmentConfigByName(environment string) 
 
 func (component *RadixComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
 	return getEnabled(component, envConfig)
+}
+
+func (component *RadixComponent) GetReadOnlyFileSystem() *bool {
+	return component.ReadOnlyFileSystem
 }
 
 func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
@@ -1566,7 +1566,8 @@ func (component *RadixJobComponent) getEnabled() bool {
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
-		environmentConfigs = append(environmentConfigs, environmentConfig)
+		environmentConfig := environmentConfig
+		environmentConfigs = append(environmentConfigs, &environmentConfig)
 	}
 	return environmentConfigs
 }
@@ -1590,6 +1591,10 @@ func (component *RadixJobComponent) GetEnvironmentConfigByName(environment strin
 
 func (component *RadixJobComponent) GetEnabledForEnvironment(environment string) bool {
 	return getEnabledForEnvironment(component, environment)
+}
+
+func (component *RadixJobComponent) GetReadOnlyFileSystem() *bool {
+	return component.ReadOnlyFileSystem
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
