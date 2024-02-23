@@ -25,30 +25,32 @@ type RadixApplicationJobComponentBuilder interface {
 	WithEnabled(bool) RadixApplicationJobComponentBuilder
 	WithIdentity(*v1.Identity) RadixApplicationJobComponentBuilder
 	WithNotifications(*v1.Notifications) RadixApplicationJobComponentBuilder
+	WithReadOnlyFileSystem(*bool) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
 type radixApplicationJobComponentBuilder struct {
-	name              string
-	sourceFolder      string
-	dockerfileName    string
-	image             string
-	ports             []v1.ComponentPort
-	secrets           []string
-	secretRefs        v1.RadixSecretRefs
-	monitoringConfig  v1.MonitoringConfig
-	environmentConfig []RadixJobComponentEnvironmentConfigBuilder
-	variables         v1.EnvVarsMap
-	resources         v1.ResourceRequirements
-	schedulerPort     *int32
-	payloadPath       *string
-	node              v1.RadixNode
-	volumes           []v1.RadixVolumeMount
-	timeLimitSeconds  *int64
-	backoffLimit      *int32
-	enabled           *bool
-	identity          *v1.Identity
-	notifications     *v1.Notifications
+	name               string
+	sourceFolder       string
+	dockerfileName     string
+	image              string
+	ports              []v1.ComponentPort
+	secrets            []string
+	secretRefs         v1.RadixSecretRefs
+	monitoringConfig   v1.MonitoringConfig
+	environmentConfig  []RadixJobComponentEnvironmentConfigBuilder
+	variables          v1.EnvVarsMap
+	resources          v1.ResourceRequirements
+	schedulerPort      *int32
+	payloadPath        *string
+	node               v1.RadixNode
+	volumes            []v1.RadixVolumeMount
+	timeLimitSeconds   *int64
+	backoffLimit       *int32
+	enabled            *bool
+	identity           *v1.Identity
+	notifications      *v1.Notifications
+	readOnlyFileSystem *bool
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -173,7 +175,10 @@ func (rcb *radixApplicationJobComponentBuilder) WithNotifications(notifications 
 	rcb.notifications = notifications
 	return rcb
 }
-
+func (rcb *radixApplicationJobComponentBuilder) WithReadOnlyFileSystem(readOnlyFileSystem *bool) RadixApplicationJobComponentBuilder {
+	rcb.readOnlyFileSystem = readOnlyFileSystem
+	return rcb
+}
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -186,25 +191,26 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 	}
 
 	return v1.RadixJobComponent{
-		Name:              rcb.name,
-		SourceFolder:      rcb.sourceFolder,
-		DockerfileName:    rcb.dockerfileName,
-		Image:             rcb.image,
-		Ports:             rcb.ports,
-		Secrets:           rcb.secrets,
-		SecretRefs:        rcb.secretRefs,
-		MonitoringConfig:  rcb.monitoringConfig,
-		EnvironmentConfig: environmentConfig,
-		Variables:         rcb.variables,
-		Resources:         rcb.resources,
-		SchedulerPort:     rcb.schedulerPort,
-		Payload:           payload,
-		Node:              rcb.node,
-		TimeLimitSeconds:  rcb.timeLimitSeconds,
-		BackoffLimit:      rcb.backoffLimit,
-		Enabled:           rcb.enabled,
-		Identity:          rcb.identity,
-		Notifications:     rcb.notifications,
+		Name:               rcb.name,
+		SourceFolder:       rcb.sourceFolder,
+		DockerfileName:     rcb.dockerfileName,
+		Image:              rcb.image,
+		Ports:              rcb.ports,
+		Secrets:            rcb.secrets,
+		SecretRefs:         rcb.secretRefs,
+		MonitoringConfig:   rcb.monitoringConfig,
+		EnvironmentConfig:  environmentConfig,
+		Variables:          rcb.variables,
+		Resources:          rcb.resources,
+		SchedulerPort:      rcb.schedulerPort,
+		Payload:            payload,
+		Node:               rcb.node,
+		TimeLimitSeconds:   rcb.timeLimitSeconds,
+		BackoffLimit:       rcb.backoffLimit,
+		Enabled:            rcb.enabled,
+		Identity:           rcb.identity,
+		Notifications:      rcb.notifications,
+		ReadOnlyFileSystem: rcb.readOnlyFileSystem,
 	}
 }
 
