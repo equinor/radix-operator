@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -54,7 +53,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	if len(component.GetSecrets()) > 0 {
 		secretName := utils.GetComponentSecretName(component.GetName())
 		if !deploy.kubeutil.SecretExists(namespace, secretName) {
-			err := deploy.createOrUpdateSecret(namespace, deploy.registration.Name, component.GetName(), secretName, false)
+			err := deploy.createOrUpdateComponentSecret(namespace, deploy.registration.Name, component.GetName(), secretName)
 			if err != nil {
 				return err
 			}
@@ -66,36 +65,6 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 		}
 
 		secretsToManage = append(secretsToManage, secretName)
-	}
-
-	dnsExternalAlias := component.GetExternalDNS()
-	if len(dnsExternalAlias) > 0 {
-		err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
-		if err != nil {
-			return err
-		}
-
-		// Create secrets to hold TLS certificates
-		for _, externalAlias := range dnsExternalAlias {
-			// Cert manager will create the TLS secret.
-			// When witching from manual to automation, the secret is deleted by createOrUpdateExternalDNSIngresses in ingress.go
-			// When switching from automation to manual, the existing secret data cleared and updated by createOrUpdateExternalDNSIngresses
-			if externalAlias.UseCertificateAutomation {
-				continue
-			}
-
-			secretsToManage = append(secretsToManage, externalAlias.FQDN)
-
-			err := deploy.createOrUpdateSecret(namespace, deploy.registration.Name, component.GetName(), externalAlias.FQDN, true)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		err := deploy.garbageCollectAllSecretsForComponentAndExternalAlias(component)
-		if err != nil {
-			return err
-		}
 	}
 
 	volumeMountSecretsToManage, err := deploy.createOrUpdateVolumeMountSecrets(namespace, component.GetName(), component.GetVolumeMounts())
@@ -254,51 +223,8 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectAllSecretsForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectSecretsForComponentAndExternalAlias(component, true)
-}
-
-func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectSecretsForComponentAndExternalAlias(component, false)
-}
-
-func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent, all bool) error {
-	secrets, err := deploy.listSecretsForComponentExternalAlias(component)
-	if err != nil {
-		return err
-	}
-
-	for _, secret := range secrets {
-		garbageCollectSecret := true
-
-		dnsExternalAlias := component.GetExternalDNS()
-		if !all && len(dnsExternalAlias) > 0 {
-			externalAliasForSecret := secret.Name
-			for _, externalAlias := range dnsExternalAlias {
-				if externalAlias.FQDN == externalAliasForSecret {
-					garbageCollectSecret = false
-				}
-			}
-		}
-
-		if garbageCollectSecret {
-			log.Debugf("Delete secret %s for component %s and external alias %s", secret.Name, component.GetName(), slice.Map(dnsExternalAlias, func(dns radixv1.RadixDeployExternalDNS) string { return dns.FQDN }))
-			err = deploy.deleteSecret(secret)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
 	return deploy.listSecrets(getLabelSelectorForComponent(component))
-}
-
-func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
-	return deploy.listSecrets(getLabelSelectorForExternalAlias(component))
 }
 
 func (deploy *Deployment) listSecretsForVolumeMounts(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
@@ -326,26 +252,18 @@ func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error
 	return secrets, err
 }
 
-func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName string, isExternalAlias bool) error {
-	secretType := v1.SecretTypeOpaque
-	if isExternalAlias {
-		secretType = v1.SecretTypeTLS
-	}
+func (deploy *Deployment) createOrUpdateComponentSecret(ns, app, component, secretName string) error {
 
 	secret := v1.Secret{
-		Type: secretType,
+		Type: v1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
 				kube.RadixAppLabel:           app,
 				kube.RadixComponentLabel:     component,
-				kube.RadixExternalAliasLabel: strconv.FormatBool(isExternalAlias),
+				kube.RadixExternalAliasLabel: "false",
 			},
 		},
-	}
-
-	if isExternalAlias {
-		secret.Data = tlsSecretDefaultData()
 	}
 
 	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})

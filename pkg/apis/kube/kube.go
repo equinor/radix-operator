@@ -63,6 +63,7 @@ const (
 	RadixActiveClusterAliasLabel        = "radix-app-active-cluster-alias"
 	RadixAppAliasLabel                  = "radix-app-alias"
 	RadixExternalAliasLabel             = "radix-app-external-alias"
+	RadixExternalAliasFQDNLabel         = "radix-app-external-alias-fqdn"
 	RadixAliasLabel                     = "radix-alias"
 	RadixMountTypeLabel                 = "mount-type"
 	RadixVolumeMountNameLabel           = "radix-volume-mount-name"

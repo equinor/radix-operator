@@ -244,6 +244,10 @@ func (deploy *Deployment) syncDeployment() error {
 		return stderrors.Join(errs...)
 	}
 
+	if err := deploy.syncExternalDnsResources(); err != nil {
+		return fmt.Errorf("failed to sync external DNS resources: %w", err)
+	}
+
 	if err := deploy.syncAuxiliaryResources(); err != nil {
 		return fmt.Errorf("failed to sync auxiliary resource : %v", err)
 	}
@@ -460,10 +464,6 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
 
 func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {
 	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
-}
-
-func getLabelSelectorForExternalAlias(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixExternalAliasLabel, "true")
 }
 
 func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixCommonDeployComponent) string {

@@ -423,7 +423,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				t.Parallel()
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
-				assert.ElementsMatch(t, []string{"radix-app-adm-radixquote", "radix-app-adm-app", "radix-app-reader-radixquote", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
+				require.ElementsMatch(t, []string{"radix-app-adm-radixquote", "radix-app-adm-app", "radix-app-reader-radixquote", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
 				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-app", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
@@ -861,7 +861,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "radixquote", quoteActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.ElementsMatch(t, []string{"radix-app-adm-app", "radix-app-reader-app"}, getRoleNames(roles))
+	require.ElementsMatch(t, []string{"radix-app-adm-app", "radix-app-reader-app"}, getRoleNames(roles))
 
 	appAdmAppRole := getRoleByName("radix-app-adm-app", roles)
 	assert.Equal(t, "secrets", appAdmAppRole.Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
@@ -2223,7 +2223,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyR
 	assert.Equal(t, int32(8080), anotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
 	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 3, len(roles.Items[0].Rules[0].ResourceNames))
+	require.Equal(t, 3, len(roles.Items[0].Rules[0].ResourceNames))
 	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for external alias")
 	assert.Equal(t, "another.alias.com", roles.Items[0].Rules[0].ResourceNames[2], "Expected role should be able to access TLS certificate for second external alias")
 
