@@ -85,6 +85,17 @@ func (s *syncerTestSuite) SetupTest() {
 	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "any-group")
 }
 
+func (s *syncerTestSuite) SetupSubTest() {
+	s.kubeClient = fake.NewSimpleClientset()
+	s.radixClient = fakeradix.NewSimpleClientset()
+	s.promClient = prometheusfake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
+	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
+	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
+	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "any-group")
+}
+
 func (s *syncerTestSuite) Test_RestoreStatus() {
 	created, started, ended := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 3, 0, 0, 0, 0, time.Local))
 	expectedStatus := radixv1.RadixBatchStatus{
@@ -800,6 +811,59 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 	s.Equal(corev1.VolumeMount{Name: jobPayloadVolumeName, ReadOnly: true, MountPath: payloadPath}, jobs.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts[0])
 }
 
+func (s *syncerTestSuite) Test_ReadOnlyFileSystem() {
+	appName, batchName, namespace, rdName := "any-app", "any-job", "any-ns", "any-rd"
+	type scenarioSpec struct {
+		readOnlyFileSystem         *bool
+		expectedReadOnlyFileSystem *bool
+	}
+	tests := map[string]scenarioSpec{
+		"notSet": {readOnlyFileSystem: nil, expectedReadOnlyFileSystem: nil},
+		"false":  {readOnlyFileSystem: pointers.Ptr(false), expectedReadOnlyFileSystem: pointers.Ptr(false)},
+		"true":   {readOnlyFileSystem: pointers.Ptr(true), expectedReadOnlyFileSystem: pointers.Ptr(true)},
+	}
+	for name, test := range tests {
+		s.Run(name, func() {
+			batch := &radixv1.RadixBatch{
+				ObjectMeta: metav1.ObjectMeta{Name: batchName},
+				Spec: radixv1.RadixBatchSpec{
+					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+						Job:                  "anyjob",
+					},
+					Jobs: []radixv1.RadixBatchJob{
+						{Name: "any"},
+					},
+				},
+			}
+
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Spec: radixv1.RadixDeploymentSpec{
+					AppName: appName,
+					Jobs: []radixv1.RadixDeployJobComponent{
+						{
+							Name:               "anyjob",
+							ReadOnlyFileSystem: test.readOnlyFileSystem,
+						},
+					},
+				},
+			}
+			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			sut := s.createSyncer(batch)
+			s.Require().NoError(sut.OnSync())
+			jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+			s.Require().Len(jobs.Items, 1)
+			job1 := jobs.Items[0]
+			s.Equal(test.expectedReadOnlyFileSystem, job1.Spec.Template.Spec.Containers[0].SecurityContext.ReadOnlyRootFilesystem)
+		})
+	}
+}
+
 func (s *syncerTestSuite) Test_JobWithResources() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
@@ -1194,8 +1258,6 @@ func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 			},
 		},
 	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-	s.Require().NoError(err)
 
 	type expectedJobStatusSpec struct {
 		name  string
@@ -1257,6 +1319,8 @@ func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 	for _, scenario := range scenarios {
 		scenario := scenario
 		s.Run(scenario.testName, func() {
+			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
 			for jobName, stop := range scenario.stopStatus {
 				i := slice.FindIndex(batch.Spec.Jobs, func(j radixv1.RadixBatchJob) bool { return j.Name == jobName })
 				batch.Spec.Jobs[i].Stop = pointers.Ptr(stop)
