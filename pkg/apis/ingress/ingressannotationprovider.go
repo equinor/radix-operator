@@ -3,17 +3,11 @@ package ingress
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-)
-
-const (
-	minCertDuration    = 2160 * time.Hour
-	minCertRenewBefore = 360 * time.Hour
 )
 
 type AnnotationProvider interface {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	cm "github.com/cert-manager/cert-manager/pkg/apis/certmanager"
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
@@ -17,6 +18,11 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+)
+
+const (
+	minCertDuration    = 2160 * time.Hour
+	minCertRenewBefore = 360 * time.Hour
 )
 
 func (deploy *Deployment) syncExternalDnsResources() error {
@@ -125,6 +131,15 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(externalDns radix
 }
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(externalDns radixv1.RadixDeployExternalDNS) error {
+	duration := deploy.config.CertificateAutomation.Duration
+	if duration < minCertDuration {
+		duration = minCertDuration
+	}
+	renewBefore := deploy.config.CertificateAutomation.RenewBefore
+	if renewBefore < minCertRenewBefore {
+		renewBefore = minCertRenewBefore
+	}
+
 	certificate := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalDns.FQDN,
@@ -138,8 +153,8 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(externalDns radix
 				Kind:  cmv1.ClusterIssuerKind,
 				Name:  deploy.config.CertificateAutomation.ClusterIssuer,
 			},
-			Duration:    &metav1.Duration{Duration: deploy.config.CertificateAutomation.Duration},
-			RenewBefore: &metav1.Duration{Duration: deploy.config.CertificateAutomation.RenewBefore},
+			Duration:    &metav1.Duration{Duration: duration},
+			RenewBefore: &metav1.Duration{Duration: renewBefore},
 			SecretName:  utils.GetExternalDnsTlsSecretName(externalDns),
 			SecretTemplate: &cmv1.CertificateSecretTemplate{
 				Labels: radixlabels.ForExternalDNSTLSSecret(deploy.registration.Name, externalDns),

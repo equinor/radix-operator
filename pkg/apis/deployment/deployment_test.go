@@ -778,10 +778,10 @@ func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
+			tu, client, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
 			defer teardownTest()
 			envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
-			_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, utils.ARadixDeployment().
 				WithAppName("any-app").
 				WithEnvironment("any-env").
 				WithComponents(
