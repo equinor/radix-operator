@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+	v1 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	radixutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
@@ -33,7 +35,6 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -45,13 +46,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	kubetesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -147,7 +146,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
 							WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commitId).
-							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "updated_some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "updated_external.alias.com", UseCertificateAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "65Mi",
 								"cpu":    "251m",
@@ -188,7 +186,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPublicPort("http").
 							WithDNSAppAlias(true).
 							WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commitId).
-							WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external.alias.com", UseCertificateAutomation: true}).
 							WithResource(map[string]string{
 								"memory": "64Mi",
 								"cpu":    "250m",
@@ -380,23 +377,13 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				if !componentsExist {
-					assert.Equal(t, 5, len(secrets.Items), "Number of secrets was not according to spec")
-				} else {
 					assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
+				} else {
+					assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
 				}
 
 				componentSecretName := utils.GetComponentSecretName(componentNameRadixQuote)
 				assert.True(t, secretByNameExists(componentSecretName, secrets), "Component secret is not as expected")
-
-				// Exists due to external DNS, even though this is not active cluster
-				if !componentsExist {
-					assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
-					assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
-				} else {
-					assert.True(t, secretByNameExists("updated_some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
-					assert.True(t, secretByNameExists("updated_another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
-				}
-
 				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(componentNameRadixQuote, blobVolumeName), secrets)
 				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureVolumeMountCredsSecretName(componentNameRadixQuote, blobCsiAzureVolumeName), secrets)
 				if !componentsExist {
@@ -416,18 +403,16 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
 				t.Parallel()
 				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.ElementsMatch(t, []string{"radix-app-adm-radixquote", "radix-app-adm-app", "radix-app-reader-radixquote", "radix-app-reader-app"}, getRoleNames(roles))
+				assert.Subset(t, getRoleNames(roles), []string{"radix-app-adm-radixquote", "radix-app-reader-radixquote"})
 			})
 
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
 				t.Parallel()
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
-				require.ElementsMatch(t, []string{"radix-app-adm-radixquote", "radix-app-adm-app", "radix-app-reader-radixquote", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
+				require.Subset(t, getRoleBindingNames(rolebindings), []string{"radix-app-adm-radixquote", "radix-app-reader-radixquote"})
 				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
-				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-app", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
-				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-app", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
@@ -661,12 +646,12 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
 				t.Parallel()
 				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.ElementsMatch(t, []string{"radix-app-adm-job", "radix-app-reader-job"}, getRoleNames(roles))
+				assert.Subset(t, getRoleNames(roles), []string{"radix-app-adm-job", "radix-app-reader-job"})
 			})
 
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.ElementsMatch(t, []string{"radix-app-adm-job", "radix-app-reader-job", defaults.RadixJobSchedulerRoleName}, getRoleBindingNames(rolebindings))
+				assert.Subset(t, getRoleBindingNames(rolebindings), []string{"radix-app-adm-job", "radix-app-reader-job", defaults.RadixJobSchedulerRoleName})
 				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-job", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 			})
@@ -799,7 +784,7 @@ func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
 
 }
 
-func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupportingObjects(t *testing.T) {
+func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllIngresses(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
@@ -854,7 +839,6 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "true", externalDNS1.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, externalDNS1.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", externalDNS1.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: "false"}, externalDNS1.Annotations)
 	assert.Equal(t, "external1.alias.com", externalDNS1.Spec.Rules[0].Host, "App should have an external alias")
 
 	externalDNS2 := getIngressByName("external2.alias.com", ingresses)
@@ -863,7 +847,6 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "true", externalDNS2.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, externalDNS2.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", externalDNS2.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: "false"}, externalDNS2.Annotations)
 	assert.Equal(t, "external2.alias.com", externalDNS2.Spec.Rules[0].Host, "App should have an external alias")
 
 	externalDNS3 := getIngressByName("external3.alias.com", ingresses)
@@ -872,13 +855,6 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "true", externalDNS3.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, externalDNS3.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", externalDNS3.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	expectedAnnotations := map[string]string{
-		kube.RadixExternalDNSUseCertificateAutomationAnnotation: "true",
-		"cert-manager.io/cluster-issuer":                        testConfig.CertificateAutomation.ClusterIssuer,
-		"cert-manager.io/duration":                              testConfig.CertificateAutomation.Duration.String(),
-		"cert-manager.io/renew-before":                          testConfig.CertificateAutomation.RenewBefore.String(),
-	}
-	assert.Equal(t, expectedAnnotations, externalDNS3.Annotations)
 	assert.Equal(t, "external3.alias.com", externalDNS3.Spec.Rules[0].Host, "App should have an external alias")
 
 	appActiveClusterIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
@@ -895,22 +871,6 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "true", quoteActiveClusterIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "radixquote", quoteActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
-	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	require.ElementsMatch(t, []string{"radix-app-adm-app", "radix-app-reader-app"}, getRoleNames(roles))
-
-	appAdmAppRole := getRoleByName("radix-app-adm-app", roles)
-	assert.Equal(t, "secrets", appAdmAppRole.Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
-	assert.ElementsMatch(t, []string{"external1.alias.com", "external2.alias.com"}, appAdmAppRole.Rules[0].ResourceNames)
-
-	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, secretByNameExists("external1.alias.com", secrets), "TLS certificate for external alias is not properly defined")
-	assert.True(t, secretByNameExists("external2.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
-
-	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("external1.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
-	assert.Equal(t, corev1.SecretType(corev1.SecretTypeTLS), getSecretByName("external2.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
-
-	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.ElementsMatch(t, []string{"radix-app-adm-app", "radix-app-reader-app"}, getRoleBindingNames(rolebindings))
 }
 
 func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
@@ -1991,13 +1951,13 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate roles", func(t *testing.T) {
 		t.Parallel()
 		roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleNames(roles))
+		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName", "radix-app-externaldns-adm", "radix-app-externaldns-reader"}, getRoleNames(roles))
 	})
 
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleBindingNames(rolebindings))
+		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName", "radix-app-externaldns-adm", "radix-app-externaldns-reader"}, getRoleBindingNames(rolebindings))
 	})
 }
 
@@ -2178,20 +2138,11 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	require.NoError(t, err)
 	// Test
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
 	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-
-	assert.ElementsMatch(t, []string{"radix-app-adm-frontend", "radix-app-reader-frontend"}, getRoleNames(roles))
-	assert.ElementsMatch(t, []string{"radix-app-adm-frontend", "radix-app-reader-frontend"}, getRoleBindingNames(rolebindings))
-
-	assert.Equal(t, 1, len(secrets.Items), "Environment should have one secret for TLS cert")
-	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
 
 	// Remove app alias from dev
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -2205,17 +2156,10 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 				WithPublicPort("http")))
 	require.NoError(t, err)
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	rolebindings, _ = client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 	assert.Equal(t, 2, len(ingresses.Items), "External alias ingress should have been removed")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-
-	assert.Equal(t, 0, len(rolebindings.Items), "Role should have been removed")
-	assert.Equal(t, 0, len(rolebindings.Items), "Rolebinding should have been removed")
-	assert.Equal(t, 0, len(secrets.Items), "Secret should have been removed")
-
 }
 
 func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyReconciled(t *testing.T) {
@@ -2257,11 +2201,6 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyR
 	assert.Equal(t, "another.alias.com", anotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8080), anotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
-	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	require.Equal(t, 3, len(roles.Items[0].Rules[0].ResourceNames))
-	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for external alias")
-	assert.Equal(t, "another.alias.com", roles.Items[0].Rules[0].ResourceNames[2], "Expected role should be able to access TLS certificate for second external alias")
-
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
@@ -2288,11 +2227,6 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyR
 	assert.Equal(t, "yet.another.alias.com", yetAnotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
-	roles, _ = client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 3, len(roles.Items[0].Rules[0].ResourceNames))
-	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for external alias")
-	assert.Equal(t, "yet.another.alias.com", roles.Items[0].Rules[0].ResourceNames[2], "Expected role should be able to access TLS certificate for second external alias")
-
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
@@ -2314,10 +2248,6 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyR
 	assert.Equal(t, "yet.another.alias.com", yetAnotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
-	roles, _ = client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(roles.Items[0].Rules[0].ResourceNames))
-	assert.Equal(t, "yet.another.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
-
 	// Remove app alias from dev
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
@@ -2332,10 +2262,6 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyR
 	assert.Equal(t, 2, len(ingresses.Items), "External alias ingress should have been removed")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-
-	roles, _ = client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 0, len(roles.Items), "Role should have been removed")
-
 }
 
 func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
@@ -2537,200 +2463,6 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	assert.Len(t, secrets.Items, 1)
 	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.True(t, radixutils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
-}
-
-func TestObjectUpdated_ExternalDNS_EnableAutomation_DeleteAndRecreateResources(t *testing.T) {
-	anyAppName := "any-app"
-	anyEnvironment := "dev"
-	fqdn := "some.alias.com"
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	tu, client, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
-	defer teardownTest()
-
-	// Initial sync with UseCertificateAutomation false
-	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithJobComponents().
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("anycomp").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
-		)
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, rd1)
-	require.NoError(t, err)
-	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.NoError(t, err)
-	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.NoError(t, err)
-
-	// New sync with UseCertificateAutomation true
-	var m mock.Mock
-	client.Fake.PrependReactor("*", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if action.GetVerb() == "delete" && slice.Any([]string{"ingresses", "secrets"}, func(r string) bool { return r == action.GetResource().Resource }) {
-			deleteAction := action.(kubetesting.DeleteAction)
-			m.MethodCalled(deleteAction.GetVerb(), deleteAction.GetResource().Resource, deleteAction.GetNamespace(), deleteAction.GetName())
-		}
-		return false, nil, nil
-	})
-	m.On("delete", "ingresses", envNamespace, fqdn).Times(1)
-	m.On("delete", "secrets", envNamespace, fqdn).Times(1)
-
-	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithJobComponents().
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("anycomp").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
-		)
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, rd2)
-	require.NoError(t, err)
-	m.AssertExpectations(t)
-	ingress, err := client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.NoError(t, err)
-	expectedAnnotations := map[string]string{
-		kube.RadixExternalDNSUseCertificateAutomationAnnotation: "true",
-		"cert-manager.io/cluster-issuer":                        testConfig.CertificateAutomation.ClusterIssuer,
-		"cert-manager.io/duration":                              testConfig.CertificateAutomation.Duration.String(),
-		"cert-manager.io/renew-before":                          testConfig.CertificateAutomation.RenewBefore.String(),
-	}
-	assert.Equal(t, expectedAnnotations, ingress.Annotations)
-	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.True(t, kubeerrors.IsNotFound(err))
-}
-
-func TestObjectUpdated_ExternalDNS_DisableAutomation_DeleteIngressResetSecret(t *testing.T) {
-	anyAppName, anyEnvironment, anyComponent := "any-app", "dev", "anyComp"
-	fqdn := "some.alias.com"
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	tu, client, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
-	defer teardownTest()
-
-	// Initial sync with UseCertificateAutomation true
-	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithJobComponents().
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponent).
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
-		)
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, rd1)
-	require.NoError(t, err)
-	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.NoError(t, err)
-	_, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.True(t, kubeerrors.IsNotFound(err))
-	// Create the TLS secret that cert-manager would normally created
-	tlsSecret := &corev1.Secret{
-		Type:       corev1.SecretTypeTLS,
-		ObjectMeta: metav1.ObjectMeta{Name: fqdn, Namespace: envNamespace},
-		Data: map[string][]byte{
-			corev1.TLSPrivateKeyKey: []byte("anykey"),
-			corev1.TLSCertKey:       []byte("anycert"),
-		},
-	}
-	_, err = client.CoreV1().Secrets(envNamespace).Create(context.Background(), tlsSecret, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	// New sync with UseCertificateAutomation false
-	var m mock.Mock
-	client.Fake.PrependReactor("*", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if action.GetVerb() == "delete" && slice.Any([]string{"ingresses", "secrets"}, func(r string) bool { return r == action.GetResource().Resource }) {
-			deleteAction := action.(kubetesting.DeleteAction)
-			m.MethodCalled(deleteAction.GetVerb(), deleteAction.GetResource().Resource, deleteAction.GetNamespace(), deleteAction.GetName())
-		}
-		return false, nil, nil
-	})
-	m.On("delete", "ingresses", envNamespace, fqdn).Times(1)
-
-	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponent).
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
-		)
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, rd2)
-	require.NoError(t, err)
-	m.AssertExpectations(t)
-	ingress, err := client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, map[string]string{kube.RadixExternalDNSUseCertificateAutomationAnnotation: "false"}, ingress.Annotations)
-	secret, err := client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, map[string][]byte{corev1.TLSCertKey: nil, corev1.TLSPrivateKeyKey: nil}, secret.Data)
-	assert.Equal(t, map[string]string{kube.RadixAppLabel: anyAppName, kube.RadixComponentLabel: anyComponent, kube.RadixExternalAliasLabel: "true"}, secret.Labels)
-}
-
-func TestObjectUpdated_ExternalDNS_TLSSecretDataRetainedBetweenSync(t *testing.T) {
-	anyAppName := "any-app"
-	anyEnvironment := "dev"
-	fqdn := "some.alias.com"
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	tlsKey, tlsCert := []byte("anytlskey"), []byte("anytlscert")
-	tu, client, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
-	defer teardownTest()
-
-	// Initial sync
-	rd1 := utils.ARadixDeployment().WithDeploymentName("rd1").
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithJobComponents().
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("anycomp").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
-		)
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, rd1)
-	require.NoError(t, err)
-	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.NoError(t, err)
-	secret, err := client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.NoError(t, err)
-	secret.Data[corev1.TLSPrivateKeyKey] = tlsKey
-	secret.Data[corev1.TLSCertKey] = tlsCert
-	secret, err = client.CoreV1().Secrets(envNamespace).Update(context.Background(), secret, metav1.UpdateOptions{})
-	require.NoError(t, err)
-	require.Equal(t, tlsKey, secret.Data[corev1.TLSPrivateKeyKey])
-	require.Equal(t, tlsCert, secret.Data[corev1.TLSCertKey])
-
-	// New RD with same external DNS
-	rd2 := utils.ARadixDeployment().WithDeploymentName("rd2").
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("anycomp").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false}),
-		)
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient, rd2)
-	require.NoError(t, err)
-	_, err = client.NetworkingV1().Ingresses(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.NoError(t, err)
-	secret, err = client.CoreV1().Secrets(envNamespace).Get(context.Background(), fqdn, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, tlsKey, secret.Data[corev1.TLSPrivateKeyKey])
-	assert.Equal(t, tlsCert, secret.Data[corev1.TLSCertKey])
 }
 
 func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
@@ -4121,6 +3853,340 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 	assert.ElementsMatch(t, expectedBatchNames, actualBatchNames)
 }
 
+func Test_ExternalDNS_Legacy_ResourcesMigrated(t *testing.T) {
+	appName, envName, compName := "anyapp", "anyenv", "anycomp"
+	fqdnManual, fqdnAutomation := "app1.example.com", "app2.example.com"
+	certDataManual, keyDataManual, certDataAutomation, keyDataAutomation := "manualcert", "manualkey", "automationcert", "automationkey"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	tu, kubeclient, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
+	t.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
+	defer teardownTest()
+
+	// Setup legacy secrets
+	legacyManualSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   fqdnManual,
+			Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixExternalAliasLabel: "true"},
+		},
+		Data: map[string][]byte{corev1.TLSPrivateKeyKey: []byte(keyDataManual), corev1.TLSCertKey: []byte(certDataManual)},
+	}
+	_, err := kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &legacyManualSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
+	legacyAutomationSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        fqdnAutomation,
+			Labels:      map[string]string{"controller.cert-manager.io/fao": "true"},
+			Annotations: map[string]string{"anyannotation": "anyvalue"},
+		},
+		Data: map[string][]byte{corev1.TLSPrivateKeyKey: []byte(keyDataAutomation), corev1.TLSCertKey: []byte(certDataAutomation)},
+	}
+	_, err = kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &legacyAutomationSecret, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Setup legacy certificate
+	legacyCert := cmv1.Certificate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            fqdnAutomation,
+			Labels:          map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixExternalAliasLabel: "true"},
+			OwnerReferences: []metav1.OwnerReference{{APIVersion: "networking.k8s.io/v1", Kind: "Ingress", Name: fqdnAutomation}},
+		},
+	}
+	_, err = certClient.CertmanagerV1().Certificates(ns).Create(context.Background(), &legacyCert, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Setup legacy ingresses
+	legacyAutomationIngress := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        fqdnAutomation,
+			Labels:      map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixExternalAliasLabel: "true"},
+			Annotations: map[string]string{"radix.equinor.com/external-dns-use-certificate-automation": "true", "cert-manager.io/cluster-issuer": "any", "cert-manager.io/duration": "any", "cert-manager.io/renew-before": "any"},
+		},
+	}
+	_, err = kubeclient.NetworkingV1().Ingresses(ns).Create(context.Background(), &legacyAutomationIngress, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	legacyManualIngress := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        fqdnManual,
+			Labels:      map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixExternalAliasLabel: "true"},
+			Annotations: map[string]string{"radix.equinor.com/external-dns-use-certificate-automation": "false"},
+		},
+	}
+	_, err = kubeclient.NetworkingV1().Ingresses(ns).Create(context.Background(), &legacyManualIngress, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Apply RD
+	_, err = applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithAppName(appName).
+			WithEnvironment(envName).
+			WithComponents(utils.NewDeployComponentBuilder().WithName(compName).WithPublicPort("http").WithExternalDNS(
+				radixv1.RadixDeployExternalDNS{FQDN: fqdnManual, UseCertificateAutomation: false},
+				radixv1.RadixDeployExternalDNS{FQDN: fqdnAutomation, UseCertificateAutomation: true},
+			)).
+			WithJobComponents(),
+	)
+	require.NoError(t, err)
+
+	// Manual secret: changed labels and annotations
+	manualSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), fqdnManual, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdnManual}, manualSecret.Labels)
+	assert.Empty(t, manualSecret.Annotations)
+	assert.Equal(t, []byte(keyDataManual), manualSecret.Data[corev1.TLSPrivateKeyKey])
+	assert.Equal(t, []byte(certDataManual), manualSecret.Data[corev1.TLSCertKey])
+
+	// Automation secret: retains original labels and annotations as these are controlled by the Certificate resource
+	automationSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), fqdnAutomation, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, legacyAutomationSecret.Labels, automationSecret.Labels)
+	assert.Equal(t, legacyAutomationSecret.Annotations, automationSecret.Annotations)
+	assert.Equal(t, []byte(keyDataAutomation), automationSecret.Data[corev1.TLSPrivateKeyKey])
+	assert.Equal(t, []byte(certDataAutomation), automationSecret.Data[corev1.TLSCertKey])
+
+	// Automation ingress: annotations removed
+	automationIngress, err := kubeclient.NetworkingV1().Ingresses(ns).Get(context.Background(), fqdnAutomation, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, automationIngress.Annotations)
+
+	// Manual ingress: annotations removed
+	manualIngress, err := kubeclient.NetworkingV1().Ingresses(ns).Get(context.Background(), fqdnManual, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, manualIngress.Annotations)
+
+	// Automation automationIngress: annotations removed
+	cert, err := certClient.CertmanagerV1().Certificates(ns).Get(context.Background(), fqdnAutomation, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdnAutomation}, cert.Labels)
+	assert.Empty(t, cert.OwnerReferences)
+	expectedCertSpec := cmv1.CertificateSpec{
+		DNSNames:    []string{fqdnAutomation},
+		Duration:    &metav1.Duration{Duration: testConfig.CertificateAutomation.Duration},
+		RenewBefore: &metav1.Duration{Duration: testConfig.CertificateAutomation.RenewBefore},
+		IssuerRef: v1.ObjectReference{
+			Name:  testConfig.CertificateAutomation.ClusterIssuer,
+			Kind:  "ClusterIssuer",
+			Group: "cert-manager.io",
+		},
+		SecretName: fqdnAutomation,
+		SecretTemplate: &cmv1.CertificateSecretTemplate{
+			Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdnAutomation},
+		},
+	}
+	assert.Equal(t, expectedCertSpec, cert.Spec)
+}
+
+func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
+	appName, envName := "anyapp", "anyenv"
+	fqdnManual1, fqdnManual2 := "foo1.example.com", "foo2.example.com"
+	fqdnAutomation1, fqdnAutomation2 := "bar1.example.com", "bar2.example.com"
+	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	tu, kubeclient, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
+	defer teardownTest()
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)
+	raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(rrBuilder)
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithRadixApplication(raBuilder).
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS(
+			radixv1.RadixDeployExternalDNS{FQDN: fqdnManual1, UseCertificateAutomation: false},
+			radixv1.RadixDeployExternalDNS{FQDN: fqdnManual2, UseCertificateAutomation: false},
+			radixv1.RadixDeployExternalDNS{FQDN: fqdnAutomation1, UseCertificateAutomation: true},
+			radixv1.RadixDeployExternalDNS{FQDN: fqdnAutomation2, UseCertificateAutomation: true},
+		)).
+		WithJobComponents()
+
+	_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	// Non-automation secrets
+	secrets, _ := kubeclient.CoreV1().Secrets(ns).List(context.Background(), metav1.ListOptions{})
+	require.ElementsMatch(t, []string{fqdnManual1, fqdnManual2}, getSecretNames(secrets))
+	assertSecret := func(fqdn string) {
+		secret := getSecretByName(fqdn, secrets)
+		assert.Equal(t, map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdn}, secret.Labels)
+		assert.Equal(t, corev1.SecretTypeTLS, secret.Type)
+		assert.Equal(t, map[string][]byte{corev1.TLSCertKey: nil, corev1.TLSPrivateKeyKey: nil}, secret.Data)
+	}
+	assertSecret(fqdnManual1)
+	assertSecret(fqdnManual2)
+
+	// Certificate
+	certs, _ := certClient.CertmanagerV1().Certificates(ns).List(context.Background(), metav1.ListOptions{})
+	require.ElementsMatch(t, []string{fqdnAutomation1, fqdnAutomation2}, slice.Map(certs.Items, func(c cmv1.Certificate) string { return c.Name }))
+	assertCert := func(fqdn string) {
+		cert, _ := slice.FindFirst(certs.Items, func(c cmv1.Certificate) bool { return c.Name == fqdn })
+		assert.Equal(t, map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdn}, cert.Labels)
+		assert.Empty(t, cert.OwnerReferences)
+		expectedCertSpec := cmv1.CertificateSpec{
+			DNSNames:    []string{fqdn},
+			Duration:    &metav1.Duration{Duration: testConfig.CertificateAutomation.Duration},
+			RenewBefore: &metav1.Duration{Duration: testConfig.CertificateAutomation.RenewBefore},
+			IssuerRef: v1.ObjectReference{
+				Name:  testConfig.CertificateAutomation.ClusterIssuer,
+				Kind:  "ClusterIssuer",
+				Group: "cert-manager.io",
+			},
+			SecretName: fqdn,
+			SecretTemplate: &cmv1.CertificateSecretTemplate{
+				Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdn},
+			},
+		}
+		assert.Equal(t, expectedCertSpec, cert.Spec)
+	}
+	assertCert(fqdnAutomation1)
+	assertCert(fqdnAutomation2)
+
+	// Roles
+	roles, _ := kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	require.Subset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	expectedAdmRules := []rbacv1.PolicyRule{{Verbs: []string{"get", "list", "watch", "update", "patch", "delete"}, APIGroups: []string{""}, Resources: []string{"secrets"}, ResourceNames: []string{fqdnManual1, fqdnManual2}}}
+	assert.Equal(t, expectedAdmRules, getRoleByName("radix-app-externaldns-adm", roles).Rules)
+	expectedReaderRules := []rbacv1.PolicyRule{{Verbs: []string{"get", "list", "watch"}, Resources: []string{"secrets"}, APIGroups: []string{""}, ResourceNames: []string{fqdnManual1, fqdnManual2}}}
+	assert.Equal(t, expectedReaderRules, getRoleByName("radix-app-externaldns-reader", roles).Rules)
+
+	// RoleBindings
+	roleBindings, _ := kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	require.Subset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	assert.Equal(t, rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Name: "radix-app-externaldns-adm", Kind: "Role"}, getRoleBindingByName("radix-app-externaldns-adm", roleBindings).RoleRef)
+	assert.ElementsMatch(t,
+		slice.Map(adminGroups, func(group string) rbacv1.Subject {
+			return rbacv1.Subject{
+				Kind: "Group", APIGroup: rbacv1.GroupName, Name: group, Namespace: "",
+			}
+		}),
+		getRoleBindingByName("radix-app-externaldns-adm", roleBindings).Subjects,
+	)
+	assert.Equal(t, rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Name: "radix-app-externaldns-reader", Kind: "Role"}, getRoleBindingByName("radix-app-externaldns-reader", roleBindings).RoleRef)
+	assert.ElementsMatch(t,
+		slice.Map(readerGroups, func(group string) rbacv1.Subject {
+			return rbacv1.Subject{
+				Kind: "Group", APIGroup: rbacv1.GroupName, Name: group, Namespace: "",
+			}
+		}),
+		getRoleBindingByName("radix-app-externaldns-reader", roleBindings).Subjects,
+	)
+}
+
+func Test_ExternalDNS_RetainSecretData(t *testing.T) {
+	appName, envName, fqdn := "anyapp", "anyenv", "app1.example.com"
+	keyData, certData := "keydata", "certdata"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	tu, kubeclient, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
+	defer teardownTest()
+
+	rdBuilder := utils.ARadixDeployment().
+		WithDeploymentName("rd-init").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(utils.NewDeployComponentBuilder().WithName("comp").
+			WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: false})).
+		WithJobComponents()
+
+	// Init deployment and set TLS secret data
+	_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+	tlsSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), fqdn, metav1.GetOptions{})
+	require.NoError(t, err)
+	tlsSecret.Data[corev1.TLSCertKey] = []byte(certData)
+	tlsSecret.Data[corev1.TLSPrivateKeyKey] = []byte(keyData)
+	_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), tlsSecret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	type testSpec struct {
+		componentName string
+		useAutomation bool
+	}
+
+	tests := []testSpec{
+		{componentName: "comp", useAutomation: true},
+		{componentName: "comp", useAutomation: false},
+		{componentName: "comp2", useAutomation: true},
+		{componentName: "comp3", useAutomation: false},
+	}
+	expectedTlsData := map[string][]byte{corev1.TLSCertKey: []byte(certData), corev1.TLSPrivateKeyKey: []byte(keyData)}
+
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("test %v", i), func(t *testing.T) {
+			rdBuilder.
+				WithDeploymentName(fmt.Sprintf("rd%v", i)).
+				WithComponents(utils.NewDeployComponentBuilder().WithName(test.componentName).
+					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: test.useAutomation}),
+				)
+			_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rdBuilder)
+			require.NoError(t, err)
+			tlsSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), fqdn, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, expectedTlsData, tlsSecret.Data)
+			_, err = certClient.CertmanagerV1().Certificates(ns).Get(context.Background(), fqdn, metav1.GetOptions{})
+			if test.useAutomation {
+				assert.NoError(t, err)
+			} else {
+				assert.True(t, kubeerrors.IsNotFound(err))
+			}
+		})
+	}
+}
+
+func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {
+	appName, envName := "anyapp", "anyenv"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	tu, kubeclient, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
+	defer teardownTest()
+
+	rdBuilder := utils.ARadixDeployment().
+		WithDeploymentName("rd1").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS(
+				radixv1.RadixDeployExternalDNS{FQDN: "app1.example.com", UseCertificateAutomation: false},
+				radixv1.RadixDeployExternalDNS{FQDN: "app2.example.com", UseCertificateAutomation: false},
+				radixv1.RadixDeployExternalDNS{FQDN: "app3.example.com", UseCertificateAutomation: true},
+				radixv1.RadixDeployExternalDNS{FQDN: "app4.example.com", UseCertificateAutomation: true},
+			),
+		).
+		WithJobComponents()
+	_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	certs, _ := certClient.CertmanagerV1().Certificates(ns).List(context.Background(), metav1.ListOptions{})
+	require.Len(t, certs.Items, 2)
+	// Simulate that cert-manager creates Certificate secrets
+	for _, cert := range certs.Items {
+		_, err := kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: cert.Spec.SecretName, Labels: cert.Spec.SecretTemplate.Labels},
+			Type:       corev1.SecretTypeTLS,
+		}, metav1.CreateOptions{})
+		require.NoError(t, err)
+	}
+
+	secrets, _ := kubeclient.CoreV1().Secrets(ns).List(context.Background(), metav1.ListOptions{})
+	require.ElementsMatch(t, []string{"app1.example.com", "app2.example.com", "app3.example.com", "app4.example.com"}, getSecretNames(secrets))
+
+	// Remove app2 and app4 should remove respective TLS secrets and app4 certificate
+	rdBuilder.WithDeploymentName("rd2").WithComponents(
+		utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS(
+			radixv1.RadixDeployExternalDNS{FQDN: "app1.example.com", UseCertificateAutomation: false},
+			radixv1.RadixDeployExternalDNS{FQDN: "app3.example.com", UseCertificateAutomation: true},
+		),
+	)
+	_, err = applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+	certs, _ = certClient.CertmanagerV1().Certificates(ns).List(context.Background(), metav1.ListOptions{})
+	require.Len(t, certs.Items, 1)
+	assert.Equal(t, "app3.example.com", certs.Items[0].Name)
+	secrets, _ = kubeclient.CoreV1().Secrets(ns).List(context.Background(), metav1.ListOptions{})
+	require.ElementsMatch(t, []string{"app1.example.com", "app3.example.com"}, getSecretNames(secrets))
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
@@ -4346,6 +4412,13 @@ func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
 
 func secretByNameExists(name string, secrets *corev1.SecretList) bool {
 	return getSecretByName(name, secrets) != nil
+}
+
+func getSecretNames(secrets *corev1.SecretList) []string {
+	if secrets == nil {
+		return nil
+	}
+	return slice.Map(secrets.Items, func(s corev1.Secret) string { return s.Name })
 }
 
 func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rbacv1.RoleBinding {
