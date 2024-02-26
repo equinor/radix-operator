@@ -749,45 +749,34 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 			expectedJobConditions: jobConditions{"j-new": radixv1.JobWaiting},
 		},
 		{
-			name: "One job is running, new is queuing on same branch",
+			name: "One job is running, new is queuing on same branch with one env",
 			raBuilder: getRadixApplicationBuilder(appName).
 				WithEnvironment(envTest, branchTest),
 			existingRadixDeploymentJobs: []radixDeploymentJob{
-				{jobName: "j1", env: envTest, branch: branchTest, jobStatus: radixv1.JobRunning},
+				{jobName: "j1", env: envTest, branch: branchTest, jobStatus: radixv1.JobRunning, pipelineType: radixv1.BuildDeploy},
 			},
 			testingRadixJobBuilder: utils.NewJobBuilder().WithPipelineType(radixv1.BuildDeploy).
 				WithJobName("j-new").WithBranch(branchTest),
 			expectedJobConditions: jobConditions{"j1": radixv1.JobRunning, "j-new": radixv1.JobQueued},
 		},
 		{
-			name: "One job is running, new is running on another branch",
+			name: "One job is running, new is running on another branch with two envs",
 			raBuilder: getRadixApplicationBuilder(appName).
 				WithEnvironment(envTest, branchTest).
 				WithEnvironment(envQa, branchQa),
 			existingRadixDeploymentJobs: []radixDeploymentJob{
-				{jobName: "j1", env: envTest, branch: branchTest, jobStatus: radixv1.JobRunning},
+				{jobName: "j1", env: envTest, branch: branchTest, jobStatus: radixv1.JobRunning, pipelineType: radixv1.BuildDeploy},
 			},
 			testingRadixJobBuilder: utils.NewJobBuilder().WithPipelineType(radixv1.BuildDeploy).
 				WithJobName("j-new").WithBranch(branchQa),
 			expectedJobConditions: jobConditions{"j1": radixv1.JobRunning, "j-new": radixv1.JobWaiting},
 		},
 		{
-			name: "One job is running, new is queuing on same branch",
+			name: "One job is running, new is queuing on same branch with wildcard",
 			raBuilder: getRadixApplicationBuilder(appName).
 				WithEnvironment(envTest, branchTestWildCard),
 			existingRadixDeploymentJobs: []radixDeploymentJob{
-				{jobName: "j1", env: envTest, branch: branchTest1, jobStatus: radixv1.JobRunning},
-			},
-			testingRadixJobBuilder: utils.NewJobBuilder().WithPipelineType(radixv1.BuildDeploy).
-				WithJobName("j-new").WithBranch(branchTest2),
-			expectedJobConditions: jobConditions{"j1": radixv1.JobRunning, "j-new": radixv1.JobQueued},
-		},
-		{
-			name: "One job is running, new is queuing on same branch",
-			raBuilder: getRadixApplicationBuilder(appName).
-				WithEnvironment(envTest, branchTestWildCard),
-			existingRadixDeploymentJobs: []radixDeploymentJob{
-				{jobName: "j1", env: envTest, branch: branchTest1, jobStatus: radixv1.JobRunning},
+				{jobName: "j1", env: envTest, branch: branchTest1, jobStatus: radixv1.JobRunning, pipelineType: radixv1.BuildDeploy},
 			},
 			testingRadixJobBuilder: utils.NewJobBuilder().WithPipelineType(radixv1.BuildDeploy).
 				WithJobName("j-new").WithBranch(branchTest2),
@@ -798,12 +787,12 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 			raBuilder: getRadixApplicationBuilder(appName).
 				WithEnvironment(envTest, branchTestWildCard),
 			existingRadixDeploymentJobs: []radixDeploymentJob{
-				{jobName: "j1", env: envTest, branch: branchTest1, jobStatus: radixv1.JobSucceeded},
-				{jobName: "j2", env: envTest, branch: branchTest1, jobStatus: radixv1.JobFailed},
-				{jobName: "j3", env: envTest, branch: branchTest1, jobStatus: radixv1.JobStopped},
-				{jobName: "j4", env: envTest, branch: branchTest1, jobStatus: radixv1.JobStoppedNoChanges},
-				{jobName: "j5", env: envTest, branch: branchTest1, jobStatus: radixv1.JobQueued},
-				{jobName: "j6", env: envTest, branch: branchTest1, jobStatus: radixv1.JobWaiting},
+				{jobName: "j1", env: envTest, branch: branchTest1, jobStatus: radixv1.JobSucceeded, pipelineType: radixv1.BuildDeploy},
+				{jobName: "j2", env: envTest, branch: branchTest1, jobStatus: radixv1.JobFailed, pipelineType: radixv1.BuildDeploy},
+				{jobName: "j3", env: envTest, branch: branchTest1, jobStatus: radixv1.JobStopped, pipelineType: radixv1.BuildDeploy},
+				{jobName: "j4", env: envTest, branch: branchTest1, jobStatus: radixv1.JobStoppedNoChanges, pipelineType: radixv1.BuildDeploy},
+				{jobName: "j5", env: envTest, branch: branchTest1, jobStatus: radixv1.JobQueued, pipelineType: radixv1.BuildDeploy},
+				{jobName: "j6", env: envTest, branch: branchTest1, jobStatus: radixv1.JobWaiting, pipelineType: radixv1.BuildDeploy},
 			},
 			testingRadixJobBuilder: utils.NewJobBuilder().WithPipelineType(radixv1.BuildDeploy).
 				WithJobName("j-new").WithBranch(branchTest1),
