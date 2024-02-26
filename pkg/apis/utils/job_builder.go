@@ -16,7 +16,9 @@ type JobBuilder interface {
 	WithAppName(string) JobBuilder
 	WithPipelineImageTag(string) JobBuilder
 	WithPipelineType(v1.RadixPipelineType) JobBuilder
-	WithBranch(string) JobBuilder
+	WithBranch(branch string) JobBuilder
+	WithFromEnvironment(envName string) JobBuilder
+	WithToEnvironment(envName string) JobBuilder
 	WithCommitID(string) JobBuilder
 	WithPushImage(bool) JobBuilder
 	WithTektonImageTag(string) JobBuilder
@@ -47,6 +49,8 @@ type JobBuilderStruct struct {
 	pipelineImageTag   string
 	pushImage          bool
 	tektonImageTag     string
+	toEnvironment      string
+	fromEnvironment    string
 }
 
 // WithRadixApplication Links to RA builder
@@ -91,6 +95,18 @@ func (jb *JobBuilderStruct) WithTektonImageTag(imageTag string) JobBuilder {
 // WithBranch Sets branch
 func (jb *JobBuilderStruct) WithBranch(branch string) JobBuilder {
 	jb.branch = branch
+	return jb
+}
+
+// WithFromEnvironment Sets source env
+func (jb *JobBuilderStruct) WithFromEnvironment(envName string) JobBuilder {
+	jb.fromEnvironment = envName
+	return jb
+}
+
+// WithToEnvironment Sets target env
+func (jb *JobBuilderStruct) WithToEnvironment(envName string) JobBuilder {
+	jb.toEnvironment = envName
 	return jb
 }
 
@@ -186,6 +202,15 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 				DeploymentName: jb.deploymentName,
 			},
 		},
+	}
+
+	switch radixJob.Spec.PipeLineType {
+	case v1.Deploy:
+		radixJob.Spec.Deploy.ToEnvironment = jb.toEnvironment
+		radixJob.Spec.Deploy.CommitID = jb.commitID
+	case v1.Promote:
+		radixJob.Spec.Promote.ToEnvironment = jb.toEnvironment
+		radixJob.Spec.Promote.CommitID = jb.commitID
 	}
 
 	if !jb.emptyStatus {
