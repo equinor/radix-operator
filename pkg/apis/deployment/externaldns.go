@@ -26,7 +26,7 @@ const (
 )
 
 func (deploy *Deployment) syncExternalDnsResources() error {
-	if err := deploy.garbageCollectExternalDnsNoLongerInSpec(); err != nil {
+	if err := deploy.garbageCollectExternalDnsResourcesNoLongerInSpec(); err != nil {
 		return err
 	}
 
@@ -56,7 +56,7 @@ func (deploy *Deployment) syncExternalDnsResources() error {
 	return deploy.grantAccessToExternalDnsSecrets(secretNames)
 }
 
-func (deploy *Deployment) garbageCollectExternalDnsNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectExternalDnsResourcesNoLongerInSpec() error {
 	if err := deploy.garbageCollectExternalDnsCertificatesNoLongerInSpec(); err != nil {
 		return err
 	}
