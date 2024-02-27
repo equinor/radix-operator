@@ -43,9 +43,7 @@ func (deploy *Deployment) syncExternalDnsResources() error {
 			if err := deploy.garbageCollectExternalDnsCertificate(externalDns); err != nil {
 				return err
 			}
-		}
 
-		if !externalDns.UseCertificateAutomation {
 			secretName := utils.GetExternalDnsTlsSecretName(externalDns)
 			if err := deploy.createOrUpdateExternalDnsTlsSecret(externalDns, secretName); err != nil {
 				return err
