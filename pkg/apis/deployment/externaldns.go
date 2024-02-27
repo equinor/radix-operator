@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -131,6 +132,10 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(externalDns radix
 }
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(externalDns radixv1.RadixDeployExternalDNS) error {
+	if len(deploy.config.CertificateAutomation.ClusterIssuer) == 0 {
+		return errors.New("cluster issuer not set in certificate automation config")
+	}
+
 	duration := deploy.config.CertificateAutomation.Duration
 	if duration < minCertDuration {
 		duration = minCertDuration

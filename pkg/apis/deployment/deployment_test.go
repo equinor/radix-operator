@@ -4134,6 +4134,86 @@ func Test_ExternalDNS_RetainSecretData(t *testing.T) {
 	}
 }
 
+func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
+	fqdn := "any.example.com"
+	_, kubeclient, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
+	defer teardownTest()
+	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
+		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+	).BuildRD()
+	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	require.NoError(t, err)
+	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Duration and RenewBefore not below min values
+	cfg := &config.Config{
+		CertificateAutomation: certificateconfig.AutomationConfig{
+			ClusterIssuer: "anyissuer",
+			Duration:      10000 * time.Hour,
+			RenewBefore:   1000 * time.Hour,
+		}}
+
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	require.NoError(t, syncer.OnSync())
+	cert, _ := certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
+	assert.Equal(t, cfg.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
+
+	// Duration below min value
+	cfg = &config.Config{
+		CertificateAutomation: certificateconfig.AutomationConfig{
+			ClusterIssuer: "anyissuer",
+			Duration:      2159 * time.Hour,
+			RenewBefore:   1000 * time.Hour,
+		}}
+
+	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	require.NoError(t, syncer.OnSync())
+	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.Equal(t, 2160*time.Hour, cert.Spec.Duration.Duration)
+	assert.Equal(t, cfg.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
+
+	// RenewBefore below min value
+	cfg = &config.Config{
+		CertificateAutomation: certificateconfig.AutomationConfig{
+			ClusterIssuer: "anyissuer",
+			Duration:      10000 * time.Hour,
+			RenewBefore:   359 * time.Hour,
+		}}
+
+	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	require.NoError(t, syncer.OnSync())
+	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
+	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
+	assert.Equal(t, 360*time.Hour, cert.Spec.RenewBefore.Duration)
+}
+
+func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
+	fqdn := "any.example.com"
+	_, kubeclient, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
+	defer teardownTest()
+	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
+		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+	).BuildRD()
+	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	require.NoError(t, err)
+	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Duration and RenewBefore not below min values
+	cfg := &config.Config{
+		CertificateAutomation: certificateconfig.AutomationConfig{
+			Duration:    10000 * time.Hour,
+			RenewBefore: 1000 * time.Hour,
+		}}
+
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	assert.ErrorContains(t, syncer.OnSync(), "cluster issuer not set in certificate automation config")
+}
+
 func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {
 	appName, envName := "anyapp", "anyenv"
 	ns := utils.GetEnvironmentNamespace(appName, envName)
