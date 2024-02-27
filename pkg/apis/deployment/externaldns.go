@@ -31,7 +31,7 @@ func (deploy *Deployment) syncExternalDnsResources() error {
 	}
 
 	var secretNames []string
-	externalDnsList := deploy.getDistinctExternalDns()
+	externalDnsList := deploy.getExternalDnsFromAllComponents()
 
 	for _, externalDns := range externalDnsList {
 		if externalDns.UseCertificateAutomation {
@@ -71,7 +71,7 @@ func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec() error
 		return err
 	}
 
-	externalDnsAliases := deploy.getDistinctExternalDns()
+	externalDnsAliases := deploy.getExternalDnsFromAllComponents()
 	for _, secret := range secrets.Items {
 		fqdn, ok := secret.Labels[kube.RadixExternalAliasFQDNLabel]
 		if !ok {
@@ -96,7 +96,7 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec() 
 		return err
 	}
 
-	externalDnsAliases := deploy.getDistinctExternalDns()
+	externalDnsAliases := deploy.getExternalDnsFromAllComponents()
 	for _, cert := range certificates.Items {
 		fqdn, ok := cert.Labels[kube.RadixExternalAliasFQDNLabel]
 		if !ok {
@@ -232,7 +232,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(externalDns radixv1
 	return nil
 }
 
-func (deploy *Deployment) getDistinctExternalDns() []radixv1.RadixDeployExternalDNS {
+func (deploy *Deployment) getExternalDnsFromAllComponents() []radixv1.RadixDeployExternalDNS {
 	var externalDns []radixv1.RadixDeployExternalDNS
 
 	for _, comp := range deploy.radixDeployment.Spec.Components {
