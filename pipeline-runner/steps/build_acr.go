@@ -32,26 +32,26 @@ const (
 	azureServicePrincipleContext = "/radix-image-builder/.azure"
 )
 
-func (step *BuildStepImplementation) buildACRBuildJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
+func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
 	rr := step.GetRegistration()
 	if isUsingBuildKit(pipelineInfo) {
-		return step.buildACRBuildJobsForBuildKit(rr, pipelineInfo, buildSecrets)
+		return step.buildContainerImageBuildingJobsForBuildKit(rr, pipelineInfo, buildSecrets)
 	}
-	return step.buildACRBuildJobsForACRTasks(rr, pipelineInfo, buildSecrets)
+	return step.buildContainerImageBuildingJobsForACRTasks(rr, pipelineInfo, buildSecrets)
 }
 
-func (step *BuildStepImplementation) buildACRBuildJobsForACRTasks(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
+func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
 	var buildComponentImages []pipeline.BuildComponentImage
 	for _, envComponentImages := range pipelineInfo.BuildComponentImages {
 		buildComponentImages = append(buildComponentImages, envComponentImages...)
 	}
 	log.Debug("build a build-job")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-	job := buildACRBuildJob(rr, pipelineInfo, buildSecrets, hash, buildComponentImages...)
+	job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, buildComponentImages...)
 	return []*batchv1.Job{job}, nil
 }
 
-func (step *BuildStepImplementation) buildACRBuildJobsForBuildKit(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
+func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
 	var jobs []*batchv1.Job
 	for envName, buildComponentImages := range pipelineInfo.BuildComponentImages {
 		log.Debugf("build a build-kit jobs for the env %s", envName)
@@ -59,7 +59,7 @@ func (step *BuildStepImplementation) buildACRBuildJobsForBuildKit(rr *v1.RadixRe
 			log.Debugf("build a job for the image %s", componentImage.ImageName)
 			hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
 
-			job := buildACRBuildJob(rr, pipelineInfo, buildSecrets, hash, componentImage)
+			job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, componentImage)
 
 			job.ObjectMeta.Labels[kube.RadixEnvLabel] = envName
 			job.ObjectMeta.Labels[kube.RadixComponentLabel] = componentImage.ComponentName
@@ -69,13 +69,13 @@ func (step *BuildStepImplementation) buildACRBuildJobsForBuildKit(rr *v1.RadixRe
 	return jobs, nil
 }
 
-func buildACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, buildComponentImages ...pipeline.BuildComponentImage) *batchv1.Job {
+func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, buildComponentImages ...pipeline.BuildComponentImage) *batchv1.Job {
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pipelineJobName := pipelineInfo.PipelineArguments.JobName
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
-	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildComponentImages, buildSecrets)
+	buildContainers := createContainerImageBuildingContainers(appName, pipelineInfo, buildComponentImages, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 	componentImagesAnnotation, _ := json.Marshal(buildComponentImages)
@@ -118,7 +118,7 @@ func buildACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo
 					InitContainers:  initContainers,
 					Containers:      buildContainers,
 					SecurityContext: buildPodSecurityContext,
-					Volumes:         getACRBuildJobVolumes(&defaultMode, buildSecrets),
+					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets),
 					Affinity:        utils.GetPipelineJobPodSpecAffinity(),
 					Tolerations:     utils.GetPipelineJobPodSpecTolerations(),
 				},
@@ -128,7 +128,7 @@ func buildACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo
 	return job
 }
 
-func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []corev1.Volume {
+func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: git.BuildContextVolumeName,
@@ -175,7 +175,7 @@ func getACRBuildJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []c
 	return volumes
 }
 
-func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildComponentImages []pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar) []corev1.Container {
+func createContainerImageBuildingContainers(appName string, pipelineInfo *model.PipelineInfo, buildComponentImages []pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar) []corev1.Container {
 	var containers []corev1.Container
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
@@ -205,7 +205,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			Command:         command,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			VolumeMounts:    getBuildAcrJobContainerVolumeMounts(buildSecrets, isUsingBuildKit(pipelineInfo)),
+			VolumeMounts:    getContainerImageBuildingJobVolumeMounts(buildSecrets, isUsingBuildKit(pipelineInfo)),
 			SecurityContext: buildContainerSecContext,
 			Resources:       resources,
 		}
@@ -382,7 +382,7 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 	return envVars
 }
 
-func getBuildAcrJobContainerVolumeMounts(buildSecrets []corev1.EnvVar, mountPrivateImageHubAuth bool) []corev1.VolumeMount {
+func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, mountPrivateImageHubAuth bool) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      git.BuildContextVolumeName,

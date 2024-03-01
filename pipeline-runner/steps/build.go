@@ -84,7 +84,7 @@ func (step *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error
 		return err
 	}
 
-	jobs, err := step.buildACRBuildJobs(pipelineInfo, buildSecrets)
+	jobs, err := step.buildContainerImageBuildingJobs(pipelineInfo, buildSecrets)
 	if err != nil {
 		return err
 	}

@@ -254,7 +254,11 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(pip
 		}
 
 		enabledComponents := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
-		if componentImageSources := getComponentSources(envName, enabledComponents, mustBuildComponent, currentRd); len(componentImageSources) > 0 {
+		componentImageSources, err := cli.getComponentSources(envName, enabledComponents, mustBuildComponent, currentRd)
+		if err != nil {
+			return nil, err
+		}
+		if len(componentImageSources) > 0 {
 			environmentComponentImageSources[envName] = componentImageSources
 		}
 	}
@@ -262,8 +266,9 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(pip
 	return environmentComponentImageSources, nil
 }
 
-func getComponentSources(envName string, components []radixv1.RadixCommonComponent, mustBuildComponent func(comp radixv1.RadixCommonComponent) bool, currentRadixDeployment *radixv1.RadixDeployment) []componentImageSource {
+func (cli *ApplyConfigStepImplementation) getComponentSources(envName string, components []radixv1.RadixCommonComponent, mustBuildComponent func(comp radixv1.RadixCommonComponent) bool, currentRadixDeployment *radixv1.RadixDeployment) ([]componentImageSource, error) {
 	componentSource := make([]componentImageSource, 0)
+	var errs []error
 	for _, component := range components {
 		imageSource := componentImageSource{ComponentName: component.GetName()}
 		if image := component.GetImageForEnvironment(envName); len(image) > 0 {
@@ -273,16 +278,23 @@ func getComponentSources(envName string, components []radixv1.RadixCommonCompone
 			imageSource.ImageSource = fromBuild
 			imageSource.Source = component.GetSourceForEnvironment(envName)
 		} else {
-			imageSource.ImageSource = fromDeployment
 			deployComponent := currentRadixDeployment.GetCommonComponentByName(component.GetName())
 			if commonutils.IsNil(deployComponent) {
-				continue // component not found in current deployment
+				// if the component, existing in the current RadixApplication, does not exist in the active RadixDeployment,
+				// it is supposed that the radixconfig was changed and this component should have an imageSource with `imageSource.ImageSource` fromImagePath or fromBuild
+				errs = append(errs, errors.Errorf("missing the component %s in the active deployment %s, but it exist in the application %s and it has to be built and deployed or deployed with its image",
+					component.GetName(), currentRadixDeployment.Name, cli.GetAppName()))
+				continue
 			}
+			imageSource.ImageSource = fromDeployment
 			imageSource.Image = deployComponent.GetImage()
 		}
 		componentSource = append(componentSource, imageSource)
 	}
-	return componentSource
+	if len(errs) > 0 {
+		return nil, stderrors.Join(errs...)
+	}
+	return componentSource, nil
 }
 
 // Get component build information used by build job
