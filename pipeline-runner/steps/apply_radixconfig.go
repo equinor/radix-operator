@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	commonutils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
@@ -242,23 +242,14 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(pip
 	environmentComponentImageSources := make(environmentComponentImageSourceMap)
 	for _, envName := range pipelineInfo.TargetEnvironments {
 		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
-
 		currentRd, err := internal.GetCurrentRadixDeployment(cli.GetKubeutil(), envNamespace)
 		if err != nil {
 			return nil, err
 		}
 
-		mustBuildComponent, err := mustBuildComponentForEnvironment(envName, pipelineInfo.PrepareBuildContext, currentRd, ra, pipelineInfo.BuildSecret)
-		if err != nil {
+		if componentImageSources, err := cli.getComponentSources(appComponents, envName, currentRd, pipelineInfo); err != nil {
 			return nil, err
-		}
-
-		enabledComponents := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
-		componentImageSources, err := cli.getComponentSources(envName, enabledComponents, mustBuildComponent, currentRd)
-		if err != nil {
-			return nil, err
-		}
-		if len(componentImageSources) > 0 {
+		} else if len(componentImageSources) > 0 {
 			environmentComponentImageSources[envName] = componentImageSources
 		}
 	}
@@ -266,35 +257,41 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(pip
 	return environmentComponentImageSources, nil
 }
 
-func (cli *ApplyConfigStepImplementation) getComponentSources(envName string, components []radixv1.RadixCommonComponent, mustBuildComponent func(comp radixv1.RadixCommonComponent) bool, currentRadixDeployment *radixv1.RadixDeployment) ([]componentImageSource, error) {
+func (cli *ApplyConfigStepImplementation) getComponentSources(appComponents []radixv1.RadixCommonComponent, envName string,
+	currentRadixDeployment *radixv1.RadixDeployment, pipelineInfo *model.PipelineInfo) ([]componentImageSource, error) {
+
+	mustBuildComponent, err := mustBuildComponentForEnvironment(envName, pipelineInfo.PrepareBuildContext, currentRadixDeployment, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret)
+	if err != nil {
+		return nil, err
+	}
+
 	componentSource := make([]componentImageSource, 0)
-	var errs []error
-	for _, component := range components {
+	componentsEnabledInEnv := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
+	for _, component := range componentsEnabledInEnv {
 		imageSource := componentImageSource{ComponentName: component.GetName()}
 		if image := component.GetImageForEnvironment(envName); len(image) > 0 {
 			imageSource.ImageSource = fromImagePath
 			imageSource.Image = image
-		} else if mustBuildComponent(component) {
-			imageSource.ImageSource = fromBuild
-			imageSource.Source = component.GetSourceForEnvironment(envName)
 		} else {
-			deployComponent := currentRadixDeployment.GetCommonComponentByName(component.GetName())
-			if commonutils.IsNil(deployComponent) {
-				// if the component, existing in the current RadixApplication, does not exist in the active RadixDeployment,
-				// it is supposed that the radixconfig was changed and this component should have an imageSource with `imageSource.ImageSource` fromImagePath or fromBuild
-				errs = append(errs, errors.Errorf("missing the component %s in the active deployment %s, but it exist in the application %s and it has to be built and deployed or deployed with its image",
-					component.GetName(), currentRadixDeployment.Name, cli.GetAppName()))
-				continue
+			currentlyDeployedComponent := getCurrentlyDeployedComponent(currentRadixDeployment, component.GetName())
+			if utils.IsNil(currentlyDeployedComponent) || mustBuildComponent(component) {
+				imageSource.ImageSource = fromBuild
+				imageSource.Source = component.GetSourceForEnvironment(envName)
+			} else {
+				imageSource.ImageSource = fromDeployment
+				imageSource.Image = currentlyDeployedComponent.GetImage()
 			}
-			imageSource.ImageSource = fromDeployment
-			imageSource.Image = deployComponent.GetImage()
 		}
 		componentSource = append(componentSource, imageSource)
 	}
-	if len(errs) > 0 {
-		return nil, stderrors.Join(errs...)
-	}
 	return componentSource, nil
+}
+
+func getCurrentlyDeployedComponent(currentRadixDeployment *radixv1.RadixDeployment, componentName string) radixv1.RadixCommonDeployComponent {
+	if currentRadixDeployment == nil {
+		return nil
+	}
+	return currentRadixDeployment.GetCommonComponentByName(componentName)
 }
 
 // Get component build information used by build job
@@ -332,7 +329,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 func getLengthLimitedName(name string) string {
 	validatedName := strings.ToLower(name)
 	if len(validatedName) > 10 {
-		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandString(4)))
+		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(utils.RandString(4)))
 	}
 	return validatedName
 }
@@ -424,7 +421,7 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 
 	return func(comp radixv1.RadixCommonComponent) bool {
 		return slice.Any(envBuildContext.Components, func(s string) bool { return s == comp.GetName() }) ||
-			commonutils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
+			utils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
 	}, nil
 }
 
@@ -589,7 +586,7 @@ func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironm
 				}
 
 				env := ra.GetCommonComponentByName(componentName).GetEnvironmentConfigByName(envName)
-				if !commonutils.IsNil(env) && len(env.GetImageTagName()) > 0 {
+				if !utils.IsNil(env) && len(env.GetImageTagName()) > 0 {
 					continue
 				}
 
