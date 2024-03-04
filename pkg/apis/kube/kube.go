@@ -23,6 +23,7 @@ const (
 	RadixConfigHash                                  = "radix.equinor.com/radix-config-hash"
 	RadixBuildSecretHash                             = "radix.equinor.com/build-secret-hash"
 	RadixComponentImagesAnnotation                   = "radix-component-images"
+	RadixBuildComponentsAnnotation                     = "radix-build-component"
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
 	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"

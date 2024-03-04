@@ -881,7 +881,7 @@ func azureIdentityIsSet(commonComponent radixv1.RadixCommonComponent) bool {
 		return true
 	}
 	for _, envConfig := range commonComponent.GetEnvironmentConfig() {
-		if !commonComponent.GetEnabledForEnv(envConfig) {
+		if !commonComponent.GetEnabledForEnvironmentConfig(envConfig) {
 			continue
 		}
 		envIdentity := envConfig.GetIdentity()
@@ -1390,7 +1390,7 @@ func doesComponentExistInEnvironment(app *radixv1.RadixApplication, componentNam
 	for _, component := range app.Spec.Components {
 		if component.Name == componentName {
 			environmentConfig := component.GetEnvironmentConfigByName(environment)
-			return component.GetEnabledForEnv(environmentConfig)
+			return component.GetEnabledForEnvironmentConfig(environmentConfig)
 		}
 	}
 	return false

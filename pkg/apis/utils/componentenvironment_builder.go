@@ -7,6 +7,9 @@ import (
 // RadixEnvironmentConfigBuilder Handles construction of RA component environment
 type RadixEnvironmentConfigBuilder interface {
 	WithEnvironment(string) RadixEnvironmentConfigBuilder
+	WithSourceFolder(string) RadixEnvironmentConfigBuilder
+	WithDockerfileName(string) RadixEnvironmentConfigBuilder
+	WithImage(string) RadixEnvironmentConfigBuilder
 	WithReplicas(*int) RadixEnvironmentConfigBuilder
 	WithEnvironmentVariable(string, string) RadixEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixEnvironmentConfigBuilder
@@ -26,6 +29,9 @@ type RadixEnvironmentConfigBuilder interface {
 
 type radixEnvironmentConfigBuilder struct {
 	environment             string
+	sourceFolder            string
+	dockerfileName          string
+	image                   string
 	variables               v1.EnvVarsMap
 	replicas                *int
 	resources               v1.ResourceRequirements
@@ -84,6 +90,21 @@ func (ceb *radixEnvironmentConfigBuilder) WithVolumeMounts(volumeMounts []v1.Rad
 
 func (ceb *radixEnvironmentConfigBuilder) WithEnvironment(environment string) RadixEnvironmentConfigBuilder {
 	ceb.environment = environment
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithSourceFolder(sourceFolder string) RadixEnvironmentConfigBuilder {
+	ceb.sourceFolder = sourceFolder
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithDockerfileName(dockerfileName string) RadixEnvironmentConfigBuilder {
+	ceb.dockerfileName = dockerfileName
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithImage(image string) RadixEnvironmentConfigBuilder {
+	ceb.image = image
 	return ceb
 }
 
@@ -148,6 +169,9 @@ func (ceb *radixEnvironmentConfigBuilder) WithReadOnlyFileSystem(readOnlyFileSys
 func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
 	return v1.RadixEnvironmentConfig{
 		Environment:             ceb.environment,
+		SourceFolder:            ceb.sourceFolder,
+		DockerfileName:          ceb.dockerfileName,
+		Image:                   ceb.image,
 		Variables:               ceb.variables,
 		Replicas:                ceb.replicas,
 		Resources:               ceb.resources,

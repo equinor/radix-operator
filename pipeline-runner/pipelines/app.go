@@ -130,12 +130,13 @@ func (cli *PipelineRunner) CreateResultConfigMap() error {
 	if err != nil {
 		return err
 	}
-	jobName := cli.pipelineInfo.PipelineArguments.JobName
+	pipelineJobName := cli.pipelineInfo.PipelineArguments.JobName
+
 	configMap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: jobName,
+			Name: pipelineJobName,
 			Labels: map[string]string{
-				kube.RadixJobNameLabel:       jobName,
+				kube.RadixJobNameLabel:       pipelineJobName,
 				kube.RadixConfigMapTypeLabel: string(kube.RadixPipelineResultConfigMap),
 			},
 		},
