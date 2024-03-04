@@ -26,7 +26,7 @@ const (
 // CreateActionPipelineJob Create action pipeline job
 func CreateActionPipelineJob(containerName string, action string, pipelineInfo *model.PipelineInfo, appName string, initContainers []corev1.Container, envVars *[]corev1.EnvVar) *batchv1.Job {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
-	jobName := pipelineInfo.PipelineArguments.JobName
+	pipelineJobName := pipelineInfo.PipelineArguments.JobName
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
 	backOffLimit := int32(0)
@@ -34,7 +34,7 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("radix-%s-pipelines-%s-%s-%s", action, timestamp, imageTag, hash),
 			Labels: map[string]string{
-				kube.RadixJobNameLabel:  jobName,
+				kube.RadixJobNameLabel:  pipelineJobName,
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
 				kube.RadixJobTypeLabel:  getActionPipelineJobTypeLabelByPipelinesAction(action),
@@ -44,7 +44,7 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      radixlabels.ForPipelineJobName(jobName),
+					Labels:      radixlabels.ForPipelineJobName(pipelineJobName),
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{

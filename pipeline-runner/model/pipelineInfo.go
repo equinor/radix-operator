@@ -35,8 +35,8 @@ type PipelineInfo struct {
 	GitCommitHash string
 	GitTags       string
 
-	// Holds information about components to be built
-	BuildComponentImages pipeline.BuildComponentImages
+	// Holds information about components to be built for each environment
+	BuildComponentImages pipeline.EnvironmentBuildComponentImages
 
 	// Hold information about components to be deployed
 	DeployEnvironmentComponentImages pipeline.DeployEnvironmentComponentImages

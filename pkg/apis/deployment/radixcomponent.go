@@ -22,7 +22,7 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 	})
 	for _, radixComponent := range radixApplication.Spec.Components {
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
-		if !radixComponent.GetEnabledForEnv(environmentSpecificConfig) {
+		if !radixComponent.GetEnabledForEnvironmentConfig(environmentSpecificConfig) {
 			continue
 		}
 		componentName := radixComponent.Name

@@ -31,7 +31,7 @@ func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) 
 }
 
 func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) v1.EnvVarsMap {
-	if !component.GetEnabledForEnv(environmentSpecificConfig) {
+	if !component.GetEnabledForEnvironmentConfig(environmentSpecificConfig) {
 		return make(v1.EnvVarsMap)
 	}
 	var variables v1.EnvVarsMap
