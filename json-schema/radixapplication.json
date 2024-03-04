@@ -462,6 +462,10 @@
                       },
                       "type": "object"
                     },
+                    "readOnlyFileSystem": {
+                      "description": "Controls if the filesystem shall be read-only.",
+                      "type": "boolean"
+                    },
                     "replicas": {
                       "description": "Number of desired replicas. More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas",
                       "minimum": 0,
@@ -708,6 +712,13 @@
                               },
                               "skuName": {
                                 "description": "SKU Type of Azure storage. More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types",
+                                "enum": [
+                                  "Standard_LRS",
+                                  "Premium_LRS",
+                                  "Standard_GRS",
+                                  "Standard_RAGRS",
+                                  ""
+                                ],
                                 "type": "string"
                               },
                               "streaming": {
@@ -759,11 +770,36 @@
                                 "type": "boolean"
                               }
                             },
+                            "required": [
+                              "container"
+                            ],
                             "type": "object"
                           },
                           "container": {
                             "description": "Deprecated. Only required by the deprecated type: blob.",
                             "type": "string"
+                          },
+                          "emptyDir": {
+                            "description": "EmptyDir settings for EmptyDir volume",
+                            "properties": {
+                              "sizeLimit": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ],
+                                "description": "SizeLimit defines the size of the emptyDir volume",
+                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                "x-kubernetes-int-or-string": true
+                              }
+                            },
+                            "required": [
+                              "sizeLimit"
+                            ],
+                            "type": "object"
                           },
                           "gid": {
                             "description": "GID defines the group ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 or AzureFile instead.",
@@ -771,6 +807,7 @@
                           },
                           "name": {
                             "description": "User-defined name of the volume mount. Must be unique for the component.",
+                            "maxLength": 40,
                             "minLength": 1,
                             "type": "string"
                           },
@@ -934,6 +971,10 @@
                 "maxLength": 15,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
+              },
+              "readOnlyFileSystem": {
+                "description": "Controls if the filesystem shall be read-only.",
+                "type": "boolean"
               },
               "resources": {
                 "description": "Configures CPU and memory resources for the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common",
@@ -1392,6 +1433,10 @@
                       },
                       "type": "object"
                     },
+                    "readOnlyFileSystem": {
+                      "description": "Controls if the filesystem shall be read-only.",
+                      "type": "boolean"
+                    },
                     "resources": {
                       "description": "Environment specific configuration for CPU and memory resources. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3",
                       "properties": {
@@ -1638,6 +1683,13 @@
                               },
                               "skuName": {
                                 "description": "SKU Type of Azure storage. More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types",
+                                "enum": [
+                                  "Standard_LRS",
+                                  "Premium_LRS",
+                                  "Standard_GRS",
+                                  "Standard_RAGRS",
+                                  ""
+                                ],
                                 "type": "string"
                               },
                               "streaming": {
@@ -1689,11 +1741,36 @@
                                 "type": "boolean"
                               }
                             },
+                            "required": [
+                              "container"
+                            ],
                             "type": "object"
                           },
                           "container": {
                             "description": "Deprecated. Only required by the deprecated type: blob.",
                             "type": "string"
+                          },
+                          "emptyDir": {
+                            "description": "EmptyDir settings for EmptyDir volume",
+                            "properties": {
+                              "sizeLimit": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ],
+                                "description": "SizeLimit defines the size of the emptyDir volume",
+                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                "x-kubernetes-int-or-string": true
+                              }
+                            },
+                            "required": [
+                              "sizeLimit"
+                            ],
+                            "type": "object"
                           },
                           "gid": {
                             "description": "GID defines the group ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 or AzureFile instead.",
@@ -1701,6 +1778,7 @@
                           },
                           "name": {
                             "description": "User-defined name of the volume mount. Must be unique for the component.",
+                            "maxLength": 40,
                             "minLength": 1,
                             "type": "string"
                           },
@@ -1873,6 +1951,10 @@
                   "name"
                 ],
                 "x-kubernetes-list-type": "map"
+              },
+              "readOnlyFileSystem": {
+                "description": "Controls if the filesystem shall be read-only.",
+                "type": "boolean"
               },
               "resources": {
                 "description": "Configures CPU and memory resources for the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common-2",

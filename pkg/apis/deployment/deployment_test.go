@@ -762,6 +762,41 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 	assert.Equal(t, "radixquote", quoteIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 }
 
+func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
+	type scenarioSpec struct {
+		readOnlyFileSystem         *bool
+		expectedReadOnlyFileSystem *bool
+	}
+
+	tests := map[string]scenarioSpec{
+		"notSet": {readOnlyFileSystem: nil, expectedReadOnlyFileSystem: nil},
+		"false":  {readOnlyFileSystem: utils.BoolPtr(false), expectedReadOnlyFileSystem: utils.BoolPtr(false)},
+		"true":   {readOnlyFileSystem: utils.BoolPtr(true), expectedReadOnlyFileSystem: utils.BoolPtr(true)},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
+			defer teardownTest()
+			envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+			_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+				WithAppName("any-app").
+				WithEnvironment("any-env").
+				WithComponents(
+					utils.NewDeployComponentBuilder().
+						WithName("app").
+						WithReadOnlyFileSystem(test.readOnlyFileSystem)))
+
+			assert.NoError(t, err)
+			deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			for _, deployment := range deployments.Items {
+				assert.Equal(t, test.expectedReadOnlyFileSystem, deployment.Spec.Template.Spec.Containers[0].SecurityContext.ReadOnlyRootFilesystem)
+			}
+		})
+	}
+
+}
+
 func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupportingObjects(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest(t)
 	defer teardownTest()

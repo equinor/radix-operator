@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -142,7 +144,7 @@ func (job *Job) syncStatuses(ra *v1.RadixApplication) (stopReconciliation bool, 
 		return false, err
 	}
 
-	if job.isOtherJobRunningOnBranch(ra, allJobs.Items) {
+	if job.isOtherJobRunningOnBranchOrEnvironment(ra, allJobs.Items) {
 		err = job.queueJob()
 		if err != nil {
 			return false, err
@@ -159,34 +161,57 @@ func (job *Job) syncStatuses(ra *v1.RadixApplication) (stopReconciliation bool, 
 	return
 }
 
-func (job *Job) isOtherJobRunningOnBranch(ra *v1.RadixApplication, allJobs []v1.RadixJob) bool {
-	if len(job.radixJob.Spec.Build.Branch) == 0 {
-		return false
-	}
-
+func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, allJobs []v1.RadixJob) bool {
 	isJobActive := func(rj *v1.RadixJob) bool {
 		return rj.Status.Condition == v1.JobWaiting || rj.Status.Condition == v1.JobRunning
 	}
 
+	jobTargetEnvironments := getTargetEnvironments(ra, job)
 	for _, rj := range allJobs {
-		if rj.GetName() == job.radixJob.GetName() || len(rj.Spec.Build.Branch) == 0 || !isJobActive(&rj) {
+		if rj.GetName() == job.radixJob.GetName() || !isJobActive(&rj) {
 			continue
 		}
-
-		if ra != nil {
-			for _, env := range ra.Spec.Environments {
-				if len(env.Build.From) > 0 &&
-					branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) &&
-					branch.MatchesPattern(env.Build.From, job.radixJob.Spec.Build.Branch) {
-					return true
+		switch rj.Spec.PipeLineType {
+		case v1.BuildDeploy, v1.Build:
+			if len(jobTargetEnvironments) > 0 {
+				rjTargetBranches := applicationconfig.GetTargetEnvironments(rj.Spec.Build.Branch, ra)
+				for _, rjEnvName := range rjTargetBranches {
+					if _, ok := jobTargetEnvironments[rjEnvName]; ok {
+						return true
+					}
 				}
+			} else if job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch {
+				return true
 			}
-		} else if job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch {
-			return true
+		case v1.Deploy:
+			if _, ok := jobTargetEnvironments[rj.Spec.Deploy.ToEnvironment]; ok {
+				return true
+			}
+		case v1.Promote:
+			if _, ok := jobTargetEnvironments[rj.Spec.Promote.ToEnvironment]; ok {
+				return true
+			}
 		}
 	}
-
 	return false
+}
+
+func getTargetEnvironments(ra *v1.RadixApplication, job *Job) map[string]struct{} {
+	targetEnvs := make(map[string]struct{})
+	if job.radixJob.Spec.PipeLineType == v1.BuildDeploy || job.radixJob.Spec.PipeLineType == v1.Build {
+		if ra != nil {
+			return slice.Reduce(applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.Branch, ra),
+				targetEnvs, func(acc map[string]struct{}, envName string) map[string]struct{} {
+					acc[envName] = struct{}{}
+					return acc
+				})
+		}
+	} else if job.radixJob.Spec.PipeLineType == v1.Deploy {
+		targetEnvs[job.radixJob.Spec.Deploy.ToEnvironment] = struct{}{}
+	} else if job.radixJob.Spec.PipeLineType == v1.Promote {
+		targetEnvs[job.radixJob.Spec.Promote.ToEnvironment] = struct{}{}
+	}
+	return targetEnvs
 }
 
 // sync the environments in the RadixJob with environments in the RA
