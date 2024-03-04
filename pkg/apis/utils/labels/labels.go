@@ -316,3 +316,19 @@ func ForDNSAliasRbac(appName string) kubelabels.Set {
 		kube.RadixAliasLabel: "true",
 	}
 }
+
+// ForExternalDNSTLSSecret returns labels for External DNS TLS secret
+func ForExternalDNSTLSSecret(appName string, externalDns v1.RadixDeployExternalDNS) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:               appName,
+		kube.RadixExternalAliasFQDNLabel: externalDns.FQDN,
+	}
+}
+
+// ForExternalDNSCertificate returns labels for External DNS certificate
+func ForExternalDNSCertificate(appName string, externalDns v1.RadixDeployExternalDNS) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:               appName,
+		kube.RadixExternalAliasFQDNLabel: externalDns.FQDN,
+	}
+}

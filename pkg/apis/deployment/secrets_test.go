@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -22,17 +23,18 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupSecretsTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
+func setupSecretsTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface, *certfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 	prometheusclient := prometheusfake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	certClient := certfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
 	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid")
 	require.NoError(t, err)
-	return &handlerTestUtils, kubeclient, kubeUtil, radixclient, prometheusclient
+	return &handlerTestUtils, kubeclient, kubeUtil, radixclient, prometheusclient, certClient
 }
 
 func teardownSecretsTest() {
@@ -48,13 +50,13 @@ func teardownSecretsTest() {
 
 func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 	// Setup
-	testUtils, client, kubeUtil, radixclient, prometheusclient := setupSecretsTest(t)
+	testUtils, client, kubeUtil, radixclient, prometheusclient, certClient := setupSecretsTest(t)
 	appName, environment := "edcradix", "test"
 	componentName1, componentName2, componentName3, componentName4 := "component1", "component2", "component3", "component4"
 	verificationOn, verificationOff := v1.VerificationTypeOn, v1.VerificationTypeOff
 
 	// Test
-	radixDeployment, err := applyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+	radixDeployment, err := applyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(environment).
 		WithComponents(
