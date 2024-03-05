@@ -15,12 +15,17 @@ type DeployEnvironmentComponentImages map[string]DeployComponentImages
 
 // BuildComponentImage holds info about a build container
 type BuildComponentImage struct {
+	ComponentName string
+	EnvName       string
 	ContainerName string
 	Context       string
 	Dockerfile    string
 	ImageName     string
 	ImagePath     string
 }
+
+// EnvironmentBuildComponentImages maps component names with build information for environment
+type EnvironmentBuildComponentImages map[string][]BuildComponentImage
 
 // BuildComponentImages maps component names with build information
 type BuildComponentImages map[string]BuildComponentImage

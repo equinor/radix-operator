@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,7 +36,7 @@ func WithKubernetesClientRateLimiter(rateLimiter flowcontrol.RateLimiter) Kubern
 }
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface) {
+func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
 	ctx := context.Background()
 	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
@@ -82,7 +83,13 @@ func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kuberne
 	if err != nil {
 		log.Fatalf("secretProvider secret provider client client: %v", err)
 	}
+	certClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*certclient.Clientset, error) {
+		return certclient.NewForConfig(config)
+	})
+	if err != nil {
+		log.Fatalf("secretProvider secret provider client client: %v", err)
+	}
 
 	log.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, prometheusOperatorClient, secretProviderClient
+	return client, radixClient, prometheusOperatorClient, secretProviderClient, certClient
 }

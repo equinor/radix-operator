@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -42,6 +43,7 @@ type Deployment struct {
 	radixclient                radixclient.Interface
 	kubeutil                   *kube.Kube
 	prometheusperatorclient    monitoring.Interface
+	certClient                 certclient.Interface
 	registration               *v1.RadixRegistration
 	radixDeployment            *v1.RadixDeployment
 	auxResourceManagers        []AuxiliaryResourceManager
@@ -53,12 +55,13 @@ type Deployment struct {
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
 		kubeutil:                   kubeutil,
 		prometheusperatorclient:    prometheusperatorclient,
+		certClient:                 certClient,
 		registration:               registration,
 		radixDeployment:            radixDeployment,
 		auxResourceManagers:        auxResourceManagers,
@@ -239,6 +242,10 @@ func (deploy *Deployment) syncDeployment() error {
 	// If any error occurred when syncing of components
 	if len(errs) > 0 {
 		return stderrors.Join(errs...)
+	}
+
+	if err := deploy.syncExternalDnsResources(); err != nil {
+		return fmt.Errorf("failed to sync external DNS resources: %w", err)
 	}
 
 	if err := deploy.syncAuxiliaryResources(); err != nil {
@@ -457,10 +464,6 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
 
 func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {
 	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
-}
-
-func getLabelSelectorForExternalAlias(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixExternalAliasLabel, "true")
 }
 
 func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixCommonDeployComponent) string {

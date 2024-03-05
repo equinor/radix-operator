@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -23,6 +24,7 @@ type testEnvProps struct {
 	radixclient          radixclient.Interface
 	secretproviderclient secretProviderClient.Interface
 	prometheusclient     prometheusclient.Interface
+	certClient           *certfake.Clientset
 	kubeUtil             *kube.Kube
 	testUtil             *test.Utils
 }
@@ -421,7 +423,7 @@ func (testEnv *testEnvProps) applyRdComponent(t *testing.T, appName string, envN
 		WithEmptyStatus().
 		WithComponents(componentBuilder)
 
-	rd, err := applyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, radixDeployBuilder)
+	rd, err := applyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
 	assert.NoError(t, err)
 	return rd
 }
@@ -436,13 +438,13 @@ func (testEnv *testEnvProps) applyRdJobComponent(t *testing.T, appName string, e
 		WithEmptyStatus().
 		WithJobComponents(jobBuilder)
 
-	rd, err := applyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, radixDeployBuilder)
+	rd, err := applyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
 	assert.NoError(t, err)
 	return rd
 }
 
 func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
-	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, testEnv.secretproviderclient = setupTest(t)
+	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, testEnv.secretproviderclient, testEnv.certClient = setupTest(t)
 	return &testEnv
 }

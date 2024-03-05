@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
@@ -21,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -60,7 +61,7 @@ func (job *Job) OnSync() error {
 	appName := job.radixJob.Spec.AppName
 	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.GetNamespace()).Get(context.TODO(), appName, metav1.GetOptions{})
 	if err != nil {
-		if !k8sErrors.IsNotFound(err) {
+		if !errors.IsNotFound(err) {
 			return err
 		}
 		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", appName)
@@ -83,7 +84,7 @@ func (job *Job) OnSync() error {
 	}
 
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-	if k8sErrors.IsNotFound(err) {
+	if errors.IsNotFound(err) {
 		err = job.createPipelineJob()
 		if err != nil {
 			return err
@@ -259,11 +260,11 @@ func IsRadixJobDone(rj *v1.RadixJob) bool {
 
 func (job *Job) setStatusOfJob() error {
 	pipelineJob, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-	if k8sErrors.IsNotFound(err) {
-		// No kubernetes job created yet, so nothing to sync
-		return nil
-	}
 	if err != nil {
+		if errors.IsNotFound(err) {
+			// No kubernetes job created yet, so nothing to sync
+			return nil
+		}
 		return err
 	}
 
@@ -337,7 +338,7 @@ func (job *Job) getStoppedSteps(isRunning bool) (*[]v1.RadixJobStep, error) {
 	}
 	// Delete pipeline job
 	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), job.radixJob.Name, metav1.DeleteOptions{})
-	if err != nil && !k8sErrors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) {
 		return nil, err
 	}
 
@@ -377,7 +378,7 @@ func (job *Job) deleteStepJobs() error {
 			}
 
 			err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), kubernetesJob.Name, metav1.DeleteOptions{})
-			if err != nil && !k8sErrors.IsNotFound(err) {
+			if err != nil && !errors.IsNotFound(err) {
 				return err
 			}
 
@@ -478,6 +479,14 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 		}
 
 		pod := jobStepPod.Items[0]
+		componentImages := make(pipeline.BuildComponentImages)
+		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
+			return nil, err
+		}
+		buildComponents := make([]pipeline.BuildComponentImage, 0)
+		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixBuildComponentsAnnotation, &buildComponents); err != nil {
+			return nil, err
+		}
 		for _, containerStatus := range pod.Status.InitContainerStatuses {
 			if strings.HasPrefix(containerStatus.Name, git.InternalContainerPrefix) {
 				continue
@@ -485,16 +494,16 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			if _, ok := foundPrepareStepNames[containerStatus.Name]; ok {
 				continue
 			}
-			steps = append(steps, getJobStepWithNoComponents(pod.GetName(), &containerStatus))
-		}
-
-		componentImages := make(pipeline.BuildComponentImages)
-		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
-			return nil, err
+			step := getJobStepWithNoComponents(pod.GetName(), &containerStatus)
+			if containerStatus.Name == git.CloneContainerName {
+				step.Components = getContainerNames(componentImages, buildComponents)
+			}
+			steps = append(steps, step)
 		}
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
-			components := getComponentsForContainer(containerStatus.Name, componentImages)
+			components := getComponentImagesForContainer(containerStatus.Name, componentImages)
+			components = append(components, getComponentsForContainer(containerStatus.Name, buildComponents)...)
 			step := getJobStep(pod.GetName(), &containerStatus, components)
 			if _, ok := foundPrepareStepNames[step.Name]; ok {
 				continue
@@ -504,6 +513,13 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 	}
 
 	return steps, nil
+}
+
+func getContainerNames(buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImagesList []pipeline.BuildComponentImage) []string {
+	return append(maps.GetKeysFromMap(buildComponentImagesMap),
+		slice.Map(buildComponentImagesList, func(componentImage pipeline.BuildComponentImage) string {
+			return fmt.Sprintf("%s-%s", componentImage.ComponentName, componentImage.EnvName)
+		})...)
 }
 
 func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj interface{}) error {
@@ -517,12 +533,22 @@ func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj int
 	return nil
 }
 
-func getComponentsForContainer(name string, componentImages pipeline.BuildComponentImages) []string {
+func getComponentsForContainer(name string, componentImages []pipeline.BuildComponentImage) []string {
 	components := make([]string, 0)
-
-	for component, componentImage := range componentImages {
+	for _, componentImage := range componentImages {
 		if strings.EqualFold(componentImage.ContainerName, name) {
-			components = append(components, component)
+			components = append(components, componentImage.ComponentName)
+		}
+	}
+	sort.Strings(components)
+	return components
+}
+
+func getComponentImagesForContainer(name string, componentImages pipeline.BuildComponentImages) []string {
+	components := make([]string, 0)
+	for componentName, componentImage := range componentImages {
+		if strings.EqualFold(componentImage.ContainerName, name) {
+			components = append(components, componentName)
 		}
 	}
 	sort.Strings(components)

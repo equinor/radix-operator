@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -24,26 +25,23 @@ type PreservingDeployComponents struct {
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *radixv1.RadixApplication, activeRadixDeployment *radixv1.RadixDeployment, jobName, imageTag, branch string,
-	componentImages pipeline.DeployComponentImages, env string, defaultEnvVars radixv1.EnvVarsMap, radixConfigHash, buildSecretHash string,
-	componentsToDeploy []string) (*radixv1.RadixDeployment, error) {
-
-	preservingDeployComponents, err := getPreservingDeployComponents(activeRadixDeployment, componentsToDeploy)
+func ConstructForTargetEnvironment(config *radixv1.RadixApplication, activeRadixDeployment *radixv1.RadixDeployment, jobName, imageTag, branch string, componentImages pipeline.DeployComponentImages, envName string, defaultEnvVars radixv1.EnvVarsMap, radixConfigHash, buildSecretHash string, buildContext *model.PrepareBuildContext, componentsToDeploy []string) (*radixv1.RadixDeployment, error) {
+	preservingDeployComponents, err := getPreservingDeployComponents(activeRadixDeployment, envName, buildContext, componentsToDeploy)
 	if err != nil {
 		return nil, err
 	}
 
 	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
-	deployComponents, err := deployment.GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
+	deployComponents, err := deployment.GetRadixComponentsForEnv(config, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
 	if err != nil {
 		return nil, err
 	}
-	jobs, err := deployment.NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars, preservingDeployComponents.DeployJobComponents).JobComponents()
+	jobs, err := deployment.NewJobComponentsBuilder(config, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployJobComponents).JobComponents()
 	if err != nil {
 		return nil, err
 	}
-	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, deployComponents, jobs, radixConfigHash, buildSecretHash)
+	radixDeployment := constructRadixDeployment(config, envName, jobName, imageTag, branch, commitID, gitTags, deployComponents, jobs, radixConfigHash, buildSecretHash)
 	return radixDeployment, nil
 }
 
@@ -85,11 +83,23 @@ func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, j
 	return radixDeployment
 }
 
-func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeployment, componentsToDeploy []string) (PreservingDeployComponents, error) {
+func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeployment, envName string, buildContext *model.PrepareBuildContext, componentsToDeploy []string) (PreservingDeployComponents, error) {
 	preservingDeployComponents := PreservingDeployComponents{}
-	if activeRadixDeployment == nil || len(componentsToDeploy) == 0 {
+	existEnvironmentComponentsToBuild := buildContext != nil && !buildContext.ChangedRadixConfig && slice.Any(buildContext.EnvironmentsToBuild, func(environmentToBuild model.EnvironmentToBuild) bool {
+		return len(environmentToBuild.Components) > 0
+	})
+	if activeRadixDeployment == nil || (len(componentsToDeploy) == 0 && !existEnvironmentComponentsToBuild) {
 		return preservingDeployComponents, nil
 	}
+	if len(componentsToDeploy) == 0 && existEnvironmentComponentsToBuild {
+		componentsToDeploy = slice.Reduce(buildContext.EnvironmentsToBuild, make([]string, 0), func(acc []string, envComponentsToBuild model.EnvironmentToBuild) []string {
+			if envName == envComponentsToBuild.Environment && len(envComponentsToBuild.Components) > 0 {
+				return append(acc, envComponentsToBuild.Components...)
+			}
+			return acc
+		})
+	}
+
 	log.Infof("Deploy only following component(s): %s", strings.Join(componentsToDeploy, ","))
 	componentNames := slice.Reduce(componentsToDeploy, make(map[string]bool), func(acc map[string]bool, componentName string) map[string]bool {
 		componentName = strings.TrimSpace(componentName)

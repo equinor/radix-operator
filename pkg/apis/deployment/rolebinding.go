@@ -17,6 +17,17 @@ func getComponentSecretRbaclabels(appName, componentName string) kubelabels.Set 
 	return labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(componentName))
 }
 
+func (deploy *Deployment) grantAccessToExternalDnsSecrets(secretNames []string) error {
+	adminRoleName := "radix-app-externaldns-adm"
+	readerRoleName := "radix-app-externaldns-reader"
+
+	if err := deploy.grantAdminAccessToSecrets(adminRoleName, secretNames, nil); err != nil {
+		return err
+	}
+
+	return deploy.grantReaderAccessToSecrets(readerRoleName, secretNames, nil)
+}
+
 func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(component radixv1.RadixCommonDeployComponent, secretNames []string) error {
 	if len(secretNames) == 0 {
 		err := deploy.garbageCollectRoleBindingsNoLongerInSpecForComponent(component)
@@ -32,36 +43,44 @@ func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(component radixv1
 		return nil
 	}
 
-	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
-	extraLabels := getComponentSecretRbaclabels(registration.Name, component.GetName())
-
-	// App admin role and rolebinding
+	extraLabels := getComponentSecretRbaclabels(deploy.registration.Name, component.GetName())
 	adminRoleName := fmt.Sprintf("radix-app-adm-%s", component.GetName())
+	readerRoleName := fmt.Sprintf("radix-app-reader-%s", component.GetName())
+
+	if err := deploy.grantAdminAccessToSecrets(adminRoleName, secretNames, extraLabels); err != nil {
+		return err
+	}
+
+	return deploy.grantReaderAccessToSecrets(readerRoleName, secretNames, extraLabels)
+}
+
+func (deploy *Deployment) grantAdminAccessToSecrets(roleName string, secretNames []string, extraLabels map[string]string) error {
+	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
 	adminGroups, err := utils.GetAdGroups(registration)
 	if err != nil {
 		return err
 	}
-	adminRole := kube.CreateManageSecretRole(registration.Name, adminRoleName, secretNames, extraLabels)
-	adminRoleBinding := roleBindingAppSecrets(registration.Name, adminRole, adminGroups)
+	role := kube.CreateManageSecretRole(registration.Name, roleName, secretNames, extraLabels)
+	roleBinding := roleBindingAppSecrets(registration.Name, role, adminGroups)
 
-	// App reader role and rolebinding
-	readerRoleName := fmt.Sprintf("radix-app-reader-%s", component.GetName())
-	readerRole := kube.CreateReadSecretRole(registration.Name, readerRoleName, secretNames, extraLabels)
-	readerRoleBinding := roleBindingAppSecrets(registration.Name, readerRole, registration.Spec.ReaderAdGroups)
-
-	// Apply roles and rolebindings
-	for _, role := range []*rbacv1.Role{adminRole, readerRole} {
-		if err := deploy.kubeutil.ApplyRole(namespace, role); err != nil {
-			return err
-		}
-	}
-	for _, roleBinding := range []*rbacv1.RoleBinding{adminRoleBinding, readerRoleBinding} {
-		if err := deploy.kubeutil.ApplyRoleBinding(namespace, roleBinding); err != nil {
-			return err
-		}
+	if err := deploy.kubeutil.ApplyRole(namespace, role); err != nil {
+		return err
 	}
 
-	return nil
+	return deploy.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+}
+
+func (deploy *Deployment) grantReaderAccessToSecrets(roleName string, secretNames []string, extraLabels map[string]string) error {
+	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
+
+	role := kube.CreateReadSecretRole(registration.Name, roleName, secretNames, extraLabels)
+	roleBinding := roleBindingAppSecrets(registration.Name, role, registration.Spec.ReaderAdGroups)
+
+	if err := deploy.kubeutil.ApplyRole(namespace, role); err != nil {
+		return err
+	}
+
+	return deploy.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {
