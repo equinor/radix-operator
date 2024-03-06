@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -56,7 +57,7 @@ func main() {
 		panic(err)
 	}
 	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(kubeClientRateLimitQPS, kubeClientRateLimitBurst))
-	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient(rateLimitConfig)
+	client, radixClient, prometheusOperatorClient, secretProviderClient, certClient := utils.GetKubernetesClient(rateLimitConfig)
 
 	activeClusterNameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	logger.Printf("Active cluster name: %v", activeClusterNameEnvVar)
@@ -86,7 +87,7 @@ func main() {
 	startController(createRegistrationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), registrationControllerThreads, stop)
 	startController(createApplicationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg.DNSConfig), applicationControllerThreads, stop)
 	startController(createEnvironmentController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), environmentControllerThreads, stop)
-	startController(createDeploymentController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads, stop)
+	startController(createDeploymentController(kubeUtil, prometheusOperatorClient, certClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads, stop)
 	startController(createJobController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg), jobControllerThreads, stop)
 	startController(createAlertController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder), alertControllerThreads, stop)
 	startController(createBatchController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), 1, stop)
@@ -211,7 +212,7 @@ func createDNSAliasesController(kubeUtil *kube.Kube,
 		recorder)
 }
 
-func createDeploymentController(kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface,
+func createDeploymentController(kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, certClient certclient.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory,
 	recorder record.EventRecorder, oauthDefaultConfig defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration, config *apiconfig.Config) *common.Controller {
 
@@ -224,6 +225,7 @@ func createDeploymentController(kubeUtil *kube.Kube, prometheusOperatorClient mo
 		kubeUtil,
 		kubeUtil.RadixClient(),
 		prometheusOperatorClient,
+		certClient,
 		config,
 		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
 		deployment.WithIngressConfiguration(ingressConfiguration),

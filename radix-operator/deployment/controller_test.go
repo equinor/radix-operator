@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -14,7 +15,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,13 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
-	client := fake.NewSimpleClientset()
+func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *fakeradix.Clientset, *prometheusfake.Clientset, *certfake.Clientset) {
+	client := kubefake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
@@ -36,7 +36,8 @@ func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, rad
 	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	require.NoError(t, err)
 	prometheusClient := prometheusfake.NewSimpleClientset()
-	return &handlerTestUtils, client, kubeUtil, radixClient, prometheusClient
+	certClient := certfake.NewSimpleClientset()
+	return &handlerTestUtils, client, kubeUtil, radixClient, prometheusClient, certClient
 }
 
 func teardownTest() {
@@ -57,7 +58,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	defer close(synced)
 
 	// Setup
-	tu, client, kubeUtil, radixClient, prometheusclient := setupTest(t)
+	tu, client, kubeUtil, radixClient, prometheusclient, certClient := setupTest(t)
 
 	_, err := client.CoreV1().Namespaces().Create(
 		ctx,
@@ -81,6 +82,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		kubeUtil,
 		radixClient,
 		prometheusclient,
+		certClient,
 		&config.Config{},
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)

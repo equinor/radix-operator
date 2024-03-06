@@ -62,12 +62,10 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 	}
 
 	for _, env := range pipelineInfo.TargetEnvironments {
-		err := cli.deployToEnv(appName, env, pipelineInfo)
-		if err != nil {
+		if err := cli.deployToEnv(appName, env, pipelineInfo); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -106,6 +104,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		defaultEnvVars,
 		radixApplicationHash,
 		buildSecretHash,
+		pipelineInfo.PrepareBuildContext,
 		pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	if err != nil {
@@ -122,7 +121,6 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	if err != nil {
 		return fmt.Errorf("failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)
 	}
-
 	return nil
 }
 

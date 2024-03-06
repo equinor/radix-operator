@@ -6,6 +6,11 @@ import (
 
 type RadixCommonEnvironmentConfig interface {
 	GetEnvironment() string
+	GetImage() string
+	// GetDockerfileName Gets component docker file name
+	GetDockerfileName() string
+	// GetSourceFolder Gets component source folder
+	GetSourceFolder() string
 	GetVariables() EnvVarsMap
 	GetSecretRefs() RadixSecretRefs
 	GetResources() ResourceRequirements
@@ -20,6 +25,18 @@ type RadixCommonEnvironmentConfig interface {
 
 func (config *RadixEnvironmentConfig) GetEnvironment() string {
 	return config.Environment
+}
+
+func (config *RadixEnvironmentConfig) GetImage() string {
+	return config.Image
+}
+
+func (config *RadixEnvironmentConfig) GetDockerfileName() string {
+	return config.DockerfileName
+}
+
+func (config *RadixEnvironmentConfig) GetSourceFolder() string {
+	return config.SourceFolder
 }
 
 func (config *RadixEnvironmentConfig) GetSecretRefs() RadixSecretRefs {
@@ -64,6 +81,18 @@ func (config *RadixEnvironmentConfig) getEnabled() *bool {
 
 func (config *RadixJobComponentEnvironmentConfig) GetEnvironment() string {
 	return config.Environment
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetImage() string {
+	return config.Image
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetDockerfileName() string {
+	return config.DockerfileName
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetSourceFolder() string {
+	return config.SourceFolder
 }
 
 func (config *RadixJobComponentEnvironmentConfig) GetSecretRefs() RadixSecretRefs {
