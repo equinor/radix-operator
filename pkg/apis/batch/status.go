@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -14,6 +15,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 func isJobStatusWaiting(jobStatus radixv1.RadixBatchJobStatus) bool {
@@ -86,16 +88,23 @@ func (s *syncer) syncStatus(reconcileError error) error {
 }
 
 func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixBatchStatus)) error {
-	changeStatusFunc(&s.radixBatch.Status)
-	updatedRadixBatch, err := s.radixClient.
-		RadixV1().
-		RadixBatches(s.radixBatch.GetNamespace()).
-		UpdateStatus(context.TODO(), s.radixBatch, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	s.radixBatch = updatedRadixBatch
-	return nil
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		radixBatch, err := s.radixClient.RadixV1().RadixBatches(s.radixBatch.GetNamespace()).Get(context.Background(), s.radixBatch.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		changeStatusFunc(&radixBatch.Status)
+		updatedRadixBatch, err := s.radixClient.
+			RadixV1().
+			RadixBatches(radixBatch.GetNamespace()).
+			UpdateStatus(context.TODO(), radixBatch, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		s.radixBatch = updatedRadixBatch
+		return nil
+	})
+	return err
 }
 
 func isJobStatusCondition(conditionType batchv1.JobConditionType) func(batchv1.JobCondition) bool {
@@ -137,14 +146,14 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 	}
 
 	if isBatchJobStopRequested(batchJob) {
-		now := metav1.Now()
 		status.Phase = radixv1.BatchJobPhaseStopped
-		status.Message = currentStatus[0].Message
-		status.Reason = currentStatus[0].Reason
+		now := metav1.Now()
 		status.EndTime = &now
 		if len(currentStatus) > 0 {
 			status.CreationTime = currentStatus[0].CreationTime
 			status.StartTime = currentStatus[0].StartTime
+			status.Message = currentStatus[0].Message
+			status.Reason = currentStatus[0].Reason
 		}
 		s.updateStatusByJobPods(batchJob.Name, &status)
 		return status
@@ -194,14 +203,65 @@ func (s *syncer) updateStatusByJobPods(batchJobName string, status *radixv1.Radi
 	if err != nil || len(jobPods.Items) == 0 {
 		return
 	}
-	pod := jobPods.Items[0]
-	if pod.Status.Phase == corev1.PodSucceeded {
+	pods := jobPods.Items
+	sort.Slice(pods, func(i, j int) bool {
+		return pods[i].ObjectMeta.CreationTimestamp.After(pods[i].ObjectMeta.CreationTimestamp.Time)
+	})
+	pod := pods[0]
+	if len(pod.Status.ContainerStatuses) == 0 {
+		if len(pod.Status.Conditions) == 0 {
+			return
+		}
+		conditions := pod.Status.Conditions
+		sort.Slice(conditions, func(i, j int) bool {
+			if conditions[i].LastTransitionTime.Time == conditions[j].LastTransitionTime.Time {
+				return i < j
+			}
+			return conditions[i].LastTransitionTime.After(conditions[j].LastTransitionTime.Time)
+		})
+		status.Reason = conditions[0].Reason
+		status.Message = conditions[0].Message
+		switch pod.Status.Phase {
+		case corev1.PodPending:
+			status.Phase = radixv1.BatchJobPhaseWaiting
+		case corev1.PodFailed:
+			status.Phase = radixv1.BatchJobPhaseFailed
+		case corev1.PodSucceeded:
+			status.Phase = radixv1.BatchJobPhaseSucceeded
+		}
 		return
 	}
-	if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
-		status.Phase = radixv1.BatchJobPhaseFailed
-		status.Message = pod.Status.ContainerStatuses[0].State.Terminated.Message
-		status.Reason = pod.Status.ContainerStatuses[0].State.Terminated.Reason
+	containerStatuses := pod.Status.ContainerStatuses
+	sort.Slice(containerStatuses, func(i, j int) bool {
+		if containerStatuses[j].State.Terminated == nil {
+			return true
+		}
+		if containerStatuses[i].State.Terminated == nil {
+			return false
+		}
+		return containerStatuses[i].State.Terminated.FinishedAt.After(containerStatuses[j].State.Terminated.FinishedAt.Time)
+	})
+	containerStatus := containerStatuses[0]
+	switch {
+	case containerStatus.State.Running != nil:
+		status.Phase = radixv1.BatchJobPhaseActive
+		status.StartTime = &containerStatus.State.Running.StartedAt
+	case containerStatus.State.Waiting != nil:
+		status.Phase = radixv1.BatchJobPhaseWaiting
+		status.Message = containerStatus.State.Waiting.Message
+		status.Reason = containerStatus.State.Waiting.Reason
+	case containerStatus.State.Terminated != nil:
+		status.Message = containerStatus.State.Terminated.Message
+		status.Reason = containerStatus.State.Terminated.Reason
+		if !(strings.EqualFold(containerStatus.State.Terminated.Reason, "Completed") ||
+			containerStatus.State.Terminated.ExitCode != 0) {
+			status.Phase = radixv1.BatchJobPhaseFailed
+			status.Reason = containerStatus.State.Terminated.Reason
+			status.EndTime = &containerStatus.State.Terminated.FinishedAt
+			if len(status.Message) == 0 && containerStatus.State.Terminated.ExitCode != 0 {
+				status.Message = fmt.Sprintf("Exit code: %d", containerStatus.State.Terminated.ExitCode)
+			}
+		}
 	}
 }
 

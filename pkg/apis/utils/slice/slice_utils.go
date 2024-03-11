@@ -2,18 +2,7 @@ package slice
 
 import (
 	"reflect"
-	"strings"
 )
-
-// ContainsString return if a string is contained in the slice
-func ContainsString(s []string, e string) bool {
-	for _, a := range s {
-		if strings.EqualFold(a, e) {
-			return true
-		}
-	}
-	return false
-}
 
 // PointersOf Returnes a pointer of
 func PointersOf(v interface{}) interface{} {
