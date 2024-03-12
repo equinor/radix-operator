@@ -132,6 +132,9 @@ const (
 	// controller has started the job.
 	BatchJobPhaseActive RadixBatchJobPhase = "Active"
 
+	// Active means that the job is active and its pods are ready.
+	BatchJobPhaseRunning RadixBatchJobPhase = "Running"
+
 	// Succeeded means that the job has completed without errors.
 	BatchJobPhaseSucceeded RadixBatchJobPhase = "Succeeded"
 

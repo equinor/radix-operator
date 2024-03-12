@@ -189,6 +189,9 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 	if job.Status.Active > 0 {
 		status.Phase = radixv1.BatchJobPhaseActive
 		status.StartTime = job.Status.StartTime
+		if job.Status.Ready != nil && job.Status.Active > *job.Status.Ready {
+			status.Phase = radixv1.BatchJobPhaseRunning
+		}
 	}
 	if len(jobConditionsSortedDesc) > 0 {
 		status.Reason = jobConditionsSortedDesc[0].Reason
