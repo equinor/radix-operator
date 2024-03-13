@@ -23,6 +23,10 @@ func isJobStatusWaiting(jobStatus radixv1.RadixBatchJobStatus) bool {
 	return jobStatus.Phase == radixv1.BatchJobPhaseWaiting
 }
 
+func isJobStatusActive(jobStatus radixv1.RadixBatchJobStatus) bool {
+	return jobStatus.Phase == radixv1.BatchJobPhaseActive
+}
+
 func isJobStatusDone(jobStatus radixv1.RadixBatchJobStatus) bool {
 	return jobStatus.Phase == radixv1.BatchJobPhaseSucceeded ||
 		jobStatus.Phase == radixv1.BatchJobPhaseFailed ||
@@ -35,10 +39,12 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		return err
 	}
 
-	conditionType := radixv1.BatchConditionTypeActive
+	conditionType := radixv1.BatchConditionTypeRunning
 	switch {
 	case slice.All(jobStatuses, isJobStatusWaiting):
 		conditionType = radixv1.BatchConditionTypeWaiting
+	case slice.All(jobStatuses, isJobStatusActive):
+		conditionType = radixv1.BatchConditionTypeActive
 	case slice.All(jobStatuses, isJobStatusDone):
 		conditionType = radixv1.BatchConditionTypeCompleted
 	}
@@ -53,7 +59,7 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		case radixv1.BatchConditionTypeWaiting:
 			currStatus.Condition.ActiveTime = nil
 			currStatus.Condition.CompletionTime = nil
-		case radixv1.BatchConditionTypeActive:
+		case radixv1.BatchConditionTypeActive, radixv1.BatchConditionTypeRunning:
 			now := metav1.Now()
 			if currStatus.Condition.ActiveTime == nil {
 				currStatus.Condition.ActiveTime = &now
