@@ -156,7 +156,7 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 			status.Message = currentStatus[0].Message
 			status.Reason = currentStatus[0].Reason
 		}
-		s.updateStatusByJobPods(batchJob.Name, &status)
+		s.updateJobAndPodStatuses(batchJob.Name, &status)
 		return status
 	}
 
@@ -174,7 +174,7 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 		status.EndTime = job.Status.CompletionTime
 		status.Message = condition.Message
 		status.Reason = condition.Reason
-		s.updateStatusByJobPods(batchJob.Name, &status)
+		s.updateJobAndPodStatuses(batchJob.Name, &status)
 		return status
 	}
 	if failedCondition, ok := slice.FindFirst(jobConditionsSortedDesc, isJobStatusCondition(batchv1.JobFailed)); ok {
@@ -183,7 +183,7 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 		status.EndTime = &failedCondition.LastTransitionTime
 		status.Reason = failedCondition.Reason
 		status.Message = failedCondition.Message
-		s.updateStatusByJobPods(batchJob.Name, &status)
+		s.updateJobAndPodStatuses(batchJob.Name, &status)
 		return status
 	}
 	if job.Status.Active > 0 {
@@ -197,11 +197,11 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 		status.Reason = jobConditionsSortedDesc[0].Reason
 		status.Message = jobConditionsSortedDesc[0].Message
 	}
-	s.updateStatusByJobPods(batchJob.Name, &status)
+	s.updateJobAndPodStatuses(batchJob.Name, &status)
 	return status
 }
 
-func (s *syncer) updateStatusByJobPods(batchJobName string, jobStatus *radixv1.RadixBatchJobStatus) {
+func (s *syncer) updateJobAndPodStatuses(batchJobName string, jobStatus *radixv1.RadixBatchJobStatus) {
 	jobComponentName := s.radixBatch.GetLabels()[kube.RadixComponentLabel]
 	podStatusMap := getPodStatusMap(jobStatus)
 	for _, pod := range s.getJobPods(batchJobName) {
@@ -214,6 +214,11 @@ func (s *syncer) updateStatusByJobPods(batchJobName string, jobStatus *radixv1.R
 			continue
 		}
 		setPodStatusByPodCondition(&pod, podStatus)
+	}
+	if slice.Any(jobStatus.RadixBatchJobPodStatuses, func(podStatus radixv1.RadixBatchJobPodStatus) bool {
+		return podStatus.Phase == radixv1.PodFailed
+	}) {
+		jobStatus.Phase = radixv1.BatchJobPhaseFailed
 	}
 }
 
