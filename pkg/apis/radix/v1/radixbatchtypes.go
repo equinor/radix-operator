@@ -270,6 +270,25 @@ type RadixBatchJobPodStatus struct {
 	// The time at which the batch job's pod finishedAt.
 	// +optional
 	EndTime *meta_v1.Time `json:"endTime,omitempty"`
+
+	// The number of times the container has been restarted.
+	RestartCount int32 `json:"restartCount"`
+
+	// The name of container image that the container is running.
+	// The container image may not match the image used in the PodSpec,
+	// as it may have been resolved by the runtime.
+	// More info: https://kubernetes.io/docs/concepts/containers/images.
+	// +optional
+	Image string `json:"image"`
+
+	// The image ID of the container's image. The image ID may not
+	// match the image ID of the image used in the PodSpec, as it may have been
+	// resolved by the runtime.
+	// +optional
+	ImageID string `json:"imageID"`
+
+	// The index of the pod in the re-starts
+	PodIndex int `json:"podIndex"`
 }
 
 // RadixBatchJobPodPhase is a label for the condition of a pod at the current time.

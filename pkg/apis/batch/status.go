@@ -195,7 +195,7 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 	if job.Status.Active > 0 {
 		status.Phase = radixv1.BatchJobPhaseActive
 		status.StartTime = job.Status.StartTime
-		if job.Status.Ready != nil && job.Status.Active > *job.Status.Ready {
+		if job.Status.Ready != nil && job.Status.Active == *job.Status.Ready {
 			status.Phase = radixv1.BatchJobPhaseRunning
 		}
 	}
@@ -208,18 +208,28 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 }
 
 func (s *syncer) updateStatusByJobPods(batchJobName string, jobStatus *radixv1.RadixBatchJobStatus) {
+	jobComponentName := s.radixBatch.GetLabels()[kube.RadixComponentLabel]
 	podStatusMap := getPodStatusMap(jobStatus)
 	for _, pod := range s.getJobPods(batchJobName) {
 		podStatus := getOrCreatePodStatusForPod(&pod, jobStatus, podStatusMap)
 		if podStatus.EndTime != nil {
 			continue
 		}
-		if len(pod.Status.ContainerStatuses) > 0 {
-			setPodStatusByPodLastContainerStatus(pod, podStatus)
+		if containerStatus, ok := s.getJobComponentContainerStatus(jobComponentName, pod); ok {
+			setPodStatusByPodLastContainerStatus(containerStatus, podStatus)
 			continue
 		}
 		setPodStatusByPodCondition(&pod, podStatus)
 	}
+}
+
+func (s *syncer) getJobComponentContainerStatus(containerName string, pod corev1.Pod) (*corev1.ContainerStatus, bool) {
+	if containerStatus, ok := slice.FindFirst(pod.Status.ContainerStatuses, func(containerStatus corev1.ContainerStatus) bool {
+		return containerStatus.Name == containerName
+	}); ok {
+		return &containerStatus, true
+	}
+	return nil, false
 }
 
 func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJobStatus, podStatusMap map[string]*radixv1.RadixBatchJobPodStatus) *radixv1.RadixBatchJobPodStatus {
@@ -231,6 +241,7 @@ func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJo
 			Name:         pod.GetName(),
 			Phase:        radixv1.RadixBatchJobPodPhase(pod.Status.Phase),
 			CreationTime: pointers.Ptr(pod.GetCreationTimestamp()),
+			PodIndex:     len(jobStatus.RadixBatchJobPodStatuses),
 		})
 	return &jobStatus.RadixBatchJobPodStatuses[len(jobStatus.RadixBatchJobPodStatuses)-1]
 }
@@ -244,8 +255,10 @@ func (s *syncer) getJobPods(batchJobName string) []corev1.Pod {
 	return jobPods.Items
 }
 
-func setPodStatusByPodLastContainerStatus(pod corev1.Pod, podStatus *radixv1.RadixBatchJobPodStatus) {
-	containerStatus := getPodLatestContainerStatus(pod)
+func setPodStatusByPodLastContainerStatus(containerStatus *corev1.ContainerStatus, podStatus *radixv1.RadixBatchJobPodStatus) {
+	podStatus.RestartCount = containerStatus.RestartCount
+	podStatus.Image = containerStatus.Image
+	podStatus.ImageID = containerStatus.ImageID
 	switch {
 	case containerStatus.State.Running != nil:
 		podStatus.Phase = radixv1.PodRunning
@@ -261,7 +274,7 @@ func setPodStatusByPodLastContainerStatus(pod corev1.Pod, podStatus *radixv1.Rad
 			containerStatus.State.Terminated.ExitCode == 0 {
 			podStatus.Phase = radixv1.PodSucceeded
 			podStatus.ExitCode = 0
-			podStatus.StartTime = &containerStatus.State.Running.StartedAt
+			podStatus.StartTime = &containerStatus.State.Terminated.StartedAt
 			podStatus.EndTime = &containerStatus.State.Terminated.FinishedAt
 			return
 		}
@@ -274,21 +287,6 @@ func setPodStatusByPodLastContainerStatus(pod corev1.Pod, podStatus *radixv1.Rad
 			podStatus.Message = fmt.Sprintf("Exit code: %d", containerStatus.State.Terminated.ExitCode)
 		}
 	}
-}
-
-func getPodLatestContainerStatus(pod corev1.Pod) corev1.ContainerStatus {
-	containerStatuses := pod.Status.ContainerStatuses
-	sort.Slice(containerStatuses, func(i, j int) bool {
-		if containerStatuses[j].State.Terminated == nil {
-			return true
-		}
-		if containerStatuses[i].State.Terminated == nil {
-			return false
-		}
-		return containerStatuses[i].State.Terminated.FinishedAt.After(containerStatuses[j].State.Terminated.FinishedAt.Time)
-	})
-	containerStatus := containerStatuses[0]
-	return containerStatus
 }
 
 func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJobPodStatus) {
