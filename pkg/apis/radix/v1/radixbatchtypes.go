@@ -145,7 +145,7 @@ const (
 	BatchJobPhaseStopped RadixBatchJobPhase = "Stopped"
 )
 
-// +kubebuilder:validation:Enum=Waiting;Active;Running;Completed
+// +kubebuilder:validation:Enum=Waiting;Active;Completed
 type RadixBatchConditionType string
 
 const (
@@ -154,9 +154,6 @@ const (
 
 	// Active means that all jobs are in phase Active.
 	BatchConditionTypeActive RadixBatchConditionType = "Active"
-
-	// Running means that one or more jobs in phase Running.
-	BatchConditionTypeRunning RadixBatchConditionType = "Running"
 
 	// Completed means that all jobs are in Succeeded, Failed or Stopped phase.
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"

@@ -189,7 +189,6 @@ spec:
                     enum:
                     - Waiting
                     - Active
-                    - Running
                     - Completed
                     type: string
                 required:
