@@ -178,7 +178,7 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: A human readable message indicating details about
+                    description: A human-readable message indicating details about
                       the condition.
                     type: string
                   reason:
@@ -231,6 +231,7 @@ spec:
                       enum:
                       - Waiting
                       - Active
+                      - Running
                       - Succeeded
                       - Failed
                       - Stopped

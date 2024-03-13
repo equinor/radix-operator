@@ -118,11 +118,11 @@ type RadixDeploymentJobComponentSelector struct {
 }
 
 // RadixBatchJobPhase represents the phase of the job
-// +kubebuilder:validation:Enum=Waiting;Active;Succeeded;Failed;Stopped
+// +kubebuilder:validation:Enum=Waiting;Active;Running;Succeeded;Failed;Stopped
 type RadixBatchJobPhase string
 
 const (
-	// Waiting means that the the job is waiting to start,
+	// Waiting means that the job is waiting to start,
 	// either because the Kubernetes job has not yet been created,
 	// or the Kubernetes job controller has not processed the Job.
 	BatchJobPhaseWaiting RadixBatchJobPhase = "Waiting"
@@ -168,7 +168,7 @@ type RadixBatchCondition struct {
 	// +optional
 	Reason string `json:"reason,omitempty"`
 
-	// A human readable message indicating details about the condition.
+	// A human-readable message indicating details about the condition.
 	// +optional
 	Message string `json:"message,omitempty"`
 
