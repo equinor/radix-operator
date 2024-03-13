@@ -197,14 +197,14 @@ type RadixBatchJobStatus struct {
 	// +kubebuilder:validation:MaxLength:=63
 	Name string `json:"name"`
 
-	// The jRadixBatchJob is a simple, high-level summary of where the RadixBatchJob is in its lifecycle.
+	// The Phase is a simple, high-level summary of where the RadixBatchJob is in its lifecycle.
 	Phase RadixBatchJobPhase `json:"phase"`
 
 	// A brief CamelCase message indicating details about why the job is in this phase
 	// +optional
 	Reason string `json:"reason,omitempty"`
 
-	// A human readable message indicating details about why the job is in this phase
+	// A human-readable message indicating details about why the job is in this phase
 	// +optional
 	Message string `json:"message,omitempty"`
 

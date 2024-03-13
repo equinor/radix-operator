@@ -219,15 +219,15 @@ spec:
                       format: int32
                       type: integer
                     message:
-                      description: A human readable message indicating details about
+                      description: A human-readable message indicating details about
                         why the job is in this phase
                       type: string
                     name:
                       maxLength: 63
                       type: string
                     phase:
-                      description: The jRadixBatchJob is a simple, high-level summary
-                        of where the RadixBatchJob is in its lifecycle.
+                      description: The Phase is a simple, high-level summary of where
+                        the RadixBatchJob is in its lifecycle.
                       enum:
                       - Waiting
                       - Active
