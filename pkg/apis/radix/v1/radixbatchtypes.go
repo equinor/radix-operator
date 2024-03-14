@@ -159,6 +159,27 @@ const (
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"
 )
 
+// A label for the condition of a pod at the current time.
+// +kubebuilder:validation:Enum=Pending;Running;Succeeded;Failed
+type RadixBatchJobPodPhase string
+
+// These are the valid statuses of job's pods.
+const (
+	// PodPending means the pod has been accepted by the system, but one or more of the containers
+	// has not been started. This includes time before being bound to a node, as well as time spent
+	// pulling images onto the host.
+	PodPending RadixBatchJobPodPhase = "Pending"
+	// PodRunning means the pod has been bound to a node and all the containers have been started.
+	// At least one container is still running or is in the process of being restarted.
+	PodRunning RadixBatchJobPodPhase = "Running"
+	// PodSucceeded means that all containers in the pod have voluntarily terminated
+	// with a container exit code of 0, and the system is not going to restart any of these containers.
+	PodSucceeded RadixBatchJobPodPhase = "Succeeded"
+	// PodFailed means that all containers in the pod have terminated, and at least one container has
+	// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
+	PodFailed RadixBatchJobPodPhase = "Failed"
+)
+
 // RadixBatchCondition describes the state of the RadixBatch
 type RadixBatchCondition struct {
 	// Type of RadixBatch condition.
@@ -287,27 +308,6 @@ type RadixBatchJobPodStatus struct {
 	// The index of the pod in the re-starts
 	PodIndex int `json:"podIndex"`
 }
-
-// RadixBatchJobPodPhase is a label for the condition of a pod at the current time.
-// +enum
-type RadixBatchJobPodPhase string
-
-// These are the valid statuses of job's pods.
-const (
-	// PodPending means the pod has been accepted by the system, but one or more of the containers
-	// has not been started. This includes time before being bound to a node, as well as time spent
-	// pulling images onto the host.
-	PodPending RadixBatchJobPodPhase = "Pending"
-	// PodRunning means the pod has been bound to a node and all the containers have been started.
-	// At least one container is still running or is in the process of being restarted.
-	PodRunning RadixBatchJobPodPhase = "Running"
-	// PodSucceeded means that all containers in the pod have voluntarily terminated
-	// with a container exit code of 0, and the system is not going to restart any of these containers.
-	PodSucceeded RadixBatchJobPodPhase = "Succeeded"
-	// PodFailed means that all containers in the pod have terminated, and at least one container has
-	// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
-	PodFailed RadixBatchJobPodPhase = "Failed"
-)
 
 // LocalObjectReference contains enough information to let you locate the
 // referenced object inside the same namespace.

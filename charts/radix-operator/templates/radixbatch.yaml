@@ -278,6 +278,11 @@ spec:
                           phase:
                             description: The phase of a Pod is a simple, high-level
                               summary of where the Pod is in its lifecycle.
+                            enum:
+                            - Pending
+                            - Running
+                            - Succeeded
+                            - Failed
                             type: string
                           podIndex:
                             description: The index of the pod in the re-starts
