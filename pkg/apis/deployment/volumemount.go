@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -71,6 +70,10 @@ const (
 	provisionerBlobCsiAzure string = "blob.csi.azure.com"
 	// provisionerFileCsiAzure Use of azure/csi driver for files in Azure storage account
 	provisionerFileCsiAzure string = "file.csi.azure.com"
+)
+
+var (
+	csiVolumeProvisioners = map[string]any{provisionerBlobCsiAzure: struct{}{}, provisionerFileCsiAzure: struct{}{}}
 )
 
 // getStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
@@ -809,20 +812,18 @@ func GetRadixVolumeMountStorage(radixVolumeMount *radixv1.RadixVolumeMount) stri
 	return radixVolumeMount.Storage
 }
 
-func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(excludePvcNames []string) error {
+func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(excludePvcNames map[string]any) error {
 	pvList, err := deploy.getPersistentVolumesForPvc()
 	if err != nil {
 		return err
 	}
 	for _, pv := range pvList.Items {
-		switch {
-		case pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Kind != persistentVolumeClaimKind:
+		if pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Kind != persistentVolumeClaimKind ||
+			!knownCSIDriver(pv.Spec.CSI) ||
+			pv.Status.Phase != corev1.VolumeReleased {
 			continue
-		case pv.Spec.CSI == nil || !slice.ContainsString([]string{provisionerBlobCsiAzure, provisionerFileCsiAzure}, pv.Spec.CSI.Driver):
-			continue
-		case slice.ContainsString(excludePvcNames, pv.Spec.ClaimRef.Name):
-			continue
-		case pv.Status.Phase != corev1.VolumeReleased:
+		}
+		if _, ok := excludePvcNames[pv.Spec.ClaimRef.Name]; ok {
 			continue
 		}
 		log.Infof("Delete orphaned Csi Azure PersistantVolume %s of PersistantVolumeClaim %s", pv.Name, pv.Spec.ClaimRef.Name)
@@ -832,6 +833,14 @@ func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(exclud
 		}
 	}
 	return nil
+}
+
+func knownCSIDriver(csiPersistentVolumeSource *corev1.CSIPersistentVolumeSource) bool {
+	if csiPersistentVolumeSource == nil {
+		return false
+	}
+	_, ok := csiVolumeProvisioners[csiPersistentVolumeSource.Driver]
+	return ok
 }
 
 // createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - StorageClasses, PersistentVolumeClaims, PersistentVolume
@@ -852,7 +861,11 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(desiredDeploymen
 	scMap := utils.GetStorageClassMap(&scList.Items)
 	pvcMap := utils.GetPersistentVolumeClaimMap(&pvcList.Items)
 	radixVolumeMountMap := deploy.getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName)
-	var actualStorageClassNames, actualPvcNames []string
+	var actualStorageClassNames []string
+	actualPvcNames, err := deploy.getCurrentlyUsedPersistentVolumeClaims(namespace)
+	if err != nil {
+		return err
+	}
 	for _, volume := range desiredDeployment.Spec.Template.Spec.Volumes {
 		if volume.PersistentVolumeClaim == nil {
 			continue
@@ -871,7 +884,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(desiredDeploymen
 			return err
 		}
 		volume.PersistentVolumeClaim.ClaimName = pvc.Name
-		actualPvcNames = append(actualPvcNames, pvc.Name)
+		actualPvcNames[pvc.Name] = struct{}{}
 	}
 	err = deploy.garbageCollectCsiAzureStorageClasses(scList, actualStorageClassNames)
 	if err != nil {
@@ -888,9 +901,36 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(desiredDeploymen
 	return nil
 }
 
+func (deploy *Deployment) getCurrentlyUsedPersistentVolumeClaims(namespace string) (map[string]any, error) {
+	pvcNames := make(map[string]any)
+	deploymentList, err := deploy.kubeclient.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, deployment := range deploymentList.Items {
+		addUsedPersistenceVolumeClaimsFrom(deployment.Spec.Template, pvcNames)
+	}
+	jobsList, err := deploy.kubeclient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, job := range jobsList.Items {
+		addUsedPersistenceVolumeClaimsFrom(job.Spec.Template, pvcNames)
+	}
+	return pvcNames, nil
+}
+
+func addUsedPersistenceVolumeClaimsFrom(podTemplate corev1.PodTemplateSpec, pvcMap map[string]any) {
+	for _, volume := range podTemplate.Spec.Volumes {
+		if volume.PersistentVolumeClaim != nil && len(volume.PersistentVolumeClaim.ClaimName) > 0 {
+			pvcMap[volume.PersistentVolumeClaim.ClaimName] = struct{}{}
+		}
+	}
+}
+
 func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1.StorageClassList, excludeStorageClassName []string) error {
 	for _, storageClass := range scList.Items {
-		if slice.ContainsString(excludeStorageClassName, storageClass.Name) {
+		if commonUtils.ContainsString(excludeStorageClassName, storageClass.Name) {
 			continue
 		}
 		log.Debugf("Delete Csi Azure StorageClass %s", storageClass.Name)
@@ -902,9 +942,9 @@ func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(namespace string, pvcList *corev1.PersistentVolumeClaimList, excludePvcNames []string) error {
+func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(namespace string, pvcList *corev1.PersistentVolumeClaimList, excludePvcNames map[string]any) error {
 	for _, pvc := range pvcList.Items {
-		if slice.ContainsString(excludePvcNames, pvc.Name) {
+		if _, ok := excludePvcNames[pvc.Name]; ok {
 			continue
 		}
 		pvName := pvc.Spec.VolumeName
@@ -931,11 +971,7 @@ func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(storageClass *stor
 			return pvc, nil
 		}
 
-		log.Debugf("Delete PersistentVolumeClaim %s in namespace %s: changed StorageClass name to %s", pvc.Name, namespace, storageClass.Name)
-		err := deploy.deletePersistentVolumeClaim(namespace, pvc.Name)
-		if err != nil {
-			return nil, err
-		}
+		log.Debugf("Delete in garbage-collect an old PersistentVolumeClaim %s in namespace %s: changed StorageClass name to %s", pvc.Name, namespace, storageClass.Name)
 	}
 	persistentVolumeClaimName, err := createCsiAzurePersistentVolumeClaimName(componentName, radixVolumeMount)
 	if err != nil {
