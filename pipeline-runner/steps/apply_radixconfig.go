@@ -23,7 +23,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -193,15 +193,15 @@ func getComponentMap(pipelineInfo *model.PipelineInfo) map[string]radixv1.RadixC
 }
 
 func printEnvironmentComponentImageSources(imageSourceMap environmentComponentImageSourceMap) {
-	log.Info("Component image source in environments:")
+	log.Info().Msg("Component image source in environments:")
 	for envName, componentImageSources := range imageSourceMap {
-		log.Infof("  %s:", envName)
+		log.Info().Msgf("  %s:", envName)
 		if len(componentImageSources) == 0 {
-			log.Info("    - no components to deploy")
+			log.Info().Msg("    - no components to deploy")
 			continue
 		}
 		for _, componentSource := range componentImageSources {
-			log.Infof("    - %s from %s", componentSource.ComponentName, getImageSourceDescription(componentSource.ImageSource))
+			log.Info().Msgf("    - %s from %s", componentSource.ComponentName, getImageSourceDescription(componentSource.ImageSource))
 		}
 	}
 }
@@ -372,7 +372,7 @@ func isRadixConfigNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, ra *
 	}
 	hashEqual, err := compareRadixApplicationHash(currentRdConfigHash, ra)
 	if !hashEqual && err == nil {
-		log.Infof("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
+		log.Info().Msgf("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
 	}
 	return !hashEqual, err
 }
@@ -387,7 +387,7 @@ func isBuildSecretNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, buil
 	}
 	hashEqual, err := compareBuildSecretHash(targetHash, buildSecret)
 	if !hashEqual && err == nil {
-		log.Infof("Build secrets updated since last deployment to environment %s", rd.Spec.Environment)
+		log.Info().Msgf("Build secrets updated since last deployment to environment %s", rd.Spec.Environment)
 	}
 	return !hashEqual, err
 }
@@ -445,7 +445,7 @@ func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComp
 func getPrepareBuildContext(configMap *corev1.ConfigMap) (*model.PrepareBuildContext, error) {
 	prepareBuildContextContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapBuildContext]
 	if !ok {
-		log.Debug("Prepare Build Context does not exist in the ConfigMap")
+		log.Debug().Msg("Prepare Build Context does not exist in the ConfigMap")
 		return nil, nil
 	}
 	prepareBuildContext := &model.PrepareBuildContext{}
@@ -472,30 +472,30 @@ func getPipelineShouldBeStopped(prepareBuildContext *model.PrepareBuildContext) 
 		}
 	}
 	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
-	log.Info(message)
+	log.Info().Msg(message)
 	return true, message
 }
 
 func printPrepareBuildContext(prepareBuildContext *model.PrepareBuildContext) {
 	if prepareBuildContext.ChangedRadixConfig {
-		log.Infoln("Radix config file was changed in the repository")
+		log.Info().Msg("Radix config file was changed in the repository")
 	}
 	if len(prepareBuildContext.EnvironmentsToBuild) > 0 {
-		log.Infoln("Components with changed source code in environments:")
+		log.Info().Msg("Components with changed source code in environments:")
 		for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
 			if len(environmentToBuild.Components) == 0 {
-				log.Infof(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
+				log.Info().Msgf(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
 			} else {
-				log.Infof(" - %s: %s", environmentToBuild.Environment, strings.Join(environmentToBuild.Components, ","))
+				log.Info().Msgf(" - %s: %s", environmentToBuild.Environment, strings.Join(environmentToBuild.Components, ","))
 			}
 		}
 	}
 	if len(prepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
-		log.Infoln("No sub-pipelines to run")
+		log.Info().Msg("No sub-pipelines to run")
 	} else {
-		log.Infoln("Sub-pipelines to run")
+		log.Info().Msg("Sub-pipelines to run")
 		for _, envSubPipeline := range prepareBuildContext.EnvironmentSubPipelinesToRun {
-			log.Infof(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
+			log.Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
 		}
 	}
 }
@@ -503,14 +503,14 @@ func printPrepareBuildContext(prepareBuildContext *model.PrepareBuildContext) {
 func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipelineInfo *model.PipelineInfo) (string, string) {
 	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.GitConfigMapName)
 	if err != nil {
-		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		log.Error().Err(err).Msgf("Could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
 		return "", ""
 	}
 	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
 	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
 	err = stderrors.Join(commitErr, tagsErr)
 	if err != nil {
-		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		log.Error().Err(err).Msgf("could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
 		return "", ""
 	}
 	return gitCommitHash, gitTags
@@ -530,10 +530,10 @@ func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsali
 
 	// Validate RA
 	if validate.RAContainsOldPublic(ra) {
-		log.Warnf("component.public is deprecated, please use component.publicPort instead")
+		log.Warn().Msg("component.public is deprecated, please use component.publicPort instead")
 	}
 	if err := validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig); err != nil {
-		log.Errorf("Radix config not valid.")
+		log.Error().Msg("Radix config not valid")
 		return nil, err
 	}
 	return ra, nil
@@ -541,7 +541,7 @@ func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsali
 
 func correctRadixApplication(ra *radixv1.RadixApplication) {
 	if isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name); !isAppNameLowercase {
-		log.Warnf("%s Converting name to lowercase", err.Error())
+		log.Warn().Err(err).Msg("%s Converting name to lowercase")
 		ra.Name = strings.ToLower(ra.Name)
 	}
 	for i := 0; i < len(ra.Spec.Components); i++ {

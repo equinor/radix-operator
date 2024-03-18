@@ -3,8 +3,6 @@ package applicationconfig_test
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -32,10 +30,6 @@ const (
 	sampleApp          = "./testdata/radixconfig.yaml"
 	clusterName        = "AnyClusterName"
 )
-
-func init() {
-	log.SetOutput(io.Discard)
-}
 
 func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	kubeClient := kubefake.NewSimpleClientset()
