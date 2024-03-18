@@ -3,14 +3,15 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-//GetPersistentVolumeClaimMap Get map from PersistentVolumeClaim with name as key
+// GetPersistentVolumeClaimMap Get map from PersistentVolumeClaim with name as key
 func GetPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim) map[string]*corev1.PersistentVolumeClaim {
-	return getPersistentVolumeClaimMap(pvcList, true)
+	return getPersistentVolumeClaimMap(pvcList, false)
 }
 
 func getPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) map[string]*corev1.PersistentVolumeClaim {
@@ -26,7 +27,7 @@ func getPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim, ignore
 	return pvcMap
 }
 
-//EqualPvcLists Compare two PersistentVolumeClaim lists. When ignoreRandomPostfixInName=true - last 6 chars of the name (e.g.'-abc12') are ignored during comparison
+// EqualPvcLists Compare two PersistentVolumeClaim lists. When ignoreRandomPostfixInName=true - last 6 chars of the name (e.g.'-abc12') are ignored during comparison
 func EqualPvcLists(pvcList1, pvcList2 *[]corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) (bool, error) {
 	if len(*pvcList1) != len(*pvcList2) {
 		return false, nil
@@ -45,7 +46,7 @@ func EqualPvcLists(pvcList1, pvcList2 *[]corev1.PersistentVolumeClaim, ignoreRan
 	return true, nil
 }
 
-//EqualPvcs Compare two PersistentVolumeClaim pointers
+// EqualPvcs Compare two PersistentVolumeClaim pointers
 func EqualPvcs(pvc1 *corev1.PersistentVolumeClaim, pvc2 *corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) (bool, error) {
 	pvc1Copy, labels1 := getPvcCopyWithLabels(pvc1, ignoreRandomPostfixInName)
 	pvc2Copy, labels2 := getPvcCopyWithLabels(pvc2, ignoreRandomPostfixInName)
@@ -64,11 +65,11 @@ func EqualPvcs(pvc1 *corev1.PersistentVolumeClaim, pvc2 *corev1.PersistentVolume
 
 func getPvcCopyWithLabels(pvc *corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) (*corev1.PersistentVolumeClaim, map[string]string) {
 	pvcCopy := pvc.DeepCopy()
-	pvcCopy.ObjectMeta.ManagedFields = nil //HACK: to avoid ManagedFields comparison
+	pvcCopy.ObjectMeta.ManagedFields = nil // HACK: to avoid ManagedFields comparison
 	if ignoreRandomPostfixInName {
 		pvcCopy.ObjectMeta.Name = ShortenString(pvcCopy.ObjectMeta.Name, 6)
 	}
-	//to avoid label order variations
+	// to avoid label order variations
 	labels := pvcCopy.ObjectMeta.Labels
 	pvcCopy.ObjectMeta.Labels = map[string]string{}
 	return pvcCopy, labels
