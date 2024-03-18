@@ -102,14 +102,13 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 
 func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
-		namespace             = radixDeployment.Namespace
-		currentEnvironment    = radixDeployment.Spec.Environment
-		radixDeploymentLabels = radixDeployment.Labels
+		namespace          = radixDeployment.Namespace
+		currentEnvironment = radixDeployment.Spec.Environment
 	)
 
 	var envVars = getEnvVars(envVarConfigMap, deployComponent.GetEnvironmentVariables())
 
-	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent, radixDeploymentLabels)
+	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent)
 
 	if !isDeployComponentJobSchedulerDeployment(deployComponent) { // JobScheduler does not need env-vars for secrets and secret-refs
 		envVars = append(envVars, utils.GetEnvVarsFromSecrets(deployComponent.GetName(), deployComponent.GetSecrets())...)
@@ -182,7 +181,7 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 	}
 }
 
-func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent, radixDeploymentLabels map[string]string) []corev1.EnvVar {
+func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 	dnsZone, err := envVarsSource.getDnsZone()
 	if err != nil {
