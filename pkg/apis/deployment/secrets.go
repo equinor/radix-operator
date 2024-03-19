@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +29,7 @@ func tlsSecretDefaultData() map[string][]byte {
 }
 
 func (deploy *Deployment) createOrUpdateSecrets() error {
-	log.Debugf("Apply empty secrets based on radix deployment obj")
+	deploy.logger.Debug().Msg("Apply empty secrets based on radix deployment obj")
 	for _, comp := range deploy.radixDeployment.Spec.Components {
 		err := deploy.createOrUpdateSecretsForComponent(&comp)
 		if err != nil {
@@ -213,7 +212,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 			continue
 		}
 
-		log.Debugf("Delete secret %s no longer in spec for component %s", secret.Name, component.GetName())
+		deploy.logger.Debug().Msgf("Delete secret %s no longer in spec for component %s", secret.Name, component.GetName())
 		err = deploy.deleteSecret(secret)
 		if err != nil {
 			return err
@@ -369,11 +368,11 @@ func (deploy *Deployment) GarbageCollectSecrets(secrets []*v1.Secret, excludeSec
 }
 
 func (deploy *Deployment) deleteSecret(secret *v1.Secret) error {
-	log.Debugf("Delete secret %s", secret.Name)
+	deploy.logger.Debug().Msgf("Delete secret %s", secret.Name)
 	err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
-	log.Infof("Deleted secret: %s in namespace %s", secret.GetName(), deploy.radixDeployment.GetNamespace())
+	deploy.logger.Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), deploy.radixDeployment.GetNamespace())
 	return nil
 }

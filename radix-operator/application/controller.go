@@ -6,6 +6,8 @@ import (
 
 	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -14,7 +16,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	log "github.com/sirupsen/logrus"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -22,7 +23,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger *log.Entry
+var logger zerolog.Logger
 
 const (
 	controllerAgentName = "application-controller"
@@ -30,7 +31,7 @@ const (
 )
 
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
+	logger = log.With().Str("controller", controllerAgentName).Logger()
 }
 
 // NewController creates a new controller that handles RadixApplications
@@ -59,7 +60,7 @@ func NewController(client kubernetes.Interface,
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,
 	}
 
-	logger.Info("Setting up event handlers")
+	logger.Info().Msg("Setting up event handlers")
 	if _, err := applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			if _, err := controller.Enqueue(cur); err != nil {
@@ -71,7 +72,7 @@ func NewController(client kubernetes.Interface,
 			oldRA := old.(*v1.RadixApplication)
 			newRA := cur.(*v1.RadixApplication)
 			if deepEqual(oldRA, newRA) {
-				logger.Debugf("Application object is equal to old for %s. Do nothing", newRA.GetName())
+				logger.Debug().Msgf("Application object is equal to old for %s. Do nothing", newRA.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
@@ -83,12 +84,12 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			radixApplication, converted := obj.(*v1.RadixApplication)
 			if !converted {
-				logger.Errorf("RadixApplication object cast failed during deleted event received.")
+				logger.Error().Msg("RadixApplication object cast failed during deleted event received.")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixApplication)
 			if err == nil {
-				logger.Debugf("Application object deleted event received for %s. Do nothing", key)
+				logger.Debug().Msgf("Application object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
@@ -108,10 +109,10 @@ func NewController(client kubernetes.Interface,
 			}
 			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).Get(context.TODO(), newRr.Name, metav1.GetOptions{})
 			if err != nil {
-				logger.Errorf("cannot get Radix Application object by name %s: %v", newRr.Name, err)
+				logger.Error().Err(err).Msgf("Cannot get Radix Application object by name %s", newRr.Name)
 				return
 			}
-			logger.Debugf("update Radix Application due to changed admin or reader AD groups")
+			logger.Debug().Msg("update Radix Application due to changed admin or reader AD groups")
 			if _, err := controller.Enqueue(ra); err != nil {
 				utilruntime.HandleError(err)
 			}

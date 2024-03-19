@@ -76,7 +76,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncApplication := radixApplication.DeepCopy()
-	logger.Debugf("Sync application %s", syncApplication.Name)
+	logger.Debug().Msgf("Sync application %s", syncApplication.Name)
 	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsConfig)
 	err = applicationConfig.OnSync()
 	if err != nil {

@@ -11,7 +11,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +24,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger *log.Entry
+var logger zerolog.Logger
 
 const (
 	controllerAgentName = "registration-controller"
@@ -31,7 +32,7 @@ const (
 )
 
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
+	logger = log.With().Str("controller", controllerAgentName).Logger()
 }
 
 // NewController creates a new controller that handles RadixRegistrations
@@ -58,7 +59,7 @@ func NewController(client kubernetes.Interface,
 		LockKeyAndIdentifier:  common.NamePartitionKey,
 	}
 
-	logger.Info("Setting up event handlers")
+	logger.Info().Msg("Setting up event handlers")
 
 	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
@@ -72,7 +73,7 @@ func NewController(client kubernetes.Interface,
 			oldRR := old.(*v1.RadixRegistration)
 
 			if deepEqual(oldRR, newRR) {
-				logger.Debugf("Registration object is equal to old for %s. Do nothing", newRR.GetName())
+				logger.Debug().Msgf("Registration object is equal to old for %s. Do nothing", newRR.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
@@ -85,12 +86,12 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			radixRegistration, converted := obj.(*v1.RadixRegistration)
 			if !converted || radixRegistration == nil {
-				logger.Errorf("v1.RadixRegistration object cast failed during deleted event received.")
+				logger.Error().Msg("v1.RadixRegistration object cast failed during deleted event received.")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixRegistration)
 			if err == nil {
-				logger.Debugf("Registration object deleted event received for %s. Do nothing", key)
+				logger.Debug().Msgf("Registration object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
@@ -114,7 +115,7 @@ func NewController(client kubernetes.Interface,
 			newSecret := newObj.(*corev1.Secret)
 			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), oldSecret.Namespace, metav1.GetOptions{})
 			if err != nil {
-				logger.Error(err)
+				logger.Error().Err(err).Msg("Failed to get namespace")
 				return
 			}
 			if oldSecret.ResourceVersion == newSecret.ResourceVersion {
@@ -131,7 +132,7 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			secret, converted := obj.(*corev1.Secret)
 			if !converted {
-				logger.Errorf("corev1.Secret object cast failed during deleted event received.")
+				logger.Error().Msg("corev1.Secret object cast failed during deleted event received.")
 				return
 			}
 			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), secret.Namespace, metav1.GetOptions{})
@@ -141,7 +142,7 @@ func NewController(client kubernetes.Interface,
 				if errors.IsNotFound(err) {
 					return
 				}
-				logger.Error(err)
+				logger.Error().Err(err).Msg("Failed to get namespace")
 				return
 			}
 			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {

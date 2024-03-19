@@ -80,7 +80,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncRAL := alert.DeepCopy()
-	logger.Debugf("Sync radix alert %s", syncRAL.Name)
+	logger.Debug().Msgf("Sync radix alert %s", syncRAL.Name)
 
 	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, syncRAL)
 	err = alertSyncer.OnSync()

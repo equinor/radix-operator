@@ -10,7 +10,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
@@ -20,7 +21,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger *log.Entry
+var logger zerolog.Logger
 
 const (
 	controllerAgentName = "batch-controller"
@@ -28,7 +29,7 @@ const (
 )
 
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
+	logger = log.With().Str("controller", controllerAgentName).Logger()
 }
 
 // NewController creates a new controller that handles RadixBatches
@@ -58,7 +59,7 @@ func NewController(client kubernetes.Interface,
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,
 	}
 
-	logger.Info("Setting up event handlers")
+	logger.Info().Msg("Setting up event handlers")
 	if _, err := batchInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			if _, err := controller.Enqueue(cur); err != nil {
@@ -70,7 +71,7 @@ func NewController(client kubernetes.Interface,
 			oldRadixBatch := old.(*radixv1.RadixBatch)
 			newRadixBatch := cur.(*radixv1.RadixBatch)
 			if deepEqual(oldRadixBatch, newRadixBatch) {
-				logger.Debugf("RadixBatch object is equal to old for %s. Do nothing", newRadixBatch.GetName())
+				logger.Debug().Msgf("RadixBatch object is equal to old for %s. Do nothing", newRadixBatch.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
@@ -86,7 +87,7 @@ func NewController(client kubernetes.Interface,
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixBatch)
 			if err == nil {
-				logger.Debugf("RadixBatch object deleted event received for %s. Do nothing", key)
+				logger.Debug().Msgf("RadixBatch object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},

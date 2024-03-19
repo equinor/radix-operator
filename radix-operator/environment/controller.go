@@ -13,7 +13,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
@@ -28,10 +29,10 @@ const (
 	crType              = "RadixEnvironments"
 )
 
-var logger *logrus.Entry
+var logger zerolog.Logger
 
 func init() {
-	logger = logrus.WithFields(logrus.Fields{"radixOperatorComponent": "environment-controller"})
+	logger = log.With().Str("controller", controllerAgentName).Logger()
 }
 
 // NewController creates a new controller that handles RadixEnvironments
@@ -62,7 +63,7 @@ func NewController(client kubernetes.Interface,
 		LockKeyAndIdentifier:  common.NamePartitionKey,
 	}
 
-	logger.Info("Setting up event handlers")
+	logger.Info().Msg("Setting up event handlers")
 
 	if _, err := environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
@@ -76,11 +77,11 @@ func NewController(client kubernetes.Interface,
 			oldRR := old.(*v1.RadixEnvironment)
 
 			if deepEqual(oldRR, newRR) {
-				logger.Debugf("RadixEnvironment %s (revision %s) is equal to old (revision %s). Do nothing", newRR.GetName(), newRR.GetResourceVersion(), oldRR.GetResourceVersion())
+				logger.Debug().Msgf("RadixEnvironment %s (revision %s) is equal to old (revision %s). Do nothing", newRR.GetName(), newRR.GetResourceVersion(), oldRR.GetResourceVersion())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
-			logger.Debugf("update RadixEnvironment %s (from revision %s to %s)", oldRR.GetName(), oldRR.GetResourceVersion(), newRR.GetResourceVersion())
+			logger.Debug().Msgf("update RadixEnvironment %s (from revision %s to %s)", oldRR.GetName(), oldRR.GetResourceVersion(), newRR.GetResourceVersion())
 			if _, err := controller.Enqueue(cur); err != nil {
 				utilruntime.HandleError(err)
 			}
@@ -89,12 +90,12 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			radixEnvironment, converted := obj.(*v1.RadixEnvironment)
 			if !converted {
-				logger.Errorf("RadixEnvironment object cast failed during deleted event received")
+				logger.Error().Msg("RadixEnvironment object cast failed during deleted event received")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixEnvironment)
 			if err == nil {
-				logger.Debugf("RadixEnvironment object deleted event received for %s (revision %s). Do nothing", key, radixEnvironment.GetResourceVersion())
+				logger.Debug().Msgf("RadixEnvironment object deleted event received for %s (revision %s). Do nothing", key, radixEnvironment.GetResourceVersion())
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
@@ -189,7 +190,7 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(cur interface{}) {
 			radixApplication, converted := cur.(*v1.RadixApplication)
 			if !converted {
-				logger.Errorf("RadixApplication object cast failed during deleted event received.")
+				logger.Error().Msg("RadixApplication object cast failed during deleted event received.")
 				return
 			}
 			for _, env := range radixApplication.Spec.Environments {

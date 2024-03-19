@@ -71,7 +71,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncEnvironment := envConfig.DeepCopy()
-	logger.Debugf("Sync environment %s", syncEnvironment.Name)
+	logger.Debug().Msgf("Sync environment %s", syncEnvironment.Name)
 
 	radixRegistration, err := t.kubeutil.GetRegistration(syncEnvironment.Spec.AppName)
 	if err != nil {
@@ -86,12 +86,12 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(syncEnvironment.Spec.AppName)).
 		Get(context.TODO(), syncEnvironment.Spec.AppName, meta.GetOptions{})
 
-	nw, err := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, logger, syncEnvironment.Spec.AppName)
+	nw, err := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, syncEnvironment.Spec.AppName)
 	if err != nil {
 		return err
 	}
 
-	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, logger, &nw)
+	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, &nw)
 
 	if err != nil {
 		return err

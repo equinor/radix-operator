@@ -13,7 +13,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -24,7 +25,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger *log.Entry
+var logger zerolog.Logger
 
 const (
 	controllerAgentName = "deployment-controller"
@@ -32,7 +33,7 @@ const (
 )
 
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
+	logger = log.With().Str("controller", controllerAgentName).Logger()
 }
 
 // NewController creates a new controller that handles RadixDeployments
@@ -63,12 +64,12 @@ func NewController(client kubernetes.Interface,
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,
 	}
 
-	logger.Info("Setting up event handlers")
+	logger.Info().Msg("Setting up event handlers")
 	if _, err := deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixDeployment, _ := cur.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(radixDeployment) {
-				logger.Debugf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
+				logger.Debug().Msgf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
 				return
 			}
@@ -82,13 +83,13 @@ func NewController(client kubernetes.Interface,
 			newRD := cur.(*v1.RadixDeployment)
 			oldRD := old.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(newRD) {
-				logger.Debugf("Skip deployment object %s as it is inactive", newRD.GetName())
+				logger.Debug().Msgf("Skip deployment object %s as it is inactive", newRD.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
 
 			if deepEqual(oldRD, newRD) {
-				logger.Debugf("Deployment object is equal to old for %s. Do nothing", newRD.GetName())
+				logger.Debug().Msgf("Deployment object is equal to old for %s. Do nothing", newRD.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
@@ -101,12 +102,12 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			radixDeployment, converted := obj.(*v1.RadixDeployment)
 			if !converted {
-				logger.Errorf("RadixDeployment object cast failed during deleted event received.")
+				logger.Error().Msg("RadixDeployment object cast failed during deleted event received.")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixDeployment)
 			if err == nil {
-				logger.Debugf("Deployment object deleted event received for %s. Do nothing", key)
+				logger.Debug().Msgf("Deployment object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
@@ -119,7 +120,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			service := obj.(*corev1.Service)
-			logger.Debugf("Service object added event received for %s. Do nothing", service.Name)
+			logger.Debug().Msgf("Service object added event received for %s. Do nothing", service.Name)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newService := cur.(*corev1.Service)

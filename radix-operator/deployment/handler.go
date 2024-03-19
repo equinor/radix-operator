@@ -12,7 +12,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	log "github.com/sirupsen/logrus"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -129,12 +128,12 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 	if deployment.IsRadixDeploymentInactive(rd) {
-		log.Debugf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
+		logger.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
 		return nil
 	}
 
 	syncRD := rd.DeepCopy()
-	logger.Debugf("Sync deployment %s", syncRD.Name)
+	logger.Debug().Msgf("Sync deployment %s", syncRD.Name)
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {

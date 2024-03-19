@@ -11,7 +11,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -88,8 +87,6 @@ func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOp
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
 func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error {
-	log.Debugf("sync RadixDNSAlias %s", name)
-
 	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -100,8 +97,7 @@ func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 	}
 
 	syncingAlias := radixDNSAlias.DeepCopy()
-	logger.Debugf("Sync RadixDNSAlias %s", name)
-
+	logger.Debug().Msgf("Sync RadixDNSAlias %s", name)
 	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
 	err = syncer.OnSync()
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -28,7 +28,7 @@ type Controller struct {
 	Informer              cache.SharedIndexInformer
 	KubeInformerFactory   kubeinformers.SharedInformerFactory
 	Handler               Handler
-	Log                   *log.Entry
+	Log                   zerolog.Logger
 	WaitForChildrenToSync bool
 	Recorder              record.EventRecorder
 	LockKeyAndIdentifier  LockKeyAndIdentifierFunc
@@ -44,29 +44,29 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	}
 
 	// Start the informer factories to begin populating the informer caches
-	c.Log.Debugf("Starting %s", c.Name)
+	c.Log.Debug().Msgf("Starting %s", c.Name)
 
 	cacheSyncs := []cache.InformerSynced{
 		c.hasSynced,
 	}
 
-	c.Log.Debug("start WaitForChildrenToSync")
+	c.Log.Debug().Msg("Start WaitForChildrenToSync")
 	if c.WaitForChildrenToSync {
 		cacheSyncs = append(cacheSyncs,
 			c.KubeInformerFactory.Core().V1().Namespaces().Informer().HasSynced,
 			c.KubeInformerFactory.Core().V1().Secrets().Informer().HasSynced,
 		)
 	}
-	c.Log.Debug("completed WaitForChildrenToSync")
+	c.Log.Debug().Msg("Completed WaitForChildrenToSync")
 
 	// Wait for the caches to be synced before starting workers
-	c.Log.Info("Waiting for informer caches to sync")
+	c.Log.Info().Msg("Waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh,
 		cacheSyncs...); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
-	c.Log.Info("Starting workers")
+	c.Log.Info().Msg("Starting workers")
 
 	// Launch workers to process resources
 	c.run(threadiness, stopCh)
@@ -78,11 +78,11 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 	var errorGroup errgroup.Group
 	errorGroup.SetLimit(threadiness)
 	defer func() {
-		c.Log.Info("Waiting for workers to complete")
+		c.Log.Info().Msg("Waiting for workers to complete")
 		if err := errorGroup.Wait(); err != nil {
-			log.Error(err)
+			c.Log.Error().Err(err).Msg("errGroup returned error")
 		}
-		c.Log.Info("Workers completed")
+		c.Log.Info().Msg("Workers completed")
 	}()
 
 	locker := c.locker
@@ -94,7 +94,7 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 	}
 
 	if err := errorGroup.Wait(); err != nil {
-		log.Error(err)
+		c.Log.Error().Err(err).Msg("errGroup returned error")
 	}
 }
 
@@ -129,17 +129,17 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 		}
 
 		if !locker.TryGetLock(lockKey) {
-			c.Log.Debugf("Lock for %s was busy, requeuing %s", lockKey, identifier)
+			c.Log.Debug().Msgf("Lock for %s was busy, requeuing %s", lockKey, identifier)
 			// Use AddAfter instead of AddRateLimited. AddRateLimited can potentially cause a delay of 1000 seconds
 			c.WorkQueue.AddAfter(identifier, 100*time.Millisecond)
 			return nil
 		}
 		defer func() {
 			locker.ReleaseLock(lockKey)
-			c.Log.Debugf("Released lock for %s after processing %s", lockKey, identifier)
+			c.Log.Debug().Msgf("Released lock for %s after processing %s", lockKey, identifier)
 		}()
 
-		c.Log.Debugf("Acquired lock for %s, processing %s", lockKey, identifier)
+		c.Log.Debug().Msgf("Acquired lock for %s, processing %s", lockKey, identifier)
 		c.processWorkItem(workItem, identifier)
 		return nil
 	})
@@ -154,13 +154,12 @@ func (c *Controller) processWorkItem(workItem interface{}, workItemString string
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
-
-			return fmt.Errorf("error syncing %s: %s, requeuing", workItemString, err.Error())
+			return fmt.Errorf("error syncing %s, requeuing: %w", workItemString, err)
 		}
 
 		c.WorkQueue.Forget(workItem)
 		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-		c.Log.Infof("Successfully synced %s", workItemString)
+		c.Log.Info().Msgf("Successfully synced %s", workItemString)
 		return nil
 	}(workItem)
 
@@ -188,7 +187,7 @@ func (c *Controller) syncHandler(key string) error {
 	err = c.Handler.Sync(namespace, name, c.Recorder)
 	if err != nil {
 		// DEBUG
-		log.Errorf("Error while syncing: %v", err)
+		c.Log.Error().Err(err).Msg("Error while syncing")
 
 		utilruntime.HandleError(fmt.Errorf("problems syncing: %s", key))
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
@@ -231,9 +230,9 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object_tombstone")
 			return
 		}
-		c.Log.Infof("Recovered deleted object %s from tombstone", object.GetName())
+		c.Log.Info().Msgf("Recovered deleted object %s from tombstone", object.GetName())
 	}
-	c.Log.Infof("Processing object: %s", object.GetName())
+	c.Log.Info().Msgf("Processing object: %s", object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 		if ownerRef.Kind != ownerKind {
 			return
@@ -241,7 +240,7 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 
 		obj, err := getOwnerFn(c.RadixClient, object.GetNamespace(), ownerRef.Name)
 		if err != nil {
-			c.Log.Debugf("Ignoring orphaned object %s of %s %s", object.GetSelfLink(), ownerKind, ownerRef.Name)
+			c.Log.Debug().Msgf("Ignoring orphaned object %s of %s %s", object.GetSelfLink(), ownerKind, ownerRef.Name)
 			return
 		}
 

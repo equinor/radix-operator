@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -16,18 +17,22 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/cache"
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
 func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, oauth2ProxyDockerImage string) AuxiliaryResourceManager {
+
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
@@ -35,6 +40,7 @@ func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistrati
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		oauth2DefaultConfig:        oauth2DefaultConfig,
 		oauth2ProxyDockerImage:     oauth2ProxyDockerImage,
+		logger:                     log.Logger.With().Str("kind", rd.Kind).Str("name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
 	}
 }
 
@@ -45,12 +51,13 @@ type oauthProxyResourceManager struct {
 	ingressAnnotationProviders []ingress.AnnotationProvider
 	oauth2DefaultConfig        defaults.OAuth2Config
 	oauth2ProxyDockerImage     string
+	logger                     zerolog.Logger
 }
 
 func (o *oauthProxyResourceManager) Sync() error {
 	for _, component := range o.rd.Spec.Components {
 		if err := o.syncComponent(&component); err != nil {
-			return fmt.Errorf("failed to sync oauth proxy: %v", err)
+			return fmt.Errorf("failed to sync oauth proxy for component %s: %w", component.Name, err)
 		}
 	}
 	return nil
@@ -58,7 +65,7 @@ func (o *oauthProxyResourceManager) Sync() error {
 
 func (o *oauthProxyResourceManager) syncComponent(component *v1.RadixDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
-		log.Debugf("sync oauth proxy for the component %s", component.GetName())
+		o.logger.Debug().Msgf("Sync oauth proxy for the component %s", component.GetName())
 		componentWithOAuthDefaults := component.DeepCopy()
 		oauth, err := o.oauth2DefaultConfig.MergeWith(componentWithOAuthDefaults.Authentication.OAuth2)
 		if err != nil {
@@ -72,33 +79,37 @@ func (o *oauthProxyResourceManager) syncComponent(component *v1.RadixDeployCompo
 
 func (o *oauthProxyResourceManager) GarbageCollect() error {
 	if err := o.garbageCollect(); err != nil {
-		return fmt.Errorf("failed to garbage collect oauth proxy: %v", err)
+		return fmt.Errorf("failed to garbage collect oauth2 proxy: %w", err)
 	}
 	return nil
 }
 
 func (o *oauthProxyResourceManager) garbageCollect() error {
 	if err := o.garbageCollectDeployment(); err != nil {
-		return err
+		return fmt.Errorf("failed to garbage collect deployment: %w", err)
 	}
 
 	if err := o.garbageCollectSecrets(); err != nil {
-		return err
+		return fmt.Errorf("failed to garbage collect secrets: %w", err)
 	}
 
 	if err := o.garbageCollectRoles(); err != nil {
-		return err
+		return fmt.Errorf("failed to garbage collect roles: %w", err)
 	}
 
 	if err := o.garbageCollectRoleBinding(); err != nil {
-		return err
+		return fmt.Errorf("failed to garbage collect role bindings: %w", err)
 	}
 
 	if err := o.garbageCollectServices(); err != nil {
-		return err
+		return fmt.Errorf("failed to garbage collect services: %w", err)
 	}
 
-	return o.garbageCollectIngresses()
+	if err := o.garbageCollectIngresses(); err != nil {
+		return fmt.Errorf("failed to garbage collect ingresses: %w", err)
+	}
+
+	return nil
 }
 
 func (o *oauthProxyResourceManager) garbageCollectDeployment() error {
@@ -110,10 +121,10 @@ func (o *oauthProxyResourceManager) garbageCollectDeployment() error {
 	for _, deployment := range deployments {
 		if o.isEligibleForGarbageCollection(deployment) {
 			err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
+			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
-			log.Infof("Deleted deployment: %s in namespace %s", deployment.GetName(), deployment.Namespace)
+			o.logger.Info().Msgf("Deleted deployment: %s in namespace %s", deployment.GetName(), deployment.Namespace)
 		}
 	}
 
@@ -129,10 +140,10 @@ func (o *oauthProxyResourceManager) garbageCollectSecrets() error {
 	for _, secret := range secrets {
 		if o.isEligibleForGarbageCollection(secret) {
 			err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
+			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
-			log.Infof("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
+			o.logger.Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
 		}
 	}
 
@@ -148,7 +159,7 @@ func (o *oauthProxyResourceManager) garbageCollectServices() error {
 	for _, service := range services {
 		if o.isEligibleForGarbageCollection(service) {
 			err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(context.TODO(), service.Name, metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
+			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -166,7 +177,7 @@ func (o *oauthProxyResourceManager) garbageCollectIngresses() error {
 	for _, ing := range ingresses {
 		if o.isEligibleForGarbageCollection(ing) {
 			err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(context.TODO(), ing.Name, metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
+			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -184,7 +195,7 @@ func (o *oauthProxyResourceManager) garbageCollectRoles() error {
 	for _, role := range roles {
 		if o.isEligibleForGarbageCollection(role) {
 			err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(context.TODO(), role.Name, metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
+			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -202,7 +213,7 @@ func (o *oauthProxyResourceManager) garbageCollectRoleBinding() error {
 	for _, rolebinding := range roleBindings {
 		if o.isEligibleForGarbageCollection(rolebinding) {
 			err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(context.TODO(), rolebinding.Name, metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
+			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -226,7 +237,7 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 }
 
 func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
-	log.Debugf("install the oauth proxy for the component %s", component.GetName())
+	o.logger.Debug().Msgf("install the oauth proxy for the component %s", component.GetName())
 	if err := o.createOrUpdateSecret(component); err != nil {
 		return err
 	}
@@ -247,7 +258,7 @@ func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployCompon
 }
 
 func (o *oauthProxyResourceManager) uninstall(component v1.RadixCommonDeployComponent) error {
-	log.Debugf("uninstall oauth proxy for the component %s", component.GetName())
+	o.logger.Debug().Msgf("uninstall oauth proxy for the component %s", component.GetName())
 	if err := o.deleteDeployment(component); err != nil {
 		return err
 	}
@@ -322,7 +333,7 @@ func (o *oauthProxyResourceManager) deleteSecrets(component v1.RadixCommonDeploy
 		if err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
-		log.Infof("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
+		o.logger.Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
 	}
 
 	return nil
@@ -362,7 +373,7 @@ func (o *oauthProxyResourceManager) deleteRoles(component v1.RadixCommonDeployCo
 
 func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCommonDeployComponent) error {
 	namespace := o.rd.Namespace
-	log.Debugf("create of update ingresses for the component %s in the namespace %s", component.GetName(), namespace)
+	o.logger.Debug().Msgf("create of update ingresses for the component %s in the namespace %s", component.GetName(), namespace)
 	ingresses, err := o.getComponentIngresses(component)
 	if err != nil {
 		return err
@@ -441,7 +452,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommo
 	secret, err := o.kubeutil.GetSecret(o.rd.Namespace, secretName)
 
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !kubeerrors.IsNotFound(err) {
 			return err
 		}
 		secret, err = o.buildSecretSpec(component)
@@ -576,7 +587,7 @@ func (o *oauthProxyResourceManager) generateRandomCookieSecret() ([]byte, error)
 	randomBytes := commonutils.GenerateRandomKey(32)
 	// Extra check to make sure correct number of bytes are returned for the random key
 	if len(randomBytes) != 32 {
-		return nil, fmt.Errorf("failed to generator cookie secret")
+		return nil, errors.New("failed to generator cookie secret with correct length")
 	}
 	encoding := base64.URLEncoding
 	encodedBytes := make([]byte, encoding.EncodedLen(len(randomBytes)))
@@ -600,7 +611,7 @@ func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(component v1.
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	currentDeployment, err := o.kubeutil.GetDeployment(o.rd.Namespace, deploymentName)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kubeerrors.IsNotFound(err) {
 		return nil, nil, err
 	}
 	desiredDeployment, err := o.getDesiredDeployment(component)

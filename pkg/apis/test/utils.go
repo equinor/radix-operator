@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -157,7 +156,6 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) (*ra
 	}
 
 	rd := deploymentBuilder.BuildRD()
-	log.Debugf("%s", rd.GetObjectMeta().GetCreationTimestamp())
 	envs[rd.Namespace] = struct{}{}
 	for env := range envs {
 		CreateEnvNamespace(tu.client, rd.Spec.AppName, env)
@@ -235,7 +233,6 @@ func (tu *Utils) ApplyJobUpdate(jobBuilder utils.JobBuilder) (*radixv1.RadixJob,
 // ApplyEnvironment Will help persist a RadixEnvironment
 func (tu *Utils) ApplyEnvironment(environmentBuilder utils.EnvironmentBuilder) (*radixv1.RadixEnvironment, error) {
 	re := environmentBuilder.BuildRE()
-	log.Debugf("%s", re.GetObjectMeta().GetCreationTimestamp())
 
 	newRe, err := tu.radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, metav1.CreateOptions{})
 	if err != nil {
@@ -346,9 +343,8 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		},
 	}
 
-	if _, err := kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{}); err != nil {
-		log.Error(err)
-	}
+	// TODO: should we handle error?
+	_, _ = kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 }
 
 // IntPtr Helper function to get the pointer of an int

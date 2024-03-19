@@ -12,7 +12,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -23,7 +24,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger *log.Entry
+var logger zerolog.Logger
 
 const (
 	controllerAgentName = "alert-controller"
@@ -31,7 +32,7 @@ const (
 )
 
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
+	logger = log.With().Str("controller", controllerAgentName).Logger()
 }
 
 // NewController creates a new controller that handles RadixAlerts
@@ -60,7 +61,7 @@ func NewController(client kubernetes.Interface,
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,
 	}
 
-	logger.Info("Setting up event handlers")
+	logger.Info().Msg("Setting up event handlers")
 	if _, err := alertInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			if _, err := controller.Enqueue(cur); err != nil {
@@ -72,7 +73,7 @@ func NewController(client kubernetes.Interface,
 			oldRadixAlert := old.(*radixv1.RadixAlert)
 			newRadixAlert := cur.(*radixv1.RadixAlert)
 			if deepEqual(oldRadixAlert, newRadixAlert) {
-				logger.Debugf("RadixAlert object is equal to old for %s. Do nothing", newRadixAlert.GetName())
+				logger.Debug().Msgf("RadixAlert object is equal to old for %s. Do nothing", newRadixAlert.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
@@ -84,12 +85,12 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			radixAlert, converted := obj.(*radixv1.RadixAlert)
 			if !converted {
-				logger.Errorf("RadixAlert object cast failed during deleted event received.")
+				logger.Error().Msg("RadixAlert object cast failed during deleted event received.")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixAlert)
 			if err == nil {
-				logger.Debugf("RadixAlert object deleted event received for %s. Do nothing", key)
+				logger.Debug().Msgf("RadixAlert object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
