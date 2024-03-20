@@ -53,7 +53,7 @@ func NewEnvironment(
 		regConfig:     regConfig,
 		appConfig:     appConfig,
 		networkPolicy: networkPolicy,
-		logger:        log.Logger.With().Str("kind", config.Kind).Str("name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
+		logger:        log.Logger.With().Str("resource_kind", v1.KindRadixEnvironment).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}, nil
 }
 

@@ -45,7 +45,7 @@ func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, 
 		registration:   registration,
 		config:         config,
 		dnsAliasConfig: dnsAliasConfig,
-		logger:         log.Logger.With().Str("kind", config.Kind).Str("name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
+		logger:         log.Logger.With().Str("resource_kind", radixv1.KindRadixApplication).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
 }
 

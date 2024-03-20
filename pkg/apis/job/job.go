@@ -54,7 +54,7 @@ func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient ra
 		radixJob:                  radixJob,
 		originalRadixJobCondition: originalRadixJobStatus,
 		config:                    config,
-		logger:                    log.Logger.With().Str("kind", radixJob.Kind).Str("name", cache.MetaObjectToName(&radixJob.ObjectMeta).String()).Logger(),
+		logger:                    log.Logger.With().Str("resource_kind", v1.KindRadixJob).Str("resource_name", cache.MetaObjectToName(&radixJob.ObjectMeta).String()).Logger(),
 	}
 }
 

@@ -27,12 +27,6 @@ const (
 	controllerAgentName = "dns-alias-controller"
 )
 
-var logger zerolog.Logger
-
-func init() {
-	logger = log.With().Str("controller", controllerAgentName).Logger()
-}
-
 // NewController creates a new controller that handles RadixDNSAlias
 func NewController(kubeClient kubernetes.Interface,
 	radixClient radixclient.Interface,
@@ -41,7 +35,7 @@ func NewController(kubeClient kubernetes.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
-
+	logger := log.With().Str("controller", controllerAgentName).Logger()
 	radixDNSAliasInformer := radixInformerFactory.Radix().V1().RadixDNSAliases()
 
 	controller := &common.Controller{
@@ -62,14 +56,14 @@ func NewController(kubeClient kubernetes.Interface,
 	}
 
 	logger.Info().Msg("Setting up event handlers")
-	addEventHandlersForRadixDNSAliases(radixDNSAliasInformer, controller)
-	addEventHandlersForRadixDeployments(radixInformerFactory, controller, radixClient)
-	addEventHandlersForIngresses(kubeInformerFactory, controller)
-	addEventHandlersForRadixRegistrations(radixInformerFactory, controller, radixClient)
+	addEventHandlersForRadixDNSAliases(radixDNSAliasInformer, controller, &logger)
+	addEventHandlersForRadixDeployments(radixInformerFactory, controller, radixClient, &logger)
+	addEventHandlersForIngresses(kubeInformerFactory, controller, &logger)
+	addEventHandlersForRadixRegistrations(radixInformerFactory, controller, radixClient, &logger)
 	return controller
 }
 
-func addEventHandlersForRadixRegistrations(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface) {
+func addEventHandlersForRadixRegistrations(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface, logger *zerolog.Logger) {
 	radixRegistrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 	if _, err := radixRegistrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
@@ -80,14 +74,14 @@ func addEventHandlersForRadixRegistrations(radixInformerFactory informers.Shared
 				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) {
 				return // updating RadixDeployment has the same resource version. Do nothing.
 			}
-			enqueueRadixDNSAliasesForRadixRegistration(controller, radixClient, newRR)
+			enqueueRadixDNSAliasesForRadixRegistration(controller, radixClient, newRR, logger)
 		},
 	}); err != nil {
 		panic(err)
 	}
 }
 
-func addEventHandlersForIngresses(kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller) {
+func addEventHandlersForIngresses(kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller, logger *zerolog.Logger) {
 	ingressInformer := kubeInformerFactory.Networking().V1().Ingresses()
 	if _, err := ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
@@ -114,12 +108,12 @@ func addEventHandlersForIngresses(kubeInformerFactory kubeinformers.SharedInform
 	}
 }
 
-func addEventHandlersForRadixDeployments(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface) {
+func addEventHandlersForRadixDeployments(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface, logger *zerolog.Logger) {
 	radixDeploymentInformer := radixInformerFactory.Radix().V1().RadixDeployments()
 	if _, err := radixDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			rd := cur.(*radixv1.RadixDeployment)
-			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd)
+			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd, logger)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldRD := oldObj.(metav1.Object)
@@ -128,14 +122,14 @@ func addEventHandlersForRadixDeployments(radixInformerFactory informers.SharedIn
 				return // updating RadixDeployment has the same resource version. Do nothing.
 			}
 			rd := newRD.(*radixv1.RadixDeployment)
-			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd)
+			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd, logger)
 		},
 	}); err != nil {
 		panic(err)
 	}
 }
 
-func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.RadixDNSAliasInformer, controller *common.Controller) {
+func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.RadixDNSAliasInformer, controller *common.Controller, logger *zerolog.Logger) {
 	if _, err := radixDNSAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			alias := cur.(*radixv1.RadixDNSAlias)
@@ -179,7 +173,7 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 	}
 }
 
-func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, radixClient radixclient.Interface, rd *radixv1.RadixDeployment) {
+func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, radixClient radixclient.Interface, rd *radixv1.RadixDeployment, logger *zerolog.Logger) {
 	if !rd.Status.ActiveTo.IsZero() {
 		return // skip not active RadixDeployments
 	}
@@ -198,7 +192,7 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	}
 }
 
-func enqueueRadixDNSAliasesForRadixRegistration(controller *common.Controller, radixClient radixclient.Interface, rr *radixv1.RadixRegistration) {
+func enqueueRadixDNSAliasesForRadixRegistration(controller *common.Controller, radixClient radixclient.Interface, rr *radixv1.RadixRegistration, logger *zerolog.Logger) {
 	logger.Debug().Msgf("Added or updated an RadixRegistration %s. Enqueue relevant RadixDNSAliases", rr.GetName())
 	radixDNSAliases, err := getRadixDNSAliasForApp(radixClient, rr.GetName())
 	if err != nil {

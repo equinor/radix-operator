@@ -123,7 +123,7 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 		if err != nil {
 			c.WorkQueue.Forget(workItem)
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-			utilruntime.HandleError(err)
+			c.Log.Error().Err(err).Msg("Failed to get lock key and identifier")
 			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
 			return nil
 		}
@@ -154,7 +154,7 @@ func (c *Controller) processWorkItem(workItem interface{}, workItemString string
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
-			return fmt.Errorf("error syncing %s, requeuing: %w", workItemString, err)
+			return err
 		}
 
 		c.WorkQueue.Forget(workItem)
@@ -164,7 +164,7 @@ func (c *Controller) processWorkItem(workItem interface{}, workItemString string
 	}(workItem)
 
 	if err != nil {
-		utilruntime.HandleError(err)
+		c.Log.Error().Err(err).Msgf("Failed to sync %s, requeuing", workItemString)
 		metrics.OperatorError(c.HandlerOf, "process_next_work_item", "unhandled")
 	}
 }
@@ -179,17 +179,13 @@ func (c *Controller) syncHandler(key string) error {
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+		c.Log.Error().Err(err).Msgf("invalid resource key: %s", key)
 		metrics.OperatorError(c.HandlerOf, "split_meta_namespace_key", "invalid_resource_key")
 		return nil
 	}
 
 	err = c.Handler.Sync(namespace, name, c.Recorder)
 	if err != nil {
-		// DEBUG
-		c.Log.Error().Err(err).Msg("Error while syncing")
-
-		utilruntime.HandleError(fmt.Errorf("problems syncing: %s", key))
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
 		return err
 	}
@@ -202,7 +198,6 @@ func (c *Controller) syncHandler(key string) error {
 func (c *Controller) Enqueue(obj interface{}) (requeued bool, err error) {
 	var key string
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		utilruntime.HandleError(err)
 		metrics.OperatorError(c.HandlerOf, "enqueue", fmt.Sprintf("problems_sync_%s", key))
 		return requeued, err
 	}
@@ -220,13 +215,13 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 	if object, ok = obj.(metav1.Object); !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+			c.Log.Error().Msg("Failed to cast object as type cache.DeletedFinalStateUnknown")
 			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object")
 			return
 		}
 		object, ok = tombstone.Obj.(metav1.Object)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
+			c.Log.Error().Msg("Failed to cast tombstone.Obj as type metav1.Object")
 			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object_tombstone")
 			return
 		}
@@ -245,6 +240,9 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 		}
 
 		requeued, err := c.Enqueue(obj)
+		if err != nil {
+			c.Log.Error().Err(err).Msg("Failed to enqueue object")
+		}
 		if err == nil && !requeued {
 			metrics.CustomResourceUpdated(c.HandlerOf)
 		}

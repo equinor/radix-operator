@@ -11,12 +11,10 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -24,16 +22,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger zerolog.Logger
-
 const (
 	controllerAgentName = "registration-controller"
 	crType              = "RadixRegistrations"
 )
-
-func init() {
-	logger = log.With().Str("controller", controllerAgentName).Logger()
-}
 
 // NewController creates a new controller that handles RadixRegistrations
 func NewController(client kubernetes.Interface,
@@ -42,7 +34,7 @@ func NewController(client kubernetes.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
-
+	logger := log.With().Str("controller", controllerAgentName).Logger()
 	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -64,7 +56,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
@@ -79,7 +71,7 @@ func NewController(client kubernetes.Interface,
 			}
 
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
 		},

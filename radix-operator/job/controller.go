@@ -10,12 +10,10 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -23,20 +21,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger zerolog.Logger
-
 const (
 	controllerAgentName = "job-controller"
 	crType              = "RadixJobs"
 )
 
-func init() {
-	logger = log.With().Str("controller", controllerAgentName).Logger()
-}
-
 // NewController creates a new controller that handles RadixJobs
 func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
-
+	logger := log.With().Str("controller", controllerAgentName).Logger()
 	jobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
@@ -68,7 +60,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			}
 
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
@@ -82,7 +74,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			}
 
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
 		},

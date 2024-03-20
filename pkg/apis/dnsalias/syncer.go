@@ -51,7 +51,7 @@ func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient
 		oauth2DefaultConfig:        oauth2Config,
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		radixDNSAlias:              radixDNSAlias,
-		logger:                     log.Logger.With().Str("kind", radixDNSAlias.Kind).Str("name", cache.MetaObjectToName(&radixDNSAlias.ObjectMeta).String()).Logger(),
+		logger:                     log.Logger.With().Str("resource_kind", radixv1.KindRadixDNSAlias).Str("resource_name", cache.MetaObjectToName(&radixDNSAlias.ObjectMeta).String()).Logger(),
 	}
 }
 

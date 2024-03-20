@@ -6,10 +6,8 @@ import (
 
 	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -23,16 +21,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger zerolog.Logger
-
 const (
 	controllerAgentName = "application-controller"
 	crType              = "RadixApplications"
 )
-
-func init() {
-	logger = log.With().Str("controller", controllerAgentName).Logger()
-}
 
 // NewController creates a new controller that handles RadixApplications
 func NewController(client kubernetes.Interface,
@@ -41,7 +33,7 @@ func NewController(client kubernetes.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
-
+	logger := log.With().Str("controller", controllerAgentName).Logger()
 	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
 	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 
@@ -64,7 +56,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
@@ -78,7 +70,7 @@ func NewController(client kubernetes.Interface,
 			}
 
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer UpdateFunc")
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -114,7 +106,7 @@ func NewController(client kubernetes.Interface,
 			}
 			logger.Debug().Msg("update Radix Application due to changed admin or reader AD groups")
 			if _, err := controller.Enqueue(ra); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
 		},

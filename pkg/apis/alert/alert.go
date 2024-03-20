@@ -48,7 +48,7 @@ func New(kubeclient kubernetes.Interface,
 		radixAlert:           radixAlert,
 		slackMessageTemplate: defaultSlackMessageTemplate,
 		alertConfigs:         defaultAlertConfigs,
-		logger:               log.Logger.With().Str("kind", radixAlert.Kind).Str("name", cache.MetaObjectToName(&radixAlert.ObjectMeta).String()).Logger(),
+		logger:               log.Logger.With().Str("resource_kind", radixv1.KindRadixAlert).Str("resource_name", cache.MetaObjectToName(&radixAlert.ObjectMeta).String()).Logger(),
 	}
 }
 

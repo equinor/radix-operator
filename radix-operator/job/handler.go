@@ -2,17 +2,16 @@ package job
 
 import (
 	"context"
-	"fmt"
 
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -56,7 +55,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Job resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix job %s in work queue no longer exists", name))
+			log.Info().Msgf("RadixJob %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
@@ -64,7 +63,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncJob := radixJob.DeepCopy()
-	logger.Debug().Msgf("Sync job %s", syncJob.Name)
+	log.Debug().Msgf("Sync job %s", syncJob.Name)
 
 	job := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob, t.config)
 	err = job.OnSync()

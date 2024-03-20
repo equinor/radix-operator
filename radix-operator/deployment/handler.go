@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -12,12 +11,12 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	"github.com/rs/zerolog/log"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -121,26 +120,26 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix deployment %s in work queue no longer exists", name))
+			log.Info().Msgf("RadixDeployment %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
 		return err
 	}
 	if deployment.IsRadixDeploymentInactive(rd) {
-		logger.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
+		log.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
 		return nil
 	}
 
 	syncRD := rd.DeepCopy()
-	logger.Debug().Msgf("Sync deployment %s", syncRD.Name)
+	log.Debug().Msgf("Sync deployment %s", syncRD.Name)
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("failed to get RadixRegistartion object: %v", err))
+			log.Debug().Msgf("RadixRegistration %s no longer exists", syncRD.Spec.AppName)
 			return nil
 		}
 

@@ -1,16 +1,14 @@
 package alert
 
 import (
-	"fmt"
-
 	"github.com/equinor/radix-operator/pkg/apis/alert"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	"github.com/rs/zerolog/log"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -72,7 +70,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	if err != nil {
 		// The Alert resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix alert %s in work queue no longer exists", name))
+			log.Info().Msgf("RadixAlert %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
@@ -80,7 +78,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncRAL := alert.DeepCopy()
-	logger.Debug().Msgf("Sync radix alert %s", syncRAL.Name)
+	log.Debug().Msgf("Sync radix alert %s", syncRAL.Name)
 
 	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, syncRAL)
 	err = alertSyncer.OnSync()

@@ -41,7 +41,7 @@ func NewApplication(
 		radixclient:  radixclient,
 		kubeutil:     kubeutil,
 		registration: registration,
-		logger:       log.Logger.With().Str("kind", registration.Kind).Str("name", cache.MetaObjectToName(&registration.ObjectMeta).String()).Logger(),
+		logger:       log.Logger.With().Str("resource_kind", v1.KindRadixRegistration).Str("resource_name", cache.MetaObjectToName(&registration.ObjectMeta).String()).Logger(),
 	}, nil
 }
 

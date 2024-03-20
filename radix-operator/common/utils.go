@@ -77,6 +77,7 @@ func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterf
 	}
 	logger.Info().Msg("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
+	// TODO: Should we skip setting StartLogging? This generates many duplicate records in the log
 	eventBroadcaster.StartLogging(func(format string, args ...interface{}) { logger.Info().Msgf(format, args...) })
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
 	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})

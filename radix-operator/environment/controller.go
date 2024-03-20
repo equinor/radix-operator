@@ -13,10 +13,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -29,12 +27,6 @@ const (
 	crType              = "RadixEnvironments"
 )
 
-var logger zerolog.Logger
-
-func init() {
-	logger = log.With().Str("controller", controllerAgentName).Logger()
-}
-
 // NewController creates a new controller that handles RadixEnvironments
 func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface,
@@ -43,7 +35,7 @@ func NewController(client kubernetes.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
-
+	logger := log.With().Str("controller", controllerAgentName).Logger()
 	environmentInformer := radixInformerFactory.Radix().V1().RadixEnvironments()
 	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
@@ -68,7 +60,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixEnvironment informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
@@ -83,7 +75,7 @@ func NewController(client kubernetes.Interface,
 			}
 			logger.Debug().Msgf("update RadixEnvironment %s (from revision %s to %s)", oldRR.GetName(), oldRR.GetResourceVersion(), newRR.GetResourceVersion())
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixEnvironment informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
 		},
@@ -159,7 +151,7 @@ func NewController(client kubernetes.Interface,
 				for _, environment := range environments.Items {
 					// Will sync the environment
 					if _, err := controller.Enqueue(&environment); err != nil {
-						utilruntime.HandleError(err)
+						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 					}
 				}
 			}
@@ -182,7 +174,7 @@ func NewController(client kubernetes.Interface,
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
 					if _, err := controller.Enqueue(re); err != nil {
-						utilruntime.HandleError(err)
+						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer UpdateFunc")
 					}
 				}
 			}
@@ -198,7 +190,7 @@ func NewController(client kubernetes.Interface,
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
 					if _, err := controller.Enqueue(re); err != nil {
-						utilruntime.HandleError(err)
+						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer DeleteFunc")
 					}
 				}
 			}

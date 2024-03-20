@@ -60,7 +60,6 @@ func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) erro
 		DeleteFunc: func(old interface{}) {
 			currJob, converted := old.(*batchv1.Job)
 			if !converted {
-
 				log.Error().Msg("Job object cast failed during deleted event received.")
 				return
 			}

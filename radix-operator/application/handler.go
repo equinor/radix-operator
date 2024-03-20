@@ -2,17 +2,16 @@ package application
 
 import (
 	"context"
-	"fmt"
 
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -56,7 +55,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Application resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix application %s in work queue no longer exists", name))
+			log.Info().Msgf("RadixApplication %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
@@ -68,7 +67,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("failed to get RadixRegistartion object: %v", err))
+			log.Debug().Msgf("RadixRegistration %s no longer exists", radixApplication.Name)
 			return nil
 		}
 
@@ -76,7 +75,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncApplication := radixApplication.DeepCopy()
-	logger.Debug().Msgf("Sync application %s", syncApplication.Name)
+	log.Debug().Msgf("Sync application %s", syncApplication.Name)
 	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsConfig)
 	err = applicationConfig.OnSync()
 	if err != nil {

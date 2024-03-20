@@ -1,8 +1,6 @@
 package dnsalias
 
 import (
-	"fmt"
-
 	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
@@ -11,9 +9,9 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -90,14 +88,14 @@ func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("RadixDNSAlias %s in work queue no longer exists", name))
+			log.Info().Msgf("RadixDNSAlias %s in work queue no longer exists", name)
 			return nil
 		}
 		return err
 	}
 
 	syncingAlias := radixDNSAlias.DeepCopy()
-	logger.Debug().Msgf("Sync RadixDNSAlias %s", name)
+	log.Debug().Msgf("Sync RadixDNSAlias %s", name)
 	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
 	err = syncer.OnSync()
 	if err != nil {

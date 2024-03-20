@@ -48,7 +48,6 @@ const (
 )
 
 func main() {
-	// logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
 	cfg := config.NewConfig()
 	initLogger(cfg)
 
@@ -118,7 +117,7 @@ func initLogger(cfg *apiconfig.Config) {
 
 	var logWriter io.Writer = os.Stderr
 	if cfg.LogPretty {
-		logWriter = &zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.TimeOnly}
+		logWriter = &zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
 	}
 
 	logger := zerolog.New(logWriter).Level(logLevel).With().Timestamp().Logger()

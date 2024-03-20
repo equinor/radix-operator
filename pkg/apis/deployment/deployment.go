@@ -70,7 +70,7 @@ func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, r
 		auxResourceManagers:        auxResourceManagers,
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		config:                     config,
-		logger:                     log.Logger.With().Str("kind", radixDeployment.Kind).Str("name", cache.MetaObjectToName(&radixDeployment.ObjectMeta).String()).Logger(),
+		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&radixDeployment.ObjectMeta).String()).Logger(),
 	}
 }
 

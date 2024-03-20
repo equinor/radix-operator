@@ -40,7 +40,7 @@ func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistrati
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		oauth2DefaultConfig:        oauth2DefaultConfig,
 		oauth2ProxyDockerImage:     oauth2ProxyDockerImage,
-		logger:                     log.Logger.With().Str("kind", rd.Kind).Str("name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
+		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
 	}
 }
 
