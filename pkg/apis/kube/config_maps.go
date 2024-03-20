@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -78,16 +78,16 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 	}
 
 	if IsEmptyPatch(patchBytes) {
-		log.Debugf("No need to patch config-map: %s ", currentConfigMap.GetName())
+		log.Debug().Msgf("No need to patch config-map: %s ", currentConfigMap.GetName())
 		return nil
 	}
 
-	log.Debugf("Patch: %s", string(patchBytes))
+	log.Debug().Msgf("Patch: %s", string(patchBytes))
 	patchedConfigMap, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Patch(context.TODO(), currentConfigMap.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to patch config-map object: %v", err)
 	}
-	log.Debugf("Patched config-map: %s in namespace %s", patchedConfigMap.Name, namespace)
+	log.Debug().Msgf("Patched config-map: %s in namespace %s", patchedConfigMap.Name, namespace)
 	return err
 }
 

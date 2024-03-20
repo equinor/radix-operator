@@ -343,7 +343,7 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		},
 	}
 
-	// TODO: should we handle error?
+	// TODO: should the error be returned to caller
 	_, _ = kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 }
 

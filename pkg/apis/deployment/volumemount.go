@@ -11,7 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -292,7 +292,7 @@ func getComponentSecretRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace s
 					volume.VolumeSource.CSI.NodePublishSecretRef = &corev1.LocalObjectReference{Name: credsSecretName}
 				}
 			default:
-				logrus.Errorf("not supported provider %s in the secret provider class %s", provider, secretProviderClass.Name)
+				log.Error().Msgf("Not supported provider %s in the secret provider class %s", provider, secretProviderClass.Name)
 				continue
 			}
 			volumes = append(volumes, volume)

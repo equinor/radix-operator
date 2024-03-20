@@ -101,6 +101,7 @@ func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
 	err = syncer.OnSync()
 	if err != nil {
+		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		return err
 	}
 

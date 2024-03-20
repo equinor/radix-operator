@@ -18,7 +18,7 @@ func (kubeutil *Kube) GetClusterName() (string, error) {
 	return kubeutil.getRadixConfigFromMap(clusterNameConfig)
 }
 
-//GetSubscriptionId Gets the subscription-id from config map in default namespace
+// GetSubscriptionId Gets the subscription-id from config map in default namespace
 func (kubeutil *Kube) GetSubscriptionId() (string, error) {
 	return kubeutil.getRadixConfigFromMap(subscriptionIdConfig)
 }
@@ -34,6 +34,5 @@ func (kubeutil *Kube) getRadixConfigFromMap(config string) (string, error) {
 		return "", fmt.Errorf("failed to get radix config map: %v", err)
 	}
 	configValue := radixconfigmap.Data[config]
-	logger.Debugf("%s: %s", config, configValue)
 	return configValue, nil
 }

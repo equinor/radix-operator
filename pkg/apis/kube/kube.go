@@ -4,7 +4,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
-	log "github.com/sirupsen/logrus"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appsv1Listers "k8s.io/client-go/listers/apps/v1"
@@ -23,7 +22,7 @@ const (
 	RadixConfigHash                                  = "radix.equinor.com/radix-config-hash"
 	RadixBuildSecretHash                             = "radix.equinor.com/build-secret-hash"
 	RadixComponentImagesAnnotation                   = "radix-component-images"
-	RadixBuildComponentsAnnotation                     = "radix-build-component"
+	RadixBuildComponentsAnnotation                   = "radix-build-component"
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
 	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
@@ -144,12 +143,6 @@ type Kube struct {
 	LimitRangeLister         coreListers.LimitRangeLister
 	JobLister                batchListers.JobLister
 	// Do not use ConfigMapLister as it were cases it return outdated data
-}
-
-var logger *log.Entry
-
-func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": "kube-api"})
 }
 
 // New Constructor

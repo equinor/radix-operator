@@ -68,6 +68,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
+		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue.
 		return err
 	}

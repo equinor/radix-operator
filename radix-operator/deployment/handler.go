@@ -156,6 +156,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync()
 	if err != nil {
+		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue
 		return err
 	}
