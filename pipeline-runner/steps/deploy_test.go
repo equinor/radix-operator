@@ -49,8 +49,17 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientse
 type FakeNamespaceWatcher struct {
 }
 
+// FakeRadixDeploymentWatcher Unit tests doesn't handle muliti-threading well
+type FakeRadixDeploymentWatcher struct {
+}
+
 // WaitFor Waits for namespace to appear
 func (watcher FakeNamespaceWatcher) WaitFor(namespace string) error {
+	return nil
+}
+
+// WaitFor Waits for radix deployment gets active
+func (watcher FakeRadixDeploymentWatcher) WaitForActive(namespace, deploymentName string) error {
 	return nil
 }
 
@@ -74,7 +83,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 				WithName(anyComponentName)).
 		BuildRA()
 
-	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	targetEnvs := application.GetTargetEnvironments(anyNoMappedBranch, ra)
@@ -178,7 +187,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	dnsConfig := dnsalias.DNSConfig{
@@ -298,7 +307,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)

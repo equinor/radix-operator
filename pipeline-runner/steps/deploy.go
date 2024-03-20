@@ -17,16 +17,18 @@ import (
 
 // DeployStepImplementation Step to deploy RD into environment
 type DeployStepImplementation struct {
-	stepType         pipeline.StepType
-	namespaceWatcher kube.NamespaceWatcher
+	stepType               pipeline.StepType
+	namespaceWatcher       kube.NamespaceWatcher
+	radixDeploymentWatcher kube.RadixDeploymentWatcher
 	model.DefaultStepImplementation
 }
 
 // NewDeployStep Constructor
-func NewDeployStep(namespaceWatcher kube.NamespaceWatcher) model.Step {
+func NewDeployStep(namespaceWatcher kube.NamespaceWatcher, radixDeploymentWatcher kube.RadixDeploymentWatcher) model.Step {
 	return &DeployStepImplementation{
-		stepType:         pipeline.DeployStep,
-		namespaceWatcher: namespaceWatcher,
+		stepType:               pipeline.DeployStep,
+		namespaceWatcher:       namespaceWatcher,
+		radixDeploymentWatcher: radixDeploymentWatcher,
 	}
 }
 
@@ -111,7 +113,8 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)
 	}
 
-	err = cli.namespaceWatcher.WaitFor(utils.GetEnvironmentNamespace(cli.GetAppName(), env))
+	namespace := utils.GetEnvironmentNamespace(cli.GetAppName(), env)
+	err = cli.namespaceWatcher.WaitFor(namespace)
 	if err != nil {
 		return fmt.Errorf("failed to get environment namespace, %s, for app %s. %v", env, appName, err)
 	}
@@ -121,6 +124,11 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	if err != nil {
 		return fmt.Errorf("failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)
 	}
+	log.Infof("Waiting for radix deployment %s on env %s gets active", radixDeployment.GetName(), radixDeployment.GetNamespace())
+	if err = cli.radixDeploymentWatcher.WaitForActive(namespace, radixDeployment.GetName()); err != nil {
+		return err
+	}
+	log.Infof("The radix deployment %s on env %s is active", radixDeployment.GetName(), radixDeployment.GetNamespace())
 	return nil
 }
 

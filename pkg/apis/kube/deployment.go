@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
+	k8errs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // ApplyDeployment Create or update deployment in provided namespace
@@ -132,4 +136,50 @@ func (kubeutil *Kube) GetDeployment(namespace, name string) (*appsv1.Deployment,
 	}
 
 	return deployment, nil
+}
+
+// RadixDeploymentWatcher Watcher to wait for namespace to be created
+type RadixDeploymentWatcher interface {
+	WaitForActive(namespace, deploymentName string) error
+}
+
+// RadixDeploymentWatcherImpl Implementation of watcher
+type RadixDeploymentWatcherImpl struct {
+	radixClient radixclient.Interface
+	waitTimeout time.Duration
+}
+
+// NewRadixDeploymentWatcherImpl Constructor
+func NewRadixDeploymentWatcherImpl(radixClient radixclient.Interface, waitTimeout time.Duration) RadixDeploymentWatcherImpl {
+	return RadixDeploymentWatcherImpl{
+		radixClient,
+		waitTimeout,
+	}
+}
+
+// WaitForActive Waits for the radix deployment gets active
+func (watcher RadixDeploymentWatcherImpl) WaitForActive(namespace, deploymentName string) error {
+	log.Infof("Waiting for RadixDeployment %s gets active in the namespace %s", deploymentName, namespace)
+	if err := watcher.waitFor(func(context.Context) (bool, error) {
+		rd, err := watcher.radixClient.RadixV1().RadixDeployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+		if err != nil {
+			if k8errs.IsNotFound(err) || k8errs.IsForbidden(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return rd != nil && !rd.Status.ActiveFrom.IsZero(), nil
+	}); err != nil {
+		return err
+	}
+
+	log.Infof("RadixDeployment %s in the namespace %s exists and is active", deploymentName, namespace)
+	return nil
+
+}
+
+func (watcher RadixDeploymentWatcherImpl) waitFor(condition wait.ConditionWithContextFunc) error {
+	timoutContext, cancel := context.WithTimeout(context.Background(), watcher.waitTimeout)
+	defer cancel()
+	return wait.PollUntilContextCancel(timoutContext, time.Second, true, condition)
 }

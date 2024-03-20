@@ -144,7 +144,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -273,7 +273,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -416,7 +416,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -568,7 +568,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -1041,7 +1041,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			}
 			buildStep := steps.NewBuildStep(jobWaiter)
 			buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-			deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+			deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 			deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 			// Run pipeline steps
@@ -1111,7 +1111,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -1330,7 +1330,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(&pipeline))
 	s.Require().NoError(buildStep.Run(&pipeline))
@@ -1694,7 +1694,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
