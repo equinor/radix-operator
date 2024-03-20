@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -35,6 +36,18 @@ func WithKubernetesClientRateLimiter(rateLimiter flowcontrol.RateLimiter) Kubern
 	}
 }
 
+func WithKubernetesWarningHandler(handler rest.WarningHandler) KubernetesClientConfigOption {
+	return func(c *rest.Config) {
+		c.WarningHandler = handler
+	}
+}
+
+type ZerologWarningHandlerAdapter func() *zerolog.Event
+
+func (zl ZerologWarningHandlerAdapter) HandleWarningHeader(_ int, _ string, text string) {
+	zl().Msg(text)
+}
+
 // GetKubernetesClient Gets clients to talk to the API
 func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
 	ctx := context.Background()
@@ -48,6 +61,8 @@ func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kuberne
 			log.Fatal().Err(err).Msg("Failed to read InClusterConfig")
 		}
 	}
+
+	config.WarningHandler = rest.NoWarnings{}
 	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
 		return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
 	}

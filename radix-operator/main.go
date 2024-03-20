@@ -57,7 +57,8 @@ func main() {
 		panic(err)
 	}
 	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(kubeClientRateLimitQPS, kubeClientRateLimitBurst))
-	client, radixClient, prometheusOperatorClient, secretProviderClient, certClient := utils.GetKubernetesClient(rateLimitConfig)
+	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
+	client, radixClient, prometheusOperatorClient, secretProviderClient, certClient := utils.GetKubernetesClient(rateLimitConfig, warningHandler)
 
 	activeClusterNameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	log.Info().Msgf("Active cluster name: %v", activeClusterNameEnvVar)
