@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	"github.com/rs/zerolog/log"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	k8errs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -159,9 +159,9 @@ func NewRadixDeploymentWatcherImpl(radixClient radixclient.Interface, waitTimeou
 
 // WaitForActive Waits for the radix deployment gets active
 func (watcher RadixDeploymentWatcherImpl) WaitForActive(namespace, deploymentName string) error {
-	log.Infof("Waiting for RadixDeployment %s gets active in the namespace %s", deploymentName, namespace)
+	log.Info().Msgf("Waiting for Radix deployment %s in namespace %s gets active", deploymentName, namespace)
 	if err := watcher.waitFor(func(context.Context) (bool, error) {
-		rd, err := watcher.radixClient.RadixV1().RadixDeployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+		rd, err := watcher.radixClient.RadixV1().RadixDeployments(namespace).Get(context.Background(), deploymentName, metav1.GetOptions{})
 		if err != nil {
 			if k8errs.IsNotFound(err) || k8errs.IsForbidden(err) {
 				return false, nil
@@ -173,7 +173,7 @@ func (watcher RadixDeploymentWatcherImpl) WaitForActive(namespace, deploymentNam
 		return err
 	}
 
-	log.Infof("RadixDeployment %s in the namespace %s exists and is active", deploymentName, namespace)
+	log.Info().Msgf("Radix deployment %s in namespace %s exists and is active", deploymentName, namespace)
 	return nil
 
 }
