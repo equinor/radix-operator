@@ -14,7 +14,7 @@ import (
 func (syncer *alertSyncer) configureRbac() error {
 	rr, found := syncer.tryGetRadixRegistration()
 	if !found {
-		syncer.logger.Debug("radixregistration not found")
+		syncer.logger.Debug().Msg("radixregistration not found")
 		return syncer.garbageCollectAccessToAlertConfigSecret()
 	}
 

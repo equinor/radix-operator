@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	logger "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	kubeinformers "k8s.io/client-go/informers"
@@ -60,7 +60,7 @@ func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) erro
 		DeleteFunc: func(old interface{}) {
 			currJob, converted := old.(*batchv1.Job)
 			if !converted {
-				logger.Errorf("Job object cast failed during deleted event received.")
+				log.Error().Msg("Job object cast failed during deleted event received.")
 				return
 			}
 			if currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
@@ -85,7 +85,7 @@ func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) erro
 		DeleteFunc: func(old interface{}) {
 			pod, converted := old.(*corev1.Pod)
 			if !converted {
-				logger.Errorf("Pod object cast failed during deleted event received.")
+				log.Error().Msg("Pod object cast failed during deleted event received.")
 				return
 			}
 			if job.GetNamespace() == pod.GetNamespace() && pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() {

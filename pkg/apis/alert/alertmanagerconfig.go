@@ -65,7 +65,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(namespace string, alertManage
 				return fmt.Errorf("failed to create AlertManagerConfig object: %v", err)
 			}
 
-			syncer.logger.Debugf("Created AlertManagerConfig: %s in namespace %s", created.Name, namespace)
+			syncer.logger.Debug().Msgf("Created AlertManagerConfig: %s in namespace %s", created.Name, namespace)
 			return nil
 		}
 		return err
@@ -100,7 +100,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(namespace string, alertManage
 			return fmt.Errorf("failed to update AlertManagerConfig object: %v", err)
 		}
 
-		syncer.logger.Debugf("Updated AlertManagerConfig: %s ", updatedConfig.Name)
+		syncer.logger.Debug().Msgf("Updated AlertManagerConfig: %s ", updatedConfig.Name)
 		return nil
 
 	}
@@ -212,16 +212,16 @@ func (syncer *alertSyncer) getAlertmanagerConfigRoutes() []v1alpha1.Route {
 	for _, alert := range syncer.radixAlert.Spec.Alerts {
 		alertConfig, found := syncer.alertConfigs[alert.Alert]
 		if !found {
-			syncer.logger.Debugf("skipping unknown alert %s in RadixAlert %s", alert.Alert, syncer.radixAlert.Name)
+			syncer.logger.Debug().Msgf("skipping unknown alert %s in RadixAlert %s", alert.Alert, syncer.radixAlert.Name)
 			continue
 		}
 		receiver, found := syncer.radixAlert.Spec.Receivers[alert.Receiver]
 		if !found {
-			syncer.logger.Debugf("skipping alert %s in RadixAlert %s with unknown recevier %s", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
+			syncer.logger.Debug().Msgf("skipping alert %s in RadixAlert %s with unknown recevier %s", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
 			continue
 		}
 		if !receiver.IsEnabled() {
-			syncer.logger.Debugf("skipping alert %s in RadixAlert %s because receiver %s is disabled", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
+			syncer.logger.Debug().Msgf("skipping alert %s in RadixAlert %s because receiver %s is disabled", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
 			continue
 		}
 		routes = append(routes, v1alpha1.Route{

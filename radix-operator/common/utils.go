@@ -6,7 +6,7 @@ import (
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixscheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -71,13 +71,14 @@ func NamePartitionKey(obj interface{}) (lockKey string, identifier string, err e
 type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
 
 // NewEventRecorder Creates an event recorder for controller
-func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface, logger *log.Entry) record.EventRecorder {
+func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface, logger zerolog.Logger) record.EventRecorder {
 	if err := radixscheme.AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	logger.Info("Creating event broadcaster")
+	logger.Info().Msg("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(logger.Infof)
+	// TODO: Should we skip setting StartLogging? This generates many duplicate records in the log
+	eventBroadcaster.StartLogging(func(format string, args ...interface{}) { logger.Info().Msgf(format, args...) })
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
 	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 }

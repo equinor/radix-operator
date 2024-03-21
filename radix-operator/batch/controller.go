@@ -2,7 +2,6 @@ package batch
 
 import (
 	"context"
-	"errors"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -10,9 +9,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -20,16 +18,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger *log.Entry
-
 const (
 	controllerAgentName = "batch-controller"
 	crType              = "RadixBatches"
 )
-
-func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
-}
 
 // NewController creates a new controller that handles RadixBatches
 func NewController(client kubernetes.Interface,
@@ -38,10 +30,9 @@ func NewController(client kubernetes.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
-
+	logger := log.With().Str("controller", controllerAgentName).Logger()
 	batchInformer := radixInformerFactory.Radix().V1().RadixBatches()
 	jobInformer := kubeInformerFactory.Batch().V1().Jobs()
-	// podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -58,11 +49,11 @@ func NewController(client kubernetes.Interface,
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,
 	}
 
-	logger.Info("Setting up event handlers")
+	logger.Info().Msg("Setting up event handlers")
 	if _, err := batchInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixBatch informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
@@ -70,23 +61,25 @@ func NewController(client kubernetes.Interface,
 			oldRadixBatch := old.(*radixv1.RadixBatch)
 			newRadixBatch := cur.(*radixv1.RadixBatch)
 			if deepEqual(oldRadixBatch, newRadixBatch) {
-				logger.Debugf("RadixBatch object is equal to old for %s. Do nothing", newRadixBatch.GetName())
+				logger.Debug().Msgf("RadixBatch object is equal to old for %s. Do nothing", newRadixBatch.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixBatch informer UpdateFunc")
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
+			// TODO: We don't do any processing of the deleted object, so perhaps we should remove everything except for metrics call
+			// Also check if other event handlers have the same noop code
 			radixBatch, converted := obj.(*radixv1.RadixBatch)
 			if !converted {
-				utilruntime.HandleError(errors.New("failed to convert RadixBatch on deletion"))
+				log.Error().Msg("RadixBatch object cast failed during deleted event.")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixBatch)
 			if err == nil {
-				logger.Debugf("RadixBatch object deleted event received for %s. Do nothing", key)
+				logger.Debug().Msgf("RadixBatch object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},

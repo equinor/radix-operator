@@ -79,31 +79,43 @@ func (app *Application) applyRbacRadixRegistration() error {
 func (app *Application) applyRbacOnPipelineRunner() error {
 	serviceAccount, err := app.applyPipelineServiceAccount()
 	if err != nil {
-		logger.Errorf("Failed to apply service account needed by pipeline. %v", err)
-		return err
-	}
-	if err = app.givePipelineAccessToRR(serviceAccount, defaults.RadixPipelineRRRoleNamePrefix); err != nil {
-		return err
-	}
-	if err = app.giveAccessToRadixDNSAliases(serviceAccount, defaults.RadixPipelineRadixDNSAliasRoleNamePrefix); err != nil {
-		return err
+		return fmt.Errorf("failed to apply pipeline service account: %w", err)
 	}
 
-	return app.givePipelineAccessToAppNamespace(serviceAccount)
+	if err = app.givePipelineAccessToRR(serviceAccount, defaults.RadixPipelineRRRoleNamePrefix); err != nil {
+		return fmt.Errorf("failed to grant pipeline access to RadixRegistration: %w", err)
+	}
+
+	if err = app.giveAccessToRadixDNSAliases(serviceAccount, defaults.RadixPipelineRadixDNSAliasRoleNamePrefix); err != nil {
+		return fmt.Errorf("failed to grant pipeline access to RadixDNSAliases: %w", err)
+	}
+
+	if err := app.givePipelineAccessToAppNamespace(serviceAccount); err != nil {
+		return fmt.Errorf("failed to grant pipeline access to app namespace: %w", err)
+	}
+
+	return nil
 }
 
 func (app *Application) applyRbacOnRadixTekton() error {
 	serviceAccount, err := app.kubeutil.CreateServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.RadixTektonServiceAccountName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to apply Tekton pipeline service account: %w", err)
 	}
+
 	if err = app.givePipelineAccessToRR(serviceAccount, defaults.RadixTektonRRRoleNamePrefix); err != nil {
-		return err
+		return fmt.Errorf("failed to grant Tekton pipeline access to RadixRegistration: %w", err)
 	}
+
 	if err = app.giveAccessToRadixDNSAliases(serviceAccount, defaults.RadixTektonRadixDNSAliasRoleNamePrefix); err != nil {
-		return err
+		return fmt.Errorf("failed to grant Tekton pipeline access to RadixDNSAliases: %w", err)
 	}
-	return app.giveRadixTektonAccessToAppNamespace(serviceAccount)
+
+	if err := app.giveRadixTektonAccessToAppNamespace(serviceAccount); err != nil {
+		return fmt.Errorf("failed to grant Tekton pipeline access to app namespace: %w", err)
+	}
+
+	return nil
 }
 
 func (app *Application) givePipelineAccessToRR(serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
@@ -141,7 +153,7 @@ func (app *Application) giveRadixTektonAccessToAppNamespace(serviceAccount *core
 func (app *Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	logger.Debugf("Create rolebinding config %s", defaults.PipelineAppRoleName)
+	app.logger.Debug().Msgf("Create rolebinding config %s", defaults.PipelineAppRoleName)
 
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -173,7 +185,7 @@ func (app *Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccoun
 func (app *Application) radixTektonRoleBinding(serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	logger.Debugf("Create rolebinding config %s", defaults.RadixTektonAppRoleName)
+	app.logger.Debug().Msgf("Create rolebinding config %s", defaults.RadixTektonAppRoleName)
 
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -206,7 +218,7 @@ func (app *Application) clusterRoleBinding(serviceAccount *corev1.ServiceAccount
 	appName := app.registration.Name
 	clusterRoleBindingName := clusterRole.Name
 	ownerReference := app.getOwnerReference()
-	logger.Debugf("Create clusterrolebinding config %s", clusterRoleBindingName)
+	app.logger.Debug().Msgf("Create clusterrolebinding config %s", clusterRoleBindingName)
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -240,7 +252,7 @@ func (app *Application) rrClusterRoleBinding(clusterRole *rbacv1.ClusterRole, su
 	registration := app.registration
 	appName := registration.Name
 	clusterRoleBindingName := clusterRole.Name
-	logger.Debugf("Create clusterrolebinding config %s", clusterRoleBindingName)
+	app.logger.Debug().Msgf("Create clusterrolebinding config %s", clusterRoleBindingName)
 	ownerReference := app.getOwnerReference()
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
@@ -263,7 +275,7 @@ func (app *Application) rrClusterRoleBinding(clusterRole *rbacv1.ClusterRole, su
 		Subjects: subjects,
 	}
 
-	logger.Debugf("Done - create clusterrolebinding config %s", clusterRoleBindingName)
+	app.logger.Debug().Msgf("Done - create clusterrolebinding config %s", clusterRoleBindingName)
 
 	return clusterRoleBinding
 }

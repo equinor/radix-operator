@@ -11,7 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -56,10 +56,10 @@ func (cli *DeployStepImplementation) Run(pipelineInfo *model.PipelineInfo) error
 // Deploy Handles deploy step of the pipeline
 func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) error {
 	appName := cli.GetAppName()
-	log.Infof("Deploying app %s", appName)
+	log.Info().Msgf("Deploying app %s", appName)
 
 	if len(pipelineInfo.TargetEnvironments) == 0 {
-		log.Infof("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		log.Info().Msgf("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 		return nil
 	}
 
@@ -119,7 +119,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		return fmt.Errorf("failed to get environment namespace, %s, for app %s. %v", env, appName, err)
 	}
 
-	log.Infof("Apply radix deployment %s on env %s", radixDeployment.GetName(), radixDeployment.GetNamespace())
+	log.Info().Msgf("Apply radix deployment %s on env %s", radixDeployment.GetName(), radixDeployment.GetNamespace())
 	_, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.TODO(), radixDeployment, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)

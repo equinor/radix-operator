@@ -18,7 +18,7 @@ import (
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -45,7 +45,8 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(
 	for _, envComponentImages := range pipelineInfo.BuildComponentImages {
 		buildComponentImages = append(buildComponentImages, envComponentImages...)
 	}
-	log.Debug("build a build-job")
+
+	log.Debug().Msg("build a build-job")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
 	job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, buildComponentImages...)
 	return []*batchv1.Job{job}, nil
@@ -54,9 +55,9 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(
 func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
 	var jobs []*batchv1.Job
 	for envName, buildComponentImages := range pipelineInfo.BuildComponentImages {
-		log.Debugf("build a build-kit jobs for the env %s", envName)
+		log.Debug().Msgf("build a build-kit jobs for the env %s", envName)
 		for _, componentImage := range buildComponentImages {
-			log.Debugf("build a job for the image %s", componentImage.ImageName)
+			log.Debug().Msgf("build a job for the image %s", componentImage.ImageName)
 			hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
 
 			job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, componentImage)
@@ -90,7 +91,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 	}
 
 	buildJobName := fmt.Sprintf("radix-builder-%s-%s-%s", timestamp, imageTag, hash)
-	log.Debugf("build a job %s", buildJobName)
+	log.Debug().Msgf("build a job %s", buildJobName)
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: buildJobName,
@@ -429,6 +430,7 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString string,
 		AddArgf("--storage-driver=overlay").
 		AddArgf("--isolation=chroot").
 		AddArgf("--jobs 0").
+		AddArgf("--ulimit nofile=4096:4096").
 		AddArgf(secretArgsString).
 		AddArgf("--file %s%s", context, componentImage.Dockerfile).
 		AddArgf(`--build-arg RADIX_GIT_COMMIT_HASH="${RADIX_GIT_COMMIT_HASH}"`).

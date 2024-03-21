@@ -2,7 +2,6 @@ package application
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -18,7 +17,7 @@ func (app *Application) createLimitRangeOnAppNamespace(namespace string) error {
 	if defaultMemoryLimit == nil ||
 		defaultCPURequest == nil ||
 		defaultMemoryRequest == nil {
-		log.Warningf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
+		app.logger.Warn().Msgf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
 		return nil
 	}
 

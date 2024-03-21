@@ -1,10 +1,8 @@
 package deployment
 
 import (
-	stderrors "errors"
+	"errors"
 	"fmt"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec() error {
@@ -34,7 +32,7 @@ func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec() error {
 		}
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
-			log.Debugf("ConfigMap object %s in namespace %s belongs to deleted component %s, garbage collecting the configmap", cm.Name, namespace, componentName)
+			deploy.logger.Debug().Msgf("ConfigMap object %s in namespace %s belongs to deleted component %s, garbage collecting the configmap", cm.Name, namespace, componentName)
 			err = deploy.kubeutil.DeleteConfigMap(namespace, cm.Name)
 		}
 		if err != nil {
@@ -42,5 +40,5 @@ func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec() error {
 		}
 
 	}
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }

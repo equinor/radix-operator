@@ -5,12 +5,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
-	log "github.com/sirupsen/logrus"
 )
 
 // Config from environment variables
 type Config struct {
-	LogLevel              log.Level
+	LogLevel              string
+	LogPretty             bool
 	DNSConfig             *dnsalias.DNSConfig
 	PipelineJobConfig     *pipelinejob.Config
 	CertificateAutomation certificate.AutomationConfig

@@ -13,7 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +52,7 @@ func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfac
 func (cli *PipelineRunner) PrepareRun(pipelineArgs *model.PipelineArguments) error {
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), cli.appName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Failed to get RR for app %s. Error: %v", cli.appName, err)
+		log.Error().Err(err).Msgf("Failed to get RR for app %s. Error: %v", cli.appName, err)
 		return err
 	}
 
@@ -70,17 +70,17 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs *model.PipelineArguments) err
 
 // Run runs through the steps in the defined pipeline
 func (cli *PipelineRunner) Run() error {
-	log.Infof("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
+	log.Info().Msgf("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
 
 	for _, step := range cli.pipelineInfo.Steps {
 		err := step.Run(cli.pipelineInfo)
 		if err != nil {
-			log.Errorf(step.ErrorMsg(err))
+			log.Error().Msg(step.ErrorMsg(err))
 			return err
 		}
-		log.Infof(step.SucceededMsg())
+		log.Info().Msg(step.SucceededMsg())
 		if cli.pipelineInfo.StopPipeline {
-			log.Infof("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
+			log.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
 			break
 		}
 	}
@@ -93,13 +93,13 @@ func (cli *PipelineRunner) TearDown() {
 
 	err := cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.RadixConfigMapName)
 	if err != nil && !k8sErrors.IsNotFound(err) {
-		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.RadixConfigMapName, namespace, err)
+		log.Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.RadixConfigMapName, namespace)
 	}
 
 	if cli.pipelineInfo.IsPipelineType(v1.BuildDeploy) {
 		err = cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.GitConfigMapName)
 		if err != nil && !k8sErrors.IsNotFound(err) {
-			log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.GitConfigMapName, namespace, err)
+			log.Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.GitConfigMapName, namespace)
 		}
 	}
 }
@@ -143,7 +143,7 @@ func (cli *PipelineRunner) CreateResultConfigMap() error {
 		},
 		Data: map[string]string{jobs.ResultContent: string(resultContent)},
 	}
-	log.Debugf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
+	log.Debug().Msgf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 	_, err = cli.kubeUtil.CreateConfigMap(utils.GetAppNamespace(cli.appName), &configMap)
 	return err
 }

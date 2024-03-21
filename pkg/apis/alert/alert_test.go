@@ -13,7 +13,7 @@ import (
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -71,7 +71,7 @@ func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ..
 		radixAlert:           alert,
 		slackMessageTemplate: slackMessageTemplate{},
 		alertConfigs:         AlertConfigs{},
-		logger:               log.NewEntry(log.StandardLogger()),
+		logger:               zerolog.Nop(),
 	}
 
 	for _, f := range options {

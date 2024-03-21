@@ -12,7 +12,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -35,6 +36,18 @@ func WithKubernetesClientRateLimiter(rateLimiter flowcontrol.RateLimiter) Kubern
 	}
 }
 
+func WithKubernetesWarningHandler(handler rest.WarningHandler) KubernetesClientConfigOption {
+	return func(c *rest.Config) {
+		c.WarningHandler = handler
+	}
+}
+
+type ZerologWarningHandlerAdapter func() *zerolog.Event
+
+func (zl ZerologWarningHandlerAdapter) HandleWarningHeader(_ int, _ string, text string) {
+	zl().Msg(text)
+}
+
 // GetKubernetesClient Gets clients to talk to the API
 func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
 	ctx := context.Background()
@@ -45,9 +58,11 @@ func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kuberne
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			log.Fatalf("getClusterConfig InClusterConfig: %v", err)
+			log.Fatal().Err(err).Msg("Failed to read InClusterConfig")
 		}
 	}
+
+	config.WarningHandler = rest.NoWarnings{}
 	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
 		return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
 	}
@@ -60,36 +75,36 @@ func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kuberne
 		return kubernetes.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatalf("getClusterConfig k8s client: %v", err)
+		log.Fatal().Err(err).Msg("Failed to initialize Kubernetes client")
 	}
 
 	radixClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*radixclient.Clientset, error) {
 		return radixclient.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatalf("getClusterConfig radix client: %v", err)
+		log.Fatal().Err(err).Msg("Failed to initialize Radix client")
 	}
 
 	prometheusOperatorClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*monitoring.Clientset, error) {
 		return monitoring.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatalf("getClusterConfig prometheus-operator client: %v", err)
+		log.Fatal().Err(err).Msg("Failed to initialize Prometheus client")
 	}
 
 	secretProviderClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*secretProviderClient.Clientset, error) {
 		return secretProviderClient.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatalf("secretProvider secret provider client client: %v", err)
+		log.Fatal().Err(err).Msg("Failed to initialize SecretProvider client")
 	}
 	certClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*certclient.Clientset, error) {
 		return certclient.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatalf("secretProvider secret provider client client: %v", err)
+		log.Fatal().Err(err).Msg("Failed to initialize CertManager client")
 	}
 
-	log.Printf("Successfully constructed k8s client to API server %v", config.Host)
+	log.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
 	return client, radixClient, prometheusOperatorClient, secretProviderClient, certClient
 }

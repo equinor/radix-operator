@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -23,7 +22,7 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 
 	// Check if hpa config exists
 	if horizontalScaling == nil {
-		log.Debugf("Skip creating HorizontalPodAutoscaler %s in namespace %s: no HorizontalScaling config exists", componentName, namespace)
+		deploy.logger.Debug().Msgf("Skip creating HorizontalPodAutoscaler %s in namespace %s: no HorizontalScaling config exists", componentName, namespace)
 		return nil
 	}
 
@@ -48,21 +47,21 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 
 	hpa := deploy.getHPAConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas, cpuTarget, memoryTarget)
 
-	log.Debugf("Creating HorizontalPodAutoscaler object %s in namespace %s", componentName, namespace)
+	deploy.logger.Debug().Msgf("Creating HorizontalPodAutoscaler object %s in namespace %s", componentName, namespace)
 	createdHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(context.TODO(), hpa, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
-		log.Debugf("HorizontalPodAutoscaler object %s already exists in namespace %s, updating the object now", componentName, namespace)
+		deploy.logger.Debug().Msgf("HorizontalPodAutoscaler object %s already exists in namespace %s, updating the object now", componentName, namespace)
 		updatedHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), hpa, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update HorizontalPodAutoscaler object: %v", err)
 		}
-		log.Debugf("Updated HorizontalPodAutoscaler: %s in namespace %s", updatedHPA.Name, namespace)
+		deploy.logger.Debug().Msgf("Updated HorizontalPodAutoscaler: %s in namespace %s", updatedHPA.Name, namespace)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("failed to create HorizontalPodAutoscaler object: %v", err)
 	}
-	log.Debugf("Created HorizontalPodAutoscaler: %s in namespace %s", createdHPA.Name, namespace)
+	deploy.logger.Debug().Msgf("Created HorizontalPodAutoscaler: %s in namespace %s", createdHPA.Name, namespace)
 	return nil
 }
 

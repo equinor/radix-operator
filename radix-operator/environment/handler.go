@@ -2,10 +2,10 @@ package environment
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
+	"github.com/rs/zerolog/log"
 
 	"github.com/equinor/radix-operator/pkg/apis/environment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -16,7 +16,6 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -63,7 +62,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Environment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix environment %s in work queue no longer exists", name))
+			log.Info().Msgf("RadixEnvironment %s in work queue no longer exists", name)
 			return nil
 		}
 
@@ -71,7 +70,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncEnvironment := envConfig.DeepCopy()
-	logger.Debugf("Sync environment %s", syncEnvironment.Name)
+	log.Debug().Msgf("Sync environment %s", syncEnvironment.Name)
 
 	radixRegistration, err := t.kubeutil.GetRegistration(syncEnvironment.Spec.AppName)
 	if err != nil {
@@ -79,19 +78,19 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 			return err
 		}
 		// The Registration resource may no longer exist, but we proceed to clear resources
-		utilruntime.HandleError(fmt.Errorf("failed to get RadixRegistartion object: %v", err))
+		log.Debug().Msgf("RadixRegistration %s no longer exists", syncEnvironment.Spec.AppName)
 	}
 
 	// get RA error is ignored because nil is accepted
 	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(syncEnvironment.Spec.AppName)).
 		Get(context.TODO(), syncEnvironment.Spec.AppName, meta.GetOptions{})
 
-	nw, err := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, logger, syncEnvironment.Spec.AppName)
+	nw, err := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, syncEnvironment.Spec.AppName)
 	if err != nil {
 		return err
 	}
 
-	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, logger, &nw)
+	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, &nw)
 
 	if err != nil {
 		return err
@@ -99,6 +98,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	err = env.OnSync(meta.NewTime(time.Now().UTC()))
 	if err != nil {
+		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		return err
 	}
 

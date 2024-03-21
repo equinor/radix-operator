@@ -2,13 +2,13 @@ package applicationconfig
 
 import (
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/sirupsen/logrus"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	auth "k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -61,7 +61,7 @@ func (app *ApplicationConfig) grantPipelineAccessToSecret(namespace, secretName 
 		return err
 	}
 
-	rolebinding := rolebindingPipelineToRole(app.GetRadixRegistration(), role)
+	rolebinding := rolebindingPipelineToRole(role)
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
@@ -101,22 +101,21 @@ func garbageCollectAccessToBuildSecrets(app *ApplicationConfig) error {
 	} {
 		err := app.garbageCollectAccessToBuildSecretsForRole(appNamespace, roleName)
 		if err != nil {
-			logrus.Warnf("Failed to perform garbage collection of access to build secret: %v", err)
 			return err
 		}
 	}
 	return nil
 }
 
-func roleAppAdminBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *auth.Role {
+func roleAppAdminBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *rbacv1.Role {
 	return kube.CreateManageSecretRole(registration.Name, getAppAdminRoleNameToBuildSecrets(buildSecretName), []string{buildSecretName}, nil)
 }
 
-func roleAppReaderBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *auth.Role {
+func roleAppReaderBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *rbacv1.Role {
 	return kube.CreateReadSecretRole(registration.Name, getAppReaderRoleNameToBuildSecrets(buildSecretName), []string{buildSecretName}, nil)
 }
 
-func rolePipelineSecret(registration *radixv1.RadixRegistration, secretName string) *auth.Role {
+func rolePipelineSecret(registration *radixv1.RadixRegistration, secretName string) *rbacv1.Role {
 	return kube.CreateReadSecretRole(registration.Name, getPipelineRoleNameToSecret(secretName), []string{secretName}, nil)
 }
 

@@ -86,7 +86,6 @@ For changes to the chart the same procedure applies as for changes to the code. 
 3. Onetime
     ```
         helm init --client-only
-        go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
     ```
 4. for `master` branch: `make helm-up ENVIRONMENT=dev` (will release latest version of helm chart in ACR to cluster)
 5. for `custom` branch: 
