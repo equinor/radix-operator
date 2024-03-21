@@ -11,7 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) {
@@ -25,7 +25,8 @@ func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) 
 		return
 	}
 	if gpuCount, err := strconv.Atoi(nodeGpuCount); err != nil || gpuCount <= 0 {
-		log.Error(fmt.Sprintf("invalid environment node GPU count: %s in component %s", nodeGpuCount, component.GetName()))
+		// TODO: should the error be returned to caller?
+		log.Error().Err(err).Msgf("Invalid environment node GPU count: %s in component %s", nodeGpuCount, component.GetName())
 		node.GpuCount = component.GetNode().GpuCount
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +24,8 @@ func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 		return false
 	}
 	if err != nil {
-		log.Errorf("Failed to get secret %s in namespace %s. %v", secretName, namespace, err)
+		// TODO: the error should be returned to and handled by caller
+		log.Error().Err(err).Msgf("Failed to get secret %s in namespace %s", secretName, namespace)
 		return false
 	}
 	return true
@@ -37,7 +38,6 @@ func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector 
 		return nil, nil
 	}
 	if err != nil {
-		log.Errorf("failed to get secret in namespace %s. %v", namespace, err)
 		return nil, err
 	}
 	return list.Items, nil
@@ -47,7 +47,7 @@ func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector 
 func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret *corev1.Secret, err error) {
 	secretName := secret.GetName()
 	// file deepcode ignore ClearTextLogging: logs name of secret only
-	log.Debugf("Applies secret %s in namespace %s", secretName, namespace)
+	log.Debug().Msgf("Applies secret %s in namespace %s", secretName, namespace)
 
 	oldSecret, err := kubeutil.GetSecret(namespace, secretName)
 	if err != nil && errors.IsNotFound(err) {
@@ -55,7 +55,7 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("Created secret: %s in namespace %s", secret.GetName(), namespace)
+		log.Info().Msgf("Created secret: %s in namespace %s", secret.GetName(), namespace)
 		return savedSecret, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get Secret object: %w", err)
@@ -90,12 +90,12 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 			return nil, fmt.Errorf("failed to update secret object: %w", err)
 		}
 
-		log.Infof("Updated secret: %s in namespace %s", patchedSecret.GetName(), namespace)
+		log.Info().Msgf("Updated secret: %s in namespace %s", patchedSecret.GetName(), namespace)
 		return patchedSecret, nil
 
 	}
 
-	log.Debugf("No need to patch secret: %s ", secretName)
+	log.Debug().Msgf("No need to patch secret: %s ", secretName)
 	return oldSecret, nil
 }
 
@@ -161,7 +161,7 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Deleted secret: %s in namespace %s", secretName, namespace)
+	log.Info().Msgf("Deleted secret: %s in namespace %s", secretName, namespace)
 	return nil
 }
 

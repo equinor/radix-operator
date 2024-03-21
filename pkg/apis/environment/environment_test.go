@@ -15,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
@@ -55,9 +54,8 @@ func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radi
 func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*v1.RadixRegistration, *v1.RadixEnvironment, Environment, error) {
 	rr, _ := utils.GetRadixRegistrationFromFile(regConfigFileName)
 	re, _ := utils.GetRadixEnvironmentFromFile(radixEnvFileName)
-	logger := logrus.WithFields(logrus.Fields{"environmentName": namespaceName})
-	nw, _ := networkpolicy.NewNetworkPolicy(client, kubeUtil, logger, re.Spec.AppName)
-	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger, &nw)
+	nw, _ := networkpolicy.NewNetworkPolicy(client, kubeUtil, re.Spec.AppName)
+	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
 	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, metav1.CreateOptions{}); err != nil {
 		return nil, nil, env, err

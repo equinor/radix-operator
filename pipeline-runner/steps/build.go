@@ -14,7 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,16 +67,16 @@ func (step *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error
 	commitID := pipelineInfo.GitCommitHash
 
 	if len(pipelineInfo.TargetEnvironments) == 0 {
-		log.Infof("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		log.Info().Msgf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 		return nil
 	}
 
 	if len(pipelineInfo.BuildComponentImages) == 0 {
-		log.Infof("No component in app %s requires building", step.GetAppName())
+		log.Info().Msgf("No component in app %s requires building", step.GetAppName())
 		return nil
 	}
 
-	log.Infof("Building app %s for branch %s and commit %s", step.GetAppName(), branch, commitID)
+	log.Info().Msgf("Building app %s for branch %s and commit %s", step.GetAppName(), branch, commitID)
 
 	namespace := utils.GetAppNamespace(step.GetAppName())
 	buildSecrets, err := getBuildSecretsAsVariables(pipelineInfo)
@@ -103,10 +103,10 @@ func (step *BuildStepImplementation) createACRBuildJobs(pipelineInfo *model.Pipe
 		g.Go(func() error {
 			job.OwnerReferences = ownerReference
 			jobDescription := step.getJobDescription(job)
-			log.Infof("Apply %s", jobDescription)
+			log.Info().Msgf("Apply %s", jobDescription)
 			job, err = step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 			if err != nil {
-				log.Errorf("failed %s", jobDescription)
+				log.Error().Err(err).Msgf("failed %s", jobDescription)
 				return err
 			}
 			return step.jobWaiter.Wait(job)

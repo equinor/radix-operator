@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,13 +35,13 @@ func (kubeutil *Kube) ApplyServiceAccount(serviceAccount *corev1.ServiceAccount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ServiceAccount object: %w", err)
 		}
-		log.Debugf("Created ServiceAccount %s in namespace %s", createdServiceAccount.GetName(), createdServiceAccount.GetNamespace())
+		log.Debug().Msgf("Created ServiceAccount %s in namespace %s", createdServiceAccount.GetName(), createdServiceAccount.GetNamespace())
 		return createdServiceAccount, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get ServiceAccount object: %w", err)
 	}
 
-	log.Debugf("ServiceAccount object %s already exists in namespace %s, updating the object now", serviceAccount.GetName(), serviceAccount.GetNamespace())
+	log.Debug().Msgf("ServiceAccount object %s already exists in namespace %s, updating the object now", serviceAccount.GetName(), serviceAccount.GetNamespace())
 	oldServiceAccountJson, err := json.Marshal(oldServiceAccount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal old ServiceAccount object: %w", err)
@@ -68,10 +68,10 @@ func (kubeutil *Kube) ApplyServiceAccount(serviceAccount *corev1.ServiceAccount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to patch ServiceAccount object: %w", err)
 		}
-		log.Debugf("Patched ServiceAccount %s in namespace %s", patchedServiceAccount.GetName(), patchedServiceAccount.GetNamespace())
+		log.Debug().Msgf("Patched ServiceAccount %s in namespace %s", patchedServiceAccount.GetName(), patchedServiceAccount.GetNamespace())
 		return patchedServiceAccount, nil
 	} else {
-		log.Debugf("No need to patch ServiceAccount %s ", serviceAccount.GetName())
+		log.Debug().Msgf("No need to patch ServiceAccount %s ", serviceAccount.GetName())
 	}
 
 	return oldServiceAccount, nil

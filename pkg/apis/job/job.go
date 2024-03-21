@@ -19,7 +19,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -38,6 +40,7 @@ type Job struct {
 	radixJob                  *v1.RadixJob
 	originalRadixJobCondition v1.RadixJobCondition
 	config                    *apiconfig.Config
+	logger                    zerolog.Logger
 }
 
 // NewJob Constructor
@@ -50,7 +53,9 @@ func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient ra
 		kubeutil:                  kubeutil,
 		radixJob:                  radixJob,
 		originalRadixJobCondition: originalRadixJobStatus,
-		config:                    config}
+		config:                    config,
+		logger:                    log.Logger.With().Str("resource_kind", v1.KindRadixJob).Str("resource_name", cache.MetaObjectToName(&radixJob.ObjectMeta).String()).Logger(),
+	}
 }
 
 // OnSync compares the actual state with the desired, and attempts to
@@ -64,13 +69,15 @@ func (job *Job) OnSync() error {
 		if !errors.IsNotFound(err) {
 			return err
 		}
-		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", appName)
+		job.logger.Debug().Msgf("for BuildDeploy failed to find RadixApplication by name %s", appName)
 	}
 
-	job.syncTargetEnvironments(ra)
+	if err := job.syncTargetEnvironments(ra); err != nil {
+		return fmt.Errorf("failed to sync target environments: %w", err)
+	}
 
 	if IsRadixJobDone(job.radixJob) {
-		log.Debugf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
+		job.logger.Debug().Msgf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
 
@@ -79,7 +86,7 @@ func (job *Job) OnSync() error {
 		return err
 	}
 	if stopReconciliation {
-		log.Infof("stop reconciliation, status updated triggering new sync")
+		job.logger.Info().Msgf("stop reconciliation, status updated triggering new sync")
 		return nil
 	}
 
@@ -108,7 +115,7 @@ func (job *Job) restoreStatus() {
 			var status v1.RadixJobStatus
 			err := json.Unmarshal([]byte(restoredStatus), &status)
 			if err != nil {
-				log.Error("Unable to get status from annotation", err)
+				job.logger.Error().Err(err).Msg("Unable to get status from annotation")
 				return
 			}
 			err = job.updateRadixJobStatusWithMetrics(job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
@@ -120,7 +127,7 @@ func (job *Job) restoreStatus() {
 				currStatus.Steps = status.Steps
 			})
 			if err != nil {
-				log.Error("Unable to restore status", err)
+				job.logger.Error().Err(err).Msg("Unable to restore status")
 				return
 			}
 		}
@@ -216,17 +223,17 @@ func getTargetEnvironments(ra *v1.RadixApplication, job *Job) map[string]struct{
 }
 
 // sync the environments in the RadixJob with environments in the RA
-func (job *Job) syncTargetEnvironments(ra *v1.RadixApplication) {
+func (job *Job) syncTargetEnvironments(ra *v1.RadixApplication) error {
 	rj := job.radixJob
 
 	// TargetEnv has already been set
 	if len(rj.Status.TargetEnvs) > 0 {
-		return
+		return nil
 	}
 	targetEnvs := job.getTargetEnv(ra, rj)
 
 	// Update RJ with accurate env data
-	err := job.updateRadixJobStatus(rj, func(currStatus *v1.RadixJobStatus) {
+	return job.updateRadixJobStatus(rj, func(currStatus *v1.RadixJobStatus) {
 		if rj.Spec.PipeLineType == v1.Deploy {
 			currStatus.TargetEnvs = append(currStatus.TargetEnvs, rj.Spec.Deploy.ToEnvironment)
 		} else if rj.Spec.PipeLineType == v1.Promote {
@@ -235,9 +242,6 @@ func (job *Job) syncTargetEnvironments(ra *v1.RadixApplication) {
 			currStatus.TargetEnvs = targetEnvs
 		}
 	})
-	if err != nil {
-		log.Errorf("failed to sync target environments: %v", err)
-	}
 }
 
 func (job *Job) getTargetEnv(ra *v1.RadixApplication, rj *v1.RadixJob) (targetEnvs []string) {
@@ -713,21 +717,21 @@ func (job *Job) garbageCollectConfigMaps() {
 	namespace := job.radixJob.GetNamespace()
 	radixJobConfigMaps, err := job.kubeutil.ListConfigMapsWithSelector(namespace, getRadixJobNameExistsSelector().String())
 	if err != nil {
-		log.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s. Error: %v", namespace, err)
+		job.logger.Warn().Err(err).Msgf("Failed to get ConfigMaps while garbage collecting config-maps in %s", namespace)
 		return
 	}
 	radixJobNameSet, err := job.getRadixJobNameSet()
 	if err != nil {
-		log.Error(err)
+		job.logger.Warn().Err(err).Msg("Failed to get RadixJob name set")
 		return
 	}
 	for _, configMap := range radixJobConfigMaps {
 		jobName := configMap.GetLabels()[kube.RadixJobNameLabel]
 		if _, radixJobExists := radixJobNameSet[jobName]; !radixJobExists {
+			job.logger.Debug().Msgf("Delete ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 			err := job.kubeutil.DeleteConfigMap(configMap.GetNamespace(), configMap.GetName())
-			log.Debugf("Deleted the ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 			if err != nil {
-				log.Errorf("failed to delete ConfigMap %s while garbage collecting config-maps in %s. Error: %v", configMap.GetName(), namespace, err)
+				job.logger.Warn().Err(err).Msgf("failed to delete ConfigMap %s while garbage collecting config-maps in %s", configMap.GetName(), namespace)
 			}
 		}
 	}
@@ -736,7 +740,7 @@ func (job *Job) garbageCollectConfigMaps() {
 func (job *Job) getRadixJobNameSet() (map[string]bool, error) {
 	radixJobs, err := job.getAllRadixJobs()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get RadixJob while garbage collecting config-maps in %s. Error: %w", job.radixJob.GetNamespace(), err)
+		return nil, fmt.Errorf("failed to list RadixJobs: %w", err)
 	}
 	radixJobNameSet := make(map[string]bool)
 	for _, radixJob := range radixJobs {

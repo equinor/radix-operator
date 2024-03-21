@@ -37,7 +37,7 @@ func (env *Environment) updateRadixEnvironmentStatus(re *radixv1.RadixEnvironmen
 				return err
 			}
 			env.config = currentEnv
-			env.logger.Debugf("updated status of RadixEnvironment (revision %s)", updated.GetResourceVersion())
+			env.logger.Debug().Msgf("updated status of RadixEnvironment (revision %s)", updated.GetResourceVersion())
 			return nil
 		}
 		return err

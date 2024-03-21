@@ -2,13 +2,12 @@ package deployment
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -43,16 +42,16 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCo
 	pdb := utils.GetPDBConfig(componentName, namespace)
 	pdbName := pdb.Name
 
-	log.Debugf("creating PodDisruptionBudget object %s in namespace %s", componentName, namespace)
+	deploy.logger.Debug().Msgf("creating PodDisruptionBudget object %s in namespace %s", componentName, namespace)
 	_, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Create(context.TODO(), pdb, metav1.CreateOptions{})
 
 	if k8serrors.IsAlreadyExists(err) {
-		log.Infof("PodDisruptionBudget object %s already exists in namespace %s, updating the object now", componentName, namespace)
+		deploy.logger.Info().Msgf("PodDisruptionBudget object %s already exists in namespace %s, updating the object now", componentName, namespace)
 		err := deploy.kubeutil.UpdatePodDisruptionBudget(namespace, pdb)
 		if err != nil {
 			return err
 		}
-		log.Debugf("patched PDB: %s in namespace %s", pdbName, namespace)
+		deploy.logger.Debug().Msgf("patched PDB: %s in namespace %s", pdbName, namespace)
 	} else {
 		return err
 	}
@@ -81,7 +80,7 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComp
 		}
 	}
 
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }
 
 func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() error {
@@ -105,7 +104,7 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() err
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
-			log.Debugf("PodDisruptionBudget object %s already exists in namespace %s, deleting the object now", componentName, namespace)
+			deploy.logger.Debug().Msgf("PodDisruptionBudget object %s already exists in namespace %s, deleting the object now", componentName, namespace)
 
 		}
 		if err != nil {
@@ -113,5 +112,5 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() err
 		}
 
 	}
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }

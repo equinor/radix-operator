@@ -13,10 +13,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 // Syncer of  RadixDNSAliases
@@ -35,6 +37,7 @@ type syncer struct {
 	ingressConfiguration       ingress.IngressConfiguration
 	oauth2DefaultConfig        defaults.OAuth2Config
 	ingressAnnotationProviders []ingress.AnnotationProvider
+	logger                     zerolog.Logger
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
@@ -48,13 +51,14 @@ func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient
 		oauth2DefaultConfig:        oauth2Config,
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		radixDNSAlias:              radixDNSAlias,
+		logger:                     log.Logger.With().Str("resource_kind", radixv1.KindRadixDNSAlias).Str("resource_name", cache.MetaObjectToName(&radixDNSAlias.ObjectMeta).String()).Logger(),
 	}
 }
 
 // OnSync is called by the handler when changes are applied and must be
 // reconciled with current state.
 func (s *syncer) OnSync() error {
-	log.Debugf("OnSync RadixDNSAlias %s, application %s, environment %s, component %s", s.radixDNSAlias.GetName(), s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment, s.radixDNSAlias.Spec.Component)
+	s.logger.Debug().Msgf("OnSync RadixDNSAlias %s, application %s, environment %s, component %s", s.radixDNSAlias.GetName(), s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment, s.radixDNSAlias.Spec.Component)
 	if err := s.restoreStatus(); err != nil {
 		return fmt.Errorf("failed to update status on DNS alias %s: %v", s.radixDNSAlias.GetName(), err)
 	}
@@ -66,7 +70,7 @@ func (s *syncer) OnSync() error {
 }
 
 func (s *syncer) syncAlias() error {
-	log.Debugf("syncAlias RadixDNSAlias %s", s.radixDNSAlias.GetName())
+	s.logger.Debug().Msgf("syncAlias RadixDNSAlias %s", s.radixDNSAlias.GetName())
 	if err := s.syncIngresses(); err != nil {
 		return err
 	}
@@ -95,7 +99,7 @@ func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, 
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 
-	log.Debugf("get active deployment for the namespace %s", namespace)
+	s.logger.Debug().Msgf("get active deployment for the namespace %s", namespace)
 	radixDeployment, err := s.kubeUtil.GetActiveDeployment(namespace)
 	if err != nil {
 		return nil, err
@@ -103,7 +107,7 @@ func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, 
 	if radixDeployment == nil {
 		return nil, nil
 	}
-	log.Debugf("active deployment for the namespace %s is %s", namespace, radixDeployment.GetName())
+	s.logger.Debug().Msgf("active deployment for the namespace %s is %s", namespace, radixDeployment.GetName())
 
 	deployComponent := radixDeployment.GetCommonComponentByName(aliasSpec.Component)
 	if commonUtils.IsNil(deployComponent) {
@@ -113,12 +117,12 @@ func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, 
 }
 
 func (s *syncer) handleDeletedRadixDNSAlias() error {
-	log.Debugf("handle deleted RadixDNSAlias %s in the application %s", s.radixDNSAlias.Name, s.radixDNSAlias.Spec.AppName)
+	s.logger.Debug().Msgf("handle deleted RadixDNSAlias %s in the application %s", s.radixDNSAlias.Name, s.radixDNSAlias.Spec.AppName)
 	finalizerIndex := slice.FindIndex(s.radixDNSAlias.ObjectMeta.Finalizers, func(val string) bool {
 		return val == kube.RadixDNSAliasFinalizer
 	})
 	if finalizerIndex < 0 {
-		log.Infof("missing finalizer %s in the RadixDNSAlias %s. Exist finalizers: %d. Skip dependency handling",
+		s.logger.Info().Msgf("missing finalizer %s in the RadixDNSAlias %s. Exist finalizers: %d. Skip dependency handling",
 			kube.RadixDNSAliasFinalizer, s.radixDNSAlias.Name, len(s.radixDNSAlias.ObjectMeta.Finalizers))
 		return nil
 	}
@@ -133,7 +137,7 @@ func (s *syncer) handleDeletedRadixDNSAlias() error {
 
 	updatingAlias := s.radixDNSAlias.DeepCopy()
 	updatingAlias.ObjectMeta.Finalizers = append(s.radixDNSAlias.ObjectMeta.Finalizers[:finalizerIndex], s.radixDNSAlias.ObjectMeta.Finalizers[finalizerIndex+1:]...)
-	log.Debugf("removed finalizer %s from the RadixDNSAlias %s for the application %s. Left finalizers: %d",
+	s.logger.Debug().Msgf("removed finalizer %s from the RadixDNSAlias %s for the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingAlias.Name, updatingAlias.Spec.AppName, len(updatingAlias.ObjectMeta.Finalizers))
 
 	return s.kubeUtil.UpdateRadixDNSAlias(updatingAlias)

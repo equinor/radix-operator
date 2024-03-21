@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/equinor/radix-common/utils/slice"
-	log "github.com/sirupsen/logrus"
-	"k8s.io/api/policy/v1"
+	"github.com/rs/zerolog/log"
+	v1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -67,10 +68,12 @@ func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v1.PodDis
 		// Under normal circumstances, PDBs are only created or deleted entirely, never updated.
 		_, err := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Patch(context.TODO(), pdbName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to patch PDB object: %v", err)
+			return fmt.Errorf("failed to patch PDB object: %w", err)
 		}
-	} else {
-		log.Debugf("no need to patch PDB: %s ", pdbName)
+
+		return nil
 	}
+
+	log.Debug().Msgf("No need to patch PDB: %s ", pdbName)
 	return nil
 }

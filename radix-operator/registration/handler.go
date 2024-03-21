@@ -1,16 +1,14 @@
 package registration
 
 import (
-	"fmt"
-
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/rs/zerolog/log"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -56,7 +54,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix registration %s in work queue no longer exists", name))
+			log.Info().Msgf("RadixRegistration %s in work queue no longer exists", name)
 			return nil
 		}
 
@@ -64,10 +62,11 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncRegistration := registration.DeepCopy()
-	logger.Debugf("Sync registration %s", syncRegistration.Name)
+	log.Debug().Msgf("Sync registration %s", syncRegistration.Name)
 	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
+		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue.
 		return err
 	}

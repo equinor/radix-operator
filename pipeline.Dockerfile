@@ -1,9 +1,8 @@
-FROM golang:1.21-alpine3.18 as base
+FROM golang:1.21-alpine3.19 as base
 
 RUN apk update && \
     apk add ca-certificates curl git  && \
-    apk add --no-cache gcc musl-dev && \
-    go install honnef.co/go/tools/cmd/staticcheck@2023.1.3
+    apk add --no-cache gcc musl-dev
 
 WORKDIR /go/src/github.com/equinor/radix-operator/
 

@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -128,7 +127,7 @@ func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *
 			return fmt.Errorf("failed to create ServiceMonitor object: %v", err)
 		}
 
-		log.Debugf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
+		deploy.logger.Debug().Msgf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to get ServiceMonitor object: %v", err)

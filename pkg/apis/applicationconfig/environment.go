@@ -2,13 +2,12 @@ package applicationconfig
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 	"fmt"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
@@ -20,7 +19,7 @@ func (app *ApplicationConfig) syncEnvironments() error {
 			errs = append(errs, err)
 		}
 	}
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }
 
 func (app *ApplicationConfig) buildRadixEnvironment(env radixv1.Environment) *radixv1.RadixEnvironment {
@@ -35,37 +34,36 @@ func (app *ApplicationConfig) buildRadixEnvironment(env radixv1.Environment) *ra
 
 // syncEnvironment creates an environment or applies changes if it exists
 func (app *ApplicationConfig) syncEnvironment(radixEnvironment *radixv1.RadixEnvironment) error {
-	logger := log.WithFields(log.Fields{"environment": radixEnvironment.GetName()})
-	logger.Debugf("Apply RadixEnvironment")
+	app.logger.Debug().Msgf("Apply RadixEnvironment %s", radixEnvironment.GetName())
 	if _, err := app.getRadixEnvironment(radixEnvironment.GetName()); err != nil {
-		if errors.IsNotFound(err) {
-			return app.createRadixEnvironment(radixEnvironment, logger)
+		if kubeerrors.IsNotFound(err) {
+			return app.createRadixEnvironment(radixEnvironment)
 		}
 		return fmt.Errorf("failed to get RadixEnvironment: %v", err)
 	}
-	return app.updateRadixEnvironment(radixEnvironment, logger)
+	return app.updateRadixEnvironment(radixEnvironment)
 }
 
-func (app *ApplicationConfig) createRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment, logger *log.Entry) error {
+func (app *ApplicationConfig) createRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment) error {
 	created, err := app.radixclient.RadixV1().RadixEnvironments().Create(context.Background(), radixEnvironment, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create RadixEnvironment: %v", err)
+		return fmt.Errorf("failed to create RadixEnvironment: %w", err)
 	}
-	logger.Debugf("Created RadixEnvironment (revision %s)", created.GetResourceVersion())
+	app.logger.Debug().Msgf("Created RadixEnvironment %s (revision %s)", radixEnvironment.GetName(), created.GetResourceVersion())
 	return nil
 }
 
 // updateRadixEnvironment updates a RadixEnvironment
-func (app *ApplicationConfig) updateRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment, logger *log.Entry) error {
+func (app *ApplicationConfig) updateRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		existingRE, err := app.getRadixEnvironment(radixEnvironment.GetName())
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if kubeerrors.IsNotFound(err) {
 				return nil
 			}
 			return err
 		}
-		logger.Debugf("re-taken RadixEnvironment (revision %s)", existingRE.GetResourceVersion())
+		app.logger.Debug().Msgf("re-taken RadixEnvironment %s (revision %s)", radixEnvironment.GetName(), existingRE.GetResourceVersion())
 
 		newRE := existingRE.DeepCopy()
 		newRE.Spec = radixEnvironment.Spec
@@ -74,7 +72,7 @@ func (app *ApplicationConfig) updateRadixEnvironment(radixEnvironment *radixv1.R
 		if err != nil {
 			return err
 		}
-		logger.Debugf("Updated RadixEnvironment (revision %s)", updated.GetResourceVersion())
+		app.logger.Debug().Msgf("Updated RadixEnvironment %s (revision %s)", radixEnvironment.GetName(), updated.GetResourceVersion())
 		return nil
 	})
 }

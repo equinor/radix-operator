@@ -138,7 +138,9 @@
         "RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www",
         "RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER": "digicert-http01",
         "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION": "2160h",
-        "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE": "720h"
+        "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE": "720h",
+        "LOG_LEVEL": "info",
+        "LOG_PRETTY": "true"
       },
       "args": ["--useOutClusterClient=false"]
     },

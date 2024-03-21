@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+
 	"golang.org/x/crypto/ssh"
 )
 
@@ -29,9 +30,6 @@ func GenerateDeployKey() (*DeployKey, error) {
 	}
 
 	privateKeyBytes := encodePrivateKeyToPEM(privateKey)
-	if err != nil {
-		return nil, err
-	}
 
 	return &DeployKey{
 		string(privateKeyBytes),

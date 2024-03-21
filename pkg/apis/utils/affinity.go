@@ -3,11 +3,11 @@ package utils
 import (
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -82,7 +82,8 @@ func getNodeAffinityForGPUNode(radixNode *v1.RadixNode) *corev1.NodeAffinity {
 	}
 	nodeSelectorTerm := &corev1.NodeSelectorTerm{}
 	if err := addNodeSelectorRequirementForGpuCount(radixNode.GpuCount, nodeSelectorTerm); err != nil {
-		log.Error(err)
+		log.Error().Err(err).Msg("Failed to add node selector requirement for GPU count")
+		// TODO: should the error be returned to caller
 		return nil
 	}
 	addNodeSelectorRequirementForGpu(radixNode.Gpu, nodeSelectorTerm)
