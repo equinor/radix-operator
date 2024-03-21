@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8errs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +20,7 @@ const waitTimeout = 15 * time.Second
 
 // ApplyNamespace Creates a new namespace, if not exists already
 func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
-	log.Debugf("Create namespace: %s", name)
+	log.Debug().Msgf("Create namespace: %s", name)
 
 	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -32,7 +32,7 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 
 	oldNamespace, err := kubeutil.getNamespace(name)
 	if err != nil && k8errs.IsNotFound(err) {
-		log.Debugf("namespace object %s doesn't exists, create the object", name)
+		log.Debug().Msgf("namespace object %s doesn't exists, create the object", name)
 		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 		return err
 	}
@@ -62,11 +62,11 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 			return fmt.Errorf("failed to patch namespace object: %v", err)
 		}
 
-		log.Debugf("Patched namespace: %s ", patchedNamespace.Name)
-	} else {
-		log.Debugf("No need to patch namespace: %s ", name)
+		log.Debug().Msgf("Patched namespace: %s ", patchedNamespace.Name)
+		return nil
 	}
 
+	log.Debug().Msgf("No need to patch namespace: %s ", name)
 	return nil
 }
 
@@ -108,13 +108,13 @@ func NewNamespaceWatcherImpl(client kubernetes.Interface) NamespaceWatcherImpl {
 
 // WaitFor Waits for namespace to appear
 func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
-	log.Infof("Waiting for namespace %s", namespace)
+	log.Info().Msgf("Waiting for namespace %s", namespace)
 	err := waitForNamespace(watcher.client, namespace)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("namespace %s exists and is active", namespace)
+	log.Info().Msgf("namespace %s exists and is active", namespace)
 	return nil
 
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
@@ -12,7 +13,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +27,7 @@ import (
 
 func main() {
 	pipelineArgs := &model.PipelineArguments{DNSConfig: &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)}}
+	initLogger(pipelineArgs.LogLevel)
 
 	cmd := &cobra.Command{
 		Use: "run",
@@ -32,7 +35,7 @@ func main() {
 
 			runner, err := prepareRunner(pipelineArgs)
 			if err != nil {
-				log.Error(err.Error())
+				log.Error().Err(err).Msg("Failed to prepare runner")
 				os.Exit(1)
 			}
 
@@ -44,7 +47,7 @@ func main() {
 
 			err = runner.CreateResultConfigMap()
 			if err != nil {
-				log.Error(err.Error())
+				log.Error().Err(err).Msg("Failed to create result ConfigMap")
 				os.Exit(3)
 			}
 
@@ -54,11 +57,9 @@ func main() {
 
 	err := setPipelineArgsFromArguments(cmd, pipelineArgs, os.Args[1:])
 	if err != nil {
-		log.Error(err)
+		log.Error().Err(err).Msg("Failed to parse args")
 		os.Exit(1)
 	}
-
-	setLogLevel(pipelineArgs.LogLevel)
 
 	cmd.Run(nil, nil)
 }
@@ -103,7 +104,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.RadixZone, defaults.RadixZoneEnvironmentVariable, "", "Radix zone")
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: /workspace/radixconfig.yaml")
 	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
-	cmd.Flags().StringVar(&pipelineArgs.LogLevel, defaults.LogLevel, "INFO", "Log level: ERROR, INFO (default), DEBUG")
+	cmd.Flags().StringVar(&pipelineArgs.LogLevel, defaults.LogLevel, "INFO", "Log level: ERROR, WARN, INFO (default), DEBUG")
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsMemory, defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, "2000M", "Image builder resource limit memory")
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsCPU, defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, "200m", "Image builder resource requests CPU")
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, "500M", "Image builder resource requests memory")
@@ -133,21 +134,25 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	pipelineArgs.UseCache, _ = strconv.ParseBool(useCache)
 	pipelineArgs.Debug, _ = strconv.ParseBool(debug)
 	if pipelineArgs.ImageTagNames != nil && len(pipelineArgs.ImageTagNames) > 0 {
-		log.Infoln("Image tag names provided:")
+		log.Info().Msg("Image tag names provided:")
 		for componentName, imageTagName := range pipelineArgs.ImageTagNames {
-			log.Infof("- %s:%s", componentName, imageTagName)
+			log.Info().Msgf("- %s:%s", componentName, imageTagName)
 		}
 	}
 	return nil
 }
 
-func setLogLevel(logLevel string) {
-	switch logLevel {
-	case "DEBUG":
-		log.SetLevel(log.DebugLevel)
-	case "ERROR":
-		log.SetLevel(log.ErrorLevel)
-	default:
-		log.SetLevel(log.InfoLevel)
+func initLogger(logLevelStr string) {
+	if len(logLevelStr) == 0 {
+		logLevelStr = zerolog.LevelInfoValue
 	}
+
+	logLevel, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		logLevel = zerolog.InfoLevel
+	}
+
+	zerolog.SetGlobalLevel(logLevel)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+	zerolog.DefaultContextLogger = &log.Logger
 }

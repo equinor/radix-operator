@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -31,7 +32,8 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/registration"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
@@ -45,29 +47,27 @@ const (
 	ingressConfigurationMap = "radix-operator-ingress-configmap"
 )
 
-var logger *log.Entry
-
 func main() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
 	cfg := config.NewConfig()
-	log.SetLevel(cfg.LogLevel)
+	initLogger(cfg)
 
 	registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, err := getInitParams()
 	if err != nil {
 		panic(err)
 	}
 	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(kubeClientRateLimitQPS, kubeClientRateLimitBurst))
-	client, radixClient, prometheusOperatorClient, secretProviderClient, certClient := utils.GetKubernetesClient(rateLimitConfig)
+	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
+	client, radixClient, prometheusOperatorClient, secretProviderClient, certClient := utils.GetKubernetesClient(rateLimitConfig, warningHandler)
 
 	activeClusterNameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
-	logger.Printf("Active cluster name: %v", activeClusterNameEnvVar)
+	log.Info().Msgf("Active cluster name: %v", activeClusterNameEnvVar)
 
 	stop := make(chan struct{})
 	defer close(stop)
 
 	go startMetricsServer(stop)
 
-	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
+	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), log.Logger)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := radixinformers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -103,6 +103,29 @@ func main() {
 	<-sigTerm
 }
 
+func initLogger(cfg *apiconfig.Config) {
+	logLevelStr := cfg.LogLevel
+	if len(logLevelStr) == 0 {
+		logLevelStr = zerolog.LevelInfoValue
+	}
+
+	logLevel, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		logLevel = zerolog.InfoLevel
+		log.Warn().Msgf("Invalid log level '%s', fallback to '%s'", logLevelStr, logLevel.String())
+	}
+
+	var logWriter io.Writer = os.Stderr
+	if cfg.LogPretty {
+		logWriter = &zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+	}
+
+	logger := zerolog.New(logWriter).Level(logLevel).With().Timestamp().Logger()
+
+	log.Logger = logger
+	zerolog.DefaultContextLogger = &logger
+}
+
 func getOAuthDefaultConfig() defaults.OAuth2Config {
 	return defaults.NewOAuth2Config(
 		defaults.WithOAuth2Defaults(),
@@ -113,7 +136,7 @@ func getOAuthDefaultConfig() defaults.OAuth2Config {
 func startController(controller *common.Controller, threadiness int, stop <-chan struct{}) {
 	go func() {
 		if err := controller.Run(threadiness, stop); err != nil {
-			logger.Fatalf("Error running controller: %s", err.Error())
+			log.Fatal().Err(err).Msg("Error running controller")
 		}
 	}()
 }
@@ -311,14 +334,14 @@ func startMetricsServer(stop <-chan struct{}) {
 	http.Handle("/healthz", http.HandlerFunc(Healthz))
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
-			log.Printf("MetricServer: ListenAndServe() error: %s", err)
+			log.Fatal().Err(err).Msg("Failed to start metric server")
 		}
 	}()
 	<-stop
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Errorf("shutdown metrics server failed: %v", err)
+		log.Error().Err(err).Msg("Shutdown metrics server failed")
 	}
 }
 
@@ -337,7 +360,7 @@ func Healthz(writer http.ResponseWriter, _ *http.Request) {
 
 	if err != nil {
 		http.Error(writer, "Error while retrieving HealthStatus", http.StatusInternalServerError)
-		logger.Errorf("Could not serialize HealthStatus: %v", err)
+		log.Error().Err(err).Msg("Could not serialize HealthStatus")
 		return
 	}
 

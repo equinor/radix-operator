@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"errors"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -10,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) setDefaultNetworkPolicies() []error {
+func (deploy *Deployment) setDefaultNetworkPolicies() error {
 	appName := deploy.registration.GetName()
 	env := deploy.radixDeployment.Spec.Environment
 
@@ -32,7 +34,7 @@ func (deploy *Deployment) setDefaultNetworkPolicies() []error {
 		}
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
 // ref https://github.com/ahmetb/kubernetes-network-policy-recipes/blob/master/04-deny-traffic-from-other-namespaces.md

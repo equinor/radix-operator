@@ -10,7 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -102,14 +102,13 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 
 func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
-		namespace             = radixDeployment.Namespace
-		currentEnvironment    = radixDeployment.Spec.Environment
-		radixDeploymentLabels = radixDeployment.Labels
+		namespace          = radixDeployment.Namespace
+		currentEnvironment = radixDeployment.Spec.Environment
 	)
 
 	var envVars = getEnvVars(envVarConfigMap, deployComponent.GetEnvironmentVariables())
 
-	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent, radixDeploymentLabels)
+	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent)
 
 	if !isDeployComponentJobSchedulerDeployment(deployComponent) { // JobScheduler does not need env-vars for secrets and secret-refs
 		envVars = append(envVars, utils.GetEnvVarsFromSecrets(deployComponent.GetName(), deployComponent.GetSecrets())...)
@@ -182,11 +181,12 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 	}
 }
 
-func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent, radixDeploymentLabels map[string]string) []corev1.EnvVar {
+func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 	dnsZone, err := envVarsSource.getDnsZone()
 	if err != nil {
-		log.Error(err)
+		// TODO: Should the error be returned to caller
+		log.Error().Err(err).Msg("Failed to get DNS zone")
 		return envVarSet.Items()
 	}
 
@@ -194,18 +194,21 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 	if err == nil {
 		envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, clusterType)
 	} else {
-		log.Debug(err)
+		// TODO: Should the error be returned to caller
+		log.Debug().Err(err).Msg("Failed to get cluster type")
 	}
 	containerRegistry, err := envVarsSource.getContainerRegistry()
 	if err != nil {
-		log.Error(err)
+		// TODO: Should the error be returned to caller
+		log.Error().Err(err).Msg("Failed to get container registry")
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, containerRegistry)
 	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, dnsZone)
 	clusterName, err := envVarsSource.getClusterName()
 	if err != nil {
-		log.Error(err)
+		// TODO: Should the error be returned to caller
+		log.Error().Err(err).Msg("Failed to get cluster name")
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.ClusternameEnvironmentVariable, clusterName)
@@ -229,13 +232,12 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 		portNumbers, portNames := getPortNumbersAndNamesString(ports)
 		envVarSet.Add(defaults.RadixPortsEnvironmentVariable, portNumbers)
 		envVarSet.Add(defaults.RadixPortNamesEnvironmentVariable, portNames)
-	} else {
-		log.Debugf("No ports defined for the component")
 	}
 
 	activeClusterEgressIps, err := envVarsSource.getClusterActiveEgressIps()
 	if err != nil {
-		log.Error(err)
+		// TODO: Should the error be returned to caller
+		log.Error().Err(err).Msg("Failed to get active egress IP addresses")
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, activeClusterEgressIps)
@@ -283,7 +285,7 @@ func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(deployComp
 
 func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) {
 	if radixConfigEnvVars == nil {
-		log.Debugf("No environment variables are set for this RadixDeployment in radixconfig")
+		log.Debug().Msg("No environment variables are set for this RadixDeployment in radixconfig")
 		return
 	}
 
@@ -315,7 +317,7 @@ func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigM
 		// save radixconfig env-var value to metadata
 		envVarMetadata.RadixConfigValue = radixConfigEnvVarValue
 		envVarMetadataMap[envVarName] = envVarMetadata
-		log.Debugf("RadixConfig environment variable %s has been set or changed in Radix console", envVarName)
+		log.Debug().Msgf("RadixConfig environment variable %s has been set or changed in Radix console", envVarName)
 	}
 	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
 	removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap, envVarMetadataMap)

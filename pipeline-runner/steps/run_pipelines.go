@@ -18,7 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,14 +66,14 @@ func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (step *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.PrepareBuildContext != nil && len(pipelineInfo.PrepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
-		log.Infof("There is no configured sub-pipelines. Skip the step.")
+		log.Info().Msg("There is no configured sub-pipelines. Skip the step.")
 		return nil
 	}
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 	appName := step.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	log.Infof("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
+	log.Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
 	job := step.getRunTektonPipelinesJobConfig(pipelineInfo)
 
@@ -87,7 +87,7 @@ func (step *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo
 		job.OwnerReferences = ownerReference
 	}
 
-	log.Infof("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
+	log.Info().Msgf("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
 	job, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 	if err != nil {
 		return err

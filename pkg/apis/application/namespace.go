@@ -1,6 +1,8 @@
 package application
 
 import (
+	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"k8s.io/apimachinery/pkg/labels"
@@ -22,10 +24,9 @@ func (app *Application) createAppNamespace() error {
 	err := app.kubeutil.ApplyNamespace(name, nsLabels, ownerRef)
 
 	if err != nil {
-		logger.Errorf("Failed to create namespace %s: %v", name, err)
-		return err
+		return fmt.Errorf("failed to create namespace %s: %w", name, err)
 	}
 
-	logger.Infof("Created namespace %s", name)
+	app.logger.Info().Msgf("Created namespace %s", name)
 	return nil
 }

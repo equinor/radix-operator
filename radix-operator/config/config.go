@@ -11,18 +11,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
-
-func getLogLevel() log.Level {
-	logLevel := viper.GetString(defaults.LogLevel)
-	level, err := log.ParseLevel(logLevel)
-	if err != nil {
-		return log.InfoLevel
-	}
-	return level
-}
 
 // Gets pipeline job history limit per each list, grouped by pipeline branch and job status
 func getPipelineJobsHistoryLimit() int {
@@ -58,7 +48,8 @@ func getIntFromEnvVar(envVarName string, defaultValue int) int {
 func NewConfig() *apiconfig.Config {
 	viper.AutomaticEnv()
 	return &apiconfig.Config{
-		LogLevel: getLogLevel(),
+		LogLevel:  viper.GetString(defaults.LogLevel),
+		LogPretty: viper.GetBool("LOG_PRETTY"),
 		DNSConfig: &dnsalias.DNSConfig{
 			DNSZone:               getDNSZone(),
 			ReservedAppDNSAliases: getDNSAliasAppReserved(),

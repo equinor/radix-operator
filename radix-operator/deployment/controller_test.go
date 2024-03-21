@@ -74,6 +74,12 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		metav1.CreateOptions{})
 	require.NoError(t, err)
 
+	rd, err := tu.ApplyDeployment(
+		utils.ARadixDeployment().
+			WithAppName(anyAppName).
+			WithEnvironment(anyEnvironment))
+	require.NoError(t, err)
+
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
 
@@ -93,12 +99,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 	// Test
 
-	// Create deployment should sync
-	rd, err := tu.ApplyDeployment(
-		utils.ARadixDeployment().
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment))
-	require.NoError(t, err)
 	select {
 	case op, ok := <-synced:
 		assert.True(t, op)

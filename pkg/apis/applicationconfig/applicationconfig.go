@@ -13,10 +13,13 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 // ConfigBranchFallback The branch to use for radix config if ConfigBranch is not configured on the radix registration
@@ -30,6 +33,7 @@ type ApplicationConfig struct {
 	registration   *radixv1.RadixRegistration
 	config         *radixv1.RadixApplication
 	dnsAliasConfig *dnsalias.DNSConfig
+	logger         zerolog.Logger
 }
 
 // NewApplicationConfig Constructor
@@ -41,6 +45,7 @@ func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, 
 		registration:   registration,
 		config:         config,
 		dnsAliasConfig: dnsAliasConfig,
+		logger:         log.Logger.With().Str("resource_kind", radixv1.KindRadixApplication).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
 }
 
@@ -82,7 +87,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(context.TODO(), app.config.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.Debugf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
+			app.logger.Debug().Msgf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
 			if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 				return err
 			}
@@ -90,15 +95,15 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 			if err != nil {
 				return fmt.Errorf("failed to create radix application. %v", err)
 			}
-			log.Infof("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
+			app.logger.Info().Msgf("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
 			return nil
 		}
 		return fmt.Errorf("failed to get radix application. %v", err)
 	}
 
-	log.Debugf("RadixApplication %s exists in namespace %s", app.config.Name, appNamespace)
+	app.logger.Debug().Msgf("RadixApplication %s exists in namespace %s", app.config.Name, appNamespace)
 	if reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
-		log.Infof("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
+		app.logger.Info().Msgf("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
 		return nil
 	}
 
@@ -107,14 +112,14 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	}
 
 	// Update RA if different
-	log.Debugf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
+	app.logger.Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
 	// For an update, ResourceVersion of the new object must be the same with the old object
 	app.config.SetResourceVersion(existingRA.GetResourceVersion())
 	_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), app.config, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to update existing radix application. %v", err)
+		return fmt.Errorf("failed to update existing radix application: %w", err)
 	}
-	log.Infof("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
+	app.logger.Info().Msgf("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
 	return nil
 }
 
@@ -123,20 +128,23 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 // converge the two
 func (app *ApplicationConfig) OnSync() error {
 	if err := app.syncEnvironments(); err != nil {
-		log.Errorf("Failed to create namespaces for app environments %s. %v", app.config.Name, err)
-		return err
+		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}
 	if err := app.syncPrivateImageHubSecrets(); err != nil {
-		log.Errorf("Failed to create private image hub secrets. %v", err)
-		return err
+		return fmt.Errorf("failed to create private image hub secrets: %w", err)
 	}
 
 	if err := app.syncBuildSecrets(); err != nil {
-		log.Errorf("Failed to create build secrets. %v", err)
-		return err
+		return fmt.Errorf("failed to create build secrets: %w", err)
 	}
+
 	if err := app.syncDNSAliases(); err != nil {
 		return fmt.Errorf("failed to process DNS aliases: %w", err)
 	}
-	return app.syncSubPipelineServiceAccounts()
+
+	if err := app.syncSubPipelineServiceAccounts(); err != nil {
+		return fmt.Errorf("failed to sync pipeline service accounts: %w", err)
+	}
+
+	return nil
 }

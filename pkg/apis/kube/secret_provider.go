@@ -8,7 +8,7 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
@@ -51,7 +51,7 @@ func (kubeutil *Kube) GetSecretProviderClass(namespace string, className string)
 
 // CreateSecretProviderClass Creates secret provider class to namespace
 func (kubeutil *Kube) CreateSecretProviderClass(namespace string, secretProviderClass *secretsstorev1.SecretProviderClass) (savedSecret *secretsstorev1.SecretProviderClass, err error) {
-	log.Debugf("Create secret provider class %s in namespace %s", secretProviderClass.GetName(), namespace)
+	log.Debug().Msgf("Create secret provider class %s in namespace %s", secretProviderClass.GetName(), namespace)
 	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Create(context.TODO(), secretProviderClass, metav1.CreateOptions{})
 }
 

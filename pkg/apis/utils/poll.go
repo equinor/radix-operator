@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 )
@@ -31,7 +31,7 @@ func PollUntilRESTClientSuccessfulConnection[T interface{ RESTClient() rest.Inte
 
 		// Retry if error transient, e.g. TLS handshake timeout
 		if err := c.RESTClient().Get().Do(timeoutCtx).Error(); err != nil && isTransientConnectionError(err) {
-			log.Infof("transient error when connecting, retrying: %v", err)
+			log.Ctx(ctx).Info().Err(err).Msg("Transient error when connecting. Retrying")
 			return false, nil
 		}
 		client = c
