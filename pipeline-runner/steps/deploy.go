@@ -110,7 +110,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipeli
 		pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	if err != nil {
-		return fmt.Errorf("failed to create radix deployments objects for app %s. %w", appName, err)
+		return fmt.Errorf("failed to create Radix deployments for app %s. %w", appName, err)
 	}
 
 	namespace := utils.GetEnvironmentNamespace(cli.GetAppName(), envName)
@@ -121,13 +121,17 @@ func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipeli
 	radixDeploymentName := radixDeployment.GetName()
 	log.Info().Msgf("Apply radix deployment %s on environment %s", radixDeploymentName, envName)
 	if _, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.Background(), radixDeployment, metav1.CreateOptions{}); err != nil {
-		return fmt.Errorf("failed to apply radix deployment for app %s to environment %s. %w", appName, envName, err)
+		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
 	}
-	log.Info().Msgf("Waiting for radix deployment %s on environment %s gets active", radixDeploymentName, envName)
+
 	if err = cli.radixDeploymentWatcher.WaitForActive(namespace, radixDeploymentName); err != nil {
+		log.Error().Err(err).Msgf("Failed while waiting for the Radix deployment %s on environment %s gets active. Delete this Radix deployment.", radixDeploymentName, envName)
+		if err := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); err != nil {
+			// && !k8errs.IsNotFound(err) && !k8errs.IsForbidden(err) {
+			log.Error().Err(err).Msgf("Failed to delete the Radix deployment.")
+		}
 		return err
 	}
-	log.Info().Msgf("The radix deployment %s on environment %s is active", radixDeploymentName, envName)
 	return nil
 }
 

@@ -114,7 +114,7 @@ func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
 		return err
 	}
 
-	log.Info().Msgf("namespace %s exists and is active", namespace)
+	log.Info().Msgf("Namespace %s exists and is active", namespace)
 	return nil
 
 }

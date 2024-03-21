@@ -159,7 +159,7 @@ func NewRadixDeploymentWatcherImpl(radixClient radixclient.Interface, waitTimeou
 
 // WaitForActive Waits for the radix deployment gets active
 func (watcher RadixDeploymentWatcherImpl) WaitForActive(namespace, deploymentName string) error {
-	log.Info().Msgf("Waiting for Radix deployment %s in namespace %s gets active", deploymentName, namespace)
+	log.Info().Msgf("Waiting while Radix deployment %s in namespace %s gets active", deploymentName, namespace)
 	if err := watcher.waitFor(func(context.Context) (bool, error) {
 		rd, err := watcher.radixClient.RadixV1().RadixDeployments(namespace).Get(context.Background(), deploymentName, metav1.GetOptions{})
 		if err != nil {
@@ -173,7 +173,7 @@ func (watcher RadixDeploymentWatcherImpl) WaitForActive(namespace, deploymentNam
 		return err
 	}
 
-	log.Info().Msgf("Radix deployment %s in namespace %s exists and is active", deploymentName, namespace)
+	log.Info().Msgf("Radix deployment %s in namespace %s is active", deploymentName, namespace)
 	return nil
 
 }
