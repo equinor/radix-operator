@@ -430,6 +430,7 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString string,
 		AddArgf("--storage-driver=overlay").
 		AddArgf("--isolation=chroot").
 		AddArgf("--jobs 0").
+		AddArgf("--ulimit nofile=4096:4096").
 		AddArgf(secretArgsString).
 		AddArgf("--file %s%s", context, componentImage.Dockerfile).
 		AddArgf(`--build-arg RADIX_GIT_COMMIT_HASH="${RADIX_GIT_COMMIT_HASH}"`).
