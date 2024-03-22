@@ -4,18 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
-	k8errs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // ApplyDeployment Create or update deployment in provided namespace
@@ -136,47 +132,4 @@ func (kubeutil *Kube) GetDeployment(namespace, name string) (*appsv1.Deployment,
 	}
 
 	return deployment, nil
-}
-
-// RadixDeploymentWatcher Watcher to wait for namespace to be created
-type RadixDeploymentWatcher interface {
-	WaitForActive(namespace, deploymentName string) error
-}
-
-// RadixDeploymentWatcherImpl Implementation of watcher
-type RadixDeploymentWatcherImpl struct {
-	radixClient radixclient.Interface
-	waitTimeout time.Duration
-}
-
-// NewRadixDeploymentWatcherImpl Constructor
-func NewRadixDeploymentWatcherImpl(radixClient radixclient.Interface, waitTimeout time.Duration) RadixDeploymentWatcherImpl {
-	return RadixDeploymentWatcherImpl{
-		radixClient,
-		waitTimeout,
-	}
-}
-
-// WaitForActive Waits for the radix deployment gets active
-func (watcher RadixDeploymentWatcherImpl) WaitForActive(namespace, deploymentName string) error {
-	log.Info().Msgf("Waiting for Radix deployment %s to activate", deploymentName)
-	if err := watcher.waitFor(func(context.Context) (bool, error) {
-		rd, err := watcher.radixClient.RadixV1().RadixDeployments(namespace).Get(context.Background(), deploymentName, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		return rd != nil && !rd.Status.ActiveFrom.IsZero(), nil
-	}); err != nil {
-		return err
-	}
-
-	log.Info().Msgf("Radix deployment %s in namespace %s is active", deploymentName, namespace)
-	return nil
-
-}
-
-func (watcher RadixDeploymentWatcherImpl) waitFor(condition wait.ConditionWithContextFunc) error {
-	timoutContext, cancel := context.WithTimeout(context.Background(), watcher.waitTimeout)
-	defer cancel()
-	return wait.PollUntilContextCancel(timoutContext, time.Second, true, condition)
 }

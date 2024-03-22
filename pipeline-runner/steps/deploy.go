@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	pipelineRunnerInternal "github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -19,12 +20,12 @@ import (
 type DeployStepImplementation struct {
 	stepType               pipeline.StepType
 	namespaceWatcher       kube.NamespaceWatcher
-	radixDeploymentWatcher kube.RadixDeploymentWatcher
+	radixDeploymentWatcher pipelineRunnerInternal.RadixDeploymentWatcher
 	model.DefaultStepImplementation
 }
 
 // NewDeployStep Constructor
-func NewDeployStep(namespaceWatcher kube.NamespaceWatcher, radixDeploymentWatcher kube.RadixDeploymentWatcher) model.Step {
+func NewDeployStep(namespaceWatcher kube.NamespaceWatcher, radixDeploymentWatcher pipelineRunnerInternal.RadixDeploymentWatcher) model.Step {
 	return &DeployStepImplementation{
 		stepType:               pipeline.DeployStep,
 		namespaceWatcher:       namespaceWatcher,
@@ -127,7 +128,6 @@ func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipeli
 	if err := cli.radixDeploymentWatcher.WaitForActive(namespace, radixDeploymentName); err != nil {
 		log.Error().Err(err).Msgf("Failed to activate Radix deployment %s in environment %s. Deleting deployment", radixDeploymentName, envName)
 		if err := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); err != nil {
-			// && !k8errs.IsNotFound(err) && !k8errs.IsForbidden(err) {
 			log.Error().Err(err).Msgf("Failed to delete Radix deployment")
 		}
 		return err
