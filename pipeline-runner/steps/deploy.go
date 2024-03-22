@@ -119,7 +119,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipeli
 	}
 
 	radixDeploymentName := radixDeployment.GetName()
-	log.Info().Msgf("Apply radix deployment %s on environment %s", radixDeploymentName, envName)
+	log.Info().Msgf("Apply Radix deployment %s to environment %s", radixDeploymentName, envName)
 	if _, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.Background(), radixDeployment, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
 	}
