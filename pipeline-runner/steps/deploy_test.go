@@ -368,7 +368,7 @@ func TestDeploy_WaitActiveDeployment(t *testing.T) {
 	}
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(tt *testing.T) {
-			kubeclient, kubeUtil, radixClient, _ := setupTest(t)
+			kubeclient, kubeUtil, radixClient, _ := setupTest(tt)
 			ctrl := gomock.NewController(tt)
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(ctrl)
 			cli := steps.NewDeployStep(FakeNamespaceWatcher{}, radixDeploymentWatcher)
