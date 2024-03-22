@@ -2,7 +2,9 @@ package pipelines
 
 import (
 	"context"
+	"time"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
@@ -109,7 +111,7 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep(nil))
 	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep(nil))
-	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(cli.kubeclient)))
+	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(cli.kubeclient), watcher.NewRadixDeploymentWatcher(cli.radixclient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {
