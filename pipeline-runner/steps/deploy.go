@@ -110,7 +110,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipeli
 		pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	if err != nil {
-		return fmt.Errorf("failed to create Radix deployments for app %s. %w", appName, err)
+		return fmt.Errorf("failed to create Radix deployment in environment %s. %w", envName, err)
 	}
 
 	namespace := utils.GetEnvironmentNamespace(cli.GetAppName(), envName)
