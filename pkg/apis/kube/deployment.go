@@ -163,9 +163,6 @@ func (watcher RadixDeploymentWatcherImpl) WaitForActive(namespace, deploymentNam
 	if err := watcher.waitFor(func(context.Context) (bool, error) {
 		rd, err := watcher.radixClient.RadixV1().RadixDeployments(namespace).Get(context.Background(), deploymentName, metav1.GetOptions{})
 		if err != nil {
-			if k8errs.IsNotFound(err) || k8errs.IsForbidden(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		return rd != nil && !rd.Status.ActiveFrom.IsZero(), nil
