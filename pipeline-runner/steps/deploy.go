@@ -124,7 +124,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipeli
 		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
 	}
 
-	if err = cli.radixDeploymentWatcher.WaitForActive(namespace, radixDeploymentName); err != nil {
+	if err := cli.radixDeploymentWatcher.WaitForActive(namespace, radixDeploymentName); err != nil {
 		log.Error().Err(err).Msgf("Failed while waiting for the Radix deployment %s on environment %s gets active. Delete this Radix deployment.", radixDeploymentName, envName)
 		if err := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); err != nil {
 			// && !k8errs.IsNotFound(err) && !k8errs.IsForbidden(err) {
