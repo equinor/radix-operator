@@ -15,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-	log "github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,12 +47,12 @@ func (s *syncer) syncIngress(namespace string, radixDeployComponent radixv1.Radi
 	existingIngress, err := s.kubeUtil.GetIngress(namespace, ingressName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.Debugf("not found Ingress %s in the namespace %s. Create new.", ingressName, namespace)
+			s.logger.Debug().Msgf("not found Ingress %s in the namespace %s. Create new.", ingressName, namespace)
 			return s.createIngress(s.radixDNSAlias, newIngress)
 		}
 		return nil, err
 	}
-	log.Debugf("found Ingress %s in the namespace %s.", ingressName, namespace)
+	s.logger.Debug().Msgf("found Ingress %s in the namespace %s.", ingressName, namespace)
 	patchesIngress, err := s.applyIngress(namespace, existingIngress, newIngress)
 	if err != nil {
 		return nil, err
@@ -70,7 +69,7 @@ func (s *syncer) applyIngress(namespace string, existingIngress *networkingv1.In
 }
 
 func (s *syncer) createIngress(radixDNSAlias *radixv1.RadixDNSAlias, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
-	log.Debugf("create an ingress %s for the RadixDNSAlias", ing.GetName())
+	s.logger.Debug().Msgf("create an ingress %s for the RadixDNSAlias", ing.GetName())
 	return CreateRadixDNSAliasIngress(s.kubeClient, radixDNSAlias.Spec.AppName, radixDNSAlias.Spec.Environment, ing)
 }
 
@@ -109,7 +108,6 @@ func (s *syncer) deleteIngresses(selector labels.Set) error {
 }
 
 func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
-	log.Debug("build an ingress for the RadixDNSAlias")
 	publicPort := getComponentPublicPort(radixDeployComponent)
 	if publicPort == nil {
 		return nil, radixvalidators.ComponentForDNSAliasIsNotMarkedAsPublicError(radixDeployComponent.GetName())
@@ -128,7 +126,6 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 	}
 
 	ingressConfig.ObjectMeta.Labels[kube.RadixAliasLabel] = aliasName
-	log.Debugf("built the Ingress %s in the environment %s with a host %s", ingressConfig.GetName(), namespace, hostName)
 	return ingressConfig, nil
 }
 

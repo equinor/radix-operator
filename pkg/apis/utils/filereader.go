@@ -5,13 +5,11 @@ import (
 	"os"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
 
 // GetRadixApplicationFromFile Reads radix config from file
 func GetRadixApplicationFromFile(filename string) (*v1.RadixApplication, error) {
-	log.Debugf("get radix application yaml from %s", filename)
 	radixApp := &v1.RadixApplication{}
 	err := getFromFile(filename, radixApp)
 	return radixApp, err
@@ -19,7 +17,6 @@ func GetRadixApplicationFromFile(filename string) (*v1.RadixApplication, error) 
 
 // GetRadixRegistrationFromFile Reads radix registration from file
 func GetRadixRegistrationFromFile(filename string) (*v1.RadixRegistration, error) {
-	log.Debugf("get radix registration yaml from %s", filename)
 	reg := &v1.RadixRegistration{}
 	err := getFromFile(filename, reg)
 	return reg, err
@@ -27,7 +24,6 @@ func GetRadixRegistrationFromFile(filename string) (*v1.RadixRegistration, error
 
 // GetRadixDeployFromFile Reads radix deployment from file
 func GetRadixDeployFromFile(filename string) (*v1.RadixDeployment, error) {
-	log.Debugf("get radix deploy yaml from %s", filename)
 	radixDeploy := &v1.RadixDeployment{}
 	err := getFromFile(filename, radixDeploy)
 	return radixDeploy, err
@@ -35,7 +31,6 @@ func GetRadixDeployFromFile(filename string) (*v1.RadixDeployment, error) {
 
 // GetRadixEnvironmentFromFile reads RadixEnvironment configuration from a yaml file
 func GetRadixEnvironmentFromFile(filename string) (*v1.RadixEnvironment, error) {
-	log.Debugf("get radix environment yaml from %s", filename)
 	env := &v1.RadixEnvironment{}
 	err := getFromFile(filename, env)
 	return env, err

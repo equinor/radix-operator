@@ -5,7 +5,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,7 +18,6 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 			// Delete build secret
 			err := app.kubeutil.DeleteSecret(appNamespace, defaults.BuildSecretsName)
 			if err != nil {
-				log.Warnf("Failed to delete build secret: %v", err)
 				return err
 			}
 		}
@@ -64,7 +62,6 @@ func (app *ApplicationConfig) initializeBuildSecret(namespace, name string, buil
 	secret := getBuildSecretForData(app.config.Name, namespace, name, data)
 	_, err := app.kubeutil.ApplySecret(namespace, secret)
 	if err != nil {
-		log.Warnf("Failed to create build secret %s in %s", name, namespace)
 		return err
 	}
 	return nil

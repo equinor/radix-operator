@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,20 +22,17 @@ const (
 type NetworkPolicy struct {
 	kubeClient kubernetes.Interface
 	kubeUtil   *kube.Kube
-	logger     *logrus.Entry
 	appName    string
 }
 
 func NewNetworkPolicy(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
-	logger *logrus.Entry,
 	appName string,
 ) (NetworkPolicy, error) {
 	return NetworkPolicy{
 		kubeClient: kubeClient,
 		kubeUtil:   kubeUtil,
-		logger:     logger,
 		appName:    appName,
 	}, nil
 }
@@ -65,11 +61,7 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, 
 
 	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
 
-	err := nw.kubeUtil.ApplyNetworkPolicy(egressPolicy, ns)
-	if err == nil {
-		nw.logger.Debugf("Successfully inserted %s to ns %s", egressPolicy.Name, ns)
-	}
-	return err
+	return nw.kubeUtil.ApplyNetworkPolicy(egressPolicy, ns)
 }
 
 func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ns string, env string) error {

@@ -13,12 +13,14 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 // Environment is the aggregate-root for manipulating RadixEnvironments
@@ -29,7 +31,7 @@ type Environment struct {
 	config        *v1.RadixEnvironment
 	regConfig     *v1.RadixRegistration
 	appConfig     *v1.RadixApplication
-	logger        *logrus.Entry
+	logger        zerolog.Logger
 	networkPolicy *networkpolicy.NetworkPolicy
 }
 
@@ -41,18 +43,18 @@ func NewEnvironment(
 	config *v1.RadixEnvironment,
 	regConfig *v1.RadixRegistration,
 	appConfig *v1.RadixApplication,
-	logger *logrus.Entry,
 	networkPolicy *networkpolicy.NetworkPolicy) (Environment, error) {
 
 	return Environment{
-		kubeclient,
-		radixclient,
-		kubeutil,
-		config,
-		regConfig,
-		appConfig,
-		logger,
-		networkPolicy}, nil
+		kubeclient:    kubeclient,
+		radixclient:   radixclient,
+		kubeutil:      kubeutil,
+		config:        config,
+		regConfig:     regConfig,
+		appConfig:     appConfig,
+		networkPolicy: networkPolicy,
+		logger:        log.Logger.With().Str("resource_kind", v1.KindRadixEnvironment).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
+	}, nil
 }
 
 // OnSync is called by the handler when changes are applied and must be
@@ -72,33 +74,33 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	namespaceName := utils.GetEnvironmentNamespace(re.Spec.AppName, re.Spec.EnvName)
 
 	if err := env.ApplyNamespace(namespaceName); err != nil {
-		return fmt.Errorf("failed to apply namespace %s: %v", namespaceName, err)
+		return fmt.Errorf("failed to apply namespace %s: %w", namespaceName, err)
 	}
 	if err := env.ApplyAdGroupRoleBinding(namespaceName); err != nil {
-		return fmt.Errorf("failed to apply RBAC on namespace %s: %v", namespaceName, err)
+		return fmt.Errorf("failed to apply RBAC on namespace %s: %w", namespaceName, err)
 	}
 	if err := env.applyRadixTektonEnvRoleBinding(namespaceName); err != nil {
-		return fmt.Errorf("failed to apply RBAC for radix-tekton-env on namespace %s: %v", namespaceName, err)
+		return fmt.Errorf("failed to apply RBAC for radix-tekton-env on namespace %s: %w", namespaceName, err)
 	}
 	if err := env.ApplyRadixPipelineRunnerRoleBinding(namespaceName); err != nil {
-		return fmt.Errorf("failed to apply RBAC for radix-pipeline-runner on namespace %s: %v", namespaceName, err)
+		return fmt.Errorf("failed to apply RBAC for radix-pipeline-runner on namespace %s: %w", namespaceName, err)
 	}
 	if err := env.ApplyLimitRange(namespaceName); err != nil {
-		return fmt.Errorf("failed to apply limit range on namespace %s: %v", namespaceName, err)
+		return fmt.Errorf("failed to apply limit range on namespace %s: %w", namespaceName, err)
 	}
 	if err := env.networkPolicy.UpdateEnvEgressRules(re.Spec.Egress.Rules, re.Spec.Egress.AllowRadix, re.Spec.EnvName); err != nil {
-		return fmt.Errorf("failed to add egress rules in %s, environment %s: %v", re.Spec.AppName, re.Spec.EnvName, err)
+		return fmt.Errorf("failed to add egress rules in %s, environment %s: %w", re.Spec.AppName, re.Spec.EnvName, err)
 	}
 	return env.syncStatus(re, time)
 }
 
 func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) error {
-	logrus.Debugf("handle deleted RadixEnvironment %s in the application %s", re.Name, re.Spec.AppName)
+	env.logger.Debug().Msgf("Handle deleted RadixEnvironment %s in the application %s", re.Name, re.Spec.AppName)
 	finalizerIndex := slice.FindIndex(re.ObjectMeta.Finalizers, func(val string) bool {
 		return val == kube.RadixEnvironmentFinalizer
 	})
 	if finalizerIndex < 0 {
-		logrus.Infof("missing finalizer %s in the Radix environment %s in the application %s. Exist finalizers: %d. Skip dependency handling",
+		env.logger.Info().Msgf("Missing finalizer %s in the Radix environment %s in the application %s. Exist finalizers: %d. Skip dependency handling",
 			kube.RadixEnvironmentFinalizer, re.Name, re.Spec.AppName, len(re.ObjectMeta.Finalizers))
 		return nil
 	}
@@ -113,13 +115,13 @@ func (env *Environment) handleDeletedRadixEnvironment(re *v1.RadixEnvironment) e
 		return err
 	}
 	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
-	logrus.Debugf("removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
+	env.logger.Debug().Msgf("Removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
 	updated, err := env.kubeutil.UpdateRadixEnvironment(updatingRE)
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("updated RadixEnvironment %s revision %s", re.Name, updated.GetResourceVersion())
+	env.logger.Debug().Msgf("Updated RadixEnvironment %s revision %s", re.Name, updated.GetResourceVersion())
 	return nil
 }
 
@@ -128,7 +130,7 @@ func (env *Environment) handleDeletedRadixEnvironmentDependencies(re *v1.RadixEn
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("delete %d RadixDNSAlias(es)", len(radixDNSAliasList.Items))
+	env.logger.Debug().Msgf("delete %d RadixDNSAlias(es)", len(radixDNSAliasList.Items))
 	return env.kubeutil.DeleteRadixDNSAliases(slice.Reduce(radixDNSAliasList.Items, []*v1.RadixDNSAlias{}, func(acc []*v1.RadixDNSAlias, radixDNSAlias v1.RadixDNSAlias) []*v1.RadixDNSAlias {
 		return append(acc, &radixDNSAlias)
 	})...)
@@ -250,7 +252,7 @@ func (env *Environment) ApplyLimitRange(namespace string) error {
 	if defaultMemoryLimit == nil ||
 		defaultCPURequest == nil ||
 		defaultMemoryRequest == nil {
-		env.logger.Warningf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
+		env.logger.Warn().Msgf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
 		return nil
 	}
 

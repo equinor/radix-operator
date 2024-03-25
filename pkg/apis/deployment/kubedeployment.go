@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -77,7 +76,7 @@ func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent
 		if err != nil {
 			return nil, nil, err
 		}
-		log.Debugf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
+		deploy.logger.Debug().Msgf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
 		return currentDeployment, desiredDeployment, nil
 	}
 
@@ -89,12 +88,12 @@ func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent
 	if err != nil {
 		return nil, nil, err
 	}
-	log.Debugf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
+	deploy.logger.Debug().Msgf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
 	return currentDeployment, desiredDeployment, nil
 }
 
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	log.Debugf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+	deploy.logger.Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -157,7 +156,7 @@ func getJobAuxResources() corev1.ResourceRequirements {
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	log.Debugf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+	deploy.logger.Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := currentDeployment.DeepCopy()
 	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)

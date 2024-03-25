@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -21,7 +21,7 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 		if err != nil {
 			return fmt.Errorf("failed to create Deployment object: %v", err)
 		}
-		log.Debugf("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
+		log.Debug().Msgf("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
 		return nil
 	}
 
@@ -30,15 +30,15 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 		return err
 	}
 	if IsEmptyPatch(patchBytes) {
-		log.Debugf("No need to patch deployment: %s ", currentDeployment.GetName())
+		log.Debug().Msgf("No need to patch deployment: %s ", currentDeployment.GetName())
 		return nil
 	}
-	log.Debugf("Patch: %s", string(patchBytes))
+	log.Debug().Msgf("Patch: %s", string(patchBytes))
 	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(context.Background(), currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to patch deployment object: %v", err)
 	}
-	log.Debugf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
+	log.Debug().Msgf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	return nil
 }
 

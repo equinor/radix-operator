@@ -10,11 +10,10 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -22,20 +21,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger *log.Entry
-
 const (
 	controllerAgentName = "job-controller"
 	crType              = "RadixJobs"
 )
 
-func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
-}
-
 // NewController creates a new controller that handles RadixJobs
 func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
-
+	logger := log.With().Str("controller", controllerAgentName).Logger()
 	jobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
@@ -55,45 +48,45 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,
 	}
 
-	logger.Info("Setting up event handlers")
+	logger.Info().Msg("Setting up event handlers")
 	if _, err := jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
 			if job.IsRadixJobDone(radixJob) {
-				logger.Debugf("Skip job object %s as it is complete", radixJob.GetName())
+				logger.Debug().Msgf("Skip job object %s as it is complete", radixJob.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
 				metrics.InitiateRadixJobStatusChanged(radixJob)
 				return
 			}
 
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)
 			if job.IsRadixJobDone(newRJ) {
-				logger.Debugf("Skip job object %s as it is complete", newRJ.GetName())
+				logger.Debug().Msgf("Skip job object %s as it is complete", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				metrics.InitiateRadixJobStatusChanged(newRJ)
 				return
 			}
 
 			if _, err := controller.Enqueue(cur); err != nil {
-				utilruntime.HandleError(err)
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixJob, converted := obj.(*v1.RadixJob)
 			if !converted {
-				logger.Errorf("RadixJob object cast failed during deleted event received.")
+				logger.Error().Msg("RadixJob object cast failed during deleted event received.")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixJob)
 			if err == nil {
-				logger.Debugf("Job object deleted event received for %s. Do nothing", key)
+				logger.Debug().Msgf("Job object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
@@ -113,7 +106,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		DeleteFunc: func(obj interface{}) {
 			radixJob, converted := obj.(*batchv1.Job)
 			if !converted {
-				logger.Errorf("RadixJob object cast failed during deleted event received.")
+				logger.Error().Msg("RadixJob object cast failed during deleted event received.")
 				return
 			}
 			// If a kubernetes job gets deleted for a running job, the running radix job should
@@ -140,7 +133,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(context.TODO(), newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
 				if err != nil {
 					// This job may not be found because application is being deleted and resources are being deleted
-					logger.Debugf("Could not find owning job of pod %s due to %v", newPod.Name, err)
+					logger.Debug().Msgf("Could not find owning job of pod %s due to %v", newPod.Name, err)
 					return
 				}
 

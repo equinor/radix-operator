@@ -6,7 +6,7 @@ import (
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -55,11 +55,11 @@ func (kubeutil *Kube) ListEnvironments() ([]*radixv1.RadixEnvironment, error) {
 
 // UpdateRadixEnvironment Updates changes of RadixEnvironment if any
 func (kubeutil *Kube) UpdateRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment) (*radixv1.RadixEnvironment, error) {
-	log.Debugf("Update RadixEnvironment %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
+	log.Debug().Msgf("Update RadixEnvironment %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
 	updated, err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Update(context.TODO(), radixEnvironment, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update RadixEnvironment object: %v", err)
 	}
-	log.Debugf("Updated RadixEnvironment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
+	log.Debug().Msgf("Updated RadixEnvironment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
 	return updated, nil
 }

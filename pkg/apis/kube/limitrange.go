@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -16,9 +16,7 @@ import (
 
 // ApplyLimitRange Applies limit range to namespace
 func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) error {
-	logger = logger.WithFields(log.Fields{"limitRange": limitRange.ObjectMeta.Name})
-
-	logger.Debugf("Apply limit range %s", limitRange.Name)
+	log.Debug().Msgf("Apply limit range %s", limitRange.Name)
 
 	oldLimitRange, err := kubeutil.getLimitRange(namespace, limitRange.GetName())
 	if err != nil && errors.IsNotFound(err) {
@@ -27,13 +25,13 @@ func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.Limit
 			return fmt.Errorf("failed to create LimitRange object: %v", err)
 		}
 
-		log.Debugf("Created LimitRange: %s in namespace %s", createdLimitRange.Name, namespace)
+		log.Debug().Msgf("Created LimitRange: %s in namespace %s", createdLimitRange.Name, namespace)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to get limit range object: %v", err)
 	}
 
-	log.Debugf("LimitRange object %s already exists in namespace %s, updating the object now", limitRange.GetName(), namespace)
+	log.Debug().Msgf("LimitRange object %s already exists in namespace %s, updating the object now", limitRange.GetName(), namespace)
 
 	newLimitRange := oldLimitRange.DeepCopy()
 	newLimitRange.ObjectMeta.OwnerReferences = limitRange.ObjectMeta.OwnerReferences
@@ -59,9 +57,9 @@ func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.Limit
 		if err != nil {
 			return fmt.Errorf("failed to patch limitRange object: %v", err)
 		}
-		log.Debugf("Patched limitRange: %s in namespace %s", patchedLimitRange.Name, namespace)
+		log.Debug().Msgf("Patched limitRange: %s in namespace %s", patchedLimitRange.Name, namespace)
 	} else {
-		log.Debugf("No need to patch limitRange: %s ", limitRange.GetName())
+		log.Debug().Msgf("No need to patch limitRange: %s ", limitRange.GetName())
 	}
 
 	return nil

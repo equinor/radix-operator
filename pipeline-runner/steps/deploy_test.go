@@ -2,13 +2,17 @@ package steps_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
@@ -45,12 +49,21 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientse
 	return kubeclient, kubeUtil, radixclient, testUtils
 }
 
-// FakeNamespaceWatcher Unit tests doesn't handle muliti-threading well
+// FakeNamespaceWatcher Unit tests doesn't handle multi-threading well
 type FakeNamespaceWatcher struct {
 }
 
+// FakeRadixDeploymentWatcher Unit tests doesn't handle multi-threading well
+type FakeRadixDeploymentWatcher struct {
+}
+
 // WaitFor Waits for namespace to appear
-func (watcher FakeNamespaceWatcher) WaitFor(namespace string) error {
+func (watcher FakeNamespaceWatcher) WaitFor(_ string) error {
+	return nil
+}
+
+// WaitFor Waits for radix deployment gets active
+func (watcher FakeRadixDeploymentWatcher) WaitForActive(_, _ string) error {
 	return nil
 }
 
@@ -74,7 +87,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 				WithName(anyComponentName)).
 		BuildRA()
 
-	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	targetEnvs := application.GetTargetEnvironments(anyNoMappedBranch, ra)
@@ -177,8 +190,8 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 						WithEnvironmentVariable("DB_PORT", "9876"))).
 		BuildRA()
 
-	// Prometheus doesn´t contain any fake
-	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
+	// Prometheus don´t contain any fake
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	dnsConfig := dnsalias.DNSConfig{
@@ -297,8 +310,8 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 		WithComponents(utils.AnApplicationComponent().WithName("app")).
 		BuildRA()
 
-	// Prometheus doesn´t contain any fake
-	cli := steps.NewDeployStep(FakeNamespaceWatcher{})
+	// Prometheus don´t contain any fake
+	cli := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
@@ -330,4 +343,75 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 	require.Len(t, rds.Items, 1)
 	rd := rds.Items[0]
 	assert.Equal(t, commitID, rd.ObjectMeta.Labels[kube.RadixCommitLabel])
+}
+
+func TestDeploy_WaitActiveDeployment(t *testing.T) {
+	rr := utils.ARadixRegistration().
+		WithName(anyAppName).
+		BuildRR()
+
+	envName := "dev"
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(anyAppName).
+		WithEnvironment(envName, "master").
+		WithComponents(utils.AnApplicationComponent().WithName("app")).
+		BuildRA()
+
+	type scenario struct {
+		name                     string
+		watcherError             error
+		expectedRadixDeployments int
+	}
+	scenarios := []scenario{
+		{name: "No fail", watcherError: nil, expectedRadixDeployments: 1},
+		{name: "Watch fails", watcherError: errors.New("some error"), expectedRadixDeployments: 0},
+	}
+	for _, ts := range scenarios {
+		t.Run(ts.name, func(tt *testing.T) {
+			kubeclient, kubeUtil, radixClient, _ := setupTest(tt)
+			ctrl := gomock.NewController(tt)
+			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(ctrl)
+			cli := steps.NewDeployStep(FakeNamespaceWatcher{}, radixDeploymentWatcher)
+			cli.Init(kubeclient, radixClient, kubeUtil, &monitoring.Clientset{}, rr)
+
+			applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixClient, rr, ra, nil)
+
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					JobName:  anyJobName,
+					ImageTag: anyImageTag,
+					Branch:   "master",
+				},
+				TargetEnvironments: []string{envName},
+			}
+
+			pipelineInfo.SetApplicationConfig(applicationConfig)
+			namespace := utils.GetEnvironmentNamespace(anyAppName, envName)
+			radixDeploymentWatcher.EXPECT().
+				WaitForActive(namespace, radixDeploymentNameMatcher{envName: envName, imageTag: anyImageTag}).
+				Return(ts.watcherError)
+			err := cli.Run(pipelineInfo)
+			if ts.watcherError == nil {
+				assert.NoError(tt, err)
+			} else {
+				assert.EqualError(tt, err, ts.watcherError.Error())
+			}
+			rdList, err := radixClient.RadixV1().RadixDeployments(namespace).List(context.Background(), metav1.ListOptions{})
+			assert.NoError(tt, err)
+			assert.Len(tt, rdList.Items, ts.expectedRadixDeployments, "Invalid expected RadixDeployment-s count")
+		})
+	}
+}
+
+type radixDeploymentNameMatcher struct {
+	envName  string
+	imageTag string
+}
+
+func (m radixDeploymentNameMatcher) Matches(name interface{}) bool {
+	rdName, ok := name.(string)
+	return ok && strings.HasPrefix(rdName, m.String())
+}
+func (m radixDeploymentNameMatcher) String() string {
+	return fmt.Sprintf("%s-%s", m.envName, m.imageTag)
 }

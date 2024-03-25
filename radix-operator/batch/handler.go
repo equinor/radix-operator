@@ -2,17 +2,16 @@ package batch
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/batch"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/batch/internal"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -75,7 +74,7 @@ func (h *handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix batch %s in work queue no longer exists", name))
+			log.Info().Msgf("RadixBatch %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 

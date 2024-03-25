@@ -10,9 +10,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -23,24 +22,21 @@ func getSyncTargetAnnotation(appName string) string {
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	namespace := utils.GetAppNamespace(app.config.Name)
 	secret, err := app.kubeutil.GetSecret(namespace, defaults.PrivateImageHubSecretName)
-	if err != nil && !errors.IsNotFound(err) {
-		log.Warnf("failed to get private image hub secret %v", err)
-		return err
+	if err != nil && !kubeerrors.IsNotFound(err) {
+		return fmt.Errorf("failed to get private image hub secret: %W", err)
 	}
 
 	var secretValue []byte
-	if errors.IsNotFound(err) || secret == nil {
+	if kubeerrors.IsNotFound(err) || secret == nil {
 		secretValue, err = createImageHubsSecretValue(app.config.Spec.PrivateImageHubs)
 		if err != nil {
-			log.Warnf("failed to create private image hub secret %v", err)
-			return err
+			return fmt.Errorf("failed to create private image hub secret: %w", err)
 		}
 	} else {
 		// update if changes
 		imageHubs, err := GetImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
 		if err != nil {
-			log.Warnf("failed to get private image hub secret value %v", err)
-			return err
+			return fmt.Errorf("failed to get private image hub secret value: %w", err)
 		}
 
 		// remove configs that doesn't exist
@@ -68,8 +64,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 
 		secretValue, err = GetImageHubsSecretValue(imageHubs)
 		if err != nil {
-			log.Warnf("failed to update private image hub secret %v", err)
-			return err
+			return fmt.Errorf("failed to update private image hub secret: %w", err)
 		}
 	}
 	err = ApplyPrivateImageHubSecret(app.kubeutil, namespace, app.config.Name, secretValue)
@@ -79,14 +74,12 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 
 	err = utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
 	if err != nil {
-		log.Warnf("failed to grant reader access to private image hub secret %v", err)
-		return err
+		return fmt.Errorf("failed to grant reader access to private image hub secret: %w", err)
 	}
 
 	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
 	if err != nil {
-		log.Warnf("failed to grant access to private image hub secret %v", err)
-		return err
+		return fmt.Errorf("failed to grant access to private image hub secret: %w", err)
 	}
 
 	return nil
@@ -115,8 +108,7 @@ func ApplyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretV
 
 	_, err := kubeutil.ApplySecret(ns, &secret)
 	if err != nil {
-		log.Warnf("Failed to create private image hub secrets for ns %s", ns)
-		return err
+		return fmt.Errorf("failed to create private image hub secrets in namespace %s: %w", ns, err)
 	}
 	return nil
 }

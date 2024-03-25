@@ -12,7 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,7 +100,7 @@ func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeploymen
 		})
 	}
 
-	log.Infof("Deploy only following component(s): %s", strings.Join(componentsToDeploy, ","))
+	log.Info().Msgf("Deploy only following component(s): %s", strings.Join(componentsToDeploy, ","))
 	componentNames := slice.Reduce(componentsToDeploy, make(map[string]bool), func(acc map[string]bool, componentName string) map[string]bool {
 		componentName = strings.TrimSpace(componentName)
 		if len(componentName) > 0 {
@@ -128,7 +128,7 @@ func GetCurrentRadixDeployment(kubeUtil *kube.Kube, namespace string) (*radixv1.
 		if !kubeerrors.IsNotFound(err) && !kubeerrors.IsForbidden(err) {
 			return nil, err
 		}
-		log.Infof("namespace for environment does not exist yet: %v", err)
+		log.Info().Msg("namespace for environment does not exist yet")
 	} else {
 		currentRd, err = kubeUtil.GetActiveDeployment(namespace)
 		if err != nil {

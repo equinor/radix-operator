@@ -11,7 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -106,7 +106,7 @@ func isKnownCsiAzureVolumeMount(volumeMount string) bool {
 func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.VolumeMount, error) {
 	componentName := deployComponent.GetName()
 	volumeMounts := make([]corev1.VolumeMount, 0)
-	componentVolumeMounts, err := getRadixComponentVolumeMounts(deployComponent, componentName)
+	componentVolumeMounts, err := getRadixComponentVolumeMounts(deployComponent)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 	return volumeMounts, nil
 }
 
-func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName string) ([]corev1.VolumeMount, error) {
+func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
 	if isDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil, nil
 	}
@@ -292,7 +292,7 @@ func getComponentSecretRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace s
 					volume.VolumeSource.CSI.NodePublishSecretRef = &corev1.LocalObjectReference{Name: credsSecretName}
 				}
 			default:
-				log.Errorf("not supported provider %s in the secret provider class %s", provider, secretProviderClass.Name)
+				log.Error().Msgf("Not supported provider %s in the secret provider class %s", provider, secretProviderClass.Name)
 				continue
 			}
 			volumes = append(volumes, volume)
@@ -309,9 +309,9 @@ func getComponentVolumeMountVolumes(kubeclient kubernetes.Interface, namespace s
 		case volumeMount.HasDeprecatedVolume():
 			return getComponentVolumeMountDeprecatedVolumeSource(volumeMount, namespace, environment, deployComponent.GetName(), kubeclient)
 		case volumeMount.HasBlobFuse2():
-			return getComponentVolumeMountBlobFuse2VolumeSource(volumeMount, namespace, environment, deployComponent.GetName(), kubeclient)
+			return getComponentVolumeMountBlobFuse2VolumeSource(volumeMount, namespace, deployComponent.GetName(), kubeclient)
 		case volumeMount.HasAzureFile():
-			return getComponentVolumeMountAzureFileVolumeSource(volumeMount, namespace, environment, deployComponent.GetName(), kubeclient)
+			return getComponentVolumeMountAzureFileVolumeSource(volumeMount, namespace, deployComponent.GetName(), kubeclient)
 		case volumeMount.HasEmptyDir():
 			return getComponentVolumeMountEmptyDirVolumeSource(volumeMount.EmptyDir), nil
 		}
@@ -346,11 +346,11 @@ func getComponentVolumeMountDeprecatedVolumeSource(volumeMount *radixv1.RadixVol
 	return nil, fmt.Errorf("unsupported volume type %s", volumeMount.Type)
 }
 
-func getComponentVolumeMountBlobFuse2VolumeSource(volumeMount *radixv1.RadixVolumeMount, namespace, environment, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
+func getComponentVolumeMountBlobFuse2VolumeSource(volumeMount *radixv1.RadixVolumeMount, namespace, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
 	return getCsiAzureVolume(kubeclient, namespace, componentName, volumeMount)
 }
 
-func getComponentVolumeMountAzureFileVolumeSource(volumeMount *radixv1.RadixVolumeMount, namespace, environment, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
+func getComponentVolumeMountAzureFileVolumeSource(volumeMount *radixv1.RadixVolumeMount, namespace, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
 	return getCsiAzureVolume(kubeclient, namespace, componentName, volumeMount)
 }
 
@@ -776,7 +776,7 @@ func (deploy *Deployment) deletePersistentVolumeClaim(namespace, pvcName string)
 	if len(namespace) > 0 && len(pvcName) > 0 {
 		return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvcName, metav1.DeleteOptions{})
 	}
-	log.Debugf("Skip deleting PVC - namespace %s or name %s is empty", namespace, pvcName)
+	deploy.logger.Debug().Msgf("Skip deleting PVC - namespace %s or name %s is empty", namespace, pvcName)
 	return nil
 }
 
@@ -784,7 +784,7 @@ func (deploy *Deployment) deleteCsiAzureStorageClasses(storageClassName string) 
 	if len(storageClassName) > 0 {
 		return deploy.kubeclient.StorageV1().StorageClasses().Delete(context.TODO(), storageClassName, metav1.DeleteOptions{})
 	}
-	log.Debugf("Skip deleting StorageClass - name is empty")
+	deploy.logger.Debug().Msg("Skip deleting StorageClass - name is empty")
 	return nil
 }
 
@@ -792,7 +792,7 @@ func (deploy *Deployment) deletePersistentVolume(pvName string) error {
 	if len(pvName) > 0 {
 		return deploy.kubeclient.CoreV1().PersistentVolumes().Delete(context.TODO(), pvName, metav1.DeleteOptions{})
 	}
-	log.Debugf("Skip deleting PersistentVolume - name is empty")
+	deploy.logger.Debug().Msg("Skip deleting PersistentVolume - name is empty")
 	return nil
 }
 
@@ -826,7 +826,7 @@ func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(exclud
 		if _, ok := excludePvcNames[pv.Spec.ClaimRef.Name]; ok {
 			continue
 		}
-		log.Infof("Delete orphaned Csi Azure PersistantVolume %s of PersistantVolumeClaim %s", pv.Name, pv.Spec.ClaimRef.Name)
+		deploy.logger.Info().Msgf("Delete orphaned Csi Azure PersistantVolume %s of PersistantVolumeClaim %s", pv.Name, pv.Spec.ClaimRef.Name)
 		err := deploy.deletePersistentVolume(pv.Name)
 		if err != nil {
 			return err
@@ -933,7 +933,7 @@ func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1
 		if commonUtils.ContainsString(excludeStorageClassName, storageClass.Name) {
 			continue
 		}
-		log.Debugf("Delete Csi Azure StorageClass %s", storageClass.Name)
+		deploy.logger.Debug().Msgf("Delete Csi Azure StorageClass %s", storageClass.Name)
 		err := deploy.deleteCsiAzureStorageClasses(storageClass.Name)
 		if err != nil {
 			return err
@@ -948,12 +948,12 @@ func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersist
 			continue
 		}
 		pvName := pvc.Spec.VolumeName
-		log.Debugf("Delete not used CSI Azure PersistentVolumeClaim %s in namespace %s", pvc.Name, namespace)
+		deploy.logger.Debug().Msgf("Delete not used CSI Azure PersistentVolumeClaim %s in namespace %s", pvc.Name, namespace)
 		err := deploy.deletePersistentVolumeClaim(namespace, pvc.Name)
 		if err != nil {
 			return err
 		}
-		log.Debugf("Delete not used CSI Azure PersistentVolume %s in namespace %s", pvName, namespace)
+		deploy.logger.Debug().Msgf("Delete not used CSI Azure PersistentVolume %s in namespace %s", pvName, namespace)
 		err = deploy.deletePersistentVolume(pvName)
 		if err != nil {
 			return err
@@ -971,13 +971,13 @@ func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(storageClass *stor
 			return pvc, nil
 		}
 
-		log.Debugf("Delete in garbage-collect an old PersistentVolumeClaim %s in namespace %s: changed StorageClass name to %s", pvc.Name, namespace, storageClass.Name)
+		deploy.logger.Debug().Msgf("Delete in garbage-collect an old PersistentVolumeClaim %s in namespace %s: changed StorageClass name to %s", pvc.Name, namespace, storageClass.Name)
 	}
 	persistentVolumeClaimName, err := createCsiAzurePersistentVolumeClaimName(componentName, radixVolumeMount)
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("Create PersistentVolumeClaim %s in namespace %s for StorageClass %s", persistentVolumeClaimName, namespace, storageClass.Name)
+	deploy.logger.Debug().Msgf("Create PersistentVolumeClaim %s in namespace %s for StorageClass %s", persistentVolumeClaimName, namespace, storageClass.Name)
 	return deploy.createPersistentVolumeClaim(appName, namespace, componentName, persistentVolumeClaimName, storageClass.Name, radixVolumeMount)
 }
 
@@ -999,14 +999,14 @@ func (deploy *Deployment) getOrCreateCsiAzureVolumeMountStorageClass(appName, vo
 			return existingStorageClass, false, err
 		}
 
-		log.Infof("Delete StorageClass %s in namespace %s", existingStorageClass.Name, namespace)
+		deploy.logger.Info().Msgf("Delete StorageClass %s in namespace %s", existingStorageClass.Name, namespace)
 		err = deploy.deleteCsiAzureStorageClasses(existingStorageClass.Name)
 		if err != nil {
 			return nil, false, err
 		}
 	}
 
-	log.Debugf("Create StorageClass %s in namespace %s", storageClassName, namespace)
+	deploy.logger.Debug().Msgf("Create StorageClass %s in namespace %s", storageClassName, namespace)
 	storageClass := &storagev1.StorageClass{}
 	err := populateCsiAzureStorageClass(storageClass, appName, volumeRootMount, namespace, componentName, storageClassName, radixVolumeMount, csiVolumeSecretName, volumeMountProvisioner)
 	if err != nil {

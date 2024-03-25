@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/client-go/tools/record"
@@ -64,7 +64,7 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
@@ -110,7 +110,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
@@ -156,7 +156,7 @@ func (s *commonControllerTestSuite) Test_ForgetWhenLockKeyAndIdentifierError() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
@@ -198,7 +198,7 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
@@ -238,7 +238,7 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
@@ -278,7 +278,7 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
@@ -317,7 +317,7 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShuttingDownTrue() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
@@ -358,7 +358,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
@@ -402,7 +402,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
-		Log:         log.NewEntry(log.StandardLogger()),
+		Log:         zerolog.Nop(),
 		RadixClient: s.RadixClient,
 		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {

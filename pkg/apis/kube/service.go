@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +30,7 @@ func (kubeutil *Kube) ApplyService(namespace string, service *corev1.Service) er
 		return fmt.Errorf("failed to get service object: %v", err)
 	}
 
-	log.Debugf("Service object %s already exists in namespace %s, updating the object now", service.GetName(), namespace)
+	log.Debug().Msgf("Service object %s already exists in namespace %s, updating the object now", service.GetName(), namespace)
 	newService := oldService.DeepCopy()
 	newService.Spec.Ports = service.Spec.Ports
 	newService.ObjectMeta.OwnerReferences = service.ObjectMeta.OwnerReferences
@@ -57,9 +57,9 @@ func (kubeutil *Kube) ApplyService(namespace string, service *corev1.Service) er
 		if err != nil {
 			return fmt.Errorf("failed to patch Service object: %v", err)
 		}
-		log.Debugf("Patched Service: %s in namespace %s", patchedService.Name, namespace)
+		log.Debug().Msgf("Patched Service: %s in namespace %s", patchedService.Name, namespace)
 	} else {
-		log.Debugf("No need to patch service: %s ", service.GetName())
+		log.Debug().Msgf("No need to patch service: %s ", service.GetName())
 	}
 
 	return nil

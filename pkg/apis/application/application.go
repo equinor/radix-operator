@@ -2,8 +2,10 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -11,12 +13,12 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
-
-var logger *log.Entry
 
 // Application Instance variables
 type Application struct {
@@ -24,6 +26,7 @@ type Application struct {
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
 	registration *v1.RadixRegistration
+	logger       zerolog.Logger
 }
 
 // NewApplication Constructor
@@ -34,82 +37,73 @@ func NewApplication(
 	registration *v1.RadixRegistration) (Application, error) {
 
 	return Application{
-		kubeclient,
-		radixclient,
-		kubeutil,
-		registration}, nil
+		kubeclient:   kubeclient,
+		radixclient:  radixclient,
+		kubeutil:     kubeutil,
+		registration: registration,
+		logger:       log.Logger.With().Str("resource_kind", v1.KindRadixRegistration).Str("resource_name", cache.MetaObjectToName(&registration.ObjectMeta).String()).Logger(),
+	}, nil
 }
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (app *Application) OnSync() error {
 	radixRegistration := app.registration
-	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName()})
 
 	err := app.createAppNamespace()
 	if err != nil {
-		logger.Errorf("Failed to create app namespace. %v", err)
-		return err
+		return fmt.Errorf("failed to create app namespace: %w", err)
 	}
-	logger.Debugf("App namespace created")
+	app.logger.Debug().Msg("App namespace created")
 
 	err = app.createLimitRangeOnAppNamespace(utils.GetAppNamespace(radixRegistration.Name))
 	if err != nil {
-		logger.Errorf("Failed to create limit range on app namespace. %v", err)
-		return err
+		return fmt.Errorf("failed to create limit range on app namespace: %w", err)
 	}
 
-	logger.Debugf("Limit range on app namespace created")
+	app.logger.Debug().Msg("Limit range on app namespace created")
 
 	err = app.applySecretsForPipelines() // create deploy key in app namespace
 	if err != nil {
-		logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
-		return err
+		return fmt.Errorf("failed to apply pipeline secrets: %w", err)
 	}
 
 	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName)
 	if err != nil {
-		logger.Errorf("Failed to grant access to git private key secret. %v", err)
-		return err
+		return fmt.Errorf("failed to grant access to git private key secret: %w", err)
 	}
-
-	logger.Debugf("Applied secrets needed by pipelines")
+	app.logger.Debug().Msg("Applied secrets needed by pipelines")
 
 	err = app.applyRbacOnRadixTekton()
 	if err != nil {
-		logger.Errorf("failed to set access permissions needed to copy radix config to configmap and load Tekton pipelines and tasks: %v", err)
-		return err
-	}
-	err = app.applyRbacOnPipelineRunner()
-	if err != nil {
-		logger.Errorf("failed to set access permissions needed by pipeline: %v", err)
-		return err
+		return fmt.Errorf("failed to grant access to Tekton resources: %w", err)
 	}
 
-	logger.Debugf("Applied access permissions needed by pipeline")
+	err = app.applyRbacOnPipelineRunner()
+	if err != nil {
+		return fmt.Errorf("failed to apply pipeline permissions: %w", err)
+	}
+	app.logger.Debug().Msg("Applied access permissions needed by pipeline")
 
 	err = app.applyRbacRadixRegistration()
 	if err != nil {
-		logger.Errorf("Failed to set access on RadixRegistration: %v", err)
-		return err
+		return fmt.Errorf("failed to grant access to RadixRegistration: %w", err)
 	}
-
-	logger.Debugf("Applied access permissions to RadixRegistration")
+	app.logger.Debug().Msg("Applied access permissions to RadixRegistration")
 
 	err = app.applyRbacAppNamespace()
 	if err != nil {
-		logger.Errorf("Failed to grant access to app namespace: %v", err)
-		return err
+		return fmt.Errorf("failed to grant access to app namespace: %w", err)
 	}
 
-	logger.Debugf("Applied access to app namespace. Set registration to be reconciled")
+	app.logger.Debug().Msg("Applied access to app namespace. Set registration to be reconciled")
 	err = app.updateRadixRegistrationStatus(radixRegistration, func(currStatus *v1.RadixRegistrationStatus) {
 		currStatus.Reconciled = metav1.NewTime(time.Now().UTC())
 	})
 	if err != nil {
-		logger.Errorf("Failed to update status on registration: %v", err)
-		return err
+		return fmt.Errorf("failed to update status on RadixRegistration: %w", err)
 	}
+
 	return nil
 }
 

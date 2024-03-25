@@ -12,7 +12,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,9 +48,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 	// Create registration should sync
 	registration, err := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
-	if err != nil {
-		log.Fatalf("Could not read configuration data: %v", err)
-	}
+	require.NoError(t, err)
 	registeredApp, err := radixClient.RadixV1().RadixRegistrations().Create(ctx, registration, metav1.CreateOptions{})
 	require.NoError(t, err)
 	require.NotNil(t, registeredApp)

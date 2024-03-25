@@ -144,7 +144,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -273,7 +273,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -416,7 +416,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -568,7 +568,7 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -1041,7 +1041,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			}
 			buildStep := steps.NewBuildStep(jobWaiter)
 			buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-			deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+			deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 			deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 			// Run pipeline steps
@@ -1111,7 +1111,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))
@@ -1330,7 +1330,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(&pipeline))
 	s.Require().NoError(buildStep.Run(&pipeline))
@@ -1407,7 +1407,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
-			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
+			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 --ulimit nofile=4096:4096 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
 			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
 			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
@@ -1500,7 +1500,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
-			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
+			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 --ulimit nofile=4096:4096 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
 			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
 			"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
@@ -1581,7 +1581,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
-			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 ",
+			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 --ulimit nofile=4096:4096 ",
 			"--secret id=SECRET1,src=/build-secrets/SECRET1 --secret id=SECRET2,src=/build-secrets/SECRET2 ",
 			fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
 			"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
@@ -1694,7 +1694,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{})
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(&pipeline))

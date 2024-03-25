@@ -3,10 +3,9 @@ package ingress
 import (
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-	"github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,13 +18,11 @@ func GetAuxOAuthProxyAnnotationProviders() []AnnotationProvider {
 // BuildOAuthProxyIngressForComponentIngress builds OAuth proxy ingress for RadixDeploy component ingress
 func BuildOAuthProxyIngressForComponentIngress(namespace string, component v1.RadixCommonDeployComponent, componentIngress *networkingv1.Ingress, ingressAnnotationProviders []AnnotationProvider) (*networkingv1.Ingress, error) {
 	if len(componentIngress.Spec.Rules) == 0 {
-		logrus.Debugf("the component ingress %s in the namespace %s has no rules. Do not create an OAuth proxy ingress", componentIngress.GetName(), namespace)
 		return nil, nil
 	}
 	oauthProxyIngressName := oauth.GetAuxAuthProxyIngressName(componentIngress.GetName())
 	sourceHost := componentIngress.Spec.Rules[0]
 	oAuthProxyPortNumber := defaults.OAuthProxyPortNumber
-	logrus.Debugf("build the OAuth proxy ingress %s with the host %s, port %d for the component ingress %s in the namespace %s", oauthProxyIngressName, sourceHost, oAuthProxyPortNumber, componentIngress.GetName(), namespace)
 	pathType := networkingv1.PathTypeImplementationSpecific
 	annotations := map[string]string{}
 

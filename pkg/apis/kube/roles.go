@@ -7,7 +7,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +18,7 @@ import (
 
 // ApplyRole Creates or updates role
 func (kubeutil *Kube) ApplyRole(namespace string, role *rbacv1.Role) error {
-	logger.Debugf("Apply role %s", role.Name)
+	log.Debug().Msgf("Apply role %s", role.Name)
 	oldRole, err := kubeutil.GetRole(namespace, role.GetName())
 	if err != nil && errors.IsNotFound(err) {
 		createdRole, err := kubeutil.kubeClient.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
@@ -26,13 +26,13 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *rbacv1.Role) error {
 			return fmt.Errorf("failed to create Role object: %v", err)
 		}
 
-		log.Debugf("Created Role: %s in namespace %s", createdRole.Name, namespace)
+		log.Debug().Msgf("Created Role: %s in namespace %s", createdRole.Name, namespace)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to get role object: %v", err)
 	}
 
-	log.Debugf("Role object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
+	log.Debug().Msgf("Role object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
 
 	newRole := oldRole.DeepCopy()
 	newRole.ObjectMeta.OwnerReferences = role.ObjectMeta.OwnerReferences
@@ -59,9 +59,9 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *rbacv1.Role) error {
 		if err != nil {
 			return fmt.Errorf("failed to patch role object: %v", err)
 		}
-		log.Debugf("Patched role: %s in namespace %s", patchedRole.Name, namespace)
+		log.Debug().Msgf("Patched role: %s in namespace %s", patchedRole.Name, namespace)
 	} else {
-		log.Debugf("No need to patch role: %s ", role.GetName())
+		log.Debug().Msgf("No need to patch role: %s ", role.GetName())
 	}
 
 	return nil
@@ -69,7 +69,7 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *rbacv1.Role) error {
 
 // ApplyClusterRole Creates or updates cluster-role
 func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
-	logger.Debugf("Apply clusterrole %s", clusterrole.Name)
+	log.Debug().Msgf("Apply clusterrole %s", clusterrole.Name)
 	oldClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Get(context.TODO(), clusterrole.GetName(), metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Create(context.TODO(), clusterrole, metav1.CreateOptions{})
@@ -77,13 +77,13 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 			return fmt.Errorf("failed to create cluster role object: %v", err)
 		}
 
-		log.Debugf("Created cluster role: %s", createdClusterRole.Name)
+		log.Debug().Msgf("Created cluster role: %s", createdClusterRole.Name)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to get cluster role object: %v", err)
 	}
 
-	log.Debugf("Cluster role object %s already exists, updating the object now", clusterrole.GetName())
+	log.Debug().Msgf("Cluster role object %s already exists, updating the object now", clusterrole.GetName())
 
 	newClusterRole := oldClusterRole.DeepCopy()
 	newClusterRole.ObjectMeta.OwnerReferences = clusterrole.ObjectMeta.OwnerReferences
@@ -110,9 +110,9 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 		if err != nil {
 			return fmt.Errorf("failed to patch clusterrole object: %v", err)
 		}
-		log.Debugf("Patched clusterrole: %s", patchedClusterRole.Name)
+		log.Debug().Msgf("Patched clusterrole: %s", patchedClusterRole.Name)
 	} else {
-		log.Debugf("No need to patch clusterrole: %s ", clusterrole.GetName())
+		log.Debug().Msgf("No need to patch clusterrole: %s ", clusterrole.GetName())
 	}
 
 	return nil
