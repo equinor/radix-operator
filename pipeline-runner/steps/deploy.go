@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	pipelineRunnerInternal "github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -17,16 +18,18 @@ import (
 
 // DeployStepImplementation Step to deploy RD into environment
 type DeployStepImplementation struct {
-	stepType         pipeline.StepType
-	namespaceWatcher kube.NamespaceWatcher
+	stepType               pipeline.StepType
+	namespaceWatcher       kube.NamespaceWatcher
+	radixDeploymentWatcher pipelineRunnerInternal.RadixDeploymentWatcher
 	model.DefaultStepImplementation
 }
 
 // NewDeployStep Constructor
-func NewDeployStep(namespaceWatcher kube.NamespaceWatcher) model.Step {
+func NewDeployStep(namespaceWatcher kube.NamespaceWatcher, radixDeploymentWatcher pipelineRunnerInternal.RadixDeploymentWatcher) model.Step {
 	return &DeployStepImplementation{
-		stepType:         pipeline.DeployStep,
-		namespaceWatcher: namespaceWatcher,
+		stepType:               pipeline.DeployStep,
+		namespaceWatcher:       namespaceWatcher,
+		radixDeploymentWatcher: radixDeploymentWatcher,
 	}
 }
 
@@ -69,7 +72,7 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 	return nil
 }
 
-func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineInfo *model.PipelineInfo) error {
+func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipelineInfo *model.PipelineInfo) error {
 	defaultEnvVars, err := getDefaultEnvVars(pipelineInfo)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve default env vars for RadixDeployment in app  %s. %v", appName, err)
@@ -89,7 +92,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		return err
 	}
 
-	currentRd, err := internal.GetCurrentRadixDeployment(cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, env))
+	currentRd, err := internal.GetCurrentRadixDeployment(cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, envName))
 	if err != nil {
 		return err
 	}
@@ -99,8 +102,8 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
 		pipelineInfo.PipelineArguments.Branch,
-		pipelineInfo.DeployEnvironmentComponentImages[env],
-		env,
+		pipelineInfo.DeployEnvironmentComponentImages[envName],
+		envName,
 		defaultEnvVars,
 		radixApplicationHash,
 		buildSecretHash,
@@ -108,18 +111,26 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	if err != nil {
-		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)
+		return fmt.Errorf("failed to create Radix deployment in environment %s. %w", envName, err)
 	}
 
-	err = cli.namespaceWatcher.WaitFor(utils.GetEnvironmentNamespace(cli.GetAppName(), env))
-	if err != nil {
-		return fmt.Errorf("failed to get environment namespace, %s, for app %s. %v", env, appName, err)
+	namespace := utils.GetEnvironmentNamespace(cli.GetAppName(), envName)
+	if err = cli.namespaceWatcher.WaitFor(namespace); err != nil {
+		return fmt.Errorf("failed to get environment namespace %s, for app %s. %w", namespace, appName, err)
 	}
 
-	log.Info().Msgf("Apply radix deployment %s on env %s", radixDeployment.GetName(), radixDeployment.GetNamespace())
-	_, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.TODO(), radixDeployment, metav1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)
+	radixDeploymentName := radixDeployment.GetName()
+	log.Info().Msgf("Apply Radix deployment %s to environment %s", radixDeploymentName, envName)
+	if _, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.Background(), radixDeployment, metav1.CreateOptions{}); err != nil {
+		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
+	}
+
+	if err := cli.radixDeploymentWatcher.WaitForActive(namespace, radixDeploymentName); err != nil {
+		log.Error().Err(err).Msgf("Failed to activate Radix deployment %s in environment %s. Deleting deployment", radixDeploymentName, envName)
+		if err := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); err != nil {
+			log.Error().Err(err).Msgf("Failed to delete Radix deployment")
+		}
+		return err
 	}
 	return nil
 }
