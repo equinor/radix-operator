@@ -217,9 +217,6 @@ func (s *syncer) updateJobAndPodStatuses(batchJobName string, jobStatus *radixv1
 	podStatusMap := getPodStatusMap(jobStatus)
 	for _, pod := range s.getJobPods(batchJobName) {
 		podStatus := getOrCreatePodStatusForPod(&pod, jobStatus, podStatusMap)
-		// if podStatus.EndTime != nil {
-		// 	continue
-		// }
 		if containerStatus, ok := s.getJobComponentContainerStatus(jobComponentName, pod); ok {
 			setPodStatusByPodLastContainerStatus(containerStatus, podStatus)
 			continue

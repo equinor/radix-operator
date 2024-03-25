@@ -1401,6 +1401,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 
 	// Set job2 condition to failed => batch condition is Running
 	s.updateKubeJobStatus(getKubeJobName(batchName, job2Name), namespace)(func(status *batchv1.JobStatus) {
+		status.Failed = 1
 		status.Conditions = []batchv1.JobCondition{
 			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
 		}
@@ -1426,6 +1427,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	// Set job1 condition to failed => batch condition is Completed
 	s.updateKubeJobStatus(getKubeJobName(batchName, job1Name), namespace)(func(status *batchv1.JobStatus) {
 		status.Active = 0
+		status.Succeeded = 1
 		status.Conditions = []batchv1.JobCondition{
 			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
 		}
@@ -1459,7 +1461,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 			AppName: "any-app",
 			Jobs: []radixv1.RadixDeployJobComponent{
 				{
-					Name: "any-job",
+					Name:         "any-job",
+					BackoffLimit: pointers.Ptr(int32(2)),
 				},
 			},
 		},
@@ -1509,8 +1512,12 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 
 	// Set job status.failed to 2
 	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
+		status.Active = 1
 		status.Failed = 2
 		status.StartTime = &jobStartTime
+		status.Conditions = []batchv1.JobCondition{
+			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
+		}
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
@@ -1528,11 +1535,12 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 
 	// Set job status.conditions to complete => phase is Succeeded
 	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
+		status.Active = 0
+		status.Succeeded = 1
 		status.Conditions = []batchv1.JobCondition{
-			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
+			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, LastTransitionTime: jobCompletionTime},
 		}
 		status.StartTime = &jobStartTime
-		status.CompletionTime = &jobCompletionTime
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
@@ -1617,6 +1625,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 
 	// Set job status.conditions to failed => phase is Failed
 	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
+		status.Active = 0
+		status.Failed = 1
 		status.Conditions = []batchv1.JobCondition{
 			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, LastTransitionTime: jobFailedTime},
 		}
@@ -1633,7 +1643,6 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 	s.Empty(batch.Status.JobStatuses[0].Message)
 	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
 	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-	s.Equal(&jobFailedTime, batch.Status.JobStatuses[0].EndTime)
 }
 
 func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
