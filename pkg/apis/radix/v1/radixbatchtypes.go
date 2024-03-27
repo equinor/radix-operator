@@ -118,11 +118,11 @@ type RadixDeploymentJobComponentSelector struct {
 }
 
 // RadixBatchJobPhase represents the phase of the job
-// +kubebuilder:validation:Enum=Waiting;Active;Succeeded;Failed;Stopped
+// +kubebuilder:validation:Enum=Waiting;Active;Running;Succeeded;Failed;Stopped
 type RadixBatchJobPhase string
 
 const (
-	// Waiting means that the the job is waiting to start,
+	// Waiting means that the job is waiting to start,
 	// either because the Kubernetes job has not yet been created,
 	// or the Kubernetes job controller has not processed the Job.
 	BatchJobPhaseWaiting RadixBatchJobPhase = "Waiting"
@@ -131,6 +131,9 @@ const (
 	// The Kubernetes job is created, and the Kubernetes job
 	// controller has started the job.
 	BatchJobPhaseActive RadixBatchJobPhase = "Active"
+
+	// Active means that the job is active and its pods are ready.
+	BatchJobPhaseRunning RadixBatchJobPhase = "Running"
 
 	// Succeeded means that the job has completed without errors.
 	BatchJobPhaseSucceeded RadixBatchJobPhase = "Succeeded"
@@ -149,11 +152,32 @@ const (
 	// Waiting means that all jobs are in phase Waiting.
 	BatchConditionTypeWaiting RadixBatchConditionType = "Waiting"
 
-	// Active means that one or more jobs are in phase Active.
+	// Active means that all jobs are in phase Active.
 	BatchConditionTypeActive RadixBatchConditionType = "Active"
 
 	// Completed means that all jobs are in Succeeded, Failed or Stopped phase.
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"
+)
+
+// A label for the condition of a pod at the current time.
+// +kubebuilder:validation:Enum=Pending;Running;Succeeded;Failed
+type RadixBatchJobPodPhase string
+
+// These are the valid statuses of job's pods.
+const (
+	// PodPending means the pod has been accepted by the system, but one or more of the containers
+	// has not been started. This includes time before being bound to a node, as well as time spent
+	// pulling images onto the host.
+	PodPending RadixBatchJobPodPhase = "Pending"
+	// PodRunning means the pod has been bound to a node and all the containers have been started.
+	// At least one container is still running or is in the process of being restarted.
+	PodRunning RadixBatchJobPodPhase = "Running"
+	// PodSucceeded means that all containers in the pod have voluntarily terminated
+	// with a container exit code of 0, and the system is not going to restart any of these containers.
+	PodSucceeded RadixBatchJobPodPhase = "Succeeded"
+	// PodFailed means that all containers in the pod have terminated, and at least one container has
+	// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
+	PodFailed RadixBatchJobPodPhase = "Failed"
 )
 
 // RadixBatchCondition describes the state of the RadixBatch
@@ -165,7 +189,7 @@ type RadixBatchCondition struct {
 	// +optional
 	Reason string `json:"reason,omitempty"`
 
-	// A human readable message indicating details about the condition.
+	// A human-readable message indicating details about the condition.
 	// +optional
 	Message string `json:"message,omitempty"`
 
@@ -194,13 +218,14 @@ type RadixBatchJobStatus struct {
 	// +kubebuilder:validation:MaxLength:=63
 	Name string `json:"name"`
 
+	// The Phase is a simple, high-level summary of where the RadixBatchJob is in its lifecycle.
 	Phase RadixBatchJobPhase `json:"phase"`
 
 	// A brief CamelCase message indicating details about why the job is in this phase
 	// +optional
 	Reason string `json:"reason,omitempty"`
 
-	// A human readable message indicating details about why the job is in this phase
+	// A human-readable message indicating details about why the job is in this phase
 	// +optional
 	Message string `json:"message,omitempty"`
 
@@ -227,6 +252,61 @@ type RadixBatchJobStatus struct {
 	// Timestamp of the job restart, if applied.
 	// +optional
 	Restart string `json:"restart,omitempty"`
+
+	// Status for each pod of the job
+	// +optional
+	RadixBatchJobPodStatuses []RadixBatchJobPodStatus `json:"podStatuses,omitempty"`
+}
+
+// RadixBatchJobPodStatus contains details for the current status of the job's pods.
+type RadixBatchJobPodStatus struct {
+	// +kubebuilder:validation:MaxLength:=63
+	Name string `json:"name"`
+
+	// The phase of a Pod is a simple, high-level summary of where the Pod is in its lifecycle.
+	Phase RadixBatchJobPodPhase `json:"phase"`
+
+	// A brief CamelCase message indicating details about why the job is in this phase
+	// +optional
+	Reason string `json:"reason,omitempty"`
+
+	// A human-readable message indicating details about why the job is in this phase
+	// +optional
+	Message string `json:"message,omitempty"`
+
+	// Exit status from the last termination of the container
+	ExitCode int32 `json:"exitCode"`
+
+	// The time at which the Kubernetes job's pod was created.
+	// +optional
+	CreationTime *meta_v1.Time `json:"creationTime,omitempty"`
+
+	// The time at which the batch job's pod startedAt
+	// +optional
+	StartTime *meta_v1.Time `json:"startTime,omitempty"`
+
+	// The time at which the batch job's pod finishedAt.
+	// +optional
+	EndTime *meta_v1.Time `json:"endTime,omitempty"`
+
+	// The number of times the container has been restarted.
+	RestartCount int32 `json:"restartCount"`
+
+	// The name of container image that the container is running.
+	// The container image may not match the image used in the PodSpec,
+	// as it may have been resolved by the runtime.
+	// More info: https://kubernetes.io/docs/concepts/containers/images.
+	// +optional
+	Image string `json:"image"`
+
+	// The image ID of the container's image. The image ID may not
+	// match the image ID of the image used in the PodSpec, as it may have been
+	// resolved by the runtime.
+	// +optional
+	ImageID string `json:"imageID"`
+
+	// The index of the pod in the re-starts
+	PodIndex int `json:"podIndex"`
 }
 
 // LocalObjectReference contains enough information to let you locate the

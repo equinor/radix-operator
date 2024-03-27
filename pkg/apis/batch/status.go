@@ -3,16 +3,20 @@ package batch
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	stdErrors "errors"
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 func isJobStatusWaiting(jobStatus radixv1.RadixBatchJobStatus) bool {
@@ -69,7 +73,7 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		return err
 	}
 
-	if status := reconcileStatus(nil); errors.As(reconcileError, &status) {
+	if status := reconcileStatus(nil); stdErrors.As(reconcileError, &status) {
 		// Do not return an error if reconcileError indicates
 		// invalid RadixDeployment reference as long as all jobs are in a done state
 		if status.Status().Reason == invalidDeploymentReferenceReason && slice.All(jobStatuses, isJobStatusDone) {
@@ -85,16 +89,23 @@ func (s *syncer) syncStatus(reconcileError error) error {
 }
 
 func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixBatchStatus)) error {
-	changeStatusFunc(&s.radixBatch.Status)
-	updatedRadixBatch, err := s.radixClient.
-		RadixV1().
-		RadixBatches(s.radixBatch.GetNamespace()).
-		UpdateStatus(context.TODO(), s.radixBatch, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	s.radixBatch = updatedRadixBatch
-	return nil
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		radixBatch, err := s.radixClient.RadixV1().RadixBatches(s.radixBatch.GetNamespace()).Get(context.Background(), s.radixBatch.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		changeStatusFunc(&radixBatch.Status)
+		updatedRadixBatch, err := s.radixClient.
+			RadixV1().
+			RadixBatches(radixBatch.GetNamespace()).
+			UpdateStatus(context.TODO(), radixBatch, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		s.radixBatch = updatedRadixBatch
+		return nil
+	})
+	return err
 }
 
 func isJobStatusCondition(conditionType batchv1.JobConditionType) func(batchv1.JobCondition) bool {
@@ -112,7 +123,8 @@ func (s *syncer) buildJobStatuses() ([]radixv1.RadixBatchJobStatus, error) {
 	}
 
 	for _, batchJob := range s.radixBatch.Spec.Jobs {
-		jobStatuses = append(jobStatuses, s.buildBatchJobStatus(&batchJob, jobs))
+		jobStatus := s.buildBatchJobStatus(&batchJob, jobs)
+		jobStatuses = append(jobStatuses, jobStatus)
 	}
 
 	return jobStatuses, nil
@@ -135,42 +147,192 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 	}
 
 	if isBatchJobStopRequested(batchJob) {
-		now := metav1.Now()
 		status.Phase = radixv1.BatchJobPhaseStopped
+		now := metav1.Now()
 		status.EndTime = &now
 		if len(currentStatus) > 0 {
 			status.CreationTime = currentStatus[0].CreationTime
 			status.StartTime = currentStatus[0].StartTime
+			status.Message = currentStatus[0].Message
+			status.Reason = currentStatus[0].Reason
 		}
+		s.updateJobAndPodStatuses(batchJob.Name, &status)
 		return status
 	}
 
-	if jobs := slice.FindAll(allJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) }); len(jobs) > 0 {
-		job := jobs[0]
-		status.CreationTime = &job.CreationTimestamp
-		status.Failed = job.Status.Failed
-
-		switch {
-		case slice.Any(job.Status.Conditions, isJobStatusCondition(batchv1.JobComplete)):
-			status.Phase = radixv1.BatchJobPhaseSucceeded
-			status.StartTime = job.Status.StartTime
-			status.EndTime = job.Status.CompletionTime
-		case slice.Any(job.Status.Conditions, isJobStatusCondition(batchv1.JobFailed)):
-			status.Phase = radixv1.BatchJobPhaseFailed
-			status.StartTime = job.Status.StartTime
-			if failedConditions := slice.FindAll(job.Status.Conditions, isJobStatusCondition(batchv1.JobFailed)); len(failedConditions) > 0 {
-				status.EndTime = &failedConditions[0].LastTransitionTime
-				status.Reason = failedConditions[0].Reason
-				status.Message = failedConditions[0].Message
-			}
-		case job.Status.Active > 0:
-			status.Phase = radixv1.BatchJobPhaseActive
-			status.StartTime = job.Status.StartTime
-		}
-
+	job, jobFound := slice.FindFirst(allJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })
+	if !jobFound {
+		return status
 	}
+	jobBackoffLimit := getJobBackoffLimit(job)
+	status.CreationTime = &job.CreationTimestamp
+	status.Failed = job.Status.Failed
 
+	jobConditionsSortedDesc := getJobConditionsSortedDesc(job)
+	if job.Status.Succeeded > 0 &&
+		s.setJobStatus(batchJob, &status, job, jobConditionsSortedDesc, radixv1.BatchJobPhaseSucceeded, batchv1.JobComplete) {
+		return status
+	}
+	if job.Status.Failed == jobBackoffLimit+1 &&
+		s.setJobStatus(batchJob, &status, job, jobConditionsSortedDesc, radixv1.BatchJobPhaseFailed, batchv1.JobFailed) {
+		return status
+	}
+	if job.Status.Active > 0 {
+		status.Phase = radixv1.BatchJobPhaseActive
+		status.StartTime = job.Status.StartTime
+		if job.Status.Ready != nil && job.Status.Active == *job.Status.Ready {
+			status.Phase = radixv1.BatchJobPhaseRunning
+		}
+	}
+	if len(jobConditionsSortedDesc) > 0 {
+		status.Reason = jobConditionsSortedDesc[0].Reason
+		status.Message = jobConditionsSortedDesc[0].Message
+	}
+	s.updateJobAndPodStatuses(batchJob.Name, &status)
 	return status
+}
+
+func (s *syncer) setJobStatus(batchJob *radixv1.RadixBatchJob, status *radixv1.RadixBatchJobStatus, job *batchv1.Job, jobConditionsSortedDesc []batchv1.JobCondition, phase radixv1.RadixBatchJobPhase, conditionType batchv1.JobConditionType) bool {
+	if condition, ok := slice.FindFirst(jobConditionsSortedDesc, isJobStatusCondition(conditionType)); ok {
+		status.Phase = phase
+		status.StartTime = job.Status.StartTime
+		status.Reason = condition.Reason
+		status.Message = condition.Message
+		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
+		s.updateJobAndPodStatuses(batchJob.Name, status)
+		return true
+	}
+	return false
+}
+
+func getJobBackoffLimit(job *batchv1.Job) int32 {
+	if job.Spec.BackoffLimit != nil {
+		return *job.Spec.BackoffLimit
+	}
+	return 0
+}
+
+func (s *syncer) updateJobAndPodStatuses(batchJobName string, jobStatus *radixv1.RadixBatchJobStatus) {
+	jobComponentName := s.radixBatch.GetLabels()[kube.RadixComponentLabel]
+	podStatusMap := getPodStatusMap(jobStatus)
+	for _, pod := range s.getJobPods(batchJobName) {
+		podStatus := getOrCreatePodStatusForPod(&pod, jobStatus, podStatusMap)
+		if containerStatus, ok := s.getJobComponentContainerStatus(jobComponentName, pod); ok {
+			setPodStatusByPodLastContainerStatus(containerStatus, podStatus)
+			continue
+		}
+		setPodStatusByPodCondition(&pod, podStatus)
+	}
+}
+
+func (s *syncer) getJobComponentContainerStatus(containerName string, pod corev1.Pod) (*corev1.ContainerStatus, bool) {
+	if containerStatus, ok := slice.FindFirst(pod.Status.ContainerStatuses, func(containerStatus corev1.ContainerStatus) bool {
+		return containerStatus.Name == containerName
+	}); ok {
+		return &containerStatus, true
+	}
+	return nil, false
+}
+
+func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJobStatus, podStatusMap map[string]*radixv1.RadixBatchJobPodStatus) *radixv1.RadixBatchJobPodStatus {
+	if podStatus, ok := podStatusMap[pod.GetName()]; ok {
+		return podStatus
+	}
+	jobStatus.RadixBatchJobPodStatuses = append(jobStatus.RadixBatchJobPodStatuses,
+		radixv1.RadixBatchJobPodStatus{
+			Name:         pod.GetName(),
+			Phase:        radixv1.RadixBatchJobPodPhase(pod.Status.Phase),
+			CreationTime: pointers.Ptr(pod.GetCreationTimestamp()),
+			PodIndex:     len(jobStatus.RadixBatchJobPodStatuses),
+		})
+	return &jobStatus.RadixBatchJobPodStatuses[len(jobStatus.RadixBatchJobPodStatuses)-1]
+}
+
+func (s *syncer) getJobPods(batchJobName string) []corev1.Pod {
+	jobPods, err := s.kubeUtil.KubeClient().CoreV1().Pods(s.radixBatch.GetNamespace()).List(context.Background(), metav1.ListOptions{
+		LabelSelector: s.batchJobIdentifierLabel(batchJobName, s.radixBatch.GetLabels()[kube.RadixAppLabel]).String()})
+	if err != nil || len(jobPods.Items) == 0 {
+		return nil
+	}
+	return jobPods.Items
+}
+
+func setPodStatusByPodLastContainerStatus(containerStatus *corev1.ContainerStatus, podStatus *radixv1.RadixBatchJobPodStatus) {
+	podStatus.RestartCount = containerStatus.RestartCount
+	podStatus.Image = containerStatus.Image
+	podStatus.ImageID = containerStatus.ImageID
+	switch {
+	case containerStatus.State.Running != nil:
+		podStatus.Phase = radixv1.PodRunning
+		podStatus.StartTime = &containerStatus.State.Running.StartedAt
+	case containerStatus.State.Waiting != nil:
+		podStatus.Phase = radixv1.PodPending
+		podStatus.Message = containerStatus.State.Waiting.Message
+		podStatus.Reason = containerStatus.State.Waiting.Reason
+	case containerStatus.State.Terminated != nil:
+		podStatus.Message = containerStatus.State.Terminated.Message
+		podStatus.Reason = containerStatus.State.Terminated.Reason
+		if strings.EqualFold(containerStatus.State.Terminated.Reason, "Completed") &&
+			containerStatus.State.Terminated.ExitCode == 0 {
+			podStatus.Phase = radixv1.PodSucceeded
+			podStatus.ExitCode = 0
+			podStatus.StartTime = &containerStatus.State.Terminated.StartedAt
+			podStatus.EndTime = &containerStatus.State.Terminated.FinishedAt
+			return
+		}
+		podStatus.Phase = radixv1.PodFailed
+		podStatus.Reason = containerStatus.State.Terminated.Reason
+		podStatus.ExitCode = containerStatus.State.Terminated.ExitCode
+		podStatus.StartTime = &containerStatus.State.Terminated.StartedAt
+		podStatus.EndTime = &containerStatus.State.Terminated.FinishedAt
+		podStatus.Message = extendMessage(podStatus)
+	}
+}
+
+func extendMessage(podStatus *radixv1.RadixBatchJobPodStatus) string {
+	var messageItems []string
+	if podStatus.Reason == "OOMKilled" {
+		messageItems = append(messageItems, "Out of memory.")
+	}
+	if len(podStatus.Message) > 0 {
+		messageItems = append(messageItems, podStatus.Message)
+	}
+	if len(messageItems) > 0 {
+		return strings.Join(messageItems, "\n")
+	}
+	return ""
+}
+
+func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJobPodStatus) {
+	if len(pod.Status.Conditions) == 0 {
+		return
+	}
+	conditions := pod.Status.Conditions
+	sort.Slice(conditions, func(i, j int) bool {
+		if conditions[i].LastTransitionTime.Time == conditions[j].LastTransitionTime.Time {
+			return i < j
+		}
+		return conditions[i].LastTransitionTime.After(conditions[j].LastTransitionTime.Time)
+	})
+	podStatus.Reason = conditions[0].Reason
+	podStatus.Message = conditions[0].Message
+	podStatus.Phase = radixv1.RadixBatchJobPodPhase(pod.Status.Phase)
+}
+
+func getPodStatusMap(status *radixv1.RadixBatchJobStatus) map[string]*radixv1.RadixBatchJobPodStatus {
+	podStatusMap := make(map[string]*radixv1.RadixBatchJobPodStatus, len(status.RadixBatchJobPodStatuses))
+	for i := 0; i < len(status.RadixBatchJobPodStatuses); i++ {
+		podStatusMap[status.RadixBatchJobPodStatuses[i].Name] = &status.RadixBatchJobPodStatuses[i]
+	}
+	return podStatusMap
+}
+
+func getJobConditionsSortedDesc(job *batchv1.Job) []batchv1.JobCondition {
+	descSortedJobConditions := job.Status.Conditions
+	sort.Slice(descSortedJobConditions, func(i, j int) bool {
+		return descSortedJobConditions[i].LastTransitionTime.After(descSortedJobConditions[j].LastTransitionTime.Time)
+	})
+	return descSortedJobConditions
 }
 
 func (s *syncer) restoreStatus() error {
