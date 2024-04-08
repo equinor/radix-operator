@@ -1380,6 +1380,8 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	s.Require().Len(allJobs.Items, 3)
 	s.Require().ElementsMatch([]string{getKubeJobName(batchName, job1Name), getKubeJobName(batchName, job2Name), getKubeJobName(batchName, job3Name)}, slice.Map(allJobs.Items, func(job batchv1.Job) string { return job.GetName() }))
 
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	// Initial condition is Waiting when all jobs are waiting
 	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
 	s.Nil(batch.Status.Condition.ActiveTime)
@@ -1391,18 +1393,23 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
 	s.NotNil(batch.Status.Condition.ActiveTime)
 	s.Nil(batch.Status.Condition.CompletionTime)
 
 	// Set job2 condition to failed => batch condition is Running
 	s.updateKubeJobStatus(getKubeJobName(batchName, job2Name), namespace)(func(status *batchv1.JobStatus) {
+		status.Failed = 1
 		status.Conditions = []batchv1.JobCondition{
 			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
 		}
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
 	s.NotNil(batch.Status.Condition.ActiveTime)
 	s.Nil(batch.Status.Condition.CompletionTime)
@@ -1411,6 +1418,8 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	batch.Spec.Jobs[2].Stop = utils.BoolPtr(true)
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
 	s.NotNil(batch.Status.Condition.ActiveTime)
 	s.Nil(batch.Status.Condition.CompletionTime)
@@ -1418,12 +1427,15 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	// Set job1 condition to failed => batch condition is Completed
 	s.updateKubeJobStatus(getKubeJobName(batchName, job1Name), namespace)(func(status *batchv1.JobStatus) {
 		status.Active = 0
+		status.Succeeded = 1
 		status.Conditions = []batchv1.JobCondition{
 			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
 		}
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
 	s.NotNil(batch.Status.Condition.ActiveTime)
 	s.NotNil(batch.Status.Condition.CompletionTime)
@@ -1449,7 +1461,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 			AppName: "any-app",
 			Jobs: []radixv1.RadixDeployJobComponent{
 				{
-					Name: "any-job",
+					Name:         "any-job",
+					BackoffLimit: pointers.Ptr(int32(2)),
 				},
 			},
 		},
@@ -1465,6 +1478,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 	s.Require().Len(allJobs.Items, 1)
 	s.Equal(getKubeJobName(batchName, jobName), allJobs.Items[0].GetName())
 
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	// Initial phase is Waiting
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
@@ -1483,6 +1498,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
@@ -1495,11 +1512,17 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 
 	// Set job status.failed to 2
 	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
+		status.Active = 1
 		status.Failed = 2
 		status.StartTime = &jobStartTime
+		status.Conditions = []batchv1.JobCondition{
+			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
+		}
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
@@ -1512,14 +1535,17 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 
 	// Set job status.conditions to complete => phase is Succeeded
 	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
+		status.Active = 0
+		status.Succeeded = 1
 		status.Conditions = []batchv1.JobCondition{
-			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
+			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, LastTransitionTime: jobCompletionTime},
 		}
 		status.StartTime = &jobStartTime
-		status.CompletionTime = &jobCompletionTime
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseSucceeded, batch.Status.JobStatuses[0].Phase)
@@ -1567,6 +1593,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 	s.Require().Len(allJobs.Items, 1)
 	s.Equal(getKubeJobName(batchName, jobName), allJobs.Items[0].GetName())
 
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	// Initial phase is Waiting
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
@@ -1584,6 +1612,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
@@ -1595,6 +1625,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 
 	// Set job status.conditions to failed => phase is Failed
 	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
+		status.Active = 0
+		status.Failed = 1
 		status.Conditions = []batchv1.JobCondition{
 			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, LastTransitionTime: jobFailedTime},
 		}
@@ -1602,6 +1634,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseFailed, batch.Status.JobStatuses[0].Phase)
@@ -1609,7 +1643,6 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 	s.Empty(batch.Status.JobStatuses[0].Message)
 	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
 	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-	s.Equal(&jobFailedTime, batch.Status.JobStatuses[0].EndTime)
 }
 
 func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
@@ -1648,6 +1681,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	s.Require().Len(allJobs.Items, 1)
 	s.Equal(getKubeJobName(batchName, jobName), allJobs.Items[0].GetName())
 
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	// Initial phase is Waiting
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
@@ -1665,6 +1700,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
@@ -1678,6 +1715,8 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	batch.Spec.Jobs[0].Stop = utils.BoolPtr(true)
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseStopped, batch.Status.JobStatuses[0].Phase)

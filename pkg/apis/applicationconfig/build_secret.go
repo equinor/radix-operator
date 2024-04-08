@@ -1,10 +1,10 @@
 package applicationconfig
 
 import (
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -91,7 +91,7 @@ func (app *ApplicationConfig) updateBuildSecret(namespace, name string, buildSec
 func removeOrphanedSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
 	orphanRemoved := false
 	for secretName := range buildSecrets.Data {
-		if !slice.ContainsString(secrets, secretName) {
+		if !commonUtils.ContainsString(secrets, secretName) {
 			delete(buildSecrets.Data, secretName)
 			orphanRemoved = true
 		}

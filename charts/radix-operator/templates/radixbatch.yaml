@@ -178,7 +178,7 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: A human readable message indicating details about
+                    description: A human-readable message indicating details about
                       the condition.
                     type: string
                   reason:
@@ -219,22 +219,95 @@ spec:
                       format: int32
                       type: integer
                     message:
-                      description: A human readable message indicating details about
+                      description: A human-readable message indicating details about
                         why the job is in this phase
                       type: string
                     name:
                       maxLength: 63
                       type: string
                     phase:
-                      description: RadixBatchJobPhase represents the phase of the
-                        job
+                      description: The Phase is a simple, high-level summary of where
+                        the RadixBatchJob is in its lifecycle.
                       enum:
                       - Waiting
                       - Active
+                      - Running
                       - Succeeded
                       - Failed
                       - Stopped
                       type: string
+                    podStatuses:
+                      description: Status for each pod of the job
+                      items:
+                        description: RadixBatchJobPodStatus contains details for the
+                          current status of the job's pods.
+                        properties:
+                          creationTime:
+                            description: The time at which the Kubernetes job's pod
+                              was created.
+                            format: date-time
+                            type: string
+                          endTime:
+                            description: The time at which the batch job's pod finishedAt.
+                            format: date-time
+                            type: string
+                          exitCode:
+                            description: Exit status from the last termination of
+                              the container
+                            format: int32
+                            type: integer
+                          image:
+                            description: 'The name of container image that the container
+                              is running. The container image may not match the image
+                              used in the PodSpec, as it may have been resolved by
+                              the runtime. More info: https://kubernetes.io/docs/concepts/containers/images.'
+                            type: string
+                          imageID:
+                            description: The image ID of the container's image. The
+                              image ID may not match the image ID of the image used
+                              in the PodSpec, as it may have been resolved by the
+                              runtime.
+                            type: string
+                          message:
+                            description: A human-readable message indicating details
+                              about why the job is in this phase
+                            type: string
+                          name:
+                            maxLength: 63
+                            type: string
+                          phase:
+                            description: The phase of a Pod is a simple, high-level
+                              summary of where the Pod is in its lifecycle.
+                            enum:
+                            - Pending
+                            - Running
+                            - Succeeded
+                            - Failed
+                            type: string
+                          podIndex:
+                            description: The index of the pod in the re-starts
+                            type: integer
+                          reason:
+                            description: A brief CamelCase message indicating details
+                              about why the job is in this phase
+                            type: string
+                          restartCount:
+                            description: The number of times the container has been
+                              restarted.
+                            format: int32
+                            type: integer
+                          startTime:
+                            description: The time at which the batch job's pod startedAt
+                            format: date-time
+                            type: string
+                        required:
+                        - exitCode
+                        - name
+                        - phase
+                        - podIndex
+                        - restartCount
+                        type: object
+                      type: array
                     reason:
                       description: A brief CamelCase message indicating details about
                         why the job is in this phase
