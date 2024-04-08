@@ -89,11 +89,11 @@ func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommo
 }
 
 func getRadixCommonComponentMonitoring(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) bool {
-	if environmentSpecificConfig.GetMonitoring() != nil {
+	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetMonitoring() != nil {
 		return *environmentSpecificConfig.GetMonitoring()
 	}
 	monitoring := radixComponent.GetMonitoring()
-	return monitoring != nil || *monitoring
+	return !commonutils.IsNil(monitoring) && *monitoring
 }
 
 func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) (*radixv1.RadixHorizontalScaling, error) {
