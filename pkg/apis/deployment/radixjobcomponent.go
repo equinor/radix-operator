@@ -98,7 +98,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Name:                 componentName,
 		Ports:                radixJobComponent.Ports,
 		Secrets:              radixJobComponent.Secrets,
-		Monitoring:           false,
+		Monitoring:           getRadixCommonComponentMonitoring(&radixJobComponent, environmentSpecificConfig),
 		MonitoringConfig:     radixJobComponent.MonitoringConfig,
 		Payload:              radixJobComponent.Payload,
 		SchedulerPort:        radixJobComponent.SchedulerPort,
@@ -113,12 +113,10 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Notifications:        notifications,
 		ReadOnlyFileSystem:   getRadixCommonComponentReadOnlyFileSystem(&radixJobComponent, environmentSpecificConfig),
 	}
-
-	if environmentSpecificConfig != nil {
-		deployJob.Monitoring = environmentSpecificConfig.Monitoring
-		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
+	deployJob.Monitoring = getRadixCommonComponentMonitoring(&radixJobComponent, environmentSpecificConfig)
+	if deployJob.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixJobComponent, environmentSpecificConfig); err != nil {
+		return nil, err
 	}
-
 	return &deployJob, nil
 }
 
