@@ -12,6 +12,7 @@ import (
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -21,6 +22,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -598,8 +600,21 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(deployComponent v1.Radi
 	// Remove volumes and volume mounts from job scheduler deployment
 	desiredDeployment.Spec.Template.Spec.Volumes = nil
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
-
+	syncRadixRestartEnvironmentVariable(deployComponent, desiredJobAuxDeployment)
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
+}
+
+func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployComponent, desiredJobAuxDeployment *appsv1.Deployment) {
+	auxDeploymentEnvVars := desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env
+	if restartComponentValue, ok := deployComponent.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
+		if index := slice.FindIndex(auxDeploymentEnvVars, func(envVar corev1.EnvVar) bool {
+			return strings.EqualFold(envVar.Name, defaults.RadixRestartEnvironmentVariable)
+		}); index >= 0 {
+			desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env[index].Value = restartComponentValue
+			return
+		}
+		desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env = append(auxDeploymentEnvVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: restartComponentValue})
+	}
 }
 
 func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
