@@ -3799,6 +3799,67 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 	assert.False(t, envVariableByNameExistOnDeployment("SECRET2", jobName, jobDeployments), "SECRET2 exist")
 }
 
+func Test_RestartJobManager_RestartsAuxDeployment(t *testing.T) {
+	appName, environment, jobName := "app", "dev", "job"
+	tu, client, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
+	defer teardownTest()
+	// Setup
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
+
+	applicationBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))
+	jobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(jobName)
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient,
+		utils.NewDeploymentBuilder().
+			WithRadixApplication(
+				applicationBuilder,
+			).
+			WithAppName(appName).
+			WithEnvironment(environment).
+			WithJobComponent(
+				jobComponentBuilder,
+			),
+	)
+	require.NoError(t, err)
+
+	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+	allDeployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
+	jobDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
+	jobAuxDeployments := getDeploymentsForRadixJobAux(allDeployments.Items)
+	require.Len(t, jobDeployments, 1)
+	require.Len(t, jobAuxDeployments, 1)
+	require.Equal(t, "job", jobDeployments[0].Name)
+	require.Equal(t, "job-aux", jobAuxDeployments[0].Name)
+	restartTimestamp := "some-time-stamp"
+	require.False(t, slice.Any(jobDeployments[0].Spec.Template.Spec.Containers[0].Env, func(envVar corev1.EnvVar) bool {
+		return envVar.Name == defaults.RadixRestartEnvironmentVariable && envVar.Value == restartTimestamp
+	}), "Not found restart env var in the job deployment")
+	require.False(t, slice.Any(jobAuxDeployments[0].Spec.Template.Spec.Containers[0].Env, func(envVar corev1.EnvVar) bool {
+		return envVar.Name == defaults.RadixRestartEnvironmentVariable && envVar.Value == restartTimestamp
+	}), "Not found restart env var in the job aux deployment")
+
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient,
+		utils.NewDeploymentBuilder().
+			WithRadixApplication(applicationBuilder).
+			WithAppName(appName).
+			WithEnvironment(environment).
+			WithJobComponent(jobComponentBuilder.WithEnvironmentVariable(defaults.RadixRestartEnvironmentVariable, restartTimestamp)),
+	)
+	require.NoError(t, err)
+
+	allDeployments, _ = client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
+	jobDeployments = getDeploymentsForRadixComponents(allDeployments.Items)
+	jobAuxDeployments = getDeploymentsForRadixJobAux(allDeployments.Items)
+	require.Len(t, jobDeployments, 1)
+	require.Len(t, jobAuxDeployments, 1)
+	require.Equal(t, "job", jobDeployments[0].Name)
+	require.True(t, slice.Any(jobDeployments[0].Spec.Template.Spec.Containers[0].Env, func(envVar corev1.EnvVar) bool {
+		return envVar.Name == defaults.RadixRestartEnvironmentVariable && envVar.Value == restartTimestamp
+	}), "Not found restart env var in the job deployment")
+	require.True(t, slice.Any(jobAuxDeployments[0].Spec.Template.Spec.Containers[0].Env, func(envVar corev1.EnvVar) bool {
+		return envVar.Name == defaults.RadixRestartEnvironmentVariable && envVar.Value == restartTimestamp
+	}), "Not found restart env var in the job aux deployment")
+}
+
 func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
