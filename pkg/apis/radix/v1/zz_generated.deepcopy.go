@@ -1284,6 +1284,18 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.HorizontalScaling != nil {
+		in, out := &in.HorizontalScaling, &out.HorizontalScaling
+		*out = new(RadixHorizontalScaling)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.VolumeMounts != nil {
+		in, out := &in.VolumeMounts, &out.VolumeMounts
+		*out = make([]RadixVolumeMount, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

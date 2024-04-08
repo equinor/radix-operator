@@ -331,6 +331,12 @@ type RadixComponent struct {
 	// +optional
 	Image string `json:"image,omitempty"`
 
+	// The imageTagName allows for flexible configuration of fixed images,
+	// built outside of Radix, it can be also configured with separate tag for each environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+	// +optional
+	ImageTagName string `json:"imageTagName,omitempty"`
+
 	// List of ports that the component bind to.
 	// +listType=map
 	// +listMapKey=name
@@ -343,6 +349,11 @@ type RadixComponent struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig
 	// +optional
 	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+
+	// Enabled or disables collection of custom Prometheus metrics.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+	// +optional
+	Monitoring bool `json:"monitoring"`
 
 	// Deprecated, use publicPort instead.
 	// +optional
@@ -415,6 +426,15 @@ type RadixComponent struct {
 	// Controls if the filesystem shall be read-only.
 	// +optional
 	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+	// Configuration for automatic horizontal scaling of replicas.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
+	// +optional
+	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
+
+	// Configuration for mounting cloud storage into the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
