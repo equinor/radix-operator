@@ -18,6 +18,7 @@ type RadixApplicationComponentBuilder interface {
 	WithSecrets(...string) RadixApplicationComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationComponentBuilder
 	WithMonitoringConfig(v1.MonitoringConfig) RadixApplicationComponentBuilder
+	WithMonitoring(monitoring *bool) RadixApplicationComponentBuilder
 	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
@@ -54,6 +55,7 @@ type radixApplicationComponentBuilder struct {
 	enabled                 *bool
 	identity                *v1.Identity
 	readOnlyFileSystem      *bool
+	monitoring              *bool
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -104,6 +106,11 @@ func (rcb *radixApplicationComponentBuilder) WithSecretRefs(secretRefs v1.RadixS
 
 func (rcb *radixApplicationComponentBuilder) WithMonitoringConfig(monitoringConfig v1.MonitoringConfig) RadixApplicationComponentBuilder {
 	rcb.monitoringConfig = monitoringConfig
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithMonitoring(monitoring *bool) RadixApplicationComponentBuilder {
+	rcb.monitoring = monitoring
 	return rcb
 }
 
@@ -212,6 +219,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Enabled:                 rcb.enabled,
 		Identity:                rcb.identity,
 		ReadOnlyFileSystem:      rcb.readOnlyFileSystem,
+		Monitoring:              rcb.monitoring,
 	}
 }
 

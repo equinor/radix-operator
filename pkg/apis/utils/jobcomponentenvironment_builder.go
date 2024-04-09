@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"github.com/equinor/radix-common/utils/pointers"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -14,7 +13,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithEnvironmentVariable(string, string) RadixJobComponentEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixJobComponentEnvironmentConfigBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixJobComponentEnvironmentConfigBuilder
-	WithMonitoring(bool) RadixJobComponentEnvironmentConfigBuilder
+	WithMonitoring(monitoring *bool) RadixJobComponentEnvironmentConfigBuilder
 	WithImageTagName(string) RadixJobComponentEnvironmentConfigBuilder
 	WithNode(v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixJobComponentEnvironmentConfigBuilder
@@ -100,8 +99,8 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithEnvironmentVariable(na
 	return ceb
 }
 
-func (ceb *radixJobComponentEnvironmentConfigBuilder) WithMonitoring(enabled bool) RadixJobComponentEnvironmentConfigBuilder {
-	ceb.monitoring = pointers.Ptr(enabled)
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithMonitoring(monitoring *bool) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.monitoring = monitoring
 	return ceb
 }
 

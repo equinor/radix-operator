@@ -426,6 +426,7 @@ type RadixComponent struct {
 	// Controls if the filesystem shall be read-only.
 	// +optional
 	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
 	// Configuration for automatic horizontal scaling of replicas.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
 	// +optional

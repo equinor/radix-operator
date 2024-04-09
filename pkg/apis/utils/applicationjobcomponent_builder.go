@@ -12,6 +12,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithSecrets(...string) RadixApplicationJobComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationJobComponentBuilder
 	WithMonitoringConfig(v1.MonitoringConfig) RadixApplicationJobComponentBuilder
+	WithMonitoring(monitoring *bool) RadixApplicationJobComponentBuilder
 	WithEnvironmentConfig(RadixJobComponentEnvironmentConfigBuilder) RadixApplicationJobComponentBuilder
 	WithEnvironmentConfigs(...RadixJobComponentEnvironmentConfigBuilder) RadixApplicationJobComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationJobComponentBuilder
@@ -51,6 +52,7 @@ type radixApplicationJobComponentBuilder struct {
 	identity           *v1.Identity
 	notifications      *v1.Notifications
 	readOnlyFileSystem *bool
+	monitoring         *bool
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -111,6 +113,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithPorts(ports []v1.ComponentPo
 
 func (rcb *radixApplicationJobComponentBuilder) WithMonitoringConfig(monitoringConfig v1.MonitoringConfig) RadixApplicationJobComponentBuilder {
 	rcb.monitoringConfig = monitoringConfig
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithMonitoring(monitoring *bool) RadixApplicationJobComponentBuilder {
+	rcb.monitoring = monitoring
 	return rcb
 }
 
@@ -211,6 +218,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Identity:           rcb.identity,
 		Notifications:      rcb.notifications,
 		ReadOnlyFileSystem: rcb.readOnlyFileSystem,
+		Monitoring:         rcb.monitoring,
 	}
 }
 

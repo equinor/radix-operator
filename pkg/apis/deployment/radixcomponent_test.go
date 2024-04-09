@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -58,39 +59,39 @@ func TestGetClientCertificateAuthenticationForComponent(t *testing.T) {
 		{name: "should return environment when component is nil", env: &radixv1.ClientCertificate{}, expected: &radixv1.ClientCertificate{}},
 		{
 			name:     "should use PassCertificateToUpstream from environment",
-			comp:     &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
-			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
-			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			comp:     &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(true)},
+			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)},
+			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)},
 		},
 		{
 			name:     "should use PassCertificateToUpstream from environment",
-			comp:     &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
-			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
-			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
-		},
-		{
-			name:     "should use PassCertificateToUpstream from environment",
-			comp:     &radixv1.ClientCertificate{},
-			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
-			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			comp:     &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)},
+			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(true)},
+			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(true)},
 		},
 		{
 			name:     "should use PassCertificateToUpstream from environment",
 			comp:     &radixv1.ClientCertificate{},
-			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
-			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)},
+			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)},
+		},
+		{
+			name:     "should use PassCertificateToUpstream from environment",
+			comp:     &radixv1.ClientCertificate{},
+			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(true)},
+			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(true)},
 		},
 		{
 			name:     "should use PassCertificateToUpstream from component when not set in environment",
-			comp:     &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			comp:     &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)},
 			env:      &radixv1.ClientCertificate{},
-			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)},
 		},
 		{
 			name:     "should use PassCertificateToUpstream from component when not set in environment",
-			comp:     &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+			comp:     &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(true)},
 			env:      &radixv1.ClientCertificate{},
-			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+			expected: &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(true)},
 		},
 		{
 			name:     "should use Verification from environment",
@@ -112,15 +113,15 @@ func TestGetClientCertificateAuthenticationForComponent(t *testing.T) {
 		},
 		{
 			name:     "should use Verification from component and PassCertificateToUpstream from environment",
-			comp:     &radixv1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: utils.BoolPtr(true)},
-			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
-			expected: &radixv1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: utils.BoolPtr(false)},
+			comp:     &radixv1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: pointers.Ptr(true)},
+			env:      &radixv1.ClientCertificate{PassCertificateToUpstream: pointers.Ptr(false)},
+			expected: &radixv1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: pointers.Ptr(false)},
 		},
 		{
 			name:     "should use Verification from environment and PassCertificateToUpstream from component",
-			comp:     &radixv1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: utils.BoolPtr(true)},
+			comp:     &radixv1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: pointers.Ptr(true)},
 			env:      &radixv1.ClientCertificate{Verification: &verificationOptional},
-			expected: &radixv1.ClientCertificate{Verification: &verificationOptional, PassCertificateToUpstream: utils.BoolPtr(true)},
+			expected: &radixv1.ClientCertificate{Verification: &verificationOptional, PassCertificateToUpstream: pointers.Ptr(true)},
 		},
 	}
 
@@ -143,9 +144,9 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		{name: "should return environment when component is nil", env: &radixv1.OAuth2{}, expected: &radixv1.OAuth2{}},
 		{
 			name:     "should override OAuth2 from environment",
-			comp:     &radixv1.OAuth2{ClientID: "123", Scope: "openid", SetXAuthRequestHeaders: utils.BoolPtr(true), SessionStoreType: "cookie"},
-			env:      &radixv1.OAuth2{Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), SessionStoreType: "redis"},
-			expected: &radixv1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), SessionStoreType: "redis"},
+			comp:     &radixv1.OAuth2{ClientID: "123", Scope: "openid", SetXAuthRequestHeaders: pointers.Ptr(true), SessionStoreType: "cookie"},
+			env:      &radixv1.OAuth2{Scope: "email", SetXAuthRequestHeaders: pointers.Ptr(false), SetAuthorizationHeader: pointers.Ptr(true), SessionStoreType: "redis"},
+			expected: &radixv1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: pointers.Ptr(false), SetAuthorizationHeader: pointers.Ptr(true), SessionStoreType: "redis"},
 		},
 		{
 			name:     "should override OAuth2.RedisStore from environment",
@@ -155,9 +156,9 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		},
 		{
 			name:     "should override OAuth2.CookieStore from environment",
-			comp:     &radixv1.OAuth2{CookieStore: &radixv1.OAuth2CookieStore{Minimal: utils.BoolPtr(true)}},
-			env:      &radixv1.OAuth2{CookieStore: &radixv1.OAuth2CookieStore{Minimal: utils.BoolPtr(false)}},
-			expected: &radixv1.OAuth2{CookieStore: &radixv1.OAuth2CookieStore{Minimal: utils.BoolPtr(false)}},
+			comp:     &radixv1.OAuth2{CookieStore: &radixv1.OAuth2CookieStore{Minimal: pointers.Ptr(true)}},
+			env:      &radixv1.OAuth2{CookieStore: &radixv1.OAuth2CookieStore{Minimal: pointers.Ptr(false)}},
+			expected: &radixv1.OAuth2{CookieStore: &radixv1.OAuth2CookieStore{Minimal: pointers.Ptr(false)}},
 		},
 		{
 			name:     "should override OAuth2.Cookie from environment",
@@ -196,10 +197,10 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 
 	deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
-	//lint:ignore SA1019 backward compatilibity test
+	//lint:ignore SA1019 backward compatibility test
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "", deployComponent[0].PublicPort)
-	//lint:ignore SA1019 backward compatilibity test
+	//lint:ignore SA1019 backward compatibility test
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort exists, old public does not exist
@@ -212,10 +213,10 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPublicPort("http")).BuildRA()
 	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
-	//lint:ignore SA1019 backward compatilibity test
+	//lint:ignore SA1019 backward compatibility test
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
-	//lint:ignore SA1019 backward compatilibity test
+	//lint:ignore SA1019 backward compatibility test
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort exists, old public exists (ignored)
@@ -229,10 +230,10 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(true)).BuildRA()
 	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
-	//lint:ignore SA1019 backward compatilibity test
+	//lint:ignore SA1019 backward compatibility test
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
-	//lint:ignore SA1019 backward compatilibity test
+	//lint:ignore SA1019 backward compatibility test
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort does not exist, old public exists (used)
@@ -245,9 +246,9 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(true)).BuildRA()
 	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
 	assert.Equal(t, ra.Spec.Components[0].Ports[0].Name, deployComponent[0].PublicPort)
-	//lint:ignore SA1019 backward compatilibity test
+	//lint:ignore SA1019 backward compatibility test
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
-	//lint:ignore SA1019 backward compatilibity test
+	//lint:ignore SA1019 backward compatibility test
 	assert.Equal(t, false, deployComponent[0].Public)
 }
 
@@ -267,14 +268,14 @@ func TestGetRadixComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 		expectedReadOnlyFilesystem *bool
 	}{
 		{"No configuration set", nil, nil, nil},
-		{"Env controls when readOnlyFileSystem is nil, set to true", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"Env controls when readOnlyFileSystem is nil, set to false", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"readOnlyFileSystem set to true, no env config", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
-		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"Env overrides to false when both is set", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"readOnlyFileSystem set to false, no env config", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
-		{"Env overrides to true when both is set", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"Env controls when readOnlyFileSystem is nil, set to true", nil, pointers.Ptr(true), pointers.Ptr(true)},
+		{"Env controls when readOnlyFileSystem is nil, set to false", nil, pointers.Ptr(false), pointers.Ptr(false)},
+		{"readOnlyFileSystem set to true, no env config", pointers.Ptr(true), nil, pointers.Ptr(true)},
+		{"Both readOnlyFileSystem and monitoringEnv set to true", pointers.Ptr(true), pointers.Ptr(true), pointers.Ptr(true)},
+		{"Env overrides to false when both is set", pointers.Ptr(true), pointers.Ptr(false), pointers.Ptr(false)},
+		{"readOnlyFileSystem set to false, no env config", pointers.Ptr(false), nil, pointers.Ptr(false)},
+		{"Env overrides to true when both is set", pointers.Ptr(false), pointers.Ptr(true), pointers.Ptr(true)},
+		{"Both readOnlyFileSystem and monitoringEnv set to false", pointers.Ptr(false), pointers.Ptr(false), pointers.Ptr(false)},
 	}
 
 	for _, testCase := range testCases {
@@ -289,7 +290,7 @@ func TestGetRadixComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 								WithEnvironment(env).
 								WithReadOnlyFileSystem(testCase.readOnlyFileSystemEnv),
 							utils.AnEnvironmentConfig().
-								WithEnvironment("prod").WithReadOnlyFileSystem(utils.BoolPtr(false)),
+								WithEnvironment("prod").WithReadOnlyFileSystem(pointers.Ptr(false)),
 						)).BuildRA()
 
 			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
@@ -526,7 +527,7 @@ func TestGetRadixComponentsForEnv_Monitoring(t *testing.T) {
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment(envs[0]).
-						WithMonitoring(true),
+						WithMonitoring(pointers.Ptr(true)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment(envs[1]),
 				),
@@ -537,7 +538,7 @@ func TestGetRadixComponentsForEnv_Monitoring(t *testing.T) {
 						WithEnvironment(envs[0]),
 					utils.AnEnvironmentConfig().
 						WithEnvironment(envs[1]).
-						WithMonitoring(true),
+						WithMonitoring(pointers.Ptr(true)),
 				),
 		).BuildRA()
 
@@ -950,6 +951,54 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 
 			assert.Equal(t, 2, len(deployComponents))
 			assert.Equal(t, ts.expectedComponentImage[deployComponents[0].Name], deployComponents[0].Image)
+		})
+	}
+}
+
+func Test_GetRadixComponents_Monitoring(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	// Test cases with different values for Monitoring
+	testCases := []struct {
+		description   string
+		monitoring    *bool
+		monitoringEnv *bool
+
+		expectedMonitoring bool
+	}{
+		{"No configuration set", nil, nil, false},
+		{"Env controls when monitoring is nil, set to true", nil, pointers.Ptr(true), true},
+		{"Env controls when monitoring is nil, set to false", nil, pointers.Ptr(false), false},
+		{"monitoring set to true, no env config", pointers.Ptr(true), nil, true},
+		{"Both monitoring and monitoringEnv set to true", pointers.Ptr(true), pointers.Ptr(true), true},
+		{"Env overrides to false when both is set", pointers.Ptr(true), pointers.Ptr(false), false},
+		{"monitoring set to false, no env config", pointers.Ptr(false), nil, false},
+		{"Env overrides to true when both is set", pointers.Ptr(false), pointers.Ptr(true), true},
+		{"Both monitoring and monitoringEnv set to false", pointers.Ptr(false), pointers.Ptr(false), false},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			ra := utils.ARadixApplication().
+				WithComponents(
+					utils.NewApplicationComponentBuilder().
+						WithName(componentName).
+						WithMonitoring(testCase.monitoring).
+						WithEnvironmentConfigs(
+							utils.AnEnvironmentConfig().
+								WithEnvironment(env).
+								WithMonitoring(testCase.monitoringEnv),
+							utils.AnEnvironmentConfig().
+								WithEnvironment("prod").
+								WithMonitoring(pointers.Ptr(false)),
+						)).BuildRA()
+
+			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
+			assert.Equal(t, testCase.expectedMonitoring, deployComponent[0].Monitoring)
 		})
 	}
 }

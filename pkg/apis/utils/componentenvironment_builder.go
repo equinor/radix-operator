@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"github.com/equinor/radix-common/utils/pointers"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -17,7 +16,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
-	WithMonitoring(bool) RadixEnvironmentConfigBuilder
+	WithMonitoring(monitoring *bool) RadixEnvironmentConfigBuilder
 	WithNode(v1.RadixNode) RadixEnvironmentConfigBuilder
 	WithAuthentication(*v1.Authentication) RadixEnvironmentConfigBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixEnvironmentConfigBuilder
@@ -128,8 +127,8 @@ func (ceb *radixEnvironmentConfigBuilder) WithAlwaysPullImageOnDeploy(val bool) 
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithMonitoring(monitoring bool) RadixEnvironmentConfigBuilder {
-	ceb.monitoring = pointers.Ptr(monitoring)
+func (ceb *radixEnvironmentConfigBuilder) WithMonitoring(monitoring *bool) RadixEnvironmentConfigBuilder {
+	ceb.monitoring = monitoring
 	return ceb
 }
 
