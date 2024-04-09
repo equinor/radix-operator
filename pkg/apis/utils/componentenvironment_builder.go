@@ -23,7 +23,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithEnabled(bool) RadixEnvironmentConfigBuilder
 	WithIdentity(*v1.Identity) RadixEnvironmentConfigBuilder
 	WithImageTagName(string) RadixEnvironmentConfigBuilder
-	WithHorizontalScaling(*int32, int32, *int32, *int32) RadixEnvironmentConfigBuilder
+	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixEnvironmentConfigBuilder
 }
 

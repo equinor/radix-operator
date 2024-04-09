@@ -31,6 +31,7 @@ type RadixApplicationComponentBuilder interface {
 	WithEnabled(bool) RadixApplicationComponentBuilder
 	WithIdentity(*v1.Identity) RadixApplicationComponentBuilder
 	WithReadOnlyFileSystem(*bool) RadixApplicationComponentBuilder
+	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -58,6 +59,7 @@ type radixApplicationComponentBuilder struct {
 	readOnlyFileSystem      *bool
 	monitoring              *bool
 	imageTagName            string
+	horizontalScaling       *v1.RadixHorizontalScaling
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -199,6 +201,33 @@ func (rcb *radixApplicationComponentBuilder) WithReadOnlyFileSystem(readOnlyFile
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixApplicationComponentBuilder {
+	var cpuScalingResource *v1.RadixHorizontalScalingResource
+	var memoryScalingResource *v1.RadixHorizontalScalingResource
+
+	if cpu != nil {
+		cpuScalingResource = &v1.RadixHorizontalScalingResource{
+			AverageUtilization: cpu,
+		}
+	}
+
+	if memory != nil {
+		memoryScalingResource = &v1.RadixHorizontalScalingResource{
+			AverageUtilization: memory,
+		}
+	}
+
+	rcb.horizontalScaling = &v1.RadixHorizontalScaling{
+		MinReplicas: minReplicas,
+		MaxReplicas: maxReplicas,
+		RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
+			Cpu:    cpuScalingResource,
+			Memory: memoryScalingResource,
+		},
+	}
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent {
 	var environmentConfig = make([]v1.RadixEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -228,6 +257,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		ReadOnlyFileSystem:      rcb.readOnlyFileSystem,
 		Monitoring:              rcb.monitoring,
 		ImageTagName:            rcb.imageTagName,
+		HorizontalScaling:       rcb.horizontalScaling,
 	}
 }
 

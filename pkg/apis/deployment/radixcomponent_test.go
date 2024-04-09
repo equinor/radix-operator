@@ -1037,6 +1037,105 @@ func Test_GetRadixComponents_Monitoring(t *testing.T) {
 	}
 }
 
+func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	// Test cases with different values for Monitoring
+	ptrInt1 := pointers.Ptr[int32](1)
+	ptrInt2 := pointers.Ptr[int32](2)
+	ptrInt70 := pointers.Ptr[int32](70)
+	ptrInt75 := pointers.Ptr[int32](75)
+	ptrInt80 := pointers.Ptr[int32](80)
+	ptrInt85 := pointers.Ptr[int32](85)
+	testCases := []struct {
+		description                  string
+		componentHorizontalScaling   *radixv1.RadixHorizontalScaling
+		environmentHorizontalScaling *radixv1.RadixHorizontalScaling
+
+		expectedHorizontalScaling *radixv1.RadixHorizontalScaling
+	}{
+		{description: "No configuration set"},
+		{
+			description:                "Component sets HorizontalScaling",
+			componentHorizontalScaling: getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+			expectedHorizontalScaling:  getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+		},
+		{
+			description:                  "Env sets HorizontalScaling",
+			environmentHorizontalScaling: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+			expectedHorizontalScaling:    getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+		},
+		{
+			description:                  "Env overrides all the component sets HorizontalScaling",
+			componentHorizontalScaling:   getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+			environmentHorizontalScaling: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+			expectedHorizontalScaling:    getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+		},
+		{
+			description:                  "Env overrides and adds HorizontalScaling props",
+			componentHorizontalScaling:   getRadixHorizontalScaling(ptrInt2, 10, nil, ptrInt70),
+			environmentHorizontalScaling: getRadixHorizontalScaling(nil, 8, ptrInt85, nil),
+			expectedHorizontalScaling:    getRadixHorizontalScaling(ptrInt2, 8, ptrInt85, ptrInt70),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			environmentConfigBuilder := utils.AnEnvironmentConfig().WithEnvironment(env)
+			if testCase.environmentHorizontalScaling != nil {
+				hs := testCase.environmentHorizontalScaling
+				environmentConfigBuilder = environmentConfigBuilder.WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources))
+			}
+			componentBuilder := utils.NewApplicationComponentBuilder().
+				WithName(componentName).
+				WithEnvironmentConfigs(environmentConfigBuilder)
+			if testCase.componentHorizontalScaling != nil {
+				hs := testCase.componentHorizontalScaling
+				componentBuilder = componentBuilder.WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources))
+			}
+
+			ra := utils.ARadixApplication().WithComponents(componentBuilder).BuildRA()
+
+			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
+			assert.Equal(t, testCase.expectedHorizontalScaling, deployComponent[0].HorizontalScaling)
+		})
+	}
+}
+
+func getRadixHorizontalScaling(minReplicas *int32, maxReplicas int32, cpuResources, memoryResources *int32) *radixv1.RadixHorizontalScaling {
+	return &radixv1.RadixHorizontalScaling{MinReplicas: minReplicas, MaxReplicas: maxReplicas,
+		RadixHorizontalScalingResources: getRadixHorizontalScalingResources(pointers.Ptr[int32](80), pointers.Ptr[int32](70))}
+}
+
+func getRadixHorizontalScalingResources(cpu, memory *int32) *radixv1.RadixHorizontalScalingResources {
+	resources := radixv1.RadixHorizontalScalingResources{}
+	if cpu != nil {
+		resources.Cpu = &radixv1.RadixHorizontalScalingResource{AverageUtilization: cpu}
+	}
+	if memory != nil {
+		resources.Memory = &radixv1.RadixHorizontalScalingResource{AverageUtilization: memory}
+	}
+	return &resources
+}
+
+func getHSCPUAverageUtilization(resource *radixv1.RadixHorizontalScalingResources) *int32 {
+	if resource == nil || resource.Cpu == nil {
+		return nil
+	}
+	return resource.Cpu.AverageUtilization
+}
+
+func getHSMemoryAverageUtilization(resource *radixv1.RadixHorizontalScalingResources) *int32 {
+	if resource == nil || resource.Memory == nil {
+		return nil
+	}
+	return resource.Memory.AverageUtilization
+}
+
 func convertRadixDeployComponentToNameSet(deployComponents []radixv1.RadixDeployComponent) map[string]bool {
 	set := make(map[string]bool)
 	for _, deployComponent := range deployComponents {
