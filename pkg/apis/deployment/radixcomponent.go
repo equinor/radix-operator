@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	authTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
+	booleanPointerTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
 func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
@@ -131,20 +131,22 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 		return environmentVolumeMounts, nil
 	}
 	environmentVolumeMountMap := slice.Reduce(environmentVolumeMounts, make(map[string]radixv1.RadixVolumeMount), func(acc map[string]radixv1.RadixVolumeMount, volumeMount radixv1.RadixVolumeMount) map[string]radixv1.RadixVolumeMount {
-		acc[volumeMount.Name] = volumeMount
+		environmentVolumeMount := volumeMount
+		acc[volumeMount.Name] = environmentVolumeMount
 		return acc
 	})
 	var errs []error
 	var finalVolumeMounts []radixv1.RadixVolumeMount
 	for _, componentVolumeMount := range componentVolumeMounts {
-		volumeMount := componentVolumeMount
-		if envVolumeMount, ok := environmentVolumeMountMap[componentVolumeMount.Name]; ok {
-			if err := mergo.Merge(&volumeMount, envVolumeMount, mergo.WithOverride); err != nil {
-				errs = append(errs, fmt.Errorf("failed to merge component volume-mount and environment volume-mount %s: %w", componentVolumeMount.Name, err))
+		finalVolumeMount := componentVolumeMount
+		volumeMountName := componentVolumeMount.Name
+		if envVolumeMount, ok := environmentVolumeMountMap[volumeMountName]; ok {
+			if err := mergo.Merge(&finalVolumeMount, envVolumeMount, mergo.WithOverride, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
+				errs = append(errs, fmt.Errorf("failed to merge component and environment volume-mounts %s: %w", volumeMountName, err))
 			}
-			delete(environmentVolumeMountMap, envVolumeMount.Name)
+			delete(environmentVolumeMountMap, volumeMountName)
 		}
-		finalVolumeMounts = append(finalVolumeMounts, volumeMount)
+		finalVolumeMounts = append(finalVolumeMounts, finalVolumeMount)
 	}
 	for _, environmentVolumeMount := range environmentVolumeMountMap {
 		volumeMount := environmentVolumeMount
@@ -197,7 +199,7 @@ func GetAuthenticationForComponent(componentAuthentication *radixv1.Authenticati
 		authEnv = environmentAuthentication.DeepCopy()
 	}
 
-	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(authTransformer)); err != nil {
+	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
 		return nil, err
 	}
 	return authBase, nil
