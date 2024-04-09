@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/equinor/radix-operator/workflows/radix-operator-build/badge.svg)](https://github.com/equinor/radix-operator/actions?query=workflow%3Aradix-operator-build)
+[![Build Status](https://github.com/equinor/radix-operator/workflows/radix-operator-build/badge.svg)](https://github.com/equinor/radix-operator/actions?query=workflow%3Aradix-operator-build)  
 # radix-operator
 
 The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform natively on [Kubernetes](https://kubernetes.io/). It manages seven [custom resource definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/):
@@ -11,9 +11,7 @@ The radix-operator is the central piece of the [Radix platform](https://github.c
 - RAL - Alerts
 - RB - Batch jobs
 
-The `radix-operator` and `radix-pipeline` are built using Github actions, then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch.
-
-There are [secrets](https://github.com/equinor/radix-operator/settings/secrets) defined for the actions to be able to push to radixdev and radixprod. These are the corresponding credentials for radix-cr-cicd-dev and radix-cr-cicd-prod service accounts.
+The `radix-operator` and `radix-pipeline` are built using Github actions, then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch. Build and push to container registry is done using Github actions.
 
 ## Developer information
 
