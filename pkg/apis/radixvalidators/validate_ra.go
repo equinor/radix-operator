@@ -1142,7 +1142,8 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 			if minReplicas != nil && *minReplicas > maxReplicas {
 				errs = append(errs, MinReplicasGreaterThanMaxReplicasErrorWithMessage(componentName))
 			}
-			if component.HorizontalScaling.RadixHorizontalScalingResources != nil && component.HorizontalScaling.RadixHorizontalScalingResources.Cpu == nil && component.HorizontalScaling.RadixHorizontalScalingResources.Memory == nil {
+			resources := component.HorizontalScaling.RadixHorizontalScalingResources
+			if resources != nil && getHorizontalScalingResourceAverageUtilization(resources.Cpu) == nil && getHorizontalScalingResourceAverageUtilization(resources.Memory) == nil {
 				errs = append(errs, NoScalingResourceSetErrorWithMessage(componentName))
 			}
 		}
@@ -1159,13 +1160,21 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 			if minReplicas != nil && *minReplicas > maxReplicas {
 				errs = append(errs, MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage(componentName, environment))
 			}
-			if envConfig.HorizontalScaling.RadixHorizontalScalingResources != nil && envConfig.HorizontalScaling.RadixHorizontalScalingResources.Cpu == nil && envConfig.HorizontalScaling.RadixHorizontalScalingResources.Memory == nil {
+			resources := envConfig.HorizontalScaling.RadixHorizontalScalingResources
+			if resources != nil && getHorizontalScalingResourceAverageUtilization(resources.Cpu) == nil && getHorizontalScalingResourceAverageUtilization(resources.Memory) == nil {
 				errs = append(errs, NoScalingResourceSetInEnvironmentErrorWithMessage(componentName, environment))
 			}
 		}
 	}
 
 	return errors.Join(errs...)
+}
+
+func getHorizontalScalingResourceAverageUtilization(resource *radixv1.RadixHorizontalScalingResource) *int32 {
+	if resource == nil {
+		return nil
+	}
+	return resource.AverageUtilization
 }
 
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
