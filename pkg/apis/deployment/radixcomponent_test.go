@@ -861,6 +861,7 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 		name                           string
 		componentImages                map[string]string
 		externalImageTagNames          map[string]string // map[component-name]image-tag
+		componentImageTagNames         map[string]string // map[component-name]image-tag
 		environmentConfigImageTagNames map[string]string // map[component-name]image-tag
 		expectedComponentImage         map[string]string // map[component-name]image
 		expectedError                  error
@@ -888,17 +889,49 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 			expectedError: errorMissingExpectedDynamicImageTagName(componentName1),
 		},
 		{
-			name: "with image-tags",
+			name: "with component image-tags",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: dynamicImageName2,
+			},
+			componentImageTagNames: map[string]string{
+				componentName2: "tag-component-b",
+			},
+			environmentConfigImageTagNames: map[string]string{},
+			expectedComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: "custom-image-name2:tag-component-b",
+			},
+		},
+		{
+			name: "with environment image-tags",
 			componentImages: map[string]string{
 				componentName1: staticImageName1,
 				componentName2: dynamicImageName2,
 			},
 			environmentConfigImageTagNames: map[string]string{
-				componentName2: "tag-component-b",
+				componentName2: "tag-component-env-b",
 			},
 			expectedComponentImage: map[string]string{
 				componentName1: staticImageName1,
-				componentName2: "custom-image-name2:tag-component-b",
+				componentName2: "custom-image-name2:tag-component-env-b",
+			},
+		},
+		{
+			name: "with environment overriding image-tags",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: dynamicImageName2,
+			},
+			componentImageTagNames: map[string]string{
+				componentName2: "tag-component-b",
+			},
+			environmentConfigImageTagNames: map[string]string{
+				componentName2: "tag-component-env-b",
+			},
+			expectedComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: "custom-image-name2:tag-component-env-b",
 			},
 		},
 		{
@@ -907,6 +940,7 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 				componentName1: staticImageName1,
 				componentName2: dynamicImageName2,
 			},
+			componentImageTagNames: map[string]string{},
 			externalImageTagNames: map[string]string{
 				componentName2: "external-tag-component-b",
 			},
@@ -924,7 +958,7 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 			for _, componentName := range []string{componentName1, componentName2} {
 				componentImages[componentName] = pipeline.DeployComponentImage{ImagePath: ts.componentImages[componentName], ImageTagName: ts.externalImageTagNames[componentName]}
 				componentBuilder := utils.NewApplicationComponentBuilder()
-				componentBuilder.WithName(componentName).WithImage(ts.componentImages[componentName]).
+				componentBuilder.WithName(componentName).WithImage(ts.componentImages[componentName]).WithImageTagName(ts.componentImageTagNames[componentName]).
 					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(ts.environmentConfigImageTagNames[componentName]))
 				componentBuilders = append(componentBuilders, componentBuilder)
 			}

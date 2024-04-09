@@ -11,6 +11,7 @@ type RadixApplicationComponentBuilder interface {
 	WithSourceFolder(string) RadixApplicationComponentBuilder
 	WithDockerfileName(string) RadixApplicationComponentBuilder
 	WithImage(string) RadixApplicationComponentBuilder
+	WithImageTagName(imageTagName string) RadixApplicationComponentBuilder
 	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
@@ -56,6 +57,7 @@ type radixApplicationComponentBuilder struct {
 	identity                *v1.Identity
 	readOnlyFileSystem      *bool
 	monitoring              *bool
+	imageTagName            string
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -80,6 +82,11 @@ func (rcb *radixApplicationComponentBuilder) WithDockerfileName(dockerfileName s
 
 func (rcb *radixApplicationComponentBuilder) WithImage(image string) RadixApplicationComponentBuilder {
 	rcb.image = image
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithImageTagName(imageTagName string) RadixApplicationComponentBuilder {
+	rcb.imageTagName = imageTagName
 	return rcb
 }
 
@@ -220,6 +227,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Identity:                rcb.identity,
 		ReadOnlyFileSystem:      rcb.readOnlyFileSystem,
 		Monitoring:              rcb.monitoring,
+		ImageTagName:            rcb.imageTagName,
 	}
 }
 
