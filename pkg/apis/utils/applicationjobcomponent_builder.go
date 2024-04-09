@@ -8,6 +8,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithSourceFolder(string) RadixApplicationJobComponentBuilder
 	WithDockerfileName(string) RadixApplicationJobComponentBuilder
 	WithImage(string) RadixApplicationJobComponentBuilder
+	WithImageTagName(imageTagName string) RadixApplicationJobComponentBuilder
 	WithPort(string, int32) RadixApplicationJobComponentBuilder
 	WithSecrets(...string) RadixApplicationJobComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationJobComponentBuilder
@@ -53,6 +54,7 @@ type radixApplicationJobComponentBuilder struct {
 	notifications      *v1.Notifications
 	readOnlyFileSystem *bool
 	monitoring         *bool
+	imageTagName       string
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -82,6 +84,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithDockerfileName(dockerfileNam
 
 func (rcb *radixApplicationJobComponentBuilder) WithImage(image string) RadixApplicationJobComponentBuilder {
 	rcb.image = image
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithImageTagName(imageTagName string) RadixApplicationJobComponentBuilder {
+	rcb.imageTagName = imageTagName
 	return rcb
 }
 
@@ -219,6 +226,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Notifications:      rcb.notifications,
 		ReadOnlyFileSystem: rcb.readOnlyFileSystem,
 		Monitoring:         rcb.monitoring,
+		ImageTagName:       rcb.imageTagName,
 	}
 }
 
