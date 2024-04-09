@@ -2199,6 +2199,10 @@
                 "description": "Name of an existing container image to use when running the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2",
                 "type": "string"
               },
+              "imageTagName": {
+                "description": "The imageTagName allows for flexible configuration of fixed images, built outside of Radix, it can be also configured with separate tag for each environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname",
+                "type": "string"
+              },
               "monitoring": {
                 "description": "Enabled or disables collection of custom Prometheus metrics. More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring",
                 "type": "boolean"

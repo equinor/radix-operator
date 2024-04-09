@@ -86,14 +86,18 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 	if err != nil {
 		errs = append(errs, err)
 	}
+	image, err := getImagePath(componentName, componentImage, radixJobComponent.ImageTagName, environmentSpecificConfig)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	volumeMounts, err := getRadixCommonComponentVolumeMounts(&radixJobComponent, environmentSpecificConfig)
+	if err != nil {
+		errs = append(errs, err)
+	}
 	if len(errs) > 0 {
 		return nil, stderrors.Join(errs...)
 	}
 
-	image, err := getImagePath(componentName, componentImage, environmentSpecificConfig)
-	if err != nil {
-		return nil, err
-	}
 	deployJob := v1.RadixDeployJobComponent{
 		Name:                 componentName,
 		Ports:                radixJobComponent.Ports,
@@ -112,10 +116,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Identity:             identity,
 		Notifications:        notifications,
 		ReadOnlyFileSystem:   getRadixCommonComponentReadOnlyFileSystem(&radixJobComponent, environmentSpecificConfig),
-	}
-	deployJob.Monitoring = getRadixCommonComponentMonitoring(&radixJobComponent, environmentSpecificConfig)
-	if deployJob.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixJobComponent, environmentSpecificConfig); err != nil {
-		return nil, err
+		VolumeMounts:         volumeMounts,
 	}
 	return &deployJob, nil
 }

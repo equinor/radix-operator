@@ -555,6 +555,12 @@ type RadixJobComponent struct {
 	// +optional
 	Image string `json:"image,omitempty"`
 
+	// The imageTagName allows for flexible configuration of fixed images,
+	// built outside of Radix, it can be also configured with separate tag for each environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+	// +optional
+	ImageTagName string `json:"imageTagName,omitempty"`
+
 	// Defines the port number that the job-scheduler API server will listen to.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#schedulerport
 	// +kubebuilder:validation:Minimum=1024
