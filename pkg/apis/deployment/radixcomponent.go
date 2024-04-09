@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"errors"
 	"fmt"
 
 	"dario.cat/mergo"
@@ -133,21 +134,24 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 		acc[volumeMount.Name] = volumeMount
 		return acc
 	})
+	var errs []error
 	var finalVolumeMounts []radixv1.RadixVolumeMount
 	for _, componentVolumeMount := range componentVolumeMounts {
 		volumeMount := componentVolumeMount
-		envVolumeMount, envVolumeMountExists := environmentVolumeMountMap[componentVolumeMount.Name]
-		if envVolumeMountExists {
+		if envVolumeMount, ok := environmentVolumeMountMap[componentVolumeMount.Name]; ok {
 			if err := mergo.Merge(&volumeMount, envVolumeMount, mergo.WithOverride); err != nil {
-				return nil, fmt.Errorf("failed to merge component volume-mount and environment volume-mount %s: %w", componentVolumeMount.Name, err)
+				errs = append(errs, fmt.Errorf("failed to merge component volume-mount and environment volume-mount %s: %w", componentVolumeMount.Name, err))
 			}
+			delete(environmentVolumeMountMap, envVolumeMount.Name)
 		}
 		finalVolumeMounts = append(finalVolumeMounts, volumeMount)
-		delete(environmentVolumeMountMap, componentVolumeMount.Name)
 	}
-	for _, environmentVolumeMount := range environmentVolumeMounts {
+	for _, environmentVolumeMount := range environmentVolumeMountMap {
 		volumeMount := environmentVolumeMount
 		finalVolumeMounts = append(finalVolumeMounts, volumeMount)
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
 	}
 	return finalVolumeMounts, nil
 }
