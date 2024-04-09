@@ -1130,48 +1130,68 @@ func validateResourceWithRegexp(resourceName, value, regexpExpression string) er
 }
 
 func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
+	var errs []error
 	for _, component := range app.Spec.Components {
+		componentName := component.Name
+		if component.HorizontalScaling != nil {
+			maxReplicas := component.HorizontalScaling.MaxReplicas
+			minReplicas := component.HorizontalScaling.MinReplicas
+			if maxReplicas == 0 {
+				errs = append(errs, MaxReplicasForHPANotSetOrZeroErrorWithMessage(componentName))
+			}
+			if minReplicas != nil && *minReplicas > maxReplicas {
+				errs = append(errs, MinReplicasGreaterThanMaxReplicasErrorWithMessage(componentName))
+			}
+			if component.HorizontalScaling.RadixHorizontalScalingResources != nil && component.HorizontalScaling.RadixHorizontalScalingResources.Cpu == nil && component.HorizontalScaling.RadixHorizontalScalingResources.Memory == nil {
+				errs = append(errs, NoScalingResourceSetErrorWithMessage(componentName))
+			}
+		}
 		for _, envConfig := range component.EnvironmentConfig {
-			componentName := component.Name
-			environment := envConfig.Environment
 			if envConfig.HorizontalScaling == nil {
 				continue
 			}
+			environment := envConfig.Environment
 			maxReplicas := envConfig.HorizontalScaling.MaxReplicas
 			minReplicas := envConfig.HorizontalScaling.MinReplicas
 			if maxReplicas == 0 {
-				return MaxReplicasForHPANotSetOrZeroErrorWithMessage(componentName, environment)
+				errs = append(errs, MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage(componentName, environment))
 			}
 			if minReplicas != nil && *minReplicas > maxReplicas {
-				return MinReplicasGreaterThanMaxReplicasErrorWithMessage(componentName, environment)
+				errs = append(errs, MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage(componentName, environment))
 			}
 			if envConfig.HorizontalScaling.RadixHorizontalScalingResources != nil && envConfig.HorizontalScaling.RadixHorizontalScalingResources.Cpu == nil && envConfig.HorizontalScaling.RadixHorizontalScalingResources.Memory == nil {
-				return NoScalingResourceSetErrorWithMessage(componentName, environment)
+				errs = append(errs, NoScalingResourceSetInEnvironmentErrorWithMessage(componentName, environment))
 			}
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
+	var errs []error
 	for _, component := range app.Spec.Components {
+		if err := validateVolumeMounts(component.VolumeMounts); err != nil {
+			errs = append(errs, volumeMountValidationFailedForComponent(component.Name, err))
+		}
 		for _, envConfig := range component.EnvironmentConfig {
 			if err := validateVolumeMounts(envConfig.VolumeMounts); err != nil {
-				return fmt.Errorf("failed volumeMount validation for component %s in environment %s. %w", component.Name, envConfig.Environment, err)
+				errs = append(errs, volumeMountValidationFailedForComponentInEnvironment(component.Name, envConfig.Environment, err))
 			}
 		}
 	}
-
 	for _, job := range app.Spec.Jobs {
+		if err := validateVolumeMounts(job.VolumeMounts); err != nil {
+			errs = append(errs, volumeMountValidationFailedForJobComponent(job.Name, err))
+		}
 		for _, envConfig := range job.EnvironmentConfig {
 			if err := validateVolumeMounts(envConfig.VolumeMounts); err != nil {
-				return fmt.Errorf("failed volumeMount validation for job %s in environment %s. %w", job.Name, envConfig.Environment, err)
+				errs = append(errs, volumeMountValidationFailedForJobComponentInEnvironment(job.Name, envConfig.Environment, err))
 			}
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // ValidateNotificationsForRA Validate all notifications in the RadixApplication

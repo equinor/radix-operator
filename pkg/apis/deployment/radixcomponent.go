@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"fmt"
+
 	"dario.cat/mergo"
 	commonutils "github.com/equinor/radix-common/utils"
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
@@ -136,10 +138,15 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 		volumeMount := componentVolumeMount
 		envVolumeMount, envVolumeMountExists := environmentVolumeMountMap[componentVolumeMount.Name]
 		if envVolumeMountExists {
-			if err := mergo.Merge(volumeMount, envVolumeMount, mergo.WithOverride); err != nil {
-				return nil, err
+			if err := mergo.Merge(&volumeMount, envVolumeMount, mergo.WithOverride); err != nil {
+				return nil, fmt.Errorf("failed to merge component volume-mount and environment volume-mount %s: %w", componentVolumeMount.Name, err)
 			}
 		}
+		volumeMounts = append(volumeMounts, volumeMount)
+		delete(environmentVolumeMountMap, componentVolumeMount.Name)
+	}
+	for _, environmentVolumeMount := range environmentVolumeMounts {
+		volumeMount := environmentVolumeMount
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 	return componentVolumeMounts, nil
