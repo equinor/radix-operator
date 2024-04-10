@@ -258,6 +258,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Monitoring:              rcb.monitoring,
 		ImageTagName:            rcb.imageTagName,
 		HorizontalScaling:       rcb.horizontalScaling,
+		VolumeMounts:            rcb.volumeMounts,
 	}
 }
 
