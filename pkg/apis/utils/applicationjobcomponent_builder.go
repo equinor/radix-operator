@@ -227,6 +227,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		ReadOnlyFileSystem: rcb.readOnlyFileSystem,
 		Monitoring:         rcb.monitoring,
 		ImageTagName:       rcb.imageTagName,
+		VolumeMounts:       rcb.volumes,
 	}
 }
 

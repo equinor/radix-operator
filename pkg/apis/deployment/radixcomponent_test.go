@@ -1188,7 +1188,7 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 			},
 		},
 		{
-			description: "Component sets VolumeMounts for azure-blob",
+			description: "Env overrides component VolumeMounts for azure-blob",
 			componentVolumeMounts: []radixv1.RadixVolumeMount{
 				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path1, Storage: container1, UID: user1000, GID: group1100, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate},
 			},
@@ -1200,7 +1200,7 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 			},
 		},
 		{
-			description: "Component sets VolumeMounts for blobFuse2",
+			description: "Env overrides component VolumeMounts for blobFuse2",
 			componentVolumeMounts: []radixv1.RadixVolumeMount{
 				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
@@ -1217,6 +1217,27 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
 					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+		},
+		{
+			description: "Env overrides and adds component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, UID: user1000, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate,
+					Streaming: &radixv1.RadixVolumeMountStreaming{BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container2, GID: group2200, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, UseAdls: pointers.Ptr(false),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), MaxBuffers: pointers.Ptr[uint64](22), StreamCache: pointers.Ptr[uint64](44)},
+				}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container2, GID: group2200, UID: user1000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(false),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
 				}},
 			},
 		},
@@ -1238,7 +1259,7 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 
 func getRadixHorizontalScaling(minReplicas *int32, maxReplicas int32, cpuResources, memoryResources *int32) *radixv1.RadixHorizontalScaling {
 	return &radixv1.RadixHorizontalScaling{MinReplicas: minReplicas, MaxReplicas: maxReplicas,
-		RadixHorizontalScalingResources: getRadixHorizontalScalingResources(pointers.Ptr[int32](80), pointers.Ptr[int32](70))}
+		RadixHorizontalScalingResources: getRadixHorizontalScalingResources(cpuResources, memoryResources)}
 }
 
 func getRadixHorizontalScalingResources(cpu, memory *int32) *radixv1.RadixHorizontalScalingResources {
