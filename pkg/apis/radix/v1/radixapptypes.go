@@ -1430,6 +1430,8 @@ type RadixCommonComponent interface {
 	GetHorizontalScaling() *RadixHorizontalScaling
 	// GetVolumeMounts Get volume mount configurations
 	GetVolumeMounts() []RadixVolumeMount
+	// GetImageTagName Is a dynamic image tag for the component image
+	GetImageTagName() string
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1486,6 +1488,10 @@ func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
 
 func (component *RadixComponent) GetVolumeMounts() []RadixVolumeMount {
 	return component.VolumeMounts
+}
+
+func (component *RadixComponent) GetImageTagName() string {
+	return component.ImageTagName
 }
 
 func (component *RadixComponent) GetResources() ResourceRequirements {
@@ -1607,6 +1613,10 @@ func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
 
 func (component *RadixJobComponent) GetVolumeMounts() []RadixVolumeMount {
 	return component.VolumeMounts
+}
+
+func (component *RadixJobComponent) GetImageTagName() string {
+	return component.ImageTagName
 }
 
 func (component *RadixJobComponent) GetResources() ResourceRequirements {
