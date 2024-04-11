@@ -20,6 +20,10 @@ type RadixCommonEnvironmentConfig interface {
 	GetReplicas() *int
 	GetIdentity() *Identity
 	GetReadOnlyFileSystem() *bool
+	// GetMonitoring Gets monitoring setting
+	GetMonitoring() *bool
+	// GetVolumeMounts Get volume mounts configurations
+	GetVolumeMounts() []RadixVolumeMount
 	getEnabled() *bool
 }
 
@@ -73,6 +77,14 @@ func (config *RadixEnvironmentConfig) GetIdentity() *Identity {
 
 func (config *RadixEnvironmentConfig) GetReadOnlyFileSystem() *bool {
 	return config.ReadOnlyFileSystem
+}
+
+func (config *RadixEnvironmentConfig) GetMonitoring() *bool {
+	return config.Monitoring
+}
+
+func (config *RadixEnvironmentConfig) GetVolumeMounts() []RadixVolumeMount {
+	return config.VolumeMounts
 }
 
 func (config *RadixEnvironmentConfig) getEnabled() *bool {
@@ -134,6 +146,14 @@ func (config *RadixJobComponentEnvironmentConfig) GetNotifications() *Notificati
 
 func (config *RadixJobComponentEnvironmentConfig) GetReadOnlyFileSystem() *bool {
 	return config.ReadOnlyFileSystem
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetMonitoring() *bool {
+	return config.Monitoring
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetVolumeMounts() []RadixVolumeMount {
+	return config.VolumeMounts
 }
 
 func (config *RadixJobComponentEnvironmentConfig) getEnabled() *bool {

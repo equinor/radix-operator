@@ -1,6 +1,9 @@
 package deployment
 
 import (
+	"errors"
+	"fmt"
+
 	"dario.cat/mergo"
 	commonutils "github.com/equinor/radix-common/utils"
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
@@ -10,7 +13,7 @@ import (
 )
 
 var (
-	authTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
+	booleanPointerTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
 func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
@@ -38,13 +41,9 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 			MonitoringConfig:     radixComponent.MonitoringConfig,
 			Secrets:              radixComponent.Secrets,
 			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
-			Monitoring:           false,
 		}
 		if environmentSpecificConfig != nil {
 			deployComponent.Replicas = environmentSpecificConfig.Replicas
-			deployComponent.Monitoring = environmentSpecificConfig.Monitoring
-			deployComponent.HorizontalScaling = environmentSpecificConfig.HorizontalScaling
-			deployComponent.VolumeMounts = environmentSpecificConfig.VolumeMounts
 		}
 
 		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
@@ -58,7 +57,7 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 		}
 
 		componentImage := componentImages[componentName]
-		deployComponent.Image, err = getImagePath(componentName, componentImage, environmentSpecificConfig)
+		deployComponent.Image, err = getImagePath(componentName, componentImage, radixComponent.ImageTagName, environmentSpecificConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +71,13 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 		deployComponent.Authentication = auth
 		deployComponent.Identity = identity
 		deployComponent.ReadOnlyFileSystem = getRadixCommonComponentReadOnlyFileSystem(&radixComponent, environmentSpecificConfig)
-
+		deployComponent.Monitoring = getRadixCommonComponentMonitoring(&radixComponent, environmentSpecificConfig)
+		if deployComponent.HorizontalScaling, err = getRadixCommonComponentHorizontalScaling(&radixComponent, environmentSpecificConfig); err != nil {
+			return nil, err
+		}
+		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
+			return nil, err
+		}
 		deployComponents = append(deployComponents, deployComponent)
 	}
 
@@ -84,6 +89,73 @@ func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommo
 		return environmentSpecificConfig.GetReadOnlyFileSystem()
 	}
 	return radixComponent.GetReadOnlyFileSystem()
+}
+
+func getRadixCommonComponentMonitoring(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) bool {
+	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetMonitoring() != nil {
+		return *environmentSpecificConfig.GetMonitoring()
+	}
+	monitoring := radixComponent.GetMonitoring()
+	return !commonutils.IsNil(monitoring) && *monitoring
+}
+
+func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) (*radixv1.RadixHorizontalScaling, error) {
+	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetHorizontalScaling() == nil {
+		return radixComponent.GetHorizontalScaling(), nil
+	}
+	environmentHorizontalScaling := environmentSpecificConfig.GetHorizontalScaling()
+	if radixComponent.GetHorizontalScaling() == nil {
+		return environmentHorizontalScaling, nil
+	}
+	finalHorizontalScaling := radixComponent.GetHorizontalScaling()
+	if environmentHorizontalScaling.MinReplicas != nil {
+		finalHorizontalScaling.MinReplicas = environmentHorizontalScaling.MinReplicas
+	}
+	if environmentHorizontalScaling.MaxReplicas > 0 && (finalHorizontalScaling.MinReplicas == nil || *finalHorizontalScaling.MinReplicas < environmentHorizontalScaling.MaxReplicas) {
+		finalHorizontalScaling.MaxReplicas = environmentHorizontalScaling.MaxReplicas
+	}
+
+	if err := mergo.Merge(finalHorizontalScaling.RadixHorizontalScalingResources, environmentHorizontalScaling.RadixHorizontalScalingResources, mergo.WithOverride); err != nil {
+		return nil, err
+	}
+	return finalHorizontalScaling, nil
+}
+
+func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) ([]radixv1.RadixVolumeMount, error) {
+	componentVolumeMounts := radixComponent.GetVolumeMounts()
+	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetVolumeMounts() == nil {
+		return componentVolumeMounts, nil
+	}
+	environmentVolumeMounts := environmentSpecificConfig.GetVolumeMounts()
+	if componentVolumeMounts == nil {
+		return environmentVolumeMounts, nil
+	}
+	environmentVolumeMountMap := slice.Reduce(environmentVolumeMounts, make(map[string]radixv1.RadixVolumeMount), func(acc map[string]radixv1.RadixVolumeMount, volumeMount radixv1.RadixVolumeMount) map[string]radixv1.RadixVolumeMount {
+		environmentVolumeMount := volumeMount
+		acc[volumeMount.Name] = environmentVolumeMount
+		return acc
+	})
+	var errs []error
+	var finalVolumeMounts []radixv1.RadixVolumeMount
+	for _, componentVolumeMount := range componentVolumeMounts {
+		finalVolumeMount := componentVolumeMount
+		volumeMountName := componentVolumeMount.Name
+		if envVolumeMount, ok := environmentVolumeMountMap[volumeMountName]; ok {
+			if err := mergo.Merge(&finalVolumeMount, envVolumeMount, mergo.WithOverride, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
+				errs = append(errs, fmt.Errorf("failed to merge component and environment volume-mounts %s: %w", volumeMountName, err))
+			}
+			delete(environmentVolumeMountMap, volumeMountName)
+		}
+		finalVolumeMounts = append(finalVolumeMounts, finalVolumeMount)
+	}
+	for _, environmentVolumeMount := range environmentVolumeMountMap {
+		volumeMount := environmentVolumeMount
+		finalVolumeMounts = append(finalVolumeMounts, volumeMount)
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+	return finalVolumeMounts, nil
 }
 
 func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *radixv1.RadixComponent, environmentSpecificConfig *radixv1.RadixEnvironmentConfig) bool {
@@ -127,7 +199,7 @@ func GetAuthenticationForComponent(componentAuthentication *radixv1.Authenticati
 		authEnv = environmentAuthentication.DeepCopy()
 	}
 
-	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(authTransformer)); err != nil {
+	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
 		return nil, err
 	}
 	return authBase, nil

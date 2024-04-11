@@ -16,14 +16,14 @@ type RadixEnvironmentConfigBuilder interface {
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
-	WithMonitoring(bool) RadixEnvironmentConfigBuilder
+	WithMonitoring(monitoring *bool) RadixEnvironmentConfigBuilder
 	WithNode(v1.RadixNode) RadixEnvironmentConfigBuilder
 	WithAuthentication(*v1.Authentication) RadixEnvironmentConfigBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixEnvironmentConfigBuilder
 	WithEnabled(bool) RadixEnvironmentConfigBuilder
 	WithIdentity(*v1.Identity) RadixEnvironmentConfigBuilder
 	WithImageTagName(string) RadixEnvironmentConfigBuilder
-	WithHorizontalScaling(*int32, int32, *int32, *int32) RadixEnvironmentConfigBuilder
+	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixEnvironmentConfigBuilder
 }
 
@@ -37,7 +37,7 @@ type radixEnvironmentConfigBuilder struct {
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
 	volumeMounts            []v1.RadixVolumeMount
-	monitoring              bool
+	monitoring              *bool
 	node                    v1.RadixNode
 	secretRefs              v1.RadixSecretRefs
 	authentication          *v1.Authentication
@@ -127,7 +127,7 @@ func (ceb *radixEnvironmentConfigBuilder) WithAlwaysPullImageOnDeploy(val bool) 
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithMonitoring(monitoring bool) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithMonitoring(monitoring *bool) RadixEnvironmentConfigBuilder {
 	ceb.monitoring = monitoring
 	return ceb
 }

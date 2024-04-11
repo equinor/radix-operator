@@ -30,7 +30,7 @@ var (
 	ErrInvalidResource                                                     = errors.New("invalid resource")
 	ErrDuplicateExternalAlias                                              = errors.New("duplicate external alias")
 	ErrInvalidBranchName                                                   = errors.New("invalid branch name")
-	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpanot set or zero")
+	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpa not set or zero")
 	ErrMinReplicasGreaterThanMaxReplicas                                   = errors.New("min replicas greater than max replicas")
 	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set")
 	ErrVolumeMountMissingType                                              = errors.New("no types defined")
@@ -247,22 +247,53 @@ func InvalidBranchNameErrorWithMessage(branch string) error {
 }
 
 // MaxReplicasForHPANotSetOrZeroErrorWithMessage Indicates that minReplicas of horizontalScaling is not set or set to 0
-func MaxReplicasForHPANotSetOrZeroErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrMaxReplicasForHPANotSetOrZero, "maxReplicas is not set or set to 0 for component %s in environment %s. See documentation for more info", component, environment)
+func MaxReplicasForHPANotSetOrZeroErrorWithMessage(component string) error {
+	return errors.WithMessagef(ErrMaxReplicasForHPANotSetOrZero, "maxReplicas is not set or set to 0 for component %s. See documentation for more info", component)
 }
 
 // MinReplicasGreaterThanMaxReplicasErrorWithMessage Indicates that minReplicas is greater than maxReplicas
-func MinReplicasGreaterThanMaxReplicasErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrMinReplicasGreaterThanMaxReplicas, "minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
+func MinReplicasGreaterThanMaxReplicasErrorWithMessage(component string) error {
+	return errors.WithMessagef(ErrMinReplicasGreaterThanMaxReplicas, "minReplicas is greater than maxReplicas for component %s. See documentation for more info", component)
 }
 
 // NoScalingResourceSetErrorWithMessage Indicates that no scaling resource is set for horizontal scaling
-func NoScalingResourceSetErrorWithMessage(component, environment string) error {
+func NoScalingResourceSetErrorWithMessage(component string) error {
+	return errors.WithMessagef(ErrNoScalingResourceSet, "no scaling resource is set for component %s. See documentation for more info", component)
+}
+
+// MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage Indicates that minReplicas of horizontalScaling is not set or set to 0
+func MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage(component, environment string) error {
+	return errors.WithMessagef(ErrMaxReplicasForHPANotSetOrZero, "maxReplicas is not set or set to 0 for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+// MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage Indicates that minReplicas is greater than maxReplicas
+func MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage(component, environment string) error {
+	return errors.WithMessagef(ErrMinReplicasGreaterThanMaxReplicas, "minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+// NoScalingResourceSetInEnvironmentErrorWithMessage Indicates that no scaling resource is set for horizontal scaling
+func NoScalingResourceSetInEnvironmentErrorWithMessage(component, environment string) error {
 	return errors.WithMessagef(ErrNoScalingResourceSet, "no scaling resource is set for component %s in environment %s. See documentation for more info", component, environment)
 }
 
 func volumeMountValidationError(name string, cause error) error {
 	return fmt.Errorf("volumeMount %s failed validation. %w", name, cause)
+}
+
+func volumeMountValidationFailedForComponentInEnvironment(volumeMountName, envName string, cause error) error {
+	return fmt.Errorf("failed volumeMount validation for component %s in environment %s. %w", volumeMountName, envName, cause)
+}
+
+func volumeMountValidationFailedForJobComponentInEnvironment(volumeMountName, envName string, cause error) error {
+	return fmt.Errorf("failed volumeMount validation for job %s in environment %s. %w", volumeMountName, envName, cause)
+}
+
+func volumeMountValidationFailedForComponent(volumeMountName string, cause error) error {
+	return fmt.Errorf("failed volumeMount validation for component %s. %w", volumeMountName, cause)
+}
+
+func volumeMountValidationFailedForJobComponent(volumeMountName string, cause error) error {
+	return fmt.Errorf("failed volumeMount validation for job %s. %w", volumeMountName, cause)
 }
 
 func volumeMountDeprecatedSourceValidationError(cause error) error {

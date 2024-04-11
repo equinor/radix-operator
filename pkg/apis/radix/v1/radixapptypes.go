@@ -331,6 +331,12 @@ type RadixComponent struct {
 	// +optional
 	Image string `json:"image,omitempty"`
 
+	// The imageTagName allows for flexible configuration of fixed images,
+	// built outside of Radix, it can be also configured with separate tag for each environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+	// +optional
+	ImageTagName string `json:"imageTagName,omitempty"`
+
 	// List of ports that the component bind to.
 	// +listType=map
 	// +listMapKey=name
@@ -343,6 +349,11 @@ type RadixComponent struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig
 	// +optional
 	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+
+	// Enabled or disables collection of custom Prometheus metrics.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+	// +optional
+	Monitoring *bool `json:"monitoring"`
 
 	// Deprecated, use publicPort instead.
 	// +optional
@@ -415,6 +426,16 @@ type RadixComponent struct {
 	// Controls if the filesystem shall be read-only.
 	// +optional
 	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
+	// Configuration for automatic horizontal scaling of replicas.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
+	// +optional
+	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
+
+	// Configuration for mounting cloud storage into the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -449,7 +470,7 @@ type RadixEnvironmentConfig struct {
 	// Enabled or disables collection of custom Prometheus metrics.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
 	// +optional
-	Monitoring bool `json:"monitoring"`
+	Monitoring *bool `json:"monitoring,omitempty"`
 
 	// Environment specific configuration for CPU and memory resources.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources
@@ -476,11 +497,6 @@ type RadixEnvironmentConfig struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
-	// Configuration for mounting cloud storage into the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
-	// +optional
-	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
-
 	// Environment specific GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
 	// +optional
@@ -495,6 +511,11 @@ type RadixEnvironmentConfig struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// Configuration for mounting cloud storage into the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
 	// Environment specific configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
@@ -535,6 +556,12 @@ type RadixJobComponent struct {
 	// +optional
 	Image string `json:"image,omitempty"`
 
+	// The imageTagName allows for flexible configuration of fixed images,
+	// built outside of Radix, it can be also configured with separate tag for each environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+	// +optional
+	ImageTagName string `json:"imageTagName,omitempty"`
+
 	// Defines the port number that the job-scheduler API server will listen to.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#schedulerport
 	// +kubebuilder:validation:Minimum=1024
@@ -560,6 +587,11 @@ type RadixJobComponent struct {
 	// +optional
 	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
 
+	// Enabled or disables collection of custom Prometheus metrics.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+	// +optional
+	Monitoring *bool `json:"monitoring,omitempty"`
+
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets-2
 	// +optional
@@ -569,6 +601,11 @@ type RadixJobComponent struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// Configuration for mounting cloud storage into the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
 	// Configure environment specific settings for the job.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig-2
@@ -647,7 +684,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Enabled or disables collection of custom Prometheus metrics.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring-2
 	// +optional
-	Monitoring bool `json:"monitoring,omitempty"`
+	Monitoring *bool `json:"monitoring,omitempty"`
 
 	// Environment specific configuration for CPU and memory resources.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3
@@ -1387,6 +1424,14 @@ type RadixCommonComponent interface {
 	GetEnabledForEnvironment(environment string) bool
 	// GetReadOnlyFileSystem Gets if filesystem shall be read-only
 	GetReadOnlyFileSystem() *bool
+	// GetMonitoring Gets monitoring setting
+	GetMonitoring() *bool
+	// GetHorizontalScaling Gets the component horizontal scaling
+	GetHorizontalScaling() *RadixHorizontalScaling
+	// GetVolumeMounts Get volume mount configurations
+	GetVolumeMounts() []RadixVolumeMount
+	// GetImageTagName Is a dynamic image tag for the component image
+	GetImageTagName() string
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1429,12 +1474,24 @@ func (component *RadixComponent) GetMonitoringConfig() MonitoringConfig {
 	return component.MonitoringConfig
 }
 
+func (component *RadixComponent) GetMonitoring() *bool {
+	return component.Monitoring
+}
+
 func (component *RadixComponent) GetSecrets() []string {
 	return component.Secrets
 }
 
 func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
 	return component.SecretRefs
+}
+
+func (component *RadixComponent) GetVolumeMounts() []RadixVolumeMount {
+	return component.VolumeMounts
+}
+
+func (component *RadixComponent) GetImageTagName() string {
+	return component.ImageTagName
 }
 
 func (component *RadixComponent) GetResources() ResourceRequirements {
@@ -1481,6 +1538,10 @@ func (component *RadixComponent) GetEnabledForEnvironmentConfig(envConfig RadixC
 
 func (component *RadixComponent) GetReadOnlyFileSystem() *bool {
 	return component.ReadOnlyFileSystem
+}
+
+func (component *RadixComponent) GetHorizontalScaling() *RadixHorizontalScaling {
+	return component.HorizontalScaling
 }
 
 func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
@@ -1538,12 +1599,24 @@ func (component *RadixJobComponent) GetMonitoringConfig() MonitoringConfig {
 	return component.MonitoringConfig
 }
 
+func (component *RadixJobComponent) GetMonitoring() *bool {
+	return component.Monitoring
+}
+
 func (component *RadixJobComponent) GetSecrets() []string {
 	return component.Secrets
 }
 
 func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
 	return component.SecretRefs
+}
+
+func (component *RadixJobComponent) GetVolumeMounts() []RadixVolumeMount {
+	return component.VolumeMounts
+}
+
+func (component *RadixJobComponent) GetImageTagName() string {
+	return component.ImageTagName
 }
 
 func (component *RadixJobComponent) GetResources() ResourceRequirements {
@@ -1595,6 +1668,10 @@ func (component *RadixJobComponent) GetEnabledForEnvironment(environment string)
 
 func (component *RadixJobComponent) GetReadOnlyFileSystem() *bool {
 	return component.ReadOnlyFileSystem
+}
+
+func (component *RadixJobComponent) GetHorizontalScaling() *RadixHorizontalScaling {
+	return nil
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
