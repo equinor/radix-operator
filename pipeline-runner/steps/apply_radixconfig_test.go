@@ -106,16 +106,19 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 	appName := "anyapp"
 	prepareConfigMapName := "preparecm"
 	type scenario struct {
-		name               string
-		componentTagName   string
-		environmentTagName string
-		expectedError      error
+		name                 string
+		componentTagName     string
+		hasEnvironmentConfig bool
+		environmentTagName   string
+		expectedError        error
 	}
 	scenarios := []scenario{
 		{name: "no imageTagName in a component or an environment", expectedError: steps.ErrMissingRequiredImageTagName},
 		{name: "imageTagName is in a component", componentTagName: "some-component-tag"},
-		{name: "imageTagName is in an environment", environmentTagName: "some-env-tag"},
-		{name: "imageTagName is in an component and in an environment", componentTagName: "some-component-tag", environmentTagName: "some-env-tag"},
+		{name: "imageTagName is not set in an environment", hasEnvironmentConfig: true, expectedError: steps.ErrMissingRequiredImageTagName},
+		{name: "imageTagName is in an environment", hasEnvironmentConfig: true, environmentTagName: "some-env-tag"},
+		{name: "imageTagName is in a component, not in an environment", componentTagName: "some-component-tag", hasEnvironmentConfig: true},
+		{name: "imageTagName is in a component and in an environment", componentTagName: "some-component-tag", hasEnvironmentConfig: true, environmentTagName: "some-env-tag"},
 	}
 	for _, ts := range scenarios {
 		s.SetupTest()
@@ -123,14 +126,14 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 
+			componentBuilder := utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("deploycomp").WithImage("any:{imageTagName}").WithImageTagName(ts.componentTagName)
+			if ts.hasEnvironmentConfig || ts.environmentTagName != "" {
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment("dev").WithImageTagName(ts.environmentTagName))
+			}
 			ra := utils.NewRadixApplicationBuilder().
 				WithAppName(appName).
 				WithEnvironment("dev", "anybranch").
-				WithComponents(
-					utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("deploycomp").WithImage("any:{imageTagName}").WithImageTagName(ts.componentTagName).
-						WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment("dev").WithImageTagName(ts.environmentTagName)),
-				).
-				BuildRA()
+				WithComponents(componentBuilder).BuildRA()
 			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 			pipeline := model.PipelineInfo{
