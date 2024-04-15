@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -1101,8 +1102,73 @@ func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithComponents(componentBuilder).BuildRA()
 
-			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
-			assert.Equal(t, testCase.expectedHorizontalScaling, deployComponent[0].HorizontalScaling)
+			deployComponents, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+				return component.Name == componentName
+			})
+			require.True(t, exists)
+			assert.Equal(t, testCase.expectedHorizontalScaling, deployComponent.HorizontalScaling)
+		})
+	}
+}
+
+func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+	const (
+		env1 = "env1"
+		env2 = "env2"
+	)
+	ptrInt1 := pointers.Ptr[int32](1)
+	ptrInt2 := pointers.Ptr[int32](2)
+	ptrInt70 := pointers.Ptr[int32](70)
+	ptrInt75 := pointers.Ptr[int32](75)
+	ptrInt80 := pointers.Ptr[int32](80)
+	ptrInt85 := pointers.Ptr[int32](85)
+
+	testCases := []struct {
+		description                  string
+		componentHorizontalScaling   *radixv1.RadixHorizontalScaling
+		environmentHorizontalScaling map[string]*radixv1.RadixHorizontalScaling
+
+		expectedHorizontalScaling map[string]*radixv1.RadixHorizontalScaling
+	}{
+		{
+			description:                "Component sets HorizontalScaling",
+			componentHorizontalScaling: getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+			environmentHorizontalScaling: map[string]*radixv1.RadixHorizontalScaling{
+				env1: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+			},
+			expectedHorizontalScaling: map[string]*radixv1.RadixHorizontalScaling{
+				env1: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+				env2: getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			componentBuilder := utils.NewApplicationComponentBuilder().WithName(componentName)
+			for envName, hs := range testCase.environmentHorizontalScaling {
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources)))
+			}
+			if testCase.componentHorizontalScaling != nil {
+				hs := testCase.componentHorizontalScaling
+				componentBuilder = componentBuilder.WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources))
+			}
+
+			ra := utils.ARadixApplication().WithEnvironment(env1, "").WithEnvironment(env2, "").WithComponent(componentBuilder).BuildRA()
+			for _, envName := range []string{env1, env2} {
+				deployComponents, _ := GetRadixComponentsForEnv(ra, envName, componentImages, envVarsMap, nil)
+				deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+					return component.Name == componentName
+				})
+				require.True(t, exists)
+				assert.Equal(t, testCase.expectedHorizontalScaling[envName], deployComponent.HorizontalScaling)
+			}
 		})
 	}
 }
@@ -1251,8 +1317,97 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithComponents(componentBuilder).BuildRA()
 
-			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
-			assert.Equal(t, testCase.expectedVolumeMounts, deployComponent[0].VolumeMounts)
+			deployComponents, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+				return component.Name == componentName
+			})
+			require.True(t, exists)
+			assert.Equal(t, testCase.expectedVolumeMounts, deployComponent.VolumeMounts)
+		})
+	}
+}
+
+func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	const (
+		path1          = "/home/path1"
+		path2          = "/home/path2"
+		container1     = "container1"
+		container2     = "container2"
+		user1000       = "1000"
+		user2000       = "2000"
+		group1100      = "1100"
+		group2200      = "2200"
+		skuStandardLRS = "Standard_LRS"
+		skuStandardGRS = "Standard_GRS"
+		env1           = "env1"
+		env2           = "env2"
+	)
+	var (
+		accessModeReadWriteMany         = strings.ToLower(string(corev1.ReadWriteMany))
+		accessModeReadOnlyMany          = strings.ToLower(string(corev1.ReadOnlyMany))
+		bindingModeImmediate            = strings.ToLower(string(storagev1.VolumeBindingImmediate))
+		bindingModeWaitForFirstConsumer = strings.ToLower(string(storagev1.VolumeBindingWaitForFirstConsumer))
+	)
+	testCases := []struct {
+		description             string
+		componentVolumeMounts   []radixv1.RadixVolumeMount
+		environmentVolumeMounts map[string][]radixv1.RadixVolumeMount
+		expectedVolumeMounts    map[string][]radixv1.RadixVolumeMount
+	}{
+		{
+			description: "Env overrides component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+			environmentVolumeMounts: map[string][]radixv1.RadixVolumeMount{
+				env1: {
+					{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+					}}},
+			},
+			expectedVolumeMounts: map[string][]radixv1.RadixVolumeMount{
+				env1: {
+					{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+					}}},
+				env2: {
+					{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+					}}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			componentBuilder := utils.NewApplicationComponentBuilder().WithName(componentName).WithVolumeMounts(testCase.componentVolumeMounts)
+			for envName, volumeMounts := range testCase.environmentVolumeMounts {
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithVolumeMounts(volumeMounts))
+			}
+
+			ra := utils.ARadixApplication().WithEnvironment(env1, "").WithEnvironment(env2, "").
+				WithComponents(componentBuilder).BuildRA()
+
+			for _, envName := range []string{env1, env2} {
+				deployComponents, _ := GetRadixComponentsForEnv(ra, envName, componentImages, envVarsMap, nil)
+				deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+					return component.Name == componentName
+				})
+				require.True(t, exists)
+				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent.VolumeMounts)
+			}
 		})
 	}
 }
