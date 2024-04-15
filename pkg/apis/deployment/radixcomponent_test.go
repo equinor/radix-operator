@@ -1257,6 +1257,87 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 	}
 }
 
+func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	const (
+		path1          = "/home/path1"
+		path2          = "/home/path2"
+		container1     = "container1"
+		container2     = "container2"
+		user1000       = "1000"
+		user2000       = "2000"
+		group1100      = "1100"
+		group2200      = "2200"
+		skuStandardLRS = "Standard_LRS"
+		skuStandardGRS = "Standard_GRS"
+		env1           = "env1"
+		env2           = "env2"
+	)
+	var (
+		accessModeReadWriteMany         = strings.ToLower(string(corev1.ReadWriteMany))
+		accessModeReadOnlyMany          = strings.ToLower(string(corev1.ReadOnlyMany))
+		bindingModeImmediate            = strings.ToLower(string(storagev1.VolumeBindingImmediate))
+		bindingModeWaitForFirstConsumer = strings.ToLower(string(storagev1.VolumeBindingWaitForFirstConsumer))
+	)
+	testCases := []struct {
+		description             string
+		componentVolumeMounts   []radixv1.RadixVolumeMount
+		environmentVolumeMounts map[string][]radixv1.RadixVolumeMount
+		expectedVolumeMounts    map[string][]radixv1.RadixVolumeMount
+	}{
+		{
+			description: "Env overrides component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+			environmentVolumeMounts: map[string][]radixv1.RadixVolumeMount{
+				env1: {
+					{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+					}}},
+			},
+			expectedVolumeMounts: map[string][]radixv1.RadixVolumeMount{
+				env1: {
+					{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+					}}},
+				env2: {
+					{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+					}}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			componentBuilder := utils.NewApplicationComponentBuilder().WithName(componentName).WithVolumeMounts(testCase.componentVolumeMounts)
+			for envName, volumeMounts := range testCase.environmentVolumeMounts {
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithVolumeMounts(volumeMounts))
+			}
+
+			ra := utils.ARadixApplication().WithEnvironment(env1, "").WithEnvironment(env2, "").
+				WithComponents(componentBuilder).BuildRA()
+
+			for _, envName := range []string{env1, env2} {
+				deployComponent, _ := GetRadixComponentsForEnv(ra, envName, componentImages, envVarsMap, nil)
+				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent[0].VolumeMounts)
+			}
+		})
+	}
+}
+
 func getRadixHorizontalScaling(minReplicas *int32, maxReplicas int32, cpuResources, memoryResources *int32) *radixv1.RadixHorizontalScaling {
 	return &radixv1.RadixHorizontalScaling{MinReplicas: minReplicas, MaxReplicas: maxReplicas,
 		RadixHorizontalScalingResources: getRadixHorizontalScalingResources(cpuResources, memoryResources)}
