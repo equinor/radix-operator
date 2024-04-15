@@ -107,7 +107,7 @@ func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommon
 	if radixComponent.GetHorizontalScaling() == nil {
 		return environmentHorizontalScaling, nil
 	}
-	finalHorizontalScaling := radixComponent.GetHorizontalScaling()
+	finalHorizontalScaling := radixComponent.GetHorizontalScaling().DeepCopy()
 	if environmentHorizontalScaling.MinReplicas != nil {
 		finalHorizontalScaling.MinReplicas = environmentHorizontalScaling.MinReplicas
 	}
@@ -138,15 +138,15 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 	var errs []error
 	var finalVolumeMounts []radixv1.RadixVolumeMount
 	for _, componentVolumeMount := range componentVolumeMounts {
-		finalVolumeMount := componentVolumeMount
+		finalVolumeMount := componentVolumeMount.DeepCopy()
 		volumeMountName := componentVolumeMount.Name
 		if envVolumeMount, ok := environmentVolumeMountMap[volumeMountName]; ok {
-			if err := mergo.Merge(&finalVolumeMount, envVolumeMount, mergo.WithOverride, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
+			if err := mergo.Merge(finalVolumeMount, envVolumeMount, mergo.WithOverride, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
 				errs = append(errs, fmt.Errorf("failed to merge component and environment volume-mounts %s: %w", volumeMountName, err))
 			}
 			delete(environmentVolumeMountMap, volumeMountName)
 		}
-		finalVolumeMounts = append(finalVolumeMounts, finalVolumeMount)
+		finalVolumeMounts = append(finalVolumeMounts, *finalVolumeMount)
 	}
 	for _, environmentVolumeMount := range environmentVolumeMountMap {
 		volumeMount := environmentVolumeMount
