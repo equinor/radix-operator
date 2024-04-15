@@ -20,4 +20,8 @@ func Test_StringToPipelineToString(t *testing.T) {
 	p, _ = GetPipelineFromName("build")
 
 	assert.Equal(t, "build", string(p.Type))
+
+	p, _ = GetPipelineFromName("apply-config")
+
+	assert.Equal(t, "apply-config", string(p.Type))
 }
