@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -1101,8 +1102,73 @@ func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithComponents(componentBuilder).BuildRA()
 
-			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
-			assert.Equal(t, testCase.expectedHorizontalScaling, deployComponent[0].HorizontalScaling)
+			deployComponents, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+				return component.Name == componentName
+			})
+			require.True(t, exists)
+			assert.Equal(t, testCase.expectedHorizontalScaling, deployComponent.HorizontalScaling)
+		})
+	}
+}
+
+func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+	const (
+		env1 = "env1"
+		env2 = "env2"
+	)
+	ptrInt1 := pointers.Ptr[int32](1)
+	ptrInt2 := pointers.Ptr[int32](2)
+	ptrInt70 := pointers.Ptr[int32](70)
+	ptrInt75 := pointers.Ptr[int32](75)
+	ptrInt80 := pointers.Ptr[int32](80)
+	ptrInt85 := pointers.Ptr[int32](85)
+
+	testCases := []struct {
+		description                  string
+		componentHorizontalScaling   *radixv1.RadixHorizontalScaling
+		environmentHorizontalScaling map[string]*radixv1.RadixHorizontalScaling
+
+		expectedHorizontalScaling map[string]*radixv1.RadixHorizontalScaling
+	}{
+		{
+			description:                "Component sets HorizontalScaling",
+			componentHorizontalScaling: getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+			environmentHorizontalScaling: map[string]*radixv1.RadixHorizontalScaling{
+				env1: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+			},
+			expectedHorizontalScaling: map[string]*radixv1.RadixHorizontalScaling{
+				env1: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+				env2: getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			componentBuilder := utils.NewApplicationComponentBuilder().WithName(componentName)
+			for envName, hs := range testCase.environmentHorizontalScaling {
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources)))
+			}
+			if testCase.componentHorizontalScaling != nil {
+				hs := testCase.componentHorizontalScaling
+				componentBuilder = componentBuilder.WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources))
+			}
+
+			ra := utils.ARadixApplication().WithEnvironment(env1, "").WithEnvironment(env2, "").WithComponent(componentBuilder).BuildRA()
+			for _, envName := range []string{env1, env2} {
+				deployComponents, _ := GetRadixComponentsForEnv(ra, envName, componentImages, envVarsMap, nil)
+				deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+					return component.Name == componentName
+				})
+				require.True(t, exists)
+				assert.Equal(t, testCase.expectedHorizontalScaling[envName], deployComponent.HorizontalScaling)
+			}
 		})
 	}
 }
@@ -1251,8 +1317,12 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithComponents(componentBuilder).BuildRA()
 
-			deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
-			assert.Equal(t, testCase.expectedVolumeMounts, deployComponent[0].VolumeMounts)
+			deployComponents, _ := GetRadixComponentsForEnv(ra, env, componentImages, envVarsMap, nil)
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+				return component.Name == componentName
+			})
+			require.True(t, exists)
+			assert.Equal(t, testCase.expectedVolumeMounts, deployComponent.VolumeMounts)
 		})
 	}
 }
@@ -1331,8 +1401,12 @@ func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
 				WithComponents(componentBuilder).BuildRA()
 
 			for _, envName := range []string{env1, env2} {
-				deployComponent, _ := GetRadixComponentsForEnv(ra, envName, componentImages, envVarsMap, nil)
-				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent[0].VolumeMounts)
+				deployComponents, _ := GetRadixComponentsForEnv(ra, envName, componentImages, envVarsMap, nil)
+				deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+					return component.Name == componentName
+				})
+				require.True(t, exists)
+				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent.VolumeMounts)
 			}
 		})
 	}

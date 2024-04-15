@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -682,10 +683,14 @@ func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
 
-			deployJobComponent, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents()
+			deployComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents()
 			assert.NoError(t, err)
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+				return component.Name == "jobComponentName"
+			})
+			require.True(t, exists)
 
-			assert.Equal(t, ts.expectedReadOnlyFile, deployJobComponent[0].ReadOnlyFileSystem)
+			assert.Equal(t, ts.expectedReadOnlyFile, deployComponent.ReadOnlyFileSystem)
 
 		})
 	}
@@ -733,8 +738,12 @@ func Test_GetRadixJobComponentAndEnv_Monitoring(t *testing.T) {
 								WithMonitoring(pointers.Ptr(false)),
 						)).BuildRA()
 
-			deployComponent, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents()
-			assert.Equal(t, testCase.expectedMonitoring, deployComponent[0].Monitoring)
+			deployComponents, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents()
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+				return component.Name == componentName
+			})
+			require.True(t, exists)
+			assert.Equal(t, testCase.expectedMonitoring, deployComponent.Monitoring)
 		})
 	}
 }
@@ -946,8 +955,12 @@ func Test_GetRadixJobComponents_VolumeMounts(t *testing.T) {
 								WithVolumeMounts(testCase.environmentVolumeMounts),
 						)).BuildRA()
 
-			deployComponent, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents()
-			assert.Equal(t, testCase.expectedVolumeMounts, deployComponent[0].VolumeMounts)
+			deployComponents, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents()
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+				return component.Name == componentName
+			})
+			require.True(t, exists)
+			assert.Equal(t, testCase.expectedVolumeMounts, deployComponent.VolumeMounts)
 		})
 	}
 }
@@ -1026,8 +1039,12 @@ func Test_GetRadixJobComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
 				WithJobComponents(componentBuilder).BuildRA()
 
 			for _, envName := range []string{env1, env2} {
-				deployComponent, _ := NewJobComponentsBuilder(ra, envName, componentImages, envVarsMap, nil).JobComponents()
-				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent[0].VolumeMounts)
+				deployComponents, _ := NewJobComponentsBuilder(ra, envName, componentImages, envVarsMap, nil).JobComponents()
+				deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+					return component.Name == componentName
+				})
+				require.True(t, exists)
+				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent.VolumeMounts)
 			}
 		})
 	}
