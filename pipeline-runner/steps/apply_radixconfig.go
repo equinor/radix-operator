@@ -584,8 +584,9 @@ func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironm
 					continue
 				}
 
-				env := ra.GetCommonComponentByName(componentName).GetEnvironmentConfigByName(envName)
-				if !utils.IsNil(env) && len(env.GetImageTagName()) > 0 {
+				component := ra.GetCommonComponentByName(componentName)
+				env := component.GetEnvironmentConfigByName(envName)
+				if len(component.GetImageTagName()) > 0 || (!utils.IsNil(env) && len(env.GetImageTagName()) > 0) {
 					continue
 				}
 

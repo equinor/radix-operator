@@ -1,6 +1,8 @@
 package utils
 
-import v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+import (
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+)
 
 // RadixJobComponentEnvironmentConfigBuilder Handles construction of RA job component environment
 type RadixJobComponentEnvironmentConfigBuilder interface {
@@ -11,7 +13,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithEnvironmentVariable(string, string) RadixJobComponentEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixJobComponentEnvironmentConfigBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixJobComponentEnvironmentConfigBuilder
-	WithMonitoring(bool) RadixJobComponentEnvironmentConfigBuilder
+	WithMonitoring(monitoring *bool) RadixJobComponentEnvironmentConfigBuilder
 	WithImageTagName(string) RadixJobComponentEnvironmentConfigBuilder
 	WithNode(v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixJobComponentEnvironmentConfigBuilder
@@ -26,23 +28,23 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 }
 
 type radixJobComponentEnvironmentConfigBuilder struct {
-	environment      string
-	sourceFolder     string
-	dockerfileName   string
-	image            string
-	variables        v1.EnvVarsMap
-	resources        v1.ResourceRequirements
-	volumeMounts     []v1.RadixVolumeMount
-	imageTagName     string
-	monitoring       bool
-	node             v1.RadixNode
-	runAsNonRoot     bool
-	secretRefs       v1.RadixSecretRefs
-	timeLimitSeconds *int64
-	backoffLimit     *int32
-	enabled          *bool
-	identity         *v1.Identity
-	notifications    *v1.Notifications
+	environment        string
+	sourceFolder       string
+	dockerfileName     string
+	image              string
+	variables          v1.EnvVarsMap
+	resources          v1.ResourceRequirements
+	volumeMounts       []v1.RadixVolumeMount
+	imageTagName       string
+	monitoring         *bool
+	node               v1.RadixNode
+	runAsNonRoot       bool
+	secretRefs         v1.RadixSecretRefs
+	timeLimitSeconds   *int64
+	backoffLimit       *int32
+	enabled            *bool
+	identity           *v1.Identity
+	notifications      *v1.Notifications
 	readOnlyFileSystem *bool
 }
 
@@ -97,8 +99,8 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithEnvironmentVariable(na
 	return ceb
 }
 
-func (ceb *radixJobComponentEnvironmentConfigBuilder) WithMonitoring(enabled bool) RadixJobComponentEnvironmentConfigBuilder {
-	ceb.monitoring = enabled
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithMonitoring(monitoring *bool) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.monitoring = monitoring
 	return ceb
 }
 
@@ -142,22 +144,22 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithReadOnlyFileSystem(rea
 }
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
-		Environment:      ceb.environment,
-		SourceFolder:     ceb.sourceFolder,
-		DockerfileName:   ceb.dockerfileName,
-		Image:            ceb.image,
-		Variables:        ceb.variables,
-		Resources:        ceb.resources,
-		VolumeMounts:     ceb.volumeMounts,
-		Monitoring:       ceb.monitoring,
-		ImageTagName:     ceb.imageTagName,
-		Node:             ceb.node,
-		SecretRefs:       ceb.secretRefs,
-		TimeLimitSeconds: ceb.timeLimitSeconds,
-		BackoffLimit:     ceb.backoffLimit,
-		Enabled:          ceb.enabled,
-		Identity:         ceb.identity,
-		Notifications:    ceb.notifications,
+		Environment:        ceb.environment,
+		SourceFolder:       ceb.sourceFolder,
+		DockerfileName:     ceb.dockerfileName,
+		Image:              ceb.image,
+		Variables:          ceb.variables,
+		Resources:          ceb.resources,
+		VolumeMounts:       ceb.volumeMounts,
+		Monitoring:         ceb.monitoring,
+		ImageTagName:       ceb.imageTagName,
+		Node:               ceb.node,
+		SecretRefs:         ceb.secretRefs,
+		TimeLimitSeconds:   ceb.timeLimitSeconds,
+		BackoffLimit:       ceb.backoffLimit,
+		Enabled:            ceb.enabled,
+		Identity:           ceb.identity,
+		Notifications:      ceb.notifications,
 		ReadOnlyFileSystem: ceb.readOnlyFileSystem,
 	}
 }

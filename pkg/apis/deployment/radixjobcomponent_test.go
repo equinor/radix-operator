@@ -2,19 +2,20 @@ package deployment
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
-
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
-
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 )
 
 func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
@@ -53,7 +54,7 @@ func Test_GetRadixJobComponentsWithNode_BuildAllJobComponents(t *testing.T) {
 				WithName("job1").
 				WithSchedulerPort(pointers.Ptr[int32](8888)).
 				WithPayloadPath(utils.StringPtr("/path/to/payload")).
-				WithNode(v1.RadixNode{Gpu: gpu, GpuCount: gpuCount}),
+				WithNode(radixv1.RadixNode{Gpu: gpu, GpuCount: gpuCount}),
 			utils.AnApplicationJobComponent().
 				WithName("job2"),
 		).BuildRA()
@@ -89,7 +90,7 @@ func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 				),
 		).BuildRA()
 
-	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
@@ -111,7 +112,7 @@ func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 }
 
 func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
-	monitoringConfig := v1.MonitoringConfig{
+	monitoringConfig := radixv1.MonitoringConfig{
 		PortName: "monitor",
 		Path:     "/api/monitor",
 	}
@@ -123,7 +124,7 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env1").
-						WithMonitoring(true),
+						WithMonitoring(pointers.Ptr(true)),
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env2"),
 				),
@@ -133,7 +134,7 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env1").
-						WithMonitoring(true),
+						WithMonitoring(pointers.Ptr(true)),
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env2"),
 				),
@@ -175,26 +176,26 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 func Test_GetRadixJobComponents_Identity(t *testing.T) {
 	type scenarioSpec struct {
 		name                 string
-		commonConfig         *v1.Identity
+		commonConfig         *radixv1.Identity
 		configureEnvironment bool
-		environmentConfig    *v1.Identity
-		expected             *v1.Identity
+		environmentConfig    *radixv1.Identity
+		expected             *radixv1.Identity
 	}
 
 	scenarios := []scenarioSpec{
-		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
-		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
-		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &radixv1.Identity{}, configureEnvironment: true, environmentConfig: &radixv1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &radixv1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &radixv1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
 		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
-		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
-		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
-		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
-		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
-		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
-		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
-		{name: "transform clientId with curly to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "{11111111-2222-3333-4444-555555555555}"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
-		{name: "transform clientId with urn:uuid to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "urn:uuid:11111111-2222-3333-4444-555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
-		{name: "transform clientId without dashes to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111222233334444555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &radixv1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &radixv1.Identity{}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{}}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &radixv1.Identity{}, configureEnvironment: true, environmentConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "transform clientId with curly to standard format", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "{11111111-2222-3333-4444-555555555555}"}}, configureEnvironment: false, environmentConfig: nil, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId with urn:uuid to standard format", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "urn:uuid:11111111-2222-3333-4444-555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId without dashes to standard format", commonConfig: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111222233334444555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
 	}
 
 	for _, scenario := range scenarios {
@@ -254,17 +255,17 @@ func Test_GetRadixJobComponents_NodeName(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("job").
-				WithNode(v1.RadixNode{Gpu: compGpu, GpuCount: compGpuCount}).
+				WithNode(radixv1.RadixNode{Gpu: compGpu, GpuCount: compGpuCount}).
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env1").
-						WithNode(v1.RadixNode{Gpu: envGpu1, GpuCount: envGpuCount1}),
+						WithNode(radixv1.RadixNode{Gpu: envGpu1, GpuCount: envGpuCount1}),
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env2").
-						WithNode(v1.RadixNode{GpuCount: envGpuCount2}),
+						WithNode(radixv1.RadixNode{GpuCount: envGpuCount2}),
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env3").
-						WithNode(v1.RadixNode{Gpu: envGpu3}),
+						WithNode(radixv1.RadixNode{Gpu: envGpu3}),
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env4"),
 				),
@@ -364,7 +365,7 @@ func Test_GetRadixJobComponents_Ports(t *testing.T) {
 	jobs, err := cfg.JobComponents()
 	require.NoError(t, err)
 	assert.Len(t, jobs[0].Ports, 2)
-	portMap := make(map[string]v1.ComponentPort)
+	portMap := make(map[string]radixv1.ComponentPort)
 	for _, p := range jobs[0].Ports {
 		portMap[p.Name] = p
 	}
@@ -469,23 +470,23 @@ func Test_GetRadixJobComponents_BackoffLimit(t *testing.T) {
 func Test_GetRadixJobComponents_Notifications(t *testing.T) {
 	type scenarioSpec struct {
 		name                 string
-		commonConfig         *v1.Notifications
+		commonConfig         *radixv1.Notifications
 		configureEnvironment bool
-		environmentConfig    *v1.Notifications
-		expected             *v1.Notifications
+		environmentConfig    *radixv1.Notifications
+		expected             *radixv1.Notifications
 	}
 
 	scenarios := []scenarioSpec{
-		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: nil},
-		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: nil},
-		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &radixv1.Notifications{}, configureEnvironment: true, environmentConfig: &radixv1.Notifications{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &radixv1.Notifications{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &radixv1.Notifications{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
 		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
-		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Notifications{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
-		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}},
-		{name: "use commonConfig when environmentConfig.Webhook is empty", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: nil}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}},
-		{name: "override non-empty commonConfig with environmentConfig.Webhook", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
-		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
-		{name: "override empty commonConfig.Webhook with environmentConfig", commonConfig: &v1.Notifications{Webhook: nil}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &radixv1.Notifications{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &radixv1.Notifications{}, expected: &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8080")}},
+		{name: "use commonConfig when environmentConfig.Webhook is empty", commonConfig: &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &radixv1.Notifications{Webhook: nil}, expected: &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8080")}},
+		{name: "override non-empty commonConfig with environmentConfig.Webhook", commonConfig: &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &radixv1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &radixv1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &radixv1.Notifications{}, configureEnvironment: true, environmentConfig: &radixv1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &radixv1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+		{name: "override empty commonConfig.Webhook with environmentConfig", commonConfig: &radixv1.Notifications{Webhook: nil}, configureEnvironment: true, environmentConfig: &radixv1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &radixv1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
 	}
 
 	for _, scenario := range scenarios {
@@ -518,6 +519,7 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 		name                           string
 		componentImages                map[string]string
 		externalImageTagNames          map[string]string // map[component-name]image-tag
+		componentImageTagNames         map[string]string // map[component-name]image-tag
 		environmentConfigImageTagNames map[string]string // map[component-name]image-tag
 		expectedJobComponentImage      map[string]string // map[component-name]image
 		expectedError                  error
@@ -545,7 +547,21 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 			expectedError: errorMissingExpectedDynamicImageTagName(componentName1),
 		},
 		{
-			name: "with image-tags",
+			name: "with component image-tags",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: dynamicImageName2,
+			},
+			componentImageTagNames: map[string]string{
+				componentName2: "tag-component-b",
+			},
+			expectedJobComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: "custom-image-name2:tag-component-b",
+			},
+		},
+		{
+			name: "with environment image-tags",
 			componentImages: map[string]string{
 				componentName1: staticImageName1,
 				componentName2: dynamicImageName2,
@@ -556,6 +572,23 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 			expectedJobComponentImage: map[string]string{
 				componentName1: staticImageName1,
 				componentName2: "custom-image-name2:tag-component-b",
+			},
+		},
+		{
+			name: "with environment overriding image-tags",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: dynamicImageName2,
+			},
+			componentImageTagNames: map[string]string{
+				componentName2: "tag-component-b",
+			},
+			environmentConfigImageTagNames: map[string]string{
+				componentName2: "tag-component-env-b",
+			},
+			expectedJobComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: "custom-image-name2:tag-component-env-b",
 			},
 		},
 		{
@@ -581,14 +614,14 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 			for _, jobComponentName := range []string{componentName1, componentName2} {
 				componentImages[jobComponentName] = pipeline.DeployComponentImage{ImagePath: ts.componentImages[jobComponentName], ImageTagName: ts.externalImageTagNames[jobComponentName]}
 				componentBuilder := utils.NewApplicationJobComponentBuilder()
-				componentBuilder.WithName(jobComponentName).WithImage(ts.componentImages[jobComponentName]).
+				componentBuilder.WithName(jobComponentName).WithImage(ts.componentImages[jobComponentName]).WithImageTagName(ts.componentImageTagNames[jobComponentName]).
 					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(ts.environmentConfigImageTagNames[jobComponentName]))
 				componentBuilders = append(componentBuilders, componentBuilder)
 			}
 
 			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
 
-			deployJobComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap), nil).JobComponents()
+			deployJobComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents()
 			if err != nil && ts.expectedError == nil {
 				assert.Fail(t, fmt.Sprintf("unexpected error %v", err))
 				return
@@ -628,11 +661,11 @@ func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 		{"Env controls when readOnlyFileSystem is nil, set to true", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
 		{"Env controls when readOnlyFileSystem is nil, set to false", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
 		{"readOnlyFileSystem set to true, no env config", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
-		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
+		{"Both readOnlyFileSystem and monitoringEnv set to true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
 		{"Env overrides to false when both is set", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
 		{"readOnlyFileSystem set to false, no env config", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
 		{"Env overrides to true when both is set", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"Both readOnlyFileSystem and monitoringEnv set to false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
 	}
 
 	for _, ts := range testCases {
@@ -650,11 +683,369 @@ func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
 
-			deployJobComponent, err := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap), nil).JobComponents()
+			deployComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents()
 			assert.NoError(t, err)
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+				return component.Name == "jobComponentName"
+			})
+			require.True(t, exists)
 
-			assert.Equal(t, ts.expectedReadOnlyFile, deployJobComponent[0].ReadOnlyFileSystem)
+			assert.Equal(t, ts.expectedReadOnlyFile, deployComponent.ReadOnlyFileSystem)
 
+		})
+	}
+}
+
+func Test_GetRadixJobComponentAndEnv_Monitoring(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	// Test cases with different values for Monitoring
+	testCases := []struct {
+		description   string
+		monitoring    *bool
+		monitoringEnv *bool
+
+		expectedMonitoring bool
+	}{
+		{"No configuration set", nil, nil, false},
+		{"Env controls when monitoring is nil, set to true", nil, pointers.Ptr(true), true},
+		{"Env controls when monitoring is nil, set to false", nil, pointers.Ptr(false), false},
+		{"monitoring set to true, no env config", pointers.Ptr(true), nil, true},
+		{"Both monitoring and monitoringEnv set to true", pointers.Ptr(true), pointers.Ptr(true), true},
+		{"Env overrides to false when both is set", pointers.Ptr(true), pointers.Ptr(false), false},
+		{"monitoring set to false, no env config", pointers.Ptr(false), nil, false},
+		{"Env overrides to true when both is set", pointers.Ptr(false), pointers.Ptr(true), true},
+		{"Both monitoring and monitoringEnv set to false", pointers.Ptr(false), pointers.Ptr(false), false},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			ra := utils.ARadixApplication().
+				WithJobComponents(
+					utils.NewApplicationJobComponentBuilder().
+						WithName(componentName).
+						WithMonitoring(testCase.monitoring).
+						WithEnvironmentConfigs(
+							utils.AJobComponentEnvironmentConfig().
+								WithEnvironment(env).
+								WithMonitoring(testCase.monitoringEnv),
+							utils.AJobComponentEnvironmentConfig().
+								WithEnvironment("prod").
+								WithMonitoring(pointers.Ptr(false)),
+						)).BuildRA()
+
+			deployComponents, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents()
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+				return component.Name == componentName
+			})
+			require.True(t, exists)
+			assert.Equal(t, testCase.expectedMonitoring, deployComponent.Monitoring)
+		})
+	}
+}
+
+func Test_GetRadixJobComponents_VolumeMounts(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	const (
+		path1          = "/home/path1"
+		path2          = "/home/path2"
+		container1     = "container1"
+		container2     = "container2"
+		user1000       = "1000"
+		user2000       = "2000"
+		group1100      = "1100"
+		group2200      = "2200"
+		skuStandardLRS = "Standard_LRS"
+		skuStandardGRS = "Standard_GRS"
+	)
+	var (
+		accessModeReadWriteMany         = strings.ToLower(string(corev1.ReadWriteMany))
+		accessModeReadOnlyMany          = strings.ToLower(string(corev1.ReadOnlyMany))
+		bindingModeImmediate            = strings.ToLower(string(storagev1.VolumeBindingImmediate))
+		bindingModeWaitForFirstConsumer = strings.ToLower(string(storagev1.VolumeBindingWaitForFirstConsumer))
+	)
+	testCases := []struct {
+		description             string
+		componentVolumeMounts   []radixv1.RadixVolumeMount
+		environmentVolumeMounts []radixv1.RadixVolumeMount
+		expectedVolumeMounts    []radixv1.RadixVolumeMount
+	}{
+		{description: "No configuration set"},
+		{
+			description: "Component sets VolumeMounts for azure-blob",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path1, Storage: container1, UID: user1000, GID: group1100, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path1, Storage: container1, UID: user1000, GID: group1100, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate},
+			},
+		},
+		{
+			description: "Component sets VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+		},
+		{
+			description: "Env sets VolumeMounts for azure-blob",
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path2, Storage: container2, UID: user2000, GID: group2200, SkuName: skuStandardGRS, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path2, Storage: container2, UID: user2000, GID: group2200, SkuName: skuStandardGRS, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer},
+			},
+		},
+		{
+			description: "Env sets VolumeMounts for blobFuse2",
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+		},
+		{
+			description: "Env overrides component VolumeMounts for azure-blob",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path1, Storage: container1, UID: user1000, GID: group1100, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path2, Storage: container2, UID: user2000, GID: group2200, SkuName: skuStandardGRS, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path2, Storage: container2, UID: user2000, GID: group2200, SkuName: skuStandardGRS, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer},
+			},
+		},
+		{
+			description: "Env overrides component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+		},
+		{
+			description: "Env overrides and adds some component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M",
+					Streaming: &radixv1.RadixVolumeMountStreaming{BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22)},
+				}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+		},
+		{
+			description: "Env overrides and adds other component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2)},
+				}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M",
+					Streaming: &radixv1.RadixVolumeMountStreaming{BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+		},
+		{
+			description: "Env adds streaming to component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: container1,
+					Streaming: nil,
+				}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: container1,
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: container1,
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+				}},
+			},
+		},
+		{
+			description: "Env overrides and adds some component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1,
+					Streaming: &radixv1.RadixVolumeMountStreaming{BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: container1,
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false)},
+				}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: container1,
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			ra := utils.ARadixApplication().
+				WithJobComponents(
+					utils.NewApplicationJobComponentBuilder().
+						WithName(componentName).
+						WithVolumeMounts(testCase.componentVolumeMounts).
+						WithEnvironmentConfigs(
+							utils.AJobComponentEnvironmentConfig().
+								WithEnvironment(env).
+								WithVolumeMounts(testCase.environmentVolumeMounts),
+						)).BuildRA()
+
+			deployComponents, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents()
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+				return component.Name == componentName
+			})
+			require.True(t, exists)
+			assert.Equal(t, testCase.expectedVolumeMounts, deployComponent.VolumeMounts)
+		})
+	}
+}
+
+func Test_GetRadixJobComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	const (
+		path1          = "/home/path1"
+		path2          = "/home/path2"
+		container1     = "container1"
+		container2     = "container2"
+		user1000       = "1000"
+		user2000       = "2000"
+		group1100      = "1100"
+		group2200      = "2200"
+		skuStandardLRS = "Standard_LRS"
+		skuStandardGRS = "Standard_GRS"
+		env1           = "env1"
+		env2           = "env2"
+	)
+	var (
+		accessModeReadWriteMany         = strings.ToLower(string(corev1.ReadWriteMany))
+		accessModeReadOnlyMany          = strings.ToLower(string(corev1.ReadOnlyMany))
+		bindingModeImmediate            = strings.ToLower(string(storagev1.VolumeBindingImmediate))
+		bindingModeWaitForFirstConsumer = strings.ToLower(string(storagev1.VolumeBindingWaitForFirstConsumer))
+	)
+	testCases := []struct {
+		description             string
+		componentVolumeMounts   []radixv1.RadixVolumeMount
+		environmentVolumeMounts map[string][]radixv1.RadixVolumeMount
+		expectedVolumeMounts    map[string][]radixv1.RadixVolumeMount
+	}{
+		{
+			description: "Env overrides component VolumeMounts for blobFuse2",
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+				}},
+			},
+			environmentVolumeMounts: map[string][]radixv1.RadixVolumeMount{
+				env1: {
+					{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+					}}},
+			},
+			expectedVolumeMounts: map[string][]radixv1.RadixVolumeMount{
+				env1: {
+					{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
+					}}},
+				env2: {
+					{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
+						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
+					}}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			componentBuilder := utils.NewApplicationJobComponentBuilder().WithName(componentName).WithVolumeMounts(testCase.componentVolumeMounts)
+			for envName, volumeMounts := range testCase.environmentVolumeMounts {
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithVolumeMounts(volumeMounts))
+			}
+
+			ra := utils.ARadixApplication().WithEnvironment(env1, "").WithEnvironment(env2, "").
+				WithJobComponents(componentBuilder).BuildRA()
+
+			for _, envName := range []string{env1, env2} {
+				deployComponents, _ := NewJobComponentsBuilder(ra, envName, componentImages, envVarsMap, nil).JobComponents()
+				deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+					return component.Name == componentName
+				})
+				require.True(t, exists)
+				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent.VolumeMounts)
+			}
 		})
 	}
 }

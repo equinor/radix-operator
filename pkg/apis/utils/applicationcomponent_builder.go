@@ -11,6 +11,7 @@ type RadixApplicationComponentBuilder interface {
 	WithSourceFolder(string) RadixApplicationComponentBuilder
 	WithDockerfileName(string) RadixApplicationComponentBuilder
 	WithImage(string) RadixApplicationComponentBuilder
+	WithImageTagName(imageTagName string) RadixApplicationComponentBuilder
 	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
@@ -18,6 +19,7 @@ type RadixApplicationComponentBuilder interface {
 	WithSecrets(...string) RadixApplicationComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationComponentBuilder
 	WithMonitoringConfig(v1.MonitoringConfig) RadixApplicationComponentBuilder
+	WithMonitoring(monitoring *bool) RadixApplicationComponentBuilder
 	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
@@ -29,6 +31,7 @@ type RadixApplicationComponentBuilder interface {
 	WithEnabled(bool) RadixApplicationComponentBuilder
 	WithIdentity(*v1.Identity) RadixApplicationComponentBuilder
 	WithReadOnlyFileSystem(*bool) RadixApplicationComponentBuilder
+	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -54,6 +57,9 @@ type radixApplicationComponentBuilder struct {
 	enabled                 *bool
 	identity                *v1.Identity
 	readOnlyFileSystem      *bool
+	monitoring              *bool
+	imageTagName            string
+	horizontalScaling       *v1.RadixHorizontalScaling
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -81,6 +87,11 @@ func (rcb *radixApplicationComponentBuilder) WithImage(image string) RadixApplic
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithImageTagName(imageTagName string) RadixApplicationComponentBuilder {
+	rcb.imageTagName = imageTagName
+	return rcb
+}
+
 // Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 func (rcb *radixApplicationComponentBuilder) WithPublic(public bool) RadixApplicationComponentBuilder {
 	rcb.public = public
@@ -104,6 +115,11 @@ func (rcb *radixApplicationComponentBuilder) WithSecretRefs(secretRefs v1.RadixS
 
 func (rcb *radixApplicationComponentBuilder) WithMonitoringConfig(monitoringConfig v1.MonitoringConfig) RadixApplicationComponentBuilder {
 	rcb.monitoringConfig = monitoringConfig
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithMonitoring(monitoring *bool) RadixApplicationComponentBuilder {
+	rcb.monitoring = monitoring
 	return rcb
 }
 
@@ -185,6 +201,33 @@ func (rcb *radixApplicationComponentBuilder) WithReadOnlyFileSystem(readOnlyFile
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixApplicationComponentBuilder {
+	var cpuScalingResource *v1.RadixHorizontalScalingResource
+	var memoryScalingResource *v1.RadixHorizontalScalingResource
+
+	if cpu != nil {
+		cpuScalingResource = &v1.RadixHorizontalScalingResource{
+			AverageUtilization: cpu,
+		}
+	}
+
+	if memory != nil {
+		memoryScalingResource = &v1.RadixHorizontalScalingResource{
+			AverageUtilization: memory,
+		}
+	}
+
+	rcb.horizontalScaling = &v1.RadixHorizontalScaling{
+		MinReplicas: minReplicas,
+		MaxReplicas: maxReplicas,
+		RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
+			Cpu:    cpuScalingResource,
+			Memory: memoryScalingResource,
+		},
+	}
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent {
 	var environmentConfig = make([]v1.RadixEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -212,6 +255,10 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Enabled:                 rcb.enabled,
 		Identity:                rcb.identity,
 		ReadOnlyFileSystem:      rcb.readOnlyFileSystem,
+		Monitoring:              rcb.monitoring,
+		ImageTagName:            rcb.imageTagName,
+		HorizontalScaling:       rcb.horizontalScaling,
+		VolumeMounts:            rcb.volumeMounts,
 	}
 }
 

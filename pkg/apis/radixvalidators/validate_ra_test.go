@@ -1587,7 +1587,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	}
 }
 
-func Test_ValidHPA_NoError(t *testing.T) {
+func Test_HPA_Validation(t *testing.T) {
 	var testScenarios = []struct {
 		name       string
 		updateRA   updateRAFunc
@@ -1601,7 +1601,140 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			true,
 		},
 		{
-			"minReplicas and maxReplicas are not set",
+			"component HPA minReplicas and maxReplicas are not set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+			},
+			false,
+			false,
+		},
+		{
+			"component HPA maxReplicas is not set and minReplicas is set",
+			func(ra *radixv1.RadixApplication) {
+				minReplica := int32(3)
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
+			},
+			false,
+			false,
+		},
+		{
+			"component HPA minReplicas is not set and maxReplicas is set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
+			},
+			true,
+			true,
+		},
+		{
+			"component HPA minReplicas is greater than maxReplicas",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+				minReplica := int32(3)
+				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
+				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
+			},
+			false,
+			false,
+		},
+		{
+			"component HPA maxReplicas is greater than minReplicas",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+				minReplica := int32(3)
+				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
+				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 4
+			},
+			true,
+			true,
+		},
+		{
+			"component HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{},
+				}
+			},
+			false,
+			false,
+		},
+		{
+			"component HPA custom resource scaling for HPA is set, but no resource thresholds for CPU AverageUtilization is not defined",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu: &radixv1.RadixHorizontalScalingResource{},
+					},
+				}
+			},
+			false,
+			false,
+		},
+		{
+			"component HPA custom resource scaling for HPA is set, but no resource thresholds for memory AverageUtilization is not defined",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Memory: &radixv1.RadixHorizontalScalingResource{},
+					},
+				}
+			},
+			false,
+			false,
+		},
+		{
+			"component HPA custom resource scaling for HPA is set, but no resource thresholds for CPU and memory AverageUtilization are defined",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu:    &radixv1.RadixHorizontalScalingResource{},
+						Memory: &radixv1.RadixHorizontalScalingResource{},
+					},
+				}
+			},
+			false,
+			false,
+		},
+		{
+			"component HPA custom resource scaling for HPA CPU AverageUtilization is set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+					},
+				}
+			},
+			true,
+			true,
+		},
+		{
+			"component HPA custom resource scaling for HPA memory AverageUtilization is set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+					},
+				}
+			},
+			true,
+			true,
+		},
+		{
+			"component HPA custom resource scaling for HPA memory AverageUtilization is set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+					},
+				}
+			},
+			true,
+			true,
+		},
+		{
+			"environment HPA minReplicas and maxReplicas are not set",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 			},
@@ -1609,7 +1742,7 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			false,
 		},
 		{
-			"maxReplicas is not set and minReplicas is set",
+			"environment HPA maxReplicas is not set and minReplicas is set",
 			func(ra *radixv1.RadixApplication) {
 				minReplica := int32(3)
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
@@ -1619,7 +1752,7 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			false,
 		},
 		{
-			"minReplicas is not set and maxReplicas is set",
+			"environment HPA minReplicas is not set and maxReplicas is set",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
@@ -1628,7 +1761,7 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			true,
 		},
 		{
-			"minReplicas is greater than maxReplicas",
+			"environment HPA minReplicas is greater than maxReplicas",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 				minReplica := int32(3)
@@ -1639,7 +1772,7 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			false,
 		},
 		{
-			"maxReplicas is greater than minReplicas",
+			"environment HPA maxReplicas is greater than minReplicas",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 				minReplica := int32(3)
@@ -1650,7 +1783,7 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			true,
 		},
 		{
-			"custom resource scaling for HPA is set, but no resource thresholds are defined",
+			"environment HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 				minReplica := int32(2)
@@ -1660,6 +1793,90 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			},
 			false,
 			false,
+		},
+		{
+			"environment HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{},
+				}
+			},
+			false,
+			false,
+		},
+		{
+			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for CPU AverageUtilization is not defined",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu: &radixv1.RadixHorizontalScalingResource{},
+					},
+				}
+			},
+			false,
+			false,
+		},
+		{
+			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for memory AverageUtilization is not defined",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Memory: &radixv1.RadixHorizontalScalingResource{},
+					},
+				}
+			},
+			false,
+			false,
+		},
+		{
+			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for CPU and memory AverageUtilization are defined",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu:    &radixv1.RadixHorizontalScalingResource{},
+						Memory: &radixv1.RadixHorizontalScalingResource{},
+					},
+				}
+			},
+			false,
+			false,
+		},
+		{
+			"environment HPA custom resource scaling for HPA CPU AverageUtilization is set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+					},
+				}
+			},
+			true,
+			true,
+		},
+		{
+			"environment HPA custom resource scaling for HPA memory AverageUtilization is set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+					},
+				}
+			},
+			true,
+			true,
+		},
+		{
+			"environment HPA custom resource scaling for HPA memory AverageUtilization is set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+					},
+				}
+			},
+			true,
+			true,
 		},
 	}
 

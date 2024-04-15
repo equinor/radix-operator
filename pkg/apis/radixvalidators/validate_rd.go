@@ -120,10 +120,10 @@ func validateHPAConfigForRD(component *radixv1.RadixDeployComponent, environment
 		minReplicas := component.HorizontalScaling.MinReplicas
 
 		if maxReplicas == 0 {
-			return MaxReplicasForHPANotSetOrZeroErrorWithMessage(component.Name, environmentName)
+			return MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage(component.Name, environmentName)
 		}
 		if minReplicas != nil && *minReplicas > maxReplicas {
-			return MinReplicasGreaterThanMaxReplicasErrorWithMessage(component.Name, environmentName)
+			return MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage(component.Name, environmentName)
 		}
 	}
 
