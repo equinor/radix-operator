@@ -58,6 +58,17 @@ func Test_BuildAndDefaultNoPushOnlyPipeline(t *testing.T) {
 	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 }
 
+func Test_ApplyConfigPipeline(t *testing.T) {
+	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.ApplyConfig))
+
+	p, _ := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep)
+	assert.Equal(t, v1.ApplyConfig, p.Definition.Type)
+	assert.False(t, p.PipelineArguments.PushImage)
+	assert.Equal(t, 2, len(p.Steps))
+	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
+}
+
 func Test_GetImageTagNamesFromArgs(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Deploy))
 	type scenario struct {

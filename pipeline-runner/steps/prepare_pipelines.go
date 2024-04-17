@@ -71,7 +71,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 	commitID := pipelineInfo.PipelineArguments.CommitID
 	appName := cli.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	log.Info().Msgf("Prepare pipelines app %s for branch %s and commit %s", appName, branch, commitID)
+	logPipelineInfo(pipelineInfo.Definition.Type, appName, branch, commitID)
 
 	if pipelineInfo.IsPipelineType(radixv1.Promote) {
 		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := cli.getSourceDeploymentGitInfo(appName, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
@@ -100,6 +100,18 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 	}
 
 	return cli.jobWaiter.Wait(job)
+}
+
+func logPipelineInfo(pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
+	stringBuilder := strings.Builder{}
+	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineType, appName))
+	if len(branch) > 0 {
+		stringBuilder.WriteString(fmt.Sprintf(", the branch %s", branch))
+	}
+	if len(branch) > 0 {
+		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", commitID))
+	}
+	log.Info().Msg(stringBuilder.String())
 }
 
 func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {

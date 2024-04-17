@@ -222,12 +222,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
 				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana",
+				"--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
 				"--PUSH_IMAGE=1",
 				"--USE_CACHE=",
-				"--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
 			},
 			SecurityContext: &corev1.SecurityContext{
 				Privileged:               pointers.Ptr(false),

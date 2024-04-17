@@ -102,6 +102,50 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
 	s.ErrorIs(err, steps.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
 
+func (s *applyConfigTestSuite) Test_ApplyConfig_ShouldNotFail() {
+	appName := "anyapp"
+	prepareConfigMapName := "preparecm"
+	type scenario struct {
+		name                string
+		componentBuilder    *utils.RadixApplicationComponentBuilder
+		jobComponentBuilder *utils.RadixApplicationJobComponentBuilder
+	}
+	scenarios := []scenario{
+		{name: "no components"},
+		{name: "with a component", componentBuilder: pointers.Ptr(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp1"))},
+		{name: "with a job-component", jobComponentBuilder: pointers.Ptr(utils.NewApplicationJobComponentBuilder().WithSchedulerPort(pointers.Ptr[int32](8080)).WithName("job1"))},
+	}
+
+	for _, ts := range scenarios {
+		s.T().Run(ts.name, func(t *testing.T) {
+			s.SetupTest()
+			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			raBuilder := utils.NewRadixApplicationBuilder().
+				WithAppName(appName).
+				WithEnvironment("dev", "anybranch")
+			if ts.componentBuilder != nil {
+				raBuilder = raBuilder.WithComponent(*ts.componentBuilder)
+			}
+			if ts.jobComponentBuilder != nil {
+				raBuilder = raBuilder.WithJobComponent(*ts.jobComponentBuilder)
+			}
+			ra := raBuilder.BuildRA()
+			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+
+			pipeline := model.PipelineInfo{
+				PipelineArguments:  model.PipelineArguments{},
+				RadixConfigMapName: prepareConfigMapName,
+			}
+
+			applyStep := steps.NewApplyConfigStep()
+			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+			err := applyStep.Run(&pipeline)
+			s.NoError(err)
+		})
+	}
+}
+
 func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 	appName := "anyapp"
 	prepareConfigMapName := "preparecm"
