@@ -162,6 +162,9 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(externalDns radix
 			SecretTemplate: &cmv1.CertificateSecretTemplate{
 				Labels: radixlabels.ForExternalDNSTLSSecret(deploy.registration.Name, externalDns),
 			},
+			PrivateKey: &cmv1.CertificatePrivateKey{
+				RotationPolicy: cmv1.RotationPolicyAlways,
+			},
 		},
 	}
 

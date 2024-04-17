@@ -4034,6 +4034,7 @@ func Test_ExternalDNS_Legacy_ResourcesMigrated(t *testing.T) {
 		SecretTemplate: &cmv1.CertificateSecretTemplate{
 			Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdnAutomation},
 		},
+		PrivateKey: &cmv1.CertificatePrivateKey{RotationPolicy: cmv1.RotationPolicyAlways},
 	}
 	assert.Equal(t, expectedCertSpec, cert.Spec)
 }
@@ -4097,6 +4098,7 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 			SecretTemplate: &cmv1.CertificateSecretTemplate{
 				Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdn},
 			},
+			PrivateKey: &cmv1.CertificatePrivateKey{RotationPolicy: cmv1.RotationPolicyAlways},
 		}
 		assert.Equal(t, expectedCertSpec, cert.Spec)
 	}
