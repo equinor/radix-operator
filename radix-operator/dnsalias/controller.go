@@ -266,7 +266,8 @@ func deepEqual(old, new *radixv1.RadixDNSAlias) bool {
 	return reflect.DeepEqual(new.Spec, old.Spec) &&
 		reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) &&
 		reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) &&
-		reflect.DeepEqual(new.ObjectMeta.Finalizers, old.ObjectMeta.Finalizers)
+		reflect.DeepEqual(new.ObjectMeta.Finalizers, old.ObjectMeta.Finalizers) &&
+		reflect.DeepEqual(new.ObjectMeta.DeletionTimestamp, old.ObjectMeta.DeletionTimestamp)
 }
 
 func getOwner(radixClient radixclient.Interface, _, name string) (interface{}, error) {
