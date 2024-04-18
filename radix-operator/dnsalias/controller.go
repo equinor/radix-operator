@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	radixutils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -60,6 +61,7 @@ func NewController(kubeClient kubernetes.Interface,
 	addEventHandlersForRadixDeployments(radixInformerFactory, controller, radixClient, &logger)
 	addEventHandlersForIngresses(kubeInformerFactory, controller, &logger)
 	addEventHandlersForRadixRegistrations(radixInformerFactory, controller, radixClient, &logger)
+	addEventHandlersForRadixApplication(radixInformerFactory, controller, radixClient, &logger)
 	return controller
 }
 
@@ -74,11 +76,42 @@ func addEventHandlersForRadixRegistrations(radixInformerFactory informers.Shared
 				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) {
 				return // updating RadixDeployment has the same resource version. Do nothing.
 			}
-			enqueueRadixDNSAliasesForRadixRegistration(controller, radixClient, newRR, logger)
+			enqueueRadixDNSAliasesForAppName(controller, radixClient, newRR.GetName(), logger)
 		},
 	}); err != nil {
 		panic(err)
 	}
+}
+
+func addEventHandlersForRadixApplication(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface, logger *zerolog.Logger) {
+	informer := radixInformerFactory.Radix().V1().RadixApplications()
+	if _, err := informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldRA := oldObj.(*radixv1.RadixApplication)
+			newRA := newObj.(*radixv1.RadixApplication)
+			if oldRA.GetResourceVersion() == newRA.GetResourceVersion() ||
+				equalDNSAliases(oldRA.Spec.DNSAlias, newRA.Spec.DNSAlias) {
+				return // updating RadixDeployment has the same resource version. Do nothing.
+			}
+			enqueueRadixDNSAliasesForAppName(controller, radixClient, newRA.GetName(), logger)
+		},
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func equalDNSAliases(dnsAliases1, dnsAliases2 []radixv1.DNSAlias) bool {
+	if len(dnsAliases1) != len(dnsAliases2) {
+		return false
+	}
+	dnsAlias1Map := slice.Reduce(dnsAliases1, make(map[string]radixv1.DNSAlias), func(acc map[string]radixv1.DNSAlias, dnsAlias radixv1.DNSAlias) map[string]radixv1.DNSAlias {
+		acc[dnsAlias.Alias] = dnsAlias
+		return acc
+	})
+	return slice.All(dnsAliases2, func(dnsAlias2 radixv1.DNSAlias) bool {
+		dnsAlias1, ok := dnsAlias1Map[dnsAlias2.Alias]
+		return ok && dnsAlias1.Environment == dnsAlias2.Environment && dnsAlias1.Component == dnsAlias2.Component
+	})
 }
 
 func addEventHandlersForIngresses(kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller, logger *zerolog.Logger) {
@@ -192,11 +225,11 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	}
 }
 
-func enqueueRadixDNSAliasesForRadixRegistration(controller *common.Controller, radixClient radixclient.Interface, rr *radixv1.RadixRegistration, logger *zerolog.Logger) {
-	logger.Debug().Msgf("Added or updated an RadixRegistration %s. Enqueue relevant RadixDNSAliases", rr.GetName())
-	radixDNSAliases, err := getRadixDNSAliasForApp(radixClient, rr.GetName())
+func enqueueRadixDNSAliasesForAppName(controller *common.Controller, radixClient radixclient.Interface, appName string, logger *zerolog.Logger) {
+	logger.Debug().Msgf("Added or updated an RadixRegistration %s. Enqueue relevant RadixDNSAliases", appName)
+	radixDNSAliases, err := getRadixDNSAliasForApp(radixClient, appName)
 	if err != nil {
-		logger.Error().Err(err).Msgf("failed to get list of RadixDNSAliases for the application %s", rr.GetName())
+		logger.Error().Err(err).Msgf("failed to get list of RadixDNSAliases for the application %s", appName)
 		return
 	}
 	for _, radixDNSAlias := range radixDNSAliases {
