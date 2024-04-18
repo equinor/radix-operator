@@ -74,7 +74,7 @@ func addEventHandlersForRadixRegistrations(radixInformerFactory informers.Shared
 			if oldRR.GetResourceVersion() == newRR.GetResourceVersion() &&
 				radixutils.ArrayEqualElements(oldRR.Spec.AdGroups, newRR.Spec.AdGroups) &&
 				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) {
-				return // updating RadixDeployment has the same resource version. Do nothing.
+				return // updating RadixRegistration has the same resource version. Do nothing.
 			}
 			enqueueRadixDNSAliasesForAppName(controller, radixClient, newRR.GetName(), logger)
 		},
@@ -91,7 +91,7 @@ func addEventHandlersForRadixApplication(radixInformerFactory informers.SharedIn
 			newRA := newObj.(*radixv1.RadixApplication)
 			if oldRA.GetResourceVersion() == newRA.GetResourceVersion() ||
 				equalDNSAliases(oldRA.Spec.DNSAlias, newRA.Spec.DNSAlias) {
-				return // updating RadixDeployment has the same resource version. Do nothing.
+				return // updating RadixApplication has the same resource version and DNS aliases. Do nothing.
 			}
 			enqueueRadixDNSAliasesForAppName(controller, radixClient, newRA.GetName(), logger)
 		},
