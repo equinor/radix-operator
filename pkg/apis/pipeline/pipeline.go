@@ -37,7 +37,11 @@ func GetSupportedPipelines() []Definition {
 			PreparePipelinesStep,
 			ApplyConfigStep,
 			RunPipelinesStep,
-			DeployStep}}}
+			DeployStep}},
+		{v1.ApplyConfig, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep}},
+	}
 }
 
 // GetPipelineFromName Gets pipeline from string

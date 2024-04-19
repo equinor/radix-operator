@@ -69,6 +69,7 @@ const (
 	BuildDeploy RadixPipelineType = "build-deploy"
 	Promote     RadixPipelineType = "promote"
 	Deploy      RadixPipelineType = "deploy"
+	ApplyConfig RadixPipelineType = "apply-config"
 )
 
 // RadixBuildSpec is the spec for a build job
