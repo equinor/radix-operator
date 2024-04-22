@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/resources"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -15,7 +16,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -128,7 +128,7 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:      jobAuxDeploymentName,
-						Resources: getJobAuxResources(),
+						Resources: resources.New(resources.WithCPU("1m"), resources.WithMemory("10M")),
 					}},
 				},
 			},
@@ -144,15 +144,6 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container()
 
 	return desiredDeployment
-}
-
-func getJobAuxResources() corev1.ResourceRequirements {
-	cpu, _ := resource.ParseQuantity("50m")
-	memory, _ := resource.ParseQuantity("50M")
-	return corev1.ResourceRequirements{
-		Requests: corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
-		Limits:   corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
-	}
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
