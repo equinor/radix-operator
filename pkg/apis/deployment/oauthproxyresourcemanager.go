@@ -13,13 +13,13 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/resources"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -663,8 +663,12 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 									ContainerPort: defaults.OAuthProxyPortNumber,
 								},
 							},
-							ReadinessProbe:  readinessProbe,
-							SecurityContext: securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault)),
+							ReadinessProbe: readinessProbe,
+							SecurityContext: securitycontext.Container(
+								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+							),
+							Resources: resources.New(resources.WithMemory("100M"), resources.WithCPU("10m")),
 						},
 					},
 					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
@@ -760,3 +764,12 @@ func (o *oauthProxyResourceManager) createEnvVarWithSecretRef(envVarName, secret
 		},
 	}
 }
+
+// func getProxyResources() corev1.ResourceRequirements {
+// 	cpu, _ := resource.ParseQuantity("10m")
+// 	memory, _ := resource.ParseQuantity("100M")
+// 	return corev1.ResourceRequirements{
+// 		Requests: corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
+// 		Limits:   corev1.ResourceList{corev1.ResourceMemory: memory},
+// 	}
+// }
