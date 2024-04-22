@@ -18,12 +18,8 @@ func WithMemory(memory string) ResourceOption {
 		if resources.Limits == nil {
 			resources.Limits = corev1.ResourceList{}
 		}
-		if resources.Requests == nil {
-			resources.Requests = corev1.ResourceList{}
-		}
 
 		resources.Limits[corev1.ResourceMemory] = mem
-		resources.Requests[corev1.ResourceMemory] = mem
 	}
 }
 func WithCPU(cpu string) ResourceOption {
@@ -49,6 +45,20 @@ func New(options ...ResourceOption) corev1.ResourceRequirements {
 
 	for _, o := range options {
 		o(&resources)
+	}
+
+	// If request is higher than limit, set limit equal to request
+	for key, requestVal := range resources.Requests {
+		if limitVal, hasLimit := resources.Limits[key]; hasLimit {
+			if requestVal.Cmp(limitVal) == 1 {
+				resources.Limits[key] = requestVal.DeepCopy()
+			}
+		}
+	}
+
+	// If memory limit is set, enforce equal memory requests
+	if limitVal, hasLimit := resources.Limits[corev1.ResourceMemory]; hasLimit {
+		resources.Requests[corev1.ResourceMemory] = limitVal.DeepCopy()
 	}
 
 	return resources
