@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -84,11 +85,14 @@ func (kubeutil *Kube) UpdateRadixDNSAlias(radixDNSAlias *radixv1.RadixDNSAlias) 
 
 // DeleteRadixDNSAliases Delete RadixDNSAliases
 func (kubeutil *Kube) DeleteRadixDNSAliases(radixDNSAliases ...*radixv1.RadixDNSAlias) error {
+	var errs []error
 	for _, radixDNSAlias := range radixDNSAliases {
-		err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Delete(context.Background(), radixDNSAlias.GetName(), metav1.DeleteOptions{})
-		if err != nil {
-			return err
+		if radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
+			continue
+		}
+		if err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Delete(context.Background(), radixDNSAlias.GetName(), metav1.DeleteOptions{}); err != nil {
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
