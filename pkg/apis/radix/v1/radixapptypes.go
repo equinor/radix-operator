@@ -197,11 +197,6 @@ type EgressConfig struct {
 
 // SubPipeline configuration
 type SubPipeline struct {
-	// Defines build secrets, that will be available in sub-pipelines.
-	// The secrets can also be accessed in sub-pipelines.
-	// +optional
-	Secrets []string `json:"secrets,omitempty"`
-
 	// Defines variables, that will be available in sub-pipelines.
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`

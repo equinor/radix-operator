@@ -67,12 +67,6 @@ spec:
                             - clientId
                             type: object
                         type: object
-                      secrets:
-                        description: Defines build secrets, that will be available
-                          in sub-pipelines. The secrets can also be accessed in sub-pipelines.
-                        items:
-                          type: string
-                        type: array
                       variables:
                         additionalProperties:
                           type: string
@@ -1646,13 +1640,6 @@ spec:
                               - clientId
                               type: object
                           type: object
-                        secrets:
-                          description: Defines build secrets, that will be available
-                            in sub-pipelines. The secrets can also be accessed in
-                            sub-pipelines.
-                          items:
-                            type: string
-                          type: array
                         variables:
                           additionalProperties:
                             type: string
