@@ -3,14 +3,14 @@ package metrics
 import (
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils"
+	resourceutils "github.com/equinor/radix-operator/pkg/apis/utils/resources"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var (
@@ -72,7 +72,7 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 	defaultMemory := defaults.GetDefaultMemoryRequest()
 
 	for _, comp := range rd.Spec.Components {
-		resources := utils.GetResourceRequirements(&comp)
+		resources := resourceutils.GetResourceRequirements(&comp)
 		nrReplicas := float64(comp.GetNrOfReplicas())
 		var cpu, memory resource.Quantity
 

@@ -4,10 +4,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +36,7 @@ func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 	component := utils.NewDeployComponentBuilder().
 		WithResource(request, limit).
 		BuildComponent()
-	requirements := utils.GetResourceRequirements(&component)
+	requirements := resources.GetResourceRequirements(&component)
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("0.1")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("32Mi")), "Memory request should be included")
@@ -54,13 +56,13 @@ func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements := utils.GetResourceRequirements(&component)
+	requirements := resources.GetResourceRequirements(&component)
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("0.2")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("128Mi")), "Memory request should be included")
 
 	assert.Equal(t, 0, requirements.Limits.Cpu().Cmp(resource.MustParse("0")), "Missing CPU limit should be 0")
-	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
+	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("300M")), "Missing memory limit should default to 300M")
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *testing.T) {
@@ -73,13 +75,13 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *t
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements := utils.GetResourceRequirements(&component)
+	requirements := resources.GetResourceRequirements(&component)
 
-	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("0.3")), "CPU request should be included")
-	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("0")), "Missing memory request should be 0")
+	assert.Equal(t, "300m", requirements.Requests.Cpu().String(), "CPU request should be included")
+	assert.Equal(t, "300M", requirements.Requests.Memory().String(), "Missing memory request should be 0")
 
-	assert.Equal(t, 0, requirements.Limits.Cpu().Cmp(resource.MustParse("0")), "Missing CPU limit should be 0")
-	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
+	assert.Equal(t, "0", requirements.Limits.Cpu().String(), "Missing CPU limit should be 0")
+	assert.Equal(t, "300M", requirements.Limits.Memory().String(), "Missing memory limit should be default")
 }
 
 func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
@@ -93,7 +95,7 @@ func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements := utils.GetResourceRequirements(&component)
+	requirements := resources.GetResourceRequirements(&component)
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("5")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("5Gi")), "Memory request should be included")
@@ -111,13 +113,13 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements := utils.GetResourceRequirements(&component)
+	requirements := resources.GetResourceRequirements(&component)
 
-	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("6")), "CPU request should be included")
-	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("0")), "Missing memory request should be 0")
+	assert.Equal(t, "6", requirements.Requests.Cpu().String(), "CPU request should be included")
+	assert.Equal(t, "300M", requirements.Requests.Memory().String(), "Missing memory request should be default")
 
-	assert.True(t, requirements.Limits.Cpu().IsZero())
-	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
+	assert.True(t, requirements.Limits.Cpu().IsZero(), "Missing CPU limit should be Zero")
+	assert.Equal(t, "300M", requirements.Limits.Memory().String(), "Missing memory limit should be default")
 }
 
 func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
@@ -260,20 +262,20 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
-		assert.Equal(t, 0, len(desiredRes.Requests))
-		assert.Equal(t, 0, len(desiredRes.Limits))
+		assert.Equal(t, 1, len(desiredRes.Requests), "Should have default values")
+		assert.Equal(t, 1, len(desiredRes.Limits), "Should have default values")
 	})
 	t.Run("update requests and remove limit", func(t *testing.T) {
 		deployment := applyDeploymentWithSyncWithComponentResources(t, origRequests, origLimits)
 
-		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
+		expectedRequests := map[string]string{"cpu": "20m", "memory": "200M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, nil).BuildComponent()
 		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
-		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
-		assert.Equal(t, parseQuantity(expectedRequests["memory"]), desiredRes.Requests["memory"])
-		assert.Equal(t, 0, len(desiredRes.Limits))
+		assert.Equal(t, expectedRequests["cpu"], pointers.Ptr(desiredRes.Requests["cpu"]).String())
+		assert.Equal(t, expectedRequests["memory"], pointers.Ptr(desiredRes.Requests["memory"]).String())
+		assert.Equal(t, 1, len(desiredRes.Limits))
 	})
 	t.Run("remove requests and update limit", func(t *testing.T) {
 		deployment := applyDeploymentWithSyncWithComponentResources(t, origRequests, origLimits)
@@ -284,7 +286,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
-		assert.Equal(t, 0, len(desiredRes.Requests))
+		assert.Equal(t, 1, len(desiredRes.Requests))
 		assert.Equal(t, parseQuantity(expectedLimits["cpu"]), desiredRes.Limits["cpu"])
 		assert.Equal(t, parseQuantity(expectedLimits["memory"]), desiredRes.Limits["memory"])
 	})
@@ -311,8 +313,8 @@ func TestDeployment_createJobAuxDeployment(t *testing.T) {
 	assert.Equal(t, "job1-aux", jobAuxDeployment.GetName())
 	resources := jobAuxDeployment.Spec.Template.Spec.Containers[0].Resources
 	s := resources.Requests.Cpu().String()
-	assert.Equal(t, "50m", s)
-	assert.Equal(t, "50M", resources.Requests.Memory().String())
-	assert.Equal(t, "50m", resources.Limits.Cpu().String())
-	assert.Equal(t, "50M", resources.Limits.Memory().String())
+	assert.Equal(t, "1m", s)
+	assert.Equal(t, "10M", resources.Requests.Memory().String())
+	assert.Equal(t, "0", resources.Limits.Cpu().String())
+	assert.Equal(t, "10M", resources.Limits.Memory().String())
 }

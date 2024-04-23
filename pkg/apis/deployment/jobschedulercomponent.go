@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -59,7 +60,19 @@ func (js *jobSchedulerComponent) GetMonitoring() bool {
 }
 
 func (js *jobSchedulerComponent) GetResources() *v1.ResourceRequirements {
-	return &v1.ResourceRequirements{}
+	return &v1.ResourceRequirements{
+		Limits: map[string]string{
+			"memory": "500M",
+		},
+		Requests: map[string]string{
+			"cpu":    "20m",
+			"memory": "500M",
+		},
+	}
+}
+
+func (js *jobSchedulerComponent) GetReadOnlyFileSystem() *bool {
+	return pointers.Ptr(true)
 }
 
 func (js *jobSchedulerComponent) IsAlwaysPullImageOnDeploy() bool {

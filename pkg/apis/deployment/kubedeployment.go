@@ -8,11 +8,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/resources"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -270,7 +270,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = containerSecurityCtx
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = resources.GetResourceRequirements(deployComponent)
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {
