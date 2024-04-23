@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils"
+	resourceutils "github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
