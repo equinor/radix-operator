@@ -48,6 +48,38 @@ spec:
                     items:
                       type: string
                     type: array
+                  subPipeline:
+                    description: SubPipeline common configuration for all environments.
+                    properties:
+                      identity:
+                        description: 'Configuration for workload identity (federated
+                          credentials). More info: https://www.radix.equinor.com/references/reference-radix-config/#identity'
+                        properties:
+                          azure:
+                            description: Azure identity configuration
+                            properties:
+                              clientId:
+                                description: Defines the Client ID for a user defined
+                                  managed identity or application ID for an application
+                                  registration.
+                                type: string
+                            required:
+                            - clientId
+                            type: object
+                        type: object
+                      secrets:
+                        description: Defines build secrets, that will be available
+                          in sub-pipelines. The secrets can also be accessed in sub-pipelines.
+                        items:
+                          type: string
+                        type: array
+                      variables:
+                        additionalProperties:
+                          type: string
+                        description: Defines variables, that will be available in
+                          sub-pipelines.
+                        type: object
+                    type: object
                   useBuildCache:
                     description: 'Defaults to true and requires useBuildKit to have
                       an effect. Note: All layers will be cached and can be available
@@ -1595,6 +1627,39 @@ spec:
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
+                    subPipeline:
+                      description: SubPipeline configuration.
+                      properties:
+                        identity:
+                          description: 'Configuration for workload identity (federated
+                            credentials). More info: https://www.radix.equinor.com/references/reference-radix-config/#identity'
+                          properties:
+                            azure:
+                              description: Azure identity configuration
+                              properties:
+                                clientId:
+                                  description: Defines the Client ID for a user defined
+                                    managed identity or application ID for an application
+                                    registration.
+                                  type: string
+                              required:
+                              - clientId
+                              type: object
+                          type: object
+                        secrets:
+                          description: Defines build secrets, that will be available
+                            in sub-pipelines. The secrets can also be accessed in
+                            sub-pipelines.
+                          items:
+                            type: string
+                          type: array
+                        variables:
+                          additionalProperties:
+                            type: string
+                          description: Defines variables, that will be available in
+                            sub-pipelines.
+                          type: object
+                      type: object
                   required:
                   - name
                   type: object
