@@ -8,6 +8,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -68,6 +69,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 	}
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
+		ctx := log.Ctx(ctx).With().Str("batchJob", batchJob.Name).Logger().WithContext(ctx)
 		if err := s.reconcileService(&batchJob, rd, jobComponent, existingServices); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
