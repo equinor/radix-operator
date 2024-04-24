@@ -20,8 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent) error {
-	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(deployComponent)
+func (deploy *Deployment) createOrUpdateDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
+	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -57,10 +57,10 @@ func (deploy *Deployment) handleJobAuxDeployment(deployComponent v1.RadixCommonD
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
 
-func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	namespace := deploy.radixDeployment.Namespace
 
-	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(namespace, deployComponent)
+	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(ctx, namespace, deployComponent)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,11 +68,11 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.Radi
 	return currentDeployment, desiredDeployment, err
 }
 
-func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
 
 	if err == nil && currentDeployment != nil {
-		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
+		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(ctx, deployComponent, currentDeployment)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -84,7 +84,7 @@ func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent
 		return nil, nil, err
 	}
 
-	desiredDeployment, err := deploy.getDesiredCreatedDeploymentConfig(deployComponent)
+	desiredDeployment, err := deploy.getDesiredCreatedDeploymentConfig(ctx, deployComponent)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -92,7 +92,7 @@ func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	deploy.logger.Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := &appsv1.Deployment{
@@ -107,7 +107,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 		},
 	}
 
-	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
+	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
 	return desiredDeployment, err
 }
 func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent) *appsv1.Deployment {
@@ -146,11 +146,11 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 	return desiredDeployment
 }
 
-func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
 	deploy.logger.Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := currentDeployment.DeepCopy()
-	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
+	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
 
 	// When HPA is enabled for a component, the HPA controller will scale the Deployment up/down by changing Replicas
 	// We must keep this value as long as replicas >= 0.
@@ -228,7 +228,7 @@ func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 	return radixannotations.ForRadixBranch(branch)
 }
 
-func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
 	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName()
 
 	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
@@ -270,7 +270,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = containerSecurityCtx
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(ctx, deployComponent)
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {

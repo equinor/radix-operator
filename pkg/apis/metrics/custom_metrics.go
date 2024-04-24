@@ -1,9 +1,11 @@
 package metrics
 
 import (
+	"context"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -63,7 +65,7 @@ func init() {
 }
 
 // RequestedResources adds metrics for requested resources
-func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
+func RequestedResources(ctx context.Context, rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 	if rd == nil || rd.Status.Condition == v1.DeploymentInactive || rr == nil {
 		return
 	}
@@ -72,7 +74,8 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 	defaultMemory := defaults.GetDefaultMemoryRequest()
 
 	for _, comp := range rd.Spec.Components {
-		resources := utils.GetResourceRequirements(&comp)
+		ctx = log.Ctx(ctx).With().Str("component", comp.Name).Logger().WithContext(ctx)
+		resources := utils.GetResourceRequirements(ctx, &comp)
 		nrReplicas := float64(comp.GetNrOfReplicas())
 		var cpu, memory resource.Quantity
 

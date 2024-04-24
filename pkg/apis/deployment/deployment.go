@@ -54,6 +54,7 @@ type Deployment struct {
 	ingressAnnotationProviders []ingress.AnnotationProvider
 	config                     *config.Config
 	logger                     zerolog.Logger
+	ctx                        context.Context
 }
 
 // Test if NewDeploymentSyncer implements DeploymentSyncerFactory
@@ -61,6 +62,12 @@ var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
 func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
+	ctx := context.TODO()
+	logger := log.Ctx(ctx).With().
+		Str("resource_kind", v1.KindRadixDeployment).
+		Str("resource_name", cache.MetaObjectToName(&radixDeployment.ObjectMeta).String()).
+		Logger()
+
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
@@ -72,7 +79,8 @@ func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, r
 		auxResourceManagers:        auxResourceManagers,
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		config:                     config,
-		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&radixDeployment.ObjectMeta).String()).Logger(),
+		logger:                     logger,
+		ctx:                        logger.WithContext(ctx),
 	}
 }
 
@@ -126,7 +134,7 @@ func (deploy *Deployment) OnSync() error {
 	}
 
 	deploy.maintainHistoryLimit(deploy.config.DeploymentSyncer.DeploymentHistoryLimit)
-	metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
+	metrics.RequestedResources(deploy.ctx, deploy.registration, deploy.radixDeployment)
 	return nil
 }
 
@@ -227,13 +235,15 @@ func (deploy *Deployment) syncDeployment() error {
 
 	var errs []error
 	for _, component := range deploy.radixDeployment.Spec.Components {
-		if err := deploy.syncDeploymentForRadixComponent(&component); err != nil {
+		ctx := log.Ctx(deploy.ctx).With().Str("component", component.Name).Logger().WithContext(deploy.ctx)
+		if err := deploy.syncDeploymentForRadixComponent(ctx, &component); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
+		ctx := log.Ctx(deploy.ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(deploy.ctx)
 		jobSchedulerComponent := newJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
-		if err := deploy.syncDeploymentForRadixComponent(jobSchedulerComponent); err != nil {
+		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -518,7 +528,7 @@ func (deploy *Deployment) getRadixDeploymentsReferencedByJobs() (map[string]bool
 	return radixDeploymentsReferencedByJobs, nil
 }
 
-func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(component)
 	if err != nil {
 		return err
@@ -529,7 +539,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	err = deploy.createOrUpdateDeployment(component)
+	err = deploy.createOrUpdateDeployment(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}

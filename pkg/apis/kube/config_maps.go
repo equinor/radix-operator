@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"

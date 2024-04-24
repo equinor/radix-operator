@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"

@@ -7,6 +7,7 @@ import (
 	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
+	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias"
 	"github.com/equinor/radix-operator/radix-operator/dnsalias/internal"

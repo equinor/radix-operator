@@ -18,7 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	"github.com/equinor/radix-operator/pkg/apis/test"
+	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -87,8 +87,6 @@ func (s *syncerTestSuite) SetupTest() {
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "any-group")
-
-	test.SetupTestLogger()
 }
 
 func (s *syncerTestSuite) SetupSubTest() {

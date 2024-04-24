@@ -1,6 +1,10 @@
 package utils
 
 import (
+	"context"
+	"errors"
+	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
@@ -8,14 +12,20 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func GetResourceRequirements(deployComponent v1.RadixCommonDeployComponent) corev1.ResourceRequirements {
-	return BuildResourceRequirement(deployComponent.GetResources())
+func GetResourceRequirements(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) corev1.ResourceRequirements {
+	return BuildResourceRequirement(ctx, deployComponent.GetResources())
 }
 
-func BuildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRequirements {
+func BuildResourceRequirement(ctx context.Context, source *v1.ResourceRequirements) corev1.ResourceRequirements {
 	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
-	limits := mapResourceList(source.Limits)
-	requests := mapResourceList(source.Requests)
+	limits, err := mapResourceList(source.Limits)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to map source limits")
+	}
+	requests, err := mapResourceList(source.Requests)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to map source limits")
+	}
 
 	// LimitRanger will set a default Memory Limit of not specified
 	// If the default is lower than requested, the Pod *will* break
@@ -40,18 +50,20 @@ func BuildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRe
 	return req
 }
 
-func mapResourceList(list v1.ResourceList) corev1.ResourceList {
+func mapResourceList(list v1.ResourceList) (corev1.ResourceList, error) {
 	res := corev1.ResourceList{}
+	var errs []error
+
 	for name, quantity := range list {
 		if quantity != "" {
 			val, err := resource.ParseQuantity(quantity)
 			if err != nil {
-				log.Warn().Err(err).Str(name, quantity).Stack().Msg("failed to parse value")
+				errs = append(errs, fmt.Errorf("failed to parse %s value %v: %w", name, quantity, err))
 				continue
 			}
 			res[corev1.ResourceName(name)] = val
 		}
 	}
 
-	return res
+	return res, errors.Join(errs...)
 }

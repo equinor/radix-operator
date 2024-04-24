@@ -1,13 +1,17 @@
 package batch
 
 import (
+	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 // Syncer of  RadixBatch
@@ -17,15 +21,19 @@ type Syncer interface {
 }
 
 // NewSyncer Constructor os RadixBatches Syncer
-func NewSyncer(kubeclient kubernetes.Interface,
-	kubeUtil *kube.Kube,
-	radixClient radixclient.Interface,
-	radixBatch *radixv1.RadixBatch) Syncer {
+func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixBatch *radixv1.RadixBatch) Syncer {
+	ctx := context.TODO()
+	ctx = log.Ctx(ctx).With().
+		Str("resource_kind", radixv1.KindRadixBatch).
+		Str("resource_name", cache.MetaObjectToName(&radixBatch.ObjectMeta).String()).
+		Logger().WithContext(ctx)
+
 	return &syncer{
 		kubeClient:  kubeclient,
 		kubeUtil:    kubeUtil,
 		radixClient: radixClient,
 		radixBatch:  radixBatch,
+		ctx:         ctx,
 	}
 }
 
@@ -34,6 +42,7 @@ type syncer struct {
 	kubeUtil    *kube.Kube
 	radixClient radixclient.Interface
 	radixBatch  *radixv1.RadixBatch
+	ctx         context.Context
 }
 
 // OnSync Syncs RadixBatches
@@ -68,11 +77,12 @@ func (s *syncer) reconcile() error {
 	}
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
+		ctx := log.Ctx(s.ctx).With().Str("batchJob", batchJob.Name).Logger().WithContext(s.ctx)
 		if err := s.reconcileService(&batchJob, rd, jobComponent, existingServices); err != nil {
 			return err
 		}
 
-		if err := s.reconcileKubeJob(&batchJob, rd, jobComponent, existingJobs); err != nil {
+		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs); err != nil {
 			return err
 		}
 

@@ -25,6 +25,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
+	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
@@ -87,7 +88,6 @@ func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretProviderClient)
 	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid")
 	require.NoError(t, err)
-	test.SetupTestLogger()
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, prometheusClient, secretProviderClient, certClient
 }
 

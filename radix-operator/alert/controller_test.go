@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"

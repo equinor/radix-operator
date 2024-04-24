@@ -3,6 +3,7 @@ package pipeline
 import (
 	"testing"
 
+	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )
