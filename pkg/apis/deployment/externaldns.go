@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -65,7 +64,7 @@ func (deploy *Deployment) garbageCollectExternalDnsResourcesNoLongerInSpec() err
 
 func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec() error {
 	selector := radixlabels.ForApplicationName(deploy.registration.Name).AsSelector()
-	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.Namespace).List(deploy.ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
 	}
@@ -90,7 +89,7 @@ func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec() error
 
 func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec() error {
 	selector := radixlabels.ForApplicationName(deploy.registration.Name).AsSelector()
-	certificates, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+	certificates, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(deploy.ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
 	}
@@ -106,7 +105,7 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec() 
 			continue
 		}
 
-		if err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Delete(context.TODO(), cert.Name, metav1.DeleteOptions{}); err != nil {
+		if err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Delete(deploy.ctx, cert.Name, metav1.DeleteOptions{}); err != nil {
 			return nil
 		}
 	}
@@ -115,13 +114,13 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec() 
 
 func (deploy *Deployment) garbageCollectExternalDnsCertificate(externalDns radixv1.RadixDeployExternalDNS) error {
 	selector := radixlabels.ForExternalDNSCertificate(deploy.registration.Name, externalDns).AsSelector()
-	certs, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+	certs, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(deploy.ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
 	}
 
 	for _, cert := range certs.Items {
-		if err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Delete(context.TODO(), cert.Name, metav1.DeleteOptions{}); err != nil {
+		if err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Delete(deploy.ctx, cert.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -172,10 +171,10 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(externalDns radix
 }
 
 func (deploy *Deployment) applyCertificate(cert *cmv1.Certificate) error {
-	existingCert, err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Get(context.TODO(), cert.Name, metav1.GetOptions{})
+	existingCert, err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Get(deploy.ctx, cert.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			_, err = deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Create(context.TODO(), cert, metav1.CreateOptions{})
+			_, err = deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Create(deploy.ctx, cert, metav1.CreateOptions{})
 			return err
 		}
 		return err
@@ -203,7 +202,7 @@ func (deploy *Deployment) applyCertificate(cert *cmv1.Certificate) error {
 	}
 
 	if !kube.IsEmptyPatch(patchBytes) {
-		_, err = deploy.certClient.CertmanagerV1().Certificates(newCert.Namespace).Update(context.TODO(), newCert, metav1.UpdateOptions{})
+		_, err = deploy.certClient.CertmanagerV1().Certificates(newCert.Namespace).Update(deploy.ctx, newCert, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update certificate %s/%s: %w", newCert.Namespace, newCert.Name, err)
 		}
@@ -223,7 +222,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(externalDns radixv1
 		Data: tlsSecretDefaultData(),
 	}
 
-	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
+	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(deploy.ctx, secretName, metav1.GetOptions{})
 	if err == nil {
 		secret.Data = existingSecret.Data
 	} else if !k8serrors.IsNotFound(err) {

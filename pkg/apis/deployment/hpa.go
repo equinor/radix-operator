@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/numbers"
@@ -48,10 +47,10 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 	hpa := deploy.getHPAConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas, cpuTarget, memoryTarget)
 
 	deploy.logger.Debug().Msgf("Creating HorizontalPodAutoscaler object %s in namespace %s", componentName, namespace)
-	createdHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(context.TODO(), hpa, metav1.CreateOptions{})
+	createdHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(deploy.ctx, hpa, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
 		deploy.logger.Debug().Msgf("HorizontalPodAutoscaler object %s already exists in namespace %s, updating the object now", componentName, namespace)
-		updatedHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), hpa, metav1.UpdateOptions{})
+		updatedHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(deploy.ctx, hpa, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update HorizontalPodAutoscaler object: %v", err)
 		}
@@ -67,7 +66,7 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 
 func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	namespace := deploy.radixDeployment.GetNamespace()
-	hpas, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{})
+	hpas, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(deploy.ctx, metav1.ListOptions{})
 
 	if err != nil {
 		return err
@@ -80,7 +79,7 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 		}
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
-			err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), hpa.Name, metav1.DeleteOptions{})
+			err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(deploy.ctx, hpa.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -156,14 +155,14 @@ func getHpaMetrics(cpuTarget *int32, memoryTarget *int32) []autoscalingv2.Metric
 
 func (deploy *Deployment) deleteHPAIfExists(componentName string) error {
 	namespace := deploy.radixDeployment.GetNamespace()
-	_, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), componentName, metav1.GetOptions{})
+	_, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(deploy.ctx, componentName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("failed to get hpa: %v", err)
 	}
-	err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), componentName, metav1.DeleteOptions{})
+	err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(deploy.ctx, componentName, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete existing hpa: %v", err)
 	}

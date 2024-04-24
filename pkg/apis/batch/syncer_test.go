@@ -47,7 +47,7 @@ func TestSyncerTestSuite(t *testing.T) {
 }
 
 func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch) Syncer {
-	return &syncer{kubeClient: s.kubeClient, kubeUtil: s.kubeUtil, radixClient: s.radixClient, radixBatch: forJob}
+	return &syncer{kubeClient: s.kubeClient, kubeUtil: s.kubeUtil, radixClient: s.radixClient, radixBatch: forJob, ctx: context.Background()}
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {

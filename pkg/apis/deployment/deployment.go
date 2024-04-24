@@ -308,15 +308,15 @@ func (deploy *Deployment) setRDToInactive(rd *v1.RadixDeployment, activeTo metav
 func (deploy *Deployment) updateRadixDeploymentStatus(rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) error {
 	rdInterface := deploy.radixclient.RadixV1().RadixDeployments(rd.GetNamespace())
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRD, err := rdInterface.Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
+		currentRD, err := rdInterface.Get(deploy.ctx, rd.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentRD.Status)
-		_, err = rdInterface.UpdateStatus(context.TODO(), currentRD, metav1.UpdateOptions{})
+		_, err = rdInterface.UpdateStatus(deploy.ctx, currentRD, metav1.UpdateOptions{})
 
 		if err == nil && rd.GetName() == deploy.radixDeployment.GetName() {
-			currentRD, err = rdInterface.Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
+			currentRD, err = rdInterface.Get(deploy.ctx, rd.GetName(), metav1.GetOptions{})
 			if err == nil {
 				deploy.radixDeployment = currentRD
 			}
@@ -509,7 +509,7 @@ func (deploy *Deployment) maintainHistoryLimit(deploymentHistoryLimit int) {
 			continue
 		}
 		deploy.logger.Info().Msgf("Removing deployment %s from %s", deployment.Name, deployment.Namespace)
-		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
+		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(deploy.ctx, deployment.Name, metav1.DeleteOptions{})
 		if err != nil {
 			deploy.logger.Warn().Err(err).Msgf("Failed to delete old RadixDeployment %s", deployment.Name)
 		}
