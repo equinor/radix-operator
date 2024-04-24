@@ -18,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -86,6 +87,8 @@ func (s *syncerTestSuite) SetupTest() {
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "any-group")
+
+	test.SetupTestLogger()
 }
 
 func (s *syncerTestSuite) SetupSubTest() {
@@ -491,8 +494,8 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)), kubejob.Spec.Template.Spec.SecurityContext)
 		s.Equal(imageName, kubejob.Spec.Template.Spec.Containers[0].Image)
 		s.Equal(securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault)), kubejob.Spec.Template.Spec.Containers[0].SecurityContext)
-		s.Len(kubejob.Spec.Template.Spec.Containers[0].Resources.Limits, 1)
-		s.Len(kubejob.Spec.Template.Spec.Containers[0].Resources.Requests, 1)
+		s.Len(kubejob.Spec.Template.Spec.Containers[0].Resources.Limits, 0)
+		s.Len(kubejob.Spec.Template.Spec.Containers[0].Resources.Requests, 0)
 		s.Len(kubejob.Spec.Template.Spec.Containers[0].Env, 5)
 		s.True(slice.Any(kubejob.Spec.Template.Spec.Containers[0].Env, func(env corev1.EnvVar) bool {
 			return env.Name == "VAR1" && env.ValueFrom.ConfigMapKeyRef.Key == "VAR1" && env.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name == kube.GetEnvVarsConfigMapName(componentName)

@@ -62,7 +62,7 @@ func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("128Mi")), "Memory request should be included")
 
 	assert.Equal(t, 0, requirements.Limits.Cpu().Cmp(resource.MustParse("0")), "Missing CPU limit should be 0")
-	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("300M")), "Missing memory limit should default to 300M")
+	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should default to 300M")
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *testing.T) {
@@ -78,10 +78,10 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *t
 	requirements := resources.GetResourceRequirements(&component)
 
 	assert.Equal(t, "300m", requirements.Requests.Cpu().String(), "CPU request should be included")
-	assert.Equal(t, "300M", requirements.Requests.Memory().String(), "Missing memory request should be 0")
+	assert.Equal(t, "0", requirements.Requests.Memory().String(), "Missing memory request should be 0")
 
 	assert.Equal(t, "0", requirements.Limits.Cpu().String(), "Missing CPU limit should be 0")
-	assert.Equal(t, "300M", requirements.Limits.Memory().String(), "Missing memory limit should be default")
+	assert.Equal(t, "0", requirements.Limits.Memory().String(), "Missing memory limit should be default")
 }
 
 func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
@@ -116,10 +116,10 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 	requirements := resources.GetResourceRequirements(&component)
 
 	assert.Equal(t, "6", requirements.Requests.Cpu().String(), "CPU request should be included")
-	assert.Equal(t, "300M", requirements.Requests.Memory().String(), "Missing memory request should be default")
+	assert.Equal(t, "0", requirements.Requests.Memory().String(), "Missing memory request should be 0")
 
 	assert.True(t, requirements.Limits.Cpu().IsZero(), "Missing CPU limit should be Zero")
-	assert.Equal(t, "300M", requirements.Limits.Memory().String(), "Missing memory limit should be default")
+	assert.Equal(t, "0", requirements.Limits.Memory().String(), "Missing memory request should be 0")
 }
 
 func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
@@ -262,8 +262,8 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
-		assert.Equal(t, 1, len(desiredRes.Requests), "Should have default values")
-		assert.Equal(t, 1, len(desiredRes.Limits), "Should have default values")
+		assert.Equal(t, 0, len(desiredRes.Requests), "Should have default values")
+		assert.Equal(t, 0, len(desiredRes.Limits), "Should have default values")
 	})
 	t.Run("update requests and remove limit", func(t *testing.T) {
 		deployment := applyDeploymentWithSyncWithComponentResources(t, origRequests, origLimits)
@@ -275,7 +275,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, expectedRequests["cpu"], pointers.Ptr(desiredRes.Requests["cpu"]).String())
 		assert.Equal(t, expectedRequests["memory"], pointers.Ptr(desiredRes.Requests["memory"]).String())
-		assert.Equal(t, 1, len(desiredRes.Limits))
+		assert.Equal(t, 0, len(desiredRes.Limits))
 	})
 	t.Run("remove requests and update limit", func(t *testing.T) {
 		deployment := applyDeploymentWithSyncWithComponentResources(t, origRequests, origLimits)
@@ -286,7 +286,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
-		assert.Equal(t, 1, len(desiredRes.Requests))
+		assert.Equal(t, 0, len(desiredRes.Requests))
 		assert.Equal(t, parseQuantity(expectedLimits["cpu"]), desiredRes.Limits["cpu"])
 		assert.Equal(t, parseQuantity(expectedLimits["memory"]), desiredRes.Limits["memory"])
 	})

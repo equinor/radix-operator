@@ -83,7 +83,7 @@ endif
 
 .PHONY: test
 test:
-	go test -cover `go list ./... | grep -v 'pkg/client'`
+	LOG_LEVEL=warn go test -cover `go list ./... | grep -v 'pkg/client'`
 
 .PHONY: mocks
 mocks:

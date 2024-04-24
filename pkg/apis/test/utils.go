@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -10,6 +11,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -279,6 +282,8 @@ func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
 	os.Setenv(defaults.ContainerRegistryEnvironmentVariable, "any.container.registry")
 	os.Setenv(defaults.AppContainerRegistryEnvironmentVariable, "any.app.container.registry")
+
+	SetupTestLogger()
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
@@ -439,4 +444,20 @@ type DNSAlias struct {
 	AppName     string
 	Environment string
 	Component   string
+}
+
+func SetupTestLogger() {
+	logLevelStr := os.Getenv("LOG_LEVEL")
+	if len(logLevelStr) == 0 {
+		logLevelStr = zerolog.LevelInfoValue
+	}
+
+	logLevel, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		logLevel = zerolog.InfoLevel
+	}
+
+	zerolog.SetGlobalLevel(logLevel)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.Kitchen})
+	zerolog.DefaultContextLogger = &log.Logger
 }

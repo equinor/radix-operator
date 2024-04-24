@@ -87,6 +87,7 @@ func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretProviderClient)
 	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid")
 	require.NoError(t, err)
+	test.SetupTestLogger()
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, prometheusClient, secretProviderClient, certClient
 }
 
