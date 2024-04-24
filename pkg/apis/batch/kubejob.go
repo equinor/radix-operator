@@ -15,7 +15,6 @@ import (
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -270,10 +269,10 @@ func (s *syncer) getContainerEnvironmentVariables(rd *radixv1.RadixDeployment, j
 
 func (s *syncer) getContainerResources(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) corev1.ResourceRequirements {
 	if batchJob.Resources != nil {
-		return resources.New(resources.WithDefaults(), resources.WithSource(batchJob.Resources))
+		return operatorUtils.BuildResourceRequirement(batchJob.Resources)
 	}
 
-	return resources.GetResourceRequirements(jobComponent)
+	return operatorUtils.GetResourceRequirements(jobComponent)
 }
 
 func getContainerPorts(radixJobComponent *radixv1.RadixDeployJobComponent) []corev1.ContainerPort {
