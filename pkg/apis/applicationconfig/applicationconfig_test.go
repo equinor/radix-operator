@@ -32,6 +32,7 @@ const (
 )
 
 func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
+	test.SetupTestLogger()
 	kubeClient := kubefake.NewSimpleClientset()
 	radixClient := radixfake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
