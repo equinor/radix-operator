@@ -80,7 +80,7 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *t
 	assert.Equal(t, "0", requirements.Requests.Memory().String(), "Missing memory request should be 0")
 
 	assert.Equal(t, "0", requirements.Limits.Cpu().String(), "Missing CPU limit should be 0")
-	assert.Equal(t, "0", requirements.Limits.Memory().String(), "Missing memory limit should be default")
+	assert.Equal(t, "0", requirements.Limits.Memory().String(), "Missing memory limit should be 0")
 }
 
 func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
@@ -118,7 +118,7 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 	assert.Equal(t, "0", requirements.Requests.Memory().String(), "Missing memory request should be 0")
 
 	assert.True(t, requirements.Limits.Cpu().IsZero(), "Missing CPU limit should be Zero")
-	assert.Equal(t, "0", requirements.Limits.Memory().String(), "Missing memory request should be 0")
+	assert.Equal(t, "0", requirements.Limits.Memory().String(), "Missing memory limit should be 0")
 }
 
 func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
@@ -261,8 +261,8 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
-		assert.Equal(t, 0, len(desiredRes.Requests), "Should have default values")
-		assert.Equal(t, 0, len(desiredRes.Limits), "Should have default values")
+		assert.Equal(t, 0, len(desiredRes.Requests))
+		assert.Equal(t, 0, len(desiredRes.Limits))
 	})
 	t.Run("update requests and remove limit", func(t *testing.T) {
 		deployment := applyDeploymentWithSyncWithComponentResources(t, origRequests, origLimits)

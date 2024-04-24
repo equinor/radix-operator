@@ -1,8 +1,6 @@
 package resources
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
@@ -46,69 +44,6 @@ func WithCPU(cpu string) ResourceOption {
 	}
 }
 
-func WithDefaults() ResourceOption {
-	return func(resources *corev1.ResourceRequirements) {
-		if resources.Limits == nil {
-			resources.Limits = corev1.ResourceList{}
-		}
-		if resources.Requests == nil {
-			resources.Requests = corev1.ResourceList{}
-		}
-
-		// TODO: Only set memory limit if request is set, and the deault is higher?
-
-		if defaultMemory := defaults.GetDefaultMemoryLimit(); defaultMemory != nil {
-			resources.Limits[corev1.ResourceMemory] = *defaultMemory
-			resources.Requests[corev1.ResourceMemory] = *defaultMemory
-		}
-
-		// TODO: Only set default CPU if missing?
-		if defaultCPU := defaults.GetDefaultCPURequest(); defaultCPU != nil {
-			resources.Requests[corev1.ResourceCPU] = *defaultCPU
-		}
-	}
-}
-
-func WithSource(source *radixv1.ResourceRequirements) ResourceOption {
-	return func(resources *corev1.ResourceRequirements) {
-		if source == nil {
-			return
-		}
-
-		if source.Limits != nil {
-			if resources.Limits == nil {
-				resources.Limits = corev1.ResourceList{}
-			}
-
-			for key, value := range source.Limits {
-				v, err := resourcev1.ParseQuantity(value)
-				if err != nil {
-					log.Warn().Err(err).Str(key, value).Stack().Msg("failed to parse value")
-					continue
-				}
-
-				resources.Limits[corev1.ResourceName(key)] = v.DeepCopy()
-			}
-		}
-
-		if source.Requests != nil {
-			if resources.Requests == nil {
-				resources.Requests = corev1.ResourceList{}
-			}
-
-			for key, value := range source.Requests {
-				v, err := resourcev1.ParseQuantity(value)
-				if err != nil {
-					log.Warn().Err(err).Str(key, value).Stack().Msg("failed to parse value")
-					continue
-				}
-
-				resources.Requests[corev1.ResourceName(key)] = v.DeepCopy()
-			}
-		}
-	}
-}
-
 func New(options ...ResourceOption) corev1.ResourceRequirements {
 	resources := corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{},
@@ -128,11 +63,10 @@ func New(options ...ResourceOption) corev1.ResourceRequirements {
 		}
 	}
 
-	// TODO: Enforce equal memory requests and limits when all RadixDeployments are newer
 	// If memory limit is set, enforce equal memory requests
-	// if limitVal, hasLimit := resources.Limits[corev1.ResourceMemory]; hasLimit {
-	// 	resources.Requests[corev1.ResourceMemory] = limitVal.DeepCopy()
-	// }
+	if limitVal, hasLimit := resources.Limits[corev1.ResourceMemory]; hasLimit {
+		resources.Requests[corev1.ResourceMemory] = limitVal.DeepCopy()
+	}
 
 	return resources
 }
