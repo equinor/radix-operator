@@ -125,6 +125,25 @@ tolerations: []
 
 affinity: {}
 
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  supplementalGroups:
+    - 1000
+
+securityContext:
+  privileged: false
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+
+# Additional volumes to add to the radix-cost-allocation pod.
+volumes: []
+
+# Additional volume mounts to add to the radix-cost-allocation container.
+volumeMounts: []
+
 prometheusName: kube-prometheus
 
 clusterType: development

@@ -18,13 +18,10 @@ spec:
         {{- include "radix-operator.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccount: {{ include "radix-operator.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        supplementalGroups:
-          - 1000
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ template "radix-operator.fullname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -178,21 +175,29 @@ spec:
             httpGet:
               path: /healthz
               port: metrics
+          {{- with .Values.securityContext }}
           securityContext:
-            privileged: false
-            readOnlyRootFilesystem: false
-            allowPrivilegeEscalation: false
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
-{{ toYaml .Values.resources | indent 12 }}
+          {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+          {{- toYaml . | nindent 12 }}
+          {{- end }}          
       {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.affinity }}
       affinity:
-        {{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
-        {{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}        
