@@ -73,7 +73,7 @@ func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace st
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
 
 	if err == nil && currentDeployment != nil {
-		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(ctx, deployComponent, currentDeployment)
+		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
 		if err != nil {
 			return nil, nil, err
 		}
