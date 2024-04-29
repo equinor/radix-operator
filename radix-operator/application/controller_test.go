@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +39,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	_, err := s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("added app")
 }
 
@@ -65,20 +66,20 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_Reader_C
 	_, err = s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("added app")
 
 	rr.Spec.AdGroups = []string{"another-admin-group"}
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("AdGroups changed")
 
 	rr.Spec.ReaderAdGroups = []string{"another-reader-group"}
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("ReaderAdGroups changed")
 }

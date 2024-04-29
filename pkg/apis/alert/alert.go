@@ -19,7 +19,7 @@ import (
 
 // AlertSyncer defines interface for syncing a RadixAlert
 type AlertSyncer interface {
-	OnSync() error
+	OnSync(ctx context.Context) error
 }
 
 type alertSyncer struct {
@@ -53,8 +53,8 @@ func New(kubeclient kubernetes.Interface,
 }
 
 // OnSync compares the actual state with the desired, and attempts to reconcile the two
-func (syncer *alertSyncer) OnSync() error {
-	syncer.logger.Info().Msg("Syncing")
+func (syncer *alertSyncer) OnSync(ctx context.Context) error {
+	log.Ctx(ctx).Info().Msg("Syncing")
 
 	if err := syncer.syncAlert(); err != nil {
 		return err

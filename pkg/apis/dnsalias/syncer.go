@@ -1,6 +1,7 @@
 package dnsalias
 
 import (
+	"context"
 	"fmt"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -24,7 +25,7 @@ import (
 // Syncer of  RadixDNSAliases
 type Syncer interface {
 	// OnSync Syncs RadixDNSAliases
-	OnSync() error
+	OnSync(ctx context.Context) error
 }
 
 // DNSAlias is the aggregate-root for manipulating RadixDNSAliases
@@ -57,7 +58,9 @@ func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient
 
 // OnSync is called by the handler when changes are applied and must be
 // reconciled with current state.
-func (s *syncer) OnSync() error {
+func (s *syncer) OnSync(ctx context.Context) error {
+	s.logger = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixDNSAlias).Str("resource_name", cache.MetaObjectToName(&s.radixDNSAlias.ObjectMeta).String()).Logger()
+
 	s.logger.Debug().Msgf("OnSync RadixDNSAlias %s, application %s, environment %s, component %s", s.radixDNSAlias.GetName(), s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment, s.radixDNSAlias.Spec.Component)
 	if err := s.restoreStatus(); err != nil {
 		return fmt.Errorf("failed to update status on DNS alias %s: %v", s.radixDNSAlias.GetName(), err)

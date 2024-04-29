@@ -16,7 +16,7 @@ import (
 // Syncer of  RadixBatch
 type Syncer interface {
 	// OnSync Syncs RadixBatch
-	OnSync() error
+	OnSync(ctx context.Context) error
 }
 
 // NewSyncer Constructor os RadixBatches Syncer
@@ -37,7 +37,7 @@ type syncer struct {
 }
 
 // OnSync Syncs RadixBatches
-func (s *syncer) OnSync() error {
+func (s *syncer) OnSync(ctx context.Context) error {
 	if err := s.restoreStatus(); err != nil {
 		return err
 	}

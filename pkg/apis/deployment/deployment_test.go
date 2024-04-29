@@ -3553,7 +3553,7 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1, annotations2}, nil, &config.Config{})
-	err = syncer.OnSync()
+	err = syncer.OnSync(context.Background())
 	require.NoError(t, err)
 	ingresses, _ := kubeclient.NetworkingV1().Ingresses("").List(context.Background(), metav1.ListOptions{})
 	assert.Len(t, ingresses.Items, 3)
@@ -3579,7 +3579,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], "app-dev").Times(1).Return(nil, errors.New("any error"))
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1}, nil, &config.Config{})
-	err = syncer.OnSync()
+	err = syncer.OnSync(context.Background())
 	assert.Error(t, err)
 }
 
@@ -3599,7 +3599,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	auxResource.EXPECT().Sync().Times(1).Return(nil)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
-	err = syncer.OnSync()
+	err = syncer.OnSync(context.Background())
 	assert.NoError(t, err)
 }
 
@@ -3620,7 +3620,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().Sync().Times(1).Return(auxErr)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
-	err = syncer.OnSync()
+	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
 
@@ -3641,7 +3641,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().Sync().Times(0)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
-	err = syncer.OnSync()
+	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
 
@@ -4219,7 +4219,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 		}}
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
-	require.NoError(t, syncer.OnSync())
+	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ := certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
 	assert.Equal(t, cfg.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
@@ -4233,7 +4233,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 		}}
 
 	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
-	require.NoError(t, syncer.OnSync())
+	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, 2160*time.Hour, cert.Spec.Duration.Duration)
 	assert.Equal(t, cfg.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
@@ -4247,7 +4247,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 		}}
 
 	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
-	require.NoError(t, syncer.OnSync())
+	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
 	assert.Equal(t, 360*time.Hour, cert.Spec.RenewBefore.Duration)
@@ -4274,7 +4274,7 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 		}}
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
-	assert.ErrorContains(t, syncer.OnSync(), "cluster issuer not set in certificate automation config")
+	assert.ErrorContains(t, syncer.OnSync(context.Background()), "cluster issuer not set in certificate automation config")
 }
 
 func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {
@@ -4359,7 +4359,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 
 	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, radixRegistration, rd, nil, nil, &testConfig)
 	modifySyncer(deploymentSyncer)
-	err = deploymentSyncer.OnSync()
+	err = deploymentSyncer.OnSync(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -4381,7 +4381,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 	}
 
 	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, certClient, radixRegistration, rd, nil, nil, &testConfig)
-	err = deployment.OnSync()
+	err = deployment.OnSync(context.Background())
 	if err != nil {
 		return err
 	}

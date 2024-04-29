@@ -37,7 +37,7 @@ const (
 
 // DeploymentSyncer defines interface for syncing a RadixDeployment
 type DeploymentSyncer interface {
-	OnSync() error
+	OnSync(ctx context.Context) error
 }
 
 // Deployment Instance variables
@@ -95,11 +95,11 @@ func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.Ra
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
-func (deploy *Deployment) OnSync() error {
-	ctx := log.Ctx(context.TODO()).With().
+func (deploy *Deployment) OnSync(ctx context.Context) error {
+	ctx = log.Ctx(ctx).With().
 		Str("resource_kind", v1.KindRadixDeployment).
 		Str("resource_name", cache.MetaObjectToName(&deploy.radixDeployment.ObjectMeta).String()).
-		Logger().WithContext(context.TODO())
+		Logger().WithContext(ctx)
 
 	requeue := deploy.restoreStatus(ctx)
 

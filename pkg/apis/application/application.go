@@ -47,7 +47,7 @@ func NewApplication(
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
-func (app *Application) OnSync() error {
+func (app *Application) OnSync(ctx context.Context) error {
 	radixRegistration := app.registration
 
 	err := app.createAppNamespace()

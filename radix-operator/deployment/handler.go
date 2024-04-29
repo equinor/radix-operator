@@ -114,7 +114,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 }
 
 // Sync Is created on sync of resource
-func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	rd, err := t.kubeutil.GetRadixDeployment(namespace, name)
 	if err != nil {
 		// The Deployment resource may no longer exist, in which case we stop
@@ -153,7 +153,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
-	err = deployment.OnSync()
+	err = deployment.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -79,8 +80,8 @@ func (s *ControllerTestSuite) WaitForNotSynced(failMessage string) {
 }
 
 // SyncedChannelCallback Callback to send a signal to the Synced
-func (s *ControllerTestSuite) SyncedChannelCallback() func(namespace string, name string, eventRecorder record.EventRecorder) error {
-	return func(namespace, name string, eventRecorder record.EventRecorder) error {
+func (s *ControllerTestSuite) SyncedChannelCallback() func(ctx context.Context, namespace string, name string, eventRecorder record.EventRecorder) error {
+	return func(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 		s.Synced <- true
 		return nil
 	}

@@ -1,6 +1,8 @@
 package alert
 
 import (
+	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/alert"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -65,7 +67,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 }
 
 // Sync Is created on sync of resource
-func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	alert, err := t.kubeutil.GetRadixAlert(namespace, name)
 	if err != nil {
 		// The Alert resource may no longer exist, in which case we stop processing.
@@ -81,7 +83,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	log.Debug().Msgf("Sync radix alert %s", syncRAL.Name)
 
 	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, syncRAL)
-	err = alertSyncer.OnSync()
+	err = alertSyncer.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue

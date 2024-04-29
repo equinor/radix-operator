@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -149,7 +150,7 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 
 func (c *Controller) processWorkItem(workItem interface{}, workItemString string) {
 	err := func(workItem interface{}) error {
-		if err := c.syncHandler(workItemString); err != nil {
+		if err := c.syncHandler(context.TODO(), workItemString); err != nil {
 			c.WorkQueue.AddRateLimited(workItemString)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
@@ -169,7 +170,7 @@ func (c *Controller) processWorkItem(workItem interface{}, workItemString string
 	}
 }
 
-func (c *Controller) syncHandler(key string) error {
+func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	start := time.Now()
 
 	defer func() {
@@ -184,7 +185,7 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
-	err = c.Handler.Sync(namespace, name, c.Recorder)
+	err = c.Handler.Sync(ctx, namespace, name, c.Recorder)
 	if err != nil {
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
 		return err

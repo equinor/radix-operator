@@ -51,7 +51,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
-		err := app.OnSync()
+		err := app.OnSync(context.Background())
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.TODO(),
@@ -62,7 +62,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
-		err := app.OnSync()
+		err := app.OnSync(context.Background())
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.TODO(),
@@ -116,7 +116,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
-	err = app.OnSync()
+	err = app.OnSync(context.Background())
 	assert.NoError(t, err)
 	environments, err := radixClient.RadixV1().RadixEnvironments().List(
 		context.TODO(),
@@ -716,7 +716,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 
 	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 
-	err = applicationConfig.OnSync()
+	err = applicationConfig.OnSync(context.Background())
 	if err != nil {
 		return err
 	}

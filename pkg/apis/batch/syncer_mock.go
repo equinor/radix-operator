@@ -5,6 +5,7 @@
 package batch
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -34,15 +35,15 @@ func (m *MockSyncer) EXPECT() *MockSyncerMockRecorder {
 }
 
 // OnSync mocks base method.
-func (m *MockSyncer) OnSync() error {
+func (m *MockSyncer) OnSync(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OnSync")
+	ret := m.ctrl.Call(m, "OnSync", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // OnSync indicates an expected call of OnSync.
-func (mr *MockSyncerMockRecorder) OnSync() *gomock.Call {
+func (mr *MockSyncerMockRecorder) OnSync(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnSync", reflect.TypeOf((*MockSyncer)(nil).OnSync))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnSync", reflect.TypeOf((*MockSyncer)(nil).OnSync), ctx)
 }

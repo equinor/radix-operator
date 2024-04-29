@@ -208,7 +208,7 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 			s.registerExistingIngresses(s.kubeClient, ts.existingIngress)
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err = syncer.OnSync()
+			err = syncer.OnSync(context.Background())
 			s.Assert().NoError(err)
 
 			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
@@ -351,7 +351,7 @@ func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
 			s.registerExistingIngresses(s.kubeClient, ts.existingIngress)
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err = syncer.OnSync()
+			err = syncer.OnSync(context.Background())
 			s.Assert().NoError(err)
 
 			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
@@ -552,7 +552,7 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 			s.registerClusterRoleBindings(radixDNSAlias, ts.existingClusterRoleBindings)
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err := syncer.OnSync()
+			err := syncer.OnSync(context.Background())
 			s.Assert().NoError(err)
 
 			clusterRoleList, err := s.getClusterRolesForAnyAliases()
@@ -677,7 +677,7 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 			s.registerRadixDeployments(rd1)
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err := syncer.OnSync()
+			err := syncer.OnSync(context.Background())
 
 			if len(ts.expectedError) > 0 {
 				require.Error(t, err)

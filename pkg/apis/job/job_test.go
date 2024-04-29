@@ -134,7 +134,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, co
 
 func (s *RadixJobTestSuiteBase) runSync(rj *radixv1.RadixJob, config *config.Config) error {
 	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rj, config)
-	return job.OnSync()
+	return job.OnSync(context.Background())
 }
 
 func TestRadixJobTestSuite(t *testing.T) {

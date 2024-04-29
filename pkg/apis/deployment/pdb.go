@@ -104,7 +104,7 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec(ctx c
 		}
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
-			err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
+			err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(ctx, pdb.Name, metav1.DeleteOptions{})
 			log.Ctx(ctx).Debug().Msgf("PodDisruptionBudget object %s already exists in namespace %s, deleting the object now", componentName, namespace)
 
 		}

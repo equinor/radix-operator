@@ -126,7 +126,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 // OnSync is called when an application config is applied to application namespace
 // It compares the actual state with the desired, and attempts to
 // converge the two
-func (app *ApplicationConfig) OnSync() error {
+func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 	if err := app.syncEnvironments(); err != nil {
 		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}

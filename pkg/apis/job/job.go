@@ -60,7 +60,7 @@ func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient ra
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
-func (job *Job) OnSync() error {
+func (job *Job) OnSync(ctx context.Context) error {
 	job.restoreStatus()
 
 	appName := job.radixJob.Spec.AppName

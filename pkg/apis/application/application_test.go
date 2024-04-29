@@ -266,7 +266,7 @@ func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	application, _ := NewApplication(client, kubeUtil, radixclient, rr)
-	err = application.OnSync()
+	err = application.OnSync(context.Background())
 	if err != nil {
 		return nil, err
 	}
