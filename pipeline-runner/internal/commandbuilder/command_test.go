@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
-	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/stretchr/testify/assert"
 )
 
