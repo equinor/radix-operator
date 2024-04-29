@@ -5,7 +5,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/stretchr/testify/assert"
 )
 
