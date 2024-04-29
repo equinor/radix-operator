@@ -764,12 +764,3 @@ func (o *oauthProxyResourceManager) createEnvVarWithSecretRef(envVarName, secret
 		},
 	}
 }
-
-// func getProxyResources() corev1.ResourceRequirements {
-// 	cpu, _ := resource.ParseQuantity("10m")
-// 	memory, _ := resource.ParseQuantity("100M")
-// 	return corev1.ResourceRequirements{
-// 		Requests: corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
-// 		Limits:   corev1.ResourceList{corev1.ResourceMemory: memory},
-// 	}
-// }
