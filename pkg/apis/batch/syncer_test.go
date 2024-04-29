@@ -18,7 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"

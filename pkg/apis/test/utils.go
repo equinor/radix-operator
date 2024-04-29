@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -11,6 +12,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/pkgerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +41,27 @@ func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface
 		radixclient: radixclient,
 		kubeUtil:    kubeUtil,
 	}
+}
+
+func init() {
+	SetupTestLogger()
+}
+
+func SetupTestLogger() {
+	logLevelStr := os.Getenv("LOG_LEVEL")
+	if len(logLevelStr) == 0 {
+		logLevelStr = zerolog.LevelInfoValue
+	}
+
+	logLevel, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		logLevel = zerolog.InfoLevel
+	}
+
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	zerolog.SetGlobalLevel(logLevel)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.Kitchen})
+	zerolog.DefaultContextLogger = &log.Logger
 }
 
 func (tu *Utils) GetKubeUtil() *kube.Kube {

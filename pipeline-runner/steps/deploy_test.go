@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
-	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"

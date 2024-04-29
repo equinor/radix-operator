@@ -1,10 +1,12 @@
-package kube
+package kube_test
 
 import (
 	"context"
 	"testing"
 
 	radixutils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -33,7 +35,7 @@ type ConfigMapTestEnv struct {
 	radixclient          radixclient.Interface
 	secretproviderclient secretProviderClient.Interface
 	prometheusclient     prometheusclient.Interface
-	kubeUtil             *Kube
+	kubeUtil             *kube.Kube
 }
 
 func getConfigMapTestEnv() ConfigMapTestEnv {
@@ -43,7 +45,7 @@ func getConfigMapTestEnv() ConfigMapTestEnv {
 		secretproviderclient: secretproviderfake.NewSimpleClientset(),
 		prometheusclient:     prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
+	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }

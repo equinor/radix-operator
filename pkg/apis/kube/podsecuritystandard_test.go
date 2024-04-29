@@ -1,10 +1,12 @@
-package kube
+package kube_test
 
 import (
 	"os"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +15,7 @@ func Test_NewPodSecurityStandardFromEnv_Enforce(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "anyversion")
 	defer os.Clearenv()
 
-	sut := NewEnvNamespacePodSecurityStandardFromEnv()
+	sut := kube.NewEnvNamespacePodSecurityStandardFromEnv()
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/enforce":         "anylevel",
@@ -27,7 +29,7 @@ func Test_NewPodSecurityStandardFromEnv_Audit(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable, "anyversion")
 	defer os.Clearenv()
 
-	sut := NewEnvNamespacePodSecurityStandardFromEnv()
+	sut := kube.NewEnvNamespacePodSecurityStandardFromEnv()
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/audit":         "anylevel",
@@ -41,7 +43,7 @@ func Test_NewPodSecurityStandardFromEnv_Warn(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "anyversion")
 	defer os.Clearenv()
 
-	sut := NewEnvNamespacePodSecurityStandardFromEnv()
+	sut := kube.NewEnvNamespacePodSecurityStandardFromEnv()
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/warn":         "anylevel",
@@ -59,7 +61,7 @@ func Test_NewPodSecurityStandardFromEnv_All(t *testing.T) {
 	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "anyversion3")
 	defer os.Clearenv()
 
-	sut := NewEnvNamespacePodSecurityStandardFromEnv()
+	sut := kube.NewEnvNamespacePodSecurityStandardFromEnv()
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/enforce":         "anylevel1",
@@ -75,13 +77,13 @@ func Test_NewPodSecurityStandardFromEnv_All(t *testing.T) {
 func Test_PodSecurityStandard_Enforce(t *testing.T) {
 	version := "anyversion"
 	type scenario struct {
-		profile  PodSecurityLevel
+		profile  kube.PodSecurityLevel
 		expected string
 	}
-	scenarios := []scenario{{profile: RestrictedLevel, expected: "restricted"}, {profile: BaselineLevel, expected: "baseline"}, {profile: PrivilegedLevel, expected: "privileged"}}
+	scenarios := []scenario{{profile: kube.RestrictedLevel, expected: "restricted"}, {profile: kube.BaselineLevel, expected: "baseline"}, {profile: kube.PrivilegedLevel, expected: "privileged"}}
 
 	for _, s := range scenarios {
-		sut := PodSecurityStandard{}
+		sut := kube.PodSecurityStandard{}
 		sut.Enforce(s.profile, version)
 		actual := sut.Labels()
 		expected := map[string]string{
@@ -95,13 +97,13 @@ func Test_PodSecurityStandard_Enforce(t *testing.T) {
 func Test_PodSecurityStandard_Audit(t *testing.T) {
 	version := "anyversion"
 	type scenario struct {
-		profile  PodSecurityLevel
+		profile  kube.PodSecurityLevel
 		expected string
 	}
-	scenarios := []scenario{{profile: RestrictedLevel, expected: "restricted"}, {profile: BaselineLevel, expected: "baseline"}, {profile: PrivilegedLevel, expected: "privileged"}}
+	scenarios := []scenario{{profile: kube.RestrictedLevel, expected: "restricted"}, {profile: kube.BaselineLevel, expected: "baseline"}, {profile: kube.PrivilegedLevel, expected: "privileged"}}
 
 	for _, s := range scenarios {
-		sut := PodSecurityStandard{}
+		sut := kube.PodSecurityStandard{}
 		sut.Audit(s.profile, version)
 		actual := sut.Labels()
 		expected := map[string]string{
@@ -115,13 +117,13 @@ func Test_PodSecurityStandard_Audit(t *testing.T) {
 func Test_PodSecurityStandard_Warn(t *testing.T) {
 	version := "anyversion"
 	type scenario struct {
-		profile  PodSecurityLevel
+		profile  kube.PodSecurityLevel
 		expected string
 	}
-	scenarios := []scenario{{profile: RestrictedLevel, expected: "restricted"}, {profile: BaselineLevel, expected: "baseline"}, {profile: PrivilegedLevel, expected: "privileged"}}
+	scenarios := []scenario{{profile: kube.RestrictedLevel, expected: "restricted"}, {profile: kube.BaselineLevel, expected: "baseline"}, {profile: kube.PrivilegedLevel, expected: "privileged"}}
 
 	for _, s := range scenarios {
-		sut := PodSecurityStandard{}
+		sut := kube.PodSecurityStandard{}
 		sut.Warn(s.profile, version)
 		actual := sut.Labels()
 		expected := map[string]string{
@@ -133,10 +135,10 @@ func Test_PodSecurityStandard_Warn(t *testing.T) {
 }
 
 func Test_PodSecurityStandard_MultipleModes(t *testing.T) {
-	sut := PodSecurityStandard{}
-	sut.Enforce(BaselineLevel, "v1")
-	sut.Audit(RestrictedLevel, "v2")
-	sut.Warn(PrivilegedLevel, "v3")
+	sut := kube.PodSecurityStandard{}
+	sut.Enforce(kube.BaselineLevel, "v1")
+	sut.Audit(kube.RestrictedLevel, "v2")
+	sut.Warn(kube.PrivilegedLevel, "v3")
 	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/enforce":         "baseline",

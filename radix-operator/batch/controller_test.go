@@ -6,7 +6,7 @@ import (
 
 	"github.com/equinor/radix-common/utils"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
