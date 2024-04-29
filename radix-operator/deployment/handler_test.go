@@ -5,7 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
-	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"

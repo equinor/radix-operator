@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	_ "github.com/equinor/radix-operator/pkg/apis/test/initlogger"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -32,6 +31,10 @@ type Utils struct {
 	kubeUtil    *kube.Kube
 }
 
+func init() {
+	SetupTestLogger()
+}
+
 // NewTestUtils Constructor
 func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface,
 	secretproviderclient secretProviderClient.Interface) Utils {
@@ -41,10 +44,6 @@ func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface
 		radixclient: radixclient,
 		kubeUtil:    kubeUtil,
 	}
-}
-
-func init() {
-	SetupTestLogger()
 }
 
 func SetupTestLogger() {
