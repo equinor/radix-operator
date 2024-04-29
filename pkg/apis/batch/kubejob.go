@@ -27,7 +27,7 @@ const (
 	jobPayloadVolumeName = "job-payload"
 )
 
-func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
+func (s *syncer) reconcileKubeJob(batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
 	if isBatchJobStopRequested(batchJob) {
 		// Delete existing k8s job if stop is requested for batch job
 		batchJobKubeJobs := slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })
@@ -46,7 +46,7 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 	if err != nil {
 		return err
 	}
-	job, err := s.buildJob(ctx, batchJob, jobComponent, rd)
+	job, err := s.buildJob(batchJob, jobComponent, rd)
 	if err != nil {
 		return err
 	}
@@ -227,7 +227,10 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 		return nil, err
 	}
 	ports := getContainerPorts(jobComponent)
-	resources := s.getContainerResources(ctx, batchJob, jobComponent)
+	resources, err := s.getContainerResources(batchJob, jobComponent)
+	if err != nil {
+		return nil, err
+	}
 
 	image := getJobImage(jobComponent, batchJob)
 	securityContext := securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault), securitycontext.WithReadOnlyRootFileSystem(jobComponent.GetReadOnlyFileSystem()))
@@ -267,12 +270,12 @@ func (s *syncer) getContainerEnvironmentVariables(rd *radixv1.RadixDeployment, j
 	return environmentVariables, nil
 }
 
-func (s *syncer) getContainerResources(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) corev1.ResourceRequirements {
+func (s *syncer) getContainerResources(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) (corev1.ResourceRequirements, error) {
 	if batchJob.Resources != nil {
-		return operatorUtils.BuildResourceRequirement(ctx, batchJob.Resources)
+		return operatorUtils.BuildResourceRequirement(batchJob.Resources)
 	}
 
-	return operatorUtils.GetResourceRequirements(ctx, jobComponent)
+	return operatorUtils.GetResourceRequirements(jobComponent)
 }
 
 func getContainerPorts(radixJobComponent *radixv1.RadixDeployJobComponent) []corev1.ContainerPort {

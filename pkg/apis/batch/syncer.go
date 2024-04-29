@@ -77,18 +77,17 @@ func (s *syncer) reconcile() error {
 	}
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
-		ctx := log.Ctx(s.ctx).With().Str("batchJob", batchJob.Name).Logger().WithContext(s.ctx)
 		if err := s.reconcileService(&batchJob, rd, jobComponent, existingServices); err != nil {
-			return err
+			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
-		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs); err != nil {
-			return err
+		if err := s.reconcileKubeJob(&batchJob, rd, jobComponent, existingJobs); err != nil {
+			return fmt.Errorf("batchjob %s: failed to reconcile kubejob: %w", batchJob.Name, err)
 		}
 
 		if i%syncStatusForEveryNumberOfBatchJobsReconciled == 0 {
 			if err := s.syncStatus(nil); err != nil {
-				return err
+				return fmt.Errorf("batchjob %s: failed to sync status: %w", batchJob.Name, err)
 			}
 		}
 	}

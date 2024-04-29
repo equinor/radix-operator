@@ -13,6 +13,7 @@ import (
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
+	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -72,11 +73,11 @@ func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace st
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
 
 	if err == nil && currentDeployment != nil {
-		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(ctx, deployComponent, currentDeployment)
+		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
 		if err != nil {
 			return nil, nil, err
 		}
-		deploy.logger.Debug().Msgf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
+		log.Ctx(ctx).Debug().Msgf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
 		return currentDeployment, desiredDeployment, nil
 	}
 
@@ -107,7 +108,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 		},
 	}
 
-	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
+	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
 	return desiredDeployment, err
 }
 func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent) *appsv1.Deployment {
@@ -146,11 +147,11 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 	return desiredDeployment
 }
 
-func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
 	deploy.logger.Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := currentDeployment.DeepCopy()
-	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
+	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
 
 	// When HPA is enabled for a component, the HPA controller will scale the Deployment up/down by changing Replicas
 	// We must keep this value as long as replicas >= 0.
@@ -228,7 +229,7 @@ func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 	return radixannotations.ForRadixBranch(branch)
 }
 
-func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
 	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName()
 
 	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
@@ -270,7 +271,10 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = containerSecurityCtx
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(ctx, deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deployComponent)
+	if err != nil {
+		return err
+	}
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {

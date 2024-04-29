@@ -1,30 +1,29 @@
 package utils
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func GetResourceRequirements(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) corev1.ResourceRequirements {
-	return BuildResourceRequirement(ctx, deployComponent.GetResources())
+func GetResourceRequirements(deployComponent v1.RadixCommonDeployComponent) (corev1.ResourceRequirements, error) {
+	return BuildResourceRequirement(deployComponent.GetResources())
 }
 
-func BuildResourceRequirement(ctx context.Context, source *v1.ResourceRequirements) corev1.ResourceRequirements {
+func BuildResourceRequirement(source *v1.ResourceRequirements) (corev1.ResourceRequirements, error) {
+	var errs []error
 	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
 	limits, err := mapResourceList(source.Limits)
 	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("failed to map source limits")
+		errs = append(errs, err)
 	}
 	requests, err := mapResourceList(source.Requests)
 	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("failed to map source limits")
+		errs = append(errs, err)
 	}
 
 	// LimitRanger will set a default Memory Limit of not specified
@@ -39,7 +38,7 @@ func BuildResourceRequirement(ctx context.Context, source *v1.ResourceRequiremen
 	}
 
 	if len(limits) <= 0 && len(requests) <= 0 {
-		return corev1.ResourceRequirements{}
+		return corev1.ResourceRequirements{}, errors.Join(errs...)
 	}
 
 	req := corev1.ResourceRequirements{
@@ -47,7 +46,7 @@ func BuildResourceRequirement(ctx context.Context, source *v1.ResourceRequiremen
 		Requests: requests,
 	}
 
-	return req
+	return req, errors.Join(errs...)
 }
 
 func mapResourceList(list v1.ResourceList) (corev1.ResourceList, error) {
