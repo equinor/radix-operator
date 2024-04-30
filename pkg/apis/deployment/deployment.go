@@ -205,7 +205,7 @@ func (deploy *Deployment) syncStatuses(ctx context.Context) (stopReconciliation 
 
 func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	// can garbageCollectComponentsNoLongerInSpec be moved to syncComponents()?
-	err := deploy.garbageCollectComponentsNoLongerInSpec()
+	err := deploy.garbageCollectComponentsNoLongerInSpec(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to perform garbage collection of removed components: %w", err)
 	}
@@ -218,7 +218,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to configure rbac: %w", err)
 	}
 
-	if err := deploy.createOrUpdateSecrets(); err != nil {
+	if err := deploy.createOrUpdateSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to provision secrets: %w", err)
 	}
 
@@ -245,7 +245,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to sync deployments: %w", errors.Join(errs...))
 	}
 
-	if err := deploy.syncExternalDnsResources(); err != nil {
+	if err := deploy.syncExternalDnsResources(ctx); err != nil {
 		return fmt.Errorf("failed to sync external DNS resources: %w", err)
 	}
 
@@ -385,13 +385,13 @@ func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
 	return rd.Status.ActiveFrom
 }
 
-func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Context) error {
 	err := deploy.garbageCollectDeploymentsNoLongerInSpec()
 	if err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectHPAsNoLongerInSpec()
+	err = deploy.garbageCollectHPAsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -406,12 +406,12 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
-	err = deploy.garbageCollectPodDisruptionBudgetsNoLongerInSpec()
+	err = deploy.garbageCollectPodDisruptionBudgetsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectSecretsNoLongerInSpec()
+	err = deploy.garbageCollectSecretsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -441,7 +441,7 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
-	err = deploy.garbageCollectConfigMapsNoLongerInSpec()
+	err = deploy.garbageCollectConfigMapsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -537,7 +537,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	err = deploy.createOrUpdateHPA(component)
+	err = deploy.createOrUpdateHPA(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create hpa: %w", err)
 	}
@@ -547,7 +547,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create service: %w", err)
 	}
 
-	err = deploy.createOrUpdatePodDisruptionBudget(component)
+	err = deploy.createOrUpdatePodDisruptionBudget(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create PDB: %w", err)
 	}
@@ -575,7 +575,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 	}
 
 	if component.GetMonitoring() {
-		err = deploy.createOrUpdateServiceMonitor(component)
+		err = deploy.createOrUpdateServiceMonitor(ctx, component)
 		if err != nil {
 			return fmt.Errorf("failed to create service monitor: %w", err)
 		}

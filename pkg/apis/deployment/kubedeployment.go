@@ -29,13 +29,13 @@ func (deploy *Deployment) createOrUpdateDeployment(ctx context.Context, deployCo
 
 	// If component is stopped or HorizontalScaling is nil then delete hpa if exists before updating deployment
 	if isComponentStopped(deployComponent) || deployComponent.GetHorizontalScaling() == nil {
-		err = deploy.deleteHPAIfExists(deployComponent.GetName())
+		err = deploy.deleteHPAIfExists(ctx, deployComponent.GetName())
 		if err != nil {
 			return err
 		}
 	}
 
-	err = deploy.createOrUpdateCsiAzureVolumeResources(desiredDeployment)
+	err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, desiredDeployment)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace st
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
 
 	if err == nil && currentDeployment != nil {
-		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
+		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(ctx, deployComponent, currentDeployment)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -89,12 +89,12 @@ func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace st
 	if err != nil {
 		return nil, nil, err
 	}
-	deploy.logger.Debug().Msgf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
+	log.Ctx(ctx).Debug().Msgf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
 	return currentDeployment, desiredDeployment, nil
 }
 
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	deploy.logger.Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+	log.Ctx(ctx).Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -147,8 +147,8 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 	return desiredDeployment
 }
 
-func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	deploy.logger.Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	log.Ctx(ctx).Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := currentDeployment.DeepCopy()
 	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)

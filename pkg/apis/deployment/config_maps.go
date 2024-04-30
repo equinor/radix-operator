@@ -1,11 +1,14 @@
 package deployment
 
 import (
+	"context"
 	"errors"
 	"fmt"
+
+	"github.com/rs/zerolog/log"
 )
 
-func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec(ctx context.Context) error {
 	namespace := deploy.radixDeployment.Namespace
 
 	// List env var config maps
@@ -32,7 +35,7 @@ func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec() error {
 		}
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
-			deploy.logger.Debug().Msgf("ConfigMap object %s in namespace %s belongs to deleted component %s, garbage collecting the configmap", cm.Name, namespace, componentName)
+			log.Ctx(ctx).Debug().Msgf("ConfigMap object %s in namespace %s belongs to deleted component %s, garbage collecting the configmap", cm.Name, namespace, componentName)
 			err = deploy.kubeutil.DeleteConfigMap(namespace, cm.Name)
 		}
 		if err != nil {

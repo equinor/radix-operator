@@ -2,6 +2,7 @@ package batch
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -55,10 +56,10 @@ func (s *syncer) OnSync() error {
 		return nil
 	}
 
-	return s.syncStatus(s.reconcile())
+	return s.syncStatus(s.reconcile(context.TODO()))
 }
 
-func (s *syncer) reconcile() error {
+func (s *syncer) reconcile(ctx context.Context) error {
 	const syncStatusForEveryNumberOfBatchJobsReconciled = 10
 
 	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent()
@@ -81,7 +82,7 @@ func (s *syncer) reconcile() error {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
-		if err := s.reconcileKubeJob(&batchJob, rd, jobComponent, existingJobs); err != nil {
+		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile kubejob: %w", batchJob.Name, err)
 		}
 
