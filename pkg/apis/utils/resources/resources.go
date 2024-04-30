@@ -2,14 +2,14 @@ package resources
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
+	kuberesources "k8s.io/apimachinery/pkg/api/resource"
 )
 
 type ResourceOption func(resources *corev1.ResourceRequirements)
 
 // WithMemoryMega sets memory limit and requests to ensure awailable memory
 func WithMemoryMega(memory int64) ResourceOption {
-	quantity := resourcev1.NewScaledQuantity(memory, resourcev1.Mega)
+	quantity := kuberesources.NewScaledQuantity(memory, kuberesources.Mega)
 	return func(resources *corev1.ResourceRequirements) {
 		if resources.Limits == nil {
 			resources.Limits = corev1.ResourceList{}
@@ -25,7 +25,7 @@ func WithMemoryMega(memory int64) ResourceOption {
 
 // WithCPUMilli sets cpu requests without limit to ensure optimal performance when possible
 func WithCPUMilli(cpu int64) ResourceOption {
-	quantity := resourcev1.NewScaledQuantity(cpu, resourcev1.Milli)
+	quantity := kuberesources.NewScaledQuantity(cpu, kuberesources.Milli)
 	return func(resources *corev1.ResourceRequirements) {
 		if resources.Requests == nil {
 			resources.Requests = corev1.ResourceList{}
