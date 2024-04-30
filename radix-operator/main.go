@@ -62,10 +62,10 @@ func main() {
 	activeClusterNameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	log.Info().Msgf("Active cluster name: %v", activeClusterNameEnvVar)
 
-	stop := make(chan struct{})
-	defer close(stop)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
 
-	go startMetricsServer(stop)
+	go startMetricsServer(ctx.Done())
 
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), log.Logger)
 
@@ -84,23 +84,19 @@ func main() {
 		panic(fmt.Errorf("failed to load ingress configuration: %v", err))
 	}
 
-	startController(createRegistrationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), registrationControllerThreads, stop)
-	startController(createApplicationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg.DNSConfig), applicationControllerThreads, stop)
-	startController(createEnvironmentController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), environmentControllerThreads, stop)
-	startController(createDeploymentController(kubeUtil, prometheusOperatorClient, certClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads, stop)
-	startController(createJobController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg), jobControllerThreads, stop)
-	startController(createAlertController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder), alertControllerThreads, stop)
-	startController(createBatchController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), 1, stop)
-	startController(createDNSAliasesController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg.DNSConfig), environmentControllerThreads, stop)
+	startController(ctx, createRegistrationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), registrationControllerThreads)
+	startController(ctx, createApplicationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg.DNSConfig), applicationControllerThreads)
+	startController(ctx, createEnvironmentController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), environmentControllerThreads)
+	startController(ctx, createDeploymentController(kubeUtil, prometheusOperatorClient, certClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads)
+	startController(ctx, createJobController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg), jobControllerThreads)
+	startController(ctx, createAlertController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder), alertControllerThreads)
+	startController(ctx, createBatchController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), 1)
+	startController(ctx, createDNSAliasesController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg.DNSConfig), environmentControllerThreads)
 
 	// Start informers when all controllers are running
-	kubeInformerFactory.Start(stop)
-	radixInformerFactory.Start(stop)
-
-	sigTerm := make(chan os.Signal, 1)
-	signal.Notify(sigTerm, syscall.SIGTERM)
-	signal.Notify(sigTerm, syscall.SIGINT)
-	<-sigTerm
+	kubeInformerFactory.Start(ctx.Done())
+	radixInformerFactory.Start(ctx.Done())
+	<-ctx.Done()
 }
 
 func initLogger(cfg *apiconfig.Config) {
@@ -133,9 +129,9 @@ func getOAuthDefaultConfig() defaults.OAuth2Config {
 	)
 }
 
-func startController(controller *common.Controller, threadiness int, stop <-chan struct{}) {
+func startController(ctx context.Context, controller *common.Controller, threadiness int) {
 	go func() {
-		if err := controller.Run(threadiness, stop); err != nil {
+		if err := controller.Run(ctx, threadiness); err != nil {
 			log.Fatal().Err(err).Msg("Error running controller")
 		}
 	}()

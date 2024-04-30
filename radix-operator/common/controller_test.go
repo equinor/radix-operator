@@ -80,7 +80,7 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -126,7 +126,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -171,7 +171,7 @@ func (s *commonControllerTestSuite) Test_ForgetWhenLockKeyAndIdentifierError() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -213,7 +213,7 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -253,7 +253,7 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -294,7 +294,7 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 
 	doneCh := make(chan struct{})
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 		close(doneCh)
 	}()
@@ -333,7 +333,7 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShuttingDownTrue() {
 
 	doneCh := make(chan struct{})
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		close(doneCh)
 		s.Require().NoError(err)
 	}()
@@ -374,7 +374,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -397,8 +397,8 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 }
 
 func (s *commonControllerTestSuite) Test_ProcessParallell() {
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
 
 	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
@@ -415,7 +415,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 		locker:    locker,
 	}
 
-	s.KubeInformerFactory.Start(stopCh)
+	s.KubeInformerFactory.Start(ctx.Done())
 
 	// Test that threadiness limit is used and not exceeded
 	doneCh := make(chan struct{})
@@ -431,7 +431,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	queue.On("ShuttingDown").Return(false)
 
 	go func() {
-		err := sut.Run(threadiness, stopCh)
+		err := sut.Run(ctx, threadiness)
 		s.Require().NoError(err)
 	}()
 

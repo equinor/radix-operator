@@ -62,7 +62,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		},
 	)
 	go func() {
-		err := startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, ctx.Done())
+		err := startRegistrationController(ctx, client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler)
 		require.NoError(t, err)
 	}()
 
@@ -131,7 +131,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	}
 }
 
-func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop <-chan struct{}) error {
+func startRegistrationController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
@@ -139,7 +139,7 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	controller := NewController(client, radixClient, &handler,
 		kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
-	kubeInformerFactory.Start(stop)
-	radixInformerFactory.Start(stop)
-	return controller.Run(5, stop)
+	kubeInformerFactory.Start(ctx.Done())
+	radixInformerFactory.Start(ctx.Done())
+	return controller.Run(ctx, 5)
 }

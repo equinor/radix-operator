@@ -31,7 +31,8 @@ type ControllerTestSuite struct {
 	MockCtrl                  *gomock.Controller
 	Handler                   *MockHandler
 	Synced                    chan bool
-	Stop                      chan struct{}
+	Ctx                       context.Context
+	CtxCancel                 context.CancelFunc
 	TestControllerSyncTimeout time.Duration
 }
 
@@ -48,14 +49,14 @@ func (s *ControllerTestSuite) SetupTest() {
 	s.MockCtrl = gomock.NewController(s.T())
 	s.Handler = NewMockHandler(s.MockCtrl)
 	s.Synced = make(chan bool)
-	s.Stop = make(chan struct{})
+	s.Ctx, s.CtxCancel = context.WithCancel(context.Background())
 	s.TestControllerSyncTimeout = 10 * time.Second
 }
 
 // TearDownTest Tear down the test suite
 func (s *ControllerTestSuite) TearDownTest() {
 	close(s.Synced)
-	close(s.Stop)
+	s.CtxCancel()
 	s.MockCtrl.Finish()
 }
 

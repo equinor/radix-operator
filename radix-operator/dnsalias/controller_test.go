@@ -37,10 +37,10 @@ func (s *controllerTestSuite) TearDownTest() {
 
 func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	sut := dnsalias.NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
-	s.RadixInformerFactory.Start(s.Stop)
-	s.KubeInformerFactory.Start(s.Stop)
+	s.RadixInformerFactory.Start(s.Ctx.Done())
+	s.KubeInformerFactory.Start(s.Ctx.Done())
 	go func() {
-		err := sut.Run(5, s.Stop)
+		err := sut.Run(s.Ctx, 5)
 		if err != nil {
 			s.Require().NoError(err)
 		}

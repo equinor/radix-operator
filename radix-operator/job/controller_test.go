@@ -63,10 +63,10 @@ func (s *jobTestSuite) TearDownTest() {
 func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	anyAppName := "test-app"
 
-	stop := make(chan struct{})
+	ctx, stop := context.WithCancel(context.Background())
 	synced := make(chan bool)
 
-	defer close(stop)
+	defer stop()
 	defer close(synced)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
@@ -96,7 +96,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 		},
 	)
 	go func() {
-		err := startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+		err := startJobController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler)
 		s.Require().NoError(err)
 	}()
 
@@ -141,14 +141,14 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	s.True(op)
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) error {
+func startJobController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
 	const waitForChildrenToSync = false
 	controller := NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
-	kubeInformerFactory.Start(stop)
-	radixInformerFactory.Start(stop)
-	return controller.Run(4, stop)
+	kubeInformerFactory.Start(ctx.Done())
+	radixInformerFactory.Start(ctx.Done())
+	return controller.Run(ctx, 4)
 }

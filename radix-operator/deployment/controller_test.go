@@ -93,7 +93,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
 	go func() {
-		err := startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, ctx.Done())
+		err := startDeploymentController(ctx, client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler)
 		require.NoError(t, err)
 	}()
 
@@ -157,7 +157,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler, stop <-chan struct{}) error {
+func startDeploymentController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
@@ -169,7 +169,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		waitForChildrenToSync,
 		eventRecorder)
 
-	kubeInformerFactory.Start(stop)
-	radixInformerFactory.Start(stop)
-	return controller.Run(4, stop)
+	kubeInformerFactory.Start(ctx.Done())
+	radixInformerFactory.Start(ctx.Done())
+	return controller.Run(ctx, 4)
 }

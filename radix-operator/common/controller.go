@@ -37,7 +37,7 @@ type Controller struct {
 }
 
 // Run starts the shared informer, which will be stopped when stopCh is closed.
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	defer utilruntime.HandleCrash()
 
 	if c.LockKeyAndIdentifier == nil {
@@ -62,21 +62,20 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	// Wait for the caches to be synced before starting workers
 	c.Log.Info().Msg("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh,
-		cacheSyncs...); !ok {
+	if ok := cache.WaitForCacheSync(ctx.Done(), cacheSyncs...); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
 	c.Log.Info().Msg("Starting workers")
 
 	// Launch workers to process resources
-	c.run(threadiness, stopCh)
+	c.run(ctx, threadiness)
 
 	return nil
 }
 
-func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
-	var errorGroup errgroup.Group
+func (c *Controller) run(ctx context.Context, threadiness int) {
+	errorGroup, ctx := errgroup.WithContext(ctx)
 	errorGroup.SetLimit(threadiness)
 	defer func() {
 		c.Log.Info().Msg("Waiting for workers to complete")
@@ -91,7 +90,7 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 		locker = &defaultResourceLocker{}
 	}
 
-	for c.processNext(&errorGroup, stopCh, locker) {
+	for c.processNext(ctx, errorGroup, locker) {
 	}
 
 	if err := errorGroup.Wait(); err != nil {
@@ -99,13 +98,7 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 	}
 }
 
-func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struct{}, locker resourceLocker) bool {
-	select {
-	case <-stopCh:
-		return false
-	default:
-	}
-
+func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group, locker resourceLocker) bool {
 	workItem, shutdown := c.WorkQueue.Get()
 	if shutdown || c.WorkQueue.ShuttingDown() {
 		return false
@@ -141,16 +134,16 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 		}()
 
 		c.Log.Debug().Msgf("Acquired lock for %s, processing %s", lockKey, identifier)
-		c.processWorkItem(workItem, identifier)
+		c.processWorkItem(ctx, workItem, identifier)
 		return nil
 	})
 
 	return true
 }
 
-func (c *Controller) processWorkItem(workItem interface{}, workItemString string) {
+func (c *Controller) processWorkItem(ctx context.Context, workItem interface{}, workItemString string) {
 	err := func(workItem interface{}) error {
-		if err := c.syncHandler(context.TODO(), workItemString); err != nil {
+		if err := c.syncHandler(ctx, workItemString); err != nil {
 			c.WorkQueue.AddRateLimited(workItemString)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
@@ -185,6 +178,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return nil
 	}
 
+	// TODO: Create new ctx, graceful shutdown when parent context is Done()
 	err = c.Handler.Sync(ctx, namespace, name, c.Recorder)
 	if err != nil {
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))

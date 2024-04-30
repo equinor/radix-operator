@@ -27,10 +27,10 @@ func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
 
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
-	s.RadixInformerFactory.Start(s.Stop)
-	s.KubeInformerFactory.Start(s.Stop)
+	s.RadixInformerFactory.Start(s.Ctx.Done())
+	s.KubeInformerFactory.Start(s.Ctx.Done())
 	go func() {
-		err := sut.Run(5, s.Stop)
+		err := sut.Run(s.Ctx, 5)
 		s.Require().NoError(err)
 	}()
 
@@ -70,14 +70,14 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	}
 
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
-	s.RadixInformerFactory.Start(s.Stop)
-	s.KubeInformerFactory.Start(s.Stop)
+	s.RadixInformerFactory.Start(s.Ctx.Done())
+	s.KubeInformerFactory.Start(s.Ctx.Done())
 	go func() {
-		err := sut.Run(5, s.Stop)
+		err := sut.Run(s.Ctx, 5)
 		s.Require().NoError(err)
 	}()
 
-	hasSynced := cache.WaitForCacheSync(s.Stop, s.RadixInformerFactory.Radix().V1().RadixRegistrations().Informer().HasSynced)
+	hasSynced := cache.WaitForCacheSync(s.Ctx.Done(), s.RadixInformerFactory.Radix().V1().RadixRegistrations().Informer().HasSynced)
 	s.True(hasSynced)
 
 	// Initial Sync for the two alerts
