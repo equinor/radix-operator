@@ -178,7 +178,6 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		return nil
 	}
 
-	// TODO: Create new ctx, graceful shutdown when parent context is Done()
 	err = c.Handler.Sync(ctx, namespace, name, c.Recorder)
 	if err != nil {
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
