@@ -27,7 +27,7 @@ const (
 	jobPayloadVolumeName = "job-payload"
 )
 
-func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
+func (s *syncer) reconcileKubeJob(batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
 	if isBatchJobStopRequested(batchJob) {
 		// Delete existing k8s job if stop is requested for batch job
 		batchJobKubeJobs := slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })
@@ -46,7 +46,7 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 	if err != nil {
 		return err
 	}
-	job, err := s.buildJob(ctx, batchJob, jobComponent, rd)
+	job, err := s.buildJob(batchJob, jobComponent, rd)
 	if err != nil {
 		return err
 	}

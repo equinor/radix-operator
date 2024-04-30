@@ -37,7 +37,8 @@ type syncer struct {
 }
 
 // OnSync Syncs RadixBatches
-func (s *syncer) OnSync(ctx context.Context) error {
+func (s *syncer) OnSync(_ context.Context) error {
+
 	if err := s.restoreStatus(); err != nil {
 		return err
 	}
@@ -46,10 +47,10 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return nil
 	}
 
-	return s.syncStatus(s.reconcile(context.TODO()))
+	return s.syncStatus(s.reconcile())
 }
 
-func (s *syncer) reconcile(ctx context.Context) error {
+func (s *syncer) reconcile() error {
 	const syncStatusForEveryNumberOfBatchJobsReconciled = 10
 
 	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent()
@@ -73,7 +74,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
-		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs); err != nil {
+		if err := s.reconcileKubeJob(&batchJob, rd, jobComponent, existingJobs); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile kubejob: %w", batchJob.Name, err)
 		}
 
