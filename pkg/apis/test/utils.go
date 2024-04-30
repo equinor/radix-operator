@@ -32,21 +32,6 @@ type Utils struct {
 }
 
 func init() {
-	SetupTestLogger()
-}
-
-// NewTestUtils Constructor
-func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface,
-	secretproviderclient secretProviderClient.Interface) Utils {
-	kubeUtil, _ := kube.New(client, radixclient, secretproviderclient)
-	return Utils{
-		client:      client,
-		radixclient: radixclient,
-		kubeUtil:    kubeUtil,
-	}
-}
-
-func SetupTestLogger() {
 	logLevelStr := os.Getenv("LOG_LEVEL")
 	if len(logLevelStr) == 0 {
 		logLevelStr = zerolog.LevelInfoValue
@@ -61,6 +46,17 @@ func SetupTestLogger() {
 	zerolog.SetGlobalLevel(logLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.Kitchen})
 	zerolog.DefaultContextLogger = &log.Logger
+}
+
+// NewTestUtils Constructor
+func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface,
+	secretproviderclient secretProviderClient.Interface) Utils {
+	kubeUtil, _ := kube.New(client, radixclient, secretproviderclient)
+	return Utils{
+		client:      client,
+		radixclient: radixclient,
+		kubeUtil:    kubeUtil,
+	}
 }
 
 func (tu *Utils) GetKubeUtil() *kube.Kube {
