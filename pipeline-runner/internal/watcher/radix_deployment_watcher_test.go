@@ -7,6 +7,7 @@ import (
 	"time"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

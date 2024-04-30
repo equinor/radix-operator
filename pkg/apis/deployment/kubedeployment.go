@@ -12,29 +12,30 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
+	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent) error {
-	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(deployComponent)
+func (deploy *Deployment) createOrUpdateDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
+	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, deployComponent)
 	if err != nil {
 		return err
 	}
 
 	// If component is stopped or HorizontalScaling is nil then delete hpa if exists before updating deployment
 	if isComponentStopped(deployComponent) || deployComponent.GetHorizontalScaling() == nil {
-		err = deploy.deleteHPAIfExists(deployComponent.GetName())
+		err = deploy.deleteHPAIfExists(ctx, deployComponent.GetName())
 		if err != nil {
 			return err
 		}
 	}
 
-	err = deploy.createOrUpdateCsiAzureVolumeResources(desiredDeployment)
+	err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, desiredDeployment)
 	if err != nil {
 		return err
 	}
@@ -57,10 +58,10 @@ func (deploy *Deployment) handleJobAuxDeployment(deployComponent v1.RadixCommonD
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
 
-func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	namespace := deploy.radixDeployment.Namespace
 
-	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(namespace, deployComponent)
+	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(ctx, namespace, deployComponent)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,15 +69,15 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.Radi
 	return currentDeployment, desiredDeployment, err
 }
 
-func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
 
 	if err == nil && currentDeployment != nil {
-		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
+		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(ctx, deployComponent, currentDeployment)
 		if err != nil {
 			return nil, nil, err
 		}
-		deploy.logger.Debug().Msgf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
+		log.Ctx(ctx).Debug().Msgf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
 		return currentDeployment, desiredDeployment, nil
 	}
 
@@ -84,16 +85,16 @@ func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent
 		return nil, nil, err
 	}
 
-	desiredDeployment, err := deploy.getDesiredCreatedDeploymentConfig(deployComponent)
+	desiredDeployment, err := deploy.getDesiredCreatedDeploymentConfig(ctx, deployComponent)
 	if err != nil {
 		return nil, nil, err
 	}
-	deploy.logger.Debug().Msgf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
+	log.Ctx(ctx).Debug().Msgf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	deploy.logger.Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+	log.Ctx(ctx).Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -128,7 +129,7 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:      jobAuxDeploymentName,
-						Resources: getJobAuxResources(),
+						Resources: resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(10)),
 					}},
 				},
 			},
@@ -141,22 +142,13 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 	desiredDeployment.Spec.Template.Spec.Containers[0].Command = []string{"sh"}
 	desiredDeployment.Spec.Template.Spec.Containers[0].Args = []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container()
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container(securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)))
 
 	return desiredDeployment
 }
 
-func getJobAuxResources() corev1.ResourceRequirements {
-	cpu, _ := resource.ParseQuantity("50m")
-	memory, _ := resource.ParseQuantity("50M")
-	return corev1.ResourceRequirements{
-		Requests: corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
-		Limits:   corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
-	}
-}
-
-func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	deploy.logger.Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	log.Ctx(ctx).Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := currentDeployment.DeepCopy()
 	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
@@ -279,7 +271,10 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = containerSecurityCtx
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deployComponent)
+	if err != nil {
+		return err
+	}
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {

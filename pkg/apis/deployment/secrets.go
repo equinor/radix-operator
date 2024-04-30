@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,16 +29,16 @@ func tlsSecretDefaultData() map[string][]byte {
 	}
 }
 
-func (deploy *Deployment) createOrUpdateSecrets() error {
-	deploy.logger.Debug().Msg("Apply empty secrets based on radix deployment obj")
+func (deploy *Deployment) createOrUpdateSecrets(ctx context.Context) error {
+	log.Ctx(ctx).Debug().Msg("Apply empty secrets based on radix deployment obj")
 	for _, comp := range deploy.radixDeployment.Spec.Components {
-		err := deploy.createOrUpdateSecretsForComponent(&comp)
+		err := deploy.createOrUpdateSecretsForComponent(ctx, &comp)
 		if err != nil {
 			return err
 		}
 	}
 	for _, comp := range deploy.radixDeployment.Spec.Jobs {
-		err := deploy.createOrUpdateSecretsForComponent(&comp)
+		err := deploy.createOrUpdateSecretsForComponent(ctx, &comp)
 		if err != nil {
 			return err
 		}
@@ -45,7 +46,7 @@ func (deploy *Deployment) createOrUpdateSecrets() error {
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	secretsToManage := make([]string, 0)
 
@@ -72,7 +73,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	}
 	secretsToManage = append(secretsToManage, volumeMountSecretsToManage...)
 
-	err = deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component, secretsToManage)
+	err = deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx, component, secretsToManage)
 	if err != nil {
 		return err
 	}
@@ -104,7 +105,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	}
 
 	if len(secretsToManage) == 0 {
-		err := deploy.garbageCollectSecretsNoLongerInSpecForComponent(component)
+		err := deploy.garbageCollectSecretsNoLongerInSpecForComponent(ctx, component)
 		if err != nil {
 			return err
 		}
@@ -163,7 +164,7 @@ func (deploy *Deployment) getCsiAzureVolumeMountCredsSecrets(namespace, componen
 	return secretName, accountKey, accountName
 }
 
-func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec(ctx context.Context) error {
 	secrets, err := deploy.kubeutil.ListSecrets(deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
@@ -176,7 +177,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 		}
 
 		if deploy.isEligibleForGarbageCollectSecretsForComponent(existingSecret, componentName) {
-			err := deploy.deleteSecret(existingSecret)
+			err := deploy.deleteSecret(ctx, existingSecret)
 			if err != nil {
 				return err
 			}
@@ -195,7 +196,7 @@ func (deploy *Deployment) isEligibleForGarbageCollectSecretsForComponent(existin
 	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }
 
-func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	secrets, err := deploy.listSecretsForComponent(component)
 	if err != nil {
 		return err
@@ -212,8 +213,8 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 			continue
 		}
 
-		deploy.logger.Debug().Msgf("Delete secret %s no longer in spec for component %s", secret.Name, component.GetName())
-		err = deploy.deleteSecret(secret)
+		log.Ctx(ctx).Debug().Msgf("Delete secret %s no longer in spec for component %s", secret.Name, component.GetName())
+		err = deploy.deleteSecret(ctx, secret)
 		if err != nil {
 			return err
 		}
@@ -354,12 +355,12 @@ func (deploy *Deployment) removeOrphanedSecrets(ns, secretName string, secrets [
 }
 
 // GarbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
-func (deploy *Deployment) GarbageCollectSecrets(secrets []*v1.Secret, excludeSecretNames []string) error {
+func (deploy *Deployment) GarbageCollectSecrets(ctx context.Context, secrets []*v1.Secret, excludeSecretNames []string) error {
 	for _, secret := range secrets {
 		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
 			continue
 		}
-		err := deploy.deleteSecret(secret)
+		err := deploy.deleteSecret(ctx, secret)
 		if err != nil {
 			return err
 		}
@@ -367,12 +368,12 @@ func (deploy *Deployment) GarbageCollectSecrets(secrets []*v1.Secret, excludeSec
 	return nil
 }
 
-func (deploy *Deployment) deleteSecret(secret *v1.Secret) error {
-	deploy.logger.Debug().Msgf("Delete secret %s", secret.Name)
+func (deploy *Deployment) deleteSecret(ctx context.Context, secret *v1.Secret) error {
+	log.Ctx(ctx).Debug().Msgf("Delete secret %s", secret.Name)
 	err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
-	deploy.logger.Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), deploy.radixDeployment.GetNamespace())
+	log.Ctx(ctx).Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), deploy.radixDeployment.GetNamespace())
 	return nil
 }

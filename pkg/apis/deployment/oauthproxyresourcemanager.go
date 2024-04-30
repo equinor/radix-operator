@@ -17,9 +17,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
+	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -663,8 +663,12 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 									ContainerPort: defaults.OAuthProxyPortNumber,
 								},
 							},
-							ReadinessProbe:  readinessProbe,
-							SecurityContext: securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault)),
+							ReadinessProbe: readinessProbe,
+							SecurityContext: securitycontext.Container(
+								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+							),
+							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
 						},
 					},
 					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
