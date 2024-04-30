@@ -1,21 +1,16 @@
 package resources
 
 import (
-	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 )
 
 type ResourceOption func(resources *corev1.ResourceRequirements)
 
-func WithMemory(memory string) ResourceOption {
+// WithMemoryMega sets memory limit and requests to ensure awailable memory
+func WithMemoryMega(memory int64) ResourceOption {
+	quantity := resourcev1.NewScaledQuantity(memory, resourcev1.Mega)
 	return func(resources *corev1.ResourceRequirements) {
-		mem, err := resourcev1.ParseQuantity(memory)
-		if err != nil {
-			log.Warn().Err(err).Str("memory", memory).Stack().Msg("failed to parse memory")
-			return
-		}
-
 		if resources.Limits == nil {
 			resources.Limits = corev1.ResourceList{}
 		}
@@ -23,24 +18,20 @@ func WithMemory(memory string) ResourceOption {
 			resources.Requests = corev1.ResourceList{}
 		}
 
-		resources.Limits[corev1.ResourceMemory] = mem
-		resources.Requests[corev1.ResourceMemory] = mem
+		resources.Limits[corev1.ResourceMemory] = *quantity
+		resources.Requests[corev1.ResourceMemory] = *quantity
 	}
 }
 
-func WithCPU(cpu string) ResourceOption {
+// WithCPUMilli sets cpu requests without limit to ensure optimal performance when possible
+func WithCPUMilli(cpu int64) ResourceOption {
+	quantity := resourcev1.NewScaledQuantity(cpu, resourcev1.Milli)
 	return func(resources *corev1.ResourceRequirements) {
-		c, err := resourcev1.ParseQuantity(cpu)
-		if err != nil {
-			log.Warn().Err(err).Str("cpu", cpu).Stack().Msg("failed to parse cpu")
-			return
-		}
-
 		if resources.Requests == nil {
 			resources.Requests = corev1.ResourceList{}
 		}
 
-		resources.Requests[corev1.ResourceCPU] = c
+		resources.Requests[corev1.ResourceCPU] = *quantity
 	}
 }
 

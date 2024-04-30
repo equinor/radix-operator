@@ -129,7 +129,7 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:      jobAuxDeploymentName,
-						Resources: resources.New(resources.WithCPU("1m"), resources.WithMemory("10M")),
+						Resources: resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(10)),
 					}},
 				},
 			},

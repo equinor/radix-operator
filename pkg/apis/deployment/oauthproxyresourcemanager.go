@@ -668,7 +668,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
 								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
 							),
-							Resources: resources.New(resources.WithMemory("100M"), resources.WithCPU("10m")),
+							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
 						},
 					},
 					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
