@@ -27,6 +27,7 @@ import (
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
@@ -162,6 +163,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
 		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
+		{Name: steps.RadixImageBuilderTmpVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: pointers.Ptr(resource.MustParse("1M"))}}},
+		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: pointers.Ptr(resource.MustParse("1M"))}}},
 	}
 	s.ElementsMatch(expectedVolumes, job.Spec.Template.Spec.Volumes)
 
@@ -186,6 +189,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	expectedBuildVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
+		{Name: steps.RadixImageBuilderTmpVolumeName, MountPath: "/tmp", ReadOnly: false},
+		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/radix-image-builder", ReadOnly: false},
 	}
 	s.ElementsMatch(expectedBuildVolumeMounts, job.Spec.Template.Spec.Containers[0].VolumeMounts)
 	expectedEnv := []corev1.EnvVar{
@@ -1338,13 +1343,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
-	s.Len(job.Spec.Template.Spec.Volumes, 5)
+	s.Len(job.Spec.Template.Spec.Volumes, 7)
 	expectedVolumes := []corev1.Volume{
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
 	}
 	s.Subset(job.Spec.Template.Spec.Volumes, expectedVolumes)
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 3)
+	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 5)
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
 	}
@@ -1564,13 +1569,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
-	s.Len(job.Spec.Template.Spec.Volumes, 5)
+	s.Len(job.Spec.Template.Spec.Volumes, 7)
 	expectedVolumes := []corev1.Volume{
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
 	}
 	s.Subset(job.Spec.Template.Spec.Volumes, expectedVolumes)
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 4)
+	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 6)
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
 	}

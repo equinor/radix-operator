@@ -31,8 +31,8 @@ const (
 	privateImageHubMountPath        = "/radix-private-image-hubs"
 	buildahRegistryAuthFile         = "/home/build/auth.json"
 	azureServicePrincipleContext    = "/radix-image-builder/.azure"
-	radixImageBuilderHomeVolumeName = "radix-image-builder"
-	cloneTmpVolumeName              = "clone-tmp"
+	RadixImageBuilderHomeVolumeName = "radix-image-builder-home"
+	RadixImageBuilderTmpVolumeName  = "radix-image-builder-tmp"
 )
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
@@ -163,7 +163,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			},
 		},
 		{
-			Name: cloneTmpVolumeName,
+			Name: RadixImageBuilderTmpVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					SizeLimit: pointers.Ptr(resource.MustParse("1M")),
@@ -171,7 +171,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			},
 		},
 		{
-			Name: radixImageBuilderHomeVolumeName,
+			Name: RadixImageBuilderHomeVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					SizeLimit: pointers.Ptr(resource.MustParse("1M")),
@@ -414,12 +414,12 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, moun
 			ReadOnly:  true,
 		},
 		{
-			Name:      cloneTmpVolumeName, // image-builder creates a script there
+			Name:      RadixImageBuilderTmpVolumeName, // image-builder creates a script there
 			MountPath: "/tmp",
 			ReadOnly:  false,
 		},
 		{
-			Name:      radixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
+			Name:      RadixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
 			MountPath: "/home/radix-image-builder",
 			ReadOnly:  false,
 		},
