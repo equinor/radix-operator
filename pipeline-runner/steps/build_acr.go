@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -26,10 +27,12 @@ import (
 )
 
 const (
-	buildSecretsMountPath        = "/build-secrets"
-	privateImageHubMountPath     = "/radix-private-image-hubs"
-	buildahRegistryAuthFile      = "/home/build/auth.json"
-	azureServicePrincipleContext = "/radix-image-builder/.azure"
+	buildSecretsMountPath           = "/build-secrets"
+	privateImageHubMountPath        = "/radix-private-image-hubs"
+	buildahRegistryAuthFile         = "/home/build/auth.json"
+	azureServicePrincipleContext    = "/radix-image-builder/.azure"
+	radixImageBuilderHomeVolumeName = "radix-image-builder"
+	cloneTmpVolumeName              = "clone-tmp"
 )
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
@@ -156,6 +159,22 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: defaults.PrivateImageHubSecretName,
+				},
+			},
+		},
+		{
+			Name: cloneTmpVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: pointers.Ptr(resource.MustParse("1M")),
+				},
+			},
+		},
+		{
+			Name: radixImageBuilderHomeVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: pointers.Ptr(resource.MustParse("1M")),
 				},
 			},
 		},
@@ -393,6 +412,16 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, moun
 			Name:      defaults.AzureACRServicePrincipleSecretName,
 			MountPath: azureServicePrincipleContext,
 			ReadOnly:  true,
+		},
+		{
+			Name:      cloneTmpVolumeName, // image-builder creates a script there
+			MountPath: "/tmp",
+			ReadOnly:  false,
+		},
+		{
+			Name:      radixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
+			MountPath: "/home/radix-image-builder",
+			ReadOnly:  false,
 		},
 	}
 
