@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,6 +12,7 @@ type ApplicationBuilder interface {
 	WithRadixRegistration(RegistrationBuilder) ApplicationBuilder
 	WithAppName(appName string) ApplicationBuilder
 	WithBuildSecrets(buildSecrets ...string) ApplicationBuilder
+	WithBuildVariables(buildVariables radixv1.EnvVarsMap) ApplicationBuilder
 	WithBuildKit(useBuildKit *bool) ApplicationBuilder
 	WithBuildCache(*bool) ApplicationBuilder
 	WithEnvironment(environment, buildFrom string) ApplicationBuilder
@@ -23,24 +25,29 @@ type ApplicationBuilder interface {
 	WithDNSAlias(dnsAliases ...radixv1.DNSAlias) ApplicationBuilder
 	WithDNSExternalAlias(alias, env, component string, useCertificateAutomation bool) ApplicationBuilder
 	WithPrivateImageRegistry(server, username, email string) ApplicationBuilder
+	WithApplicationEnvironmentBuilders(environmentBuilders ...ApplicationEnvironmentBuilder) ApplicationBuilder
+	WithSubPipeline(subPipelineBuilder SubPipelineBuilder) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRA() *radixv1.RadixApplication
 }
 
 // ApplicationBuilderStruct Instance variables
 type ApplicationBuilderStruct struct {
-	registrationBuilder RegistrationBuilder
-	appName             string
-	buildSecrets        []string
-	useBuildKit         *bool
-	useBuildCache       *bool
-	environments        []radixv1.Environment
-	components          []RadixApplicationComponentBuilder
-	jobComponents       []RadixApplicationJobComponentBuilder
-	dnsAppAlias         radixv1.AppAlias
-	dnsAliases          []radixv1.DNSAlias
-	externalAppAlias    []radixv1.ExternalAlias
-	privateImageHubs    radixv1.PrivateImageHubEntries
+	registrationBuilder            RegistrationBuilder
+	appName                        string
+	buildSecrets                   []string
+	useBuildKit                    *bool
+	useBuildCache                  *bool
+	environments                   []radixv1.Environment
+	components                     []RadixApplicationComponentBuilder
+	jobComponents                  []RadixApplicationJobComponentBuilder
+	dnsAppAlias                    radixv1.AppAlias
+	dnsAliases                     []radixv1.DNSAlias
+	externalAppAlias               []radixv1.ExternalAlias
+	privateImageHubs               radixv1.PrivateImageHubEntries
+	applicationEnvironmentBuilders []ApplicationEnvironmentBuilder
+	subPipelineBuilder             SubPipelineBuilder
+	buildVariables                 radixv1.EnvVarsMap
 }
 
 func (ap *ApplicationBuilderStruct) WithBuildKit(useBuildKit *bool) ApplicationBuilder {
@@ -87,6 +94,12 @@ func (ap *ApplicationBuilderStruct) WithBuildSecrets(buildSecrets ...string) App
 	return ap
 }
 
+// WithBuildVariables Sets build variables
+func (ap *ApplicationBuilderStruct) WithBuildVariables(buildVariables radixv1.EnvVarsMap) ApplicationBuilder {
+	ap.buildVariables = buildVariables
+	return ap
+}
+
 // WithEnvironment Appends to environment-build list
 func (ap *ApplicationBuilderStruct) WithEnvironment(environment, buildFrom string) ApplicationBuilder {
 	ap.environments = append(ap.environments, radixv1.Environment{
@@ -96,6 +109,18 @@ func (ap *ApplicationBuilderStruct) WithEnvironment(environment, buildFrom strin
 		},
 	})
 
+	return ap
+}
+
+// WithApplicationEnvironmentBuilders Sets app-environment builders
+func (ap *ApplicationBuilderStruct) WithApplicationEnvironmentBuilders(environmentBuilders ...ApplicationEnvironmentBuilder) ApplicationBuilder {
+	ap.applicationEnvironmentBuilders = environmentBuilders
+	return ap
+}
+
+// WithSubPipeline sub-pipeline config
+func (ap *ApplicationBuilderStruct) WithSubPipeline(subPipelineBuilder SubPipelineBuilder) ApplicationBuilder {
+	ap.subPipelineBuilder = subPipelineBuilder
 	return ap
 }
 
@@ -184,16 +209,6 @@ func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
 	for _, comp := range ap.jobComponents {
 		jobComponents = append(jobComponents, comp.BuildJobComponent())
 	}
-	var build *radixv1.BuildSpec
-	if ap.useBuildKit == nil && ap.buildSecrets == nil {
-		build = nil
-	} else {
-		build = &radixv1.BuildSpec{
-			Secrets:       ap.buildSecrets,
-			UseBuildKit:   ap.useBuildKit,
-			UseBuildCache: ap.useBuildCache,
-		}
-	}
 
 	radixApplication := &radixv1.RadixApplication{
 		TypeMeta: metav1.TypeMeta{
@@ -205,7 +220,6 @@ func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
 			Namespace: GetAppNamespace(ap.appName),
 		},
 		Spec: radixv1.RadixApplicationSpec{
-			Build:            build,
 			Components:       components,
 			Jobs:             jobComponents,
 			Environments:     ap.environments,
@@ -215,6 +229,22 @@ func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
 			PrivateImageHubs: ap.privateImageHubs,
 		},
 	}
+	if ap.useBuildKit != nil || ap.buildSecrets != nil || len(ap.buildSecrets) > 0 || len(ap.buildVariables) > 0 || ap.subPipelineBuilder != nil {
+		radixApplication.Spec.Build = &radixv1.BuildSpec{
+			Secrets:       ap.buildSecrets,
+			Variables:     ap.buildVariables,
+			UseBuildKit:   ap.useBuildKit,
+			UseBuildCache: ap.useBuildCache,
+		}
+		if ap.subPipelineBuilder != nil {
+			radixApplication.Spec.Build.SubPipeline = ap.subPipelineBuilder.Build()
+		}
+	}
+
+	environments := slice.Map(ap.applicationEnvironmentBuilders, func(builder ApplicationEnvironmentBuilder) radixv1.Environment {
+		return builder.Build()
+	})
+	radixApplication.Spec.Environments = append(radixApplication.Spec.Environments, environments...)
 	return radixApplication
 }
 
