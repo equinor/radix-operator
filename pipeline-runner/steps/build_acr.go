@@ -166,7 +166,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			Name: RadixImageBuilderTmpVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(5, resource.Giga),
+					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
 				},
 			},
 		},
@@ -198,7 +198,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 				Name: BuildKitRunVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{
-						SizeLimit: resource.NewScaledQuantity(5, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
+						SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
 					},
 				},
 			})
