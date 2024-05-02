@@ -44,7 +44,7 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(ctx context.Context,
 	pdbName := pdb.Name
 
 	log.Ctx(ctx).Debug().Msgf("creating PodDisruptionBudget object %s in namespace %s", componentName, namespace)
-	_, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Create(context.TODO(), pdb, metav1.CreateOptions{})
+	_, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Create(ctx, pdb, metav1.CreateOptions{})
 
 	if k8serrors.IsAlreadyExists(err) {
 		log.Ctx(ctx).Info().Msgf("PodDisruptionBudget object %s already exists in namespace %s, updating the object now", componentName, namespace)
@@ -59,14 +59,14 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(ctx context.Context,
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(component v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	if componentShallHavePdb(component) {
 		return nil
 	}
 	namespace := deploy.radixDeployment.Namespace
 	componentName := component.GetName()
 
-	pdbs, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{
+	pdbs, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, componentName),
 	})
 	if err != nil {
@@ -75,7 +75,7 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComp
 
 	var errs []error
 	for _, pdb := range pdbs.Items {
-		err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
+		err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(ctx, pdb.Name, metav1.DeleteOptions{})
 		if err != nil {
 			errs = append(errs, err)
 		}

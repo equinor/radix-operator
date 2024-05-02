@@ -53,12 +53,12 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 	if len(component.GetSecrets()) > 0 {
 		secretName := utils.GetComponentSecretName(component.GetName())
 		if !deploy.kubeutil.SecretExists(namespace, secretName) {
-			err := deploy.createOrUpdateComponentSecret(namespace, deploy.registration.Name, component.GetName(), secretName)
+			err := deploy.createOrUpdateComponentSecret(ctx, namespace, deploy.registration.Name, component.GetName(), secretName)
 			if err != nil {
 				return err
 			}
 		} else {
-			err := deploy.removeOrphanedSecrets(namespace, secretName, component.GetSecrets())
+			err := deploy.removeOrphanedSecrets(ctx, namespace, secretName, component.GetSecrets())
 			if err != nil {
 				return err
 			}
@@ -99,7 +99,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 	}
 	secretsToManage = append(secretsToManage, secretRefsSecretNames...)
 
-	err = deploy.grantAccessToComponentRuntimeSecrets(component, secretsToManage)
+	err = deploy.grantAccessToComponentRuntimeSecrets(ctx, component, secretsToManage)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to secrets. %v", err)
 	}
@@ -252,7 +252,7 @@ func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error
 	return secrets, err
 }
 
-func (deploy *Deployment) createOrUpdateComponentSecret(ns, app, component, secretName string) error {
+func (deploy *Deployment) createOrUpdateComponentSecret(ctx context.Context, ns, app, component, secretName string) error {
 
 	secret := v1.Secret{
 		Type: v1.SecretTypeOpaque,
@@ -266,7 +266,7 @@ func (deploy *Deployment) createOrUpdateComponentSecret(ns, app, component, secr
 		},
 	}
 
-	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
+	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 	if err == nil {
 		secret.Data = existingSecret.Data
 	} else if !errors.IsNotFound(err) {
@@ -329,7 +329,7 @@ func (deploy *Deployment) createClientCertificateSecret(ns, app, component, secr
 	return err
 }
 
-func (deploy *Deployment) removeOrphanedSecrets(ns, secretName string, secrets []string) error {
+func (deploy *Deployment) removeOrphanedSecrets(ctx context.Context, ns, secretName string, secrets []string) error {
 	secret, err := deploy.kubeutil.GetSecret(ns, secretName)
 	if err != nil {
 		return err
@@ -370,7 +370,7 @@ func (deploy *Deployment) GarbageCollectSecrets(ctx context.Context, secrets []*
 
 func (deploy *Deployment) deleteSecret(ctx context.Context, secret *v1.Secret) error {
 	log.Ctx(ctx).Debug().Msgf("Delete secret %s", secret.Name)
-	err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
+	err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(ctx, secret.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}

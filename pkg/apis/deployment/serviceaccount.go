@@ -89,7 +89,7 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec(ctx context.Context) error {
 	serviceAccounts, err := deploy.kubeutil.ListServiceAccounts(deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
@@ -107,7 +107,7 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec() error {
 				continue
 			}
 
-			if err := deploy.kubeclient.CoreV1().ServiceAccounts(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), serviceAccount.GetName(), v1.DeleteOptions{}); err != nil {
+			if err := deploy.kubeclient.CoreV1().ServiceAccounts(deploy.radixDeployment.GetNamespace()).Delete(ctx, serviceAccount.GetName(), v1.DeleteOptions{}); err != nil {
 				return err
 			}
 		}

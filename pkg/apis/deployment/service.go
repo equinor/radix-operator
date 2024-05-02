@@ -20,7 +20,7 @@ func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDe
 	return deploy.kubeutil.ApplyService(namespace, service)
 }
 
-func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectServicesNoLongerInSpec(ctx context.Context) error {
 	services, err := deploy.kubeutil.ListServices(deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 			continue
 		}
 		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
-			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), service.Name, metav1.DeleteOptions{}); err != nil {
+			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
 				return err
 			}
 		}

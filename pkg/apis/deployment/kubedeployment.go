@@ -108,7 +108,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 		},
 	}
 
-	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
+	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
 	return desiredDeployment, err
 }
 func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent) *appsv1.Deployment {
@@ -151,7 +151,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context,
 	log.Ctx(ctx).Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := currentDeployment.DeepCopy()
-	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
+	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
 
 	// When HPA is enabled for a component, the HPA controller will scale the Deployment up/down by changing Replicas
 	// We must keep this value as long as replicas >= 0.
@@ -229,7 +229,7 @@ func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 	return radixannotations.ForRadixBranch(branch)
 }
 
-func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
 	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName()
 
 	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
@@ -260,7 +260,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetDeploymentPodSpecAffinity(deployComponent.GetNode(), appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
 
-	volumes, err := deploy.GetVolumesForComponent(deployComponent)
+	volumes, err := deploy.GetVolumesForComponent(ctx, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -375,7 +375,7 @@ func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
 	return deploymentStrategy, nil
 }
 
-func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec(ctx context.Context) error {
 	deployments, err := deploy.kubeutil.ListDeployments(deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
@@ -392,7 +392,7 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 			deleteOption := metav1.DeleteOptions{
 				PropagationPolicy: &propagationPolicy,
 			}
-			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), deployment.Name, deleteOption)
+			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(ctx, deployment.Name, deleteOption)
 			if err != nil {
 				return err
 			}

@@ -68,19 +68,19 @@ func (s *syncer) OnSync(ctx context.Context) error {
 	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
 		return s.handleDeletedRadixDNSAlias()
 	}
-	return s.syncStatus(s.syncAlias())
+	return s.syncStatus(s.syncAlias(ctx))
 
 }
 
-func (s *syncer) syncAlias() error {
+func (s *syncer) syncAlias(ctx context.Context) error {
 	s.logger.Debug().Msgf("syncAlias RadixDNSAlias %s", s.radixDNSAlias.GetName())
-	if err := s.syncIngresses(); err != nil {
+	if err := s.syncIngresses(ctx); err != nil {
 		return err
 	}
 	return s.syncRbac()
 }
 
-func (s *syncer) syncIngresses() error {
+func (s *syncer) syncIngresses(ctx context.Context) error {
 	radixDeployComponent, err := s.getRadixDeployComponent()
 	if err != nil {
 		return err
@@ -91,11 +91,11 @@ func (s *syncer) syncIngresses() error {
 
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	ing, err := s.syncIngress(namespace, radixDeployComponent)
+	ing, err := s.syncIngress(ctx, namespace, radixDeployComponent)
 	if err != nil {
 		return err
 	}
-	return s.syncOAuthProxyIngress(namespace, ing, radixDeployComponent)
+	return s.syncOAuthProxyIngress(ctx, namespace, ing, radixDeployComponent)
 }
 
 func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, error) {

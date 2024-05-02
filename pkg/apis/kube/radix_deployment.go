@@ -31,7 +31,7 @@ func (kubeutil *Kube) GetRadixDeployment(namespace, name string) (*v1.RadixDeplo
 }
 
 // ListRadixDeployments Gets deployments using lister if present
-func (kubeutil *Kube) ListRadixDeployments(namespace string) ([]*v1.RadixDeployment, error) {
+func (kubeutil *Kube) ListRadixDeployments(ctx context.Context, namespace string) ([]*v1.RadixDeployment, error) {
 
 	if kubeutil.RdLister != nil {
 		rds, err := kubeutil.RdLister.RadixDeployments(namespace).List(labels.NewSelector())
@@ -41,7 +41,7 @@ func (kubeutil *Kube) ListRadixDeployments(namespace string) ([]*v1.RadixDeploym
 		return rds, nil
 	}
 
-	rds, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(context.TODO(), metav1.ListOptions{})
+	rds, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
 	}

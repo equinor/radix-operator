@@ -54,16 +54,16 @@ type oauthProxyResourceManager struct {
 	logger                     zerolog.Logger
 }
 
-func (o *oauthProxyResourceManager) Sync() error {
+func (o *oauthProxyResourceManager) Sync(ctx context.Context) error {
 	for _, component := range o.rd.Spec.Components {
-		if err := o.syncComponent(&component); err != nil {
+		if err := o.syncComponent(ctx, &component); err != nil {
 			return fmt.Errorf("failed to sync oauth proxy for component %s: %w", component.Name, err)
 		}
 	}
 	return nil
 }
 
-func (o *oauthProxyResourceManager) syncComponent(component *v1.RadixDeployComponent) error {
+func (o *oauthProxyResourceManager) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
 		o.logger.Debug().Msgf("Sync oauth proxy for the component %s", component.GetName())
 		componentWithOAuthDefaults := component.DeepCopy()
@@ -72,47 +72,47 @@ func (o *oauthProxyResourceManager) syncComponent(component *v1.RadixDeployCompo
 			return err
 		}
 		componentWithOAuthDefaults.Authentication.OAuth2 = oauth
-		return o.install(componentWithOAuthDefaults)
+		return o.install(ctx, componentWithOAuthDefaults)
 	}
-	return o.uninstall(component)
+	return o.uninstall(ctx, component)
 }
 
-func (o *oauthProxyResourceManager) GarbageCollect() error {
-	if err := o.garbageCollect(); err != nil {
+func (o *oauthProxyResourceManager) GarbageCollect(ctx context.Context) error {
+	if err := o.garbageCollect(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect oauth2 proxy: %w", err)
 	}
 	return nil
 }
 
-func (o *oauthProxyResourceManager) garbageCollect() error {
-	if err := o.garbageCollectDeployment(); err != nil {
+func (o *oauthProxyResourceManager) garbageCollect(ctx context.Context) error {
+	if err := o.garbageCollectDeployment(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect deployment: %w", err)
 	}
 
-	if err := o.garbageCollectSecrets(); err != nil {
+	if err := o.garbageCollectSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect secrets: %w", err)
 	}
 
-	if err := o.garbageCollectRoles(); err != nil {
+	if err := o.garbageCollectRoles(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect roles: %w", err)
 	}
 
-	if err := o.garbageCollectRoleBinding(); err != nil {
+	if err := o.garbageCollectRoleBinding(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect role bindings: %w", err)
 	}
 
-	if err := o.garbageCollectServices(); err != nil {
+	if err := o.garbageCollectServices(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect services: %w", err)
 	}
 
-	if err := o.garbageCollectIngresses(); err != nil {
+	if err := o.garbageCollectIngresses(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect ingresses: %w", err)
 	}
 
 	return nil
 }
 
-func (o *oauthProxyResourceManager) garbageCollectDeployment() error {
+func (o *oauthProxyResourceManager) garbageCollectDeployment(ctx context.Context) error {
 	deployments, err := o.kubeutil.ListDeployments(o.rd.Namespace)
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func (o *oauthProxyResourceManager) garbageCollectDeployment() error {
 
 	for _, deployment := range deployments {
 		if o.isEligibleForGarbageCollection(deployment) {
-			err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
+			err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
 			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
@@ -131,7 +131,7 @@ func (o *oauthProxyResourceManager) garbageCollectDeployment() error {
 	return nil
 }
 
-func (o *oauthProxyResourceManager) garbageCollectSecrets() error {
+func (o *oauthProxyResourceManager) garbageCollectSecrets(ctx context.Context) error {
 	secrets, err := o.kubeutil.ListSecrets(o.rd.Namespace)
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func (o *oauthProxyResourceManager) garbageCollectSecrets() error {
 
 	for _, secret := range secrets {
 		if o.isEligibleForGarbageCollection(secret) {
-			err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
+			err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
 			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
@@ -150,7 +150,7 @@ func (o *oauthProxyResourceManager) garbageCollectSecrets() error {
 	return nil
 }
 
-func (o *oauthProxyResourceManager) garbageCollectServices() error {
+func (o *oauthProxyResourceManager) garbageCollectServices(ctx context.Context) error {
 	services, err := o.kubeutil.ListServices(o.rd.Namespace)
 	if err != nil {
 		return err
@@ -158,7 +158,7 @@ func (o *oauthProxyResourceManager) garbageCollectServices() error {
 
 	for _, service := range services {
 		if o.isEligibleForGarbageCollection(service) {
-			err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(context.TODO(), service.Name, metav1.DeleteOptions{})
+			err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(ctx, service.Name, metav1.DeleteOptions{})
 			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
@@ -168,7 +168,7 @@ func (o *oauthProxyResourceManager) garbageCollectServices() error {
 	return nil
 }
 
-func (o *oauthProxyResourceManager) garbageCollectIngresses() error {
+func (o *oauthProxyResourceManager) garbageCollectIngresses(ctx context.Context) error {
 	ingresses, err := o.kubeutil.ListIngresses(o.rd.Namespace)
 	if err != nil {
 		return err
@@ -176,7 +176,7 @@ func (o *oauthProxyResourceManager) garbageCollectIngresses() error {
 
 	for _, ing := range ingresses {
 		if o.isEligibleForGarbageCollection(ing) {
-			err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(context.TODO(), ing.Name, metav1.DeleteOptions{})
+			err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{})
 			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
@@ -186,7 +186,7 @@ func (o *oauthProxyResourceManager) garbageCollectIngresses() error {
 	return nil
 }
 
-func (o *oauthProxyResourceManager) garbageCollectRoles() error {
+func (o *oauthProxyResourceManager) garbageCollectRoles(ctx context.Context) error {
 	roles, err := o.kubeutil.ListRoles(o.rd.Namespace)
 	if err != nil {
 		return err
@@ -194,7 +194,7 @@ func (o *oauthProxyResourceManager) garbageCollectRoles() error {
 
 	for _, role := range roles {
 		if o.isEligibleForGarbageCollection(role) {
-			err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(context.TODO(), role.Name, metav1.DeleteOptions{})
+			err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(ctx, role.Name, metav1.DeleteOptions{})
 			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
@@ -204,7 +204,7 @@ func (o *oauthProxyResourceManager) garbageCollectRoles() error {
 	return nil
 }
 
-func (o *oauthProxyResourceManager) garbageCollectRoleBinding() error {
+func (o *oauthProxyResourceManager) garbageCollectRoleBinding(ctx context.Context) error {
 	roleBindings, err := o.kubeutil.ListRoleBindings(o.rd.Namespace)
 	if err != nil {
 		return err
@@ -212,7 +212,7 @@ func (o *oauthProxyResourceManager) garbageCollectRoleBinding() error {
 
 	for _, rolebinding := range roleBindings {
 		if o.isEligibleForGarbageCollection(rolebinding) {
-			err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(context.TODO(), rolebinding.Name, metav1.DeleteOptions{})
+			err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(ctx, rolebinding.Name, metav1.DeleteOptions{})
 			if err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
@@ -236,7 +236,7 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 	return !auxTargetComponentName.ExistInDeploymentSpec(o.rd)
 }
 
-func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("install the oauth proxy for the component %s", component.GetName())
 	if err := o.createOrUpdateSecret(component); err != nil {
 		return err
@@ -250,39 +250,39 @@ func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployCompon
 		return err
 	}
 
-	if err := o.createOrUpdateIngresses(component); err != nil {
+	if err := o.createOrUpdateIngresses(ctx, component); err != nil {
 		return err
 	}
 
 	return o.createOrUpdateDeployment(component)
 }
 
-func (o *oauthProxyResourceManager) uninstall(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("uninstall oauth proxy for the component %s", component.GetName())
-	if err := o.deleteDeployment(component); err != nil {
+	if err := o.deleteDeployment(ctx, component); err != nil {
 		return err
 	}
 
-	if err := o.deleteIngresses(component); err != nil {
+	if err := o.deleteIngresses(ctx, component); err != nil {
 		return err
 	}
 
-	if err := o.deleteServices(component); err != nil {
+	if err := o.deleteServices(ctx, component); err != nil {
 		return err
 	}
 
-	if err := o.deleteSecrets(component); err != nil {
+	if err := o.deleteSecrets(ctx, component); err != nil {
 		return err
 	}
 
-	if err := o.deleteRoleBindings(component); err != nil {
+	if err := o.deleteRoleBindings(ctx, component); err != nil {
 		return err
 	}
 
-	return o.deleteRoles(component)
+	return o.deleteRoles(ctx, component)
 }
 
-func (o *oauthProxyResourceManager) deleteDeployment(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
 	deployments, err := o.kubeutil.ListDeploymentsWithSelector(o.rd.Namespace, selector)
 	if err != nil {
@@ -290,7 +290,7 @@ func (o *oauthProxyResourceManager) deleteDeployment(component v1.RadixCommonDep
 	}
 
 	for _, deployment := range deployments {
-		if err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{}); err != nil {
+		if err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -298,15 +298,15 @@ func (o *oauthProxyResourceManager) deleteDeployment(component v1.RadixCommonDep
 	return nil
 }
 
-func (o *oauthProxyResourceManager) deleteIngresses(component v1.RadixCommonDeployComponent) error {
-	ingresses, err := o.getComponentAuxIngresses(component)
+func (o *oauthProxyResourceManager) deleteIngresses(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+	ingresses, err := o.getComponentAuxIngresses(ctx, component)
 	if err != nil {
 		return err
 	}
 	return o.kubeutil.DeleteIngresses(ingresses...)
 }
 
-func (o *oauthProxyResourceManager) deleteServices(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteServices(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
 	services, err := o.kubeutil.ListServicesWithSelector(o.rd.Namespace, selector)
 	if err != nil {
@@ -314,7 +314,7 @@ func (o *oauthProxyResourceManager) deleteServices(component v1.RadixCommonDeplo
 	}
 
 	for _, service := range services {
-		if err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(context.TODO(), service.Name, metav1.DeleteOptions{}); err != nil {
+		if err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -322,7 +322,7 @@ func (o *oauthProxyResourceManager) deleteServices(component v1.RadixCommonDeplo
 	return nil
 }
 
-func (o *oauthProxyResourceManager) deleteSecrets(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteSecrets(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
 	secrets, err := o.kubeutil.ListSecretsWithSelector(o.rd.Namespace, selector)
 	if err != nil {
@@ -330,7 +330,7 @@ func (o *oauthProxyResourceManager) deleteSecrets(component v1.RadixCommonDeploy
 	}
 
 	for _, secret := range secrets {
-		if err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{}); err != nil {
+		if err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 		o.logger.Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
@@ -339,7 +339,7 @@ func (o *oauthProxyResourceManager) deleteSecrets(component v1.RadixCommonDeploy
 	return nil
 }
 
-func (o *oauthProxyResourceManager) deleteRoleBindings(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteRoleBindings(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
 	roleBindings, err := o.kubeutil.ListRoleBindingsWithSelector(o.rd.Namespace, selector)
 	if err != nil {
@@ -347,7 +347,7 @@ func (o *oauthProxyResourceManager) deleteRoleBindings(component v1.RadixCommonD
 	}
 
 	for _, rolebinding := range roleBindings {
-		if err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(context.TODO(), rolebinding.Name, metav1.DeleteOptions{}); err != nil {
+		if err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(ctx, rolebinding.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -355,7 +355,7 @@ func (o *oauthProxyResourceManager) deleteRoleBindings(component v1.RadixCommonD
 	return nil
 }
 
-func (o *oauthProxyResourceManager) deleteRoles(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteRoles(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
 	roles, err := o.kubeutil.ListRolesWithSelector(o.rd.Namespace, selector)
 	if err != nil {
@@ -363,7 +363,7 @@ func (o *oauthProxyResourceManager) deleteRoles(component v1.RadixCommonDeployCo
 	}
 
 	for _, role := range roles {
-		if err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(context.TODO(), role.Name, metav1.DeleteOptions{}); err != nil {
+		if err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(ctx, role.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -371,10 +371,10 @@ func (o *oauthProxyResourceManager) deleteRoles(component v1.RadixCommonDeployCo
 	return nil
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) createOrUpdateIngresses(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	namespace := o.rd.Namespace
 	o.logger.Debug().Msgf("create of update ingresses for the component %s in the namespace %s", component.GetName(), namespace)
-	ingresses, err := o.getComponentIngresses(component)
+	ingresses, err := o.getComponentIngresses(ctx, component)
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 			continue
 		}
 		mergeAuxIngressLabels(appName, component, ing.GetLabels(), auxIngress)
-		if err := o.kubeutil.ApplyIngress(namespace, auxIngress); err != nil {
+		if err := o.kubeutil.ApplyIngress(ctx, namespace, auxIngress); err != nil {
 			return err
 		}
 	}
@@ -409,9 +409,9 @@ func mergeAuxIngressLabels(appName string, component v1.RadixCommonDeployCompone
 	}
 }
 
-func (o *oauthProxyResourceManager) getComponentIngresses(component v1.RadixCommonDeployComponent) ([]networkingv1.Ingress, error) {
+func (o *oauthProxyResourceManager) getComponentIngresses(ctx context.Context, component v1.RadixCommonDeployComponent) ([]networkingv1.Ingress, error) {
 	namespace := o.rd.Namespace
-	return o.getIngressesForSelector(namespace,
+	return o.getIngressesForSelector(ctx, namespace,
 		radixlabels.ForComponentDefaultAliasIngress(component),
 		radixlabels.ForComponentActiveClusterAliasIngress(component),
 		radixlabels.ForComponentAppAliasIngress(component),
@@ -419,9 +419,9 @@ func (o *oauthProxyResourceManager) getComponentIngresses(component v1.RadixComm
 	)
 }
 
-func (o *oauthProxyResourceManager) getComponentAuxIngresses(component v1.RadixCommonDeployComponent) ([]networkingv1.Ingress, error) {
+func (o *oauthProxyResourceManager) getComponentAuxIngresses(ctx context.Context, component v1.RadixCommonDeployComponent) ([]networkingv1.Ingress, error) {
 	appName := o.rd.Spec.AppName
-	return o.getIngressesForSelector(o.rd.Namespace,
+	return o.getIngressesForSelector(ctx, o.rd.Namespace,
 		radixlabels.ForAuxComponentDefaultIngress(appName, component),
 		radixlabels.ForAuxComponentActiveClusterAliasIngress(appName, component),
 		radixlabels.ForAuxComponentAppAliasIngress(appName, component),
@@ -429,11 +429,11 @@ func (o *oauthProxyResourceManager) getComponentAuxIngresses(component v1.RadixC
 	)
 }
 
-func (o *oauthProxyResourceManager) getIngressesForSelector(namespace string, selectors ...labels.Set) ([]networkingv1.Ingress, error) {
+func (o *oauthProxyResourceManager) getIngressesForSelector(ctx context.Context, namespace string, selectors ...labels.Set) ([]networkingv1.Ingress, error) {
 	var ingresses []networkingv1.Ingress
 	for _, selector := range selectors {
 		ingressList, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(namespace).
-			List(context.Background(), metav1.ListOptions{LabelSelector: selector.String()})
+			List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 		if err != nil {
 			return nil, err
 		}

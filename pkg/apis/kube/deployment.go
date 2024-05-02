@@ -75,9 +75,9 @@ func (kubeutil *Kube) CreateDeployment(namespace string, deployment *appsv1.Depl
 }
 
 // DeleteDeployment Delete deployment
-func (kubeutil *Kube) DeleteDeployment(namespace, name string) error {
+func (kubeutil *Kube) DeleteDeployment(ctx context.Context, namespace, name string) error {
 	propagationPolicy := metav1.DeletePropagationBackground
-	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Delete(context.Background(),
+	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Delete(ctx,
 		name,
 		metav1.DeleteOptions{
 			PropagationPolicy: &propagationPolicy,

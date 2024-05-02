@@ -1,7 +1,9 @@
 package deployment
 
-func (deploy *Deployment) garbageCollectRadixBatchesNoLongerInSpec() error {
-	batches, err := deploy.kubeutil.ListRadixBatches(deploy.radixDeployment.GetNamespace())
+import "context"
+
+func (deploy *Deployment) garbageCollectRadixBatchesNoLongerInSpec(ctx context.Context) error {
+	batches, err := deploy.kubeutil.ListRadixBatches(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
@@ -13,7 +15,7 @@ func (deploy *Deployment) garbageCollectRadixBatchesNoLongerInSpec() error {
 		}
 
 		if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
-			err = deploy.kubeutil.DeleteRadixBatch(batch.GetNamespace(), batch.GetName())
+			err = deploy.kubeutil.DeleteRadixBatch(ctx, batch.GetNamespace(), batch.GetName())
 			if err != nil {
 				return err
 			}

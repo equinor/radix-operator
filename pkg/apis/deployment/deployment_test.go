@@ -3595,8 +3595,8 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	auxResource := NewMockAuxiliaryResourceManager(ctrl)
-	auxResource.EXPECT().GarbageCollect().Times(1).Return(nil)
-	auxResource.EXPECT().Sync().Times(1).Return(nil)
+	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
+	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(nil)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())
@@ -3616,8 +3616,8 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	defer ctrl.Finish()
 	auxErr := errors.New("an error")
 	auxResource := NewMockAuxiliaryResourceManager(ctrl)
-	auxResource.EXPECT().GarbageCollect().Times(1).Return(nil)
-	auxResource.EXPECT().Sync().Times(1).Return(auxErr)
+	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
+	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(auxErr)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())
@@ -3637,8 +3637,8 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	defer ctrl.Finish()
 	auxErr := errors.New("an error")
 	auxResource := NewMockAuxiliaryResourceManager(ctrl)
-	auxResource.EXPECT().GarbageCollect().Times(1).Return(auxErr)
-	auxResource.EXPECT().Sync().Times(0)
+	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(auxErr)
+	auxResource.EXPECT().Sync(gomock.Any()).Times(0)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())

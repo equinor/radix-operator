@@ -38,7 +38,7 @@ func GetDNSAliasHost(alias, dnsZone string) string {
 	return fmt.Sprintf("%s.%s", alias, dnsZone)
 }
 
-func (s *syncer) syncIngress(namespace string, radixDeployComponent radixv1.RadixCommonDeployComponent) (*networkingv1.Ingress, error) {
+func (s *syncer) syncIngress(ctx context.Context, namespace string, radixDeployComponent radixv1.RadixCommonDeployComponent) (*networkingv1.Ingress, error) {
 	ingressName := GetDNSAliasIngressName(s.radixDNSAlias.GetName())
 	newIngress, err := buildIngress(radixDeployComponent, s.radixDNSAlias, s.dnsConfig, s.oauth2DefaultConfig, s.ingressConfiguration)
 	if err != nil {
@@ -53,15 +53,15 @@ func (s *syncer) syncIngress(namespace string, radixDeployComponent radixv1.Radi
 		return nil, err
 	}
 	s.logger.Debug().Msgf("found Ingress %s in the namespace %s.", ingressName, namespace)
-	patchesIngress, err := s.applyIngress(namespace, existingIngress, newIngress)
+	patchesIngress, err := s.applyIngress(ctx, namespace, existingIngress, newIngress)
 	if err != nil {
 		return nil, err
 	}
 	return patchesIngress, nil
 }
 
-func (s *syncer) applyIngress(namespace string, existingIngress *networkingv1.Ingress, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
-	patchesIngress, err := s.kubeUtil.PatchIngress(namespace, existingIngress, ing)
+func (s *syncer) applyIngress(ctx context.Context, namespace string, existingIngress *networkingv1.Ingress, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
+	patchesIngress, err := s.kubeUtil.PatchIngress(ctx, namespace, existingIngress, ing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to patch an ingress %s: %w", ing.GetName(), err)
 	}
@@ -73,7 +73,7 @@ func (s *syncer) createIngress(radixDNSAlias *radixv1.RadixDNSAlias, ing *networ
 	return CreateRadixDNSAliasIngress(s.kubeClient, radixDNSAlias.Spec.AppName, radixDNSAlias.Spec.Environment, ing)
 }
 
-func (s *syncer) syncOAuthProxyIngress(namespace string, ing *networkingv1.Ingress, deployComponent radixv1.RadixCommonDeployComponent) error {
+func (s *syncer) syncOAuthProxyIngress(ctx context.Context, namespace string, ing *networkingv1.Ingress, deployComponent radixv1.RadixCommonDeployComponent) error {
 	appName := s.radixDNSAlias.Spec.AppName
 	authentication := deployComponent.GetAuthentication()
 	oauthEnabled := authentication != nil && authentication.OAuth2 != nil
@@ -94,7 +94,7 @@ func (s *syncer) syncOAuthProxyIngress(namespace string, ing *networkingv1.Ingre
 		return nil
 	}
 	oauth.MergeAuxComponentDNSAliasIngressResourceLabels(auxIngress, appName, deployComponent, s.radixDNSAlias.GetName())
-	return s.kubeUtil.ApplyIngress(namespace, auxIngress)
+	return s.kubeUtil.ApplyIngress(ctx, namespace, auxIngress)
 }
 
 func (s *syncer) deleteIngresses(selector labels.Set) error {
