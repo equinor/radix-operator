@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,7 +20,7 @@ func getSyncTargetAnnotation(appName string) string {
 	return fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, appName)
 }
 
-func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
+func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) error {
 	namespace := utils.GetAppNamespace(app.config.Name)
 	secret, err := app.kubeutil.GetSecret(namespace, defaults.PrivateImageHubSecretName)
 	if err != nil && !kubeerrors.IsNotFound(err) {
@@ -72,12 +73,12 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		return nil
 	}
 
-	err = utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
+	err = utils.GrantAppReaderAccessToSecret(ctx, app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		return fmt.Errorf("failed to grant reader access to private image hub secret: %w", err)
 	}
 
-	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
+	err = utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to private image hub secret: %w", err)
 	}

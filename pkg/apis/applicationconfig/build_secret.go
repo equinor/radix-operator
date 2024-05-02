@@ -1,6 +1,8 @@
 package applicationconfig
 
 import (
+	"context"
+
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -9,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app *ApplicationConfig) syncBuildSecrets() error {
+func (app *ApplicationConfig) syncBuildSecrets(ctx context.Context) error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 	isSecretExist := app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName)
 
@@ -21,7 +23,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 				return err
 			}
 		}
-		err := garbageCollectAccessToBuildSecrets(app)
+		err := garbageCollectAccessToBuildSecrets(ctx, app)
 		if err != nil {
 			return err
 		}
@@ -42,7 +44,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 		}
 
 		// Grant access to build secret (RBAC)
-		err := app.grantAccessToBuildSecrets(appNamespace)
+		err := app.grantAccessToBuildSecrets(ctx, appNamespace)
 		if err != nil {
 			return err
 		}

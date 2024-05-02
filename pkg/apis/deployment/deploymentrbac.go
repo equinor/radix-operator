@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
@@ -15,25 +16,25 @@ import (
 type ConfigureDeploymentRbacFunc func() error
 
 // GetDeploymentRbacConfigurators returns an array of RBAC configuration functions
-func GetDeploymentRbacConfigurators(deploy *Deployment) []ConfigureDeploymentRbacFunc {
+func GetDeploymentRbacConfigurators(ctx context.Context, deploy *Deployment) []ConfigureDeploymentRbacFunc {
 	var rbac []ConfigureDeploymentRbacFunc
 
 	if isRadixAPI(deploy.radixDeployment) {
-		rbac = append(rbac, configureRbacForRadixAPI(deploy))
+		rbac = append(rbac, configureRbacForRadixAPI(ctx, deploy))
 	}
 
 	if isRadixWebHook(deploy.radixDeployment) {
-		rbac = append(rbac, configureRbacForRadixGithubWebhook(deploy))
+		rbac = append(rbac, configureRbacForRadixGithubWebhook(ctx, deploy))
 	}
 
 	if hasJobComponent(deploy.radixDeployment) {
-		rbac = append(rbac, configureRbacForRadixJobComponents(deploy))
+		rbac = append(rbac, configureRbacForRadixJobComponents(ctx, deploy))
 	}
 
 	return rbac
 }
 
-func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
+func configureRbacForRadixAPI(ctx context.Context, deploy *Deployment) ConfigureDeploymentRbacFunc {
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
 
 	return func() error {
@@ -41,11 +42,11 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix api. %v", err)
 		}
-		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(defaults.RadixAPIRoleName, serviceAccount, ownerReference)
+		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(ctx, defaults.RadixAPIRoleName, serviceAccount, ownerReference)
 		if err != nil {
 			return fmt.Errorf("error applying cluster role %s to service account for radix api. %v", defaults.RadixAPIRoleName, err)
 		}
-		err = deploy.kubeutil.ApplyRoleBindingToServiceAccount(k8s.KindClusterRole, defaults.RadixAccessValidationRoleName, deploy.radixDeployment.Namespace, serviceAccount, ownerReference)
+		err = deploy.kubeutil.ApplyRoleBindingToServiceAccount(ctx, k8s.KindClusterRole, defaults.RadixAccessValidationRoleName, deploy.radixDeployment.Namespace, serviceAccount, ownerReference)
 		if err != nil {
 			return fmt.Errorf("error applying role %s to service account for radix api. %v", defaults.RadixAccessValidationRoleName, err)
 		}
@@ -53,7 +54,7 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 	}
 }
 
-func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentRbacFunc {
+func configureRbacForRadixGithubWebhook(ctx context.Context, deploy *Deployment) ConfigureDeploymentRbacFunc {
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
 
 	return func() error {
@@ -61,7 +62,7 @@ func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentR
 		if err != nil {
 			return fmt.Errorf("service account for running radix github webhook not made. %v", err)
 		}
-		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(defaults.RadixGithubWebhookRoleName, serviceAccount, ownerReference)
+		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(ctx, defaults.RadixGithubWebhookRoleName, serviceAccount, ownerReference)
 		if err != nil {
 			return fmt.Errorf("error applying cluster role %s to service account for radix github webhook. %v", defaults.RadixGithubWebhookRoleName, err)
 		}
@@ -69,7 +70,7 @@ func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentR
 	}
 }
 
-func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentRbacFunc {
+func configureRbacForRadixJobComponents(ctx context.Context, deploy *Deployment) ConfigureDeploymentRbacFunc {
 	namespace := deploy.radixDeployment.Namespace
 	appName := deploy.radixDeployment.Spec.AppName
 
@@ -86,7 +87,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 			}}
 
 		envRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.RadixJobSchedulerRoleName, subjects)
-		return deploy.kubeutil.ApplyRoleBinding(namespace, envRoleBinding)
+		return deploy.kubeutil.ApplyRoleBinding(ctx, namespace, envRoleBinding)
 	}
 }
 

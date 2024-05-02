@@ -17,15 +17,15 @@ func getComponentSecretRbaclabels(appName, componentName string) kubelabels.Set 
 	return labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(componentName))
 }
 
-func (deploy *Deployment) grantAccessToExternalDnsSecrets(secretNames []string) error {
+func (deploy *Deployment) grantAccessToExternalDnsSecrets(ctx context.Context, secretNames []string) error {
 	adminRoleName := "radix-app-externaldns-adm"
 	readerRoleName := "radix-app-externaldns-reader"
 
-	if err := deploy.grantAdminAccessToSecrets(adminRoleName, secretNames, nil); err != nil {
+	if err := deploy.grantAdminAccessToSecrets(ctx, adminRoleName, secretNames, nil); err != nil {
 		return err
 	}
 
-	return deploy.grantReaderAccessToSecrets(readerRoleName, secretNames, nil)
+	return deploy.grantReaderAccessToSecrets(ctx, readerRoleName, secretNames, nil)
 }
 
 func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(ctx context.Context, component radixv1.RadixCommonDeployComponent, secretNames []string) error {
@@ -47,14 +47,14 @@ func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(ctx context.Conte
 	adminRoleName := fmt.Sprintf("radix-app-adm-%s", component.GetName())
 	readerRoleName := fmt.Sprintf("radix-app-reader-%s", component.GetName())
 
-	if err := deploy.grantAdminAccessToSecrets(adminRoleName, secretNames, extraLabels); err != nil {
+	if err := deploy.grantAdminAccessToSecrets(ctx, adminRoleName, secretNames, extraLabels); err != nil {
 		return err
 	}
 
-	return deploy.grantReaderAccessToSecrets(readerRoleName, secretNames, extraLabels)
+	return deploy.grantReaderAccessToSecrets(ctx, readerRoleName, secretNames, extraLabels)
 }
 
-func (deploy *Deployment) grantAdminAccessToSecrets(roleName string, secretNames []string, extraLabels map[string]string) error {
+func (deploy *Deployment) grantAdminAccessToSecrets(ctx context.Context, roleName string, secretNames []string, extraLabels map[string]string) error {
 	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
 	adminGroups, err := utils.GetAdGroups(registration)
 	if err != nil {
@@ -67,10 +67,10 @@ func (deploy *Deployment) grantAdminAccessToSecrets(roleName string, secretNames
 		return err
 	}
 
-	return deploy.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+	return deploy.kubeutil.ApplyRoleBinding(ctx, namespace, roleBinding)
 }
 
-func (deploy *Deployment) grantReaderAccessToSecrets(roleName string, secretNames []string, extraLabels map[string]string) error {
+func (deploy *Deployment) grantReaderAccessToSecrets(ctx context.Context, roleName string, secretNames []string, extraLabels map[string]string) error {
 	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
 
 	role := kube.CreateReadSecretRole(registration.Name, roleName, secretNames, extraLabels)
@@ -80,12 +80,12 @@ func (deploy *Deployment) grantReaderAccessToSecrets(roleName string, secretName
 		return err
 	}
 
-	return deploy.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+	return deploy.kubeutil.ApplyRoleBinding(ctx, namespace, roleBinding)
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	labelSelector := getComponentSecretRbaclabels(deploy.registration.Name, component.GetName()).String()
-	roleBindings, err := deploy.kubeutil.ListRoleBindingsWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
+	roleBindings, err := deploy.kubeutil.ListRoleBindingsWithSelector(ctx, deploy.radixDeployment.GetNamespace(), labelSelector)
 
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(c
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec(ctx context.Context) error {
-	roleBindings, err := deploy.kubeutil.ListRoleBindings(deploy.radixDeployment.GetNamespace())
+	roleBindings, err := deploy.kubeutil.ListRoleBindings(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return nil
 	}

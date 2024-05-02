@@ -52,7 +52,7 @@ func (deploy *Deployment) syncExternalDnsResources(ctx context.Context) error {
 		}
 	}
 
-	return deploy.grantAccessToExternalDnsSecrets(secretNames)
+	return deploy.grantAccessToExternalDnsSecrets(ctx, secretNames)
 }
 
 func (deploy *Deployment) garbageCollectExternalDnsResourcesNoLongerInSpec(ctx context.Context) error {

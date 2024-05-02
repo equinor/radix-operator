@@ -234,7 +234,7 @@ func Test_Orphaned_Status(t *testing.T) {
 // sync calls OnSync on the Environment resource and asserts success
 func sync(t *testing.T, env *Environment) {
 	time := metav1.NewTime(time.Now().UTC())
-	err := env.OnSync(time)
+	err := env.OnSync(context.Background(), time)
 
 	t.Run("Method succeeds", func(t *testing.T) {
 		assert.NoError(t, err)
@@ -264,7 +264,7 @@ func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, nam
 	})
 
 	t.Run("Creation is idempotent", func(t *testing.T) {
-		err := env.OnSync(metav1.NewTime(time.Now().UTC()))
+		err := env.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
 		assert.NoError(t, err)
 		assert.Len(t, resources, len(names))
 	})

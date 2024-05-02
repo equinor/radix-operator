@@ -68,36 +68,36 @@ func (app *Application) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to apply pipeline secrets: %w", err)
 	}
 
-	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName)
+	err = utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to git private key secret: %w", err)
 	}
 	app.logger.Debug().Msg("Applied secrets needed by pipelines")
 
-	err = app.applyRbacOnRadixTekton()
+	err = app.applyRbacOnRadixTekton(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to Tekton resources: %w", err)
 	}
 
-	err = app.applyRbacOnPipelineRunner()
+	err = app.applyRbacOnPipelineRunner(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to apply pipeline permissions: %w", err)
 	}
 	app.logger.Debug().Msg("Applied access permissions needed by pipeline")
 
-	err = app.applyRbacRadixRegistration()
+	err = app.applyRbacRadixRegistration(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to RadixRegistration: %w", err)
 	}
 	app.logger.Debug().Msg("Applied access permissions to RadixRegistration")
 
-	err = app.applyRbacAppNamespace()
+	err = app.applyRbacAppNamespace(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to app namespace: %w", err)
 	}
 
 	app.logger.Debug().Msg("Applied access to app namespace. Set registration to be reconciled")
-	err = app.updateRadixRegistrationStatus(radixRegistration, func(currStatus *v1.RadixRegistrationStatus) {
+	err = app.updateRadixRegistrationStatus(ctx, radixRegistration, func(currStatus *v1.RadixRegistrationStatus) {
 		currStatus.Reconciled = metav1.NewTime(time.Now().UTC())
 	})
 	if err != nil {
@@ -107,18 +107,18 @@ func (app *Application) OnSync(ctx context.Context) error {
 	return nil
 }
 
-func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
+func (app *Application) updateRadixRegistrationStatus(ctx context.Context, rr *v1.RadixRegistration, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
 	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRR, err := rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
+		currentRR, err := rrInterface.Get(ctx, rr.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentRR.Status)
-		_, err = rrInterface.UpdateStatus(context.TODO(), currentRR, metav1.UpdateOptions{})
+		_, err = rrInterface.UpdateStatus(ctx, currentRR, metav1.UpdateOptions{})
 
 		if err == nil && rr.GetName() == app.registration.GetName() {
-			currentRR, err = rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
+			currentRR, err = rrInterface.Get(ctx, rr.GetName(), metav1.GetOptions{})
 			if err == nil {
 				app.registration = currentRR
 			}

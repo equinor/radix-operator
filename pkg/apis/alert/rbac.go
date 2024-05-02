@@ -15,14 +15,14 @@ func (syncer *alertSyncer) configureRbac(ctx context.Context) error {
 	rr, found := syncer.tryGetRadixRegistration(ctx)
 	if !found {
 		syncer.logger.Debug().Msg("radixregistration not found")
-		return syncer.garbageCollectAccessToAlertConfigSecret()
+		return syncer.garbageCollectAccessToAlertConfigSecret(ctx)
 	}
 
-	if err := syncer.grantAdminAccessToAlertConfigSecret(rr); err != nil {
+	if err := syncer.grantAdminAccessToAlertConfigSecret(ctx, rr); err != nil {
 		return err
 	}
 
-	return syncer.grantReaderAccessToAlertConfigSecret(rr)
+	return syncer.grantReaderAccessToAlertConfigSecret(ctx, rr)
 }
 
 func (syncer *alertSyncer) tryGetRadixRegistration(ctx context.Context) (*radixv1.RadixRegistration, bool) {
@@ -38,16 +38,16 @@ func (syncer *alertSyncer) tryGetRadixRegistration(ctx context.Context) (*radixv
 	return rr, true
 }
 
-func (syncer *alertSyncer) garbageCollectAccessToAlertConfigSecret() error {
+func (syncer *alertSyncer) garbageCollectAccessToAlertConfigSecret(ctx context.Context) error {
 	namespace := syncer.radixAlert.Namespace
 
 	for _, roleName := range []string{getAlertConfigSecretAdminRoleName(syncer.radixAlert.Name), getAlertConfigSecretReaderRoleName(syncer.radixAlert.Name)} {
-		_, err := syncer.kubeUtil.GetRoleBinding(namespace, roleName)
+		_, err := syncer.kubeUtil.GetRoleBinding(ctx, namespace, roleName)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 		if err == nil {
-			if err = syncer.kubeUtil.DeleteRoleBinding(namespace, roleName); err != nil {
+			if err = syncer.kubeUtil.DeleteRoleBinding(ctx, namespace, roleName); err != nil {
 				return err
 			}
 		}
@@ -66,7 +66,7 @@ func (syncer *alertSyncer) garbageCollectAccessToAlertConfigSecret() error {
 	return nil
 }
 
-func (syncer *alertSyncer) grantAdminAccessToAlertConfigSecret(rr *radixv1.RadixRegistration) error {
+func (syncer *alertSyncer) grantAdminAccessToAlertConfigSecret(ctx context.Context, rr *radixv1.RadixRegistration) error {
 	secretName := GetAlertSecretName(syncer.radixAlert.Name)
 	roleName := getAlertConfigSecretAdminRoleName(syncer.radixAlert.Name)
 	namespace := syncer.radixAlert.Namespace
@@ -88,10 +88,10 @@ func (syncer *alertSyncer) grantAdminAccessToAlertConfigSecret(rr *radixv1.Radix
 	subjects := kube.GetRoleBindingGroups(adGroups)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	rolebinding.OwnerReferences = syncer.getOwnerReference()
-	return syncer.kubeUtil.ApplyRoleBinding(namespace, rolebinding)
+	return syncer.kubeUtil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
-func (syncer *alertSyncer) grantReaderAccessToAlertConfigSecret(rr *radixv1.RadixRegistration) error {
+func (syncer *alertSyncer) grantReaderAccessToAlertConfigSecret(ctx context.Context, rr *radixv1.RadixRegistration) error {
 	secretName := GetAlertSecretName(syncer.radixAlert.Name)
 	roleName := getAlertConfigSecretReaderRoleName(syncer.radixAlert.Name)
 	namespace := syncer.radixAlert.Namespace
@@ -107,7 +107,7 @@ func (syncer *alertSyncer) grantReaderAccessToAlertConfigSecret(rr *radixv1.Radi
 	subjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	rolebinding.OwnerReferences = syncer.getOwnerReference()
-	return syncer.kubeUtil.ApplyRoleBinding(namespace, rolebinding)
+	return syncer.kubeUtil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
 func getAlertConfigSecretAdminRoleName(alertName string) string {

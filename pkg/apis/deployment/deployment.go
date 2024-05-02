@@ -214,7 +214,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to perform auxiliary resource garbage collection: %w", err)
 	}
 
-	if err := deploy.configureRbac(); err != nil {
+	if err := deploy.configureRbac(ctx); err != nil {
 		return fmt.Errorf("failed to configure rbac: %w", err)
 	}
 
@@ -266,8 +266,8 @@ func (deploy *Deployment) syncAuxiliaryResources(ctx context.Context) error {
 	return nil
 }
 
-func (deploy *Deployment) configureRbac() error {
-	rbacFunc := GetDeploymentRbacConfigurators(deploy)
+func (deploy *Deployment) configureRbac(ctx context.Context) error {
+	rbacFunc := GetDeploymentRbacConfigurators(ctx, deploy)
 	for _, rbac := range rbacFunc {
 		if err := rbac(); err != nil {
 			return err

@@ -96,7 +96,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		return err
 	}
 
-	err = env.OnSync(meta.NewTime(time.Now().UTC()))
+	err = env.OnSync(ctx, meta.NewTime(time.Now().UTC()))
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		return err

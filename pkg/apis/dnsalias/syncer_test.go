@@ -743,7 +743,7 @@ func (s *syncerTestSuite) registerRadixDeployments(radixDeployments ...*radixv1.
 
 func (s *syncerTestSuite) registerClusterRoleBindings(radixDNSAlias *radixv1.RadixDNSAlias, roleBindings []string) {
 	for _, name := range roleBindings {
-		err := s.kubeUtil.ApplyClusterRoleBinding(internal.BuildClusterRoleBinding(name, nil, radixDNSAlias))
+		err := s.kubeUtil.ApplyClusterRoleBinding(context.Background(), internal.BuildClusterRoleBinding(name, nil, radixDNSAlias))
 		s.Require().NoError(err, "create existing cluster role binding %s", name)
 	}
 }

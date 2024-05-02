@@ -35,12 +35,12 @@ func (kubeutil *Kube) GetRadixDNSAlias(name string) (*radixv1.RadixDNSAlias, err
 }
 
 // ListRadixDNSAlias List RadixDNSAliases using lister if present
-func (kubeutil *Kube) ListRadixDNSAlias() ([]*radixv1.RadixDNSAlias, error) {
-	return kubeutil.ListRadixDNSAliasWithSelector("")
+func (kubeutil *Kube) ListRadixDNSAlias(ctx context.Context) ([]*radixv1.RadixDNSAlias, error) {
+	return kubeutil.ListRadixDNSAliasWithSelector(ctx, "")
 }
 
 // ListRadixDNSAliasWithSelector List RadixDNSAliases with selector
-func (kubeutil *Kube) ListRadixDNSAliasWithSelector(labelSelectorString string) ([]*radixv1.RadixDNSAlias, error) {
+func (kubeutil *Kube) ListRadixDNSAliasWithSelector(ctx context.Context, labelSelectorString string) ([]*radixv1.RadixDNSAlias, error) {
 	if kubeutil.RadixDNSAliasLister != nil {
 		selector, err := labels.Parse(labelSelectorString)
 		if err != nil {
@@ -53,7 +53,7 @@ func (kubeutil *Kube) ListRadixDNSAliasWithSelector(labelSelectorString string) 
 		return aliases, nil
 	}
 
-	aliasList, err := kubeutil.GetRadixDNSAliasWithSelector(labelSelectorString)
+	aliasList, err := kubeutil.GetRadixDNSAliasWithSelector(ctx, labelSelectorString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all RadixDNSAliases. Error was %v", err)
 	}
@@ -61,8 +61,8 @@ func (kubeutil *Kube) ListRadixDNSAliasWithSelector(labelSelectorString string) 
 }
 
 // GetRadixDNSAliasWithSelector Get RadixDNSAliases with selector
-func (kubeutil *Kube) GetRadixDNSAliasWithSelector(labelSelectorString string) (*radixv1.RadixDNSAliasList, error) {
-	return kubeutil.radixclient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelectorString})
+func (kubeutil *Kube) GetRadixDNSAliasWithSelector(ctx context.Context, labelSelectorString string) (*radixv1.RadixDNSAliasList, error) {
+	return kubeutil.radixclient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{LabelSelector: labelSelectorString})
 }
 
 // GetRadixDNSAliasMap Gets a map of all RadixDNSAliases

@@ -130,11 +130,11 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 	if err := app.syncEnvironments(); err != nil {
 		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}
-	if err := app.syncPrivateImageHubSecrets(); err != nil {
+	if err := app.syncPrivateImageHubSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to create private image hub secrets: %w", err)
 	}
 
-	if err := app.syncBuildSecrets(); err != nil {
+	if err := app.syncBuildSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to create build secrets: %w", err)
 	}
 
