@@ -111,7 +111,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	return applicationConfig.ApplyConfigToApplicationNamespace()
+	return applicationConfig.ApplyConfigToApplicationNamespace(context.TODO())
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {

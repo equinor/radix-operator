@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func (s *syncer) restoreStatus() error {
+func (s *syncer) restoreStatus(ctx context.Context) error {
 	restoredStatus, ok := s.radixDNSAlias.Annotations[kube.RestoredStatusAnnotation]
 	if !ok || len(restoredStatus) == 0 {
 		return nil
@@ -24,14 +24,14 @@ func (s *syncer) restoreStatus() error {
 	if err := json.Unmarshal([]byte(restoredStatus), &status); err != nil {
 		return fmt.Errorf("unable to deserialize status from annotation: %w", err)
 	}
-	return s.updateStatus(func(currStatus *radixv1.RadixDNSAliasStatus) {
+	return s.updateStatus(ctx, func(currStatus *radixv1.RadixDNSAliasStatus) {
 		*currStatus = status
 	})
 }
 
-func (s *syncer) syncStatus(syncErr error) error {
+func (s *syncer) syncStatus(ctx context.Context, syncErr error) error {
 	syncCompleteTime := metav1.Now()
-	err := s.updateStatus(func(currStatus *radixv1.RadixDNSAliasStatus) {
+	err := s.updateStatus(ctx, func(currStatus *radixv1.RadixDNSAliasStatus) {
 		currStatus.Reconciled = &syncCompleteTime
 		if syncErr != nil {
 			currStatus.Condition = radixv1.RadixDNSAliasFailed
@@ -47,9 +47,9 @@ func (s *syncer) syncStatus(syncErr error) error {
 	return syncErr
 }
 
-func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixDNSAliasStatus)) error {
+func (s *syncer) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixDNSAliasStatus)) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		radixDNSAlias, err := s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), s.radixDNSAlias.GetName(), metav1.GetOptions{})
+		radixDNSAlias, err := s.radixClient.RadixV1().RadixDNSAliases().Get(ctx, s.radixDNSAlias.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -57,7 +57,7 @@ func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixDNS
 		updatedRadixDNSAlias, err := s.radixClient.
 			RadixV1().
 			RadixDNSAliases().
-			UpdateStatus(context.TODO(), radixDNSAlias, metav1.UpdateOptions{})
+			UpdateStatus(ctx, radixDNSAlias, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

@@ -62,13 +62,13 @@ func (s *syncer) OnSync(ctx context.Context) error {
 	s.logger = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixDNSAlias).Str("resource_name", cache.MetaObjectToName(&s.radixDNSAlias.ObjectMeta).String()).Logger()
 
 	s.logger.Debug().Msgf("OnSync RadixDNSAlias %s, application %s, environment %s, component %s", s.radixDNSAlias.GetName(), s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment, s.radixDNSAlias.Spec.Component)
-	if err := s.restoreStatus(); err != nil {
+	if err := s.restoreStatus(ctx); err != nil {
 		return fmt.Errorf("failed to update status on DNS alias %s: %v", s.radixDNSAlias.GetName(), err)
 	}
 	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
 		return s.handleDeletedRadixDNSAlias(ctx)
 	}
-	return s.syncStatus(s.syncAlias(ctx))
+	return s.syncStatus(ctx, s.syncAlias(ctx))
 
 }
 

@@ -28,18 +28,18 @@ func (kubeutil *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, e
 }
 
 // ListConfigMaps Lists config maps in namespace
-func (kubeutil *Kube) ListConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, "")
+func (kubeutil *Kube) ListConfigMaps(ctx context.Context, namespace string) ([]*corev1.ConfigMap, error) {
+	return kubeutil.ListConfigMapsWithSelector(ctx, namespace, "")
 }
 
 // ListEnvVarsConfigMaps Lists config maps which contain env vars
-func (kubeutil *Kube) ListEnvVarsConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, getEnvVarsConfigMapSelector().String())
+func (kubeutil *Kube) ListEnvVarsConfigMaps(ctx context.Context, namespace string) ([]*corev1.ConfigMap, error) {
+	return kubeutil.ListConfigMapsWithSelector(ctx, namespace, getEnvVarsConfigMapSelector().String())
 }
 
 // ListEnvVarsMetadataConfigMaps Lists config maps which contain metadata of env vars
-func (kubeutil *Kube) ListEnvVarsMetadataConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, getEnvVarsMetadataConfigMapSelector().String())
+func (kubeutil *Kube) ListEnvVarsMetadataConfigMaps(ctx context.Context, namespace string) ([]*corev1.ConfigMap, error) {
+	return kubeutil.ListConfigMapsWithSelector(ctx, namespace, getEnvVarsMetadataConfigMapSelector().String())
 }
 
 // UpdateConfigMap Update config-maps
@@ -92,9 +92,9 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 }
 
 // ListConfigMapsWithSelector Get a list of ConfigMaps by Label requirements
-func (kubeutil *Kube) ListConfigMapsWithSelector(namespace string, labelSelectorString string) ([]*corev1.ConfigMap, error) {
+func (kubeutil *Kube) ListConfigMapsWithSelector(ctx context.Context, namespace string, labelSelectorString string) ([]*corev1.ConfigMap, error) {
 	listOptions := metav1.ListOptions{LabelSelector: labelSelectorString}
-	list, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).List(context.TODO(), listOptions)
+	list, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}

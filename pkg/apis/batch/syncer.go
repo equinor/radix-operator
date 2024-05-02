@@ -45,7 +45,7 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		Str("resource_name", cache.MetaObjectToName(&s.radixBatch.ObjectMeta).String()).
 		Logger().WithContext(ctx)
 
-	if err := s.restoreStatus(); err != nil {
+	if err := s.restoreStatus(ctx); err != nil {
 		return err
 	}
 
@@ -53,7 +53,7 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return nil
 	}
 
-	return s.syncStatus(s.reconcile(ctx))
+	return s.syncStatus(ctx, s.reconcile(ctx))
 }
 
 func (s *syncer) reconcile(ctx context.Context) error {
@@ -84,7 +84,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 		}
 
 		if i%syncStatusForEveryNumberOfBatchJobsReconciled == 0 {
-			if err := s.syncStatus(nil); err != nil {
+			if err := s.syncStatus(ctx, nil); err != nil {
 				return fmt.Errorf("batchjob %s: failed to sync status: %w", batchJob.Name, err)
 			}
 		}

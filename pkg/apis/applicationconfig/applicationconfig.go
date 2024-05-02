@@ -81,17 +81,17 @@ func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) [
 }
 
 // ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it
-func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
+func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Context) error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 
-	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(context.TODO(), app.config.Name, metav1.GetOptions{})
+	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(ctx, app.config.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			app.logger.Debug().Msgf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
 			if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 				return err
 			}
-			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), app.config, metav1.CreateOptions{})
+			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(ctx, app.config, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create radix application. %v", err)
 			}
@@ -115,7 +115,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	app.logger.Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
 	// For an update, ResourceVersion of the new object must be the same with the old object
 	app.config.SetResourceVersion(existingRA.GetResourceVersion())
-	_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), app.config, metav1.UpdateOptions{})
+	_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(ctx, app.config, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update existing radix application: %w", err)
 	}

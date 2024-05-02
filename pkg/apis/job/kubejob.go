@@ -34,7 +34,7 @@ const (
 	fsGroup       = 1000
 )
 
-func (job *Job) createPipelineJob() error {
+func (job *Job) createPipelineJob(ctx context.Context) error {
 	namespace := job.radixJob.Namespace
 
 	jobConfig, err := job.getPipelineJobConfig()
@@ -42,7 +42,7 @@ func (job *Job) createPipelineJob() error {
 		return err
 	}
 
-	_, err = job.kubeclient.BatchV1().Jobs(namespace).Create(context.TODO(), jobConfig, metav1.CreateOptions{})
+	_, err = job.kubeclient.BatchV1().Jobs(namespace).Create(ctx, jobConfig, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func getPushImageTag(pushImage bool) string {
 	return "0"
 }
 
-func (job *Job) getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) (v1.RadixJobCondition, error) {
+func (job *Job) getJobConditionFromJobStatus(ctx context.Context, jobStatus batchv1.JobStatus) (v1.RadixJobCondition, error) {
 	if jobStatus.Failed > 0 {
 		return v1.JobFailed, nil
 	}
@@ -243,7 +243,7 @@ func (job *Job) getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) (v1.Ra
 
 	}
 	if jobStatus.Succeeded > 0 {
-		jobResult, err := job.getRadixJobResult()
+		jobResult, err := job.getRadixJobResult(ctx)
 		if err != nil {
 			return v1.JobSucceeded, err
 		}
@@ -255,10 +255,10 @@ func (job *Job) getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) (v1.Ra
 	return v1.JobWaiting, nil
 }
 
-func (job *Job) getRadixJobResult() (*v1.RadixJobResult, error) {
+func (job *Job) getRadixJobResult(ctx context.Context) (*v1.RadixJobResult, error) {
 	namespace := job.radixJob.GetNamespace()
 	jobName := job.radixJob.GetName()
-	configMaps, err := job.kubeutil.ListConfigMapsWithSelector(namespace, getRadixPipelineJobResultConfigMapSelector(jobName))
+	configMaps, err := job.kubeutil.ListConfigMapsWithSelector(ctx, namespace, getRadixPipelineJobResultConfigMapSelector(jobName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s. Error: %w", namespace, err)
 	}

@@ -42,7 +42,7 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 		slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })) {
 		return nil
 	}
-	err = s.validatePayloadSecretReference(batchJob, jobComponent)
+	err = s.validatePayloadSecretReference(ctx, batchJob, jobComponent)
 	if err != nil {
 		return err
 	}
@@ -51,16 +51,16 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 		return err
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		_, err = s.kubeClient.BatchV1().Jobs(s.radixBatch.GetNamespace()).Create(context.TODO(), job, metav1.CreateOptions{})
+		_, err = s.kubeClient.BatchV1().Jobs(s.radixBatch.GetNamespace()).Create(ctx, job, metav1.CreateOptions{})
 		return err
 	})
 }
 
-func (s *syncer) validatePayloadSecretReference(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) error {
+func (s *syncer) validatePayloadSecretReference(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) error {
 	if batchJob.PayloadSecretRef == nil {
 		return nil
 	}
-	payloadSecret, err := s.kubeClient.CoreV1().Secrets(s.radixBatch.GetNamespace()).Get(context.Background(), batchJob.PayloadSecretRef.Name, metav1.GetOptions{})
+	payloadSecret, err := s.kubeClient.CoreV1().Secrets(s.radixBatch.GetNamespace()).Get(ctx, batchJob.PayloadSecretRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

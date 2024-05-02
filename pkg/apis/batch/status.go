@@ -29,7 +29,7 @@ func isJobStatusDone(jobStatus radixv1.RadixBatchJobStatus) bool {
 		jobStatus.Phase == radixv1.BatchJobPhaseStopped
 }
 
-func (s *syncer) syncStatus(reconcileError error) error {
+func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 	jobStatuses, err := s.buildJobStatuses()
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		conditionType = radixv1.BatchConditionTypeCompleted
 	}
 
-	err = s.updateStatus(func(currStatus *radixv1.RadixBatchStatus) {
+	err = s.updateStatus(ctx, func(currStatus *radixv1.RadixBatchStatus) {
 		currStatus.JobStatuses = jobStatuses
 		currStatus.Condition.Type = conditionType
 		currStatus.Condition.Reason = ""
@@ -80,7 +80,7 @@ func (s *syncer) syncStatus(reconcileError error) error {
 			return nil
 		}
 
-		if err := s.updateStatus(func(currStatus *radixv1.RadixBatchStatus) { currStatus.Condition = status.Status() }); err != nil {
+		if err := s.updateStatus(ctx, func(currStatus *radixv1.RadixBatchStatus) { currStatus.Condition = status.Status() }); err != nil {
 			return err
 		}
 	}
@@ -88,7 +88,7 @@ func (s *syncer) syncStatus(reconcileError error) error {
 	return reconcileError
 }
 
-func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixBatchStatus)) error {
+func (s *syncer) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixBatchStatus)) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		radixBatch, err := s.radixClient.RadixV1().RadixBatches(s.radixBatch.GetNamespace()).Get(context.Background(), s.radixBatch.GetName(), metav1.GetOptions{})
 		if err != nil {
@@ -98,7 +98,7 @@ func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixBat
 		updatedRadixBatch, err := s.radixClient.
 			RadixV1().
 			RadixBatches(radixBatch.GetNamespace()).
-			UpdateStatus(context.TODO(), radixBatch, metav1.UpdateOptions{})
+			UpdateStatus(ctx, radixBatch, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -335,7 +335,7 @@ func getJobConditionsSortedDesc(job *batchv1.Job) []batchv1.JobCondition {
 	return descSortedJobConditions
 }
 
-func (s *syncer) restoreStatus() error {
+func (s *syncer) restoreStatus(ctx context.Context) error {
 	if restoredStatus, ok := s.radixBatch.Annotations[kube.RestoredStatusAnnotation]; ok && len(restoredStatus) > 0 {
 		if reflect.ValueOf(s.radixBatch.Status).IsZero() {
 			var status radixv1.RadixBatchStatus
@@ -344,7 +344,7 @@ func (s *syncer) restoreStatus() error {
 				return fmt.Errorf("unable to restore status for batch %s.%s from annotation: %w", s.radixBatch.GetNamespace(), s.radixBatch.GetName(), err)
 			}
 
-			return s.updateStatus(func(currStatus *radixv1.RadixBatchStatus) {
+			return s.updateStatus(ctx, func(currStatus *radixv1.RadixBatchStatus) {
 				*currStatus = status
 			})
 		}
