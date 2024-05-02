@@ -105,6 +105,11 @@ func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group
 	}
 
 	errorGroup.Go(func() error {
+		// Let this Goroutine finish any work, the parent errorgroup will stop
+		// scheduling more tasks when the parent context is cancelled.
+		// Kubernetes will kill the process if it takes to long to finish any way
+		ctx = context.Background()
+
 		defer func() {
 			c.WorkQueue.Done(workItem)
 		}()

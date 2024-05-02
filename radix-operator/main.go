@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -84,19 +85,23 @@ func main() {
 		panic(fmt.Errorf("failed to load ingress configuration: %v", err))
 	}
 
-	startController(ctx, createRegistrationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), registrationControllerThreads)
-	startController(ctx, createApplicationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg.DNSConfig), applicationControllerThreads)
-	startController(ctx, createEnvironmentController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), environmentControllerThreads)
-	startController(ctx, createDeploymentController(kubeUtil, prometheusOperatorClient, certClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads)
-	startController(ctx, createJobController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg), jobControllerThreads)
-	startController(ctx, createAlertController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder), alertControllerThreads)
-	startController(ctx, createBatchController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), 1)
-	startController(ctx, createDNSAliasesController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg.DNSConfig), environmentControllerThreads)
+	wg := &sync.WaitGroup{}
+	startController(ctx, wg, createRegistrationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), registrationControllerThreads)
+	startController(ctx, wg, createApplicationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg.DNSConfig), applicationControllerThreads)
+	startController(ctx, wg, createEnvironmentController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), environmentControllerThreads)
+	startController(ctx, wg, createDeploymentController(kubeUtil, prometheusOperatorClient, certClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads)
+	startController(ctx, wg, createJobController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg), jobControllerThreads)
+	startController(ctx, wg, createAlertController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder), alertControllerThreads)
+	startController(ctx, wg, createBatchController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), 1)
+	startController(ctx, wg, createDNSAliasesController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg.DNSConfig), environmentControllerThreads)
 
 	// Start informers when all controllers are running
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
 	<-ctx.Done()
+	log.Info().Msg("Shutting down")
+	wg.Wait()
+	log.Info().Msg("Finished.")
 }
 
 func initLogger(cfg *apiconfig.Config) {
@@ -129,8 +134,11 @@ func getOAuthDefaultConfig() defaults.OAuth2Config {
 	)
 }
 
-func startController(ctx context.Context, controller *common.Controller, threadiness int) {
+func startController(ctx context.Context, wg *sync.WaitGroup, controller *common.Controller, threadiness int) {
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+
 		if err := controller.Run(ctx, threadiness); err != nil {
 			log.Fatal().Err(err).Msg("Error running controller")
 		}
