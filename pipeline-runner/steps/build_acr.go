@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -166,7 +165,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			Name: RadixImageBuilderTmpVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: pointers.Ptr(resource.MustParse("1M")),
+					SizeLimit: resource.NewScaledQuantity(1, resource.Mega),
 				},
 			},
 		},
@@ -174,7 +173,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			Name: RadixImageBuilderHomeVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: pointers.Ptr(resource.MustParse("1M")),
+					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
 				},
 			},
 		},
