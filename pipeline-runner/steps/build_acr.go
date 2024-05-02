@@ -166,7 +166,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			Name: RadixImageBuilderTmpVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
+					SizeLimit: resource.NewScaledQuantity(5, resource.Giga),
 				},
 			},
 		},
