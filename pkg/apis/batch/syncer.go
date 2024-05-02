@@ -8,9 +8,11 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 // Syncer of  RadixBatch
@@ -37,7 +39,11 @@ type syncer struct {
 }
 
 // OnSync Syncs RadixBatches
-func (s *syncer) OnSync(_ context.Context) error {
+func (s *syncer) OnSync(ctx context.Context) error {
+	ctx = log.Ctx(ctx).With().
+		Str("resource_kind", radixv1.KindRadixBatch).
+		Str("resource_name", cache.MetaObjectToName(&s.radixBatch.ObjectMeta).String()).
+		Logger().WithContext(ctx)
 
 	if err := s.restoreStatus(); err != nil {
 		return err
@@ -47,10 +53,10 @@ func (s *syncer) OnSync(_ context.Context) error {
 		return nil
 	}
 
-	return s.syncStatus(s.reconcile())
+	return s.syncStatus(s.reconcile(ctx))
 }
 
-func (s *syncer) reconcile() error {
+func (s *syncer) reconcile(ctx context.Context) error {
 	const syncStatusForEveryNumberOfBatchJobsReconciled = 10
 
 	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent()
@@ -69,7 +75,6 @@ func (s *syncer) reconcile() error {
 	}
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
-		ctx := log.Ctx(ctx).With().Str("batchJob", batchJob.Name).Logger().WithContext(ctx)
 		if err := s.reconcileService(&batchJob, rd, jobComponent, existingServices); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}

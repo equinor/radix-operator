@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	resourceutils "github.com/equinor/radix-operator/pkg/apis/utils/resources"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -76,7 +76,7 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) error 
 	defaultMemory := defaults.GetDefaultMemoryRequest()
 
 	for _, comp := range rd.Spec.Components {
-		resources, err := resourceutils.GetResourceRequirements(&comp)
+		resources, err := utils.GetResourceRequirements(&comp)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("component %s: error getting resource requirements: %w", comp.Name, err))
 		}
