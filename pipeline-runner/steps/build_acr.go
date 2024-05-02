@@ -26,10 +26,12 @@ import (
 )
 
 const (
-	buildSecretsMountPath        = "/build-secrets"
-	privateImageHubMountPath     = "/radix-private-image-hubs"
-	buildahRegistryAuthFile      = "/home/build/auth.json"
-	azureServicePrincipleContext = "/radix-image-builder/.azure"
+	buildSecretsMountPath           = "/build-secrets"
+	privateImageHubMountPath        = "/radix-private-image-hubs"
+	buildahRegistryAuthFile         = "/home/build/auth.json"
+	azureServicePrincipleContext    = "/radix-image-builder/.azure"
+	RadixImageBuilderHomeVolumeName = "radix-image-builder-home"
+	RadixImageBuilderTmpVolumeName  = "radix-image-builder-tmp"
 )
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
@@ -156,6 +158,22 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: defaults.PrivateImageHubSecretName,
+				},
+			},
+		},
+		{
+			Name: RadixImageBuilderTmpVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(1, resource.Mega),
+				},
+			},
+		},
+		{
+			Name: RadixImageBuilderHomeVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
 				},
 			},
 		},
@@ -393,6 +411,16 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, moun
 			Name:      defaults.AzureACRServicePrincipleSecretName,
 			MountPath: azureServicePrincipleContext,
 			ReadOnly:  true,
+		},
+		{
+			Name:      RadixImageBuilderTmpVolumeName, // image-builder creates a script there
+			MountPath: "/tmp",
+			ReadOnly:  false,
+		},
+		{
+			Name:      RadixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
+			MountPath: "/home/radix-image-builder",
+			ReadOnly:  false,
 		},
 	}
 
