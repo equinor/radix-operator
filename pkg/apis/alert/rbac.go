@@ -11,8 +11,8 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (syncer *alertSyncer) configureRbac() error {
-	rr, found := syncer.tryGetRadixRegistration()
+func (syncer *alertSyncer) configureRbac(ctx context.Context) error {
+	rr, found := syncer.tryGetRadixRegistration(ctx)
 	if !found {
 		syncer.logger.Debug().Msg("radixregistration not found")
 		return syncer.garbageCollectAccessToAlertConfigSecret()
@@ -25,13 +25,13 @@ func (syncer *alertSyncer) configureRbac() error {
 	return syncer.grantReaderAccessToAlertConfigSecret(rr)
 }
 
-func (syncer *alertSyncer) tryGetRadixRegistration() (*radixv1.RadixRegistration, bool) {
+func (syncer *alertSyncer) tryGetRadixRegistration(ctx context.Context) (*radixv1.RadixRegistration, bool) {
 	appName, found := syncer.radixAlert.Labels[kube.RadixAppLabel]
 	if !found {
 		return nil, false
 	}
 
-	rr, err := syncer.radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), appName, v1.GetOptions{})
+	rr, err := syncer.radixClient.RadixV1().RadixRegistrations().Get(ctx, appName, v1.GetOptions{})
 	if err != nil {
 		return nil, false
 	}

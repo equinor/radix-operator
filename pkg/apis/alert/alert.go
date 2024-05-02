@@ -56,32 +56,32 @@ func New(kubeclient kubernetes.Interface,
 func (syncer *alertSyncer) OnSync(ctx context.Context) error {
 	log.Ctx(ctx).Info().Msg("Syncing")
 
-	if err := syncer.syncAlert(); err != nil {
+	if err := syncer.syncAlert(ctx); err != nil {
 		return err
 	}
 
-	return syncer.syncStatus()
+	return syncer.syncStatus(ctx)
 }
 
-func (syncer *alertSyncer) syncAlert() error {
+func (syncer *alertSyncer) syncAlert(ctx context.Context) error {
 	if err := syncer.createOrUpdateSecret(); err != nil {
 		return fmt.Errorf("failed to sync secrets: %v", err)
 	}
 
-	if err := syncer.configureRbac(); err != nil {
+	if err := syncer.configureRbac(ctx); err != nil {
 		return fmt.Errorf("failed to configure RBAC: %v", err)
 	}
 
-	if err := syncer.createOrUpdateAlertManagerConfig(); err != nil {
+	if err := syncer.createOrUpdateAlertManagerConfig(ctx); err != nil {
 		return fmt.Errorf("failed to sync alertmanagerconfigs: %v", err)
 	}
 
 	return nil
 }
 
-func (syncer *alertSyncer) syncStatus() error {
+func (syncer *alertSyncer) syncStatus(ctx context.Context) error {
 	syncCompleteTime := metav1.Now()
-	err := syncer.updateRadixAlertStatus(func(currStatus *radixv1.RadixAlertStatus) {
+	err := syncer.updateRadixAlertStatus(ctx, func(currStatus *radixv1.RadixAlertStatus) {
 		currStatus.Reconciled = &syncCompleteTime
 	})
 	if err != nil {
@@ -91,16 +91,16 @@ func (syncer *alertSyncer) syncStatus() error {
 	return nil
 }
 
-func (syncer *alertSyncer) updateRadixAlertStatus(changeStatusFunc func(currStatus *radixv1.RadixAlertStatus)) error {
+func (syncer *alertSyncer) updateRadixAlertStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixAlertStatus)) error {
 	ralInterface := syncer.radixClient.RadixV1().RadixAlerts(syncer.radixAlert.GetNamespace())
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRAL, err := ralInterface.Get(context.TODO(), syncer.radixAlert.GetName(), metav1.GetOptions{})
+		currentRAL, err := ralInterface.Get(ctx, syncer.radixAlert.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentRAL.Status)
-		updateRAL, err := ralInterface.UpdateStatus(context.TODO(), currentRAL, metav1.UpdateOptions{})
+		updateRAL, err := ralInterface.UpdateStatus(ctx, currentRAL, metav1.UpdateOptions{})
 		if err == nil {
 			syncer.radixAlert = updateRAL
 		}
