@@ -19,13 +19,13 @@ limitations under the License.
 package externalversions
 
 import (
-	internalinterfaces "pkg/client/informers/externalversions/internalinterfaces"
-	radix "pkg/client/informers/externalversions/radix"
 	reflect "reflect"
 	sync "sync"
 	time "time"
 
-	versioned "./pkg/client/clientset/versioned"
+	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
+	radix "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

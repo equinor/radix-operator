@@ -20,12 +20,12 @@ package v1
 
 import (
 	"context"
-	internalinterfaces "pkg/client/informers/externalversions/internalinterfaces"
 	time "time"
 
-	radixv1 "./pkg/apis/radix/v1"
-	versioned "./pkg/client/clientset/versioned"
-	v1 "./pkg/client/listers/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
