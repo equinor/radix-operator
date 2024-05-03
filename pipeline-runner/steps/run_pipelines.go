@@ -96,8 +96,7 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 	return step.jobWaiter.Wait(job)
 }
 
-func (step *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
-PipelineInfo) *batchv1.Job {
+func (step *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
 	appName := step.GetAppName()
 	action := pipelineDefaults.RadixPipelineActionRun
 	envVars := []corev1.EnvVar{
