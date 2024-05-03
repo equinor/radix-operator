@@ -26,7 +26,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	namespace := utils.GetAppNamespace(appName)
 	appNamespace := test.CreateAppNamespace(s.KubeClient, appName)
 
-	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
 	s.KubeInformerFactory.Start(s.Ctx.Done())
 
@@ -53,7 +53,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_Reader_C
 		s.Require().NoError(err)
 	}
 
-	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
 	s.KubeInformerFactory.Start(s.Ctx.Done())
 

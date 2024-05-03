@@ -146,7 +146,7 @@ func startJobController(ctx context.Context, client kubernetes.Interface, radixC
 	eventRecorder := &record.FakeRecorder{}
 
 	const waitForChildrenToSync = false
-	controller := NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
+	controller := NewController(ctx, client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())

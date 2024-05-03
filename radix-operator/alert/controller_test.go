@@ -26,7 +26,7 @@ func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	alertName, namespace := "any-alert", "any-ns"
 	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
 
-	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
 	s.KubeInformerFactory.Start(s.Ctx.Done())
 	go func() {
@@ -69,7 +69,7 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 		s.Require().NoError(err)
 	}
 
-	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
 	s.KubeInformerFactory.Start(s.Ctx.Done())
 	go func() {

@@ -164,6 +164,7 @@ func startDeploymentController(ctx context.Context, client kubernetes.Interface,
 
 	const waitForChildrenToSync = false
 	controller := NewController(
+		ctx,
 		client, radixClient, handler,
 		kubeInformerFactory,
 		radixInformerFactory,

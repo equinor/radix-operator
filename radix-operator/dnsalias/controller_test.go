@@ -36,7 +36,7 @@ func (s *controllerTestSuite) TearDownTest() {
 }
 
 func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
-	sut := dnsalias.NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := dnsalias.NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
 	s.KubeInformerFactory.Start(s.Ctx.Done())
 	go func() {

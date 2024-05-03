@@ -26,7 +26,7 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 	batchName, namespace := "a-batch-job", "a-ns"
 	jobName := "a-job"
 
-	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
 	s.KubeInformerFactory.Start(s.Ctx.Done())
 	go func() {
