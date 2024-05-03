@@ -17,20 +17,20 @@ type RadixAlert struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//RadixAlertList is a list of RadixAlert
+// RadixAlertList is a list of RadixAlert
 type RadixAlertList struct {
 	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
 	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
 	Items            []RadixAlert `json:"items" yaml:"items"`
 }
 
-//RadixAlertSpec is the spec for a RadixAlert
+// RadixAlertSpec is the spec for a RadixAlert
 type RadixAlertSpec struct {
 	Receivers ReceiverMap `json:"receivers" yaml:"receivers"`
 	Alerts    []Alert     `json:"alerts" yaml:"alerts"`
 }
 
-//RadixAlertStatus is the status for a RadixAlert
+// RadixAlertStatus is the status for a RadixAlert
 type RadixAlertStatus struct {
 	Reconciled *meta_v1.Time `json:"reconciled" yaml:"reconciled"`
 }

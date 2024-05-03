@@ -46,7 +46,7 @@ CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
-KUBE_CODEGEN_PKG = $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.30.0
+KUBE_CODEGEN_VERSION = v0.25.3
 
 HASH := $(shell git rev-parse HEAD)
 
@@ -119,11 +119,12 @@ CUSTOM_RESOURCE_VERSION=v1
 
 .PHONY: code-gen
 code-gen: bootstrap
-	$$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all \
+	echo
+	$$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh all \
 		$(ROOT_PACKAGE)/pkg/client \
 		$(ROOT_PACKAGE)/pkg/apis \
 		$(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) \
-		--go-header-file $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
+		--go-header-file hack/boilerplate.txt
 
 .PHONY: crds
 crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds
@@ -164,7 +165,7 @@ HAS_SWAGGER       := $(shell command -v swagger;)
 HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
 HAS_MOCKGEN       := $(shell command -v mockgen;)
 HAS_CONTROLLER_GEN := $(shell command -v controller-gen)
-HAS_GENERATE_GROUPS := $(shell command -v $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh)
+HAS_GENERATE_GROUPS := $(shell command -v $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh)
 
 .PHONY: bootstrap
 bootstrap:
@@ -181,6 +182,7 @@ ifndef HAS_CONTROLLER_GEN
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
 endif
 ifndef HAS_GENERATE_GROUPS
-	-go install k8s.io/code-generator@v0.25.3
-	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh)
+	-go install k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)
+	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh
+	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-internal-groups.sh
 endif
