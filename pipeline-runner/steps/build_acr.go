@@ -32,7 +32,6 @@ const (
 	azureServicePrincipleContext    = "/radix-image-builder/.azure"
 	RadixImageBuilderHomeVolumeName = "radix-image-builder-home"
 	BuildKitRunVolumeName           = "build-kit-run"
-	RadixImageBuilderTmpVolumeName  = "radix-image-builder-tmp"
 )
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
@@ -122,7 +121,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 					InitContainers:  initContainers,
 					Containers:      buildContainers,
 					SecurityContext: buildPodSecurityContext,
-					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets, isUsingBuildKit(pipelineInfo)),
+					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets, isUsingBuildKit(pipelineInfo), buildContainers),
 					Affinity:        utils.GetPipelineJobPodSpecAffinity(),
 					Tolerations:     utils.GetPipelineJobPodSpecTolerations(),
 				},
@@ -132,7 +131,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 	return job
 }
 
-func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar, isUsingBuildKit bool) []corev1.Volume {
+func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar, isUsingBuildKit bool, containers []corev1.Container) []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: git.BuildContextVolumeName,
@@ -163,14 +162,6 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			},
 		},
 		{
-			Name: RadixImageBuilderTmpVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
-				},
-			},
-		},
-		{
 			Name: RadixImageBuilderHomeVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
@@ -178,6 +169,18 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 				},
 			},
 		},
+	}
+
+	for _, container := range containers {
+		volumes = append(volumes, corev1.Volume{
+			Name: getTmpVolumeNameForContainer(container.Name),
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
+				},
+			},
+		},
+		)
 	}
 
 	if len(buildSecrets) > 0 {
@@ -237,7 +240,7 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 			Command:         command,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			VolumeMounts:    getContainerImageBuildingJobVolumeMounts(buildSecrets, isUsingBuildKit(pipelineInfo)),
+			VolumeMounts:    getContainerImageBuildingJobVolumeMounts(buildSecrets, isUsingBuildKit(pipelineInfo), componentImage.ContainerName),
 			SecurityContext: buildContainerSecContext,
 			Resources:       resources,
 		}
@@ -414,7 +417,7 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 	return envVars
 }
 
-func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUsingBuildKit bool) []corev1.VolumeMount {
+func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUsingBuildKit bool, containerName string) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      git.BuildContextVolumeName,
@@ -430,7 +433,7 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUs
 	if isUsingBuildKit {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
-				Name:      RadixImageBuilderTmpVolumeName, // image-builder creates files there
+				Name:      getTmpVolumeNameForContainer(containerName), // image-builder creates files there
 				MountPath: "/var/tmp",
 				ReadOnly:  false,
 			},
@@ -453,7 +456,7 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUs
 	} else {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
-				Name:      RadixImageBuilderTmpVolumeName, // image-builder creates a script there
+				Name:      getTmpVolumeNameForContainer(containerName), // image-builder creates a script there
 				MountPath: "/tmp",
 				ReadOnly:  false,
 			},
@@ -474,6 +477,10 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUs
 			})
 	}
 	return volumeMounts
+}
+
+func getTmpVolumeNameForContainer(containerName string) string {
+	return fmt.Sprintf("tmp-%s", containerName)
 }
 
 func getBuildahContainerCommand(containerImageRegistry, secretArgsString string, componentImage pipeline.BuildComponentImage, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool) []string {
