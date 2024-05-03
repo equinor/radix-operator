@@ -28,7 +28,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixEnvironments
-func NewController(client kubernetes.Interface,
+func NewController(ctx context.Context, client kubernetes.Interface,
 	radixClient radixclient.Interface,
 	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -47,7 +47,7 @@ func NewController(client kubernetes.Interface,
 		RadixClient:           radixClient,
 		Informer:              environmentInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		WorkQueue:             workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: crType}),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -99,7 +99,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this namespace
-			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
+			controller.HandleObject(ctx, obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
 		panic(err)
@@ -109,7 +109,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this role-binding
-			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
+			controller.HandleObject(ctx, obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
 		panic(err)
@@ -119,7 +119,7 @@ func NewController(client kubernetes.Interface,
 	if _, err := limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this limit-range
-			controller.HandleObject(obj, v1.KindRadixEnvironment, getOwner)
+			controller.HandleObject(ctx, obj, v1.KindRadixEnvironment, getOwner)
 		},
 	}); err != nil {
 		panic(err)
@@ -214,8 +214,8 @@ func deepEqual(old, new *v1.RadixEnvironment) bool {
 	return true
 }
 
-func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), name, metav1.GetOptions{})
+func getOwner(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixEnvironments().Get(ctx, name, metav1.GetOptions{})
 }
 
 func getAddedOrDroppedEnvironmentNames(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {

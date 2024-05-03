@@ -27,7 +27,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixApplications
-func NewController(client kubernetes.Interface,
+func NewController(ctx context.Context, client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
@@ -44,7 +44,7 @@ func NewController(client kubernetes.Interface,
 		RadixClient:           radixClient,
 		Informer:              applicationInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		WorkQueue:             workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: crType}),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -99,7 +99,7 @@ func NewController(client kubernetes.Interface,
 				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) {
 				return
 			}
-			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).Get(context.TODO(), newRr.Name, metav1.GetOptions{})
+			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).Get(ctx, newRr.Name, metav1.GetOptions{})
 			if err != nil {
 				logger.Error().Err(err).Msgf("Cannot get Radix Application object by name %s", newRr.Name)
 				return

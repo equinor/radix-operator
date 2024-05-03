@@ -27,7 +27,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixJobs
-func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
+func NewController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	jobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
@@ -40,7 +40,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		RadixClient:           radixClient,
 		Informer:              jobInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		WorkQueue:             workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: crType}),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -101,7 +101,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			if newJob.ResourceVersion == oldJob.ResourceVersion {
 				return
 			}
-			controller.HandleObject(cur, v1.KindRadixJob, getObject)
+			controller.HandleObject(ctx, cur, v1.KindRadixJob, getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixJob, converted := obj.(*batchv1.Job)
@@ -111,7 +111,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			}
 			// If a kubernetes job gets deleted for a running job, the running radix job should
 			// take this into account. The running job will get restarted
-			controller.HandleObject(radixJob, v1.KindRadixJob, getObject)
+			controller.HandleObject(ctx, radixJob, v1.KindRadixJob, getObject)
 		},
 	}); err != nil {
 		panic(err)
@@ -137,7 +137,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 					return
 				}
 
-				controller.HandleObject(job, v1.KindRadixJob, getObject)
+				controller.HandleObject(ctx, job, v1.KindRadixJob, getObject)
 			}
 		},
 	}); err != nil {
@@ -147,6 +147,6 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 	return controller
 }
 
-func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }

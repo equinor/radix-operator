@@ -85,14 +85,14 @@ func main() {
 	}
 
 	wg := &sync.WaitGroup{}
-	startController(ctx, wg, createRegistrationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), registrationControllerThreads)
-	startController(ctx, wg, createApplicationController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg.DNSConfig), applicationControllerThreads)
-	startController(ctx, wg, createEnvironmentController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), environmentControllerThreads)
-	startController(ctx, wg, createDeploymentController(kubeUtil, prometheusOperatorClient, certClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads)
-	startController(ctx, wg, createJobController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg), jobControllerThreads)
-	startController(ctx, wg, createAlertController(kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder), alertControllerThreads)
-	startController(ctx, wg, createBatchController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), 1)
-	startController(ctx, wg, createDNSAliasesController(kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg.DNSConfig), environmentControllerThreads)
+	startController(ctx, wg, createRegistrationController(ctx, kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), registrationControllerThreads)
+	startController(ctx, wg, createApplicationController(ctx, kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg.DNSConfig), applicationControllerThreads)
+	startController(ctx, wg, createEnvironmentController(ctx, kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), environmentControllerThreads)
+	startController(ctx, wg, createDeploymentController(ctx, kubeUtil, prometheusOperatorClient, certClient, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg), deploymentControllerThreads)
+	startController(ctx, wg, createJobController(ctx, kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, cfg), jobControllerThreads)
+	startController(ctx, wg, createAlertController(ctx, kubeUtil, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder), alertControllerThreads)
+	startController(ctx, wg, createBatchController(ctx, kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder), 1)
+	startController(ctx, wg, createDNSAliasesController(ctx, kubeUtil, kubeInformerFactory, radixInformerFactory, eventRecorder, oauthDefaultConfig, ingressConfiguration, cfg.DNSConfig), environmentControllerThreads)
 
 	// Start informers when all controllers are running
 	kubeInformerFactory.Start(ctx.Done())
@@ -158,7 +158,7 @@ func getInitParams() (int, int, int, int, int, int, int, float32, error) {
 	return registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, errCat
 }
 
-func createRegistrationController(kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
+func createRegistrationController(ctx context.Context, kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
 	handler := registration.NewHandler(
 		kubeUtil.KubeClient(),
 		kubeUtil,
@@ -167,6 +167,7 @@ func createRegistrationController(kubeUtil *kube.Kube, kubeInformerFactory kubei
 	)
 
 	return registration.NewController(
+		ctx,
 		kubeUtil.KubeClient(),
 		kubeUtil.RadixClient(),
 		&handler,
@@ -176,7 +177,7 @@ func createRegistrationController(kubeUtil *kube.Kube, kubeInformerFactory kubei
 		recorder)
 }
 
-func createApplicationController(kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, dnsConfig *dnsaliasconfig.DNSConfig) *common.Controller {
+func createApplicationController(ctx context.Context, kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, dnsConfig *dnsaliasconfig.DNSConfig) *common.Controller {
 	handler := application.NewHandler(
 		kubeUtil.KubeClient(),
 		kubeUtil,
@@ -186,6 +187,7 @@ func createApplicationController(kubeUtil *kube.Kube, kubeInformerFactory kubein
 	)
 
 	return application.NewController(
+		ctx,
 		kubeUtil.KubeClient(),
 		kubeUtil.RadixClient(),
 		&handler,
@@ -195,7 +197,7 @@ func createApplicationController(kubeUtil *kube.Kube, kubeInformerFactory kubein
 		recorder)
 }
 
-func createEnvironmentController(kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
+func createEnvironmentController(ctx context.Context, kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
 	handler := environment.NewHandler(
 		kubeUtil.KubeClient(),
 		kubeUtil,
@@ -204,6 +206,7 @@ func createEnvironmentController(kubeUtil *kube.Kube, kubeInformerFactory kubein
 	)
 
 	return environment.NewController(
+		ctx,
 		kubeUtil.KubeClient(),
 		kubeUtil.RadixClient(),
 		&handler,
@@ -213,7 +216,7 @@ func createEnvironmentController(kubeUtil *kube.Kube, kubeInformerFactory kubein
 		recorder)
 }
 
-func createDNSAliasesController(kubeUtil *kube.Kube,
+func createDNSAliasesController(ctx context.Context, kubeUtil *kube.Kube,
 	kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory,
 	recorder record.EventRecorder, oauthDefaultConfig defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration,
 	dnsConfig *dnsaliasconfig.DNSConfig) *common.Controller {
@@ -229,6 +232,7 @@ func createDNSAliasesController(kubeUtil *kube.Kube,
 	)
 
 	return dnsalias.NewController(
+		ctx,
 		kubeUtil.KubeClient(),
 		kubeUtil.RadixClient(),
 		handler,
@@ -238,7 +242,7 @@ func createDNSAliasesController(kubeUtil *kube.Kube,
 		recorder)
 }
 
-func createDeploymentController(kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, certClient certclient.Interface,
+func createDeploymentController(ctx context.Context, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, certClient certclient.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory,
 	recorder record.EventRecorder, oauthDefaultConfig defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration, config *apiconfig.Config) *common.Controller {
 
@@ -259,6 +263,7 @@ func createDeploymentController(kubeUtil *kube.Kube, prometheusOperatorClient mo
 	)
 
 	return deployment.NewController(
+		ctx,
 		kubeUtil.KubeClient(),
 		kubeUtil.RadixClient(),
 		handler,
@@ -268,7 +273,7 @@ func createDeploymentController(kubeUtil *kube.Kube, prometheusOperatorClient mo
 		recorder)
 }
 
-func createJobController(kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, config *apiconfig.Config) *common.Controller {
+func createJobController(ctx context.Context, kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder, config *apiconfig.Config) *common.Controller {
 	handler := job.NewHandler(
 		kubeUtil.KubeClient(),
 		kubeUtil,
@@ -277,12 +282,13 @@ func createJobController(kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced
 
 	return job.NewController(
+		ctx,
 		kubeUtil.KubeClient(),
 		kubeUtil.RadixClient(),
 		&handler, kubeInformerFactory, radixInformerFactory, true, recorder)
 }
 
-func createAlertController(kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
+func createAlertController(ctx context.Context, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
 	handler := alert.NewHandler(
 		kubeUtil.KubeClient(),
 		kubeUtil,
@@ -291,6 +297,7 @@ func createAlertController(kubeUtil *kube.Kube, prometheusOperatorClient monitor
 	)
 
 	return alert.NewController(
+		ctx,
 		kubeUtil.KubeClient(),
 		kubeUtil.RadixClient(),
 		handler,
@@ -300,7 +307,7 @@ func createAlertController(kubeUtil *kube.Kube, prometheusOperatorClient monitor
 		recorder)
 }
 
-func createBatchController(kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
+func createBatchController(ctx context.Context, kubeUtil *kube.Kube, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory radixinformers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
 	handler := batch.NewHandler(
 		kubeUtil.KubeClient(),
 		kubeUtil,
@@ -308,6 +315,7 @@ func createBatchController(kubeUtil *kube.Kube, kubeInformerFactory kubeinformer
 	)
 
 	return batch.NewController(
+		ctx,
 		kubeUtil.KubeClient(),
 		kubeUtil.RadixClient(),
 		handler,

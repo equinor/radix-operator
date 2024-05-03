@@ -208,7 +208,7 @@ func (c *Controller) Enqueue(obj interface{}) (requeued bool, err error) {
 
 // HandleObject ensures that when anything happens to object which any
 // custom resource is owner of, that custom resource is synced
-func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn GetOwner) {
+func (c *Controller) HandleObject(ctx context.Context, obj interface{}, ownerKind string, getOwnerFn GetOwner) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -232,7 +232,7 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			return
 		}
 
-		obj, err := getOwnerFn(c.RadixClient, object.GetNamespace(), ownerRef.Name)
+		obj, err := getOwnerFn(ctx, c.RadixClient, object.GetNamespace(), ownerRef.Name)
 		if err != nil {
 			c.Log.Debug().Msgf("Ignoring orphaned object %s of %s %s", object.GetSelfLink(), ownerKind, ownerRef.Name)
 			return

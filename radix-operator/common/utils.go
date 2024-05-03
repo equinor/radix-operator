@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -68,7 +69,7 @@ func NamePartitionKey(obj interface{}) (lockKey string, identifier string, err e
 }
 
 // GetOwner Function pointer to pass to retrieve owner
-type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
+type GetOwner func(context.Context, radixclient.Interface, string, string) (interface{}, error)
 
 // NewEventRecorder Creates an event recorder for controller
 func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface, logger zerolog.Logger) record.EventRecorder {

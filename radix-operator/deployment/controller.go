@@ -29,7 +29,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixDeployments
-func NewController(client kubernetes.Interface,
+func NewController(ctx context.Context, client kubernetes.Interface,
 	radixClient radixclient.Interface,
 	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -48,7 +48,7 @@ func NewController(client kubernetes.Interface,
 		RadixClient:           radixClient,
 		Informer:              deploymentInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		WorkQueue:             workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: crType}),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -120,10 +120,10 @@ func NewController(client kubernetes.Interface,
 			if newService.ResourceVersion == oldService.ResourceVersion {
 				return
 			}
-			controller.HandleObject(cur, v1.KindRadixDeployment, getObject)
+			controller.HandleObject(ctx, cur, v1.KindRadixDeployment, getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, v1.KindRadixDeployment, getObject)
+			controller.HandleObject(ctx, obj, v1.KindRadixDeployment, getObject)
 		},
 	}); err != nil {
 		panic(err)
@@ -146,7 +146,7 @@ func NewController(client kubernetes.Interface,
 
 			// Trigger sync of active RD, living in the namespaces of the app
 			rds, err := radixClient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(
-				context.TODO(),
+				ctx,
 				metav1.ListOptions{
 					LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
 				})
@@ -180,6 +180,6 @@ func deepEqual(old, new *v1.RadixDeployment) bool {
 	return true
 }
 
-func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixDeployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixDeployments(namespace).Get(ctx, name, metav1.GetOptions{})
 }
