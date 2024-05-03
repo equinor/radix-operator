@@ -8,11 +8,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) createOrUpdateServiceMonitor(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
 	monitoringConfig := deployComponent.GetMonitoringConfig()
 	if monitoringConfig.PortName == "" {
 		ports := deployComponent.GetPorts()
@@ -23,7 +24,7 @@ func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixC
 
 	namespace := deploy.radixDeployment.Namespace
 	serviceMonitor := getServiceMonitorConfig(deployComponent.GetName(), namespace, monitoringConfig)
-	return deploy.applyServiceMonitor(namespace, serviceMonitor)
+	return deploy.applyServiceMonitor(ctx, namespace, serviceMonitor)
 }
 
 func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixCommonDeployComponent) error {
@@ -118,7 +119,7 @@ func (deploy *Deployment) getServiceMonitor(namespace, name string) (serviceMoni
 	return
 }
 
-func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *monitoringv1.ServiceMonitor) error {
+func (deploy *Deployment) applyServiceMonitor(ctx context.Context, namespace string, serviceMonitor *monitoringv1.ServiceMonitor) error {
 	serviceMonitorName := serviceMonitor.Name
 	oldServiceMonitor, err := deploy.getServiceMonitor(namespace, serviceMonitorName)
 	if err != nil && errors.IsNotFound(err) {
@@ -127,7 +128,7 @@ func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *
 			return fmt.Errorf("failed to create ServiceMonitor object: %v", err)
 		}
 
-		deploy.logger.Debug().Msgf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
+		log.Ctx(ctx).Debug().Msgf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to get ServiceMonitor object: %v", err)

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"

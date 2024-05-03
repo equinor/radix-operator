@@ -141,6 +141,10 @@ type BuildSpec struct {
 	// Note: All layers will be cached and can be available for other Radix Apps. Do not add secrets to a Dockerfile layer.
 	// +optional
 	UseBuildCache *bool `json:"useBuildCache,omitempty"`
+
+	// SubPipeline common configuration for all environments.
+	// +optional
+	SubPipeline *SubPipeline `json:"subPipeline"`
 }
 
 // Environment contains environment specific configuration.
@@ -160,6 +164,10 @@ type Environment struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#egress
 	// +optional
 	Egress EgressConfig `json:"egress,omitempty"`
+
+	// SubPipeline configuration.
+	// +optional
+	SubPipeline *SubPipeline `json:"subPipeline"`
 }
 
 // EnvBuild contains configuration used to determine how to build an environment.
@@ -185,6 +193,18 @@ type EgressConfig struct {
 	// +kubebuilder:validation:MaxItems=1000
 	// +optional
 	Rules []EgressRule `json:"rules,omitempty"`
+}
+
+// SubPipeline configuration
+type SubPipeline struct {
+	// Defines variables, that will be available in sub-pipelines.
+	// +optional
+	Variables EnvVarsMap `json:"variables,omitempty"`
+
+	// Configuration for workload identity (federated credentials).
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
 }
 
 // +kubebuilder:validation:Pattern=`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`

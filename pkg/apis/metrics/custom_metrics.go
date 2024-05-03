@@ -1,16 +1,18 @@
 package metrics
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var (
@@ -63,16 +65,21 @@ func init() {
 }
 
 // RequestedResources adds metrics for requested resources
-func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
+func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) error {
+	var errs []error
+
 	if rd == nil || rd.Status.Condition == v1.DeploymentInactive || rr == nil {
-		return
+		return nil
 	}
 
 	defaultCPU := defaults.GetDefaultCPURequest()
 	defaultMemory := defaults.GetDefaultMemoryRequest()
 
 	for _, comp := range rd.Spec.Components {
-		resources := utils.GetResourceRequirements(&comp)
+		resources, err := utils.GetResourceRequirements(&comp)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("component %s: error getting resource requirements: %w", comp.Name, err))
+		}
 		nrReplicas := float64(comp.GetNrOfReplicas())
 		var cpu, memory resource.Quantity
 
@@ -100,6 +107,8 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).
 			Set(nrReplicas)
 	}
+
+	return errors.Join(errs...)
 }
 
 // InitiateRadixJobStatusChanged initiate metric with value 0 to count the number of radix jobs processed.

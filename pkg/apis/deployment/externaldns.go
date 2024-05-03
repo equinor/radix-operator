@@ -26,8 +26,8 @@ const (
 	minCertRenewBefore = 360 * time.Hour
 )
 
-func (deploy *Deployment) syncExternalDnsResources() error {
-	if err := deploy.garbageCollectExternalDnsResourcesNoLongerInSpec(); err != nil {
+func (deploy *Deployment) syncExternalDnsResources(ctx context.Context) error {
+	if err := deploy.garbageCollectExternalDnsResourcesNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
@@ -36,16 +36,16 @@ func (deploy *Deployment) syncExternalDnsResources() error {
 
 	for _, externalDns := range externalDnsList {
 		if externalDns.UseCertificateAutomation {
-			if err := deploy.createOrUpdateExternalDnsCertificate(externalDns); err != nil {
+			if err := deploy.createOrUpdateExternalDnsCertificate(ctx, externalDns); err != nil {
 				return err
 			}
 		} else {
-			if err := deploy.garbageCollectExternalDnsCertificate(externalDns); err != nil {
+			if err := deploy.garbageCollectExternalDnsCertificate(ctx, externalDns); err != nil {
 				return err
 			}
 
 			secretName := utils.GetExternalDnsTlsSecretName(externalDns)
-			if err := deploy.createOrUpdateExternalDnsTlsSecret(externalDns, secretName); err != nil {
+			if err := deploy.createOrUpdateExternalDnsTlsSecret(ctx, externalDns, secretName); err != nil {
 				return err
 			}
 			secretNames = append(secretNames, secretName)
@@ -55,17 +55,17 @@ func (deploy *Deployment) syncExternalDnsResources() error {
 	return deploy.grantAccessToExternalDnsSecrets(secretNames)
 }
 
-func (deploy *Deployment) garbageCollectExternalDnsResourcesNoLongerInSpec() error {
-	if err := deploy.garbageCollectExternalDnsCertificatesNoLongerInSpec(); err != nil {
+func (deploy *Deployment) garbageCollectExternalDnsResourcesNoLongerInSpec(ctx context.Context) error {
+	if err := deploy.garbageCollectExternalDnsCertificatesNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	return deploy.garbageCollectExternalDnsSecretsNoLongerInSpec()
+	return deploy.garbageCollectExternalDnsSecretsNoLongerInSpec(ctx)
 }
 
-func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec(ctx context.Context) error {
 	selector := radixlabels.ForApplicationName(deploy.registration.Name).AsSelector()
-	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
 	}
@@ -81,16 +81,16 @@ func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec() error
 			continue
 		}
 
-		if err := deploy.deleteSecret(&secret); err != nil {
+		if err := deploy.deleteSecret(ctx, &secret); err != nil {
 			return nil
 		}
 	}
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec() error {
+func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec(ctx context.Context) error {
 	selector := radixlabels.ForApplicationName(deploy.registration.Name).AsSelector()
-	certificates, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+	certificates, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
 	}
@@ -106,22 +106,22 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec() 
 			continue
 		}
 
-		if err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Delete(context.TODO(), cert.Name, metav1.DeleteOptions{}); err != nil {
+		if err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Delete(ctx, cert.Name, metav1.DeleteOptions{}); err != nil {
 			return nil
 		}
 	}
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectExternalDnsCertificate(externalDns radixv1.RadixDeployExternalDNS) error {
+func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
 	selector := radixlabels.ForExternalDNSCertificate(deploy.registration.Name, externalDns).AsSelector()
-	certs, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+	certs, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
 	}
 
 	for _, cert := range certs.Items {
-		if err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Delete(context.TODO(), cert.Name, metav1.DeleteOptions{}); err != nil {
+		if err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Delete(ctx, cert.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -129,7 +129,7 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(externalDns radix
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateExternalDnsCertificate(externalDns radixv1.RadixDeployExternalDNS) error {
+func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
 	if len(deploy.config.CertificateAutomation.ClusterIssuer) == 0 {
 		return errors.New("cluster issuer not set in certificate automation config")
 	}
@@ -168,14 +168,14 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(externalDns radix
 		},
 	}
 
-	return deploy.applyCertificate(certificate)
+	return deploy.applyCertificate(ctx, certificate)
 }
 
-func (deploy *Deployment) applyCertificate(cert *cmv1.Certificate) error {
-	existingCert, err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Get(context.TODO(), cert.Name, metav1.GetOptions{})
+func (deploy *Deployment) applyCertificate(ctx context.Context, cert *cmv1.Certificate) error {
+	existingCert, err := deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Get(ctx, cert.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			_, err = deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Create(context.TODO(), cert, metav1.CreateOptions{})
+			_, err = deploy.certClient.CertmanagerV1().Certificates(cert.Namespace).Create(ctx, cert, metav1.CreateOptions{})
 			return err
 		}
 		return err
@@ -203,7 +203,7 @@ func (deploy *Deployment) applyCertificate(cert *cmv1.Certificate) error {
 	}
 
 	if !kube.IsEmptyPatch(patchBytes) {
-		_, err = deploy.certClient.CertmanagerV1().Certificates(newCert.Namespace).Update(context.TODO(), newCert, metav1.UpdateOptions{})
+		_, err = deploy.certClient.CertmanagerV1().Certificates(newCert.Namespace).Update(ctx, newCert, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update certificate %s/%s: %w", newCert.Namespace, newCert.Name, err)
 		}
@@ -212,7 +212,7 @@ func (deploy *Deployment) applyCertificate(cert *cmv1.Certificate) error {
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(externalDns radixv1.RadixDeployExternalDNS, secretName string) error {
+func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS, secretName string) error {
 	ns := deploy.radixDeployment.Namespace
 	secret := v1.Secret{
 		Type: v1.SecretTypeTLS,
@@ -223,7 +223,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(externalDns radixv1
 		Data: tlsSecretDefaultData(),
 	}
 
-	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(context.TODO(), secretName, metav1.GetOptions{})
+	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 	if err == nil {
 		secret.Data = existingSecret.Data
 	} else if !k8serrors.IsNotFound(err) {

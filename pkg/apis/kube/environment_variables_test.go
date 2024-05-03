@@ -1,10 +1,12 @@
-package kube
+package kube_test
 
 import (
 	"context"
 	"strings"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -24,7 +26,7 @@ type EnvironmentVariablesTestEnv struct {
 	radixclient          radixclient.Interface
 	secretproviderclient secretProviderClient.Interface
 	prometheusclient     prometheusclient.Interface
-	kubeUtil             *Kube
+	kubeUtil             *kube.Kube
 }
 
 func getEnvironmentVariablesTestEnv() EnvironmentVariablesTestEnv {
@@ -34,7 +36,7 @@ func getEnvironmentVariablesTestEnv() EnvironmentVariablesTestEnv {
 		secretproviderclient: secretproviderfake.NewSimpleClientset(),
 		prometheusclient:     prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
+	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }
@@ -49,7 +51,7 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 			Data:       nil,
 		}
 
-		configMap, err := GetEnvVarsMetadataFromConfigMap(&testConfigMap)
+		configMap, err := kube.GetEnvVarsMetadataFromConfigMap(&testConfigMap)
 		assert.NoError(t, err)
 		assert.NotNil(t, configMap)
 		assert.Len(t, configMap, 0)
@@ -69,7 +71,7 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 											`},
 		}
 
-		metadataMap, err := GetEnvVarsMetadataFromConfigMap(&testConfigMap)
+		metadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(&testConfigMap)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, metadataMap)
@@ -89,7 +91,7 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 			Data:       map[string]string{"metadata": "invalid-value"},
 		}
 
-		metadataMap, err := GetEnvVarsMetadataFromConfigMap(&testConfigMap)
+		metadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(&testConfigMap)
 
 		assert.NotNil(t, err)
 		assert.Nil(t, metadataMap)
@@ -213,7 +215,7 @@ func Test_SetEnvVarsMetadataMapToConfigMap(t *testing.T) {
 			},
 		}
 
-		err := SetEnvVarsMetadataMapToConfigMap(&currentMetadataConfigMap, map[string]EnvVarMetadata{
+		err := kube.SetEnvVarsMetadataMapToConfigMap(&currentMetadataConfigMap, map[string]kube.EnvVarMetadata{
 			"VAR1": {RadixConfigValue: "val1changed"},
 			"VAR2": {RadixConfigValue: "added"},
 			// VAR3: removed
@@ -252,7 +254,7 @@ func Test_ApplyEnvVarsMetadataConfigMap(t *testing.T) {
 							`,
 		},
 	}
-	metadata := map[string]EnvVarMetadata{
+	metadata := map[string]kube.EnvVarMetadata{
 		"VAR1": {RadixConfigValue: "val1changed"},
 		"VAR2": {RadixConfigValue: "added"},
 		// VAR3: removed
@@ -438,14 +440,14 @@ func Test_BuildRadixConfigEnvVarsConfigMap(t *testing.T) {
 	t.Run("Build", func(t *testing.T) {
 		t.Parallel()
 
-		envVarsConfigMap := BuildRadixConfigEnvVarsConfigMap(appName, componentName)
+		envVarsConfigMap := kube.BuildRadixConfigEnvVarsConfigMap(appName, componentName)
 
 		assert.NotNil(t, envVarsConfigMap)
 		assert.NotNil(t, envVarsConfigMap.Data)
 		assert.Equal(t, name, envVarsConfigMap.ObjectMeta.Name)
-		assert.Equal(t, appName, envVarsConfigMap.ObjectMeta.Labels[RadixAppLabel])
-		assert.Equal(t, componentName, envVarsConfigMap.ObjectMeta.Labels[RadixComponentLabel])
-		assert.Equal(t, string(EnvVarsConfigMap), envVarsConfigMap.ObjectMeta.Labels[RadixConfigMapTypeLabel])
+		assert.Equal(t, appName, envVarsConfigMap.ObjectMeta.Labels[kube.RadixAppLabel])
+		assert.Equal(t, componentName, envVarsConfigMap.ObjectMeta.Labels[kube.RadixComponentLabel])
+		assert.Equal(t, string(kube.EnvVarsConfigMap), envVarsConfigMap.ObjectMeta.Labels[kube.RadixConfigMapTypeLabel])
 	})
 }
 
@@ -456,18 +458,18 @@ func Test_BuildRadixConfigEnvVarsMetadataConfigMap(t *testing.T) {
 	t.Run("Build", func(t *testing.T) {
 		t.Parallel()
 
-		envVarsConfigMap := BuildRadixConfigEnvVarsMetadataConfigMap(appName, componentName)
+		envVarsConfigMap := kube.BuildRadixConfigEnvVarsMetadataConfigMap(appName, componentName)
 
 		assert.NotNil(t, envVarsConfigMap)
 		assert.NotNil(t, envVarsConfigMap.Data)
 		assert.Equal(t, name, envVarsConfigMap.ObjectMeta.Name)
-		assert.Equal(t, appName, envVarsConfigMap.ObjectMeta.Labels[RadixAppLabel])
-		assert.Equal(t, componentName, envVarsConfigMap.ObjectMeta.Labels[RadixComponentLabel])
-		assert.Equal(t, string(EnvVarsMetadataConfigMap), envVarsConfigMap.ObjectMeta.Labels[RadixConfigMapTypeLabel])
+		assert.Equal(t, appName, envVarsConfigMap.ObjectMeta.Labels[kube.RadixAppLabel])
+		assert.Equal(t, componentName, envVarsConfigMap.ObjectMeta.Labels[kube.RadixComponentLabel])
+		assert.Equal(t, string(kube.EnvVarsMetadataConfigMap), envVarsConfigMap.ObjectMeta.Labels[kube.RadixConfigMapTypeLabel])
 	})
 }
 
-func createConfigMap(kubeUtil *Kube, namespace string, configMap *corev1.ConfigMap) error {
-	_, err := kubeUtil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{})
+func createConfigMap(kubeUtil *kube.Kube, namespace string, configMap *corev1.ConfigMap) error {
+	_, err := kubeUtil.KubeClient().CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{})
 	return err
 }

@@ -26,10 +26,13 @@ import (
 )
 
 const (
-	buildSecretsMountPath        = "/build-secrets"
-	privateImageHubMountPath     = "/radix-private-image-hubs"
-	buildahRegistryAuthFile      = "/home/build/auth.json"
-	azureServicePrincipleContext = "/radix-image-builder/.azure"
+	buildSecretsMountPath           = "/build-secrets"
+	privateImageHubMountPath        = "/radix-private-image-hubs"
+	buildahRegistryAuthFile         = "/home/build/auth.json"
+	azureServicePrincipleContext    = "/radix-image-builder/.azure"
+	RadixImageBuilderHomeVolumeName = "radix-image-builder-home"
+	BuildKitRunVolumeName           = "build-kit-run"
+	RadixImageBuilderTmpVolumeName  = "radix-image-builder-tmp"
 )
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
@@ -119,7 +122,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 					InitContainers:  initContainers,
 					Containers:      buildContainers,
 					SecurityContext: buildPodSecurityContext,
-					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets),
+					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets, isUsingBuildKit(pipelineInfo)),
 					Affinity:        utils.GetPipelineJobPodSpecAffinity(),
 					Tolerations:     utils.GetPipelineJobPodSpecTolerations(),
 				},
@@ -129,7 +132,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 	return job
 }
 
-func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar) []corev1.Volume {
+func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar, isUsingBuildKit bool) []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: git.BuildContextVolumeName,
@@ -159,6 +162,22 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 				},
 			},
 		},
+		{
+			Name: RadixImageBuilderTmpVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
+				},
+			},
+		},
+		{
+			Name: RadixImageBuilderHomeVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
+				},
+			},
+		},
 	}
 
 	if len(buildSecrets) > 0 {
@@ -168,6 +187,18 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName: defaults.BuildSecretsName,
+					},
+				},
+			})
+	}
+
+	if isUsingBuildKit {
+		volumes = append(volumes,
+			corev1.Volume{
+				Name: BuildKitRunVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{
+						SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
 					},
 				},
 			})
@@ -383,7 +414,7 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 	return envVars
 }
 
-func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, mountPrivateImageHubAuth bool) []corev1.VolumeMount {
+func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUsingBuildKit bool) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      git.BuildContextVolumeName,
@@ -396,11 +427,42 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, moun
 		},
 	}
 
-	if mountPrivateImageHubAuth {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      defaults.PrivateImageHubSecretName,
-			MountPath: privateImageHubMountPath,
-		})
+	if isUsingBuildKit {
+		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
+			{
+				Name:      RadixImageBuilderTmpVolumeName, // image-builder creates files there
+				MountPath: "/var/tmp",
+				ReadOnly:  false,
+			},
+			{
+				Name:      BuildKitRunVolumeName, // buildah creates folder container overlays and secrets there
+				MountPath: "/run",
+				ReadOnly:  false,
+			},
+			{
+				Name:      defaults.PrivateImageHubSecretName,
+				MountPath: privateImageHubMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      RadixImageBuilderHomeVolumeName, // the file /radix-private-image-hubs/.dockerconfigjson is copied to auth.json file in the user home folder
+				MountPath: "/home/build",
+				ReadOnly:  false,
+			},
+		}...)
+	} else {
+		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
+			{
+				Name:      RadixImageBuilderTmpVolumeName, // image-builder creates a script there
+				MountPath: "/tmp",
+				ReadOnly:  false,
+			},
+			{
+				Name:      RadixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
+				MountPath: "/home/radix-image-builder",
+				ReadOnly:  false,
+			},
+		}...)
 	}
 
 	if len(buildSecrets) > 0 {
@@ -411,7 +473,6 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, moun
 				ReadOnly:  true,
 			})
 	}
-
 	return volumeMounts
 }
 
@@ -478,6 +539,7 @@ func getBuildContainerSecContext() *corev1.SecurityContext {
 			LocalhostProfile: utils.StringPtr("allow-buildah.json"),
 		}),
 		securitycontext.WithContainerRunAsNonRoot(utils.BoolPtr(false)),
+		securitycontext.WithReadOnlyRootFileSystem(utils.BoolPtr(true)),
 	)
 }
 

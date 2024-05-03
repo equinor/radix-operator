@@ -18,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
@@ -27,6 +28,7 @@ import (
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
@@ -162,6 +164,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
 		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
+		{Name: steps.RadixImageBuilderTmpVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
+		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
 	}
 	s.ElementsMatch(expectedVolumes, job.Spec.Template.Spec.Volumes)
 
@@ -186,6 +190,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	expectedBuildVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
+		{Name: steps.RadixImageBuilderTmpVolumeName, MountPath: "/tmp", ReadOnly: false},
+		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/radix-image-builder", ReadOnly: false},
 	}
 	s.ElementsMatch(expectedBuildVolumeMounts, job.Spec.Template.Spec.Containers[0].VolumeMounts)
 	expectedEnv := []corev1.EnvVar{
@@ -1338,13 +1344,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
-	s.Len(job.Spec.Template.Spec.Volumes, 5)
+	s.Len(job.Spec.Template.Spec.Volumes, 7)
 	expectedVolumes := []corev1.Volume{
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
 	}
 	s.Subset(job.Spec.Template.Spec.Volumes, expectedVolumes)
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 3)
+	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 5)
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
 	}
@@ -1447,9 +1453,14 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	}
 	s.ElementsMatch(expectedEnv, job.Spec.Template.Spec.Containers[0].Env)
 	expectedVolumeMounts := []corev1.VolumeMount{
-		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs"},
+		{Name: git.BuildContextVolumeName, MountPath: git.Workspace, ReadOnly: false},
+		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
+		{Name: steps.RadixImageBuilderTmpVolumeName, MountPath: "/var/tmp", ReadOnly: false},
+		{Name: steps.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
+		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
+		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
 	}
-	s.Subset(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
+	s.ElementsMatch(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
@@ -1564,17 +1575,30 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
-	s.Len(job.Spec.Template.Spec.Volumes, 5)
+	s.Len(job.Spec.Template.Spec.Volumes, 8)
 	expectedVolumes := []corev1.Volume{
+		{Name: git.BuildContextVolumeName},
+		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
+		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
+		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
+		{Name: steps.RadixImageBuilderTmpVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
+		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
+		{Name: steps.BuildKitRunVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 	}
-	s.Subset(job.Spec.Template.Spec.Volumes, expectedVolumes)
+	s.ElementsMatch(job.Spec.Template.Spec.Volumes, expectedVolumes)
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 4)
+	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 7)
 	expectedVolumeMounts := []corev1.VolumeMount{
+		{Name: git.BuildContextVolumeName, MountPath: git.Workspace, ReadOnly: false},
+		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
+		{Name: steps.RadixImageBuilderTmpVolumeName, MountPath: "/var/tmp", ReadOnly: false},
+		{Name: steps.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
+		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
+		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
 	}
-	s.Subset(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
+	s.ElementsMatch(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
 	s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
 	expectedBuildCmd := strings.Join(
 		[]string{
