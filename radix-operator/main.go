@@ -49,8 +49,7 @@ const (
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer stop()
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	cfg := config.NewConfig()
 	initLogger(cfg)
 

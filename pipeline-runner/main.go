@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -33,24 +35,27 @@ func main() {
 	cmd := &cobra.Command{
 		Use: "run",
 		Run: func(cmd *cobra.Command, args []string) {
+			backgroundCtx := context.Background()
+			ctx, _ := signal.NotifyContext(backgroundCtx, syscall.SIGTERM, syscall.SIGINT)
 
-			// TODO: How should Pipeline runner be shut down?
-			// Finish the current step, bail immediatly or something else?
-			ctx := context.TODO()
-
-			runner, err := prepareRunner(pipelineArgs)
+			// Use background context for clients, so teardown can do its work if the main context is cancelled
+			runner, err := prepareRunner(backgroundCtx, pipelineArgs)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to prepare runner")
 				os.Exit(1)
 			}
 
 			err = runner.Run(ctx)
-			runner.TearDown(ctx)
+
+			teardownCtx, cancelTeardownCtx := context.WithTimeout(backgroundCtx, 30*time.Second)
+			defer cancelTeardownCtx()
+
+			runner.TearDown(teardownCtx)
 			if err != nil {
 				os.Exit(2)
 			}
 
-			err = runner.CreateResultConfigMap(ctx)
+			err = runner.CreateResultConfigMap(teardownCtx)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to create result ConfigMap")
 				os.Exit(3)
@@ -70,8 +75,8 @@ func main() {
 }
 
 // runs os.Exit(1) if error
-func prepareRunner(pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner, error) {
-	client, radixClient, prometheusOperatorClient, secretProviderClient, _ := utils.GetKubernetesClient(context.TODO())
+func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner, error) {
+	client, radixClient, prometheusOperatorClient, secretProviderClient, _ := utils.GetKubernetesClient(ctx)
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
@@ -80,7 +85,7 @@ func prepareRunner(pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner,
 
 	pipelineRunner := pipe.NewRunner(client, radixClient, prometheusOperatorClient, secretProviderClient, pipelineDefinition, pipelineArgs.AppName)
 
-	err = pipelineRunner.PrepareRun(context.TODO(), pipelineArgs)
+	err = pipelineRunner.PrepareRun(ctx, pipelineArgs)
 	if err != nil {
 		return nil, err
 	}
