@@ -34,6 +34,8 @@ func main() {
 		Use: "run",
 		Run: func(cmd *cobra.Command, args []string) {
 
+			// TODO: How should Pipeline runner be shut down?
+			// Finish the current step, bail immediatly or something else?
 			ctx := context.TODO()
 
 			runner, err := prepareRunner(pipelineArgs)
@@ -42,7 +44,7 @@ func main() {
 				os.Exit(1)
 			}
 
-			err = runner.Run()
+			err = runner.Run(ctx)
 			runner.TearDown(ctx)
 			if err != nil {
 				os.Exit(2)

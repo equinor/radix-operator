@@ -59,9 +59,7 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 }
 
 // Run Override of default step method
-func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	ctx := context.TODO()
-
+func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	// Get pipeline info from configmap created by prepare pipeline step
 	namespace := operatorutils.GetAppNamespace(cli.GetAppName())
 	configMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.RadixConfigMapName)

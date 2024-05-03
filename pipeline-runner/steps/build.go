@@ -62,7 +62,7 @@ func (step *BuildStepImplementation) ErrorMsg(err error) string {
 }
 
 // Run Override of default step method
-func (step *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 
@@ -88,7 +88,7 @@ func (step *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error
 	if err != nil {
 		return err
 	}
-	return step.createACRBuildJobs(context.TODO(), pipelineInfo, jobs, namespace)
+	return step.createACRBuildJobs(ctx, pipelineInfo, jobs, namespace)
 }
 
 func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []*batchv1.Job, namespace string) error {

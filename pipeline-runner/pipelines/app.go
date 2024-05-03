@@ -70,11 +70,11 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 }
 
 // Run runs through the steps in the defined pipeline
-func (cli *PipelineRunner) Run() error {
+func (cli *PipelineRunner) Run(ctx context.Context) error {
 	log.Info().Msgf("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
 
 	for _, step := range cli.pipelineInfo.Steps {
-		err := step.Run(cli.pipelineInfo)
+		err := step.Run(ctx, cli.pipelineInfo)
 		if err != nil {
 			log.Error().Msg(step.ErrorMsg(err))
 			return err

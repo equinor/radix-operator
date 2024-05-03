@@ -64,7 +64,7 @@ func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 }
 
 // Run Override of default step method
-func (step *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.PrepareBuildContext != nil && len(pipelineInfo.PrepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
 		log.Info().Msg("There is no configured sub-pipelines. Skip the step.")
 		return nil
@@ -79,7 +79,7 @@ func (step *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(context.TODO(), step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
 			return err
 		}
@@ -88,7 +88,7 @@ func (step *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo
 	}
 
 	log.Info().Msgf("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
-	job, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	job, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (step *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo
 }
 
 func (step *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
-	PipelineInfo) *batchv1.Job {
+PipelineInfo) *batchv1.Job {
 	appName := step.GetAppName()
 	action := pipelineDefaults.RadixPipelineActionRun
 	envVars := []corev1.EnvVar{

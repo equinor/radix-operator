@@ -49,8 +49,8 @@ func (cli *DeployStepImplementation) ErrorMsg(err error) string {
 }
 
 // Run Override of default step method
-func (cli *DeployStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	err := cli.deploy(context.TODO(), pipelineInfo)
+func (cli *DeployStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	err := cli.deploy(ctx, pipelineInfo)
 	return err
 }
 

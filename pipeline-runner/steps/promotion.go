@@ -72,8 +72,7 @@ func (cli *PromoteStepImplementation) ErrorMsg(err error) string {
 }
 
 // Run Override of default step method
-func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	ctx := context.TODO()
+func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	var radixDeployment *v1.RadixDeployment
 
 	// Get radix application from cluster as promote step run as single step
