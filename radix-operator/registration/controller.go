@@ -105,7 +105,7 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldSecret := oldObj.(*corev1.Secret)
 			newSecret := newObj.(*corev1.Secret)
-			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), oldSecret.Namespace, metav1.GetOptions{})
+			namespace, err := client.CoreV1().Namespaces().Get(ctx, oldSecret.Namespace, metav1.GetOptions{})
 			if err != nil {
 				logger.Error().Err(err).Msg("Failed to get namespace")
 				return
@@ -127,7 +127,7 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 				logger.Error().Msg("corev1.Secret object cast failed during deleted event received.")
 				return
 			}
-			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), secret.Namespace, metav1.GetOptions{})
+			namespace, err := client.CoreV1().Namespaces().Get(ctx, secret.Namespace, metav1.GetOptions{})
 			if err != nil {
 				// Ignore error if namespace does not exist.
 				// This is normal when a RR is deleted, resulting in deletion of namespaces and it's secrets

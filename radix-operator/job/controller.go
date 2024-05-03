@@ -130,7 +130,7 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 					return
 				}
 
-				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(context.TODO(), newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
+				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(ctx, newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
 				if err != nil {
 					// This job may not be found because application is being deleted and resources are being deleted
 					logger.Debug().Msgf("Could not find owning job of pod %s due to %v", newPod.Name, err)
@@ -148,5 +148,5 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 }
 
 func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 }

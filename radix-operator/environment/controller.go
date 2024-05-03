@@ -142,7 +142,7 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 
 			// Trigger sync of all REs, belonging to the registration
 			environments, err := radixClient.RadixV1().RadixEnvironments().List(
-				context.TODO(),
+				ctx,
 				metav1.ListOptions{
 					LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, oldRr.Name),
 				})
@@ -171,7 +171,7 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 			environmentsToResync := getAddedOrDroppedEnvironmentNames(oldRa, newRa)
 			for _, envName := range environmentsToResync {
 				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
-				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
+				re, err := radixClient.RadixV1().RadixEnvironments().Get(ctx, uniqueName, metav1.GetOptions{})
 				if err == nil {
 					if _, err := controller.Enqueue(re); err != nil {
 						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer UpdateFunc")
@@ -187,7 +187,7 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 			}
 			for _, env := range radixApplication.Spec.Environments {
 				uniqueName := utils.GetEnvironmentNamespace(radixApplication.Name, env.Name)
-				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
+				re, err := radixClient.RadixV1().RadixEnvironments().Get(ctx, uniqueName, metav1.GetOptions{})
 				if err == nil {
 					if _, err := controller.Enqueue(re); err != nil {
 						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer DeleteFunc")

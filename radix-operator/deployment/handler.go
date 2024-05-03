@@ -134,7 +134,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	syncRD := rd.DeepCopy()
 	log.Debug().Msgf("Sync deployment %s", syncRD.Name)
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), syncRD.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
