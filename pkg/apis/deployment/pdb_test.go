@@ -48,13 +48,13 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 	expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 	assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
 	assert.Equal(t, componentOneName, deployments.Items[0].Name, "app deployment not there")
 
 	// Check PDB is added
-	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
@@ -76,14 +76,14 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 	assert.NoError(t, err)
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
 	})
 
 	// Check PDB is removed
-	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(pdbs.Items))
 }
 
@@ -121,13 +121,13 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 	expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 	assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
 	assert.Equal(t, componentOneName, deployments.Items[0].Name, "app deployment not there")
 
 	// Check PDB is added
-	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
@@ -149,14 +149,14 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 	assert.NoError(t, err)
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
 	})
 
 	// Check PDB is removed
-	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(pdbs.Items))
 }
 
@@ -190,7 +190,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check PDB is added
-	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
@@ -218,7 +218,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check PDB is removed
-	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(pdbs.Items))
 
 	// Define one component with >1 replicas and one component with <2 replicas
@@ -243,7 +243,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check PDB is added
-	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
@@ -265,7 +265,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check PDB is removed
-	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(pdbs.Items))
 
 	componentThreeName := "componentThreeName"
@@ -296,7 +296,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check PDBs are added
-	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.Background(), metav1.ListOptions{})
 
 	assert.Equal(t, 3, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
@@ -336,7 +336,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check PDB is added
-	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
@@ -365,7 +365,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check PDB is removed
-	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(pdbs.Items))
 }
 
@@ -393,7 +393,7 @@ func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	existingPdb, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.TODO(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
+	existingPdb, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.Background(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
 	generatedPdb := utils.GetPDBConfig(componentOneName, envNamespace)
 	generatedPdb.ObjectMeta.Labels[kube.RadixComponentLabel] = "wrong"
 	generatedPdb.Spec.Selector.MatchLabels[kube.RadixComponentLabel] = "wrong"
@@ -401,10 +401,10 @@ func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
 	patchBytes, err := kube.MergePodDisruptionBudgets(existingPdb, generatedPdb)
 	assert.NoError(t, err)
 
-	_, err = client.PolicyV1().PodDisruptionBudgets(envNamespace).Patch(context.TODO(), utils.GetPDBName(componentOneName), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	_, err = client.PolicyV1().PodDisruptionBudgets(envNamespace).Patch(context.Background(), utils.GetPDBName(componentOneName), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	assert.NoError(t, err)
 
-	pdbWithWrongLabels, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.TODO(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
+	pdbWithWrongLabels, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.Background(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
 	assert.Equal(t, "wrong", pdbWithWrongLabels.ObjectMeta.Labels[kube.RadixComponentLabel])
 	assert.Equal(t, "wrong", pdbWithWrongLabels.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 
@@ -423,7 +423,7 @@ func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	pdbWithCorrectLabels, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.TODO(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
+	pdbWithCorrectLabels, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.Background(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
 	assert.Equal(t, componentOneName, pdbWithCorrectLabels.ObjectMeta.Labels[kube.RadixComponentLabel])
 	assert.Equal(t, componentOneName, pdbWithCorrectLabels.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 }

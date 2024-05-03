@@ -59,23 +59,23 @@ func (s *syncer) OnSync(ctx context.Context) error {
 func (s *syncer) reconcile(ctx context.Context) error {
 	const syncStatusForEveryNumberOfBatchJobsReconciled = 10
 
-	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent()
+	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent(ctx)
 	if err != nil {
 		return err
 	}
 
-	existingJobs, err := s.kubeUtil.ListJobsWithSelector(s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
+	existingJobs, err := s.kubeUtil.ListJobsWithSelector(ctx, s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
 
-	existingServices, err := s.kubeUtil.ListServicesWithSelector(s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
+	existingServices, err := s.kubeUtil.ListServicesWithSelector(ctx, s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
-		if err := s.reconcileService(&batchJob, rd, jobComponent, existingServices); err != nil {
+		if err := s.reconcileService(ctx, &batchJob, rd, jobComponent, existingServices); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
@@ -93,8 +93,8 @@ func (s *syncer) reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, *radixv1.RadixDeployJobComponent, error) {
-	rd, err := s.getRadixDeployment()
+func (s *syncer) getRadixDeploymentAndJobComponent(ctx context.Context) (*radixv1.RadixDeployment, *radixv1.RadixDeployJobComponent, error) {
+	rd, err := s.getRadixDeployment(ctx)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil, newReconcileRadixDeploymentNotFoundError(s.radixBatch.Spec.RadixDeploymentJobRef.Name)
@@ -110,8 +110,8 @@ func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, 
 	return rd, jobComponent, nil
 }
 
-func (s *syncer) getRadixDeployment() (*radixv1.RadixDeployment, error) {
-	return s.kubeUtil.GetRadixDeployment(s.radixBatch.GetNamespace(), s.radixBatch.Spec.RadixDeploymentJobRef.Name)
+func (s *syncer) getRadixDeployment(ctx context.Context) (*radixv1.RadixDeployment, error) {
+	return s.kubeUtil.GetRadixDeployment(ctx, s.radixBatch.GetNamespace(), s.radixBatch.Spec.RadixDeploymentJobRef.Name)
 }
 
 func (s *syncer) batchIdentifierLabel() labels.Set {

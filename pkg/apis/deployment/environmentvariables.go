@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,11 +16,11 @@ import (
 )
 
 type environmentVariablesSourceDecorator interface {
-	getClusterName() (string, error)
+	getClusterName(ctx context.Context) (string, error)
 	getContainerRegistry() (string, error)
 	getDnsZone() (string, error)
 	getClusterType() (string, error)
-	getClusterActiveEgressIps() (string, error)
+	getClusterActiveEgressIps(ctx context.Context) (string, error)
 }
 
 type radixApplicationEnvironmentVariablesSourceDecorator struct{}
@@ -27,7 +28,7 @@ type radixOperatorEnvironmentVariablesSourceDecorator struct {
 	kubeutil *kube.Kube
 }
 
-func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
+func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterName(_ context.Context) (string, error) {
 	return defaults.GetEnvVar(defaults.ClusternameEnvironmentVariable)
 }
 
@@ -43,12 +44,12 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClu
 	return defaults.GetEnvVar(defaults.RadixClusterTypeEnvironmentVariable)
 }
 
-func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps() (string, error) {
+func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps(_ context.Context) (string, error) {
 	return defaults.GetEnvVar(defaults.RadixActiveClusterEgressIpsEnvironmentVariable)
 }
 
-func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
-	clusterName, err := envVarsSource.kubeutil.GetClusterName()
+func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName(ctx context.Context) (string, error) {
+	clusterName, err := envVarsSource.kubeutil.GetClusterName(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get cluster name from ConfigMap: %v", err)
 	}
@@ -71,8 +72,8 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 	return defaults.GetEnvVar(defaults.OperatorClusterTypeEnvironmentVariable)
 }
 
-func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps() (string, error) {
-	egressIps, err := envVarsSource.kubeutil.GetClusterActiveEgressIps()
+func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps(ctx context.Context) (string, error) {
+	egressIps, err := envVarsSource.kubeutil.GetClusterActiveEgressIps(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get cluster egress IPs from ConfigMap: %v", err)
 	}
@@ -81,26 +82,26 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 
 // GetEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
 // It requires service account having access to config map in default namespace.
-func GetEnvironmentVariablesForRadixOperator(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	return getEnvironmentVariablesFrom(kubeutil, appName, &radixOperatorEnvironmentVariablesSourceDecorator{kubeutil: kubeutil}, radixDeployment, deployComponent)
+func GetEnvironmentVariablesForRadixOperator(ctx context.Context, kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+	return getEnvironmentVariablesFrom(ctx, kubeutil, appName, &radixOperatorEnvironmentVariablesSourceDecorator{kubeutil: kubeutil}, radixDeployment, deployComponent)
 }
 
 // GetEnvironmentVariables Provides environment variables for Radix application.
-func GetEnvironmentVariables(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	return getEnvironmentVariablesFrom(kubeutil, appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent)
+func GetEnvironmentVariables(ctx context.Context, kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+	return getEnvironmentVariablesFrom(ctx, kubeutil, appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent)
 }
 
-func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(radixDeployment.GetNamespace(),
+func getEnvironmentVariablesFrom(ctx context.Context, kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, radixDeployment.GetNamespace(),
 		appName, deployComponent.GetName())
 	if err != nil {
 		return nil, err
 	}
 
-	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent, envVarsConfigMap), nil
+	return getEnvironmentVariables(ctx, appName, envVarsSource, radixDeployment, deployComponent, envVarsConfigMap), nil
 }
 
-func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
+func getEnvironmentVariables(ctx context.Context, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
 		namespace          = radixDeployment.Namespace
 		currentEnvironment = radixDeployment.Spec.Environment
@@ -108,7 +109,7 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 
 	var envVars = getEnvVars(envVarConfigMap, deployComponent.GetEnvironmentVariables())
 
-	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent)
+	envVars = appendDefaultEnvVars(ctx, envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent)
 
 	if !isDeployComponentJobSchedulerDeployment(deployComponent) { // JobScheduler does not need env-vars for secrets and secret-refs
 		envVars = append(envVars, utils.GetEnvVarsFromSecrets(deployComponent.GetName(), deployComponent.GetSecrets())...)
@@ -181,7 +182,7 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 	}
 }
 
-func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 	dnsZone, err := envVarsSource.getDnsZone()
 	if err != nil {
@@ -205,7 +206,7 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 	}
 	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, containerRegistry)
 	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, dnsZone)
-	clusterName, err := envVarsSource.getClusterName()
+	clusterName, err := envVarsSource.getClusterName(ctx)
 	if err != nil {
 		// TODO: Should the error be returned to caller
 		log.Error().Err(err).Msg("Failed to get cluster name")
@@ -234,7 +235,7 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 		envVarSet.Add(defaults.RadixPortNamesEnvironmentVariable, portNames)
 	}
 
-	activeClusterEgressIps, err := envVarsSource.getClusterActiveEgressIps()
+	activeClusterEgressIps, err := envVarsSource.getClusterActiveEgressIps(ctx)
 	if err != nil {
 		// TODO: Should the error be returned to caller
 		log.Error().Err(err).Msg("Failed to get active egress IP addresses")
@@ -261,26 +262,26 @@ func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
 	return portNumbers, portNames
 }
 
-func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(deployComponent v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
 	currentEnvVarsConfigMap, envVarsMetadataConfigMap,
-		err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(),
+		err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, deploy.radixDeployment.GetNamespace(),
 		deploy.radixDeployment.Spec.AppName, deployComponent.GetName())
 	if err != nil {
 		return err
 	}
 	desiredEnvVarsConfigMap := currentEnvVarsConfigMap.DeepCopy()
-	envVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+	envVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(ctx, envVarsMetadataConfigMap)
 	if err != nil {
 		return err
 	}
 
 	buildEnvVarsFromRadixConfig(deployComponent.GetEnvironmentVariables(), desiredEnvVarsConfigMap, envVarsMetadataMap)
 
-	err = deploy.kubeutil.ApplyConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
+	err = deploy.kubeutil.ApplyConfigMap(ctx, deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
 	if err != nil {
 		return err
 	}
-	return deploy.kubeutil.ApplyEnvVarsMetadataConfigMap(deploy.radixDeployment.Namespace, envVarsMetadataConfigMap, envVarsMetadataMap)
+	return deploy.kubeutil.ApplyEnvVarsMetadataConfigMap(ctx, deploy.radixDeployment.Namespace, envVarsMetadataConfigMap, envVarsMetadataMap)
 }
 
 func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) {

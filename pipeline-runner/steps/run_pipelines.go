@@ -79,7 +79,7 @@ func (step *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(context.TODO(), step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
 			return err
 		}

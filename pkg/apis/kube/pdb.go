@@ -14,8 +14,8 @@ import (
 )
 
 // ListPodDisruptionBudgets lists PodDisruptionBudgets
-func (kubeutil *Kube) ListPodDisruptionBudgets(namespace string) ([]*v1.PodDisruptionBudget, error) {
-	list, err := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{})
+func (kubeutil *Kube) ListPodDisruptionBudgets(ctx context.Context, namespace string) ([]*v1.PodDisruptionBudget, error) {
+	list, err := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).List(ctx, metav1.ListOptions{})
 
 	if err != nil {
 		return nil, err
@@ -51,9 +51,9 @@ func MergePodDisruptionBudgets(existingPdb *v1.PodDisruptionBudget, generatedPdb
 }
 
 // UpdatePodDisruptionBudget will update PodDisruptionBudgets in provided namespace
-func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v1.PodDisruptionBudget) error {
+func (kubeutil *Kube) UpdatePodDisruptionBudget(ctx context.Context, namespace string, pdb *v1.PodDisruptionBudget) error {
 	pdbName := pdb.Name
-	existingPdb, getPdbErr := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdbName, metav1.GetOptions{})
+	existingPdb, getPdbErr := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Get(ctx, pdbName, metav1.GetOptions{})
 	if getPdbErr != nil {
 		return getPdbErr
 	}
@@ -66,7 +66,7 @@ func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v1.PodDis
 	if !IsEmptyPatch(patchBytes) {
 		// As of July 2022, this clause is only invoked after an update on radix-operator which alters the logic defining PDBs.
 		// Under normal circumstances, PDBs are only created or deleted entirely, never updated.
-		_, err := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Patch(context.TODO(), pdbName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		_, err := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Patch(ctx, pdbName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to patch PDB object: %w", err)
 		}

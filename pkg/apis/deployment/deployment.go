@@ -222,7 +222,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to provision secrets: %w", err)
 	}
 
-	if err := deploy.setDefaultNetworkPolicies(); err != nil {
+	if err := deploy.setDefaultNetworkPolicies(ctx); err != nil {
 		return fmt.Errorf("failed to set default network policies: %w", err)
 	}
 
@@ -522,12 +522,12 @@ func (deploy *Deployment) getRadixDeploymentsReferencedByJobs(ctx context.Contex
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(component)
+	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(ctx, component)
 	if err != nil {
 		return err
 	}
 
-	err = deploy.createOrUpdateServiceAccount(component)
+	err = deploy.createOrUpdateServiceAccount(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
@@ -542,7 +542,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create hpa: %w", err)
 	}
 
-	err = deploy.createOrUpdateService(component)
+	err = deploy.createOrUpdateService(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create service: %w", err)
 	}
@@ -557,7 +557,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to garbage collect PDB: %w", err)
 	}
 
-	err = deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(component)
+	err = deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to garbage collect service account: %w", err)
 	}
@@ -589,8 +589,8 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(deployComponent, desiredDeployment)
+func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, desiredDeployment)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -620,8 +620,8 @@ func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployCom
 	}
 }
 
-func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(desiredDeployment.Namespace, getJobAuxObjectName(desiredDeployment.Name))
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, desiredDeployment.Namespace, getJobAuxObjectName(desiredDeployment.Name))
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			return nil, deploy.createJobAuxDeployment(deployComponent), nil

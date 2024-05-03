@@ -102,7 +102,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 		}
 	}
 
-	job.maintainHistoryLimit()
+	job.maintainHistoryLimit(ctx)
 	job.garbageCollectConfigMaps(ctx)
 
 	return nil
@@ -346,7 +346,7 @@ func (job *Job) getStoppedSteps(ctx context.Context, isRunning bool) (*[]v1.Radi
 		return nil, err
 	}
 
-	err = deleteJobPodIfExistsAndNotCompleted(job.kubeclient, job.radixJob.Namespace, job.radixJob.Name)
+	err = deleteJobPodIfExistsAndNotCompleted(ctx, job.kubeclient, job.radixJob.Namespace, job.radixJob.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +386,7 @@ func (job *Job) deleteStepJobs(ctx context.Context) error {
 				return err
 			}
 
-			err = deleteJobPodIfExistsAndNotCompleted(job.kubeclient, job.radixJob.Namespace, kubernetesJob.Name)
+			err = deleteJobPodIfExistsAndNotCompleted(ctx, job.kubeclient, job.radixJob.Namespace, kubernetesJob.Name)
 			if err != nil {
 				return err
 			}
@@ -720,7 +720,7 @@ func (job *Job) garbageCollectConfigMaps(ctx context.Context) {
 		job.logger.Warn().Err(err).Msgf("Failed to get ConfigMaps while garbage collecting config-maps in %s", namespace)
 		return
 	}
-	radixJobNameSet, err := job.getRadixJobNameSet()
+	radixJobNameSet, err := job.getRadixJobNameSet(ctx)
 	if err != nil {
 		job.logger.Warn().Err(err).Msg("Failed to get RadixJob name set")
 		return
@@ -729,7 +729,7 @@ func (job *Job) garbageCollectConfigMaps(ctx context.Context) {
 		jobName := configMap.GetLabels()[kube.RadixJobNameLabel]
 		if _, radixJobExists := radixJobNameSet[jobName]; !radixJobExists {
 			job.logger.Debug().Msgf("Delete ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
-			err := job.kubeutil.DeleteConfigMap(configMap.GetNamespace(), configMap.GetName())
+			err := job.kubeutil.DeleteConfigMap(ctx, configMap.GetNamespace(), configMap.GetName())
 			if err != nil {
 				job.logger.Warn().Err(err).Msgf("failed to delete ConfigMap %s while garbage collecting config-maps in %s", configMap.GetName(), namespace)
 			}
@@ -737,8 +737,8 @@ func (job *Job) garbageCollectConfigMaps(ctx context.Context) {
 	}
 }
 
-func (job *Job) getRadixJobNameSet() (map[string]bool, error) {
-	radixJobs, err := job.getAllRadixJobs()
+func (job *Job) getRadixJobNameSet(ctx context.Context) (map[string]bool, error) {
+	radixJobs, err := job.getAllRadixJobs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list RadixJobs: %w", err)
 	}

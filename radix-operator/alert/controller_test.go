@@ -46,14 +46,14 @@ func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	// Updating the RadixAlert with changes should trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	alert.Labels = map[string]string{"foo": "bar"}
-	_, err = s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.TODO(), alert, metav1.UpdateOptions{})
+	_, err = s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.Background(), alert, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	s.WaitForSynced("second call")
 
 	// Updating the RadixAlert with no changes should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	_, err = s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.TODO(), alert, metav1.UpdateOptions{})
+	_, err = s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.Background(), alert, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	s.WaitForNotSynced("Sync should not be called when updating RadixAlert with no changes")
@@ -64,7 +64,7 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	alert1 := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alert1Name, Labels: map[string]string{kube.RadixAppLabel: appName}}}
 	alert2 := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alert2Name}}
 	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: v1.RadixRegistrationSpec{Owner: "first-owner", AdGroups: []string{"first-admin-group"}, ReaderAdGroups: []string{"first-reader-group"}}}
-	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	if err != nil {
 		s.Require().NoError(err)
 	}
@@ -96,7 +96,7 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	// Update adGroups should trigger sync of alert1
 	rr.Spec.AdGroups = []string{"another-admin-group"}
 	rr.ResourceVersion = "2"
-	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
@@ -105,14 +105,14 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	// Update adGroups should trigger sync of alert1
 	rr.Spec.ReaderAdGroups = []string{"another-reader-group"}
 	rr.ResourceVersion = "3"
-	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync on ReaderAdGroups update")
 
 	// Update other props on RR should not trigger sync of alert1
 	rr.Spec.Owner = "owner"
 	rr.ResourceVersion = "4"
-	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)

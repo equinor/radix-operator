@@ -114,7 +114,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	// Update  radix job should sync. Controller will skip if an update
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
-	_, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
+	_, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	op, ok = <-synced
@@ -129,11 +129,11 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	}
 
 	// Only update of Kubernetes Job is something that the job-controller handles
-	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.Background(), &childJob, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
 	childJob.ObjectMeta.ResourceVersion = "1234"
-	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.Background(), &childJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	op, ok = <-synced

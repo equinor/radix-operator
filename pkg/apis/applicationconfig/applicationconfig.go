@@ -88,7 +88,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Cont
 	if err != nil {
 		if errors.IsNotFound(err) {
 			app.logger.Debug().Msgf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
-			if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
+			if err = radixvalidators.CanRadixApplicationBeInserted(ctx, app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 				return err
 			}
 			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(ctx, app.config, metav1.CreateOptions{})
@@ -107,7 +107,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Cont
 		return nil
 	}
 
-	if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
+	if err = radixvalidators.CanRadixApplicationBeInserted(ctx, app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 		return err
 	}
 
@@ -127,7 +127,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Cont
 // It compares the actual state with the desired, and attempts to
 // converge the two
 func (app *ApplicationConfig) OnSync(ctx context.Context) error {
-	if err := app.syncEnvironments(); err != nil {
+	if err := app.syncEnvironments(ctx); err != nil {
 		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}
 	if err := app.syncPrivateImageHubSecrets(ctx); err != nil {
@@ -138,11 +138,11 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to create build secrets: %w", err)
 	}
 
-	if err := app.syncDNSAliases(); err != nil {
+	if err := app.syncDNSAliases(ctx); err != nil {
 		return fmt.Errorf("failed to process DNS aliases: %w", err)
 	}
 
-	if err := app.syncSubPipelineServiceAccounts(); err != nil {
+	if err := app.syncSubPipelineServiceAccounts(ctx); err != nil {
 		return fmt.Errorf("failed to sync pipeline service accounts: %w", err)
 	}
 

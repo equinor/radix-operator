@@ -39,23 +39,23 @@ func (deploy *Deployment) createOrUpdateDeployment(ctx context.Context, deployCo
 	if err != nil {
 		return err
 	}
-	err = deploy.handleJobAuxDeployment(deployComponent, desiredDeployment)
+	err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment)
 	if err != nil {
 		return err
 	}
 
-	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
+	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 
-func (deploy *Deployment) handleJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
 	if !isDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil
 	}
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(deployComponent, desiredDeployment)
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
 	if err != nil {
 		return err
 	}
-	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
+	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
@@ -70,7 +70,7 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, de
 }
 
 func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
+	currentDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, deployComponent.GetName())
 
 	if err == nil && currentDeployment != nil {
 		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(ctx, deployComponent, currentDeployment)
@@ -288,7 +288,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	}
 	desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 
-	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(deploy.kubeutil, appName, deploy.radixDeployment, deployComponent)
+	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, appName, deploy.radixDeployment, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -376,7 +376,7 @@ func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
 }
 
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec(ctx context.Context) error {
-	deployments, err := deploy.kubeutil.ListDeployments(deploy.radixDeployment.GetNamespace())
+	deployments, err := deploy.kubeutil.ListDeployments(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}

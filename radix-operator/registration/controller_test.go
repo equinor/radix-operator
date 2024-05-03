@@ -37,7 +37,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
 	client, kubeUtil, radixClient := setupTest(t)
 
-	ctx, stopFn := context.WithTimeout(context.TODO(), 5*time.Second)
+	ctx, stopFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer stopFn()
 
 	synced := make(chan bool)

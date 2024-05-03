@@ -64,7 +64,7 @@ func (syncer *alertSyncer) OnSync(ctx context.Context) error {
 }
 
 func (syncer *alertSyncer) syncAlert(ctx context.Context) error {
-	if err := syncer.createOrUpdateSecret(); err != nil {
+	if err := syncer.createOrUpdateSecret(ctx); err != nil {
 		return fmt.Errorf("failed to sync secrets: %v", err)
 	}
 

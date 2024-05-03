@@ -49,6 +49,8 @@ const (
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
 	cfg := config.NewConfig()
 	initLogger(cfg)
 
@@ -58,13 +60,10 @@ func main() {
 	}
 	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(kubeClientRateLimitQPS, kubeClientRateLimitBurst))
 	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
-	client, radixClient, prometheusOperatorClient, secretProviderClient, certClient := utils.GetKubernetesClient(rateLimitConfig, warningHandler)
+	client, radixClient, prometheusOperatorClient, secretProviderClient, certClient := utils.GetKubernetesClient(ctx, rateLimitConfig, warningHandler)
 
 	activeClusterNameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	log.Info().Msgf("Active cluster name: %v", activeClusterNameEnvVar)
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer stop()
 
 	go startMetricsServer(ctx.Done())
 
@@ -80,7 +79,7 @@ func main() {
 		radixInformerFactory,
 	)
 	oauthDefaultConfig := getOAuthDefaultConfig()
-	ingressConfiguration, err := loadIngressConfigFromMap(kubeUtil)
+	ingressConfiguration, err := loadIngressConfigFromMap(ctx, kubeUtil)
 	if err != nil {
 		panic(fmt.Errorf("failed to load ingress configuration: %v", err))
 	}
@@ -318,9 +317,9 @@ func createBatchController(kubeUtil *kube.Kube, kubeInformerFactory kubeinformer
 		recorder)
 }
 
-func loadIngressConfigFromMap(kubeutil *kube.Kube) (ingress.IngressConfiguration, error) {
+func loadIngressConfigFromMap(ctx context.Context, kubeutil *kube.Kube) (ingress.IngressConfiguration, error) {
 	ingressConfig := ingress.IngressConfiguration{}
-	configMap, err := kubeutil.GetConfigMap(metav1.NamespaceDefault, ingressConfigurationMap)
+	configMap, err := kubeutil.GetConfigMap(ctx, metav1.NamespaceDefault, ingressConfigurationMap)
 	if err != nil {
 		return ingressConfig, err
 	}

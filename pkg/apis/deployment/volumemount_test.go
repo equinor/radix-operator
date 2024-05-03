@@ -495,7 +495,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
-			_, _ = testEnv.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), &scenario.pvc, metav1.CreateOptions{})
+			_, _ = testEnv.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), &scenario.pvc, metav1.CreateOptions{})
 
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(context.Background(), testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
@@ -1299,7 +1299,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			})
 			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
 			for _, azureKeyVault := range scenario.azureKeyVaults {
-				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
+				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
 				if err != nil {
 					t.Logf(err.Error())
 				} else {
@@ -1347,7 +1347,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			})
 			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
 			for _, azureKeyVault := range scenario.azureKeyVaults {
-				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
+				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
 				if err != nil {
 					t.Logf(err.Error())
 				} else {
@@ -1517,24 +1517,24 @@ func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expec
 
 func putExistingDeploymentVolumesScenarioDataToFakeCluster(scenario *deploymentVolumesTestScenario, deployment *Deployment) {
 	for _, pvc := range scenario.existingPvcsBeforeTestRun {
-		_, _ = deployment.kubeclient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.TODO(), &pvc, metav1.CreateOptions{})
+		_, _ = deployment.kubeclient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.Background(), &pvc, metav1.CreateOptions{})
 	}
 	for _, sc := range scenario.existingStorageClassesBeforeTestRun {
-		_, _ = deployment.kubeclient.StorageV1().StorageClasses().Create(context.TODO(), &sc, metav1.CreateOptions{})
+		_, _ = deployment.kubeclient.StorageV1().StorageClasses().Create(context.Background(), &sc, metav1.CreateOptions{})
 	}
 }
 
 func getExistingPvcsAndStorageClassesFromFakeCluster(deployment *Deployment) ([]corev1.PersistentVolumeClaim, []storagev1.StorageClass, error) {
 	var pvcItems []corev1.PersistentVolumeClaim
 	var scItems []storagev1.StorageClass
-	pvcList, err := deployment.kubeclient.CoreV1().PersistentVolumeClaims("").List(context.TODO(), metav1.ListOptions{})
+	pvcList, err := deployment.kubeclient.CoreV1().PersistentVolumeClaims("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return pvcItems, scItems, err
 	}
 	if pvcList != nil && pvcList.Items != nil {
 		pvcItems = pvcList.Items
 	}
-	storageClassList, err := deployment.kubeclient.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{})
+	storageClassList, err := deployment.kubeclient.StorageV1().StorageClasses().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return pvcItems, scItems, err
 	}

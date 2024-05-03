@@ -129,7 +129,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, co
 		return nil, err
 	}
 
-	return s.radixClient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.TODO(), rj.Name, metav1.GetOptions{})
+	return s.radixClient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.Background(), rj.Name, metav1.GetOptions{})
 }
 
 func (s *RadixJobTestSuiteBase) runSync(rj *radixv1.RadixJob, config *config.Config) error {
@@ -295,13 +295,13 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
-	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.TODO(), secondJob.Name, metav1.GetOptions{})
+	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
 	s.Equal(radixv1.JobRunning, secondJob.Status.Condition)
 }
 
@@ -318,13 +318,13 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
-	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.TODO(), secondJob.Name, metav1.GetOptions{})
+	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
 	s.Equal(radixv1.JobRunning, secondJob.Status.Condition)
 }
 
@@ -346,13 +346,13 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	err = s.runSync(firstJob, config)
 	s.Require().NoError(err)
 
-	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.TODO(), secondJob.Name, metav1.GetOptions{})
+	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
 	s.Equal(radixv1.JobRunning, secondJob.Status.Condition)
 }
 
@@ -686,7 +686,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 			config := getConfigWithPipelineJobsHistoryLimit(scenario.jobsHistoryLimit)
 			testTime := time.Now().Add(time.Hour * -100)
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
-				_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
+				_, err := s.testUtils.ApplyDeployment(context.Background(), utils.ARadixDeployment().
 					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName).
 					WithActiveFrom(testTime))
 				s.NoError(err)
@@ -696,7 +696,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				testTime = testTime.Add(time.Hour)
 			}
 
-			_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
+			_, err := s.testUtils.ApplyDeployment(context.Background(), utils.ARadixDeployment().
 				WithAppName(appName).WithDeploymentName(scenario.testingRadixDeploymentJob.rdName).
 				WithEnvironment(scenario.testingRadixDeploymentJob.env).
 				WithActiveFrom(testTime))
@@ -704,7 +704,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 			err = s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config)
 			s.Require().NoError(err)
 
-			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
 			s.NoError(err)
 			s.assertExistRadixJobsWithNames(radixJobList, scenario.expectedJobNames)
 		})
@@ -820,7 +820,7 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				if rdJob.jobStatus == radixv1.JobSucceeded {
-					_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
+					_, err := s.testUtils.ApplyDeployment(context.Background(), utils.ARadixDeployment().
 						WithRadixApplication(nil).
 						WithAppName(appName).
 						WithDeploymentName(fmt.Sprintf("%s-deployment", rdJob.jobName)).
@@ -841,7 +841,7 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 			err = s.runSync(testingRadixJob, config)
 			s.NoError(err)
 
-			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
 			s.Require().NoError(err)
 			s.assertExistRadixJobsWithConditions(radixJobList, scenario.expectedJobConditions)
 		})
@@ -1111,7 +1111,7 @@ func (s *RadixJobTestSuite) Test_MultipleJobsForSameEnv() {
 
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				if rdJob.jobStatus == radixv1.JobSucceeded {
-					_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
+					_, err := s.testUtils.ApplyDeployment(context.Background(), utils.ARadixDeployment().
 						WithRadixApplication(nil).
 						WithAppName(appName).
 						WithDeploymentName(fmt.Sprintf("%s-deployment", rdJob.jobName)).
@@ -1133,7 +1133,7 @@ func (s *RadixJobTestSuite) Test_MultipleJobsForSameEnv() {
 			err = s.runSync(testingRadixJob, config)
 			s.NoError(err)
 
-			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
 			s.Require().NoError(err)
 			s.assertExistRadixJobsWithConditions(radixJobList, scenario.expectedJobConditions)
 		})
@@ -1302,7 +1302,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		}
 		s.Require().NoError(err)
 
-		jobList, err := s.testUtils.GetKubeUtil().ListJobs(utils.GetAppNamespace("some-app"))
+		jobList, err := s.testUtils.GetKubeUtil().ListJobs(context.Background(), utils.GetAppNamespace("some-app"))
 		s.Require().NoError(err)
 
 		assert.Len(s.T(), jobList, 1)

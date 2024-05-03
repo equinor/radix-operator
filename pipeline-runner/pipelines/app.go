@@ -50,8 +50,8 @@ func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfac
 }
 
 // PrepareRun Runs preparations before build
-func (cli *PipelineRunner) PrepareRun(pipelineArgs *model.PipelineArguments) error {
-	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), cli.appName, metav1.GetOptions{})
+func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.PipelineArguments) error {
+	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(ctx, cli.appName, metav1.GetOptions{})
 	if err != nil {
 		log.Error().Err(err).Msgf("Failed to get RR for app %s. Error: %v", cli.appName, err)
 		return err
@@ -89,16 +89,16 @@ func (cli *PipelineRunner) Run() error {
 }
 
 // TearDown performs any needed cleanup
-func (cli *PipelineRunner) TearDown() {
+func (cli *PipelineRunner) TearDown(ctx context.Context) {
 	namespace := utils.GetAppNamespace(cli.appName)
 
-	err := cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.RadixConfigMapName)
+	err := cli.kubeUtil.DeleteConfigMap(ctx, namespace, cli.pipelineInfo.RadixConfigMapName)
 	if err != nil && !k8sErrors.IsNotFound(err) {
 		log.Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.RadixConfigMapName, namespace)
 	}
 
 	if cli.pipelineInfo.IsPipelineType(v1.BuildDeploy) {
-		err = cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.GitConfigMapName)
+		err = cli.kubeUtil.DeleteConfigMap(ctx, namespace, cli.pipelineInfo.GitConfigMapName)
 		if err != nil && !k8sErrors.IsNotFound(err) {
 			log.Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.GitConfigMapName, namespace)
 		}
@@ -122,7 +122,7 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 	return stepImplementations
 }
 
-func (cli *PipelineRunner) CreateResultConfigMap() error {
+func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 	result := v1.RadixJobResult{}
 	if cli.pipelineInfo.StopPipeline {
 		result.Result = v1.RadixJobResultStoppedNoChanges
@@ -145,6 +145,6 @@ func (cli *PipelineRunner) CreateResultConfigMap() error {
 		Data: map[string]string{jobs.ResultContent: string(resultContent)},
 	}
 	log.Debug().Msgf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
-	_, err = cli.kubeUtil.CreateConfigMap(utils.GetAppNamespace(cli.appName), &configMap)
+	_, err = cli.kubeUtil.CreateConfigMap(ctx, utils.GetAppNamespace(cli.appName), &configMap)
 	return err
 }

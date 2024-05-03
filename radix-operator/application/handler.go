@@ -62,7 +62,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		return err
 	}
 
-	radixRegistration, err := t.kubeutil.GetRegistration(radixApplication.Name)
+	radixRegistration, err := t.kubeutil.GetRegistration(ctx, radixApplication.Name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.

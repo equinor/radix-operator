@@ -63,7 +63,7 @@ func (deploy *Deployment) grantAdminAccessToSecrets(ctx context.Context, roleNam
 	role := kube.CreateManageSecretRole(registration.Name, roleName, secretNames, extraLabels)
 	roleBinding := roleBindingAppSecrets(registration.Name, role, adminGroups)
 
-	if err := deploy.kubeutil.ApplyRole(namespace, role); err != nil {
+	if err := deploy.kubeutil.ApplyRole(ctx, namespace, role); err != nil {
 		return err
 	}
 
@@ -76,7 +76,7 @@ func (deploy *Deployment) grantReaderAccessToSecrets(ctx context.Context, roleNa
 	role := kube.CreateReadSecretRole(registration.Name, roleName, secretNames, extraLabels)
 	roleBinding := roleBindingAppSecrets(registration.Name, role, registration.Spec.ReaderAdGroups)
 
-	if err := deploy.kubeutil.ApplyRole(namespace, role); err != nil {
+	if err := deploy.kubeutil.ApplyRole(ctx, namespace, role); err != nil {
 		return err
 	}
 

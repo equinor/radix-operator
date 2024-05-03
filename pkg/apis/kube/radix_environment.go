@@ -12,7 +12,7 @@ import (
 )
 
 // GetEnvironment Gets environment using lister from cache if present
-func (kubeutil *Kube) GetEnvironment(name string) (*radixv1.RadixEnvironment, error) {
+func (kubeutil *Kube) GetEnvironment(ctx context.Context, name string) (*radixv1.RadixEnvironment, error) {
 	var environment *radixv1.RadixEnvironment
 	var err error
 
@@ -22,7 +22,7 @@ func (kubeutil *Kube) GetEnvironment(name string) (*radixv1.RadixEnvironment, er
 			return nil, err
 		}
 	} else {
-		environment, err = kubeutil.radixclient.RadixV1().RadixEnvironments().Get(context.TODO(), name, metav1.GetOptions{})
+		environment, err = kubeutil.radixclient.RadixV1().RadixEnvironments().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -32,7 +32,7 @@ func (kubeutil *Kube) GetEnvironment(name string) (*radixv1.RadixEnvironment, er
 }
 
 // ListEnvironments lists environments from cache if lister is present
-func (kubeutil *Kube) ListEnvironments() ([]*radixv1.RadixEnvironment, error) {
+func (kubeutil *Kube) ListEnvironments(ctx context.Context) ([]*radixv1.RadixEnvironment, error) {
 	var environments []*radixv1.RadixEnvironment
 	var err error
 
@@ -42,7 +42,7 @@ func (kubeutil *Kube) ListEnvironments() ([]*radixv1.RadixEnvironment, error) {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.radixclient.RadixV1().RadixEnvironments().List(context.TODO(), metav1.ListOptions{})
+		list, err := kubeutil.radixclient.RadixV1().RadixEnvironments().List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -54,9 +54,9 @@ func (kubeutil *Kube) ListEnvironments() ([]*radixv1.RadixEnvironment, error) {
 }
 
 // UpdateRadixEnvironment Updates changes of RadixEnvironment if any
-func (kubeutil *Kube) UpdateRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment) (*radixv1.RadixEnvironment, error) {
+func (kubeutil *Kube) UpdateRadixEnvironment(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment) (*radixv1.RadixEnvironment, error) {
 	log.Debug().Msgf("Update RadixEnvironment %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
-	updated, err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Update(context.TODO(), radixEnvironment, metav1.UpdateOptions{})
+	updated, err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Update(ctx, radixEnvironment, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update RadixEnvironment object: %v", err)
 	}

@@ -50,12 +50,12 @@ func (cli *DeployStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *DeployStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	err := cli.deploy(pipelineInfo)
+	err := cli.deploy(context.TODO(), pipelineInfo)
 	return err
 }
 
 // Deploy Handles deploy step of the pipeline
-func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) error {
+func (cli *DeployStepImplementation) deploy(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	appName := cli.GetAppName()
 	log.Info().Msgf("Deploying app %s", appName)
 
@@ -65,14 +65,14 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 	}
 
 	for _, env := range pipelineInfo.TargetEnvironments {
-		if err := cli.deployToEnv(appName, env, pipelineInfo); err != nil {
+		if err := cli.deployToEnv(ctx, appName, env, pipelineInfo); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipelineInfo *model.PipelineInfo) error {
+func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, envName string, pipelineInfo *model.PipelineInfo) error {
 	defaultEnvVars, err := getDefaultEnvVars(pipelineInfo)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve default env vars for RadixDeployment in app  %s. %v", appName, err)
@@ -92,7 +92,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipeli
 		return err
 	}
 
-	currentRd, err := internal.GetCurrentRadixDeployment(cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, envName))
+	currentRd, err := internal.GetCurrentRadixDeployment(ctx, cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, envName))
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, envName string, pipeli
 	}
 
 	namespace := utils.GetEnvironmentNamespace(cli.GetAppName(), envName)
-	if err = cli.namespaceWatcher.WaitFor(namespace); err != nil {
+	if err = cli.namespaceWatcher.WaitFor(ctx, namespace); err != nil {
 		return fmt.Errorf("failed to get environment namespace %s, for app %s. %w", namespace, appName, err)
 	}
 

@@ -10,18 +10,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) createOrUpdateService(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	ports := deployComponent.GetPorts()
 	if len(ports) == 0 {
 		return nil
 	}
 	service := getServiceConfig(deployComponent, deploy.radixDeployment, ports)
-	return deploy.kubeutil.ApplyService(namespace, service)
+	return deploy.kubeutil.ApplyService(ctx, namespace, service)
 }
 
 func (deploy *Deployment) garbageCollectServicesNoLongerInSpec(ctx context.Context) error {
-	services, err := deploy.kubeutil.ListServices(deploy.radixDeployment.GetNamespace())
+	services, err := deploy.kubeutil.ListServices(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}

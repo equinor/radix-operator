@@ -34,7 +34,7 @@ func (app *ApplicationConfig) grantAccessToBuildSecrets(ctx context.Context, nam
 
 func (app *ApplicationConfig) grantAppReaderAccessToBuildSecrets(ctx context.Context, namespace string) error {
 	role := roleAppReaderBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
-	err := app.kubeutil.ApplyRole(namespace, role)
+	err := app.kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (app *ApplicationConfig) grantAppReaderAccessToBuildSecrets(ctx context.Con
 
 func (app *ApplicationConfig) grantAppAdminAccessToBuildSecrets(ctx context.Context, namespace string) error {
 	role := roleAppAdminBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
-	err := app.kubeutil.ApplyRole(namespace, role)
+	err := app.kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (app *ApplicationConfig) grantAppAdminAccessToBuildSecrets(ctx context.Cont
 
 func (app *ApplicationConfig) grantPipelineAccessToSecret(ctx context.Context, namespace, secretName string) error {
 	role := rolePipelineSecret(app.GetRadixRegistration(), secretName)
-	err := app.kubeutil.ApplyRole(namespace, role)
+	err := app.kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -68,12 +68,12 @@ func (app *ApplicationConfig) grantPipelineAccessToSecret(ctx context.Context, n
 
 func (app *ApplicationConfig) garbageCollectAccessToBuildSecretsForRole(ctx context.Context, namespace string, roleName string) error {
 	// Delete role
-	_, err := app.kubeutil.GetRole(namespace, roleName)
+	_, err := app.kubeutil.GetRole(ctx, namespace, roleName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if err == nil {
-		err = app.kubeutil.DeleteRole(namespace, roleName)
+		err = app.kubeutil.DeleteRole(ctx, namespace, roleName)
 		if err != nil {
 			return err
 		}

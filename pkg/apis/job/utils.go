@@ -43,8 +43,8 @@ func isCreatedBefore(rj1 *radixv1.RadixJob, rj2 *radixv1.RadixJob) bool {
 	return !isCreatedAfter(rj1, rj2)
 }
 
-func deleteJobPodIfExistsAndNotCompleted(client kubernetes.Interface, namespace, jobName string) error {
-	pods, err := client.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labels.Set{"job-name": jobName}.String()})
+func deleteJobPodIfExistsAndNotCompleted(ctx context.Context, client kubernetes.Interface, namespace, jobName string) error {
+	pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labels.Set{"job-name": jobName}.String()})
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func deleteJobPodIfExistsAndNotCompleted(client kubernetes.Interface, namespace,
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	err = client.CoreV1().Pods(namespace).Delete(ctx, pods.Items[0].Name, metav1.DeleteOptions{})
 	if err != nil && !k8sErrors.IsNotFound(err) {

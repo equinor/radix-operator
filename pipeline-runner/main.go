@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -33,6 +34,8 @@ func main() {
 		Use: "run",
 		Run: func(cmd *cobra.Command, args []string) {
 
+			ctx := context.TODO()
+
 			runner, err := prepareRunner(pipelineArgs)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to prepare runner")
@@ -40,12 +43,12 @@ func main() {
 			}
 
 			err = runner.Run()
-			runner.TearDown()
+			runner.TearDown(ctx)
 			if err != nil {
 				os.Exit(2)
 			}
 
-			err = runner.CreateResultConfigMap()
+			err = runner.CreateResultConfigMap(ctx)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to create result ConfigMap")
 				os.Exit(3)
@@ -66,7 +69,7 @@ func main() {
 
 // runs os.Exit(1) if error
 func prepareRunner(pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner, error) {
-	client, radixClient, prometheusOperatorClient, secretProviderClient, _ := utils.GetKubernetesClient()
+	client, radixClient, prometheusOperatorClient, secretProviderClient, _ := utils.GetKubernetesClient(context.TODO())
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
@@ -75,7 +78,7 @@ func prepareRunner(pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner,
 
 	pipelineRunner := pipe.NewRunner(client, radixClient, prometheusOperatorClient, secretProviderClient, pipelineDefinition, pipelineArgs.AppName)
 
-	err = pipelineRunner.PrepareRun(pipelineArgs)
+	err = pipelineRunner.PrepareRun(context.TODO(), pipelineArgs)
 	if err != nil {
 		return nil, err
 	}

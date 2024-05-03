@@ -74,7 +74,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 	logPipelineInfo(pipelineInfo.Definition.Type, appName, branch, commitID)
 
 	if pipelineInfo.IsPipelineType(radixv1.Promote) {
-		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := cli.getSourceDeploymentGitInfo(appName, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
+		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := cli.getSourceDeploymentGitInfo(context.TODO(), appName, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
 		if err != nil {
 			return err
 		}
@@ -85,7 +85,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(context.TODO(), cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
 			return err
 		}
@@ -217,9 +217,9 @@ func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipel
 		pipelineInfo.PipelineArguments.ContainerSecurityContext)
 }
 
-func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(appName, sourceEnvName, sourceDeploymentName string) (string, string, error) {
+func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx context.Context, appName, sourceEnvName, sourceDeploymentName string) (string, string, error) {
 	ns := utils.GetEnvironmentNamespace(appName, sourceEnvName)
-	rd, err := cli.GetKubeutil().GetRadixDeployment(ns, sourceDeploymentName)
+	rd, err := cli.GetKubeutil().GetRadixDeployment(ctx, ns, sourceDeploymentName)
 	if err != nil {
 		return "", "", err
 	}

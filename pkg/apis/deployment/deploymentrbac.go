@@ -38,7 +38,7 @@ func configureRbacForRadixAPI(ctx context.Context, deploy *Deployment) Configure
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
 
 	return func() error {
-		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(deploy.radixDeployment.Namespace, defaults.RadixAPIRoleName)
+		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(ctx, deploy.radixDeployment.Namespace, defaults.RadixAPIRoleName)
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix api. %v", err)
 		}
@@ -58,7 +58,7 @@ func configureRbacForRadixGithubWebhook(ctx context.Context, deploy *Deployment)
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
 
 	return func() error {
-		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(deploy.radixDeployment.Namespace, defaults.RadixGithubWebhookServiceAccountName)
+		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(ctx, deploy.radixDeployment.Namespace, defaults.RadixGithubWebhookServiceAccountName)
 		if err != nil {
 			return fmt.Errorf("service account for running radix github webhook not made. %v", err)
 		}
@@ -75,7 +75,7 @@ func configureRbacForRadixJobComponents(ctx context.Context, deploy *Deployment)
 	appName := deploy.radixDeployment.Spec.AppName
 
 	return func() error {
-		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(namespace, defaults.RadixJobSchedulerServiceName)
+		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(ctx, namespace, defaults.RadixJobSchedulerServiceName)
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix job scheduler. %v", err)
 		}

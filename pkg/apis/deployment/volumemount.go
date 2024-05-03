@@ -240,7 +240,7 @@ func GetVolumes(ctx context.Context, kubeclient kubernetes.Interface, kubeutil *
 	}
 	volumes = append(volumes, volumeMountVolumes...)
 
-	storageRefsVolumes, err := getComponentSecretRefsVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
+	storageRefsVolumes, err := getComponentSecretRefsVolumes(ctx, kubeutil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -249,9 +249,9 @@ func GetVolumes(ctx context.Context, kubeclient kubernetes.Interface, kubeutil *
 	return volumes, nil
 }
 
-func getComponentSecretRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
+func getComponentSecretRefsVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
 	var volumes []corev1.Volume
-	azureKeyVaultVolumes, err := getComponentSecretRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
+	azureKeyVaultVolumes, err := getComponentSecretRefsAzureKeyVaultVolumes(ctx, kubeutil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -259,12 +259,12 @@ func getComponentSecretRefsVolumes(kubeutil *kube.Kube, namespace string, deploy
 	return volumes, nil
 }
 
-func getComponentSecretRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
+func getComponentSecretRefsAzureKeyVaultVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
 	secretRef := deployComponent.GetSecretRefs()
 	var volumes []corev1.Volume
 	for _, azureKeyVault := range secretRef.AzureKeyVaults {
 		secretProviderClassName := kube.GetComponentSecretProviderClassName(radixDeploymentName, deployComponent.GetName(), radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
-		secretProviderClass, err := kubeutil.GetSecretProviderClass(namespace, secretProviderClassName)
+		secretProviderClass, err := kubeutil.GetSecretProviderClass(ctx, namespace, secretProviderClassName)
 		if err != nil {
 			return nil, err
 		}
@@ -469,7 +469,7 @@ func getBlobFuseVolume(namespace, environment, componentName string, volumeMount
 	}
 }
 
-func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName string, accountName, accountKey []byte) error {
+func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(ctx context.Context, namespace, componentName, secretName string, accountName, accountKey []byte) error {
 	blobfusecredsSecret := corev1.Secret{
 		Type: blobfuseDriver,
 		ObjectMeta: metav1.ObjectMeta{
@@ -489,14 +489,14 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, component
 
 	blobfusecredsSecret.Data = data
 
-	_, err := deploy.kubeutil.ApplySecret(namespace, &blobfusecredsSecret)
+	_, err := deploy.kubeutil.ApplySecret(ctx, namespace, &blobfusecredsSecret)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
-func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, secretName string, accountName, accountKey []byte) error {
+func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(ctx context.Context, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, secretName string, accountName, accountKey []byte) error {
 	secret := corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
@@ -517,7 +517,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, c
 
 	secret.Data = data
 
-	_, err := deploy.kubeutil.ApplySecret(namespace, &secret)
+	_, err := deploy.kubeutil.ApplySecret(ctx, namespace, &secret)
 	if err != nil {
 		return err
 	}
@@ -526,7 +526,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, c
 }
 
 func (deploy *Deployment) garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent, excludeSecretNames []string) error {
-	secrets, err := deploy.listSecretsForVolumeMounts(component)
+	secrets, err := deploy.listSecretsForVolumeMounts(ctx, component)
 	if err != nil {
 		return err
 	}

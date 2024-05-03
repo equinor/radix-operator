@@ -348,7 +348,7 @@ func (s *applyConfigTestSuite) Test_CreateRadixApplication_LimitMemoryIsTakenFro
 	s.Require().NoError(err)
 	configFileContent, err := os.ReadFile(sampleApp)
 	s.Require().NoError(err)
-	ra, err := steps.CreateRadixApplication(s.radixClient, &dnsalias.DNSConfig{}, string(configFileContent))
+	ra, err := steps.CreateRadixApplication(context.Background(), s.radixClient, &dnsalias.DNSConfig{}, string(configFileContent))
 	s.Require().NoError(err)
 	s.Equal("100Mi", ra.Spec.Components[0].Resources.Limits["memory"], "server1 invalid resource limits memory")
 	s.Equal("100Mi", ra.Spec.Components[1].Resources.Limits["memory"], "server2 invalid resource limits memory")

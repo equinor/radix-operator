@@ -52,12 +52,12 @@ func (syncer *alertSyncer) garbageCollectAccessToAlertConfigSecret(ctx context.C
 			}
 		}
 
-		_, err = syncer.kubeUtil.GetRole(namespace, roleName)
+		_, err = syncer.kubeUtil.GetRole(ctx, namespace, roleName)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 		if err == nil {
-			if err = syncer.kubeUtil.DeleteRole(namespace, roleName); err != nil {
+			if err = syncer.kubeUtil.DeleteRole(ctx, namespace, roleName); err != nil {
 				return err
 			}
 		}
@@ -74,7 +74,7 @@ func (syncer *alertSyncer) grantAdminAccessToAlertConfigSecret(ctx context.Conte
 	// create role
 	role := kube.CreateManageSecretRole(rr.GetName(), roleName, []string{secretName}, nil)
 	role.OwnerReferences = syncer.getOwnerReference()
-	err := syncer.kubeUtil.ApplyRole(namespace, role)
+	err := syncer.kubeUtil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (syncer *alertSyncer) grantReaderAccessToAlertConfigSecret(ctx context.Cont
 	// create role
 	role := kube.CreateReadSecretRole(rr.GetName(), roleName, []string{secretName}, nil)
 	role.OwnerReferences = syncer.getOwnerReference()
-	err := syncer.kubeUtil.ApplyRole(namespace, role)
+	err := syncer.kubeUtil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}

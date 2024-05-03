@@ -14,7 +14,7 @@ import (
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
 
-func (deploy *Deployment) createOrUpdateServiceAccount(component radixv1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) createOrUpdateServiceAccount(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	if deploy.isServiceAccountForComponentPreinstalled(component) {
 		return nil
 	}
@@ -25,16 +25,16 @@ func (deploy *Deployment) createOrUpdateServiceAccount(component radixv1.RadixCo
 
 	sa := deploy.buildServiceAccountForComponent(component)
 
-	if err := deploy.verifyServiceAccountForComponentCanBeApplied(sa, component); err != nil {
+	if err := deploy.verifyServiceAccountForComponentCanBeApplied(ctx, sa, component); err != nil {
 		return err
 	}
 
-	_, err := deploy.kubeutil.ApplyServiceAccount(sa)
+	_, err := deploy.kubeutil.ApplyServiceAccount(ctx, sa)
 	return err
 }
 
-func (deploy *Deployment) verifyServiceAccountForComponentCanBeApplied(sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) error {
-	existingSa, err := deploy.kubeutil.GetServiceAccount(sa.GetNamespace(), sa.GetName())
+func (deploy *Deployment) verifyServiceAccountForComponentCanBeApplied(ctx context.Context, sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) error {
+	existingSa, err := deploy.kubeutil.GetServiceAccount(ctx, sa.GetNamespace(), sa.GetName())
 	if err != nil {
 		// If service account does not already exist we return nil to indicate that it can be applied
 		if errors.IsNotFound(err) {
@@ -66,7 +66,7 @@ func (deploy *Deployment) buildServiceAccountForComponent(component radixv1.Radi
 	return &sa
 }
 
-func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	if deploy.isServiceAccountForComponentPreinstalled(component) {
 		return nil
 	}
@@ -75,13 +75,13 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 		return nil
 	}
 
-	serviceAccountList, err := deploy.kubeutil.ListServiceAccountsWithSelector(deploy.radixDeployment.Namespace, getComponentServiceAccountIdentifier(component.GetName()).AsSelector().String())
+	serviceAccountList, err := deploy.kubeutil.ListServiceAccountsWithSelector(ctx, deploy.radixDeployment.Namespace, getComponentServiceAccountIdentifier(component.GetName()).AsSelector().String())
 	if err != nil {
 		return err
 	}
 
 	for _, sa := range serviceAccountList {
-		if err := deploy.kubeutil.DeleteServiceAccount(sa.Namespace, sa.Name); err != nil {
+		if err := deploy.kubeutil.DeleteServiceAccount(ctx, sa.Namespace, sa.Name); err != nil {
 			return err
 		}
 	}
@@ -90,7 +90,7 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 }
 
 func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec(ctx context.Context) error {
-	serviceAccounts, err := deploy.kubeutil.ListServiceAccounts(deploy.radixDeployment.GetNamespace())
+	serviceAccounts, err := deploy.kubeutil.ListServiceAccounts(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}

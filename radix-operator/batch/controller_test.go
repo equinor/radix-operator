@@ -47,13 +47,13 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 	// Updating the RadixBatch with changes should trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	batch.Spec.RadixDeploymentJobRef.Job = "newjob"
-	batch, err = s.RadixClient.RadixV1().RadixBatches(namespace).Update(context.TODO(), batch, metav1.UpdateOptions{})
+	batch, err = s.RadixClient.RadixV1().RadixBatches(namespace).Update(context.Background(), batch, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on update RadixBatch")
 
 	// Updating the RadixBatch with no changes should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	_, err = s.RadixClient.RadixV1().RadixBatches(namespace).Update(context.TODO(), batch, metav1.UpdateOptions{})
+	_, err = s.RadixClient.RadixV1().RadixBatches(namespace).Update(context.Background(), batch, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when updating RadixBatch with no changes")
 

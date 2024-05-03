@@ -9,7 +9,7 @@ import (
 )
 
 func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec(ctx context.Context) error {
-	jobs, err := deploy.kubeutil.ListJobs(deploy.radixDeployment.GetNamespace())
+	jobs, err := deploy.kubeutil.ListJobs(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec(ctx context.
 }
 
 func (deploy *Deployment) garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec(ctx context.Context) error {
-	jobAuxDeployments, err := deploy.kubeutil.ListDeploymentsWithSelector(deploy.radixDeployment.GetNamespace(), labels.ForIsJobAuxObject().String())
+	jobAuxDeployments, err := deploy.kubeutil.ListDeploymentsWithSelector(ctx, deploy.radixDeployment.GetNamespace(), labels.ForIsJobAuxObject().String())
 	if err != nil {
 		return err
 	}

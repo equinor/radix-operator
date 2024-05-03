@@ -60,9 +60,11 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+	ctx := context.TODO()
+
 	// Get pipeline info from configmap created by prepare pipeline step
 	namespace := operatorutils.GetAppNamespace(cli.GetAppName())
-	configMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.RadixConfigMapName)
+	configMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.RadixConfigMapName)
 	if err != nil {
 		return err
 	}
@@ -78,7 +80,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
-	ra, err := CreateRadixApplication(cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
+	ra, err := CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
 	if err != nil {
 		return err
 	}
@@ -93,12 +95,12 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}
-	if err := cli.setBuildAndDeployImages(pipelineInfo); err != nil {
+	if err := cli.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
 		return err
 	}
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
+		gitCommitHash, gitTags := cli.getHashAndTags(ctx, namespace, pipelineInfo)
 		err = validate.GitTagsContainIllegalChars(gitTags)
 		if err != nil {
 			return err
@@ -111,7 +113,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	return applicationConfig.ApplyConfigToApplicationNamespace(context.TODO())
+	return applicationConfig.ApplyConfigToApplicationNamespace(ctx)
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
@@ -132,8 +134,8 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 	return nil
 }
 
-func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(pipelineInfo *model.PipelineInfo) error {
-	componentImageSourceMap, err := cli.getEnvironmentComponentImageSource(pipelineInfo)
+func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	componentImageSourceMap, err := cli.getEnvironmentComponentImageSource(ctx, pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -236,13 +238,13 @@ const (
 	fromDeployment
 )
 
-func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(pipelineInfo *model.PipelineInfo) (environmentComponentImageSourceMap, error) {
+func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx context.Context, pipelineInfo *model.PipelineInfo) (environmentComponentImageSourceMap, error) {
 	ra := pipelineInfo.RadixApplication
 	appComponents := getCommonComponents(ra)
 	environmentComponentImageSources := make(environmentComponentImageSourceMap)
 	for _, envName := range pipelineInfo.TargetEnvironments {
 		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
-		activeRadixDeployment, err := internal.GetCurrentRadixDeployment(cli.GetKubeutil(), envNamespace)
+		activeRadixDeployment, err := internal.GetCurrentRadixDeployment(ctx, cli.GetKubeutil(), envNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -500,8 +502,8 @@ func printPrepareBuildContext(prepareBuildContext *model.PrepareBuildContext) {
 	}
 }
 
-func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipelineInfo *model.PipelineInfo) (string, string) {
-	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.GitConfigMapName)
+func (cli *ApplyConfigStepImplementation) getHashAndTags(ctx context.Context, namespace string, pipelineInfo *model.PipelineInfo) (string, string) {
+	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.GitConfigMapName)
 	if err != nil {
 		log.Error().Err(err).Msgf("Could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
 		return "", ""
@@ -517,7 +519,7 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipel
 }
 
 // CreateRadixApplication Create RadixApplication from radixconfig.yaml content
-func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
+func CreateRadixApplication(ctx context.Context, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
 	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
@@ -532,7 +534,7 @@ func CreateRadixApplication(radixClient radixclient.Interface, dnsConfig *dnsali
 	if validate.RAContainsOldPublic(ra) {
 		log.Warn().Msg("component.public is deprecated, please use component.publicPort instead")
 	}
-	if err := validate.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig); err != nil {
+	if err := validate.CanRadixApplicationBeInserted(ctx, radixClient, ra, dnsConfig); err != nil {
 		log.Error().Msg("Radix config not valid")
 		return nil, err
 	}

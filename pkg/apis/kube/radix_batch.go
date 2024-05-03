@@ -11,7 +11,7 @@ import (
 )
 
 // GetRadixBatch Gets batches using lister if present
-func (kubeutil *Kube) GetRadixBatch(namespace, name string) (*v1.RadixBatch, error) {
+func (kubeutil *Kube) GetRadixBatch(ctx context.Context, namespace, name string) (*v1.RadixBatch, error) {
 	var batch *v1.RadixBatch
 	var err error
 
@@ -21,7 +21,7 @@ func (kubeutil *Kube) GetRadixBatch(namespace, name string) (*v1.RadixBatch, err
 			return nil, err
 		}
 	} else {
-		batch, err = kubeutil.radixclient.RadixV1().RadixBatches(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		batch, err = kubeutil.radixclient.RadixV1().RadixBatches(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

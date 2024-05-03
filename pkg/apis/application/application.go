@@ -50,20 +50,20 @@ func NewApplication(
 func (app *Application) OnSync(ctx context.Context) error {
 	radixRegistration := app.registration
 
-	err := app.createAppNamespace()
+	err := app.createAppNamespace(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create app namespace: %w", err)
 	}
 	app.logger.Debug().Msg("App namespace created")
 
-	err = app.createLimitRangeOnAppNamespace(utils.GetAppNamespace(radixRegistration.Name))
+	err = app.createLimitRangeOnAppNamespace(ctx, utils.GetAppNamespace(radixRegistration.Name))
 	if err != nil {
 		return fmt.Errorf("failed to create limit range on app namespace: %w", err)
 	}
 
 	app.logger.Debug().Msg("Limit range on app namespace created")
 
-	err = app.applySecretsForPipelines() // create deploy key in app namespace
+	err = app.applySecretsForPipelines(ctx) // create deploy key in app namespace
 	if err != nil {
 		return fmt.Errorf("failed to apply pipeline secrets: %w", err)
 	}

@@ -31,13 +31,13 @@ func TestOnSync_PublicKeyCmExists_NothingChanges(t *testing.T) {
 	assert.NoError(t, err)
 
 	// check secret does exist
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, map[string]string(labels.ForApplicationName(appName)), secret.Labels)
 
 	// check public key cm exists
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cm)
 	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
@@ -47,14 +47,14 @@ func TestOnSync_PublicKeyCmExists_NothingChanges(t *testing.T) {
 	assert.NoError(t, err)
 
 	// check public key cm still exists and has same key
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cm)
 	newPublicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
 	assert.Equal(t, publicKey, newPublicKey)
 
 	// check secret still exists and has same key
-	newSecret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	newSecret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, secret, newSecret)
 
@@ -71,11 +71,11 @@ func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 		WithName(appName)
 
 	// check public key cm does not exist
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.Error(t, err)
 	assert.Nil(t, cm)
 	// check secret does not exist
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.Error(t, err)
 	assert.Nil(t, secret)
 
@@ -84,13 +84,13 @@ func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 	assert.NoError(t, err)
 
 	// check public key cm exists, and has key
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
 	assert.NotNil(t, publicKey)
 
 	// check secret exists, and has private key
-	secret, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	secret, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NoError(t, err)
 	privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
@@ -111,7 +111,7 @@ func TestOnSync_PublicKeyCmDoesNotExist_KeyIsCopiedFromRR(t *testing.T) {
 		WithPrivateKey(somePrivateKey)
 
 	// check public key cm does not exist
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.Error(t, err)
 	assert.Nil(t, cm)
 
@@ -119,14 +119,14 @@ func TestOnSync_PublicKeyCmDoesNotExist_KeyIsCopiedFromRR(t *testing.T) {
 	assert.NoError(t, err)
 
 	// check public key cm exists, and has same public key as RR
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cm)
 	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
 	assert.Equal(t, somePublicKey, publicKey)
 
 	// check secret exists, and has same private key as RR
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
@@ -146,7 +146,7 @@ func TestOnSync_PublicKeyInCmIsEmpty_KeyIsCopiedFromRR(t *testing.T) {
 		WithPrivateKey(somePrivateKey)
 
 	// check public key cm does not exist
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.Error(t, err)
 	assert.Nil(t, cm)
 
@@ -154,24 +154,24 @@ func TestOnSync_PublicKeyInCmIsEmpty_KeyIsCopiedFromRR(t *testing.T) {
 	assert.NoError(t, err)
 
 	// delete data in public key cm
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	cm.Data = map[string]string{}
-	_, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Update(context.TODO(), cm, metav1.UpdateOptions{})
+	_, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Update(context.Background(), cm, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
 	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
 	assert.NoError(t, err)
 
 	// check public key cm exists, and has same public key as RR
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cm)
 	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
 	assert.Equal(t, somePublicKey, strings.TrimSpace(publicKey))
 
 	// check secret exists, and has same private key as RR
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
@@ -195,7 +195,7 @@ func TestOnSync_PrivateKeySecretIsUpdatedManually_PublicKeyIsUpdated(t *testing.
 	assert.NoError(t, err)
 
 	// modify the private key secret manually
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
 	deployKey, err := utils.GenerateDeployKey()
@@ -204,12 +204,12 @@ func TestOnSync_PrivateKeySecretIsUpdatedManually_PublicKeyIsUpdated(t *testing.
 	newSecret := secret.DeepCopy()
 	newSecret.Data[defaults.GitPrivateKeySecretKey] = []byte(deployKey.PrivateKey)
 
-	_, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
+	_, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Update(context.Background(), newSecret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
 	assert.NoError(t, err)
 	// check that the public key cm is updated
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
 	assert.Equal(t, deployKey.PublicKey, publicKey)

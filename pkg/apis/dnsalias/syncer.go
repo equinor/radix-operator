@@ -81,7 +81,7 @@ func (s *syncer) syncAlias(ctx context.Context) error {
 }
 
 func (s *syncer) syncIngresses(ctx context.Context) error {
-	radixDeployComponent, err := s.getRadixDeployComponent()
+	radixDeployComponent, err := s.getRadixDeployComponent(ctx)
 	if err != nil {
 		return err
 	}
@@ -98,12 +98,12 @@ func (s *syncer) syncIngresses(ctx context.Context) error {
 	return s.syncOAuthProxyIngress(ctx, namespace, ing, radixDeployComponent)
 }
 
-func (s *syncer) getRadixDeployComponent() (radixv1.RadixCommonDeployComponent, error) {
+func (s *syncer) getRadixDeployComponent(ctx context.Context) (radixv1.RadixCommonDeployComponent, error) {
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 
 	s.logger.Debug().Msgf("get active deployment for the namespace %s", namespace)
-	radixDeployment, err := s.kubeUtil.GetActiveDeployment(namespace)
+	radixDeployment, err := s.kubeUtil.GetActiveDeployment(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (s *syncer) handleDeletedRadixDNSAlias(ctx context.Context) error {
 	}
 
 	selector := radixlabels.ForDNSAliasIngress(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Component, s.radixDNSAlias.GetName())
-	if err := s.deleteIngresses(selector); err != nil {
+	if err := s.deleteIngresses(ctx, selector); err != nil {
 		return err
 	}
 	if err := s.deleteRbac(ctx); err != nil {
@@ -143,11 +143,11 @@ func (s *syncer) handleDeletedRadixDNSAlias(ctx context.Context) error {
 	s.logger.Debug().Msgf("removed finalizer %s from the RadixDNSAlias %s for the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingAlias.Name, updatingAlias.Spec.AppName, len(updatingAlias.ObjectMeta.Finalizers))
 
-	return s.kubeUtil.UpdateRadixDNSAlias(updatingAlias)
+	return s.kubeUtil.UpdateRadixDNSAlias(ctx, updatingAlias)
 }
 
-func (s *syncer) getExistingClusterRoleOwnerReferences(roleName string) ([]metav1.OwnerReference, error) {
-	clusterRole, err := s.kubeUtil.GetClusterRole(roleName)
+func (s *syncer) getExistingClusterRoleOwnerReferences(ctx context.Context, roleName string) ([]metav1.OwnerReference, error) {
+	clusterRole, err := s.kubeUtil.GetClusterRole(ctx, roleName)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil

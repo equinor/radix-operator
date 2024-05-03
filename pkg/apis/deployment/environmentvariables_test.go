@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -71,11 +72,11 @@ func Test_GetEnvironmentVariables(t *testing.T) {
 			})
 		})
 
-		envVars, err := GetEnvironmentVariables(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
+		envVars, err := GetEnvironmentVariables(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
 
 		assert.NoError(t, err)
 		assert.Len(t, envVars, 3)
-		envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+		envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, componentName)
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
 		assert.NotNil(t, envVarsConfigMap.Data)
@@ -100,15 +101,15 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 			"VAR3": "val3",
 		})
 	})
-	cm, err := testEnv.kubeUtil.GetConfigMap(corev1.NamespaceDefault, "radix-config")
+	cm, err := testEnv.kubeUtil.GetConfigMap(context.Background(), corev1.NamespaceDefault, "radix-config")
 	require.NoError(t, err)
 	require.Equal(t, testClusterName, cm.Data["clustername"])
 
-	envVars, err := GetEnvironmentVariablesForRadixOperator(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
+	envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
 
 	assert.NoError(t, err)
 	assert.True(t, len(envVars) > 3)
-	envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+	envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, componentName)
 	assert.NoError(t, err)
 	assert.NotNil(t, envVarsConfigMap)
 	assert.NotNil(t, envVarsConfigMap.Data)
@@ -134,7 +135,7 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	defer teardownTest()
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
 		//goland:noinspection GoUnhandledErrorResult
-		_, err := testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
+		_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
 			"VAR1":          "val1",
 			"OUTDATED_VAR1": "val1z",
 		}})
@@ -151,7 +152,7 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 		require.NoError(t, err)
 
 		//goland:noinspection GoUnhandledErrorResult
-		_, err = testEnv.kubeUtil.CreateConfigMap(namespace, &existingEnvVarsMetadataConfigMap)
+		_, err = testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &existingEnvVarsMetadataConfigMap)
 		require.NoError(t, err)
 
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
@@ -161,11 +162,11 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 				"VAR3": "val3",
 			})
 		})
-		envVars, err := GetEnvironmentVariables(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
+		envVars, err := GetEnvironmentVariables(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
 
 		assert.NoError(t, err)
 		assert.Len(t, envVars, 3)
-		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, componentName)
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
 		assert.NotNil(t, envVarsConfigMap.Data)
@@ -176,7 +177,7 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 		assert.Equal(t, "", envVarsConfigMap.Data["OUTDATED_VAR1"])
 		assert.NotNil(t, envVarsMetadataConfigMap)
 		assert.NotNil(t, envVarsMetadataConfigMap.Data)
-		resultEnvVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+		resultEnvVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(context.Background(), envVarsMetadataConfigMap)
 		assert.NoError(t, err)
 		assert.NotNil(t, resultEnvVarsMetadataMap)
 		assert.Len(t, resultEnvVarsMetadataMap, 1)
@@ -281,7 +282,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: testCase.azureKeyVaults})
 			})
 
-			envVars, err := GetEnvironmentVariables(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
+			envVars, err := GetEnvironmentVariables(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
 
 			resultEnvVarMap := make(map[string]corev1.EnvVar)
 			for _, envVar := range envVars {
@@ -290,7 +291,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Len(t, envVars, len(testCase.expectedEnvVars)+len(testCase.expectedSecrets)+len(testCase.expectedSecretRefsEnvVars))
-			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, componentName)
 			assert.NoError(t, err)
 			assert.NotNil(t, envVarsConfigMap)
 			assert.NotNil(t, envVarsConfigMapMetadata)
@@ -351,7 +352,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: testCase.azureKeyVaults})
 			})
 
-			envVars, err := GetEnvironmentVariables(testEnv.kubeUtil, appName, rd, &rd.Spec.Jobs[0])
+			envVars, err := GetEnvironmentVariables(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Jobs[0])
 
 			resultEnvVarMap := make(map[string]corev1.EnvVar)
 			for _, envVar := range envVars {
@@ -360,7 +361,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Len(t, envVars, len(testCase.expectedEnvVars)+len(testCase.expectedSecrets)+len(testCase.expectedSecretRefsEnvVars))
-			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(utils.GetEnvironmentNamespace(appName, env), appName, jobName)
+			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, jobName)
 			assert.NoError(t, err)
 			assert.NotNil(t, envVarsConfigMap)
 			assert.NotNil(t, envVarsConfigMapMetadata)

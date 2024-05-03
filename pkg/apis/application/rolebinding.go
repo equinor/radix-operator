@@ -60,7 +60,7 @@ func (app *Application) applyRbacRadixRegistration(ctx context.Context) error {
 
 	// Apply roles and bindings
 	for _, clusterRole := range []*rbacv1.ClusterRole{adminClusterRole, readerClusterRole} {
-		err := app.kubeutil.ApplyClusterRole(clusterRole)
+		err := app.kubeutil.ApplyClusterRole(ctx, clusterRole)
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ func (app *Application) applyRbacRadixRegistration(ctx context.Context) error {
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline
 func (app *Application) applyRbacOnPipelineRunner(ctx context.Context) error {
-	serviceAccount, err := app.applyPipelineServiceAccount()
+	serviceAccount, err := app.applyPipelineServiceAccount(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to apply pipeline service account: %w", err)
 	}
@@ -99,7 +99,7 @@ func (app *Application) applyRbacOnPipelineRunner(ctx context.Context) error {
 }
 
 func (app *Application) applyRbacOnRadixTekton(ctx context.Context) error {
-	serviceAccount, err := app.kubeutil.CreateServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.RadixTektonServiceAccountName)
+	serviceAccount, err := app.kubeutil.CreateServiceAccount(ctx, utils.GetAppNamespace(app.registration.Name), defaults.RadixTektonServiceAccountName)
 	if err != nil {
 		return fmt.Errorf("failed to apply Tekton pipeline service account: %w", err)
 	}
@@ -133,7 +133,7 @@ func (app *Application) giveAccessToRadixDNSAliases(ctx context.Context, service
 }
 
 func (app *Application) applyClusterRoleAndBinding(ctx context.Context, clusterRole *rbacv1.ClusterRole, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
-	if err := app.kubeutil.ApplyClusterRole(clusterRole); err != nil {
+	if err := app.kubeutil.ApplyClusterRole(ctx, clusterRole); err != nil {
 		return err
 	}
 	return app.kubeutil.ApplyClusterRoleBinding(ctx, clusterRoleBinding)

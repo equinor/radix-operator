@@ -48,7 +48,7 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(ctx context.Context,
 
 	if k8serrors.IsAlreadyExists(err) {
 		log.Ctx(ctx).Info().Msgf("PodDisruptionBudget object %s already exists in namespace %s, updating the object now", componentName, namespace)
-		err := deploy.kubeutil.UpdatePodDisruptionBudget(namespace, pdb)
+		err := deploy.kubeutil.UpdatePodDisruptionBudget(ctx, namespace, pdb)
 		if err != nil {
 			return err
 		}
@@ -88,7 +88,7 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec(ctx c
 	namespace := deploy.radixDeployment.Namespace
 
 	// List PDBs
-	pdbs, err := deploy.kubeutil.ListPodDisruptionBudgets(namespace)
+	pdbs, err := deploy.kubeutil.ListPodDisruptionBudgets(ctx, namespace)
 
 	if err != nil {
 		return err

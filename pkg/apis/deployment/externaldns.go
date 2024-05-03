@@ -230,7 +230,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context
 		return err
 	}
 
-	_, err = deploy.kubeutil.ApplySecret(ns, &secret)
+	_, err = deploy.kubeutil.ApplySecret(ctx, ns, &secret)
 	if err != nil {
 		return err
 	}

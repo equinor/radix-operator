@@ -23,8 +23,8 @@ import (
 )
 
 // CreateRadixDNSAliasIngress Create an Ingress for a RadixDNSAlias
-func CreateRadixDNSAliasIngress(kubeClient kubernetes.Interface, appName, envName string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
-	return kubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), ingress, metav1.CreateOptions{})
+func CreateRadixDNSAliasIngress(ctx context.Context, kubeClient kubernetes.Interface, appName, envName string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
+	return kubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(appName, envName)).Create(ctx, ingress, metav1.CreateOptions{})
 }
 
 // GetDNSAliasIngressName Gets name of the ingress for the custom DNS alias
@@ -44,11 +44,11 @@ func (s *syncer) syncIngress(ctx context.Context, namespace string, radixDeployC
 	if err != nil {
 		return nil, err
 	}
-	existingIngress, err := s.kubeUtil.GetIngress(namespace, ingressName)
+	existingIngress, err := s.kubeUtil.GetIngress(ctx, namespace, ingressName)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			s.logger.Debug().Msgf("not found Ingress %s in the namespace %s. Create new.", ingressName, namespace)
-			return s.createIngress(s.radixDNSAlias, newIngress)
+			return s.createIngress(ctx, s.radixDNSAlias, newIngress)
 		}
 		return nil, err
 	}
@@ -68,9 +68,9 @@ func (s *syncer) applyIngress(ctx context.Context, namespace string, existingIng
 	return patchesIngress, nil
 }
 
-func (s *syncer) createIngress(radixDNSAlias *radixv1.RadixDNSAlias, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
+func (s *syncer) createIngress(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
 	s.logger.Debug().Msgf("create an ingress %s for the RadixDNSAlias", ing.GetName())
-	return CreateRadixDNSAliasIngress(s.kubeClient, radixDNSAlias.Spec.AppName, radixDNSAlias.Spec.Environment, ing)
+	return CreateRadixDNSAliasIngress(ctx, s.kubeClient, radixDNSAlias.Spec.AppName, radixDNSAlias.Spec.Environment, ing)
 }
 
 func (s *syncer) syncOAuthProxyIngress(ctx context.Context, namespace string, ing *networkingv1.Ingress, deployComponent radixv1.RadixCommonDeployComponent) error {
@@ -79,7 +79,7 @@ func (s *syncer) syncOAuthProxyIngress(ctx context.Context, namespace string, in
 	oauthEnabled := authentication != nil && authentication.OAuth2 != nil
 	if !oauthEnabled {
 		selector := radixlabels.ForAuxComponentDNSAliasIngress(s.radixDNSAlias.Spec.AppName, deployComponent, s.radixDNSAlias.GetName())
-		return s.deleteIngresses(selector)
+		return s.deleteIngresses(ctx, selector)
 	}
 	oauth2, err := s.oauth2DefaultConfig.MergeWith(authentication.OAuth2)
 	if err != nil {
@@ -97,14 +97,14 @@ func (s *syncer) syncOAuthProxyIngress(ctx context.Context, namespace string, in
 	return s.kubeUtil.ApplyIngress(ctx, namespace, auxIngress)
 }
 
-func (s *syncer) deleteIngresses(selector labels.Set) error {
+func (s *syncer) deleteIngresses(ctx context.Context, selector labels.Set) error {
 	aliasSpec := s.radixDNSAlias.Spec
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	ingresses, err := s.kubeUtil.KubeClient().NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: selector.String()})
+	ingresses, err := s.kubeUtil.KubeClient().NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
 	}
-	return s.kubeUtil.DeleteIngresses(ingresses.Items...)
+	return s.kubeUtil.DeleteIngresses(ctx, ingresses.Items...)
 }
 
 func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {

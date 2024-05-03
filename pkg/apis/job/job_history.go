@@ -16,8 +16,8 @@ type radixJobsWithRadixDeployments map[string]v1.RadixDeployment
 type radixJobsForBranches map[string][]v1.RadixJob
 type radixJobsForConditions map[v1.RadixJobCondition]radixJobsForBranches
 
-func (job *Job) maintainHistoryLimit() {
-	radixJobs, err := job.getAllRadixJobs()
+func (job *Job) maintainHistoryLimit(ctx context.Context) {
+	radixJobs, err := job.getAllRadixJobs(ctx)
 	if err != nil {
 		job.logger.Warn().Err(err).Msg("failed to get RadixJob in maintain job history")
 		return
@@ -25,7 +25,7 @@ func (job *Job) maintainHistoryLimit() {
 	if len(radixJobs) == 0 {
 		return
 	}
-	radixJobsWithRDs, err := job.getRadixJobsWithRadixDeployments()
+	radixJobsWithRDs, err := job.getRadixJobsWithRadixDeployments(ctx)
 	if err != nil {
 		job.logger.Warn().Err(err).Msg("failed to get RadixJobs with RadixDeployments in maintain job history")
 		return
@@ -36,10 +36,10 @@ func (job *Job) maintainHistoryLimit() {
 	jobsByConditionAndBranch := job.getJobsToGarbageCollectByJobConditionAndBranch(radixJobsForConditions, jobHistoryLimit)
 
 	deletingJobs = append(deletingJobs, jobsByConditionAndBranch...)
-	job.garbageCollectRadixJobs(deletingJobs)
+	job.garbageCollectRadixJobs(ctx, deletingJobs)
 }
 
-func (job *Job) garbageCollectRadixJobs(radixJobs []v1.RadixJob) {
+func (job *Job) garbageCollectRadixJobs(ctx context.Context, radixJobs []v1.RadixJob) {
 	if len(radixJobs) == 0 {
 		job.logger.Info().Msg("There is no RadixJobs to delete")
 		return
@@ -49,7 +49,7 @@ func (job *Job) garbageCollectRadixJobs(radixJobs []v1.RadixJob) {
 			continue // do not remove current job
 		}
 		job.logger.Info().Msgf("Delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
-		err := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Delete(context.TODO(), rj.GetName(), metav1.DeleteOptions{})
+		err := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Delete(ctx, rj.GetName(), metav1.DeleteOptions{})
 		if err != nil {
 			job.logger.Warn().Err(err).Msgf("Failed to delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
 		}
@@ -87,12 +87,12 @@ func sortRadixJobGroupsByCreatedDesc(radixJobsForConditions radixJobsForConditio
 	return radixJobsForConditions
 }
 
-func (job *Job) getRadixJobsWithRadixDeployments() (radixJobsWithRadixDeployments, error) {
+func (job *Job) getRadixJobsWithRadixDeployments(ctx context.Context) (radixJobsWithRadixDeployments, error) {
 	appName, err := job.getAppName()
 	if err != nil {
 		return nil, err
 	}
-	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.Namespace).Get(context.TODO(), appName, metav1.GetOptions{})
+	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.Namespace).Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
 		// RadixApplication may not exist if this is the first job for a new application
 		if k8errors.IsNotFound(err) {
@@ -103,7 +103,7 @@ func (job *Job) getRadixJobsWithRadixDeployments() (radixJobsWithRadixDeployment
 	rdRadixJobs := make(radixJobsWithRadixDeployments)
 	for _, env := range ra.Spec.Environments {
 		envNamespace := utils.GetEnvironmentNamespace(appName, env.Name)
-		envRdList, err := job.radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		envRdList, err := job.radixclient.RadixV1().RadixDeployments(envNamespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get RadixDeployments from the environment %s. Error: %w", env.Name, err)
 		}
@@ -135,8 +135,8 @@ func getRadixJobBranch(rj v1.RadixJob) string {
 	return ""
 }
 
-func (job *Job) getAllRadixJobs() ([]v1.RadixJob, error) {
-	radixJobList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
+func (job *Job) getAllRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
+	radixJobList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

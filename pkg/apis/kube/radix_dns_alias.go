@@ -13,13 +13,13 @@ import (
 )
 
 // CreateRadixDNSAlias Creates RadixDNSAlias
-func (kubeutil *Kube) CreateRadixDNSAlias(radixDNSAlias *radixv1.RadixDNSAlias) error {
-	_, err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Create(context.Background(), radixDNSAlias, metav1.CreateOptions{})
+func (kubeutil *Kube) CreateRadixDNSAlias(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias) error {
+	_, err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Create(ctx, radixDNSAlias, metav1.CreateOptions{})
 	return err
 }
 
 // GetRadixDNSAlias Gets RadixDNSAlias using lister if present
-func (kubeutil *Kube) GetRadixDNSAlias(name string) (*radixv1.RadixDNSAlias, error) {
+func (kubeutil *Kube) GetRadixDNSAlias(ctx context.Context, name string) (*radixv1.RadixDNSAlias, error) {
 	var alias *radixv1.RadixDNSAlias
 	var err error
 	if kubeutil.RadixDNSAliasLister != nil {
@@ -28,7 +28,7 @@ func (kubeutil *Kube) GetRadixDNSAlias(name string) (*radixv1.RadixDNSAlias, err
 		}
 		return alias, nil
 	}
-	if alias, err = kubeutil.radixclient.RadixV1().RadixDNSAliases().Get(context.TODO(), name, metav1.GetOptions{}); err != nil {
+	if alias, err = kubeutil.radixclient.RadixV1().RadixDNSAliases().Get(ctx, name, metav1.GetOptions{}); err != nil {
 		return nil, err
 	}
 	return alias, nil
@@ -66,8 +66,8 @@ func (kubeutil *Kube) GetRadixDNSAliasWithSelector(ctx context.Context, labelSel
 }
 
 // GetRadixDNSAliasMap Gets a map of all RadixDNSAliases
-func GetRadixDNSAliasMap(radixClient radixclient.Interface) (map[string]*radixv1.RadixDNSAlias, error) {
-	radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{})
+func GetRadixDNSAliasMap(ctx context.Context, radixClient radixclient.Interface) (map[string]*radixv1.RadixDNSAlias, error) {
+	radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return make(map[string]*radixv1.RadixDNSAlias), err
 	}
@@ -78,19 +78,19 @@ func GetRadixDNSAliasMap(radixClient radixclient.Interface) (map[string]*radixv1
 }
 
 // UpdateRadixDNSAlias Update RadixDNSAlias
-func (kubeutil *Kube) UpdateRadixDNSAlias(radixDNSAlias *radixv1.RadixDNSAlias) error {
-	_, err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Update(context.Background(), radixDNSAlias, metav1.UpdateOptions{})
+func (kubeutil *Kube) UpdateRadixDNSAlias(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias) error {
+	_, err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Update(ctx, radixDNSAlias, metav1.UpdateOptions{})
 	return err
 }
 
 // DeleteRadixDNSAliases Delete RadixDNSAliases
-func (kubeutil *Kube) DeleteRadixDNSAliases(radixDNSAliases ...*radixv1.RadixDNSAlias) error {
+func (kubeutil *Kube) DeleteRadixDNSAliases(ctx context.Context, radixDNSAliases ...*radixv1.RadixDNSAlias) error {
 	var errs []error
 	for _, radixDNSAlias := range radixDNSAliases {
 		if radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
 			continue
 		}
-		if err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Delete(context.Background(), radixDNSAlias.GetName(), metav1.DeleteOptions{}); err != nil {
+		if err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Delete(ctx, radixDNSAlias.GetName(), metav1.DeleteOptions{}); err != nil {
 			errs = append(errs, err)
 		}
 	}

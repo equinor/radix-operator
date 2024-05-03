@@ -72,7 +72,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	syncEnvironment := envConfig.DeepCopy()
 	log.Debug().Msgf("Sync environment %s", syncEnvironment.Name)
 
-	radixRegistration, err := t.kubeutil.GetRegistration(syncEnvironment.Spec.AppName)
+	radixRegistration, err := t.kubeutil.GetRegistration(ctx, syncEnvironment.Spec.AppName)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err

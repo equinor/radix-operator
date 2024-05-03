@@ -37,7 +37,7 @@ const (
 func (job *Job) createPipelineJob(ctx context.Context) error {
 	namespace := job.radixJob.Namespace
 
-	jobConfig, err := job.getPipelineJobConfig()
+	jobConfig, err := job.getPipelineJobConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (job *Job) createPipelineJob(ctx context.Context) error {
 	return nil
 }
 
-func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
+func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) {
 	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 		return nil, err
 	}
 
-	containerArguments, err := job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline)
+	containerArguments, err := job.getPipelineJobArguments(ctx, appName, jobName, job.radixJob.Spec, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -117,12 +117,12 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 	return &jobCfg, nil
 }
 
-func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
+func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
 	useImageBuilderCache := os.Getenv(defaults.RadixUseCacheEnvironmentVariable)
 
-	clusterName, err := job.kubeutil.GetClusterName()
+	clusterName, err := job.kubeutil.GetClusterName(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	if err != nil {
 		return nil, err
 	}
-	subscriptionId, err := job.kubeutil.GetSubscriptionId()
+	subscriptionId, err := job.kubeutil.GetSubscriptionId(ctx)
 	if err != nil {
 		return nil, err
 	}

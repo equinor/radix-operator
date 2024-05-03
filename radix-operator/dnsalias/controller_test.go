@@ -80,13 +80,13 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	// Updating the RadixDNSAlias with component should trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	alias.Spec.Component = componentName2
-	alias, err = s.RadixClient.RadixV1().RadixDNSAliases().Update(context.TODO(), alias, metav1.UpdateOptions{})
+	alias, err = s.RadixClient.RadixV1().RadixDNSAliases().Update(context.Background(), alias, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on update component in the RadixDNSAlias")
 
 	// Updating the RadixDNSAlias with no changes should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	_, err = s.RadixClient.RadixV1().RadixDNSAliases().Update(context.TODO(), alias, metav1.UpdateOptions{})
+	_, err = s.RadixClient.RadixV1().RadixDNSAliases().Update(context.Background(), alias, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
 
@@ -96,7 +96,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	ing.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radixv1.SchemeGroupVersion.Identifier(), Kind: radixv1.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	envNamespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(gomock.Any(), envNamespace, aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	ing, err = dnsaliasapi.CreateRadixDNSAliasIngress(s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ing)
+	ing, err = dnsaliasapi.CreateRadixDNSAliasIngress(context.Background(), s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ing)
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when adding ingress")
 
@@ -163,7 +163,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 	// Delete the RadixDNSAlias should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	err = s.RadixClient.RadixV1().RadixDNSAliases().Delete(context.TODO(), alias.GetName(), metav1.DeleteOptions{})
+	err = s.RadixClient.RadixV1().RadixDNSAliases().Delete(context.Background(), alias.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
 }

@@ -81,7 +81,7 @@ func GrantAppReaderAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regi
 
 	// create role
 	role := kube.CreateReadSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
-	err := kubeutil.ApplyRole(namespace, role)
+	err := kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func GrantAppAdminAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regis
 
 	// create role
 	role := kube.CreateManageSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
-	err := kubeutil.ApplyRole(namespace, role)
+	err := kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}

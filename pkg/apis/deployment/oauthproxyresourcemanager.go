@@ -113,7 +113,7 @@ func (o *oauthProxyResourceManager) garbageCollect(ctx context.Context) error {
 }
 
 func (o *oauthProxyResourceManager) garbageCollectDeployment(ctx context.Context) error {
-	deployments, err := o.kubeutil.ListDeployments(o.rd.Namespace)
+	deployments, err := o.kubeutil.ListDeployments(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (o *oauthProxyResourceManager) garbageCollectDeployment(ctx context.Context
 }
 
 func (o *oauthProxyResourceManager) garbageCollectSecrets(ctx context.Context) error {
-	secrets, err := o.kubeutil.ListSecrets(o.rd.Namespace)
+	secrets, err := o.kubeutil.ListSecrets(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (o *oauthProxyResourceManager) garbageCollectSecrets(ctx context.Context) e
 }
 
 func (o *oauthProxyResourceManager) garbageCollectServices(ctx context.Context) error {
-	services, err := o.kubeutil.ListServices(o.rd.Namespace)
+	services, err := o.kubeutil.ListServices(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (o *oauthProxyResourceManager) garbageCollectServices(ctx context.Context) 
 }
 
 func (o *oauthProxyResourceManager) garbageCollectIngresses(ctx context.Context) error {
-	ingresses, err := o.kubeutil.ListIngresses(o.rd.Namespace)
+	ingresses, err := o.kubeutil.ListIngresses(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (o *oauthProxyResourceManager) garbageCollectIngresses(ctx context.Context)
 }
 
 func (o *oauthProxyResourceManager) garbageCollectRoles(ctx context.Context) error {
-	roles, err := o.kubeutil.ListRoles(o.rd.Namespace)
+	roles, err := o.kubeutil.ListRoles(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 
 func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("install the oauth proxy for the component %s", component.GetName())
-	if err := o.createOrUpdateSecret(component); err != nil {
+	if err := o.createOrUpdateSecret(ctx, component); err != nil {
 		return err
 	}
 
@@ -246,7 +246,7 @@ func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.Ra
 		return err
 	}
 
-	if err := o.createOrUpdateService(component); err != nil {
+	if err := o.createOrUpdateService(ctx, component); err != nil {
 		return err
 	}
 
@@ -254,7 +254,7 @@ func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.Ra
 		return err
 	}
 
-	return o.createOrUpdateDeployment(component)
+	return o.createOrUpdateDeployment(ctx, component)
 }
 
 func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.RadixCommonDeployComponent) error {
@@ -284,7 +284,7 @@ func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.
 
 func (o *oauthProxyResourceManager) deleteDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
-	deployments, err := o.kubeutil.ListDeploymentsWithSelector(o.rd.Namespace, selector)
+	deployments, err := o.kubeutil.ListDeploymentsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
 	}
@@ -303,12 +303,12 @@ func (o *oauthProxyResourceManager) deleteIngresses(ctx context.Context, compone
 	if err != nil {
 		return err
 	}
-	return o.kubeutil.DeleteIngresses(ingresses...)
+	return o.kubeutil.DeleteIngresses(ctx, ingresses...)
 }
 
 func (o *oauthProxyResourceManager) deleteServices(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
-	services, err := o.kubeutil.ListServicesWithSelector(o.rd.Namespace, selector)
+	services, err := o.kubeutil.ListServicesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
 	}
@@ -324,7 +324,7 @@ func (o *oauthProxyResourceManager) deleteServices(ctx context.Context, componen
 
 func (o *oauthProxyResourceManager) deleteSecrets(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
-	secrets, err := o.kubeutil.ListSecretsWithSelector(o.rd.Namespace, selector)
+	secrets, err := o.kubeutil.ListSecretsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
 	}
@@ -357,7 +357,7 @@ func (o *oauthProxyResourceManager) deleteRoleBindings(ctx context.Context, comp
 
 func (o *oauthProxyResourceManager) deleteRoles(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
-	roles, err := o.kubeutil.ListRolesWithSelector(o.rd.Namespace, selector)
+	roles, err := o.kubeutil.ListRolesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
 	}
@@ -442,14 +442,14 @@ func (o *oauthProxyResourceManager) getIngressesForSelector(ctx context.Context,
 	return ingresses, nil
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateService(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) createOrUpdateService(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	service := o.buildServiceSpec(component)
-	return o.kubeutil.ApplyService(o.rd.Namespace, service)
+	return o.kubeutil.ApplyService(ctx, o.rd.Namespace, service)
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	secret, err := o.kubeutil.GetSecret(o.rd.Namespace, secretName)
+	secret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
 
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
@@ -468,7 +468,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommo
 		}
 	}
 
-	_, err = o.kubeutil.ApplySecret(o.rd.Namespace, secret)
+	_, err = o.kubeutil.ApplySecret(ctx, o.rd.Namespace, secret)
 	return err
 }
 
@@ -495,7 +495,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 		kube.UpdateDeploymentsRule([]string{deploymentName}),
 	)
 
-	err := o.kubeutil.ApplyRole(namespace, role)
+	err := o.kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -524,7 +524,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Cont
 		kube.ReadSecretsRule([]string{secretName}),
 	)
 
-	err := o.kubeutil.ApplyRole(namespace, role)
+	err := o.kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -595,22 +595,22 @@ func (o *oauthProxyResourceManager) generateRandomCookieSecret() ([]byte, error)
 	return encodedBytes, nil
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateDeployment(component v1.RadixCommonDeployComponent) error {
-	current, desired, err := o.getCurrentAndDesiredDeployment(component)
+func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+	current, desired, err := o.getCurrentAndDesiredDeployment(ctx, component)
 	if err != nil {
 		return err
 	}
 
-	if err := o.kubeutil.ApplyDeployment(o.rd.Namespace, current, desired); err != nil {
+	if err := o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
-	currentDeployment, err := o.kubeutil.GetDeployment(o.rd.Namespace, deploymentName)
+	currentDeployment, err := o.kubeutil.GetDeployment(ctx, o.rd.Namespace, deploymentName)
 	if err != nil && !kubeerrors.IsNotFound(err) {
 		return nil, nil, err
 	}

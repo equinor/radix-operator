@@ -115,7 +115,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 
 // Sync Is created on sync of resource
 func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
-	rd, err := t.kubeutil.GetRadixDeployment(namespace, name)
+	rd, err := t.kubeutil.GetRadixDeployment(ctx, namespace, name)
 	if err != nil {
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.

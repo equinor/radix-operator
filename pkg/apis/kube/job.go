@@ -10,7 +10,7 @@ import (
 )
 
 // ListJobs Lists jobs from cache or from cluster
-func (kubeutil *Kube) ListJobs(namespace string) ([]*batchv1.Job, error) {
+func (kubeutil *Kube) ListJobs(ctx context.Context, namespace string) ([]*batchv1.Job, error) {
 	if kubeutil.JobLister != nil {
 		jobs, err := kubeutil.JobLister.Jobs(namespace).List(labels.NewSelector())
 		if err != nil {
@@ -18,7 +18,7 @@ func (kubeutil *Kube) ListJobs(namespace string) ([]*batchv1.Job, error) {
 		}
 		return jobs, nil
 	} else {
-		list, err := kubeutil.kubeClient.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
+		list, err := kubeutil.kubeClient.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -29,7 +29,7 @@ func (kubeutil *Kube) ListJobs(namespace string) ([]*batchv1.Job, error) {
 }
 
 // ListJobsWithSelector List jobs with selector
-func (kubeutil *Kube) ListJobsWithSelector(namespace, labelSelectorString string) ([]*batchv1.Job, error) {
+func (kubeutil *Kube) ListJobsWithSelector(ctx context.Context, namespace, labelSelectorString string) ([]*batchv1.Job, error) {
 	if kubeutil.JobLister != nil {
 		selector, err := labels.Parse(labelSelectorString)
 		if err != nil {
@@ -38,7 +38,7 @@ func (kubeutil *Kube) ListJobsWithSelector(namespace, labelSelectorString string
 		return kubeutil.JobLister.Jobs(namespace).List(selector)
 	}
 
-	list, err := kubeutil.kubeClient.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelectorString})
+	list, err := kubeutil.kubeClient.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelectorString})
 	if err != nil {
 		return nil, err
 	}

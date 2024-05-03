@@ -16,8 +16,8 @@ import (
 )
 
 // GetIngress Gets an ingress by its name
-func (kubeutil *Kube) GetIngress(namespace, name string) (*networkingv1.Ingress, error) {
-	return kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func (kubeutil *Kube) GetIngress(ctx context.Context, namespace, name string) (*networkingv1.Ingress, error) {
+	return kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 // ApplyIngress Will create or update ingress in provided namespace
@@ -79,14 +79,14 @@ func (kubeutil *Kube) PatchIngress(ctx context.Context, namespace string, oldIng
 }
 
 // ListIngresses lists ingresses
-func (kubeutil *Kube) ListIngresses(namespace string) ([]*networkingv1.Ingress, error) {
-	return kubeutil.ListIngressesWithSelector(namespace, "")
+func (kubeutil *Kube) ListIngresses(ctx context.Context, namespace string) ([]*networkingv1.Ingress, error) {
+	return kubeutil.ListIngressesWithSelector(ctx, namespace, "")
 }
 
 // ListIngressesWithSelector lists ingresses
-func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
+func (kubeutil *Kube) ListIngressesWithSelector(ctx context.Context, namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
 	if kubeutil.IngressLister == nil {
-		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelectorString})
+		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelectorString})
 		if err != nil {
 			return nil, err
 		}
@@ -104,10 +104,10 @@ func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorS
 }
 
 // DeleteIngresses Deletes ingresses
-func (kubeutil *Kube) DeleteIngresses(ingresses ...networkingv1.Ingress) error {
+func (kubeutil *Kube) DeleteIngresses(ctx context.Context, ingresses ...networkingv1.Ingress) error {
 	log.Debug().Msgf("delete %d Ingress(es)", len(ingresses))
 	for _, ing := range ingresses {
-		if err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+		if err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 	}

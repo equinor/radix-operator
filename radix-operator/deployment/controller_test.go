@@ -51,7 +51,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	anyAppName := "test-app"
 	anyEnvironment := "qa"
 
-	ctx, stopFn := context.WithTimeout(context.TODO(), 5*time.Second)
+	ctx, stopFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer stopFn()
 
 	synced := make(chan bool)
@@ -75,6 +75,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	require.NoError(t, err)
 
 	rd, err := tu.ApplyDeployment(
+		context.Background(),
 		utils.ARadixDeployment().
 			WithAppName(anyAppName).
 			WithEnvironment(anyEnvironment))

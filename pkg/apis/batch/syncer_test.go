@@ -62,7 +62,7 @@ func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.K
 }
 
 func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent) *corev1.ConfigMap {
-	initialEnvVarsConfigMap, _, _ := kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(rd.GetNamespace(),
+	initialEnvVarsConfigMap, _, _ := kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), rd.GetNamespace(),
 		rd.Spec.AppName, deployComponent.GetName())
 	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
 	for envVarName, envVarValue := range deployComponent.GetEnvironmentVariables() {
@@ -71,7 +71,7 @@ func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, 
 		}
 		desiredConfigMap.Data[envVarName] = envVarValue
 	}
-	err := kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
+	err := kubeUtil.ApplyConfigMap(context.Background(), rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
 	s.Require().NoError(err)
 
 	return desiredConfigMap

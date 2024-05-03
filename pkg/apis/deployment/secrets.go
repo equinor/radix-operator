@@ -52,7 +52,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 
 	if len(component.GetSecrets()) > 0 {
 		secretName := utils.GetComponentSecretName(component.GetName())
-		if !deploy.kubeutil.SecretExists(namespace, secretName) {
+		if !deploy.kubeutil.SecretExists(ctx, namespace, secretName) {
 			err := deploy.createOrUpdateComponentSecret(ctx, namespace, deploy.registration.Name, component.GetName(), secretName)
 			if err != nil {
 				return err
@@ -67,7 +67,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 		secretsToManage = append(secretsToManage, secretName)
 	}
 
-	volumeMountSecretsToManage, err := deploy.createOrUpdateVolumeMountSecrets(namespace, component.GetName(), component.GetVolumeMounts())
+	volumeMountSecretsToManage, err := deploy.createOrUpdateVolumeMountSecrets(ctx, namespace, component.GetName(), component.GetVolumeMounts())
 	if err != nil {
 		return err
 	}
@@ -80,20 +80,20 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
 	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && ingress.IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
-		if !deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
-			if err := deploy.createClientCertificateSecret(namespace, deploy.registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
+		if !deploy.kubeutil.SecretExists(ctx, namespace, clientCertificateSecretName) {
+			if err := deploy.createClientCertificateSecret(ctx, namespace, deploy.registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
 				return err
 			}
 		}
 		secretsToManage = append(secretsToManage, clientCertificateSecretName)
-	} else if deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
-		err := deploy.kubeutil.DeleteSecret(namespace, clientCertificateSecretName)
+	} else if deploy.kubeutil.SecretExists(ctx, namespace, clientCertificateSecretName) {
+		err := deploy.kubeutil.DeleteSecret(ctx, namespace, clientCertificateSecretName)
 		if err != nil {
 			return err
 		}
 	}
 
-	secretRefsSecretNames, err := deploy.createSecretRefs(namespace, component)
+	secretRefsSecretNames, err := deploy.createSecretRefs(ctx, namespace, component)
 	if err != nil {
 		return err
 	}
@@ -113,24 +113,24 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateVolumeMountSecrets(namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
+func (deploy *Deployment) createOrUpdateVolumeMountSecrets(ctx context.Context, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
 	var volumeMountSecretsToManage []string
 	for _, volumeMount := range volumeMounts {
 		switch GetCsiAzureVolumeMountType(&volumeMount) {
 		case radixv1.MountTypeBlob:
 			{
-				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, componentName, volumeMount.Name)
+				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ctx, namespace, componentName, volumeMount.Name)
 				volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
-				err := deploy.createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName, accountName, accountKey)
+				err := deploy.createOrUpdateVolumeMountsSecrets(ctx, namespace, componentName, secretName, accountName, accountKey)
 				if err != nil {
 					return nil, err
 				}
 			}
 		case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure, radixv1.MountTypeBlobFuse2NfsCsiAzure, radixv1.MountTypeAzureFileCsiAzure:
 			{
-				secretName, accountKey, accountName := deploy.getCsiAzureVolumeMountCredsSecrets(namespace, componentName, volumeMount.Name)
+				secretName, accountKey, accountName := deploy.getCsiAzureVolumeMountCredsSecrets(ctx, namespace, componentName, volumeMount.Name)
 				volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
-				err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, componentName, &volumeMount, secretName, accountName, accountKey)
+				err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(ctx, namespace, componentName, &volumeMount, secretName, accountName, accountKey)
 				if err != nil {
 					return nil, err
 				}
@@ -140,24 +140,24 @@ func (deploy *Deployment) createOrUpdateVolumeMountSecrets(namespace, componentN
 	return volumeMountSecretsToManage, nil
 }
 
-func (deploy *Deployment) getBlobFuseCredsSecrets(ns, componentName, volumeMountName string) (string, []byte, []byte) {
+func (deploy *Deployment) getBlobFuseCredsSecrets(ctx context.Context, ns, componentName, volumeMountName string) (string, []byte, []byte) {
 	secretName := defaults.GetBlobFuseCredsSecretName(componentName, volumeMountName)
 	accountKey := []byte(secretDefaultData)
 	accountName := []byte(secretDefaultData)
-	if deploy.kubeutil.SecretExists(ns, secretName) {
-		oldSecret, _ := deploy.kubeutil.GetSecret(ns, secretName)
+	if deploy.kubeutil.SecretExists(ctx, ns, secretName) {
+		oldSecret, _ := deploy.kubeutil.GetSecret(ctx, ns, secretName)
 		accountKey = oldSecret.Data[defaults.BlobFuseCredsAccountKeyPart]
 		accountName = oldSecret.Data[defaults.BlobFuseCredsAccountNamePart]
 	}
 	return secretName, accountKey, accountName
 }
 
-func (deploy *Deployment) getCsiAzureVolumeMountCredsSecrets(namespace, componentName, volumeMountName string) (string, []byte, []byte) {
+func (deploy *Deployment) getCsiAzureVolumeMountCredsSecrets(ctx context.Context, namespace, componentName, volumeMountName string) (string, []byte, []byte) {
 	secretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, volumeMountName)
 	accountKey := []byte(secretDefaultData)
 	accountName := []byte(secretDefaultData)
-	if deploy.kubeutil.SecretExists(namespace, secretName) {
-		oldSecret, _ := deploy.kubeutil.GetSecret(namespace, secretName)
+	if deploy.kubeutil.SecretExists(ctx, namespace, secretName) {
+		oldSecret, _ := deploy.kubeutil.GetSecret(ctx, namespace, secretName)
 		accountKey = oldSecret.Data[defaults.CsiAzureCredsAccountKeyPart]
 		accountName = oldSecret.Data[defaults.CsiAzureCredsAccountNamePart]
 	}
@@ -165,7 +165,7 @@ func (deploy *Deployment) getCsiAzureVolumeMountCredsSecrets(namespace, componen
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec(ctx context.Context) error {
-	secrets, err := deploy.kubeutil.ListSecrets(deploy.radixDeployment.GetNamespace())
+	secrets, err := deploy.kubeutil.ListSecrets(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func (deploy *Deployment) isEligibleForGarbageCollectSecretsForComponent(existin
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	secrets, err := deploy.listSecretsForComponent(component)
+	secrets, err := deploy.listSecretsForComponent(ctx, component)
 	if err != nil {
 		return err
 	}
@@ -223,18 +223,18 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(ctx co
 	return nil
 }
 
-func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
-	return deploy.listSecrets(getLabelSelectorForComponent(component))
+func (deploy *Deployment) listSecretsForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
+	return deploy.listSecrets(ctx, getLabelSelectorForComponent(component))
 }
 
-func (deploy *Deployment) listSecretsForVolumeMounts(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
+func (deploy *Deployment) listSecretsForVolumeMounts(ctx context.Context, component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
 	blobVolumeMountSecret := getLabelSelectorForBlobVolumeMountSecret(component)
-	secrets, err := deploy.listSecrets(blobVolumeMountSecret)
+	secrets, err := deploy.listSecrets(ctx, blobVolumeMountSecret)
 	if err != nil {
 		return nil, err
 	}
 	csiAzureVolumeMountSecret := getLabelSelectorForCsiAzureVolumeMountSecret(component)
-	csiSecrets, err := deploy.listSecrets(csiAzureVolumeMountSecret)
+	csiSecrets, err := deploy.listSecrets(ctx, csiAzureVolumeMountSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -242,8 +242,8 @@ func (deploy *Deployment) listSecretsForVolumeMounts(component radixv1.RadixComm
 	return secrets, err
 }
 
-func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error) {
-	secrets, err := deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
+func (deploy *Deployment) listSecrets(ctx context.Context, labelSelector string) ([]*v1.Secret, error) {
+	secrets, err := deploy.kubeutil.ListSecretsWithSelector(ctx, deploy.radixDeployment.GetNamespace(), labelSelector)
 
 	if err != nil {
 		return nil, err
@@ -273,7 +273,7 @@ func (deploy *Deployment) createOrUpdateComponentSecret(ctx context.Context, ns,
 		return err
 	}
 
-	_, err = deploy.kubeutil.ApplySecret(ns, &secret)
+	_, err = deploy.kubeutil.ApplySecret(ctx, ns, &secret)
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 	return &secret
 }
 
-func (deploy *Deployment) createClientCertificateSecret(ns, app, component, secretName string) error {
+func (deploy *Deployment) createClientCertificateSecret(ctx context.Context, ns, app, component, secretName string) error {
 	secret := v1.Secret{
 		Type: v1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
@@ -325,12 +325,12 @@ func (deploy *Deployment) createClientCertificateSecret(ns, app, component, secr
 	data["ca.crt"] = defaultValue
 	secret.Data = data
 
-	_, err := deploy.kubeutil.ApplySecret(ns, &secret)
+	_, err := deploy.kubeutil.ApplySecret(ctx, ns, &secret)
 	return err
 }
 
 func (deploy *Deployment) removeOrphanedSecrets(ctx context.Context, ns, secretName string, secrets []string) error {
-	secret, err := deploy.kubeutil.GetSecret(ns, secretName)
+	secret, err := deploy.kubeutil.GetSecret(ctx, ns, secretName)
 	if err != nil {
 		return err
 	}
@@ -345,7 +345,7 @@ func (deploy *Deployment) removeOrphanedSecrets(ctx context.Context, ns, secretN
 	}
 
 	if orphanRemoved {
-		_, err = deploy.kubeutil.ApplySecret(ns, secret)
+		_, err = deploy.kubeutil.ApplySecret(ctx, ns, secret)
 		if err != nil {
 			return err
 		}

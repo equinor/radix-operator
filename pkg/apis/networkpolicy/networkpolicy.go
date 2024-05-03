@@ -38,13 +38,13 @@ func NewNetworkPolicy(
 }
 
 // UpdateEnvEgressRules Applies a list of egress rules to the specified radix app environment
-func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, allowRadix *bool, env string) error {
+func (nw *NetworkPolicy) UpdateEnvEgressRules(ctx context.Context, radixEgressRules []rx.EgressRule, allowRadix *bool, env string) error {
 
 	ns := utils.GetEnvironmentNamespace(nw.appName, env)
 
 	// if there are _no_ egress rules defined in radixconfig, and 'allowRadix' is undefined, we delete existing policy
 	if len(radixEgressRules) == 0 && allowRadix == nil {
-		return nw.deleteUserDefinedEgressPolicies(ns, env)
+		return nw.deleteUserDefinedEgressPolicies(ctx, ns, env)
 	}
 
 	userDefinedEgressRules := convertToK8sEgressRules(radixEgressRules)
@@ -61,17 +61,17 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, 
 
 	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
 
-	return nw.kubeUtil.ApplyNetworkPolicy(egressPolicy, ns)
+	return nw.kubeUtil.ApplyNetworkPolicy(ctx, egressPolicy, ns)
 }
 
-func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ns string, env string) error {
-	existingPolicies, err := nw.kubeUtil.ListUserDefinedNetworkPolicies(nw.appName, env)
+func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ctx context.Context, ns string, env string) error {
+	existingPolicies, err := nw.kubeUtil.ListUserDefinedNetworkPolicies(ctx, nw.appName, env)
 	if err != nil {
 		return err
 	}
 
 	for _, policy := range existingPolicies.Items {
-		err = nw.kubeClient.NetworkingV1().NetworkPolicies(ns).Delete(context.TODO(), policy.GetName(), metav1.DeleteOptions{})
+		err = nw.kubeClient.NetworkingV1().NetworkPolicies(ns).Delete(ctx, policy.GetName(), metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
