@@ -46,6 +46,8 @@ CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
+KUBE_CODEGEN_PKG = $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.30.0
+
 HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
@@ -117,7 +119,11 @@ CUSTOM_RESOURCE_VERSION=v1
 
 .PHONY: code-gen
 code-gen: bootstrap
-	$$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
+	$$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all \
+		$(ROOT_PACKAGE)/pkg/client \
+		$(ROOT_PACKAGE)/pkg/apis \
+		$(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) \
+		--go-header-file $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
 
 .PHONY: crds
 crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds
@@ -176,5 +182,5 @@ ifndef HAS_CONTROLLER_GEN
 endif
 ifndef HAS_GENERATE_GROUPS
 	-go install k8s.io/code-generator@v0.25.3
-	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh
+	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh)
 endif
