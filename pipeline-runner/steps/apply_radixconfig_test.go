@@ -69,7 +69,7 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFa
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	err := applyStep.Run(&pipeline)
+	err := applyStep.Run(context.Background(), &pipeline)
 	s.ErrorIs(err, steps.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
 
@@ -98,7 +98,7 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	err := applyStep.Run(&pipeline)
+	err := applyStep.Run(context.Background(), &pipeline)
 	s.ErrorIs(err, steps.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
 
@@ -140,7 +140,7 @@ func (s *applyConfigTestSuite) Test_ApplyConfig_ShouldNotFail() {
 
 			applyStep := steps.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-			err := applyStep.Run(&pipeline)
+			err := applyStep.Run(context.Background(), &pipeline)
 			s.NoError(err)
 		})
 	}
@@ -190,7 +190,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 
 			applyStep := steps.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-			err := applyStep.Run(&pipeline)
+			err := applyStep.Run(context.Background(), &pipeline)
 			if ts.expectedError == nil {
 				s.NoError(err)
 			} else {
@@ -225,7 +225,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSu
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.NoError(applyStep.Run(&pipeline))
+	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineArgShouldSucceed() {
@@ -253,7 +253,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.NoError(applyStep.Run(&pipeline))
+	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
 
 func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail() {
@@ -280,7 +280,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	err := applyStep.Run(&pipeline)
+	err := applyStep.Run(context.Background(), &pipeline)
 	s.ErrorIs(err, steps.ErrMissingRequiredImageTagName)
 	s.ErrorContains(err, "deployjob")
 	s.ErrorContains(err, "dev")
@@ -311,7 +311,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.NoError(applyStep.Run(&pipeline))
+	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
 
 func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgShouldSucceed() {
@@ -339,7 +339,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 
 	applyStep := steps.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.NoError(applyStep.Run(&pipeline))
+	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
 
 func (s *applyConfigTestSuite) Test_CreateRadixApplication_LimitMemoryIsTakenFromRequestsMemory() {
@@ -433,7 +433,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 
 			applyStep := steps.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-			err = applyStep.Run(&pipeline)
+			err = applyStep.Run(context.Background(), &pipeline)
 			if len(ts.expectedError) > 0 {
 				s.Assert().EqualError(err, ts.expectedError, "missing error '%s'", ts.expectedError)
 			} else {

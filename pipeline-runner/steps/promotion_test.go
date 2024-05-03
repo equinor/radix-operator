@@ -139,7 +139,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 				},
 			}
 
-			err = cli.Run(pipelineInfo)
+			err = cli.Run(context.Background(), pipelineInfo)
 
 			if scenario.expectedError != nil {
 				assert.Equal(t, scenario.expectedError.Error(), err.Error())
@@ -303,7 +303,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err = cli.Run(pipelineInfo)
+	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.Background(), metav1.ListOptions{})
@@ -429,7 +429,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err = cli.Run(pipelineInfo)
+	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.Background(), metav1.ListOptions{})
@@ -524,7 +524,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err = cli.Run(pipelineInfo)
+	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.Background(), metav1.ListOptions{})
@@ -641,7 +641,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err = cli.Run(pipelineInfo)
+	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.Background(), metav1.ListOptions{})
@@ -703,7 +703,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err = cli.Run(pipelineInfo)
+	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyDevEnvironment)).List(context.Background(), metav1.ListOptions{})
@@ -819,7 +819,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 
 			applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 			pipelineInfo.SetApplicationConfig(applicationConfig)
-			err = cli.Run(pipelineInfo)
+			err = cli.Run(context.Background(), pipelineInfo)
 			require.NoError(t, err)
 
 			rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.Background(), metav1.ListOptions{})
@@ -884,7 +884,7 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err = cli.Run(pipelineInfo)
+	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
 	rds, err := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyAppName, dstEnv)).List(context.Background(), metav1.ListOptions{})

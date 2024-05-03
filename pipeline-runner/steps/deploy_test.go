@@ -102,7 +102,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 		TargetEnvironments: targetEnvs,
 	}
 
-	err := cli.Run(pipelineInfo)
+	err := cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 	radixJobList, err := radixclient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
 	assert.NoError(t, err)
@@ -219,7 +219,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
+	err := cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 	rds, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").List(context.Background(), metav1.ListOptions{})
 
@@ -335,7 +335,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	err := cli.Run(pipelineInfo)
+	err := cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 	rds, err := radixclient.RadixV1().RadixDeployments("any-app-dev").List(context.Background(), metav1.ListOptions{})
 
@@ -390,7 +390,7 @@ func TestDeploy_WaitActiveDeployment(t *testing.T) {
 			radixDeploymentWatcher.EXPECT().
 				WaitForActive(namespace, radixDeploymentNameMatcher{envName: envName, imageTag: anyImageTag}).
 				Return(ts.watcherError)
-			err := cli.Run(pipelineInfo)
+			err := cli.Run(context.Background(), pipelineInfo)
 			if ts.watcherError == nil {
 				assert.NoError(tt, err)
 			} else {
