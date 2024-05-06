@@ -108,7 +108,7 @@ func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group
 		// Let this Goroutine finish any work, the parent errorgroup will stop
 		// scheduling more tasks when the parent context is cancelled.
 		// Kubernetes will kill the process if it takes to long to finish any way
-		ctx = context.Background()
+		workCtx := context.WithoutCancel(ctx)
 
 		defer func() {
 			c.WorkQueue.Done(workItem)
@@ -139,7 +139,7 @@ func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group
 		}()
 
 		c.Log.Debug().Msgf("Acquired lock for %s, processing %s", lockKey, identifier)
-		c.processWorkItem(ctx, workItem, identifier)
+		c.processWorkItem(workCtx, workItem, identifier)
 		return nil
 	})
 
