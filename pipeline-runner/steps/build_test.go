@@ -164,8 +164,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
 		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
-		{Name: steps.RadixImageBuilderTmpVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
+		{Name: "tmp-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 	}
 	s.ElementsMatch(expectedVolumes, job.Spec.Template.Spec.Volumes)
 
@@ -190,8 +190,8 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	expectedBuildVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-		{Name: steps.RadixImageBuilderTmpVolumeName, MountPath: "/tmp", ReadOnly: false},
 		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/radix-image-builder", ReadOnly: false},
+		{Name: "tmp-build-c1-dev", MountPath: "/tmp", ReadOnly: false},
 	}
 	s.ElementsMatch(expectedBuildVolumeMounts, job.Spec.Template.Spec.Containers[0].VolumeMounts)
 	expectedEnv := []corev1.EnvVar{
@@ -1455,7 +1455,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace, ReadOnly: false},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-		{Name: steps.RadixImageBuilderTmpVolumeName, MountPath: "/var/tmp", ReadOnly: false},
+		{Name: "tmp-build-c1-dev", MountPath: "/var/tmp", ReadOnly: false},
 		{Name: steps.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
 		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
 		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
@@ -1581,8 +1581,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
 		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
-		{Name: steps.RadixImageBuilderTmpVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
+		{Name: "tmp-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
 		{Name: steps.BuildKitRunVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 	}
@@ -1592,7 +1592,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace, ReadOnly: false},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-		{Name: steps.RadixImageBuilderTmpVolumeName, MountPath: "/var/tmp", ReadOnly: false},
+		{Name: "tmp-build-c1-dev", MountPath: "/var/tmp", ReadOnly: false},
 		{Name: steps.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
 		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
 		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
