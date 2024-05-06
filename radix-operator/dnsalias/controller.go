@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -40,15 +39,13 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface,
 	radixDNSAliasInformer := radixInformerFactory.Radix().V1().RadixDNSAliases()
 
 	controller := &common.Controller{
-		Name:                controllerAgentName,
-		HandlerOf:           radixv1.KindRadixDNSAlias,
-		KubeClient:          kubeClient,
-		RadixClient:         radixClient,
-		Informer:            radixDNSAliasInformer.Informer(),
-		KubeInformerFactory: kubeInformerFactory,
-		WorkQueue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
-			Name: radixv1.KindRadixDNSAlias,
-		}),
+		Name:                  controllerAgentName,
+		HandlerOf:             radixv1.KindRadixDNSAlias,
+		KubeClient:            kubeClient,
+		RadixClient:           radixClient,
+		Informer:              radixDNSAliasInformer.Informer(),
+		KubeInformerFactory:   kubeInformerFactory,
+		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, radixv1.KindRadixDNSAlias),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
