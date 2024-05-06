@@ -31,6 +31,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
+	"github.com/pkg/errors"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
@@ -64,7 +65,7 @@ func main() {
 	activeClusterNameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	log.Info().Msgf("Active cluster name: %v", activeClusterNameEnvVar)
 
-	go startMetricsServer(ctx.Done())
+	go startMetricsServer(ctx)
 
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), log.Logger)
 
@@ -338,19 +339,20 @@ func loadIngressConfigFromMap(ctx context.Context, kubeutil *kube.Kube) (ingress
 	return ingressConfig, nil
 }
 
-func startMetricsServer(stop <-chan struct{}) {
+func startMetricsServer(ctx context.Context) {
 	srv := &http.Server{Addr: ":9000"}
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthz", http.HandlerFunc(Healthz))
 	go func() {
-		if err := srv.ListenAndServe(); err != nil {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal().Err(err).Msg("Failed to start metric server")
 		}
+		log.Info().Msg("Metrics server closed")
 	}()
-	<-stop
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	<-ctx.Done()
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Error().Err(err).Msg("Shutdown metrics server failed")
 	}
 }
