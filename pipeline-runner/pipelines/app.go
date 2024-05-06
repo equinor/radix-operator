@@ -2,7 +2,6 @@ package pipelines
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -81,7 +80,7 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 			return err
 		}
 		log.Info().Msg(step.SucceededMsg())
-		if cli.pipelineInfo.StopPipeline || errors.Is(ctx.Err(), context.Canceled) {
+		if cli.pipelineInfo.StopPipeline || ctx.Err() != nil {
 			log.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
 			break
 		}
