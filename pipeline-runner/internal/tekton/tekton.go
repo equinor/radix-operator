@@ -109,7 +109,6 @@ func getJobVolumes() []corev1.Volume {
 			},
 		},
 	}
-
 	return volumes
 }
 

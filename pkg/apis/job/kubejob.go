@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -103,7 +104,8 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 								securitycontext.WithContainerDropAllCapabilities(),
 								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
 								securitycontext.WithContainerRunAsGroup(runAsGroup),
-								securitycontext.WithContainerRunAsUser(runAsUser)),
+								securitycontext.WithContainerRunAsUser(runAsUser),
+								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true))),
 						},
 					},
 					RestartPolicy: "Never",
