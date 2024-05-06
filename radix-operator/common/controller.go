@@ -63,7 +63,7 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	// Wait for the caches to be synced before starting workers
 	c.Log.Info().Msg("Waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(ctx.Done(), cacheSyncs...); !ok {
-		return fmt.Errorf("failed to wait for caches to sync")
+		return fmt.Errorf("failed to wait for caches to sync: %s", c.Name)
 	}
 
 	c.Log.Info().Msg("Starting workers")
