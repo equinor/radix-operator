@@ -233,6 +233,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				Privileged:               pointers.Ptr(false),
 				AllowPrivilegeEscalation: pointers.Ptr(false),
 				RunAsNonRoot:             pointers.Ptr(true),
+				ReadOnlyRootFilesystem:   pointers.Ptr(true),
 				RunAsUser:                pointers.Ptr[int64](1000),
 				RunAsGroup:               pointers.Ptr[int64](1000),
 				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},

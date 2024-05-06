@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
@@ -129,7 +130,8 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
 		securitycontext.WithContainerRunAsGroup(defaults.SecurityContextRunAsGroup),
-		securitycontext.WithContainerRunAsUser(defaults.SecurityContextRunAsUser))
+		securitycontext.WithContainerRunAsUser(defaults.SecurityContextRunAsUser),
+		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)))
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
