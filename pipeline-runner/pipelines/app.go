@@ -80,9 +80,13 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 			return err
 		}
 		log.Info().Msg(step.SucceededMsg())
-		if cli.pipelineInfo.StopPipeline || ctx.Err() != nil {
+		if cli.pipelineInfo.StopPipeline {
 			log.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
 			break
+		}
+
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
 	}
 	return nil
