@@ -35,11 +35,10 @@ func main() {
 	cmd := &cobra.Command{
 		Use: "run",
 		Run: func(cmd *cobra.Command, args []string) {
-			backgroundCtx := context.Background()
-			ctx, _ := signal.NotifyContext(backgroundCtx, syscall.SIGTERM, syscall.SIGINT)
+			ctx, cancelCtx := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+			defer cancelCtx()
 
-			// Use background context for clients, so teardown can do its work if the main context is cancelled
-			runner, err := prepareRunner(backgroundCtx, pipelineArgs)
+			runner, err := prepareRunner(ctx, pipelineArgs)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to prepare runner")
 				os.Exit(1)
@@ -47,7 +46,7 @@ func main() {
 
 			err = runner.Run(ctx)
 
-			teardownCtx, cancelTeardownCtx := context.WithTimeout(backgroundCtx, 30*time.Second)
+			teardownCtx, cancelTeardownCtx := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancelTeardownCtx()
 
 			runner.TearDown(teardownCtx)
