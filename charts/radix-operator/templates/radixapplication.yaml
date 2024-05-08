@@ -426,6 +426,12 @@ spec:
                               Configuration for automatic horizontal scaling of replicas.
                               More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
                             properties:
+                              cooldownPeriod:
+                                description: CooldownPeriod to wait after the last
+                                  trigger reported active before scaling the resource
+                                  back to 0. Defaults to 5min
+                                format: int32
+                                type: integer
                               maxReplicas:
                                 description: Defines the maximum number of replicas.
                                 format: int32
@@ -436,9 +442,15 @@ spec:
                                 format: int32
                                 minimum: 0
                                 type: integer
+                              pollingInterval:
+                                description: PollingInterval configures how often
+                                  to check each trigger on. Defaults to 30sec
+                                format: int32
+                                type: integer
                               resources:
-                                description: Defines the resource usage parameters
-                                  for the horizontal pod autoscaler.
+                                description: |-
+                                  Defines the resource usage parameters for the horizontal pod autoscaler.
+                                  Deprecated Use a CPU or Memory triggers instead
                                 properties:
                                   cpu:
                                     description: Defines the CPU usage parameters
@@ -469,8 +481,84 @@ spec:
                                     - averageUtilization
                                     type: object
                                 type: object
+                              triggers:
+                                description: Defines a list of triggers the component
+                                  replicas will scale on.
+                                items:
+                                  description: RadixTrigger defines configuration
+                                    for a specific trigger.
+                                  properties:
+                                    cpu:
+                                      properties:
+                                        metricType:
+                                          description: Defines the type of metric
+                                            to use. Options are Utilization or AverageValue.
+                                            Defaults to Utilization.
+                                          type: string
+                                        value:
+                                          description: |-
+                                            Value to trigger scaling actions for:
+                                            When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
+                                            When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+                                          format: int32
+                                          type: integer
+                                      required:
+                                      - value
+                                      type: object
+                                    cron:
+                                      properties:
+                                        desiredReplicas:
+                                          description: DesiredReplicas Number of replicas
+                                            to which the resource has to be scaled
+                                            between the start and end of the cron
+                                            schedule. Defaults to 1
+                                          format: int32
+                                          type: integer
+                                        start:
+                                          description: Start is a Cron expression
+                                            indicating the start of the cron schedule.
+                                          type: string
+                                        stop:
+                                          description: Stop is a Cron expression indicating
+                                            the Stop of the cron schedule.
+                                          type: string
+                                        timezone:
+                                          description: Timezone One of the acceptable
+                                            values from the IANA Time Zone Database.
+                                            The list of timezones can be found here.
+                                            Defaults to Europe/Oslo
+                                          type: string
+                                      required:
+                                      - start
+                                      - stop
+                                      type: object
+                                    memory:
+                                      properties:
+                                        metricType:
+                                          description: Defines the type of metric
+                                            to use. Options are Utilization or AverageValue.
+                                            Defaults to Utilization.
+                                          type: string
+                                        value:
+                                          description: |-
+                                            Value to trigger scaling actions for:
+                                            When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
+                                            When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+                                          format: int32
+                                          type: integer
+                                      required:
+                                      - value
+                                      type: object
+                                    name:
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
                             required:
+                            - cooldownPeriod
                             - maxReplicas
+                            - pollingInterval
                             type: object
                           identity:
                             description: |-
@@ -933,6 +1021,12 @@ spec:
                         Configuration for automatic horizontal scaling of replicas.
                         More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
                       properties:
+                        cooldownPeriod:
+                          description: CooldownPeriod to wait after the last trigger
+                            reported active before scaling the resource back to 0.
+                            Defaults to 5min
+                          format: int32
+                          type: integer
                         maxReplicas:
                           description: Defines the maximum number of replicas.
                           format: int32
@@ -943,9 +1037,15 @@ spec:
                           format: int32
                           minimum: 0
                           type: integer
+                        pollingInterval:
+                          description: PollingInterval configures how often to check
+                            each trigger on. Defaults to 30sec
+                          format: int32
+                          type: integer
                         resources:
-                          description: Defines the resource usage parameters for the
-                            horizontal pod autoscaler.
+                          description: |-
+                            Defines the resource usage parameters for the horizontal pod autoscaler.
+                            Deprecated Use a CPU or Memory triggers instead
                           properties:
                             cpu:
                               description: Defines the CPU usage parameters for the
@@ -974,8 +1074,83 @@ spec:
                               - averageUtilization
                               type: object
                           type: object
+                        triggers:
+                          description: Defines a list of triggers the component replicas
+                            will scale on.
+                          items:
+                            description: RadixTrigger defines configuration for a
+                              specific trigger.
+                            properties:
+                              cpu:
+                                properties:
+                                  metricType:
+                                    description: Defines the type of metric to use.
+                                      Options are Utilization or AverageValue. Defaults
+                                      to Utilization.
+                                    type: string
+                                  value:
+                                    description: |-
+                                      Value to trigger scaling actions for:
+                                      When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
+                                      When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+                                    format: int32
+                                    type: integer
+                                required:
+                                - value
+                                type: object
+                              cron:
+                                properties:
+                                  desiredReplicas:
+                                    description: DesiredReplicas Number of replicas
+                                      to which the resource has to be scaled between
+                                      the start and end of the cron schedule. Defaults
+                                      to 1
+                                    format: int32
+                                    type: integer
+                                  start:
+                                    description: Start is a Cron expression indicating
+                                      the start of the cron schedule.
+                                    type: string
+                                  stop:
+                                    description: Stop is a Cron expression indicating
+                                      the Stop of the cron schedule.
+                                    type: string
+                                  timezone:
+                                    description: Timezone One of the acceptable values
+                                      from the IANA Time Zone Database. The list of
+                                      timezones can be found here. Defaults to Europe/Oslo
+                                    type: string
+                                required:
+                                - start
+                                - stop
+                                type: object
+                              memory:
+                                properties:
+                                  metricType:
+                                    description: Defines the type of metric to use.
+                                      Options are Utilization or AverageValue. Defaults
+                                      to Utilization.
+                                    type: string
+                                  value:
+                                    description: |-
+                                      Value to trigger scaling actions for:
+                                      When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
+                                      When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+                                    format: int32
+                                    type: integer
+                                required:
+                                - value
+                                type: object
+                              name:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
                       required:
+                      - cooldownPeriod
                       - maxReplicas
+                      - pollingInterval
                       type: object
                     identity:
                       description: |-

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -775,7 +776,6 @@ type RadixJobComponentPayload struct {
 }
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler.
-// If set, this will override replicas config
 type RadixHorizontalScaling struct {
 	// Defines the minimum number of replicas.
 	// +kubebuilder:validation:Minimum=0
@@ -786,9 +786,19 @@ type RadixHorizontalScaling struct {
 	// +kubebuilder:validation:Minimum=1
 	MaxReplicas int32 `json:"maxReplicas"`
 
+	// PollingInterval configures how often to check each trigger on. Defaults to 30sec
+	PollingInterval *int32 `json:"pollingInterval"` // 30
+	// CooldownPeriod to wait after the last trigger reported active before scaling the resource back to 0. Defaults to 5min
+	CooldownPeriod *int32 `json:"cooldownPeriod"` // 300
+
 	// Defines the resource usage parameters for the horizontal pod autoscaler.
 	// +optional
+	// Deprecated Use a CPU or Memory triggers instead
 	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"`
+
+	// Defines a list of triggers the component replicas will scale on.
+	// +optional
+	Triggers *[]RadixTrigger `json:"triggers,omitempty"`
 }
 
 type RadixHorizontalScalingResource struct {
@@ -805,6 +815,69 @@ type RadixHorizontalScalingResources struct {
 	// Defines the memory usage parameters for the horizontal pod autoscaler.
 	// +optional
 	Memory *RadixHorizontalScalingResource `json:"memory,omitempty"`
+}
+
+// RadixTrigger defines configuration for a specific trigger.
+type RadixTrigger struct {
+	Name   string                               `json:"name"`
+	Cpu    *RadixHorizontalScalingCPUTrigger    `json:"cpu,omitempty"`
+	Memory *RadixHorizontalScalingMemoryTrigger `json:"memory,omitempty"`
+	Cron   *RadixHorizontalScalingCronTrigger   `json:"cron,omitempty"`
+}
+
+type RadixHorizontalScalingCPUTrigger struct {
+	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to Utilization.
+	// +optional
+	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"`
+
+	// Value to trigger scaling actions for:
+	// When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
+	// When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+	Value int32 `json:"value"`
+}
+type RadixHorizontalScalingMemoryTrigger struct {
+	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to Utilization.
+	// +optional
+	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"`
+
+	// Value to trigger scaling actions for:
+	// When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
+	// When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+	Value int32 `json:"value"`
+}
+type RadixHorizontalScalingCronTrigger struct {
+	// Start is a Cron expression indicating the start of the cron schedule.
+	Start string `json:"start"`
+
+	// Stop is a Cron expression indicating the Stop of the cron schedule.
+	Stop string `json:"stop"`
+
+	// Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found here. Defaults to Europe/Oslo
+	Timezone *string `json:"timezone,omitempty"`
+
+	// DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule. Defaults to 1
+	DesiredReplicas *int32 `json:"desiredReplicas,omitempty"`
+}
+
+type RadixHorizontalScalingAzureServiceBusTrigger struct {
+	// QueueName selects the target queue. QueueName wil take precedence over TopicName.
+	QueueName *string `json:"queueName,omitempty"`
+
+	// TopicName selectes the target topic, alsoe requires SubscriptionName to be set.
+	TopicName *string `json:"topicName,omitempty"`
+	// SubscriptionName is required when TopicName is set.
+	SubscriptionName *string `json:"subscriptionName,omitempty"`
+
+	// MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
+	MessageCount *int32 `json:"messageCount,omitempty"`
+	// ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)
+	ActivationMessageCount *int32 `json:"activationMessageCount,omitempty"`
+
+	// Azure Service Bus requires Workload Identity configured with a ClientID
+	Authentication RadixHorizontalScalingAuthentication `json:"authentication"`
+}
+type RadixHorizontalScalingAuthentication struct {
+	Identity Identity
 }
 
 // PrivateImageHubEntries defines authentication information for private image registries.
