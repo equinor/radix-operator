@@ -54,7 +54,7 @@ func New(kubeclient kubernetes.Interface,
 
 // OnSync compares the actual state with the desired, and attempts to reconcile the two
 func (syncer *alertSyncer) OnSync(ctx context.Context) error {
-	log.Ctx(ctx).Info().Msg("Syncing")
+	syncer.logger.Info().Msg("Syncing")
 
 	if err := syncer.syncAlert(ctx); err != nil {
 		return err
