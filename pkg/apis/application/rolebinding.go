@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -12,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app *Application) applyRbacAppNamespace() error {
+func (app *Application) applyRbacAppNamespace(ctx context.Context) error {
 	k := app.kubeutil
 	registration := app.registration
 
@@ -29,7 +30,7 @@ func (app *Application) applyRbacAppNamespace() error {
 	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppReaderRoleName, readerSubjects)
 
 	for _, roleBinding := range []*rbacv1.RoleBinding{adminRoleBinding, readerRoleBinding} {
-		err = k.ApplyRoleBinding(appNamespace, roleBinding)
+		err = k.ApplyRoleBinding(ctx, appNamespace, roleBinding)
 		if err != nil {
 			return err
 		}
@@ -38,7 +39,7 @@ func (app *Application) applyRbacAppNamespace() error {
 }
 
 // ApplyRbacRadixRegistration Grants access to radix registration
-func (app *Application) applyRbacRadixRegistration() error {
+func (app *Application) applyRbacRadixRegistration(ctx context.Context) error {
 	rr := app.registration
 	appName := rr.Name
 
@@ -59,14 +60,14 @@ func (app *Application) applyRbacRadixRegistration() error {
 
 	// Apply roles and bindings
 	for _, clusterRole := range []*rbacv1.ClusterRole{adminClusterRole, readerClusterRole} {
-		err := app.kubeutil.ApplyClusterRole(clusterRole)
+		err := app.kubeutil.ApplyClusterRole(ctx, clusterRole)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, clusterRoleBindings := range []*rbacv1.ClusterRoleBinding{adminClusterRoleBinding, readerClusterRoleBinding} {
-		err := app.kubeutil.ApplyClusterRoleBinding(clusterRoleBindings)
+		err := app.kubeutil.ApplyClusterRoleBinding(ctx, clusterRoleBindings)
 		if err != nil {
 			return err
 		}
@@ -76,78 +77,78 @@ func (app *Application) applyRbacRadixRegistration() error {
 }
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline
-func (app *Application) applyRbacOnPipelineRunner() error {
-	serviceAccount, err := app.applyPipelineServiceAccount()
+func (app *Application) applyRbacOnPipelineRunner(ctx context.Context) error {
+	serviceAccount, err := app.applyPipelineServiceAccount(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to apply pipeline service account: %w", err)
 	}
 
-	if err = app.givePipelineAccessToRR(serviceAccount, defaults.RadixPipelineRRRoleNamePrefix); err != nil {
+	if err = app.givePipelineAccessToRR(ctx, serviceAccount, defaults.RadixPipelineRRRoleNamePrefix); err != nil {
 		return fmt.Errorf("failed to grant pipeline access to RadixRegistration: %w", err)
 	}
 
-	if err = app.giveAccessToRadixDNSAliases(serviceAccount, defaults.RadixPipelineRadixDNSAliasRoleNamePrefix); err != nil {
+	if err = app.giveAccessToRadixDNSAliases(ctx, serviceAccount, defaults.RadixPipelineRadixDNSAliasRoleNamePrefix); err != nil {
 		return fmt.Errorf("failed to grant pipeline access to RadixDNSAliases: %w", err)
 	}
 
-	if err := app.givePipelineAccessToAppNamespace(serviceAccount); err != nil {
+	if err := app.givePipelineAccessToAppNamespace(ctx, serviceAccount); err != nil {
 		return fmt.Errorf("failed to grant pipeline access to app namespace: %w", err)
 	}
 
 	return nil
 }
 
-func (app *Application) applyRbacOnRadixTekton() error {
-	serviceAccount, err := app.kubeutil.CreateServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.RadixTektonServiceAccountName)
+func (app *Application) applyRbacOnRadixTekton(ctx context.Context) error {
+	serviceAccount, err := app.kubeutil.CreateServiceAccount(ctx, utils.GetAppNamespace(app.registration.Name), defaults.RadixTektonServiceAccountName)
 	if err != nil {
 		return fmt.Errorf("failed to apply Tekton pipeline service account: %w", err)
 	}
 
-	if err = app.givePipelineAccessToRR(serviceAccount, defaults.RadixTektonRRRoleNamePrefix); err != nil {
+	if err = app.givePipelineAccessToRR(ctx, serviceAccount, defaults.RadixTektonRRRoleNamePrefix); err != nil {
 		return fmt.Errorf("failed to grant Tekton pipeline access to RadixRegistration: %w", err)
 	}
 
-	if err = app.giveAccessToRadixDNSAliases(serviceAccount, defaults.RadixTektonRadixDNSAliasRoleNamePrefix); err != nil {
+	if err = app.giveAccessToRadixDNSAliases(ctx, serviceAccount, defaults.RadixTektonRadixDNSAliasRoleNamePrefix); err != nil {
 		return fmt.Errorf("failed to grant Tekton pipeline access to RadixDNSAliases: %w", err)
 	}
 
-	if err := app.giveRadixTektonAccessToAppNamespace(serviceAccount); err != nil {
+	if err := app.giveRadixTektonAccessToAppNamespace(ctx, serviceAccount); err != nil {
 		return fmt.Errorf("failed to grant Tekton pipeline access to app namespace: %w", err)
 	}
 
 	return nil
 }
 
-func (app *Application) givePipelineAccessToRR(serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
+func (app *Application) givePipelineAccessToRR(ctx context.Context, serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
 	clusterRoleName := fmt.Sprintf("%s-%s", clusterRoleNamePrefix, app.registration.Name)
 	clusterRole := app.buildRRClusterRole(clusterRoleName, []string{"get"})
 	clusterRoleBinding := app.clusterRoleBinding(serviceAccount, clusterRole)
-	return app.applyClusterRoleAndBinding(clusterRole, clusterRoleBinding)
+	return app.applyClusterRoleAndBinding(ctx, clusterRole, clusterRoleBinding)
 }
 
-func (app *Application) giveAccessToRadixDNSAliases(serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
+func (app *Application) giveAccessToRadixDNSAliases(ctx context.Context, serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
 	clusterRole := app.buildRadixDNSAliasClusterRole(clusterRoleNamePrefix)
 	clusterRoleBinding := app.clusterRoleBinding(serviceAccount, clusterRole)
-	return app.applyClusterRoleAndBinding(clusterRole, clusterRoleBinding)
+	return app.applyClusterRoleAndBinding(ctx, clusterRole, clusterRoleBinding)
 }
 
-func (app *Application) applyClusterRoleAndBinding(clusterRole *rbacv1.ClusterRole, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
-	if err := app.kubeutil.ApplyClusterRole(clusterRole); err != nil {
+func (app *Application) applyClusterRoleAndBinding(ctx context.Context, clusterRole *rbacv1.ClusterRole, clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
+	if err := app.kubeutil.ApplyClusterRole(ctx, clusterRole); err != nil {
 		return err
 	}
-	return app.kubeutil.ApplyClusterRoleBinding(clusterRoleBinding)
+	return app.kubeutil.ApplyClusterRoleBinding(ctx, clusterRoleBinding)
 }
 
-func (app *Application) givePipelineAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
+func (app *Application) givePipelineAccessToAppNamespace(ctx context.Context, serviceAccount *corev1.ServiceAccount) error {
 	namespace := utils.GetAppNamespace(app.registration.Name)
 	rolebinding := app.pipelineRoleBinding(serviceAccount)
-	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	return app.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
-func (app *Application) giveRadixTektonAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
+func (app *Application) giveRadixTektonAccessToAppNamespace(ctx context.Context, serviceAccount *corev1.ServiceAccount) error {
 	namespace := utils.GetAppNamespace(app.registration.Name)
 	roleBinding := app.radixTektonRoleBinding(serviceAccount)
-	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+	return app.kubeutil.ApplyRoleBinding(ctx, namespace, roleBinding)
 }
 
 func (app *Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {

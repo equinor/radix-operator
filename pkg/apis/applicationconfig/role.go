@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -12,18 +13,18 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-func (app *ApplicationConfig) grantAccessToBuildSecrets(namespace string) error {
-	err := app.grantPipelineAccessToSecret(namespace, defaults.BuildSecretsName)
+func (app *ApplicationConfig) grantAccessToBuildSecrets(ctx context.Context, namespace string) error {
+	err := app.grantPipelineAccessToSecret(ctx, namespace, defaults.BuildSecretsName)
 	if err != nil {
 		return err
 	}
 
-	err = app.grantAppReaderAccessToBuildSecrets(namespace)
+	err = app.grantAppReaderAccessToBuildSecrets(ctx, namespace)
 	if err != nil {
 		return err
 	}
 
-	err = app.grantAppAdminAccessToBuildSecrets(namespace)
+	err = app.grantAppAdminAccessToBuildSecrets(ctx, namespace)
 	if err != nil {
 		return err
 	}
@@ -31,60 +32,60 @@ func (app *ApplicationConfig) grantAccessToBuildSecrets(namespace string) error 
 	return nil
 }
 
-func (app *ApplicationConfig) grantAppReaderAccessToBuildSecrets(namespace string) error {
+func (app *ApplicationConfig) grantAppReaderAccessToBuildSecrets(ctx context.Context, namespace string) error {
 	role := roleAppReaderBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
-	err := app.kubeutil.ApplyRole(namespace, role)
+	err := app.kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
 
 	rolebinding := rolebindingAppReaderToBuildSecrets(app.GetRadixRegistration(), role)
-	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	return app.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 
 }
 
-func (app *ApplicationConfig) grantAppAdminAccessToBuildSecrets(namespace string) error {
+func (app *ApplicationConfig) grantAppAdminAccessToBuildSecrets(ctx context.Context, namespace string) error {
 	role := roleAppAdminBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
-	err := app.kubeutil.ApplyRole(namespace, role)
+	err := app.kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
 
 	rolebinding := rolebindingAppAdminToBuildSecrets(app.GetRadixRegistration(), role)
-	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	return app.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
-func (app *ApplicationConfig) grantPipelineAccessToSecret(namespace, secretName string) error {
+func (app *ApplicationConfig) grantPipelineAccessToSecret(ctx context.Context, namespace, secretName string) error {
 	role := rolePipelineSecret(app.GetRadixRegistration(), secretName)
-	err := app.kubeutil.ApplyRole(namespace, role)
+	err := app.kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
 
 	rolebinding := rolebindingPipelineToRole(role)
-	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	return app.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
-func (app *ApplicationConfig) garbageCollectAccessToBuildSecretsForRole(namespace string, roleName string) error {
+func (app *ApplicationConfig) garbageCollectAccessToBuildSecretsForRole(ctx context.Context, namespace string, roleName string) error {
 	// Delete role
-	_, err := app.kubeutil.GetRole(namespace, roleName)
+	_, err := app.kubeutil.GetRole(ctx, namespace, roleName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if err == nil {
-		err = app.kubeutil.DeleteRole(namespace, roleName)
+		err = app.kubeutil.DeleteRole(ctx, namespace, roleName)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Delete roleBinding
-	_, err = app.kubeutil.GetRoleBinding(namespace, roleName)
+	_, err = app.kubeutil.GetRoleBinding(ctx, namespace, roleName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if err == nil {
-		err = app.kubeutil.DeleteRoleBinding(namespace, roleName)
+		err = app.kubeutil.DeleteRoleBinding(ctx, namespace, roleName)
 		if err != nil {
 			return err
 		}
@@ -92,14 +93,14 @@ func (app *ApplicationConfig) garbageCollectAccessToBuildSecretsForRole(namespac
 
 	return nil
 }
-func garbageCollectAccessToBuildSecrets(app *ApplicationConfig) error {
+func garbageCollectAccessToBuildSecrets(ctx context.Context, app *ApplicationConfig) error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 	for _, roleName := range []string{
 		getPipelineRoleNameToSecret(defaults.BuildSecretsName),
 		getAppReaderRoleNameToBuildSecrets(defaults.BuildSecretsName),
 		getAppAdminRoleNameToBuildSecrets(defaults.BuildSecretsName),
 	} {
-		err := app.garbageCollectAccessToBuildSecretsForRole(appNamespace, roleName)
+		err := app.garbageCollectAccessToBuildSecretsForRole(ctx, appNamespace, roleName)
 		if err != nil {
 			return err
 		}

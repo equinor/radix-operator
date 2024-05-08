@@ -129,7 +129,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 	for _, test := range tests {
 		s.Run(test.name, func() {
 			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-			err := sut.Sync()
+			err := sut.Sync(context.Background())
 			s.Nil(err)
 			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
 			envVarExist := slice.Any(deploys.Items[0].Spec.Template.Spec.Containers[0].Env, func(ev corev1.EnvVar) bool { return ev.Name == defaults.RadixRestartEnvironmentVariable })
@@ -149,7 +149,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 
 	for _, scenario := range scenarios {
 		sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-		err := sut.Sync()
+		err := sut.Sync(context.Background())
 		s.Nil(err)
 		deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
 		s.Len(deploys.Items, 0)
@@ -241,7 +241,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 	for _, test := range tests {
 		s.Run(test.name, func() {
 			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-			err := sut.Sync()
+			err := sut.Sync(context.Background())
 			s.Nil(err)
 			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
 			s.Equal(test.expectedReplicas, *deploys.Items[0].Spec.Replicas)
@@ -290,7 +290,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: inputOAuth})).
 		BuildRD()
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-	err := sut.Sync()
+	err := sut.Sync(context.Background())
 	s.Nil(err)
 
 	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
@@ -350,7 +350,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	// Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie
 	returnOAuth.SessionStoreType = "cookie"
 	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
-	err = sut.Sync()
+	err = sut.Sync(context.Background())
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 29)
@@ -369,7 +369,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCr
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-	err := sut.Sync()
+	err := sut.Sync(context.Background())
 	s.Nil(err)
 
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
@@ -393,7 +393,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-	err := sut.Sync()
+	err := sut.Sync(context.Background())
 	s.Nil(err)
 
 	expectedRoles := []string{fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix))}
@@ -472,7 +472,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-	err = sut.Sync()
+	err = sut.Sync(context.Background())
 	s.Nil(err)
 
 	// Keep redispassword if sessionstoretype is redis
@@ -486,7 +486,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 
 	// Remove redispassword if sessionstoretype is cookie
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreCookie}, nil)
-	err = sut.Sync()
+	err = sut.Sync(context.Background())
 	s.Require().NoError(err)
 	actualSecret, _ = s.kubeClient.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
 	s.Equal(
@@ -508,7 +508,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated(
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-	err := sut.Sync()
+	err := sut.Sync(context.Background())
 	s.Nil(err)
 
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
@@ -635,7 +635,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	expectedIngWebAnnotations := map[string]string{"annotation2-1": "val2-1", "annotation2-2": "val2-2"}
 	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall, rd.Namespace).Times(5).Return(expectedIngWebAnnotations, nil)
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{s.ingressAnnotationProvider}, s.oauth2Config, "", zerolog.Nop()}
-	err = sut.Sync()
+	err = sut.Sync(context.Background())
 	s.NoError(err)
 
 	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
@@ -766,7 +766,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 		BuildRD()
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(2).Return(&v1.OAuth2{}, nil)
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-	err = sut.Sync()
+	err = sut.Sync(context.Background())
 	s.NoError(err)
 
 	// Bootstrap oauth proxy resources for two components
@@ -792,7 +792,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 		BuildRD()
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
 	sut = &oauthProxyResourceManager{rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
-	err = sut.Sync()
+	err = sut.Sync(context.Background())
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualDeploys.Items, 1)
@@ -884,7 +884,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect() {
 	s.addRoleBinding("rb7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
 
 	sut := oauthProxyResourceManager{rd: rd, kubeutil: s.kubeUtil}
-	err := sut.GarbageCollect()
+	err := sut.GarbageCollect(context.Background())
 	s.Nil(err)
 
 	actualDeployments, _ := s.kubeClient.AppsV1().Deployments(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})

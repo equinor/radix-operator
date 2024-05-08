@@ -1,8 +1,8 @@
 package utils
 
 import (
+	"context"
 	"fmt"
-
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -39,7 +39,7 @@ func GetEnvVarsFromAzureKeyVaultSecretRefs(radixDeploymentName, componentName st
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
 		for _, keyVaultItem := range azureKeyVault.Items {
 			if len(keyVaultItem.EnvVar) == 0 {
-				continue //Do not add cert,secret or key as environment variable - it will exist only as s file
+				continue // Do not add cert,secret or key as environment variable - it will exist only as s file
 			}
 			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
 			secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
@@ -76,12 +76,12 @@ func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
 }
 
 // GrantAppReaderAccessToSecret grants access to a secret for app-reader groups
-func GrantAppReaderAccessToSecret(kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
+func GrantAppReaderAccessToSecret(ctx context.Context, kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
 	namespace := GetAppNamespace(registration.Name)
 
 	// create role
 	role := kube.CreateReadSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
-	err := kubeutil.ApplyRole(namespace, role)
+	err := kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -92,16 +92,16 @@ func GrantAppReaderAccessToSecret(kubeutil *kube.Kube, registration *radixv1.Rad
 	subjects := kube.GetRoleBindingGroups(readerAdGroups)
 
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
-	return kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	return kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
 // GrantAppAdminAccessToSecret grants access to a secret for app-admin groups
-func GrantAppAdminAccessToSecret(kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
+func GrantAppAdminAccessToSecret(ctx context.Context, kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
 	namespace := GetAppNamespace(registration.Name)
 
 	// create role
 	role := kube.CreateManageSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
-	err := kubeutil.ApplyRole(namespace, role)
+	err := kubeutil.ApplyRole(ctx, namespace, role)
 	if err != nil {
 		return err
 	}
@@ -114,5 +114,5 @@ func GrantAppAdminAccessToSecret(kubeutil *kube.Kube, registration *radixv1.Radi
 
 	subjects := kube.GetRoleBindingGroups(adGroups)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
-	return kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	return kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }

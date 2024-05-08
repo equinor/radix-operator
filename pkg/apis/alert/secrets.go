@@ -1,6 +1,7 @@
 package alert
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -9,10 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (syncer *alertSyncer) createOrUpdateSecret() error {
+func (syncer *alertSyncer) createOrUpdateSecret(ctx context.Context) error {
 	secretName, ns := GetAlertSecretName(syncer.radixAlert.Name), syncer.radixAlert.Namespace
 
-	secret, err := syncer.kubeUtil.GetSecret(ns, secretName)
+	secret, err := syncer.kubeUtil.GetSecret(ctx, ns, secretName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -30,7 +31,7 @@ func (syncer *alertSyncer) createOrUpdateSecret() error {
 
 	syncer.setSecretCommonProps(secret)
 
-	_, err = syncer.kubeUtil.ApplySecret(ns, secret)
+	_, err = syncer.kubeUtil.ApplySecret(ctx, ns, secret)
 	return err
 }
 

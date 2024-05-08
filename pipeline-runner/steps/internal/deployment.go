@@ -118,19 +118,19 @@ func getPreservingDeployComponents(activeRadixDeployment *radixv1.RadixDeploymen
 }
 
 // GetCurrentRadixDeployment Returns active RadixDeployment if it exists and if it is available to get
-func GetCurrentRadixDeployment(kubeUtil *kube.Kube, namespace string) (*radixv1.RadixDeployment, error) {
+func GetCurrentRadixDeployment(ctx context.Context, kubeUtil *kube.Kube, namespace string) (*radixv1.RadixDeployment, error) {
 	var currentRd *radixv1.RadixDeployment
 	// For new applications, or applications with new environments defined in radixconfig, the namespace
 	// or rolebinding may not be configured yet by radix-operator.
 	// We skip getting active deployment if namespace does not exist or pipeline-runner does not have access
 
-	if _, err := kubeUtil.KubeClient().CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{}); err != nil {
+	if _, err := kubeUtil.KubeClient().CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{}); err != nil {
 		if !kubeerrors.IsNotFound(err) && !kubeerrors.IsForbidden(err) {
 			return nil, err
 		}
 		log.Info().Msg("namespace for environment does not exist yet")
 	} else {
-		currentRd, err = kubeUtil.GetActiveDeployment(namespace)
+		currentRd, err = kubeUtil.GetActiveDeployment(ctx, namespace)
 		if err != nil {
 			return nil, err
 		}

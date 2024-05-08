@@ -247,10 +247,10 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 		t.Run(ts.name, func(t *testing.T) {
 			tu, kubeClient, kubeUtil, radixClient := setupTest(t)
 
-			require.NoError(t, commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
+			require.NoError(t, commonTest.RegisterRadixDNSAliases(context.Background(), radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
 			require.NoError(t, applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder), "register radix application")
 
-			radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.TODO(), metav1.ListOptions{})
+			radixDNSAliases, err := radixClient.RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{})
 			require.NoError(t, err)
 
 			if ts.expectedRadixDNSAliases == nil {
@@ -357,7 +357,7 @@ func Test_DNSAliases_ValidDNSAliases(t *testing.T) {
 		t.Run(ts.name, func(t *testing.T) {
 			tu, kubeClient, kubeUtil, radixClient := setupTest(t)
 
-			require.NoError(t, commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
+			require.NoError(t, commonTest.RegisterRadixDNSAliases(context.Background(), radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
 			err := applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder)
 			if ts.expectedError != nil {
 				require.Error(t, err)

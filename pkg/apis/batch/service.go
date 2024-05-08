@@ -1,6 +1,8 @@
 package batch
 
 import (
+	"context"
+
 	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -9,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (s *syncer) reconcileService(batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
+func (s *syncer) reconcileService(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
 	if len(jobComponent.GetPorts()) == 0 {
 		return nil
 	}
@@ -23,7 +25,7 @@ func (s *syncer) reconcileService(batchJob *radixv1.RadixBatchJob, rd *radixv1.R
 	}
 
 	service := s.buildService(batchJob.Name, rd.Spec.AppName, jobComponent.GetPorts())
-	return s.kubeUtil.ApplyService(s.radixBatch.GetNamespace(), service)
+	return s.kubeUtil.ApplyService(ctx, s.radixBatch.GetNamespace(), service)
 }
 
 func (s *syncer) buildService(batchJobName, appName string, componentPorts []radixv1.ComponentPort) *corev1.Service {

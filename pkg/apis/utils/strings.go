@@ -47,7 +47,7 @@ func EqualStringsAsPtr(s1, s2 *string) bool {
 	return ((s1 == nil) == (s2 == nil)) && (s1 != nil && strings.EqualFold(*s1, *s2))
 }
 
-//EqualStringMaps Compare two string maps
+// EqualStringMaps Compare two string maps
 func EqualStringMaps(map1, map2 map[string]string) bool {
 	if len(map1) != len(map2) {
 		return false
@@ -61,7 +61,7 @@ func EqualStringMaps(map1, map2 map[string]string) bool {
 	return true
 }
 
-//EqualStringLists Compare two string lists
+// EqualStringLists Compare two string lists
 func EqualStringLists(list1, list2 []string) bool {
 	return len(list1) == len(list2) &&
 		equalStringLists(list1, list2)

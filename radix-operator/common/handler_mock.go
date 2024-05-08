@@ -5,6 +5,7 @@
 package common
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -35,15 +36,15 @@ func (m *MockHandler) EXPECT() *MockHandlerMockRecorder {
 }
 
 // Sync mocks base method.
-func (m *MockHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+func (m *MockHandler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Sync", namespace, name, eventRecorder)
+	ret := m.ctrl.Call(m, "Sync", ctx, namespace, name, eventRecorder)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Sync indicates an expected call of Sync.
-func (mr *MockHandlerMockRecorder) Sync(namespace, name, eventRecorder interface{}) *gomock.Call {
+func (mr *MockHandlerMockRecorder) Sync(ctx, namespace, name, eventRecorder interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockHandler)(nil).Sync), namespace, name, eventRecorder)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockHandler)(nil).Sync), ctx, namespace, name, eventRecorder)
 }

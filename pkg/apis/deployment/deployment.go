@@ -37,7 +37,7 @@ const (
 
 // DeploymentSyncer defines interface for syncing a RadixDeployment
 type DeploymentSyncer interface {
-	OnSync() error
+	OnSync(ctx context.Context) error
 }
 
 // Deployment Instance variables
@@ -95,11 +95,11 @@ func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.Ra
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
-func (deploy *Deployment) OnSync() error {
-	ctx := log.Ctx(context.TODO()).With().
+func (deploy *Deployment) OnSync(ctx context.Context) error {
+	ctx = log.Ctx(ctx).With().
 		Str("resource_kind", v1.KindRadixDeployment).
 		Str("resource_name", cache.MetaObjectToName(&deploy.radixDeployment.ObjectMeta).String()).
-		Logger().WithContext(context.TODO())
+		Logger().WithContext(ctx)
 
 	requeue := deploy.restoreStatus(ctx)
 
@@ -177,7 +177,7 @@ func (deploy *Deployment) restoreStatus(ctx context.Context) bool {
 }
 
 func (deploy *Deployment) syncStatuses(ctx context.Context) (stopReconciliation bool, err error) {
-	allRDs, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
+	allRDs, err := deploy.kubeutil.ListRadixDeployments(ctx, deploy.getNamespace())
 	if err != nil {
 		err = fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
 	}
@@ -210,11 +210,11 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to perform garbage collection of removed components: %w", err)
 	}
 
-	if err := deploy.garbageCollectAuxiliaryResources(); err != nil {
+	if err := deploy.garbageCollectAuxiliaryResources(ctx); err != nil {
 		return fmt.Errorf("failed to perform auxiliary resource garbage collection: %w", err)
 	}
 
-	if err := deploy.configureRbac(); err != nil {
+	if err := deploy.configureRbac(ctx); err != nil {
 		return fmt.Errorf("failed to configure rbac: %w", err)
 	}
 
@@ -222,7 +222,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to provision secrets: %w", err)
 	}
 
-	if err := deploy.setDefaultNetworkPolicies(); err != nil {
+	if err := deploy.setDefaultNetworkPolicies(ctx); err != nil {
 		return fmt.Errorf("failed to set default network policies: %w", err)
 	}
 
@@ -259,15 +259,15 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 func (deploy *Deployment) syncAuxiliaryResources(ctx context.Context) error {
 	for _, aux := range deploy.auxResourceManagers {
 		log.Ctx(ctx).Debug().Msgf("sync AuxiliaryResource for the RadixDeployment %s", deploy.radixDeployment.GetName())
-		if err := aux.Sync(); err != nil {
+		if err := aux.Sync(ctx); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (deploy *Deployment) configureRbac() error {
-	rbacFunc := GetDeploymentRbacConfigurators(deploy)
+func (deploy *Deployment) configureRbac(ctx context.Context) error {
+	rbacFunc := GetDeploymentRbacConfigurators(ctx, deploy)
 	for _, rbac := range rbacFunc {
 		if err := rbac(); err != nil {
 			return err
@@ -386,7 +386,7 @@ func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
 }
 
 func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Context) error {
-	err := deploy.garbageCollectDeploymentsNoLongerInSpec()
+	err := deploy.garbageCollectDeploymentsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -396,12 +396,12 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 		return err
 	}
 
-	err = deploy.garbageCollectServicesNoLongerInSpec()
+	err = deploy.garbageCollectServicesNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectIngressesNoLongerInSpec()
+	err = deploy.garbageCollectIngressesNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -416,27 +416,27 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 		return err
 	}
 
-	err = deploy.garbageCollectRoleBindingsNoLongerInSpec()
+	err = deploy.garbageCollectRoleBindingsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectServiceMonitorsNoLongerInSpec()
+	err = deploy.garbageCollectServiceMonitorsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectScheduledJobsNoLongerInSpec()
+	err = deploy.garbageCollectScheduledJobsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec()
+	err = deploy.garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectRadixBatchesNoLongerInSpec()
+	err = deploy.garbageCollectRadixBatchesNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -446,7 +446,7 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 		return err
 	}
 
-	err = deploy.garbageCollectServiceAccountNoLongerInSpec()
+	err = deploy.garbageCollectServiceAccountNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -454,9 +454,9 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
+func (deploy *Deployment) garbageCollectAuxiliaryResources(ctx context.Context) error {
 	for _, aux := range deploy.auxResourceManagers {
-		if err := aux.GarbageCollect(); err != nil {
+		if err := aux.GarbageCollect(ctx); err != nil {
 			return err
 		}
 	}
@@ -480,7 +480,7 @@ func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHi
 		return
 	}
 
-	deployments, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
+	deployments, err := deploy.kubeutil.ListRadixDeployments(ctx, deploy.getNamespace())
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("Failed to list RadixDeployments")
 		return
@@ -490,7 +490,7 @@ func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHi
 		return
 	}
 
-	radixDeploymentsReferencedByJobs, err := deploy.getRadixDeploymentsReferencedByJobs()
+	radixDeploymentsReferencedByJobs, err := deploy.getRadixDeploymentsReferencedByJobs(ctx)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("failed to list RadixBatches")
 		return
@@ -509,8 +509,8 @@ func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHi
 	}
 }
 
-func (deploy *Deployment) getRadixDeploymentsReferencedByJobs() (map[string]bool, error) {
-	radixBatches, err := deploy.kubeutil.ListRadixBatches(deploy.getNamespace())
+func (deploy *Deployment) getRadixDeploymentsReferencedByJobs(ctx context.Context) (map[string]bool, error) {
+	radixBatches, err := deploy.kubeutil.ListRadixBatches(ctx, deploy.getNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -522,12 +522,12 @@ func (deploy *Deployment) getRadixDeploymentsReferencedByJobs() (map[string]bool
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(component)
+	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(ctx, component)
 	if err != nil {
 		return err
 	}
 
-	err = deploy.createOrUpdateServiceAccount(component)
+	err = deploy.createOrUpdateServiceAccount(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
@@ -542,7 +542,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create hpa: %w", err)
 	}
 
-	err = deploy.createOrUpdateService(component)
+	err = deploy.createOrUpdateService(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create service: %w", err)
 	}
@@ -552,23 +552,23 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create PDB: %w", err)
 	}
 
-	err = deploy.garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(component)
+	err = deploy.garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to garbage collect PDB: %w", err)
 	}
 
-	err = deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(component)
+	err = deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to garbage collect service account: %w", err)
 	}
 
 	if component.IsPublic() {
-		err = deploy.createOrUpdateIngress(component)
+		err = deploy.createOrUpdateIngress(ctx, component)
 		if err != nil {
 			return fmt.Errorf("failed to create ingress: %w", err)
 		}
 	} else {
-		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(component)
+		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(ctx, component)
 		if err != nil {
 			return fmt.Errorf("failed to delete ingress: %w", err)
 		}
@@ -580,7 +580,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 			return fmt.Errorf("failed to create service monitor: %w", err)
 		}
 	} else {
-		err = deploy.deleteServiceMonitorForComponent(component)
+		err = deploy.deleteServiceMonitorForComponent(ctx, component)
 		if err != nil {
 			return fmt.Errorf("failed to delete servicemonitor: %w", err)
 		}
@@ -589,8 +589,8 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(deployComponent, desiredDeployment)
+func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, desiredDeployment)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -620,8 +620,8 @@ func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployCom
 	}
 }
 
-func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(desiredDeployment.Namespace, getJobAuxObjectName(desiredDeployment.Name))
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, desiredDeployment.Namespace, getJobAuxObjectName(desiredDeployment.Name))
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			return nil, deploy.createJobAuxDeployment(deployComponent), nil

@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,9 +20,9 @@ func getSyncTargetAnnotation(appName string) string {
 	return fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, appName)
 }
 
-func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
+func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) error {
 	namespace := utils.GetAppNamespace(app.config.Name)
-	secret, err := app.kubeutil.GetSecret(namespace, defaults.PrivateImageHubSecretName)
+	secret, err := app.kubeutil.GetSecret(ctx, namespace, defaults.PrivateImageHubSecretName)
 	if err != nil && !kubeerrors.IsNotFound(err) {
 		return fmt.Errorf("failed to get private image hub secret: %W", err)
 	}
@@ -67,17 +68,17 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 			return fmt.Errorf("failed to update private image hub secret: %w", err)
 		}
 	}
-	err = ApplyPrivateImageHubSecret(app.kubeutil, namespace, app.config.Name, secretValue)
+	err = ApplyPrivateImageHubSecret(ctx, app.kubeutil, namespace, app.config.Name, secretValue)
 	if err != nil {
 		return nil
 	}
 
-	err = utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
+	err = utils.GrantAppReaderAccessToSecret(ctx, app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		return fmt.Errorf("failed to grant reader access to private image hub secret: %w", err)
 	}
 
-	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
+	err = utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to private image hub secret: %w", err)
 	}
@@ -86,7 +87,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 }
 
 // ApplyPrivateImageHubSecret create a private image hub secret based on SecretTypeDockerConfigJson
-func ApplyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretValue []byte) error {
+func ApplyPrivateImageHubSecret(ctx context.Context, kubeutil *kube.Kube, ns, appName string, secretValue []byte) error {
 	secret := corev1.Secret{
 		Type: corev1.SecretTypeDockerConfigJson,
 		ObjectMeta: metav1.ObjectMeta{
@@ -106,7 +107,7 @@ func ApplyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretV
 		secret.Data[corev1.DockerConfigJsonKey] = secretValue
 	}
 
-	_, err := kubeutil.ApplySecret(ns, &secret)
+	_, err := kubeutil.ApplySecret(ctx, ns, &secret)
 	if err != nil {
 		return fmt.Errorf("failed to create private image hub secrets in namespace %s: %w", ns, err)
 	}

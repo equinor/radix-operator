@@ -200,7 +200,7 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 			s.SetupTest()
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
-			err := commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias)
+			err := commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias)
 			s.Require().NoError(err, "create existing alias")
 
 			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
@@ -208,7 +208,7 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 			s.registerExistingIngresses(s.kubeClient, ts.existingIngress)
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err = syncer.OnSync()
+			err = syncer.OnSync(context.Background())
 			s.Assert().NoError(err)
 
 			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
@@ -325,7 +325,7 @@ func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
 			s.SetupTest()
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
-			err := commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias)
+			err := commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias)
 			s.Require().NoError(err, "create existing alias")
 
 			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
@@ -351,7 +351,7 @@ func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
 			s.registerExistingIngresses(s.kubeClient, ts.existingIngress)
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err = syncer.OnSync()
+			err = syncer.OnSync(context.Background())
 			s.Assert().NoError(err)
 
 			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
@@ -545,14 +545,14 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 				ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName1)},
 				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component},
 			}
-			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias), "create existing alias")
+			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias), "create existing alias")
 
 			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, ts.adminADGroups, ts.readerADGroups)
 			s.registerRadixDeployments(rd1, rd2, rd3, rd4)
 			s.registerClusterRoleBindings(radixDNSAlias, ts.existingClusterRoleBindings)
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err := syncer.OnSync()
+			err := syncer.OnSync(context.Background())
 			s.Assert().NoError(err)
 
 			clusterRoleList, err := s.getClusterRolesForAnyAliases()
@@ -663,7 +663,7 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 				ObjectMeta: metav1.ObjectMeta{Name: alias1, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName1)},
 				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: envName1, Component: component1},
 			}
-			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(s.radixClient, alias1, commonTest.DNSAlias{
+			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, alias1, commonTest.DNSAlias{
 				Alias: alias1, AppName: appName1, Environment: envName1, Component: component1}), "create existing alias")
 			testDefaultUserGroupID := string(uuid.NewUUID())
 			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
@@ -677,7 +677,7 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 			s.registerRadixDeployments(rd1)
 
 			syncer := s.createSyncer(radixDNSAlias)
-			err := syncer.OnSync()
+			err := syncer.OnSync(context.Background())
 
 			if len(ts.expectedError) > 0 {
 				require.Error(t, err)
@@ -743,7 +743,7 @@ func (s *syncerTestSuite) registerRadixDeployments(radixDeployments ...*radixv1.
 
 func (s *syncerTestSuite) registerClusterRoleBindings(radixDNSAlias *radixv1.RadixDNSAlias, roleBindings []string) {
 	for _, name := range roleBindings {
-		err := s.kubeUtil.ApplyClusterRoleBinding(internal.BuildClusterRoleBinding(name, nil, radixDNSAlias))
+		err := s.kubeUtil.ApplyClusterRoleBinding(context.Background(), internal.BuildClusterRoleBinding(name, nil, radixDNSAlias))
 		s.Require().NoError(err, "create existing cluster role binding %s", name)
 	}
 }
@@ -757,7 +757,7 @@ func (s *syncerTestSuite) registerExistingIngresses(kubeClient kubernetes.Interf
 			},
 			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.serviceName, defaults.TLSSecretName, ingProps.port),
 		}
-		_, err := dnsalias.CreateRadixDNSAliasIngress(kubeClient, ingProps.appName, ingProps.envName, ing)
+		_, err := dnsalias.CreateRadixDNSAliasIngress(context.Background(), kubeClient, ingProps.appName, ingProps.envName, ing)
 		s.Require().NoError(err, "create existing ingress %s", ing.GetName())
 	}
 }

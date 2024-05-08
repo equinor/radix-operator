@@ -11,7 +11,7 @@ import (
 )
 
 // GetRadixBatch Gets batches using lister if present
-func (kubeutil *Kube) GetRadixBatch(namespace, name string) (*v1.RadixBatch, error) {
+func (kubeutil *Kube) GetRadixBatch(ctx context.Context, namespace, name string) (*v1.RadixBatch, error) {
 	var batch *v1.RadixBatch
 	var err error
 
@@ -21,7 +21,7 @@ func (kubeutil *Kube) GetRadixBatch(namespace, name string) (*v1.RadixBatch, err
 			return nil, err
 		}
 	} else {
-		batch, err = kubeutil.radixclient.RadixV1().RadixBatches(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		batch, err = kubeutil.radixclient.RadixV1().RadixBatches(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -31,7 +31,7 @@ func (kubeutil *Kube) GetRadixBatch(namespace, name string) (*v1.RadixBatch, err
 }
 
 // ListRadixBatches Gets batches using lister if present
-func (kubeutil *Kube) ListRadixBatches(namespace string) ([]*v1.RadixBatch, error) {
+func (kubeutil *Kube) ListRadixBatches(ctx context.Context, namespace string) ([]*v1.RadixBatch, error) {
 
 	if kubeutil.RbLister != nil {
 		rbs, err := kubeutil.RbLister.RadixBatches(namespace).List(labels.NewSelector())
@@ -41,7 +41,7 @@ func (kubeutil *Kube) ListRadixBatches(namespace string) ([]*v1.RadixBatch, erro
 		return rbs, nil
 	}
 
-	rbs, err := kubeutil.radixclient.RadixV1().RadixBatches(namespace).List(context.TODO(), metav1.ListOptions{})
+	rbs, err := kubeutil.radixclient.RadixV1().RadixBatches(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all RadixBatches. Error was %v", err)
 	}
@@ -51,6 +51,6 @@ func (kubeutil *Kube) ListRadixBatches(namespace string) ([]*v1.RadixBatch, erro
 }
 
 // DeleteRadixBatch Deletes a batch
-func (kubeutil *Kube) DeleteRadixBatch(namespace, name string) error {
-	return kubeutil.radixclient.RadixV1().RadixBatches(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+func (kubeutil *Kube) DeleteRadixBatch(ctx context.Context, namespace, name string) error {
+	return kubeutil.radixclient.RadixV1().RadixBatches(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }

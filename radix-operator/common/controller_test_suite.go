@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -30,7 +31,8 @@ type ControllerTestSuite struct {
 	MockCtrl                  *gomock.Controller
 	Handler                   *MockHandler
 	Synced                    chan bool
-	Stop                      chan struct{}
+	Ctx                       context.Context
+	CtxCancel                 context.CancelFunc
 	TestControllerSyncTimeout time.Duration
 }
 
@@ -47,14 +49,14 @@ func (s *ControllerTestSuite) SetupTest() {
 	s.MockCtrl = gomock.NewController(s.T())
 	s.Handler = NewMockHandler(s.MockCtrl)
 	s.Synced = make(chan bool)
-	s.Stop = make(chan struct{})
+	s.Ctx, s.CtxCancel = context.WithCancel(context.Background())
 	s.TestControllerSyncTimeout = 10 * time.Second
 }
 
 // TearDownTest Tear down the test suite
 func (s *ControllerTestSuite) TearDownTest() {
 	close(s.Synced)
-	close(s.Stop)
+	s.CtxCancel()
 	s.MockCtrl.Finish()
 }
 
@@ -79,8 +81,8 @@ func (s *ControllerTestSuite) WaitForNotSynced(failMessage string) {
 }
 
 // SyncedChannelCallback Callback to send a signal to the Synced
-func (s *ControllerTestSuite) SyncedChannelCallback() func(namespace string, name string, eventRecorder record.EventRecorder) error {
-	return func(namespace, name string, eventRecorder record.EventRecorder) error {
+func (s *ControllerTestSuite) SyncedChannelCallback() func(ctx context.Context, namespace string, name string, eventRecorder record.EventRecorder) error {
+	return func(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 		s.Synced <- true
 		return nil
 	}

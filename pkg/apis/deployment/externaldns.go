@@ -52,7 +52,7 @@ func (deploy *Deployment) syncExternalDnsResources(ctx context.Context) error {
 		}
 	}
 
-	return deploy.grantAccessToExternalDnsSecrets(secretNames)
+	return deploy.grantAccessToExternalDnsSecrets(ctx, secretNames)
 }
 
 func (deploy *Deployment) garbageCollectExternalDnsResourcesNoLongerInSpec(ctx context.Context) error {
@@ -230,7 +230,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context
 		return err
 	}
 
-	_, err = deploy.kubeutil.ApplySecret(ns, &secret)
+	_, err = deploy.kubeutil.ApplySecret(ctx, ns, &secret)
 	if err != nil {
 		return err
 	}

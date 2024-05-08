@@ -5,6 +5,7 @@
 package deployment
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -34,15 +35,15 @@ func (m *MockDeploymentSyncer) EXPECT() *MockDeploymentSyncerMockRecorder {
 }
 
 // OnSync mocks base method.
-func (m *MockDeploymentSyncer) OnSync() error {
+func (m *MockDeploymentSyncer) OnSync(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OnSync")
+	ret := m.ctrl.Call(m, "OnSync", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // OnSync indicates an expected call of OnSync.
-func (mr *MockDeploymentSyncerMockRecorder) OnSync() *gomock.Call {
+func (mr *MockDeploymentSyncerMockRecorder) OnSync(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnSync", reflect.TypeOf((*MockDeploymentSyncer)(nil).OnSync))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnSync", reflect.TypeOf((*MockDeploymentSyncer)(nil).OnSync), ctx)
 }

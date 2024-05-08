@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -14,26 +15,26 @@ import (
 )
 
 // ApplySecretsForPipelines creates secrets needed by pipeline to run
-func (app *Application) applySecretsForPipelines() error {
+func (app *Application) applySecretsForPipelines(ctx context.Context) error {
 	radixRegistration := app.registration
 
 	app.logger.Debug().Msg("Apply secrets for pipelines")
 	buildNamespace := utils.GetAppNamespace(radixRegistration.Name)
 
-	err := app.applyGitDeployKeyToBuildNamespace(buildNamespace)
+	err := app.applyGitDeployKeyToBuildNamespace(ctx, buildNamespace)
 	if err != nil {
 		return err
 	}
-	err = app.applyServicePrincipalACRSecretToBuildNamespace(buildNamespace)
+	err = app.applyServicePrincipalACRSecretToBuildNamespace(ctx, buildNamespace)
 	if err != nil {
 		app.logger.Warn().Msgf("Failed to apply service principle acr secrets (%s, %s) to namespace %s", defaults.AzureACRServicePrincipleSecretName, defaults.AzureACRServicePrincipleBuildahSecretName, buildNamespace)
 	}
 	return nil
 }
 
-func (app *Application) applyGitDeployKeyToBuildNamespace(namespace string) error {
+func (app *Application) applyGitDeployKeyToBuildNamespace(ctx context.Context, namespace string) error {
 	radixRegistration := app.registration
-	secret, err := app.kubeutil.GetSecret(namespace, defaults.GitPrivateKeySecretName)
+	secret, err := app.kubeutil.GetSecret(ctx, namespace, defaults.GitPrivateKeySecretName)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
@@ -65,24 +66,24 @@ func (app *Application) applyGitDeployKeyToBuildNamespace(namespace string) erro
 	}
 
 	// create corresponding secret with private key
-	secret, err = app.createNewGitDeployKey(namespace, deployKey.PrivateKey, radixRegistration)
+	secret, err = app.createNewGitDeployKey(ctx, namespace, deployKey.PrivateKey, radixRegistration)
 	if err != nil {
 		return err
 	}
-	_, err = app.kubeutil.ApplySecret(namespace, secret)
+	_, err = app.kubeutil.ApplySecret(ctx, namespace, secret)
 	if err != nil {
 		return err
 	}
 
 	newCm := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey)
-	_, err = app.kubeutil.CreateConfigMap(namespace, newCm)
+	_, err = app.kubeutil.CreateConfigMap(ctx, namespace, newCm)
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
-			existingCm, err := app.kubeutil.GetConfigMap(namespace, defaults.GitPublicKeyConfigMapName)
+			existingCm, err := app.kubeutil.GetConfigMap(ctx, namespace, defaults.GitPublicKeyConfigMapName)
 			if err != nil {
 				return err
 			}
-			err = app.kubeutil.ApplyConfigMap(namespace, existingCm, newCm)
+			err = app.kubeutil.ApplyConfigMap(ctx, namespace, existingCm, newCm)
 			if err != nil {
 				return err
 			}
@@ -103,24 +104,24 @@ func deriveKeyPairFromSecret(secret *corev1.Secret) (*utils.DeployKey, error) {
 	return deployKey, nil
 }
 
-func (app *Application) applyServicePrincipalACRSecretToBuildNamespace(buildNamespace string) error {
-	servicePrincipalSecretForBuild, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRServicePrincipleSecretName)
+func (app *Application) applyServicePrincipalACRSecretToBuildNamespace(ctx context.Context, buildNamespace string) error {
+	servicePrincipalSecretForBuild, err := app.createNewServicePrincipalACRSecret(ctx, buildNamespace, defaults.AzureACRServicePrincipleSecretName)
 	if err != nil {
 		return err
 	}
 
-	servicePrincipalSecretForBuildahBuild, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRServicePrincipleBuildahSecretName)
+	servicePrincipalSecretForBuildahBuild, err := app.createNewServicePrincipalACRSecret(ctx, buildNamespace, defaults.AzureACRServicePrincipleBuildahSecretName)
 	if err != nil {
 		return err
 	}
 
-	tokenSecretForAppRegistry, err := app.createNewServicePrincipalACRSecret(buildNamespace, defaults.AzureACRTokenPasswordAppRegistrySecretName)
+	tokenSecretForAppRegistry, err := app.createNewServicePrincipalACRSecret(ctx, buildNamespace, defaults.AzureACRTokenPasswordAppRegistrySecretName)
 	if err != nil {
 		return err
 	}
 
 	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild, tokenSecretForAppRegistry} {
-		_, err = app.kubeutil.ApplySecret(buildNamespace, secret)
+		_, err = app.kubeutil.ApplySecret(ctx, buildNamespace, secret)
 		if err != nil {
 			return err
 		}
@@ -129,8 +130,8 @@ func (app *Application) applyServicePrincipalACRSecretToBuildNamespace(buildName
 	return nil
 }
 
-func (app *Application) createNewGitDeployKey(namespace, deployKey string, registration *v1.RadixRegistration) (*corev1.Secret, error) {
-	knownHostsSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, "radix-known-hosts-git")
+func (app *Application) createNewGitDeployKey(ctx context.Context, namespace, deployKey string, registration *v1.RadixRegistration) (*corev1.Secret, error) {
+	knownHostsSecret, err := app.kubeutil.GetSecret(ctx, corev1.NamespaceDefault, "radix-known-hosts-git")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get known hosts secret: %w", err)
 	}
@@ -151,8 +152,8 @@ func (app *Application) createNewGitDeployKey(namespace, deployKey string, regis
 	return &secret, nil
 }
 
-func (app *Application) createNewServicePrincipalACRSecret(namespace, secretName string) (*corev1.Secret, error) {
-	servicePrincipalSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, secretName)
+func (app *Application) createNewServicePrincipalACRSecret(ctx context.Context, namespace, secretName string) (*corev1.Secret, error) {
+	servicePrincipalSecret, err := app.kubeutil.GetSecret(ctx, corev1.NamespaceDefault, secretName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret %s from default namespace: %w", secretName, err)
 	}

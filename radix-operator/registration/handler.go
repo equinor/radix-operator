@@ -1,6 +1,8 @@
 package registration
 
 import (
+	"context"
+
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/rs/zerolog/log"
 
@@ -48,8 +50,8 @@ func NewHandler(
 }
 
 // Sync Is created on sync of resource
-func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	registration, err := t.kubeutil.GetRegistration(name)
+func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+	registration, err := t.kubeutil.GetRegistration(ctx, name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
@@ -64,7 +66,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncRegistration := registration.DeepCopy()
 	log.Debug().Msgf("Sync registration %s", syncRegistration.Name)
 	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
-	err = application.OnSync()
+	err = application.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue.

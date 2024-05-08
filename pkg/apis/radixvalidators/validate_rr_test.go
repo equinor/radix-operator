@@ -1,6 +1,7 @@
 package radixvalidators_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -20,15 +21,15 @@ import (
 func Test_valid_rr_returns_true(t *testing.T) {
 	_, client := validRRSetup()
 	validRR := createValidRR()
-	err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
+	err := radixvalidators.CanRadixRegistrationBeInserted(context.Background(), client, validRR)
 	assert.Nil(t, err)
 }
 
 func Test_valid_rr_returns_no_warnings(t *testing.T) {
 	_, client := validRRSetup()
 	validRR := createValidRR()
-	_ = radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
-	warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(client, validRR)
+	_ = radixvalidators.CanRadixRegistrationBeInserted(context.Background(), client, validRR)
+	warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(context.Background(), client, validRR)
 	assert.Empty(t, warnings)
 	assert.Nil(t, err)
 }
@@ -64,7 +65,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRR := createValidRR()
 			testcase.updateRR(validRR)
-			err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR, testcase.additionalValidators...)
+			err := radixvalidators.CanRadixRegistrationBeInserted(context.Background(), client, validRR, testcase.additionalValidators...)
 
 			assert.NotNil(t, err)
 		})
@@ -73,7 +74,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 	t.Run("name already exist", func(t *testing.T) {
 		validRR := createValidRR()
 		client = radixfake.NewSimpleClientset(validRR)
-		err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
+		err := radixvalidators.CanRadixRegistrationBeInserted(context.Background(), client, validRR)
 
 		assert.NotNil(t, err)
 	})
@@ -83,10 +84,10 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		client = radixfake.NewSimpleClientset(validRR)
 		validRR = createValidRR()
 		validRR.Name = "new-app"
-		err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
+		err := radixvalidators.CanRadixRegistrationBeInserted(context.Background(), client, validRR)
 
 		assert.Nil(t, err)
-		warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(client, validRR)
+		warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(context.Background(), client, validRR)
 		assert.Nil(t, err)
 		assert.NotEmpty(t, warnings)
 		assert.Equal(t, "Repository is used in other application(s)", warnings[0])
@@ -144,7 +145,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 		err := radixvalidators.CanRadixRegistrationBeUpdated(validRR)
 
 		assert.Nil(t, err)
-		warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(client, validRR)
+		warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(context.Background(), client, validRR)
 		assert.Nil(t, err)
 		assert.NotEmpty(t, warnings)
 		assert.Equal(t, "Repository is used in other application(s)", warnings[0])

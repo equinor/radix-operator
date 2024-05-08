@@ -8,8 +8,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
-	jobs, err := deploy.kubeutil.ListJobs(deploy.radixDeployment.GetNamespace())
+func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec(ctx context.Context) error {
+	jobs, err := deploy.kubeutil.ListJobs(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 		if jobType.IsJobScheduler() && !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
 			propagationPolicy := metav1.DeletePropagationBackground
 			err = deploy.kubeclient.BatchV1().Jobs(deploy.radixDeployment.GetNamespace()).Delete(
-				context.TODO(),
+				ctx,
 				job.Name,
 				metav1.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
@@ -43,8 +43,8 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec() error {
-	jobAuxDeployments, err := deploy.kubeutil.ListDeploymentsWithSelector(deploy.radixDeployment.GetNamespace(), labels.ForIsJobAuxObject().String())
+func (deploy *Deployment) garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec(ctx context.Context) error {
+	jobAuxDeployments, err := deploy.kubeutil.ListDeploymentsWithSelector(ctx, deploy.radixDeployment.GetNamespace(), labels.ForIsJobAuxObject().String())
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (deploy *Deployment) garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec
 
 		// Delete job aux deployment if a job is no longed defined in RD job section
 		if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
-			err = deploy.kubeutil.DeleteDeployment(deploy.radixDeployment.GetNamespace(), deployment.Name)
+			err = deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.GetNamespace(), deployment.Name)
 			if err != nil {
 				errs = append(errs, err)
 			}

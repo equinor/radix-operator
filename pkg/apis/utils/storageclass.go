@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-//GetStorageClassMap Get map from StorageClassList with name as key
+// GetStorageClassMap Get map from StorageClassList with name as key
 func GetStorageClassMap(scList *[]storagev1.StorageClass) map[string]*storagev1.StorageClass {
 	scMap := make(map[string]*storagev1.StorageClass)
 	for _, sc := range *scList {
@@ -18,7 +18,7 @@ func GetStorageClassMap(scList *[]storagev1.StorageClass) map[string]*storagev1.
 	return scMap
 }
 
-//EqualStorageClassLists Compare two StorageClass lists
+// EqualStorageClassLists Compare two StorageClass lists
 func EqualStorageClassLists(scList1, scList2 *[]storagev1.StorageClass) (bool, error) {
 	if len(*scList1) != len(*scList2) {
 		return false, fmt.Errorf("different StorageClass list sizes: %v, %v", len(*scList1), len(*scList2))
@@ -37,7 +37,7 @@ func EqualStorageClassLists(scList1, scList2 *[]storagev1.StorageClass) (bool, e
 	return true, nil
 }
 
-//EqualStorageClasses Compare two StorageClass pointers
+// EqualStorageClasses Compare two StorageClass pointers
 func EqualStorageClasses(sc1, sc2 *storagev1.StorageClass) (bool, error) {
 	sc1Copy, labels1, params1, mountOptions1 := getStorageClassCopyWithCollections(sc1)
 	sc2Copy, labels2, params2, mountOptions2 := getStorageClassCopyWithCollections(sc2)

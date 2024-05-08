@@ -16,7 +16,7 @@ import (
 )
 
 // CreateServiceAccount create a service account
-func (kubeutil *Kube) CreateServiceAccount(namespace, name string) (*corev1.ServiceAccount, error) {
+func (kubeutil *Kube) CreateServiceAccount(ctx context.Context, namespace, name string) (*corev1.ServiceAccount, error) {
 	serviceAccount := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -24,14 +24,14 @@ func (kubeutil *Kube) CreateServiceAccount(namespace, name string) (*corev1.Serv
 		},
 	}
 
-	return kubeutil.ApplyServiceAccount(&serviceAccount)
+	return kubeutil.ApplyServiceAccount(ctx, &serviceAccount)
 }
 
 // ApplyServiceAccount Creates or updates service account
-func (kubeutil *Kube) ApplyServiceAccount(serviceAccount *corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
-	oldServiceAccount, err := kubeutil.GetServiceAccount(serviceAccount.Namespace, serviceAccount.GetName())
+func (kubeutil *Kube) ApplyServiceAccount(ctx context.Context, serviceAccount *corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
+	oldServiceAccount, err := kubeutil.GetServiceAccount(ctx, serviceAccount.Namespace, serviceAccount.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		createdServiceAccount, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(serviceAccount.GetNamespace()).Create(context.TODO(), serviceAccount, metav1.CreateOptions{})
+		createdServiceAccount, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(serviceAccount.GetNamespace()).Create(ctx, serviceAccount, metav1.CreateOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ServiceAccount object: %w", err)
 		}
@@ -64,7 +64,7 @@ func (kubeutil *Kube) ApplyServiceAccount(serviceAccount *corev1.ServiceAccount)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
-		patchedServiceAccount, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(serviceAccount.GetNamespace()).Patch(context.TODO(), serviceAccount.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		patchedServiceAccount, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(serviceAccount.GetNamespace()).Patch(ctx, serviceAccount.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to patch ServiceAccount object: %w", err)
 		}
@@ -78,21 +78,21 @@ func (kubeutil *Kube) ApplyServiceAccount(serviceAccount *corev1.ServiceAccount)
 }
 
 // DeleteServiceAccount Deletes service account
-func (kubeutil *Kube) DeleteServiceAccount(namespace, name string) error {
-	_, err := kubeutil.GetServiceAccount(namespace, name)
+func (kubeutil *Kube) DeleteServiceAccount(ctx context.Context, namespace, name string) error {
+	_, err := kubeutil.GetServiceAccount(ctx, namespace, name)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to get service account object: %v", err)
 	}
-	err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete ServiceAccount object: %v", err)
 	}
 	return nil
 }
 
-func (kubeutil *Kube) GetServiceAccount(namespace, name string) (*corev1.ServiceAccount, error) {
+func (kubeutil *Kube) GetServiceAccount(ctx context.Context, namespace, name string) (*corev1.ServiceAccount, error) {
 	var serviceAccount *corev1.ServiceAccount
 	var err error
 
@@ -102,7 +102,7 @@ func (kubeutil *Kube) GetServiceAccount(namespace, name string) (*corev1.Service
 			return nil, err
 		}
 	} else {
-		serviceAccount, err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		serviceAccount, err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -112,12 +112,12 @@ func (kubeutil *Kube) GetServiceAccount(namespace, name string) (*corev1.Service
 }
 
 // ListServiceAccounts List service accounts in namespace
-func (kubeutil *Kube) ListServiceAccounts(namespace string) ([]*corev1.ServiceAccount, error) {
-	return kubeutil.ListServiceAccountsWithSelector(namespace, "")
+func (kubeutil *Kube) ListServiceAccounts(ctx context.Context, namespace string) ([]*corev1.ServiceAccount, error) {
+	return kubeutil.ListServiceAccountsWithSelector(ctx, namespace, "")
 }
 
 // ListServiceAccountsWithSelector List service accounts with selector in namespace
-func (kubeutil *Kube) ListServiceAccountsWithSelector(namespace string, labelSelectorString string) ([]*corev1.ServiceAccount, error) {
+func (kubeutil *Kube) ListServiceAccountsWithSelector(ctx context.Context, namespace string, labelSelectorString string) ([]*corev1.ServiceAccount, error) {
 	var serviceAccounts []*corev1.ServiceAccount
 
 	if kubeutil.ServiceAccountLister != nil {
@@ -135,7 +135,7 @@ func (kubeutil *Kube) ListServiceAccountsWithSelector(namespace string, labelSel
 			LabelSelector: labelSelectorString,
 		}
 
-		list, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).List(context.TODO(), listOptions)
+		list, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).List(ctx, listOptions)
 		if err != nil {
 			return nil, err
 		}

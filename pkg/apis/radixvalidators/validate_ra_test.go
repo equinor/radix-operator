@@ -29,7 +29,7 @@ type updateRAFunc func(rr *radixv1.RadixApplication)
 func Test_valid_ra_returns_true(t *testing.T) {
 	_, client := validRASetup()
 	validRA := createValidRA()
-	err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+	err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 	assert.NoError(t, err)
 }
@@ -38,7 +38,7 @@ func Test_missing_rr(t *testing.T) {
 	client := radixfake.NewSimpleClientset()
 	validRA := createValidRA()
 
-	err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+	err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 	assert.Error(t, err)
 }
@@ -648,7 +648,7 @@ func Test_invalid_ra(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			if testcase.expectedError != nil {
 				assert.Error(t, err)
@@ -745,7 +745,7 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			assert.NoError(t, err)
 		})
@@ -828,7 +828,7 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			assert.NoError(t, err)
 		})
@@ -863,7 +863,7 @@ func Test_InvalidRAComponentLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			assert.Error(t, err)
 		})
@@ -898,7 +898,7 @@ func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			assert.Error(t, err)
 		})
@@ -1059,7 +1059,7 @@ func Test_PublicPort(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			if testcase.isValid {
 				assert.NoError(t, err)
@@ -1142,7 +1142,7 @@ func Test_Variables(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			if testcase.isValid {
 				assert.NoError(t, err)
@@ -1576,7 +1576,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				validRA := createValidRA()
 				volumes := test.volumeMounts()
 				ra(validRA, volumes)
-				err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+				err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 				if test.expectedError == nil {
 					assert.NoError(t, err)
 				} else {
@@ -1885,7 +1885,7 @@ func Test_HPA_Validation(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			if testcase.isValid {
 				assert.NoError(t, err)
@@ -2061,7 +2061,7 @@ func Test_EgressConfig(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
 			if testcase.isValid {
 				assert.NoError(t, err)
@@ -2284,14 +2284,14 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		t.Run(ts.name, func(t *testing.T) {
 			_, radixClient := validRASetup()
 
-			err := commonTest.RegisterRadixDNSAliases(radixClient, ts.existingRadixDNSAliases)
+			err := commonTest.RegisterRadixDNSAliases(context.Background(), radixClient, ts.existingRadixDNSAliases)
 			require.NoError(t, err)
 			rr := ts.applicationBuilder.GetRegistrationBuilder().BuildRR()
 			_, err = radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 			require.NoError(t, err)
 			ra := ts.applicationBuilder.BuildRA()
 
-			actualValidationErr := radixvalidators.CanRadixApplicationBeInserted(radixClient, ra, dnsConfig)
+			actualValidationErr := radixvalidators.CanRadixApplicationBeInserted(context.Background(), radixClient, ra, dnsConfig)
 
 			if ts.expectedValidationError == nil {
 				require.NoError(t, actualValidationErr)

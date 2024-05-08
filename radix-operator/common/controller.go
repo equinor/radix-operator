@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -36,7 +37,7 @@ type Controller struct {
 }
 
 // Run starts the shared informer, which will be stopped when stopCh is closed.
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	defer utilruntime.HandleCrash()
 
 	if c.LockKeyAndIdentifier == nil {
@@ -61,21 +62,20 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	// Wait for the caches to be synced before starting workers
 	c.Log.Info().Msg("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh,
-		cacheSyncs...); !ok {
-		return fmt.Errorf("failed to wait for caches to sync")
+	if ok := cache.WaitForCacheSync(ctx.Done(), cacheSyncs...); !ok {
+		return fmt.Errorf("failed to wait for caches to sync: %s", c.Name)
 	}
 
 	c.Log.Info().Msg("Starting workers")
 
 	// Launch workers to process resources
-	c.run(threadiness, stopCh)
+	c.run(ctx, threadiness)
 
 	return nil
 }
 
-func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
-	var errorGroup errgroup.Group
+func (c *Controller) run(ctx context.Context, threadiness int) {
+	errorGroup, ctx := errgroup.WithContext(ctx)
 	errorGroup.SetLimit(threadiness)
 	defer func() {
 		c.Log.Info().Msg("Waiting for workers to complete")
@@ -90,7 +90,7 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 		locker = &defaultResourceLocker{}
 	}
 
-	for c.processNext(&errorGroup, stopCh, locker) {
+	for c.processNext(ctx, errorGroup, locker) {
 	}
 
 	if err := errorGroup.Wait(); err != nil {
@@ -98,19 +98,18 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 	}
 }
 
-func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struct{}, locker resourceLocker) bool {
-	select {
-	case <-stopCh:
-		return false
-	default:
-	}
-
+func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group, locker resourceLocker) bool {
 	workItem, shutdown := c.WorkQueue.Get()
 	if shutdown || c.WorkQueue.ShuttingDown() {
 		return false
 	}
 
 	errorGroup.Go(func() error {
+		// Let this Goroutine finish any work, the parent errorgroup will stop
+		// scheduling more tasks when the parent context is cancelled.
+		// Kubernetes will kill the process if it takes to long to finish any way
+		workCtx := context.WithoutCancel(ctx)
+
 		defer func() {
 			c.WorkQueue.Done(workItem)
 		}()
@@ -140,16 +139,16 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 		}()
 
 		c.Log.Debug().Msgf("Acquired lock for %s, processing %s", lockKey, identifier)
-		c.processWorkItem(workItem, identifier)
+		c.processWorkItem(workCtx, workItem, identifier)
 		return nil
 	})
 
 	return true
 }
 
-func (c *Controller) processWorkItem(workItem interface{}, workItemString string) {
+func (c *Controller) processWorkItem(ctx context.Context, workItem interface{}, workItemString string) {
 	err := func(workItem interface{}) error {
-		if err := c.syncHandler(workItemString); err != nil {
+		if err := c.syncHandler(ctx, workItemString); err != nil {
 			c.WorkQueue.AddRateLimited(workItemString)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
@@ -169,7 +168,7 @@ func (c *Controller) processWorkItem(workItem interface{}, workItemString string
 	}
 }
 
-func (c *Controller) syncHandler(key string) error {
+func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	start := time.Now()
 
 	defer func() {
@@ -184,7 +183,7 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
-	err = c.Handler.Sync(namespace, name, c.Recorder)
+	err = c.Handler.Sync(ctx, namespace, name, c.Recorder)
 	if err != nil {
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
 		return err
@@ -209,7 +208,7 @@ func (c *Controller) Enqueue(obj interface{}) (requeued bool, err error) {
 
 // HandleObject ensures that when anything happens to object which any
 // custom resource is owner of, that custom resource is synced
-func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn GetOwner) {
+func (c *Controller) HandleObject(ctx context.Context, obj interface{}, ownerKind string, getOwnerFn GetOwner) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -233,7 +232,7 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			return
 		}
 
-		obj, err := getOwnerFn(c.RadixClient, object.GetNamespace(), ownerRef.Name)
+		obj, err := getOwnerFn(ctx, c.RadixClient, object.GetNamespace(), ownerRef.Name)
 		if err != nil {
 			c.Log.Debug().Msgf("Ignoring orphaned object %s of %s %s", object.GetSelfLink(), ownerKind, ownerRef.Name)
 			return

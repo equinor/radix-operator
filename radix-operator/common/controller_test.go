@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -79,7 +80,7 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -90,7 +91,7 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	queue.On("ShuttingDown").Return(false).Times(1)
 	queue.On("Forget", item).Times(1)
 	queue.On("Done", item).Times(1).Run(func(args mock.Arguments) { close(doneCh) })
-	s.Handler.EXPECT().Sync("ns", "item", gomock.Any()).Return(nil).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), "ns", "item", gomock.Any()).Return(nil).Times(1)
 	queue.getCh <- item
 	queue.shutdownCh <- false
 
@@ -125,7 +126,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -136,7 +137,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 	queue.On("ShuttingDown").Return(false).Times(1)
 	queue.On("AddRateLimited", item).Times(1)
 	queue.On("Done", item).Times(1).Run(func(args mock.Arguments) { close(doneCh) })
-	s.Handler.EXPECT().Sync("ns", "item", gomock.Any()).Return(errors.New("any error")).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), "ns", "item", gomock.Any()).Return(errors.New("any error")).Times(1)
 	queue.getCh <- item
 	queue.shutdownCh <- false
 
@@ -170,7 +171,7 @@ func (s *commonControllerTestSuite) Test_ForgetWhenLockKeyAndIdentifierError() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -212,7 +213,7 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -252,7 +253,7 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -293,7 +294,7 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 
 	doneCh := make(chan struct{})
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 		close(doneCh)
 	}()
@@ -332,7 +333,7 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShuttingDownTrue() {
 
 	doneCh := make(chan struct{})
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		close(doneCh)
 		s.Require().NoError(err)
 	}()
@@ -373,7 +374,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 	s.KubeInformerFactory.Start(stopCh)
 
 	go func() {
-		err := sut.Run(1, stopCh)
+		err := sut.Run(context.Background(), 1)
 		s.Require().NoError(err)
 	}()
 
@@ -396,8 +397,8 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 }
 
 func (s *commonControllerTestSuite) Test_ProcessParallell() {
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
 
 	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
@@ -414,7 +415,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 		locker:    locker,
 	}
 
-	s.KubeInformerFactory.Start(stopCh)
+	s.KubeInformerFactory.Start(ctx.Done())
 
 	// Test that threadiness limit is used and not exceeded
 	doneCh := make(chan struct{})
@@ -430,7 +431,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	queue.On("ShuttingDown").Return(false)
 
 	go func() {
-		err := sut.Run(threadiness, stopCh)
+		err := sut.Run(ctx, threadiness)
 		s.Require().NoError(err)
 	}()
 
@@ -449,7 +450,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 			}
 		})
 		queue.On("Forget", item).Times(1)
-		s.Handler.EXPECT().Sync(parts[0], parts[1], gomock.Any()).Times(1).DoAndReturn(func(namespace, name string, eventRecorder record.EventRecorder) error {
+		s.Handler.EXPECT().Sync(gomock.Any(), parts[0], parts[1], gomock.Any()).Times(1).DoAndReturn(func(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 			n := atomic.AddInt32(&active, 1)
 
 			// Set new number of active threads if it exceeds previous value

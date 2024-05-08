@@ -31,10 +31,10 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 	if isBatchJobStopRequested(batchJob) {
 		// Delete existing k8s job if stop is requested for batch job
 		batchJobKubeJobs := slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })
-		return s.deleteJobs(batchJobKubeJobs)
+		return s.deleteJobs(ctx, batchJobKubeJobs)
 	}
 
-	jobNeedToBeRestarted, err := s.handleJobToRestart(batchJob, existingJobs)
+	jobNeedToBeRestarted, err := s.handleJobToRestart(ctx, batchJob, existingJobs)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 		slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })) {
 		return nil
 	}
-	err = s.validatePayloadSecretReference(batchJob, jobComponent)
+	err = s.validatePayloadSecretReference(ctx, batchJob, jobComponent)
 	if err != nil {
 		return err
 	}
@@ -51,16 +51,16 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 		return err
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		_, err = s.kubeClient.BatchV1().Jobs(s.radixBatch.GetNamespace()).Create(context.TODO(), job, metav1.CreateOptions{})
+		_, err = s.kubeClient.BatchV1().Jobs(s.radixBatch.GetNamespace()).Create(ctx, job, metav1.CreateOptions{})
 		return err
 	})
 }
 
-func (s *syncer) validatePayloadSecretReference(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) error {
+func (s *syncer) validatePayloadSecretReference(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) error {
 	if batchJob.PayloadSecretRef == nil {
 		return nil
 	}
-	payloadSecret, err := s.kubeClient.CoreV1().Secrets(s.radixBatch.GetNamespace()).Get(context.Background(), batchJob.PayloadSecretRef.Name, metav1.GetOptions{})
+	payloadSecret, err := s.kubeClient.CoreV1().Secrets(s.radixBatch.GetNamespace()).Get(ctx, batchJob.PayloadSecretRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (s *syncer) validatePayloadSecretReference(batchJob *radixv1.RadixBatchJob,
 	return nil
 }
 
-func (s *syncer) handleJobToRestart(batchJob *radixv1.RadixBatchJob, existingJobs []*batchv1.Job) (bool, error) {
+func (s *syncer) handleJobToRestart(ctx context.Context, batchJob *radixv1.RadixBatchJob, existingJobs []*batchv1.Job) (bool, error) {
 	jobStatusIdx := slice.FindIndex(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
 		return jobStatus.Name == batchJob.Name
 	})
@@ -88,7 +88,7 @@ func (s *syncer) handleJobToRestart(batchJob *radixv1.RadixBatchJob, existingJob
 	}
 
 	jobsToDelete := slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })
-	err := s.deleteJobs(jobsToDelete)
+	err := s.deleteJobs(ctx, jobsToDelete)
 	if err != nil {
 		return true, err
 	}
@@ -112,9 +112,9 @@ func (s *syncer) getJobRestartTimestamps(batchJob *radixv1.RadixBatchJob, jobSta
 	return batchJob.Restart, ""
 }
 
-func (s *syncer) deleteJobs(jobsToDelete []*batchv1.Job) error {
+func (s *syncer) deleteJobs(ctx context.Context, jobsToDelete []*batchv1.Job) error {
 	for _, jobToDelete := range jobsToDelete {
-		err := s.kubeClient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(context.Background(), jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: pointers.Ptr(metav1.DeletePropagationBackground)})
+		err := s.kubeClient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(ctx, jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: pointers.Ptr(metav1.DeletePropagationBackground)})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
@@ -130,7 +130,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	)
 	podAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
 
-	volumes, err := s.getVolumes(rd.GetNamespace(), rd.Spec.Environment, batchJob, jobComponent, rd.Name)
+	volumes, err := s.getVolumes(ctx, rd.GetNamespace(), rd.Spec.Environment, batchJob, jobComponent, rd.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -194,8 +194,8 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	return job, nil
 }
 
-func (s *syncer) getVolumes(namespace, environment string, batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, radixDeploymentName string) ([]corev1.Volume, error) {
-	volumes, err := deployment.GetVolumes(s.kubeClient, s.kubeUtil, namespace, environment, radixJobComponent, radixDeploymentName)
+func (s *syncer) getVolumes(ctx context.Context, namespace, environment string, batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, radixDeploymentName string) ([]corev1.Volume, error) {
+	volumes, err := deployment.GetVolumes(ctx, s.kubeClient, s.kubeUtil, namespace, environment, radixJobComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 	if err != nil {
 		return nil, err
 	}
-	environmentVariables, err := s.getContainerEnvironmentVariables(rd, jobComponent, kubeJobName)
+	environmentVariables, err := s.getContainerEnvironmentVariables(ctx, rd, jobComponent, kubeJobName)
 	if err != nil {
 		return nil, err
 	}
@@ -261,8 +261,8 @@ func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv
 	return fmt.Sprintf("%s:%s", image, batchJob.ImageTagName)
 }
 
-func (s *syncer) getContainerEnvironmentVariables(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, kubeJobName string) ([]corev1.EnvVar, error) {
-	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(s.kubeUtil, rd.Spec.AppName, rd, jobComponent)
+func (s *syncer) getContainerEnvironmentVariables(ctx context.Context, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, kubeJobName string) ([]corev1.EnvVar, error) {
+	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, rd.Spec.AppName, rd, jobComponent)
 	if err != nil {
 		return nil, err
 	}

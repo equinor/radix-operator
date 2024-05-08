@@ -49,8 +49,7 @@ func (zl ZerologWarningHandlerAdapter) HandleWarningHeader(_ int, _ string, text
 }
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
-	ctx := context.Background()
+func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
 	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)

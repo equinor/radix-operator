@@ -46,7 +46,7 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 		WithName(appName))
 	assert.NoError(t, err)
 
-	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
 	for _, clusterRoleBindingName := range []string{
 		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-tekton-rr-any-app", "radix-platform-user-rr-reader-any-app",
 	} {
@@ -59,7 +59,7 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 	assert.Equal(t, getClusterRoleBindingByName("radix-tekton-rr-any-app", clusterRoleBindings).Subjects[0].Name, defaults.RadixTektonServiceAccountName)
 	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-reader-any-app", clusterRoleBindings).Subjects[0].Name, rr.Spec.ReaderAdGroups[0])
 
-	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
+	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
 	for _, clusterRoleName := range []string{
 		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-tekton-rr-any-app", "radix-platform-user-rr-reader-any-app",
 	} {
@@ -78,7 +78,7 @@ func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 		WithName(appName))
 	assert.NoError(t, err)
 
-	roleBindings, _ := client.RbacV1().RoleBindings(utils.GetAppNamespace(appName)).List(context.TODO(), metav1.ListOptions{})
+	roleBindings, _ := client.RbacV1().RoleBindings(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
 		[]string{defaults.RadixTektonAppRoleName, defaults.PipelineAppRoleName, defaults.AppAdminRoleName, defaults.AppReaderRoleName, "git-ssh-keys"},
 		getRoleBindingNames(roleBindings),
@@ -103,7 +103,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 		WithName(appName))
 	require.NoError(t, err)
 
-	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
+	ns, err := client.CoreV1().Namespaces().Get(context.Background(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, ns)
 	expected := map[string]string{
@@ -113,18 +113,18 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	}
 	assert.Equal(t, expected, ns.GetLabels())
 
-	roleBindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	roleBindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
 		[]string{defaults.RadixTektonAppRoleName, defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName},
 		getRoleBindingNames(roleBindings))
 	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, roleBindings)
 	assert.Equal(t, 1, len(appAdminRoleBinding.Subjects))
 
-	secrets, _ := client.CoreV1().Secrets("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	secrets, _ := client.CoreV1().Secrets("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(secrets.Items))
 	assert.Equal(t, "git-ssh-keys", secrets.Items[0].Name)
 
-	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(serviceAccounts.Items))
 	assert.True(t, serviceAccountByNameExists(defaults.RadixTektonServiceAccountName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists(defaults.PipelineServiceAccountName, serviceAccounts))
@@ -148,7 +148,7 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 		WithName(appName))
 	require.NoError(t, err)
 
-	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
+	ns, err := client.CoreV1().Namespaces().Get(context.Background(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, ns)
 	expected := map[string]string{
@@ -172,7 +172,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 
 	// Create namespaces manually
 	_, err := client.CoreV1().Namespaces().Create(
-		context.TODO(),
+		context.Background(),
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "any-app-app",
@@ -188,7 +188,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 		WithName("any-app"))
 	require.NoError(t, err)
 
-	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
+	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: label,
 	})
 	assert.Equal(t, 1, len(namespaces.Items))
@@ -208,7 +208,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 		WithReaderAdGroups([]string{}))
 	require.NoError(t, err)
 
-	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
 		[]string{defaults.RadixTektonAppRoleName, defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName},
 		getRoleBindingNames(rolebindings))
@@ -234,7 +234,7 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 		WithName("any-app"))
 	require.NoError(t, err)
 
-	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.TODO(), metav1.ListOptions{})
+	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
 	assert.Equal(t, "mem-cpu-limit-range-app", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
 
@@ -253,7 +253,7 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 		WithName("any-app"))
 	require.NoError(t, err)
 
-	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.TODO(), metav1.ListOptions{})
+	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
 
 }
@@ -266,7 +266,7 @@ func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	application, _ := NewApplication(client, kubeUtil, radixclient, rr)
-	err = application.OnSync()
+	err = application.OnSync(context.Background())
 	if err != nil {
 		return nil, err
 	}

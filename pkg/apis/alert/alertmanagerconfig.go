@@ -47,20 +47,20 @@ func (list alertConfigList) Any(anyFunc func(c AlertConfig) bool) bool {
 	return false
 }
 
-func (syncer *alertSyncer) createOrUpdateAlertManagerConfig() error {
+func (syncer *alertSyncer) createOrUpdateAlertManagerConfig(ctx context.Context) error {
 	ns := syncer.radixAlert.Namespace
 	amc, err := syncer.getAlertManagerConfig()
 	if err != nil {
 		return err
 	}
-	return syncer.applyAlertManagerConfig(ns, amc)
+	return syncer.applyAlertManagerConfig(ctx, ns, amc)
 }
 
-func (syncer *alertSyncer) applyAlertManagerConfig(namespace string, alertManagerConfig *v1alpha1.AlertmanagerConfig) error {
-	oldConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.TODO(), alertManagerConfig.Name, metav1.GetOptions{})
+func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespace string, alertManagerConfig *v1alpha1.AlertmanagerConfig) error {
+	oldConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(ctx, alertManagerConfig.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			created, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Create(context.TODO(), alertManagerConfig, metav1.CreateOptions{})
+			created, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Create(ctx, alertManagerConfig, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create AlertManagerConfig object: %v", err)
 			}
@@ -95,7 +95,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(namespace string, alertManage
 
 	if !kube.IsEmptyPatch(patchBytes) {
 		// Will perform update as patching does not work
-		updatedConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Update(context.TODO(), newConfig, metav1.UpdateOptions{})
+		updatedConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Update(ctx, newConfig, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update AlertManagerConfig object: %v", err)
 		}

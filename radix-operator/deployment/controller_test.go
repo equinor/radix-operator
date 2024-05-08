@@ -51,7 +51,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	anyAppName := "test-app"
 	anyEnvironment := "qa"
 
-	ctx, stopFn := context.WithTimeout(context.TODO(), 5*time.Second)
+	ctx, stopFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer stopFn()
 
 	synced := make(chan bool)
@@ -75,6 +75,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	require.NoError(t, err)
 
 	rd, err := tu.ApplyDeployment(
+		context.Background(),
 		utils.ARadixDeployment().
 			WithAppName(anyAppName).
 			WithEnvironment(anyEnvironment))
@@ -93,7 +94,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
 	go func() {
-		err := startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, ctx.Done())
+		err := startDeploymentController(ctx, client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler)
 		require.NoError(t, err)
 	}()
 
@@ -157,19 +158,20 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler, stop <-chan struct{}) error {
+func startDeploymentController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
 	const waitForChildrenToSync = false
 	controller := NewController(
+		ctx,
 		client, radixClient, handler,
 		kubeInformerFactory,
 		radixInformerFactory,
 		waitForChildrenToSync,
 		eventRecorder)
 
-	kubeInformerFactory.Start(stop)
-	radixInformerFactory.Start(stop)
-	return controller.Run(4, stop)
+	kubeInformerFactory.Start(ctx.Done())
+	radixInformerFactory.Start(ctx.Done())
+	return controller.Run(ctx, 4)
 }

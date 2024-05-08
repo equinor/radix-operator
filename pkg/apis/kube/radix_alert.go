@@ -11,7 +11,7 @@ import (
 )
 
 // GetRadixAlert Gets radix alert using lister if present
-func (kubeutil *Kube) GetRadixAlert(namespace, name string) (*v1.RadixAlert, error) {
+func (kubeutil *Kube) GetRadixAlert(ctx context.Context, namespace, name string) (*v1.RadixAlert, error) {
 	var alert *v1.RadixAlert
 	var err error
 
@@ -21,7 +21,7 @@ func (kubeutil *Kube) GetRadixAlert(namespace, name string) (*v1.RadixAlert, err
 			return nil, err
 		}
 	} else {
-		alert, err = kubeutil.radixclient.RadixV1().RadixAlerts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		alert, err = kubeutil.radixclient.RadixV1().RadixAlerts(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -31,7 +31,7 @@ func (kubeutil *Kube) GetRadixAlert(namespace, name string) (*v1.RadixAlert, err
 }
 
 // ListRadixAlert Gets radix alerts using lister if present
-func (kubeutil *Kube) ListRadixAlert(namespace string) ([]*v1.RadixAlert, error) {
+func (kubeutil *Kube) ListRadixAlert(ctx context.Context, namespace string) ([]*v1.RadixAlert, error) {
 	if kubeutil.RadixAlertLister != nil {
 		alerts, err := kubeutil.RadixAlertLister.RadixAlerts(namespace).List(labels.NewSelector())
 		if err != nil {
@@ -40,7 +40,7 @@ func (kubeutil *Kube) ListRadixAlert(namespace string) ([]*v1.RadixAlert, error)
 		return alerts, nil
 	}
 
-	rds, err := kubeutil.radixclient.RadixV1().RadixAlerts(namespace).List(context.TODO(), metav1.ListOptions{})
+	rds, err := kubeutil.radixclient.RadixV1().RadixAlerts(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all RadixAlerts. Error was %v", err)
 	}

@@ -1,6 +1,8 @@
 package model
 
 import (
+	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -16,7 +18,7 @@ type Step interface {
 	ImplementationForType() pipeline.StepType
 	ErrorMsg(error) string
 	SucceededMsg() string
-	Run(*PipelineInfo) error
+	Run(context.Context, *PipelineInfo) error
 
 	GetAppName() string
 	GetRegistration() *v1.RadixRegistration
@@ -64,7 +66,7 @@ func (step *DefaultStepImplementation) SucceededMsg() string {
 }
 
 // Run Default implementation
-func (step *DefaultStepImplementation) Run(pipelineInfo *PipelineInfo) error {
+func (step *DefaultStepImplementation) Run(_ context.Context, pipelineInfo *PipelineInfo) error {
 	return step.Error
 }
 

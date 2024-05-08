@@ -1,6 +1,8 @@
 package application
 
 import (
+	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 )
 
@@ -8,7 +10,7 @@ const (
 	limitRangeName = "mem-cpu-limit-range-app"
 )
 
-func (app *Application) createLimitRangeOnAppNamespace(namespace string) error {
+func (app *Application) createLimitRangeOnAppNamespace(ctx context.Context, namespace string) error {
 	defaultMemoryLimit := defaults.GetDefaultMemoryLimitForAppNamespace()
 	defaultCPURequest := defaults.GetDefaultCPURequestForAppNamespace()
 	defaultMemoryRequest := defaults.GetDefaultMemoryRequestForAppNamespace()
@@ -23,5 +25,5 @@ func (app *Application) createLimitRangeOnAppNamespace(namespace string) error {
 
 	limitRange := app.kubeutil.BuildLimitRange(namespace, limitRangeName, app.registration.Name, defaultMemoryLimit, defaultCPURequest, defaultMemoryRequest)
 
-	return app.kubeutil.ApplyLimitRange(namespace, limitRange)
+	return app.kubeutil.ApplyLimitRange(ctx, namespace, limitRange)
 }

@@ -68,7 +68,7 @@ func NewHandler(
 	return h
 }
 
-func (h *handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.Background(), name, v1.GetOptions{})
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
@@ -83,7 +83,7 @@ func (h *handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncBatch := radixBatch.DeepCopy()
 	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncBatch)
-	err = syncer.OnSync()
+	err = syncer.OnSync(ctx)
 	if err != nil {
 		eventRecorder.Event(syncBatch, corev1.EventTypeWarning, SyncFailed, err.Error())
 		// Put back on queue

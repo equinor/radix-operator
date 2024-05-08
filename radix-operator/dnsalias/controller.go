@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -29,7 +28,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixDNSAlias
-func NewController(kubeClient kubernetes.Interface,
+func NewController(ctx context.Context, kubeClient kubernetes.Interface,
 	radixClient radixclient.Interface,
 	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -40,15 +39,13 @@ func NewController(kubeClient kubernetes.Interface,
 	radixDNSAliasInformer := radixInformerFactory.Radix().V1().RadixDNSAliases()
 
 	controller := &common.Controller{
-		Name:                controllerAgentName,
-		HandlerOf:           radixv1.KindRadixDNSAlias,
-		KubeClient:          kubeClient,
-		RadixClient:         radixClient,
-		Informer:            radixDNSAliasInformer.Informer(),
-		KubeInformerFactory: kubeInformerFactory,
-		WorkQueue: workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
-			Name: radixv1.KindRadixDNSAlias,
-		}),
+		Name:                  controllerAgentName,
+		HandlerOf:             radixv1.KindRadixDNSAlias,
+		KubeClient:            kubeClient,
+		RadixClient:           radixClient,
+		Informer:              radixDNSAliasInformer.Informer(),
+		KubeInformerFactory:   kubeInformerFactory,
+		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, radixv1.KindRadixDNSAlias),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -59,7 +56,7 @@ func NewController(kubeClient kubernetes.Interface,
 	logger.Info().Msg("Setting up event handlers")
 	addEventHandlersForRadixDNSAliases(radixDNSAliasInformer, controller, &logger)
 	addEventHandlersForRadixDeployments(radixInformerFactory, controller, radixClient, &logger)
-	addEventHandlersForIngresses(kubeInformerFactory, controller, &logger)
+	addEventHandlersForIngresses(ctx, kubeInformerFactory, controller, &logger)
 	addEventHandlersForRadixRegistrations(radixInformerFactory, controller, radixClient, &logger)
 	addEventHandlersForRadixApplication(radixInformerFactory, controller, radixClient, &logger)
 	return controller
@@ -114,7 +111,7 @@ func equalDNSAliases(dnsAliases1, dnsAliases2 []radixv1.DNSAlias) bool {
 	})
 }
 
-func addEventHandlersForIngresses(kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller, logger *zerolog.Logger) {
+func addEventHandlersForIngresses(ctx context.Context, kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller, logger *zerolog.Logger) {
 	ingressInformer := kubeInformerFactory.Networking().V1().Ingresses()
 	if _, err := ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
@@ -125,7 +122,7 @@ func addEventHandlersForIngresses(kubeInformerFactory kubeinformers.SharedInform
 				return
 			}
 			logger.Debug().Msgf("updated Ingress %s", newIng.GetName())
-			controller.HandleObject(newObj, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
+			controller.HandleObject(ctx, newObj, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
 		},
 		DeleteFunc: func(obj interface{}) {
 			ing, converted := obj.(*networkingv1.Ingress)
@@ -134,7 +131,7 @@ func addEventHandlersForIngresses(kubeInformerFactory kubeinformers.SharedInform
 				return
 			}
 			logger.Debug().Msgf("deleted Ingress %s", ing.GetName())
-			controller.HandleObject(ing, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
+			controller.HandleObject(ctx, ing, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
 		},
 	}); err != nil {
 		panic(err)
@@ -270,6 +267,6 @@ func deepEqual(old, new *radixv1.RadixDNSAlias) bool {
 		reflect.DeepEqual(new.ObjectMeta.DeletionTimestamp, old.ObjectMeta.DeletionTimestamp)
 }
 
-func getOwner(radixClient radixclient.Interface, _, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), name, metav1.GetOptions{})
+func getOwner(ctx context.Context, radixClient radixclient.Interface, _, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixDNSAliases().Get(ctx, name, metav1.GetOptions{})
 }

@@ -16,18 +16,18 @@ import (
 )
 
 // GetIngress Gets an ingress by its name
-func (kubeutil *Kube) GetIngress(namespace, name string) (*networkingv1.Ingress, error) {
-	return kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func (kubeutil *Kube) GetIngress(ctx context.Context, namespace, name string) (*networkingv1.Ingress, error) {
+	return kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 // ApplyIngress Will create or update ingress in provided namespace
-func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingress) error {
+func (kubeutil *Kube) ApplyIngress(ctx context.Context, namespace string, ingress *networkingv1.Ingress) error {
 	ingressName := ingress.GetName()
-	log.Debug().Msgf("Creating Ingress object %s in namespace %s", ingressName, namespace)
+	log.Ctx(ctx).Debug().Msgf("Creating Ingress object %s in namespace %s", ingressName, namespace)
 
-	oldIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.Background(), ingressName, metav1.GetOptions{})
+	oldIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(ctx, ingressName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
-		_, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
+		_, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Create(ctx, ingress, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create Ingress object: %v", err)
 		}
@@ -36,20 +36,20 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingre
 		return fmt.Errorf("failed to get Ingress object: %v", err)
 	}
 
-	log.Debug().Msgf("Ingress object %s already exists in namespace %s, updating the object now", ingressName, namespace)
+	log.Ctx(ctx).Debug().Msgf("Ingress object %s already exists in namespace %s, updating the object now", ingressName, namespace)
 	newIngress := oldIngress.DeepCopy()
 	newIngress.ObjectMeta.Labels = ingress.ObjectMeta.Labels
 	newIngress.ObjectMeta.Annotations = ingress.ObjectMeta.Annotations
 	newIngress.ObjectMeta.OwnerReferences = ingress.ObjectMeta.OwnerReferences
 	newIngress.Spec = ingress.Spec
-	_, err = kubeutil.PatchIngress(namespace, oldIngress, newIngress)
+	_, err = kubeutil.PatchIngress(ctx, namespace, oldIngress, newIngress)
 	return err
 }
 
 // PatchIngress Patches an ingress, if there are changes
-func (kubeutil *Kube) PatchIngress(namespace string, oldIngress *networkingv1.Ingress, newIngress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
+func (kubeutil *Kube) PatchIngress(ctx context.Context, namespace string, oldIngress *networkingv1.Ingress, newIngress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
 	ingressName := oldIngress.GetName()
-	log.Debug().Msgf("patch an ingress %s in the namespace %s", ingressName, namespace)
+	log.Ctx(ctx).Debug().Msgf("patch an ingress %s in the namespace %s", ingressName, namespace)
 	oldIngressJSON, err := json.Marshal(oldIngress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal old Ingress object: %v", err)
@@ -69,7 +69,7 @@ func (kubeutil *Kube) PatchIngress(namespace string, oldIngress *networkingv1.In
 		log.Debug().Msgf("No need to patch ingress: %s ", ingressName)
 		return oldIngress, nil
 	}
-	patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(context.Background(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(ctx, ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to patch Ingress object: %v", err)
 	}
@@ -79,14 +79,14 @@ func (kubeutil *Kube) PatchIngress(namespace string, oldIngress *networkingv1.In
 }
 
 // ListIngresses lists ingresses
-func (kubeutil *Kube) ListIngresses(namespace string) ([]*networkingv1.Ingress, error) {
-	return kubeutil.ListIngressesWithSelector(namespace, "")
+func (kubeutil *Kube) ListIngresses(ctx context.Context, namespace string) ([]*networkingv1.Ingress, error) {
+	return kubeutil.ListIngressesWithSelector(ctx, namespace, "")
 }
 
 // ListIngressesWithSelector lists ingresses
-func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
+func (kubeutil *Kube) ListIngressesWithSelector(ctx context.Context, namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
 	if kubeutil.IngressLister == nil {
-		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: labelSelectorString})
+		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelectorString})
 		if err != nil {
 			return nil, err
 		}
@@ -104,10 +104,10 @@ func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorS
 }
 
 // DeleteIngresses Deletes ingresses
-func (kubeutil *Kube) DeleteIngresses(ingresses ...networkingv1.Ingress) error {
+func (kubeutil *Kube) DeleteIngresses(ctx context.Context, ingresses ...networkingv1.Ingress) error {
 	log.Debug().Msgf("delete %d Ingress(es)", len(ingresses))
 	for _, ing := range ingresses {
-		if err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+		if err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 	}

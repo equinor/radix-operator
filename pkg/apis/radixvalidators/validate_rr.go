@@ -53,9 +53,9 @@ func RequireAdGroups(rr *v1.RadixRegistration) error {
 }
 
 // CanRadixRegistrationBeInserted Validates RR
-func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
+func CanRadixRegistrationBeInserted(ctx context.Context, client radixclient.Interface, radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
-	validators := append(requiredRadixRegistrationValidators, validateRadixRegistrationAppNameAvailableFactory(client))
+	validators := append(requiredRadixRegistrationValidators, validateRadixRegistrationAppNameAvailableFactory(ctx, client))
 	validators = append(validators, additionalValidators...)
 	return validateRadixRegistration(radixRegistration, validators...)
 }
@@ -77,23 +77,23 @@ func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validato
 }
 
 // GetRadixRegistrationBeInsertedWarnings Get warnings for inserting RadixRegistration
-func GetRadixRegistrationBeInsertedWarnings(client radixclient.Interface, radixRegistration *v1.RadixRegistration) ([]string, error) {
-	return appendNoDuplicateGitRepoWarning(client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
+func GetRadixRegistrationBeInsertedWarnings(ctx context.Context, client radixclient.Interface, radixRegistration *v1.RadixRegistration) ([]string, error) {
+	return appendNoDuplicateGitRepoWarning(ctx, client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
 }
 
 // GetRadixRegistrationBeUpdatedWarnings Get warnings for updating RadixRegistration
-func GetRadixRegistrationBeUpdatedWarnings(client radixclient.Interface, radixRegistration *v1.RadixRegistration) ([]string, error) {
-	return appendNoDuplicateGitRepoWarning(client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
+func GetRadixRegistrationBeUpdatedWarnings(ctx context.Context, client radixclient.Interface, radixRegistration *v1.RadixRegistration) ([]string, error) {
+	return appendNoDuplicateGitRepoWarning(ctx, client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
 }
 
-func validateRadixRegistrationAppNameAvailableFactory(client radixclient.Interface) RadixRegistrationValidator {
+func validateRadixRegistrationAppNameAvailableFactory(ctx context.Context, client radixclient.Interface) RadixRegistrationValidator {
 	return func(radixRegistration *v1.RadixRegistration) error {
-		return validateDoesNameAlreadyExist(client, radixRegistration.Name)
+		return validateDoesNameAlreadyExist(ctx, client, radixRegistration.Name)
 	}
 }
 
-func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
-	rr, _ := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
+func validateDoesNameAlreadyExist(ctx context.Context, client radixclient.Interface, appName string) error {
+	rr, _ := client.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
 	if rr != nil && rr.Name != "" {
 		return fmt.Errorf("app name must be unique in cluster - %s already exist", appName)
 	}
@@ -172,12 +172,12 @@ func validateGitSSHUrl(sshURL string) error {
 	return fmt.Errorf("ssh url not valid %s. Must match regex %s", sshURL, re.String())
 }
 
-func appendNoDuplicateGitRepoWarning(client radixclient.Interface, appName, sshURL string) ([]string, error) {
+func appendNoDuplicateGitRepoWarning(ctx context.Context, client radixclient.Interface, appName, sshURL string) ([]string, error) {
 	if sshURL == "" {
 		return nil, nil
 	}
 
-	registrations, err := client.RadixV1().RadixRegistrations().List(context.TODO(), metav1.ListOptions{})
+	registrations, err := client.RadixV1().RadixRegistrations().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -199,8 +199,8 @@ func validateSSHKey(deployKey string) error {
 	return nil
 }
 
-func validateDoesRRExist(client radixclient.Interface, appName string) error {
-	_, err := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
+func validateDoesRRExist(ctx context.Context, client radixclient.Interface, appName string) error {
+	_, err := client.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return NoRegistrationExistsForApplicationErrorWithMessage(appName)

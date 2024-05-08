@@ -62,7 +62,7 @@ func (step *BuildStepImplementation) ErrorMsg(err error) string {
 }
 
 // Run Override of default step method
-func (step *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 
@@ -88,11 +88,11 @@ func (step *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error
 	if err != nil {
 		return err
 	}
-	return step.createACRBuildJobs(pipelineInfo, jobs, namespace)
+	return step.createACRBuildJobs(ctx, pipelineInfo, jobs, namespace)
 }
 
-func (step *BuildStepImplementation) createACRBuildJobs(pipelineInfo *model.PipelineInfo, jobs []*batchv1.Job, namespace string) error {
-	ownerReference, err := step.getJobOwnerReferences(pipelineInfo, namespace)
+func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []*batchv1.Job, namespace string) error {
+	ownerReference, err := step.getJobOwnerReferences(ctx, pipelineInfo, namespace)
 	if err != nil {
 		return err
 	}
@@ -115,12 +115,12 @@ func (step *BuildStepImplementation) createACRBuildJobs(pipelineInfo *model.Pipe
 	return g.Wait()
 }
 
-func (step *BuildStepImplementation) getJobOwnerReferences(pipelineInfo *model.PipelineInfo, namespace string) ([]metav1.OwnerReference, error) {
+func (step *BuildStepImplementation) getJobOwnerReferences(ctx context.Context, pipelineInfo *model.PipelineInfo, namespace string) ([]metav1.OwnerReference, error) {
 	// When debugging pipeline there will be no RJ
 	if pipelineInfo.PipelineArguments.Debug {
 		return nil, nil
 	}
-	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 	if err != nil {
 		return nil, err
 	}

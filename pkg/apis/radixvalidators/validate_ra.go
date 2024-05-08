@@ -1,6 +1,7 @@
 package radixvalidators
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -60,11 +61,11 @@ var (
 type RadixApplicationValidator func(radixApplication *radixv1.RadixApplication) error
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
-func CanRadixApplicationBeInserted(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig, additionalValidators ...RadixApplicationValidator) error {
+func CanRadixApplicationBeInserted(ctx context.Context, radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig, additionalValidators ...RadixApplicationValidator) error {
 
 	validators := append(requiredRadixApplicationValidators,
-		validateDoesRRExistFactory(radixClient),
-		validateDNSAliasFactory(radixClient, dnsAliasConfig),
+		validateDoesRRExistFactory(ctx, radixClient),
+		validateDNSAliasFactory(ctx, radixClient, dnsAliasConfig),
 	)
 	validators = append(validators, additionalValidators...)
 
@@ -108,15 +109,15 @@ func validateRadixApplicationAppName(app *radixv1.RadixApplication) error {
 	return validateAppName(app.Name)
 }
 
-func validateDoesRRExistFactory(client radixclient.Interface) RadixApplicationValidator {
+func validateDoesRRExistFactory(ctx context.Context, client radixclient.Interface) RadixApplicationValidator {
 	return func(radixApplication *radixv1.RadixApplication) error {
-		return validateDoesRRExist(client, radixApplication.Name)
+		return validateDoesRRExist(ctx, client, radixApplication.Name)
 	}
 }
 
-func validateDNSAliasFactory(client radixclient.Interface, dnsAliasConfig *dnsalias.DNSConfig) RadixApplicationValidator {
+func validateDNSAliasFactory(ctx context.Context, client radixclient.Interface, dnsAliasConfig *dnsalias.DNSConfig) RadixApplicationValidator {
 	return func(radixApplication *radixv1.RadixApplication) error {
-		return validateDNSAlias(client, radixApplication, dnsAliasConfig)
+		return validateDNSAlias(ctx, client, radixApplication, dnsAliasConfig)
 	}
 }
 
@@ -144,9 +145,9 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) error {
 	return validateDNSAppAliasComponentAndEnvironmentAvailable(app)
 }
 
-func validateDNSAlias(radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) error {
+func validateDNSAlias(ctx context.Context, radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) error {
 	var errs []error
-	radixDNSAliasMap, err := kube.GetRadixDNSAliasMap(radixClient)
+	radixDNSAliasMap, err := kube.GetRadixDNSAliasMap(ctx, radixClient)
 	if err != nil {
 		return err
 	}

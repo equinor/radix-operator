@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -12,6 +13,7 @@ import (
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 )
 
 type resourceLocker interface {
@@ -68,7 +70,7 @@ func NamePartitionKey(obj interface{}) (lockKey string, identifier string, err e
 }
 
 // GetOwner Function pointer to pass to retrieve owner
-type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
+type GetOwner func(context.Context, radixclient.Interface, string, string) (interface{}, error)
 
 // NewEventRecorder Creates an event recorder for controller
 func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface, logger zerolog.Logger) record.EventRecorder {
@@ -81,4 +83,14 @@ func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterf
 	eventBroadcaster.StartLogging(func(format string, args ...interface{}) { logger.Info().Msgf(format, args...) })
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
 	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
+}
+
+func NewRateLimitedWorkQueue(ctx context.Context, name string) workqueue.RateLimitingInterface {
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: name})
+	go func() {
+		<-ctx.Done()
+		queue.ShutDown()
+	}()
+
+	return queue
 }

@@ -97,7 +97,7 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 		TargetEnvironments: targetEnvs,
 	}
 
-	err := cli.Run(pipelineInfo)
+	err := cli.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	radixJobList, err := s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err)
@@ -149,9 +149,9 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -282,9 +282,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -425,9 +425,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -577,9 +577,9 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1051,9 +1051,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 			// Run pipeline steps
-			s.Require().NoError(applyStep.Run(&pipeline))
-			s.Require().NoError(buildStep.Run(&pipeline))
-			s.Require().NoError(deployStep.Run(&pipeline))
+			s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+			s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+			s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 
 			// Check Job containers
 			jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
@@ -1120,8 +1120,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 
 	// Check RadixDeployment component and job images
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
@@ -1177,8 +1177,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1217,8 +1217,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_UseCache() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1256,8 +1256,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithDockerfileName() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1295,8 +1295,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithSourceFolder() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1338,9 +1338,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1401,8 +1401,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1499,8 +1499,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1570,8 +1570,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1721,9 +1721,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]

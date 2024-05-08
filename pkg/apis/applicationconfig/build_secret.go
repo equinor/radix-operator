@@ -1,6 +1,8 @@
 package applicationconfig
 
 import (
+	"context"
+
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -9,19 +11,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app *ApplicationConfig) syncBuildSecrets() error {
+func (app *ApplicationConfig) syncBuildSecrets(ctx context.Context) error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
-	isSecretExist := app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName)
+	isSecretExist := app.kubeutil.SecretExists(ctx, appNamespace, defaults.BuildSecretsName)
 
 	if app.config.Spec.Build == nil {
 		if isSecretExist {
 			// Delete build secret
-			err := app.kubeutil.DeleteSecret(appNamespace, defaults.BuildSecretsName)
+			err := app.kubeutil.DeleteSecret(ctx, appNamespace, defaults.BuildSecretsName)
 			if err != nil {
 				return err
 			}
 		}
-		err := garbageCollectAccessToBuildSecrets(app)
+		err := garbageCollectAccessToBuildSecrets(ctx, app)
 		if err != nil {
 			return err
 		}
@@ -29,20 +31,20 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 		buildSecrets := app.config.Spec.Build.Secrets
 		if !isSecretExist {
 			// Create build secret
-			err := app.initializeBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
+			err := app.initializeBuildSecret(ctx, appNamespace, defaults.BuildSecretsName, buildSecrets)
 			if err != nil {
 				return err
 			}
 		} else {
 			// Update build secret if there is any change
-			err := app.updateBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
+			err := app.updateBuildSecret(ctx, appNamespace, defaults.BuildSecretsName, buildSecrets)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Grant access to build secret (RBAC)
-		err := app.grantAccessToBuildSecrets(appNamespace)
+		err := app.grantAccessToBuildSecrets(ctx, appNamespace)
 		if err != nil {
 			return err
 		}
@@ -51,7 +53,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 	return nil
 }
 
-func (app *ApplicationConfig) initializeBuildSecret(namespace, name string, buildSecrets []string) error {
+func (app *ApplicationConfig) initializeBuildSecret(ctx context.Context, namespace, name string, buildSecrets []string) error {
 	data := make(map[string][]byte)
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
@@ -60,15 +62,15 @@ func (app *ApplicationConfig) initializeBuildSecret(namespace, name string, buil
 	}
 
 	secret := getBuildSecretForData(app.config.Name, namespace, name, data)
-	_, err := app.kubeutil.ApplySecret(namespace, secret)
+	_, err := app.kubeutil.ApplySecret(ctx, namespace, secret)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (app *ApplicationConfig) updateBuildSecret(namespace, name string, buildSecrets []string) error {
-	secret, err := app.kubeutil.GetSecret(namespace, name)
+func (app *ApplicationConfig) updateBuildSecret(ctx context.Context, namespace, name string, buildSecrets []string) error {
+	secret, err := app.kubeutil.GetSecret(ctx, namespace, name)
 	if err != nil {
 		return err
 	}
@@ -80,7 +82,7 @@ func (app *ApplicationConfig) updateBuildSecret(namespace, name string, buildSec
 		secret = getBuildSecretForData(app.config.Name, namespace, name, secret.Data)
 	}
 
-	_, err = app.kubeutil.ApplySecret(namespace, secret)
+	_, err = app.kubeutil.ApplySecret(ctx, namespace, secret)
 	if err != nil {
 		return err
 	}

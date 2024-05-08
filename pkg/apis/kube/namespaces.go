@@ -19,7 +19,7 @@ import (
 const waitTimeout = 15 * time.Second
 
 // ApplyNamespace Creates a new namespace, if not exists already
-func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
+func (kubeutil *Kube) ApplyNamespace(ctx context.Context, name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	log.Debug().Msgf("Create namespace: %s", name)
 
 	namespace := corev1.Namespace{
@@ -30,10 +30,10 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 		},
 	}
 
-	oldNamespace, err := kubeutil.getNamespace(name)
+	oldNamespace, err := kubeutil.getNamespace(ctx, name)
 	if err != nil && k8errs.IsNotFound(err) {
 		log.Debug().Msgf("namespace object %s doesn't exists, create the object", name)
-		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
+		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(ctx, &namespace, metav1.CreateOptions{})
 		return err
 	}
 
@@ -57,7 +57,7 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 	}
 
 	if !IsEmptyPatch(patchBytes) {
-		patchedNamespace, err := kubeutil.kubeClient.CoreV1().Namespaces().Patch(context.TODO(), name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		patchedNamespace, err := kubeutil.kubeClient.CoreV1().Namespaces().Patch(ctx, name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to patch namespace object: %v", err)
 		}
@@ -70,7 +70,7 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 	return nil
 }
 
-func (kubeutil *Kube) getNamespace(name string) (*corev1.Namespace, error) {
+func (kubeutil *Kube) getNamespace(ctx context.Context, name string) (*corev1.Namespace, error) {
 	var namespace *corev1.Namespace
 	var err error
 
@@ -80,7 +80,7 @@ func (kubeutil *Kube) getNamespace(name string) (*corev1.Namespace, error) {
 			return nil, err
 		}
 	} else {
-		namespace, err = kubeutil.kubeClient.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
+		namespace, err = kubeutil.kubeClient.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +91,7 @@ func (kubeutil *Kube) getNamespace(name string) (*corev1.Namespace, error) {
 
 // NamespaceWatcher Watcher to wait for namespace to be created
 type NamespaceWatcher interface {
-	WaitFor(namespace string) error
+	WaitFor(ctx context.Context, namespace string) error
 }
 
 // NamespaceWatcherImpl Implementation of watcher
@@ -107,9 +107,9 @@ func NewNamespaceWatcherImpl(client kubernetes.Interface) NamespaceWatcherImpl {
 }
 
 // WaitFor Waits for namespace to appear
-func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
+func (watcher NamespaceWatcherImpl) WaitFor(ctx context.Context, namespace string) error {
 	log.Info().Msgf("Waiting for namespace %s", namespace)
-	err := waitForNamespace(watcher.client, namespace)
+	err := waitForNamespace(ctx, watcher.client, namespace)
 	if err != nil {
 		return err
 	}
@@ -119,12 +119,12 @@ func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
 
 }
 
-func waitForNamespace(client kubernetes.Interface, namespace string) error {
-	timoutContext, cancel := context.WithTimeout(context.Background(), waitTimeout)
+func waitForNamespace(ctx context.Context, client kubernetes.Interface, namespace string) error {
+	timoutContext, cancel := context.WithTimeout(ctx, waitTimeout)
 	defer cancel()
 
 	return wait.PollUntilContextCancel(timoutContext, time.Second, true, func(ctx context.Context) (done bool, err error) {
-		ns, err := client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		ns, err := client.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 		if err != nil {
 			if k8errs.IsNotFound(err) || k8errs.IsForbidden(err) {
 				return false, nil // the environment namespace or the rolebinding for the cluster-role radix-pipeline-env are not yet created

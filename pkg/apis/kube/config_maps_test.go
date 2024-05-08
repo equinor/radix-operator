@@ -65,7 +65,7 @@ func (suite *ConfigMapSuite) Test_CreateConfigMap() {
 		testEnv := getConfigMapTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
-		configMap, err := testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{
+		configMap, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,
 				Labels: labels,
@@ -98,14 +98,14 @@ func (suite *ConfigMapSuite) Test_ConfigMapInCluster() {
 		t.Parallel()
 		for _, scenario := range scenarios {
 			testEnv := getConfigMapTestEnv()
-			_, err := testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{
+			_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   scenario.cmName,
 					Labels: labels,
 				}})
 			assert.Nil(t, err)
 
-			configMaps, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
+			configMaps, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).List(context.Background(), metav1.ListOptions{})
 			assert.Nil(t, err)
 
 			assert.Len(t, configMaps.Items, 1)
@@ -128,9 +128,9 @@ func Test_GetConfigMap(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: name},
 			Data:       map[string]string{"key1": "value1", "key2": "value2"},
 		}
-		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &testConfigMap, metav1.CreateOptions{})
+		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &testConfigMap, metav1.CreateOptions{})
 
-		configMap, err := testEnv.kubeUtil.GetConfigMap(namespace, name)
+		configMap, err := testEnv.kubeUtil.GetConfigMap(context.Background(), namespace, name)
 
 		assert.Nil(t, err)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
@@ -150,7 +150,7 @@ func Test_UpdateConfigMap(t *testing.T) {
 			Data:       map[string]string{"key1": "value1", "key2": "value2"},
 		}
 
-		err := testEnv.kubeUtil.UpdateConfigMap(namespace, &testConfigMap)
+		err := testEnv.kubeUtil.UpdateConfigMap(context.Background(), namespace, &testConfigMap)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "configmaps \"some-name\" not found", err.Error())
@@ -161,7 +161,7 @@ func Test_UpdateConfigMap(t *testing.T) {
 		testEnv := getConfigMapTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
-		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &corev1.ConfigMap{
+		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Name: name},
 			Data:       map[string]string{"key1": "value1", "key2": "value2"},
 		}, metav1.CreateOptions{})
@@ -170,10 +170,10 @@ func Test_UpdateConfigMap(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: name},
 			Data:       map[string]string{"key2": "value2changed", "key3": "value3"},
 		}
-		err := testEnv.kubeUtil.UpdateConfigMap(namespace, &testConfigMap)
+		err := testEnv.kubeUtil.UpdateConfigMap(context.Background(), namespace, &testConfigMap)
 		require.NoError(t, err)
 
-		configMap, err := testEnv.kubeUtil.GetConfigMap(namespace, name)
+		configMap, err := testEnv.kubeUtil.GetConfigMap(context.Background(), namespace, name)
 		require.NoError(t, err)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
 		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
@@ -197,7 +197,7 @@ func Test_ApplyConfigMap(t *testing.T) {
 		t.Parallel()
 		testEnv := getConfigMapTestEnv()
 
-		err := testEnv.kubeUtil.ApplyConfigMap(namespace, &currentConfigMap, &desiredConfigMap)
+		err := testEnv.kubeUtil.ApplyConfigMap(context.Background(), namespace, &currentConfigMap, &desiredConfigMap)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "failed to patch config-map object: configmaps \"some-name\" not found", err.Error())
@@ -208,12 +208,12 @@ func Test_ApplyConfigMap(t *testing.T) {
 		testEnv := getConfigMapTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
-		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &currentConfigMap, metav1.CreateOptions{})
+		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &currentConfigMap, metav1.CreateOptions{})
 
-		err := testEnv.kubeUtil.ApplyConfigMap(namespace, &currentConfigMap, &desiredConfigMap)
+		err := testEnv.kubeUtil.ApplyConfigMap(context.Background(), namespace, &currentConfigMap, &desiredConfigMap)
 		require.NoError(t, err)
 
-		configMap, err := testEnv.kubeUtil.GetConfigMap(namespace, name)
+		configMap, err := testEnv.kubeUtil.GetConfigMap(context.Background(), namespace, name)
 		require.NoError(t, err)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
 		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
