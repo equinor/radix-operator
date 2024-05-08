@@ -164,7 +164,7 @@ verify-generate: bootstrap generate
 HAS_SWAGGER       := $(shell command -v swagger;)
 HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
 HAS_MOCKGEN       := $(shell command -v mockgen;)
-HAS_CONTROLLER_GEN := $(shell command -v controller-gen)
+HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
 HAS_GENERATE_GROUPS := $(shell command -v $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh)
 
 .PHONY: bootstrap
