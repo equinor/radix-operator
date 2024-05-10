@@ -30,6 +30,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/pkg/errors"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -79,6 +80,7 @@ type App struct {
 	ingressConfiguration     ingress.IngressConfiguration
 	kubeUtil                 *kube.Kube
 	config                   *apiconfig.Config
+	kedaClient               kedav2.Interface
 }
 
 func main() {
@@ -115,7 +117,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	}
 	app.rateLimitConfig = utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
 	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
-	app.client, app.radixClient, app.prometheusOperatorClient, app.secretProviderClient, app.certClient = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
+	app.client, app.radixClient, app.kedaClient, app.prometheusOperatorClient, app.secretProviderClient, app.certClient = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
 
 	app.eventRecorder = common.NewEventRecorder("Radix controller", app.client.CoreV1().Events(""), log.Logger)
 
@@ -311,6 +313,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.kedaClient,
 		a.prometheusOperatorClient,
 		a.certClient,
 		a.config,

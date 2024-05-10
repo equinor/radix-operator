@@ -18,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
@@ -47,6 +48,7 @@ type Deployment struct {
 	kubeutil                   *kube.Kube
 	prometheusperatorclient    monitoring.Interface
 	certClient                 certclient.Interface
+	kedaClient                 kedav2.Interface
 	registration               *v1.RadixRegistration
 	radixDeployment            *v1.RadixDeployment
 	auxResourceManagers        []AuxiliaryResourceManager
@@ -58,11 +60,12 @@ type Deployment struct {
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, kedaClient kedav2.Interface, prometheusperatorclient monitoring.Interface, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, config *config.Config) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
 		kubeutil:                   kubeutil,
+		kedaClient:                 kedaClient,
 		prometheusperatorclient:    prometheusperatorclient,
 		certClient:                 certClient,
 		registration:               registration,
@@ -391,7 +394,12 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 		return err
 	}
 
-	err = deploy.garbageCollectHPAsNoLongerInSpec(ctx)
+	err = deploy.garbageCollectDeprecatedHPAs(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectScalersNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -537,7 +545,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	err = deploy.createOrUpdateHPA(ctx, component)
+	err = deploy.createOrUpdateScaleObject(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create hpa: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 
@@ -83,12 +84,14 @@ type Handler struct {
 	ingressConfiguration    ingress.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 	config                  *config.Config
+	kedaClient              kedav2.Interface
 }
 
 // NewHandler Constructor
 func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
+	kedaClient kedav2.Interface,
 	prometheusperatorclient monitoring.Interface,
 	certClient certclient.Interface,
 	config *config.Config,
@@ -97,6 +100,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	handler := &Handler{
 		kubeclient:              kubeclient,
 		radixclient:             radixclient,
+		kedaClient:              kedaClient,
 		prometheusperatorclient: prometheusperatorclient,
 		certClient:              certClient,
 		kubeutil:                kubeutil,
@@ -152,7 +156,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage),
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.kedaClient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
