@@ -12,7 +12,7 @@ import (
 )
 
 func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
-	tu, kubeclient, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
 	rrBuilder := utils.ARadixRegistration().WithName("someapp")
 	raBuilder := utils.ARadixApplication().
 		WithRadixRegistration(rrBuilder)
@@ -37,7 +37,7 @@ func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 				WithComponents(utils.NewDeployComponentBuilder().
 					WithHorizontalScaling(numbers.Int32Ptr(1), 3, testcase.cpuTarget, testcase.memoryTarget))
 
-			rd, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rdBuilder)
+			rd, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 			assert.NoError(t, err)
 			hpa, err := kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.Background(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
 			assert.NoError(t, err)

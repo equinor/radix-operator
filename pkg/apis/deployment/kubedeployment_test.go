@@ -190,8 +190,8 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 }
 
 func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, origLimits map[string]string) Deployment {
-	tu, client, kubeUtil, radixclient, prometheusclient, _, certClient := setupTest(t)
-	rd, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, certClient,
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	rd, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.ARadixDeployment().
 			WithComponents(utils.NewDeployComponentBuilder().
 				WithName("comp1").

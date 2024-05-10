@@ -75,7 +75,7 @@ func main() {
 
 // runs os.Exit(1) if error
 func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner, error) {
-	client, radixClient, prometheusOperatorClient, secretProviderClient, _ := utils.GetKubernetesClient(ctx)
+	client, radixClient, _, prometheusOperatorClient, secretProviderClient, _ := utils.GetKubernetesClient(ctx)
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {

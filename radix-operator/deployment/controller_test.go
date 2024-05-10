@@ -15,6 +15,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +28,7 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *fakeradix.Clientset, *prometheusfake.Clientset, *certfake.Clientset) {
+func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *fakeradix.Clientset, *kedafake.Clientset, *prometheusfake.Clientset, *certfake.Clientset) {
 	client := kubefake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
@@ -35,9 +36,10 @@ func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *fak
 	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
 	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	require.NoError(t, err)
+	kedaClient := kedafake.NewSimpleClientset()
 	prometheusClient := prometheusfake.NewSimpleClientset()
 	certClient := certfake.NewSimpleClientset()
-	return &handlerTestUtils, client, kubeUtil, radixClient, prometheusClient, certClient
+	return &handlerTestUtils, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient
 }
 
 func teardownTest() {
@@ -58,7 +60,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	defer close(synced)
 
 	// Setup
-	tu, client, kubeUtil, radixClient, prometheusclient, certClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, kedaClient, prometheusclient, certClient := setupTest(t)
 
 	_, err := client.CoreV1().Namespaces().Create(
 		ctx,
@@ -88,6 +90,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		client,
 		kubeUtil,
 		radixClient,
+		kedaClient,
 		prometheusclient,
 		certClient,
 		&config.Config{},
