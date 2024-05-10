@@ -2604,7 +2604,7 @@ func TestHPAConfig(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate hpas", func(t *testing.T) {
 		hpas, _ := client.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.Equal(t, 2, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
+		require.Equal(t, 2, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
 		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
 		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
 		assert.True(t, hpaByNameExists(componentThreeName, hpas), "componentThreeName horizontal pod autoscaler should exist")
@@ -2637,7 +2637,7 @@ func TestHPAConfig(t *testing.T) {
 
 	t.Run("validate hpas after reconfiguration", func(t *testing.T) {
 		hpas, _ := client.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.Equal(t, 1, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
+		require.Equal(t, 1, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
 		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
 		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
 		assert.False(t, hpaByNameExists(componentThreeName, hpas), "componentThreeName horizontal pod autoscaler should not exist")

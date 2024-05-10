@@ -120,7 +120,7 @@ CUSTOM_RESOURCE_VERSION=v1
 .PHONY: code-gen
 code-gen: bootstrap
 	# Hack to enable generate-groups to work outside of GOROOT
-	mkdir -p $$(pwd)/github.com/equinor/radix-operator/ && ln --symbolic --target=$$(pwd)/pkg $$(pwd)/github.com/equinor/radix-operator/pkg
+	mkdir -p $$(pwd)/github.com/equinor/radix-operator/ && ln --symbolic --target=$$(pwd)/pkg/ $$(pwd)/github.com/equinor/radix-operator/pkg
 
 	$$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh all \
 		$(ROOT_PACKAGE)/pkg/client \
@@ -129,7 +129,7 @@ code-gen: bootstrap
 		--go-header-file hack/boilerplate.txt
 
 	# Remove hack
-	rm -Rf $$(pwd)/github.com
+	 rm -Rf $$(pwd)/github.com && rm -Rf
 
 .PHONY: crds
 crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds
