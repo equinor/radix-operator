@@ -153,7 +153,7 @@ func getScalingTriggers(cpuTarget *int32, memoryTarget *int32) []v1alpha1.ScaleT
 			Type:       "cpu",
 			MetricType: autoscalingv2.UtilizationMetricType,
 			Metadata: map[string]string{
-				"averageUtilization": strconv.Itoa(int(*cpuTarget)),
+				"value": strconv.Itoa(int(*cpuTarget)),
 			},
 		})
 	}
@@ -164,7 +164,7 @@ func getScalingTriggers(cpuTarget *int32, memoryTarget *int32) []v1alpha1.ScaleT
 			Type:       "memory",
 			MetricType: autoscalingv2.UtilizationMetricType,
 			Metadata: map[string]string{
-				"averageUtilization": strconv.Itoa(int(*memoryTarget)),
+				"value": strconv.Itoa(int(*memoryTarget)),
 			},
 		})
 	}

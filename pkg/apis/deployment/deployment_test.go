@@ -31,6 +31,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
+	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -2565,7 +2566,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	teardownTest()
 }
 
-func TestHPAConfig(t *testing.T) {
+func TestHorizontalAutoscalingConfig(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	anyAppName := "anyappname"
@@ -2602,13 +2603,13 @@ func TestHPAConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	t.Run("validate hpas", func(t *testing.T) {
-		hpas, _ := client.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.Background(), metav1.ListOptions{})
-		require.Equal(t, 2, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
-		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
-		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
-		assert.True(t, hpaByNameExists(componentThreeName, hpas), "componentThreeName horizontal pod autoscaler should exist")
-		assert.Equal(t, int32(2), *getHPAByName(componentTwoName, hpas).Spec.MinReplicas, "componentTwoName horizontal pod autoscaler config is incorrect")
+	t.Run("validate scaled objects", func(t *testing.T) {
+		scalers, _ := kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
+		require.Equal(t, 2, len(scalers.Items), "Number of horizontal pod autoscalers wasn't as expected")
+		assert.False(t, scaledObjectByNameExists(componentOneName, scalers), "componentOneName horizontal pod autoscaler should not exist")
+		assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
+		assert.True(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should exist")
+		assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
 	})
 
 	// Test - remove HPA from component three
@@ -2635,13 +2636,13 @@ func TestHPAConfig(t *testing.T) {
 				WithReplicas(test.IntPtr(1))))
 	require.NoError(t, err)
 
-	t.Run("validate hpas after reconfiguration", func(t *testing.T) {
-		hpas, _ := client.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.Background(), metav1.ListOptions{})
-		require.Equal(t, 1, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
-		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
-		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
-		assert.False(t, hpaByNameExists(componentThreeName, hpas), "componentThreeName horizontal pod autoscaler should not exist")
-		assert.Equal(t, int32(2), *getHPAByName(componentTwoName, hpas).Spec.MinReplicas, "componentTwoName horizontal pod autoscaler config is incorrect")
+	t.Run("validate scaled objects after reconfiguration", func(t *testing.T) {
+		scalers, _ := kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
+		require.Equal(t, 1, len(scalers.Items), "Number of horizontal pod autoscalers wasn't as expected")
+		assert.False(t, scaledObjectByNameExists(componentOneName, scalers), "componentOneName horizontal pod autoscaler should not exist")
+		assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
+		assert.False(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should not exist")
+		assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
 	})
 
 }
@@ -4475,6 +4476,19 @@ func getHPAByName(name string, hpas *autoscalingv2.HorizontalPodAutoscalerList) 
 	for _, hpa := range hpas.Items {
 		if hpa.Name == name {
 			return &hpa
+		}
+	}
+
+	return nil
+}
+func scaledObjectByNameExists(name string, scalers *v1alpha1.ScaledObjectList) bool {
+	return getScaledObjectByName(name, scalers) != nil
+}
+
+func getScaledObjectByName(name string, scalers *v1alpha1.ScaledObjectList) *v1alpha1.ScaledObject {
+	for _, scaler := range scalers.Items {
+		if scaler.Name == name {
+			return &scaler
 		}
 	}
 
