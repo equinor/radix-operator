@@ -40,7 +40,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -4468,19 +4467,6 @@ func getEnvVariableByName(name string, envVars []corev1.EnvVar, envVarsConfigMap
 	return ""
 }
 
-func hpaByNameExists(name string, hpas *autoscalingv2.HorizontalPodAutoscalerList) bool {
-	return getHPAByName(name, hpas) != nil
-}
-
-func getHPAByName(name string, hpas *autoscalingv2.HorizontalPodAutoscalerList) *autoscalingv2.HorizontalPodAutoscaler {
-	for _, hpa := range hpas.Items {
-		if hpa.Name == name {
-			return &hpa
-		}
-	}
-
-	return nil
-}
 func scaledObjectByNameExists(name string, scalers *v1alpha1.ScaledObjectList) bool {
 	return getScaledObjectByName(name, scalers) != nil
 }
