@@ -32,6 +32,7 @@ const (
 	azureServicePrincipleContext    = "/radix-image-builder/.azure"
 	RadixImageBuilderHomeVolumeName = "radix-image-builder-home"
 	BuildKitRunVolumeName           = "build-kit-run"
+	BuildKitRootVolumeName          = "build-kit-root"
 )
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
@@ -172,15 +173,24 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 	}
 
 	for _, container := range containers {
-		volumes = append(volumes, corev1.Volume{
-			Name: getTmpVolumeNameForContainer(container.Name),
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
+		volumes = append(volumes, []corev1.Volume{
+			{
+				Name: getTmpVolumeNameForContainer(container.Name),
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{
+						SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
+					},
 				},
 			},
-		},
-		)
+			{
+				Name: getVarVolumeNameForContainer(container.Name),
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{
+						SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
+					},
+				},
+			},
+		}...)
 	}
 
 	if len(buildSecrets) > 0 {
@@ -197,14 +207,24 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 
 	if isUsingBuildKit {
 		volumes = append(volumes,
-			corev1.Volume{
-				Name: BuildKitRunVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{
-						SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
+			[]corev1.Volume{
+				{
+					Name: BuildKitRunVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
+						},
 					},
 				},
-			})
+				{
+					Name: BuildKitRootVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
+						},
+					},
+				},
+			}...)
 	}
 
 	return volumes
@@ -433,13 +453,13 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUs
 	if isUsingBuildKit {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
-				Name:      getTmpVolumeNameForContainer(containerName), // image-builder creates files there
-				MountPath: "/var/tmp",
+				Name:      BuildKitRunVolumeName, // buildah creates folder container overlays and secrets there
+				MountPath: "/run",
 				ReadOnly:  false,
 			},
 			{
-				Name:      BuildKitRunVolumeName, // buildah creates folder container overlays and secrets there
-				MountPath: "/run",
+				Name:      BuildKitRootVolumeName, // buildah home folder
+				MountPath: "/root",
 				ReadOnly:  false,
 			},
 			{
@@ -454,20 +474,24 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUs
 			},
 		}...)
 	} else {
-		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
-			{
-				Name:      getTmpVolumeNameForContainer(containerName), // image-builder creates a script there
-				MountPath: "/tmp",
-				ReadOnly:  false,
-			},
-			{
-				Name:      RadixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
-				MountPath: "/home/radix-image-builder",
-				ReadOnly:  false,
-			},
-		}...)
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      RadixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
+			MountPath: "/home/radix-image-builder",
+			ReadOnly:  false,
+		})
 	}
-
+	volumeMounts = append(volumeMounts, []corev1.VolumeMount{
+		{
+			Name:      getTmpVolumeNameForContainer(containerName), // image-builder creates a script there
+			MountPath: "/tmp",
+			ReadOnly:  false,
+		},
+		{
+			Name:      getVarVolumeNameForContainer(containerName), // image-builder creates files there
+			MountPath: "/var",
+			ReadOnly:  false,
+		},
+	}...)
 	if len(buildSecrets) > 0 {
 		volumeMounts = append(volumeMounts,
 			corev1.VolumeMount{
@@ -483,9 +507,13 @@ func getTmpVolumeNameForContainer(containerName string) string {
 	return fmt.Sprintf("tmp-%s", containerName)
 }
 
+func getVarVolumeNameForContainer(containerName string) string {
+	return fmt.Sprintf("var-%s", containerName)
+}
+
 func getBuildahContainerCommand(containerImageRegistry, secretArgsString string, componentImage pipeline.BuildComponentImage, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool) []string {
 	commandList := commandbuilder.NewCommandList()
-	commandList.AddStrCmd("cp %s %s", path.Join(privateImageHubMountPath, ".dockerconfigjson"), buildahRegistryAuthFile)
+	commandList.AddStrCmd("mkdir /var/tmp && cp %s %s", path.Join(privateImageHubMountPath, ".dockerconfigjson"), buildahRegistryAuthFile)
 	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", containerImageRegistry)
 	if useBuildCache {
 		commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s", cacheContainerImageRegistry)
