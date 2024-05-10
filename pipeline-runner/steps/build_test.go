@@ -25,6 +25,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
@@ -44,21 +45,24 @@ type buildTestSuite struct {
 	promClient  *prometheusfake.Clientset
 	kubeUtil    *kube.Kube
 	ctrl        *gomock.Controller
+	kedaClient  *kedafake.Clientset
 }
 
 func (s *buildTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
+	s.kedaClient = kedafake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, nil)
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
 	s.ctrl = gomock.NewController(s.T())
 }
 
 func (s *buildTestSuite) SetupSubTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
+	s.kedaClient = kedafake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, nil)
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
 	s.ctrl = gomock.NewController(s.T())
 }
 

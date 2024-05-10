@@ -9,6 +9,7 @@ import (
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/golang/mock/gomock"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	kubeinformers "k8s.io/client-go/informers"
@@ -23,6 +24,7 @@ type ControllerTestSuite struct {
 	KubeClient                *fake.Clientset
 	RadixClient               *fakeradix.Clientset
 	SecretProviderClient      *secretproviderfake.Clientset
+	kedaClient                *kedafake.Clientset
 	PromClient                *prometheusfake.Clientset
 	KubeUtil                  *kube.Kube
 	EventRecorder             *record.FakeRecorder
@@ -40,8 +42,9 @@ type ControllerTestSuite struct {
 func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
 	s.RadixClient = fakeradix.NewSimpleClientset()
+	s.kedaClient = kedafake.NewSimpleClientset()
 	s.SecretProviderClient = secretproviderfake.NewSimpleClientset()
-	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient, s.SecretProviderClient)
+	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient, s.kedaClient, s.SecretProviderClient)
 	s.PromClient = prometheusfake.NewSimpleClientset()
 	s.EventRecorder = &record.FakeRecorder{}
 	s.RadixInformerFactory = informers.NewSharedInformerFactory(s.RadixClient, 0)

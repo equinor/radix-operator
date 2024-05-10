@@ -126,6 +126,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	app.kubeUtil, _ = kube.NewWithListers(
 		app.client,
 		app.radixClient,
+		app.kedaClient,
 		app.secretProviderClient,
 		app.kubeInformerFactory,
 		app.radixInformerFactory,

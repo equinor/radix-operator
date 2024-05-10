@@ -128,7 +128,8 @@ code-gen: bootstrap
 		--go-header-file hack/boilerplate.txt
 
 	# Remove hack
-	 rm -Rf $$(pwd)/github.com
+	rm -Rf $$(pwd)/github.com
+	rm $$(pwd)/pkg/pkg # sometimes the link target is not removed when link is removed
 
 .PHONY: crds
 crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds

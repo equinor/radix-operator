@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
@@ -49,9 +50,8 @@ func init() {
 }
 
 // NewTestUtils Constructor
-func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface,
-	secretproviderclient secretProviderClient.Interface) Utils {
-	kubeUtil, _ := kube.New(client, radixclient, secretproviderclient)
+func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, kedaClient kedav2.Interface, secretproviderclient secretProviderClient.Interface) Utils {
+	kubeUtil, _ := kube.New(client, radixclient, kedaClient, secretproviderclient)
 	return Utils{
 		client:      client,
 		radixclient: radixclient,

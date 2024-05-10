@@ -31,12 +31,12 @@ import (
 func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *fakeradix.Clientset, *kedafake.Clientset, *prometheusfake.Clientset, *certfake.Clientset) {
 	client := kubefake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
+	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
+	kubeUtil, _ := kube.New(client, radixClient, kedaClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(client, radixClient, kedaClient, secretproviderclient)
 	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	require.NoError(t, err)
-	kedaClient := kedafake.NewSimpleClientset()
 	prometheusClient := prometheusfake.NewSimpleClientset()
 	certClient := certfake.NewSimpleClientset()
 	return &handlerTestUtils, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient

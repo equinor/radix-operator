@@ -33,6 +33,7 @@ var (
 	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpa not set or zero")
 	ErrMinReplicasGreaterThanMaxReplicas                                   = errors.New("min replicas greater than max replicas")
 	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set")
+	ErrInvalidMinimumReplicasConfiguration                                 = errors.New("invalid minimum replicas configured with only CPU and/or memory triggers")
 	ErrVolumeMountMissingType                                              = errors.New("no types defined")
 	ErrVolumeMountInvalidType                                              = errors.New("invalid type")
 	ErrVolumeMountMultipleTypes                                            = errors.New("multiple types defined")
@@ -246,8 +247,8 @@ func InvalidBranchNameErrorWithMessage(branch string) error {
 	return errors.WithMessagef(ErrInvalidBranchName, "invalid branch name %s. See documentation for more info", branch)
 }
 
-// MaxReplicasForHPANotSetOrZeroErrorWithMessage Indicates that minReplicas of horizontalScaling is not set or set to 0
-func MaxReplicasForHPANotSetOrZeroErrorWithMessage(component string) error {
+// MaxReplicasForHorizontalScalingNotSetOrZeroErrorWithMessage Indicates that minReplicas of horizontalScaling is not set or set to 0
+func MaxReplicasForHorizontalScalingNotSetOrZeroErrorWithMessage(component string) error {
 	return errors.WithMessagef(ErrMaxReplicasForHPANotSetOrZero, "maxReplicas is not set or set to 0 for component %s. See documentation for more info", component)
 }
 
@@ -259,6 +260,11 @@ func MinReplicasGreaterThanMaxReplicasErrorWithMessage(component string) error {
 // NoScalingResourceSetErrorWithMessage Indicates that no scaling resource is set for horizontal scaling
 func NoScalingResourceSetErrorWithMessage(component string) error {
 	return errors.WithMessagef(ErrNoScalingResourceSet, "no scaling resource is set for component %s. See documentation for more info", component)
+}
+
+// MinReplicasMustBeLargerThanZeroWhenOnlyCPUorMemoryIsConfiguredErrorWithhMessage Indicates that a component is configured with 0 minimum replicas, with only CPU or Memory configured
+func MinReplicasMustBeLargerThanZeroWhenOnlyCPUorMemoryIsConfiguredErrorWithhMessage(component string) error {
+	return errors.WithMessagef(ErrInvalidMinimumReplicasConfiguration, "component %s has only CPU or Memory  resource triggers configured, replicas must be over 0  to work in this case. See documentation for more info", component)
 }
 
 // MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage Indicates that minReplicas of horizontalScaling is not set or set to 0

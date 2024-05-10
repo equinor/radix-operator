@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
@@ -39,9 +40,10 @@ const (
 func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	fakekube := fake.NewSimpleClientset()
 	fakeradix := radix.NewSimpleClientset()
+	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(fakekube, fakeradix, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, secretproviderclient)
+	kubeUtil, _ := kube.New(fakekube, fakeradix, kedaClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, kedaClient, secretproviderclient)
 	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	require.NoError(t, err)
 

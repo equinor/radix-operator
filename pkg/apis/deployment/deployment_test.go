@@ -85,9 +85,10 @@ func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 	kubeUtil, _ := kube.New(
 		kubeclient,
 		radixClient,
+		kedaClient,
 		secretProviderClient,
 	)
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretProviderClient)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, kedaClient, secretProviderClient)
 	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid")
 	require.NoError(t, err)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, kedaClient, prometheusClient, secretProviderClient, certClient
@@ -3538,7 +3539,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 }
 
 func Test_IngressAnnotations_Called(t *testing.T) {
-	_, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, testClusterName)
 	defer os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
@@ -3555,7 +3556,7 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	annotations2 := ingress.NewMockAnnotationProvider(ctrl)
 	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1, annotations2}, nil, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1, annotations2}, nil, &config.Config{})
 	err = syncer.OnSync(context.Background())
 	require.NoError(t, err)
 	ingresses, _ := kubeclient.NetworkingV1().Ingresses("").List(context.Background(), metav1.ListOptions{})
@@ -3568,7 +3569,7 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 }
 
 func Test_IngressAnnotations_ReturnError(t *testing.T) {
-	_, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
@@ -3581,13 +3582,13 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
 	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], "app-dev").Times(1).Return(nil, errors.New("any error"))
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1}, nil, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1}, nil, &config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Error(t, err)
 }
 
 func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
-	_, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
@@ -3601,13 +3602,13 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(nil)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.NoError(t, err)
 }
 
 func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
-	_, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
@@ -3622,13 +3623,13 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(auxErr)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
 
 func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
-	_, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
@@ -3643,7 +3644,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(auxErr)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(0)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -4202,7 +4203,7 @@ func Test_ExternalDNS_RetainSecretData(t *testing.T) {
 
 func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	fqdn := "any.example.com"
-	_, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
@@ -4221,7 +4222,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 			RenewBefore:   1000 * time.Hour,
 		}}
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ := certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
@@ -4235,7 +4236,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 			RenewBefore:   1000 * time.Hour,
 		}}
 
-	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, 2160*time.Hour, cert.Spec.Duration.Duration)
@@ -4249,7 +4250,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 			RenewBefore:   359 * time.Hour,
 		}}
 
-	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
@@ -4258,7 +4259,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 
 func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	fqdn := "any.example.com"
-	_, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := setupTest(t)
 	defer teardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
@@ -4276,7 +4277,7 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 			RenewBefore: 1000 * time.Hour,
 		}}
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
 	assert.ErrorContains(t, syncer.OnSync(context.Background()), "cluster issuer not set in certificate automation config")
 }
 
@@ -4360,7 +4361,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 		return nil, err
 	}
 
-	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, radixRegistration, rd, nil, nil, &testConfig)
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, radixRegistration, rd, nil, nil, &testConfig)
 	modifySyncer(deploymentSyncer)
 	err = deploymentSyncer.OnSync(context.Background())
 	if err != nil {
@@ -4383,7 +4384,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, radixRegistration, rd, nil, nil, &testConfig)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, certClient, radixRegistration, rd, nil, nil, &testConfig)
 	err = deployment.OnSync(context.Background())
 	if err != nil {
 		return err

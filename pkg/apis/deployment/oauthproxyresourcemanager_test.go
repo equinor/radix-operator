@@ -19,6 +19,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
@@ -39,6 +41,7 @@ type OAuthProxyResourceManagerTestSuite struct {
 	suite.Suite
 	kubeClient                kubernetes.Interface
 	radixClient               radixclient.Interface
+	kedaClient                kedav2.Interface
 	secretProviderClient      secretProviderClient.Interface
 	kubeUtil                  *kube.Kube
 	ctrl                      *gomock.Controller
@@ -67,8 +70,9 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
+	s.kedaClient = kedafake.NewSimpleClientset()
 	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.ctrl = gomock.NewController(s.T())
 	s.ingressAnnotationProvider = ingress.NewMockAnnotationProvider(s.ctrl)
 	s.oauth2Config = defaults.NewMockOAuth2Config(s.ctrl)

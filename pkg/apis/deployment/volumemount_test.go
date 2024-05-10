@@ -13,6 +13,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -40,6 +42,7 @@ type TestEnv struct {
 	secretproviderclient secretProviderClient.Interface
 	prometheusclient     prometheusclient.Interface
 	kubeUtil             *kube.Kube
+	kedaClient           kedav2.Interface
 }
 
 type volumeMountTestScenario struct {
@@ -82,10 +85,11 @@ func getTestEnv() TestEnv {
 	testEnv := TestEnv{
 		kubeclient:           kubefake.NewSimpleClientset(),
 		radixclient:          radix.NewSimpleClientset(),
+		kedaClient:           kedafake.NewSimpleClientset(),
 		secretproviderclient: secretproviderfake.NewSimpleClientset(),
 		prometheusclient:     prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
+	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, testEnv.kedaClient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }

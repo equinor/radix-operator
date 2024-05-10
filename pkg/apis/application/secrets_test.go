@@ -19,7 +19,7 @@ const somePublicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDpMmE/GGn1U86URGIWy
 
 func TestOnSync_PublicKeyCmExists_NothingChanges(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Test
@@ -62,7 +62,7 @@ func TestOnSync_PublicKeyCmExists_NothingChanges(t *testing.T) {
 
 func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Test
@@ -100,7 +100,7 @@ func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 
 func TestOnSync_PublicKeyCmDoesNotExist_KeyIsCopiedFromRR(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Test
@@ -135,7 +135,7 @@ func TestOnSync_PublicKeyCmDoesNotExist_KeyIsCopiedFromRR(t *testing.T) {
 
 func TestOnSync_PublicKeyInCmIsEmpty_KeyIsCopiedFromRR(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Test
@@ -181,7 +181,7 @@ func TestOnSync_PublicKeyInCmIsEmpty_KeyIsCopiedFromRR(t *testing.T) {
 
 func TestOnSync_PrivateKeySecretIsUpdatedManually_PublicKeyIsUpdated(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Test

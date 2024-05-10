@@ -51,7 +51,7 @@ var (
 		validateDNSAppAlias,
 		validateDNSExternalAlias,
 		validatePrivateImageHubs,
-		validateHPAConfigForRA,
+		validateHorizontalScalingConfigForRA,
 		validateVolumeMountConfigForRA,
 		ValidateNotificationsForRA,
 	}
@@ -1130,7 +1130,7 @@ func validateResourceWithRegexp(resourceName, value, regexpExpression string) er
 	return InvalidResourceNameErrorWithMessage(resourceName, value)
 }
 
-func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
+func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, component := range app.Spec.Components {
 		componentName := component.Name
@@ -1138,7 +1138,7 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 			maxReplicas := component.HorizontalScaling.MaxReplicas
 			minReplicas := component.HorizontalScaling.MinReplicas
 			if maxReplicas == 0 {
-				errs = append(errs, MaxReplicasForHPANotSetOrZeroErrorWithMessage(componentName))
+				errs = append(errs, MaxReplicasForHorizontalScalingNotSetOrZeroErrorWithMessage(componentName))
 			}
 			if minReplicas != nil && *minReplicas > maxReplicas {
 				errs = append(errs, MinReplicasGreaterThanMaxReplicasErrorWithMessage(componentName))
@@ -1146,6 +1146,9 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 			resources := component.HorizontalScaling.RadixHorizontalScalingResources
 			if resources != nil && getHorizontalScalingResourceAverageUtilization(resources.Cpu) == nil && getHorizontalScalingResourceAverageUtilization(resources.Memory) == nil {
 				errs = append(errs, NoScalingResourceSetErrorWithMessage(componentName))
+			}
+			if (minReplicas == nil || *minReplicas == 0) && onlyCpuAndOrMemoryTriggersConfigured(resources) {
+				errs = append(errs, MinReplicasMustBeLargerThanZeroWhenOnlyCPUorMemoryIsConfiguredErrorWithhMessage(componentName))
 			}
 		}
 		for _, envConfig := range component.EnvironmentConfig {
@@ -1169,6 +1172,11 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 	}
 
 	return errors.Join(errs...)
+}
+
+func onlyCpuAndOrMemoryTriggersConfigured(resources *radixv1.RadixHorizontalScalingResources) bool {
+	// TODO: When using triggers, this must check that no other triggers have been configured
+	return resources.Cpu != nil || resources.Memory != nil
 }
 
 func getHorizontalScalingResourceAverageUtilization(resource *radixv1.RadixHorizontalScalingResource) *int32 {

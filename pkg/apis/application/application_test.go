@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -24,20 +25,21 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
+func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, *kedafake.Clientset) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
+	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
+	kubeUtil, _ := kube.New(client, radixClient, kedaClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(client, radixClient, kedaClient, secretproviderclient)
 	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	require.NoError(t, err)
-	return handlerTestUtils, client, kubeUtil, radixClient
+	return handlerTestUtils, client, kubeUtil, radixClient, kedaClient
 }
 
 func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Test
@@ -69,7 +71,7 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 
 func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Test
@@ -94,7 +96,7 @@ func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 
 func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Test
@@ -132,7 +134,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 	os.Setenv(defaults.PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable, "enforceAppNsLvl")
 	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
@@ -167,7 +169,7 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 
 func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
 	// Create namespaces manually
@@ -196,7 +198,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 
 func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defaultRole := "9876-54321-09876"
 	defer os.Clearenv()
 	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultRole)
@@ -223,7 +225,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 
 func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "300M")
 	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "0.25")
@@ -242,7 +244,7 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 
 func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest(t)
+	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "")
 	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "")

@@ -44,12 +44,12 @@ func Test_HandlerSuite(t *testing.T) {
 func (s *handlerSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
+	s.kedaClient = kedafake.NewSimpleClientset()
 	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.certClient = certfake.NewSimpleClientset()
 	s.eventRecorder = &record.FakeRecorder{}
-	s.kedaClient = kedafake.NewSimpleClientset()
 }
 
 func (s *handlerSuite) Test_NewHandler_DefaultValues() {
@@ -110,7 +110,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(context.Background(), namespace, nonExistingRdName, s.eventRecorder)
@@ -122,7 +122,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(context.Background(), namespace, inactiveRdName, s.eventRecorder)
@@ -134,7 +134,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
 		err := h.Sync(context.Background(), namespace, activeRdMissingRrName, s.eventRecorder)
@@ -161,7 +161,7 @@ func (s *handlerSuite) Test_Sync() {
 		expectedConfig := &config.Config{}
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.promClient, s.certClient, rr, activeRd, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources), expectedConfig).
+			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.certClient, rr, activeRd, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources), expectedConfig).
 			Return(syncer).
 			Times(1)
 		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, kedaClient: s.kedaClient, prometheusperatorclient: s.promClient, certClient: s.certClient, deploymentSyncerFactory: factory, oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }, config: expectedConfig}
@@ -177,7 +177,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(syncer).
 			Times(1)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil, kedaClient: s.kedaClient, deploymentSyncerFactory: factory}
