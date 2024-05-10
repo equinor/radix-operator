@@ -110,7 +110,7 @@ func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 		var secretExists bool
 
 		envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-		secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
 
 		secretName = utils.GetComponentClientCertificateSecretName(componentName1)

@@ -1,6 +1,7 @@
 package dnsalias_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -47,33 +48,33 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
-	s.syncer.EXPECT().OnSync().Times(0)
+	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
 
-	err := handler.Sync("", alias1, s.EventRecorder)
+	err := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
 	s.Require().NoError(err)
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
-	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, alias1), "create existing RadixDNSAlias")
+	s.Require().NoError(commonTest.RegisterRadixDNSAlias(context.Background(), s.RadixClient, appName1, env1, component1, alias1), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	expectedError := fmt.Errorf("some error")
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(s.syncer).Times(1)
-	s.syncer.EXPECT().OnSync().Return(expectedError).Times(1)
+	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 
-	actualError := handler.Sync("", alias1, s.EventRecorder)
+	actualError := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
 	s.Equal(expectedError, actualError)
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
-	s.Require().NoError(commonTest.RegisterRadixDNSAlias(s.RadixClient, appName1, env1, component1, alias1), "create existing RadixDNSAlias")
+	s.Require().NoError(commonTest.RegisterRadixDNSAlias(context.Background(), s.RadixClient, appName1, env1, component1, alias1), "create existing RadixDNSAlias")
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
 		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(s.syncer).Times(1)
-	s.syncer.EXPECT().OnSync().Return(nil).Times(1)
+	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 
-	err := handler.Sync("", alias1, s.EventRecorder)
+	err := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
 	s.Require().Nil(err)
 }

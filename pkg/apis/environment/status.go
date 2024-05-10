@@ -9,8 +9,8 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func (env *Environment) syncStatus(re *radixv1.RadixEnvironment, time metav1.Time) error {
-	err := env.updateRadixEnvironmentStatus(re, func(currStatus *radixv1.RadixEnvironmentStatus) {
+func (env *Environment) syncStatus(ctx context.Context, re *radixv1.RadixEnvironment, time metav1.Time) error {
+	err := env.updateRadixEnvironmentStatus(ctx, re, func(currStatus *radixv1.RadixEnvironmentStatus) {
 		currStatus.Orphaned = !existsInAppConfig(env.appConfig, re.Spec.EnvName)
 		// time is parameterized for testability
 		currStatus.Reconciled = time
@@ -21,18 +21,18 @@ func (env *Environment) syncStatus(re *radixv1.RadixEnvironment, time metav1.Tim
 	return nil
 }
 
-func (env *Environment) updateRadixEnvironmentStatus(re *radixv1.RadixEnvironment, changeStatusFunc func(currStatus *radixv1.RadixEnvironmentStatus)) error {
+func (env *Environment) updateRadixEnvironmentStatus(ctx context.Context, re *radixv1.RadixEnvironment, changeStatusFunc func(currStatus *radixv1.RadixEnvironmentStatus)) error {
 	radixEnvironmentInterface := env.radixclient.RadixV1().RadixEnvironments()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		name := re.GetName()
-		currentEnv, err := radixEnvironmentInterface.Get(context.Background(), name, metav1.GetOptions{})
+		currentEnv, err := radixEnvironmentInterface.Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentEnv.Status)
-		updated, err := radixEnvironmentInterface.UpdateStatus(context.Background(), currentEnv, metav1.UpdateOptions{})
+		updated, err := radixEnvironmentInterface.UpdateStatus(ctx, currentEnv, metav1.UpdateOptions{})
 		if err == nil && env.config.GetName() == name {
-			currentEnv, err = radixEnvironmentInterface.Get(context.Background(), name, metav1.GetOptions{})
+			currentEnv, err = radixEnvironmentInterface.Get(ctx, name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}

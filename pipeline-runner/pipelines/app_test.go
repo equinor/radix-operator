@@ -1,6 +1,7 @@
 package pipelines_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -32,6 +33,6 @@ func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
 	cli := pipelines.NewRunner(kubeclient, radixclient, &monitoring.Clientset{}, secretproviderclient, pipelineDefinition, "any-app")
 
-	err := cli.PrepareRun(&model.PipelineArguments{})
+	err := cli.PrepareRun(context.Background(), &model.PipelineArguments{})
 	assert.Error(t, err)
 }

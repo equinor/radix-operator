@@ -46,6 +46,8 @@ CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
+KUBE_CODEGEN_VERSION = v0.25.3
+
 HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
@@ -68,25 +70,12 @@ echo:
 	@echo "VERSION : " $(VERSION)
 	@echo "TAG : " $(TAG)
 
-# find or download controller-gen
-# download controller-gen if necessary
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0 ;\
-	}
-CONTROLLER_GEN=${GOPATH}/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
-
 .PHONY: test
 test:
 	LOG_LEVEL=warn go test -cover `go list ./... | grep -v 'pkg/client'`
 
 .PHONY: mocks
-mocks:
+mocks: bootstrap
 	mockgen -source ./pkg/apis/defaults/oauth2.go -destination ./pkg/apis/defaults/oauth2_mock.go -package defaults
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
@@ -129,8 +118,13 @@ CUSTOM_RESOURCE_NAME=radix
 CUSTOM_RESOURCE_VERSION=v1
 
 .PHONY: code-gen
-code-gen:
-	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
+code-gen: bootstrap
+	echo
+	$$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh all \
+		$(ROOT_PACKAGE)/pkg/client \
+		$(ROOT_PACKAGE)/pkg/apis \
+		$(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) \
+		--go-header-file hack/boilerplate.txt
 
 .PHONY: crds
 crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds
@@ -149,16 +143,46 @@ radixdnsalias-crd: temp-crds
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
 
 .PHONY: temp-crds
-temp-crds: controller-gen
-	echo "tempcrdrun"
-	${CONTROLLER_GEN} crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
+temp-crds: bootstrap
+	controller-gen crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
 
 .PHONY: delete-temp-crds
 delete-temp-crds:
 	rm -rf $(CRD_TEMP_DIR)
 
 .PHONY: lint
-lint:
+lint: bootstrap
 	golangci-lint run
 
+.PHONY: generate
+generate: bootstrap code-gen crds mocks
 
+.PHONY: verify-generate
+verify-generate: bootstrap generate
+	git diff --exit-code
+
+HAS_SWAGGER       := $(shell command -v swagger;)
+HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
+HAS_MOCKGEN       := $(shell command -v mockgen;)
+HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
+HAS_GENERATE_GROUPS := $(shell command -v $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh)
+
+.PHONY: bootstrap
+bootstrap:
+ifndef HAS_SWAGGER
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5
+endif
+ifndef HAS_GOLANGCI_LINT
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.55.2
+endif
+ifndef HAS_MOCKGEN
+	go install github.com/golang/mock/mockgen@v1.6.0
+endif
+ifndef HAS_CONTROLLER_GEN
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
+endif
+ifndef HAS_GENERATE_GROUPS
+	-go install k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)
+	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh
+	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-internal-groups.sh
+endif

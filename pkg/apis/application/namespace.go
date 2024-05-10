@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -9,7 +10,7 @@ import (
 )
 
 // createAppNamespace creates an app namespace with RadixRegistration as owner
-func (app *Application) createAppNamespace() error {
+func (app *Application) createAppNamespace(ctx context.Context) error {
 	registration := app.registration
 	name := utils.GetAppNamespace(registration.Name)
 
@@ -21,7 +22,7 @@ func (app *Application) createAppNamespace() error {
 	nsLabels = labels.Merge(nsLabels, kube.NewAppNamespacePodSecurityStandardFromEnv().Labels())
 
 	ownerRef := app.getOwnerReference()
-	err := app.kubeutil.ApplyNamespace(name, nsLabels, ownerRef)
+	err := app.kubeutil.ApplyNamespace(ctx, name, nsLabels, ownerRef)
 
 	if err != nil {
 		return fmt.Errorf("failed to create namespace %s: %w", name, err)

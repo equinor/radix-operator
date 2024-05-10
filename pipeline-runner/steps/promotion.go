@@ -72,11 +72,11 @@ func (cli *PromoteStepImplementation) ErrorMsg(err error) string {
 }
 
 // Run Override of default step method
-func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	var radixDeployment *v1.RadixDeployment
 
 	// Get radix application from cluster as promote step run as single step
-	radixApplication, err := cli.GetRadixclient().RadixV1().RadixApplications(utils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), cli.GetAppName(), metav1.GetOptions{})
+	radixApplication, err := cli.GetRadixclient().RadixV1().RadixApplications(utils.GetAppNamespace(cli.GetAppName())).Get(ctx, cli.GetAppName(), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -90,17 +90,17 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	fromNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
 	toNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
 
-	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(context.TODO(), fromNs, metav1.GetOptions{})
+	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(ctx, fromNs, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
 	}
 
-	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(context.TODO(), toNs, metav1.GetOptions{})
+	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(ctx, toNs, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
 	}
 
-	rd, err := cli.GetRadixclient().RadixV1().RadixDeployments(fromNs).Get(context.TODO(), pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	rd, err := cli.GetRadixclient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingDeployment(pipelineInfo.PipelineArguments.DeploymentName)
 	}
@@ -134,7 +134,7 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 		return err
 	}
 
-	if _, err := cli.GetRadixclient().RadixV1().RadixDeployments(toNs).Create(context.TODO(), radixDeployment, metav1.CreateOptions{}); err != nil {
+	if _, err := cli.GetRadixclient().RadixV1().RadixDeployments(toNs).Create(ctx, radixDeployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 

@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -28,7 +27,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixAlerts
-func NewController(client kubernetes.Interface,
+func NewController(ctx context.Context, client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
@@ -45,7 +44,7 @@ func NewController(client kubernetes.Interface,
 		RadixClient:           radixClient,
 		Informer:              alertInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -106,7 +105,7 @@ func NewController(client kubernetes.Interface,
 			}
 
 			// Enqueue all RadixAlerts with radix-app label matching name of RR
-			radixalerts, err := radixClient.RadixV1().RadixAlerts(corev1.NamespaceAll).List(context.TODO(), v1.ListOptions{
+			radixalerts, err := radixClient.RadixV1().RadixAlerts(corev1.NamespaceAll).List(ctx, v1.ListOptions{
 				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
 			})
 			if err == nil {

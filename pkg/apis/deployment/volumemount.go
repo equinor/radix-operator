@@ -226,21 +226,21 @@ func getCsiRadixVolumeTypeIdForName(radixVolumeMount *radixv1.RadixVolumeMount) 
 }
 
 // GetVolumesForComponent Gets volumes for Radix deploy component or job
-func (deploy *Deployment) GetVolumesForComponent(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
-	return GetVolumes(deploy.kubeclient, deploy.kubeutil, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent, deploy.radixDeployment.GetName())
+func (deploy *Deployment) GetVolumesForComponent(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
+	return GetVolumes(ctx, deploy.kubeclient, deploy.kubeutil, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent, deploy.radixDeployment.GetName())
 }
 
 // GetVolumes Get volumes of a component by RadixVolumeMounts
-func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
+func GetVolumes(ctx context.Context, kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
 	var volumes []corev1.Volume
 
-	volumeMountVolumes, err := getComponentVolumeMountVolumes(kubeclient, namespace, environment, deployComponent)
+	volumeMountVolumes, err := getComponentVolumeMountVolumes(ctx, kubeclient, namespace, environment, deployComponent)
 	if err != nil {
 		return nil, err
 	}
 	volumes = append(volumes, volumeMountVolumes...)
 
-	storageRefsVolumes, err := getComponentSecretRefsVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
+	storageRefsVolumes, err := getComponentSecretRefsVolumes(ctx, kubeutil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -249,9 +249,9 @@ func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace 
 	return volumes, nil
 }
 
-func getComponentSecretRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
+func getComponentSecretRefsVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
 	var volumes []corev1.Volume
-	azureKeyVaultVolumes, err := getComponentSecretRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
+	azureKeyVaultVolumes, err := getComponentSecretRefsAzureKeyVaultVolumes(ctx, kubeutil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -259,12 +259,12 @@ func getComponentSecretRefsVolumes(kubeutil *kube.Kube, namespace string, deploy
 	return volumes, nil
 }
 
-func getComponentSecretRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
+func getComponentSecretRefsAzureKeyVaultVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
 	secretRef := deployComponent.GetSecretRefs()
 	var volumes []corev1.Volume
 	for _, azureKeyVault := range secretRef.AzureKeyVaults {
 		secretProviderClassName := kube.GetComponentSecretProviderClassName(radixDeploymentName, deployComponent.GetName(), radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
-		secretProviderClass, err := kubeutil.GetSecretProviderClass(namespace, secretProviderClassName)
+		secretProviderClass, err := kubeutil.GetSecretProviderClass(ctx, namespace, secretProviderClassName)
 		if err != nil {
 			return nil, err
 		}
@@ -301,17 +301,17 @@ func getComponentSecretRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace s
 	return volumes, nil
 }
 
-func getComponentVolumeMountVolumes(kubeclient kubernetes.Interface, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
+func getComponentVolumeMountVolumes(ctx context.Context, kubeclient kubernetes.Interface, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
 	var volumes []corev1.Volume
 
 	volumeSourceFunc := func(volumeMount *radixv1.RadixVolumeMount) (*corev1.VolumeSource, error) {
 		switch {
 		case volumeMount.HasDeprecatedVolume():
-			return getComponentVolumeMountDeprecatedVolumeSource(volumeMount, namespace, environment, deployComponent.GetName(), kubeclient)
+			return getComponentVolumeMountDeprecatedVolumeSource(ctx, volumeMount, namespace, environment, deployComponent.GetName(), kubeclient)
 		case volumeMount.HasBlobFuse2():
-			return getComponentVolumeMountBlobFuse2VolumeSource(volumeMount, namespace, deployComponent.GetName(), kubeclient)
+			return getComponentVolumeMountBlobFuse2VolumeSource(ctx, volumeMount, namespace, deployComponent.GetName(), kubeclient)
 		case volumeMount.HasAzureFile():
-			return getComponentVolumeMountAzureFileVolumeSource(volumeMount, namespace, deployComponent.GetName(), kubeclient)
+			return getComponentVolumeMountAzureFileVolumeSource(ctx, volumeMount, namespace, deployComponent.GetName(), kubeclient)
 		case volumeMount.HasEmptyDir():
 			return getComponentVolumeMountEmptyDirVolumeSource(volumeMount.EmptyDir), nil
 		}
@@ -335,23 +335,23 @@ func getComponentVolumeMountVolumes(kubeclient kubernetes.Interface, namespace s
 	return volumes, nil
 }
 
-func getComponentVolumeMountDeprecatedVolumeSource(volumeMount *radixv1.RadixVolumeMount, namespace, environment, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
+func getComponentVolumeMountDeprecatedVolumeSource(ctx context.Context, volumeMount *radixv1.RadixVolumeMount, namespace, environment, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
 	switch volumeMount.Type {
 	case radixv1.MountTypeBlob:
 		return getBlobFuseVolume(namespace, environment, componentName, volumeMount), nil
 	case radixv1.MountTypeAzureFileCsiAzure, radixv1.MountTypeBlobFuse2FuseCsiAzure:
-		return getCsiAzureVolume(kubeclient, namespace, componentName, volumeMount)
+		return getCsiAzureVolume(ctx, kubeclient, namespace, componentName, volumeMount)
 	}
 
 	return nil, fmt.Errorf("unsupported volume type %s", volumeMount.Type)
 }
 
-func getComponentVolumeMountBlobFuse2VolumeSource(volumeMount *radixv1.RadixVolumeMount, namespace, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
-	return getCsiAzureVolume(kubeclient, namespace, componentName, volumeMount)
+func getComponentVolumeMountBlobFuse2VolumeSource(ctx context.Context, volumeMount *radixv1.RadixVolumeMount, namespace, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
+	return getCsiAzureVolume(ctx, kubeclient, namespace, componentName, volumeMount)
 }
 
-func getComponentVolumeMountAzureFileVolumeSource(volumeMount *radixv1.RadixVolumeMount, namespace, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
-	return getCsiAzureVolume(kubeclient, namespace, componentName, volumeMount)
+func getComponentVolumeMountAzureFileVolumeSource(ctx context.Context, volumeMount *radixv1.RadixVolumeMount, namespace, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
+	return getCsiAzureVolume(ctx, kubeclient, namespace, componentName, volumeMount)
 }
 
 func getComponentVolumeMountEmptyDirVolumeSource(spec *radixv1.RadixEmptyDirVolumeMount) *corev1.VolumeSource {
@@ -362,8 +362,8 @@ func getComponentVolumeMountEmptyDirVolumeSource(spec *radixv1.RadixEmptyDirVolu
 	}
 }
 
-func getCsiAzureVolume(kubeclient kubernetes.Interface, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.VolumeSource, error) {
-	existingNotTerminatingPvcForComponentStorage, err := getPvcNotTerminating(kubeclient, namespace, componentName, radixVolumeMount)
+func getCsiAzureVolume(ctx context.Context, kubeclient kubernetes.Interface, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.VolumeSource, error) {
+	existingNotTerminatingPvcForComponentStorage, err := getPvcNotTerminating(ctx, kubeclient, namespace, componentName, radixVolumeMount)
 	if err != nil {
 		return nil, err
 	}
@@ -416,8 +416,8 @@ func getVolumeMountDeprecatedVolumeName(volumeMount *radixv1.RadixVolumeMount, c
 	return "", fmt.Errorf("unsupported type %s", volumeMount.Type)
 }
 
-func getPvcNotTerminating(kubeclient kubernetes.Interface, namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
-	existingPvcForComponentStorage, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{
+func getPvcNotTerminating(ctx context.Context, kubeclient kubernetes.Interface, namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
+	existingPvcForComponentStorage, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMount.Name),
 	})
 	if err != nil {
@@ -469,7 +469,7 @@ func getBlobFuseVolume(namespace, environment, componentName string, volumeMount
 	}
 }
 
-func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName string, accountName, accountKey []byte) error {
+func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(ctx context.Context, namespace, componentName, secretName string, accountName, accountKey []byte) error {
 	blobfusecredsSecret := corev1.Secret{
 		Type: blobfuseDriver,
 		ObjectMeta: metav1.ObjectMeta{
@@ -489,14 +489,14 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, component
 
 	blobfusecredsSecret.Data = data
 
-	_, err := deploy.kubeutil.ApplySecret(namespace, &blobfusecredsSecret)
+	_, err := deploy.kubeutil.ApplySecret(ctx, namespace, &blobfusecredsSecret)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
-func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, secretName string, accountName, accountKey []byte) error {
+func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(ctx context.Context, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, secretName string, accountName, accountKey []byte) error {
 	secret := corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
@@ -517,7 +517,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, c
 
 	secret.Data = data
 
-	_, err := deploy.kubeutil.ApplySecret(namespace, &secret)
+	_, err := deploy.kubeutil.ApplySecret(ctx, namespace, &secret)
 	if err != nil {
 		return err
 	}
@@ -526,7 +526,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, c
 }
 
 func (deploy *Deployment) garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent, excludeSecretNames []string) error {
-	secrets, err := deploy.listSecretsForVolumeMounts(component)
+	secrets, err := deploy.listSecretsForVolumeMounts(ctx, component)
 	if err != nil {
 		return err
 	}

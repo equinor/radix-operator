@@ -15,9 +15,9 @@ import (
 )
 
 // ApplyDeployment Create or update deployment in provided namespace
-func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) error {
+func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) error {
 	if currentDeployment == nil {
-		createdDeployment, err := kubeutil.CreateDeployment(namespace, desiredDeployment)
+		createdDeployment, err := kubeutil.CreateDeployment(ctx, namespace, desiredDeployment)
 		if err != nil {
 			return fmt.Errorf("failed to create Deployment object: %v", err)
 		}
@@ -34,7 +34,7 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 		return nil
 	}
 	log.Debug().Msgf("Patch: %s", string(patchBytes))
-	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(context.Background(), currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(ctx, currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to patch deployment object: %v", err)
 	}
@@ -70,14 +70,14 @@ func deserializeDeployment(deployment *appsv1.Deployment) ([]byte, error) {
 }
 
 // CreateDeployment Created deployment
-func (kubeutil *Kube) CreateDeployment(namespace string, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+func (kubeutil *Kube) CreateDeployment(ctx context.Context, namespace string, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Create(ctx, deployment, metav1.CreateOptions{})
 }
 
 // DeleteDeployment Delete deployment
-func (kubeutil *Kube) DeleteDeployment(namespace, name string) error {
+func (kubeutil *Kube) DeleteDeployment(ctx context.Context, namespace, name string) error {
 	propagationPolicy := metav1.DeletePropagationBackground
-	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Delete(context.Background(),
+	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Delete(ctx,
 		name,
 		metav1.DeleteOptions{
 			PropagationPolicy: &propagationPolicy,
@@ -85,12 +85,12 @@ func (kubeutil *Kube) DeleteDeployment(namespace, name string) error {
 }
 
 // ListDeployments List deployments
-func (kubeutil *Kube) ListDeployments(namespace string) ([]*appsv1.Deployment, error) {
-	return kubeutil.ListDeploymentsWithSelector(namespace, "")
+func (kubeutil *Kube) ListDeployments(ctx context.Context, namespace string) ([]*appsv1.Deployment, error) {
+	return kubeutil.ListDeploymentsWithSelector(ctx, namespace, "")
 }
 
 // ListDeploymentsWithSelector List deployments with selector
-func (kubeutil *Kube) ListDeploymentsWithSelector(namespace, labelSelectorString string) ([]*appsv1.Deployment, error) {
+func (kubeutil *Kube) ListDeploymentsWithSelector(ctx context.Context, namespace, labelSelectorString string) ([]*appsv1.Deployment, error) {
 	var deployments []*appsv1.Deployment
 
 	if kubeutil.DeploymentLister != nil {
@@ -104,7 +104,7 @@ func (kubeutil *Kube) ListDeploymentsWithSelector(namespace, labelSelectorString
 		}
 	} else {
 		listOptions := metav1.ListOptions{LabelSelector: labelSelectorString}
-		list, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).List(context.TODO(), listOptions)
+		list, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).List(ctx, listOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -115,7 +115,7 @@ func (kubeutil *Kube) ListDeploymentsWithSelector(namespace, labelSelectorString
 	return deployments, nil
 }
 
-func (kubeutil *Kube) GetDeployment(namespace, name string) (*appsv1.Deployment, error) {
+func (kubeutil *Kube) GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
 	var deployment *appsv1.Deployment
 	var err error
 
@@ -125,7 +125,7 @@ func (kubeutil *Kube) GetDeployment(namespace, name string) (*appsv1.Deployment,
 			return nil, err
 		}
 	} else {
-		deployment, err = kubeutil.kubeClient.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		deployment, err = kubeutil.kubeClient.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

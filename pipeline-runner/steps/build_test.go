@@ -97,7 +97,7 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 		TargetEnvironments: targetEnvs,
 	}
 
-	err := cli.Run(pipelineInfo)
+	err := cli.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	radixJobList, err := s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err)
@@ -149,9 +149,9 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -166,6 +166,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
 		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
 		{Name: "tmp-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
+		{Name: "var-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 	}
 	s.ElementsMatch(expectedVolumes, job.Spec.Template.Spec.Volumes)
 
@@ -192,6 +193,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
 		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/radix-image-builder", ReadOnly: false},
 		{Name: "tmp-build-c1-dev", MountPath: "/tmp", ReadOnly: false},
+		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
 	}
 	s.ElementsMatch(expectedBuildVolumeMounts, job.Spec.Template.Spec.Containers[0].VolumeMounts)
 	expectedEnv := []corev1.EnvVar{
@@ -282,9 +284,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -425,9 +427,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -577,9 +579,9 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1051,9 +1053,9 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 			// Run pipeline steps
-			s.Require().NoError(applyStep.Run(&pipeline))
-			s.Require().NoError(buildStep.Run(&pipeline))
-			s.Require().NoError(deployStep.Run(&pipeline))
+			s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+			s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+			s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 
 			// Check Job containers
 			jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
@@ -1120,8 +1122,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 
 	// Check RadixDeployment component and job images
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
@@ -1177,8 +1179,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1217,8 +1219,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_UseCache() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1256,8 +1258,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithDockerfileName() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1295,8 +1297,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithSourceFolder() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1338,19 +1340,19 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
-	s.Len(job.Spec.Template.Spec.Volumes, 7)
+	s.Len(job.Spec.Template.Spec.Volumes, 8)
 	expectedVolumes := []corev1.Volume{
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
 	}
 	s.Subset(job.Spec.Template.Spec.Volumes, expectedVolumes)
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 5)
+	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 6)
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
 	}
@@ -1401,8 +1403,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1410,7 +1412,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
 	expectedBuildCmd := strings.Join(
 		[]string{
-			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
+			"mkdir /var/tmp && cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
 			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 --ulimit nofile=4096:4096 ",
@@ -1455,10 +1457,12 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace, ReadOnly: false},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-		{Name: "tmp-build-c1-dev", MountPath: "/var/tmp", ReadOnly: false},
 		{Name: steps.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
+		{Name: steps.BuildKitRootVolumeName, MountPath: "/root", ReadOnly: false},
 		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
 		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
+		{Name: "tmp-build-c1-dev", MountPath: "/tmp", ReadOnly: false},
+		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
 	}
 	s.ElementsMatch(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
 }
@@ -1499,8 +1503,8 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
@@ -1508,7 +1512,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
 	expectedBuildCmd := strings.Join(
 		[]string{
-			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
+			"mkdir /var/tmp && cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
 			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 --ulimit nofile=4096:4096 ",
@@ -1570,39 +1574,43 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	buildStep := steps.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
-	s.Len(job.Spec.Template.Spec.Volumes, 8)
+	s.Len(job.Spec.Template.Spec.Volumes, 10)
 	expectedVolumes := []corev1.Volume{
 		{Name: git.BuildContextVolumeName},
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
 		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
 		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
-		{Name: "tmp-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
 		{Name: steps.BuildKitRunVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
+		{Name: steps.BuildKitRootVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
+		{Name: "tmp-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
+		{Name: "var-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 	}
 	s.ElementsMatch(job.Spec.Template.Spec.Volumes, expectedVolumes)
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 7)
+	s.Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 9)
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace, ReadOnly: false},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-		{Name: "tmp-build-c1-dev", MountPath: "/var/tmp", ReadOnly: false},
 		{Name: steps.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
+		{Name: steps.BuildKitRootVolumeName, MountPath: "/root", ReadOnly: false},
 		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
 		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
+		{Name: "tmp-build-c1-dev", MountPath: "/tmp", ReadOnly: false},
+		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
 	}
 	s.ElementsMatch(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
 	s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
 	expectedBuildCmd := strings.Join(
 		[]string{
-			"cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
+			"mkdir /var/tmp && cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
 			fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry),
 			"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 --ulimit nofile=4096:4096 ",
@@ -1721,9 +1729,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-	s.Require().NoError(applyStep.Run(&pipeline))
-	s.Require().NoError(buildStep.Run(&pipeline))
-	s.Require().NoError(deployStep.Run(&pipeline))
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]

@@ -12,10 +12,10 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func (app *ApplicationConfig) syncEnvironments() error {
+func (app *ApplicationConfig) syncEnvironments(ctx context.Context) error {
 	var errs []error
 	for _, env := range app.config.Spec.Environments {
-		if err := app.syncEnvironment(app.buildRadixEnvironment(env)); err != nil {
+		if err := app.syncEnvironment(ctx, app.buildRadixEnvironment(env)); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -33,19 +33,19 @@ func (app *ApplicationConfig) buildRadixEnvironment(env radixv1.Environment) *ra
 }
 
 // syncEnvironment creates an environment or applies changes if it exists
-func (app *ApplicationConfig) syncEnvironment(radixEnvironment *radixv1.RadixEnvironment) error {
+func (app *ApplicationConfig) syncEnvironment(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment) error {
 	app.logger.Debug().Msgf("Apply RadixEnvironment %s", radixEnvironment.GetName())
-	if _, err := app.getRadixEnvironment(radixEnvironment.GetName()); err != nil {
+	if _, err := app.getRadixEnvironment(ctx, radixEnvironment.GetName()); err != nil {
 		if kubeerrors.IsNotFound(err) {
-			return app.createRadixEnvironment(radixEnvironment)
+			return app.createRadixEnvironment(ctx, radixEnvironment)
 		}
 		return fmt.Errorf("failed to get RadixEnvironment: %v", err)
 	}
-	return app.updateRadixEnvironment(radixEnvironment)
+	return app.updateRadixEnvironment(ctx, radixEnvironment)
 }
 
-func (app *ApplicationConfig) createRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment) error {
-	created, err := app.radixclient.RadixV1().RadixEnvironments().Create(context.Background(), radixEnvironment, metav1.CreateOptions{})
+func (app *ApplicationConfig) createRadixEnvironment(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment) error {
+	created, err := app.radixclient.RadixV1().RadixEnvironments().Create(ctx, radixEnvironment, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create RadixEnvironment: %w", err)
 	}
@@ -54,9 +54,9 @@ func (app *ApplicationConfig) createRadixEnvironment(radixEnvironment *radixv1.R
 }
 
 // updateRadixEnvironment updates a RadixEnvironment
-func (app *ApplicationConfig) updateRadixEnvironment(radixEnvironment *radixv1.RadixEnvironment) error {
+func (app *ApplicationConfig) updateRadixEnvironment(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		existingRE, err := app.getRadixEnvironment(radixEnvironment.GetName())
+		existingRE, err := app.getRadixEnvironment(ctx, radixEnvironment.GetName())
 		if err != nil {
 			if kubeerrors.IsNotFound(err) {
 				return nil
@@ -68,7 +68,7 @@ func (app *ApplicationConfig) updateRadixEnvironment(radixEnvironment *radixv1.R
 		newRE := existingRE.DeepCopy()
 		newRE.Spec = radixEnvironment.Spec
 		// Will perform update as patching does not seem to work for this custom resource
-		updated, err := app.kubeutil.UpdateRadixEnvironment(newRE)
+		updated, err := app.kubeutil.UpdateRadixEnvironment(ctx, newRE)
 		if err != nil {
 			return err
 		}
@@ -77,6 +77,6 @@ func (app *ApplicationConfig) updateRadixEnvironment(radixEnvironment *radixv1.R
 	})
 }
 
-func (app *ApplicationConfig) getRadixEnvironment(name string) (*radixv1.RadixEnvironment, error) {
-	return app.kubeutil.RadixClient().RadixV1().RadixEnvironments().Get(context.Background(), name, metav1.GetOptions{})
+func (app *ApplicationConfig) getRadixEnvironment(ctx context.Context, name string) (*radixv1.RadixEnvironment, error) {
+	return app.kubeutil.RadixClient().RadixV1().RadixEnvironments().Get(ctx, name, metav1.GetOptions{})
 }

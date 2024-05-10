@@ -23,8 +23,8 @@ func GetOwnerReference(radixJob *v1.RadixJob) []metav1.OwnerReference {
 }
 
 // GetOwnerReferenceOfJob Gets owner reference of job with name and UUID
-func GetOwnerReferenceOfJob(radixclient radixclient.Interface, namespace, name string) ([]metav1.OwnerReference, error) {
-	job, err := radixclient.RadixV1().RadixJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func GetOwnerReferenceOfJob(ctx context.Context, radixclient radixclient.Interface, namespace, name string) ([]metav1.OwnerReference, error) {
+	job, err := radixclient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@
 package deployment
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -34,29 +35,29 @@ func (m *MockAuxiliaryResourceManager) EXPECT() *MockAuxiliaryResourceManagerMoc
 }
 
 // GarbageCollect mocks base method.
-func (m *MockAuxiliaryResourceManager) GarbageCollect() error {
+func (m *MockAuxiliaryResourceManager) GarbageCollect(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GarbageCollect")
+	ret := m.ctrl.Call(m, "GarbageCollect", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // GarbageCollect indicates an expected call of GarbageCollect.
-func (mr *MockAuxiliaryResourceManagerMockRecorder) GarbageCollect() *gomock.Call {
+func (mr *MockAuxiliaryResourceManagerMockRecorder) GarbageCollect(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GarbageCollect", reflect.TypeOf((*MockAuxiliaryResourceManager)(nil).GarbageCollect))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GarbageCollect", reflect.TypeOf((*MockAuxiliaryResourceManager)(nil).GarbageCollect), ctx)
 }
 
 // Sync mocks base method.
-func (m *MockAuxiliaryResourceManager) Sync() error {
+func (m *MockAuxiliaryResourceManager) Sync(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Sync")
+	ret := m.ctrl.Call(m, "Sync", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Sync indicates an expected call of Sync.
-func (mr *MockAuxiliaryResourceManagerMockRecorder) Sync() *gomock.Call {
+func (mr *MockAuxiliaryResourceManagerMockRecorder) Sync(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockAuxiliaryResourceManager)(nil).Sync))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockAuxiliaryResourceManager)(nil).Sync), ctx)
 }

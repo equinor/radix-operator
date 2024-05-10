@@ -8,15 +8,17 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 // Syncer of  RadixBatch
 type Syncer interface {
 	// OnSync Syncs RadixBatch
-	OnSync() error
+	OnSync(ctx context.Context) error
 }
 
 // NewSyncer Constructor os RadixBatches Syncer
@@ -37,8 +39,13 @@ type syncer struct {
 }
 
 // OnSync Syncs RadixBatches
-func (s *syncer) OnSync() error {
-	if err := s.restoreStatus(); err != nil {
+func (s *syncer) OnSync(ctx context.Context) error {
+	ctx = log.Ctx(ctx).With().
+		Str("resource_kind", radixv1.KindRadixBatch).
+		Str("resource_name", cache.MetaObjectToName(&s.radixBatch.ObjectMeta).String()).
+		Logger().WithContext(ctx)
+
+	if err := s.restoreStatus(ctx); err != nil {
 		return err
 	}
 
@@ -46,29 +53,29 @@ func (s *syncer) OnSync() error {
 		return nil
 	}
 
-	return s.syncStatus(s.reconcile(context.TODO()))
+	return s.syncStatus(ctx, s.reconcile(ctx))
 }
 
 func (s *syncer) reconcile(ctx context.Context) error {
 	const syncStatusForEveryNumberOfBatchJobsReconciled = 10
 
-	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent()
+	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent(ctx)
 	if err != nil {
 		return err
 	}
 
-	existingJobs, err := s.kubeUtil.ListJobsWithSelector(s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
+	existingJobs, err := s.kubeUtil.ListJobsWithSelector(ctx, s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
 
-	existingServices, err := s.kubeUtil.ListServicesWithSelector(s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
+	existingServices, err := s.kubeUtil.ListServicesWithSelector(ctx, s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
-		if err := s.reconcileService(&batchJob, rd, jobComponent, existingServices); err != nil {
+		if err := s.reconcileService(ctx, &batchJob, rd, jobComponent, existingServices); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
@@ -77,7 +84,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 		}
 
 		if i%syncStatusForEveryNumberOfBatchJobsReconciled == 0 {
-			if err := s.syncStatus(nil); err != nil {
+			if err := s.syncStatus(ctx, nil); err != nil {
 				return fmt.Errorf("batchjob %s: failed to sync status: %w", batchJob.Name, err)
 			}
 		}
@@ -86,8 +93,8 @@ func (s *syncer) reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, *radixv1.RadixDeployJobComponent, error) {
-	rd, err := s.getRadixDeployment()
+func (s *syncer) getRadixDeploymentAndJobComponent(ctx context.Context) (*radixv1.RadixDeployment, *radixv1.RadixDeployJobComponent, error) {
+	rd, err := s.getRadixDeployment(ctx)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil, newReconcileRadixDeploymentNotFoundError(s.radixBatch.Spec.RadixDeploymentJobRef.Name)
@@ -103,8 +110,8 @@ func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, 
 	return rd, jobComponent, nil
 }
 
-func (s *syncer) getRadixDeployment() (*radixv1.RadixDeployment, error) {
-	return s.kubeUtil.GetRadixDeployment(s.radixBatch.GetNamespace(), s.radixBatch.Spec.RadixDeploymentJobRef.Name)
+func (s *syncer) getRadixDeployment(ctx context.Context) (*radixv1.RadixDeployment, error) {
+	return s.kubeUtil.GetRadixDeployment(ctx, s.radixBatch.GetNamespace(), s.radixBatch.Spec.RadixDeploymentJobRef.Name)
 }
 
 func (s *syncer) batchIdentifierLabel() labels.Set {

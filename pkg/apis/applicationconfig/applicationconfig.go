@@ -81,17 +81,17 @@ func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) [
 }
 
 // ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it
-func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
+func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Context) error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 
-	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(context.TODO(), app.config.Name, metav1.GetOptions{})
+	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(ctx, app.config.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			app.logger.Debug().Msgf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
-			if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
+			if err = radixvalidators.CanRadixApplicationBeInserted(ctx, app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 				return err
 			}
-			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), app.config, metav1.CreateOptions{})
+			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(ctx, app.config, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create radix application. %v", err)
 			}
@@ -107,7 +107,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		return nil
 	}
 
-	if err = radixvalidators.CanRadixApplicationBeInserted(app.radixclient, app.config, app.dnsAliasConfig); err != nil {
+	if err = radixvalidators.CanRadixApplicationBeInserted(ctx, app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 		return err
 	}
 
@@ -115,7 +115,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	app.logger.Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
 	// For an update, ResourceVersion of the new object must be the same with the old object
 	app.config.SetResourceVersion(existingRA.GetResourceVersion())
-	_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), app.config, metav1.UpdateOptions{})
+	_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(ctx, app.config, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update existing radix application: %w", err)
 	}
@@ -126,23 +126,23 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 // OnSync is called when an application config is applied to application namespace
 // It compares the actual state with the desired, and attempts to
 // converge the two
-func (app *ApplicationConfig) OnSync() error {
-	if err := app.syncEnvironments(); err != nil {
+func (app *ApplicationConfig) OnSync(ctx context.Context) error {
+	if err := app.syncEnvironments(ctx); err != nil {
 		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}
-	if err := app.syncPrivateImageHubSecrets(); err != nil {
+	if err := app.syncPrivateImageHubSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to create private image hub secrets: %w", err)
 	}
 
-	if err := app.syncBuildSecrets(); err != nil {
+	if err := app.syncBuildSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to create build secrets: %w", err)
 	}
 
-	if err := app.syncDNSAliases(); err != nil {
+	if err := app.syncDNSAliases(ctx); err != nil {
 		return fmt.Errorf("failed to process DNS aliases: %w", err)
 	}
 
-	if err := app.syncSubPipelineServiceAccounts(); err != nil {
+	if err := app.syncSubPipelineServiceAccounts(ctx); err != nil {
 		return fmt.Errorf("failed to sync pipeline service accounts: %w", err)
 	}
 

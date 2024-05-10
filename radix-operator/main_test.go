@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -31,7 +32,7 @@ configuration:
 		{Name: "foo", Annotations: map[string]string{"foo1": "x"}},
 		{Name: "bar", Annotations: map[string]string{"bar1": "x", "bar2": "y"}},
 	}
-	actual, _ := loadIngressConfigFromMap(kubeutil)
+	actual, _ := loadIngressConfigFromMap(context.Background(), kubeutil)
 	assert.ElementsMatch(t, expected, actual.AnnotationConfigurations)
 
 }

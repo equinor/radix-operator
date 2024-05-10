@@ -16,36 +16,36 @@ import (
 )
 
 // CreateConfigMap Create config map
-func (kubeutil *Kube) CreateConfigMap(namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.TODO(),
+func (kubeutil *Kube) CreateConfigMap(ctx context.Context, namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx,
 		configMap,
 		metav1.CreateOptions{})
 }
 
 // GetConfigMap Gets config map by name
-func (kubeutil *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, error) {
-	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func (kubeutil *Kube) GetConfigMap(ctx context.Context, namespace, name string) (*corev1.ConfigMap, error) {
+	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 // ListConfigMaps Lists config maps in namespace
-func (kubeutil *Kube) ListConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, "")
+func (kubeutil *Kube) ListConfigMaps(ctx context.Context, namespace string) ([]*corev1.ConfigMap, error) {
+	return kubeutil.ListConfigMapsWithSelector(ctx, namespace, "")
 }
 
 // ListEnvVarsConfigMaps Lists config maps which contain env vars
-func (kubeutil *Kube) ListEnvVarsConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, getEnvVarsConfigMapSelector().String())
+func (kubeutil *Kube) ListEnvVarsConfigMaps(ctx context.Context, namespace string) ([]*corev1.ConfigMap, error) {
+	return kubeutil.ListConfigMapsWithSelector(ctx, namespace, getEnvVarsConfigMapSelector().String())
 }
 
 // ListEnvVarsMetadataConfigMaps Lists config maps which contain metadata of env vars
-func (kubeutil *Kube) ListEnvVarsMetadataConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, getEnvVarsMetadataConfigMapSelector().String())
+func (kubeutil *Kube) ListEnvVarsMetadataConfigMaps(ctx context.Context, namespace string) ([]*corev1.ConfigMap, error) {
+	return kubeutil.ListConfigMapsWithSelector(ctx, namespace, getEnvVarsMetadataConfigMapSelector().String())
 }
 
 // UpdateConfigMap Update config-maps
-func (kubeutil *Kube) UpdateConfigMap(namespace string, configMaps ...*corev1.ConfigMap) error {
+func (kubeutil *Kube) UpdateConfigMap(ctx context.Context, namespace string, configMaps ...*corev1.ConfigMap) error {
 	for _, configMap := range configMaps {
-		_, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+		_, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Update(ctx, configMap, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -54,14 +54,14 @@ func (kubeutil *Kube) UpdateConfigMap(namespace string, configMaps ...*corev1.Co
 }
 
 // DeleteConfigMap Deletes config-maps
-func (kubeutil *Kube) DeleteConfigMap(namespace string, name string) error {
-	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Delete(context.TODO(),
+func (kubeutil *Kube) DeleteConfigMap(ctx context.Context, namespace string, name string) error {
+	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Delete(ctx,
 		name,
 		metav1.DeleteOptions{})
 }
 
 // ApplyConfigMap Patch changes of environment-variables to config-map if any
-func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desiredConfigMap *corev1.ConfigMap) error {
+func (kubeutil *Kube) ApplyConfigMap(ctx context.Context, namespace string, currentConfigMap, desiredConfigMap *corev1.ConfigMap) error {
 	currentConfigMapJSON, err := json.Marshal(currentConfigMap)
 	if err != nil {
 		return fmt.Errorf("failed to marshal old config-map object: %v", err)
@@ -83,7 +83,7 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 	}
 
 	log.Debug().Msgf("Patch: %s", string(patchBytes))
-	patchedConfigMap, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Patch(context.TODO(), currentConfigMap.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	patchedConfigMap, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Patch(ctx, currentConfigMap.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to patch config-map object: %v", err)
 	}
@@ -92,9 +92,9 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 }
 
 // ListConfigMapsWithSelector Get a list of ConfigMaps by Label requirements
-func (kubeutil *Kube) ListConfigMapsWithSelector(namespace string, labelSelectorString string) ([]*corev1.ConfigMap, error) {
+func (kubeutil *Kube) ListConfigMapsWithSelector(ctx context.Context, namespace string, labelSelectorString string) ([]*corev1.ConfigMap, error) {
 	listOptions := metav1.ListOptions{LabelSelector: labelSelectorString}
-	list, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).List(context.TODO(), listOptions)
+	list, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}

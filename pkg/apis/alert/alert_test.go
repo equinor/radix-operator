@@ -115,7 +115,7 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 	radixAlert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixAlert, metav1.CreateOptions{})
 
 	sut := s.createAlertSyncer(radixAlert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	_, err = s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
@@ -137,7 +137,7 @@ func (s *alertTestSuite) Test_OnSync_Rbac_SkipCreateOnMissingRR() {
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
 
 	sut := s.createAlertSyncer(radixalert)
-	err := sut.OnSync()
+	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
@@ -163,7 +163,7 @@ func (s *alertTestSuite) Test_OnSync_Rbac_DeleteExistingOnMissingRR() {
 	s.Nil(err)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
@@ -187,7 +187,7 @@ func (s *alertTestSuite) Test_OnSync_Rbac_CreateWithOwnerReference() {
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
@@ -230,7 +230,7 @@ func (s *alertTestSuite) Test_OnSync_Rbac_UpdateWithOwnerReference() {
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
@@ -261,7 +261,7 @@ func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 	s.Require().NoError(err)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualAdminRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretAdminRoleName(alertName), metav1.GetOptions{})
@@ -312,7 +312,7 @@ func (s *alertTestSuite) Test_OnSync_Secret_RemoveOrphanedKeys() {
 	s.Require().NoError(err)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
@@ -332,7 +332,7 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithOwnerReference() {
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
 	sut := s.createAlertSyncer(radixalert)
-	err := sut.OnSync()
+	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
@@ -353,7 +353,7 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateWithOwnerReference() {
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
@@ -371,7 +371,7 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithAppLabel() {
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
 
 	sut := s.createAlertSyncer(radixalert)
-	err := sut.OnSync()
+	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
@@ -388,7 +388,7 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithoutAppLabel() {
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
 
 	sut := s.createAlertSyncer(radixalert)
-	err := sut.OnSync()
+	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
@@ -407,7 +407,7 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateSetAppLabel() {
 	s.Nil(err)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
@@ -426,7 +426,7 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateRemoveAppLabel() {
 	s.Nil(err)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
@@ -444,7 +444,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_CreateWithOwnerReference
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
 	sut := s.createAlertSyncer(radixalert)
-	err := sut.OnSync()
+	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
@@ -465,7 +465,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_UpdateWithOwnerReference
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
 	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
@@ -547,7 +547,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	}
 
 	sut := s.createAlertSyncer(radixalert, testAlertSyncerWithAlertConfigs(alertConfigs), testAlertSyncerWithSlackMessageTemplate(slackTemplate))
-	err := sut.OnSync()
+	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	// Receivers
@@ -609,7 +609,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	radixalert, err = s.radixClient.RadixV1().RadixAlerts(namespace).Update(context.Background(), radixalert, metav1.UpdateOptions{})
 	s.Nil(err)
 	sut = s.createAlertSyncer(radixalert, testAlertSyncerWithAlertConfigs(alertConfigs), testAlertSyncerWithSlackMessageTemplate(slackTemplate))
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
 	actualAmr, _ = s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})

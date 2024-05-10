@@ -28,7 +28,7 @@ func (f AlertSyncerFactoryFunc) CreateAlertSyncer(
 	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, radixAlert)
 }
 
-//AlertSyncerFactory defines a factory to create a DeploymentSyncer
+// AlertSyncerFactory defines a factory to create a DeploymentSyncer
 type AlertSyncerFactory interface {
 	CreateAlertSyncer(
 		kubeclient kubernetes.Interface,

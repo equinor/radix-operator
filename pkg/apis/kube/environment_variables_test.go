@@ -51,7 +51,7 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 			Data:       nil,
 		}
 
-		configMap, err := kube.GetEnvVarsMetadataFromConfigMap(&testConfigMap)
+		configMap, err := kube.GetEnvVarsMetadataFromConfigMap(context.Background(), &testConfigMap)
 		assert.NoError(t, err)
 		assert.NotNil(t, configMap)
 		assert.Len(t, configMap, 0)
@@ -71,7 +71,7 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 											`},
 		}
 
-		metadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(&testConfigMap)
+		metadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(context.Background(), &testConfigMap)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, metadataMap)
@@ -91,7 +91,7 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 			Data:       map[string]string{"metadata": "invalid-value"},
 		}
 
-		metadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(&testConfigMap)
+		metadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(context.Background(), &testConfigMap)
 
 		assert.NotNil(t, err)
 		assert.Nil(t, metadataMap)
@@ -145,7 +145,7 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 		createEnvVarConfigMapFunc(testEnv)
 		createEnvVarMetadataConfigMapFunc(testEnv)
 
-		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(namespace, componentName)
+		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, componentName)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
@@ -172,7 +172,7 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 		testEnv := getEnvironmentVariablesTestEnv()
 		createEnvVarMetadataConfigMapFunc(testEnv)
 
-		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(namespace, componentName)
+		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, componentName)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "configmaps \"env-vars-comp1\" not found", err.Error())
@@ -185,7 +185,7 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 		testEnv := getEnvironmentVariablesTestEnv()
 		createEnvVarConfigMapFunc(testEnv)
 
-		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(namespace, componentName)
+		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, componentName)
 
 		assert.NotNil(t, err)
 		assert.Equal(t, "configmaps \"env-vars-metadata-comp1\" not found", err.Error())
@@ -270,7 +270,7 @@ func Test_ApplyEnvVarsMetadataConfigMap(t *testing.T) {
 			}}, metav1.CreateOptions{})
 		require.NoError(t, err)
 
-		err = testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(namespace, &currentMetadataConfigMap, metadata)
+		err = testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(context.Background(), namespace, &currentMetadataConfigMap, metadata)
 		assert.NoError(t, err)
 
 		configMap, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
@@ -292,7 +292,7 @@ func Test_ApplyEnvVarsMetadataConfigMap(t *testing.T) {
 	t.Run("Fail to save to non-existing config-map", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
-		err := testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(namespace, &currentMetadataConfigMap, metadata)
+		err := testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(context.Background(), namespace, &currentMetadataConfigMap, metadata)
 		assert.NotNil(t, err)
 		assert.Equal(t, "failed to patch config-map object: configmaps \"env-vars-metadata-comp1\" not found", err.Error())
 	})
@@ -337,7 +337,7 @@ func Test_GetEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(namespace, componentName)
+		envVarsConfigMap, envVarsMetadataConfigMap, metadataMap, err := testEnv.kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, componentName)
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
 		assert.NotNil(t, envVarsConfigMap.Data)
@@ -369,7 +369,7 @@ func Test_GetOrCreateEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
 
-		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appName, componentName)
+		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, appName, componentName)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
@@ -415,7 +415,7 @@ func Test_GetOrCreateEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appName, componentName)
+		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, appName, componentName)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)

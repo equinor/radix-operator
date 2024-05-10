@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -24,7 +23,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixBatches
-func NewController(client kubernetes.Interface,
+func NewController(ctx context.Context, client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
@@ -41,7 +40,7 @@ func NewController(client kubernetes.Interface,
 		RadixClient:           radixClient,
 		Informer:              batchInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -94,10 +93,10 @@ func NewController(client kubernetes.Interface,
 			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
 				return
 			}
-			controller.HandleObject(newObj, radixv1.KindRadixBatch, getOwner)
+			controller.HandleObject(ctx, newObj, radixv1.KindRadixBatch, getOwner)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, radixv1.KindRadixBatch, getOwner)
+			controller.HandleObject(ctx, obj, radixv1.KindRadixBatch, getOwner)
 		},
 	}); err != nil {
 		panic(err)
@@ -109,6 +108,6 @@ func deepEqual(old, new *radixv1.RadixBatch) bool {
 	return reflect.DeepEqual(new.Spec, old.Spec)
 }
 
-func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixBatches(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func getOwner(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixBatches(namespace).Get(ctx, name, metav1.GetOptions{})
 }

@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -11,9 +12,9 @@ import (
 )
 
 const (
-	envVarsPrefix               = "env-vars"          //Environment variables
-	envVarsMetadataPrefix       = "env-vars-metadata" //Metadata for environment variables
-	envVarsMetadataPropertyName = "metadata"          //Metadata property for environment variables in config-map
+	envVarsPrefix               = "env-vars"          // Environment variables
+	envVarsMetadataPrefix       = "env-vars-metadata" // Metadata for environment variables
+	envVarsMetadataPropertyName = "metadata"          // Metadata property for environment variables in config-map
 )
 
 // EnvVarMetadata Metadata for environment variables
@@ -32,7 +33,7 @@ func GetEnvVarsMetadataConfigMapName(componentName string) string {
 }
 
 // GetEnvVarsMetadataFromConfigMap Get environment-variables metadata from config-map
-func GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *corev1.ConfigMap) (map[string]EnvVarMetadata, error) {
+func GetEnvVarsMetadataFromConfigMap(ctx context.Context, envVarsMetadataConfigMap *corev1.ConfigMap) (map[string]EnvVarMetadata, error) {
 	envVarsMetadata, ok := envVarsMetadataConfigMap.Data[envVarsMetadataPropertyName]
 	if !ok {
 		return map[string]EnvVarMetadata{}, nil
@@ -46,12 +47,12 @@ func GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *corev1.ConfigMap)
 }
 
 // GetEnvVarsConfigMapAndMetadataMap Get environment-variables config-map, environment-variables metadata config-map and metadata map from it
-func (kubeutil *Kube) GetEnvVarsConfigMapAndMetadataMap(namespace string, componentName string) (*corev1.ConfigMap, *corev1.ConfigMap, map[string]EnvVarMetadata, error) {
-	envVarsConfigMap, err := kubeutil.GetConfigMap(namespace, GetEnvVarsConfigMapName(componentName))
+func (kubeutil *Kube) GetEnvVarsConfigMapAndMetadataMap(ctx context.Context, namespace string, componentName string) (*corev1.ConfigMap, *corev1.ConfigMap, map[string]EnvVarMetadata, error) {
+	envVarsConfigMap, err := kubeutil.GetConfigMap(ctx, namespace, GetEnvVarsConfigMapName(componentName))
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	envVarsMetadataConfigMap, envVarsMetadataMap, err := kubeutil.GetEnvVarsMetadataConfigMapAndMap(namespace, componentName)
+	envVarsMetadataConfigMap, envVarsMetadataMap, err := kubeutil.GetEnvVarsMetadataConfigMapAndMap(ctx, namespace, componentName)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -59,12 +60,12 @@ func (kubeutil *Kube) GetEnvVarsConfigMapAndMetadataMap(namespace string, compon
 }
 
 // GetEnvVarsMetadataConfigMapAndMap Get environment-variables metadata config-map and map from it
-func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(namespace string, componentName string) (*corev1.ConfigMap, map[string]EnvVarMetadata, error) {
-	envVarsMetadataConfigMap, err := kubeutil.GetConfigMap(namespace, GetEnvVarsMetadataConfigMapName(componentName))
+func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(ctx context.Context, namespace string, componentName string) (*corev1.ConfigMap, map[string]EnvVarMetadata, error) {
+	envVarsMetadataConfigMap, err := kubeutil.GetConfigMap(ctx, namespace, GetEnvVarsMetadataConfigMapName(componentName))
 	if err != nil {
 		return nil, nil, err
 	}
-	envVarsMetadataMap, err := GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+	envVarsMetadataMap, err := GetEnvVarsMetadataFromConfigMap(ctx, envVarsMetadataConfigMap)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -72,13 +73,13 @@ func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(namespace string, compon
 }
 
 // ApplyEnvVarsMetadataConfigMap Save changes of environment-variables metadata to config-map
-func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, envVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]EnvVarMetadata) error {
+func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(ctx context.Context, namespace string, envVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]EnvVarMetadata) error {
 	desiredEnvVarsMetadataConfigMap := envVarsMetadataConfigMap.DeepCopy()
 	err := SetEnvVarsMetadataMapToConfigMap(desiredEnvVarsMetadataConfigMap, envVarsMetadataMap)
 	if err != nil {
 		return err
 	}
-	return kubeutil.ApplyConfigMap(namespace, envVarsMetadataConfigMap, desiredEnvVarsMetadataConfigMap)
+	return kubeutil.ApplyConfigMap(ctx, namespace, envVarsMetadataConfigMap, desiredEnvVarsMetadataConfigMap)
 }
 
 // SetEnvVarsMetadataMapToConfigMap Set environment-variables metadata to config-map
@@ -95,8 +96,8 @@ func SetEnvVarsMetadataMapToConfigMap(configMap *corev1.ConfigMap, envVarsMetada
 }
 
 // GetOrCreateEnvVarsConfigMapAndMetadataMap Get environment variables and its metadata config-maps
-func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appName, componentName string) (*corev1.ConfigMap, *corev1.ConfigMap, error) {
-	envVarConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsConfigMap(namespace, appName, componentName)
+func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx context.Context, namespace, appName, componentName string) (*corev1.ConfigMap, *corev1.ConfigMap, error) {
+	envVarConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsConfigMap(ctx, namespace, appName, componentName)
 	if err != nil {
 		err := fmt.Errorf("failed to create config-map for environment variables methadata: %w", err)
 		return nil, nil, err
@@ -104,7 +105,7 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 	if envVarConfigMap.Data == nil {
 		envVarConfigMap.Data = make(map[string]string)
 	}
-	envVarMetadataConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName)
+	envVarMetadataConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsMetadataConfigMap(ctx, namespace, appName, componentName)
 	if err != nil {
 		err := fmt.Errorf("failed to create config-map for environment variables methadata: %w", err)
 		return nil, nil, err
@@ -115,45 +116,45 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 	return envVarConfigMap, envVarMetadataConfigMap, err
 }
 
-func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMap(namespace, appName, componentName string) (*corev1.ConfigMap, error) {
-	configMap, err := kubeutil.getRadixConfigEnvVarsConfigMap(namespace, GetEnvVarsConfigMapName(componentName))
+func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMap(ctx context.Context, namespace, appName, componentName string) (*corev1.ConfigMap, error) {
+	configMap, err := kubeutil.getRadixConfigEnvVarsConfigMap(ctx, namespace, GetEnvVarsConfigMapName(componentName))
 	if err != nil && !k8sErrors.IsNotFound(err) {
 		return nil, err
 	}
 	if configMap != nil {
-		//HACK: fix a label radix-app, if it is wrong. Delete this code after radix-operator fix all env-var config-maps
-		configMap, err = kubeutil.fixRadixAppNameLabel(namespace, appName, configMap)
+		// HACK: fix a label radix-app, if it is wrong. Delete this code after radix-operator fix all env-var config-maps
+		configMap, err = kubeutil.fixRadixAppNameLabel(ctx, namespace, appName, configMap)
 		if err != nil {
 			return nil, err
 		}
 		return configMap, nil
 	}
 	configMap = BuildRadixConfigEnvVarsConfigMap(appName, componentName)
-	return kubeutil.CreateConfigMap(namespace, configMap)
+	return kubeutil.CreateConfigMap(ctx, namespace, configMap)
 }
 
-func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName string) (*corev1.ConfigMap, error) {
-	configMap, err := kubeutil.getRadixConfigEnvVarsConfigMap(namespace, GetEnvVarsMetadataConfigMapName(componentName))
+func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsMetadataConfigMap(ctx context.Context, namespace, appName, componentName string) (*corev1.ConfigMap, error) {
+	configMap, err := kubeutil.getRadixConfigEnvVarsConfigMap(ctx, namespace, GetEnvVarsMetadataConfigMapName(componentName))
 	if err != nil && !k8sErrors.IsNotFound(err) {
 		return nil, err
 	}
 	if configMap != nil {
-		//HACK: fix a label radix-app, if it is wrong. Delete this code after radix-operator fix all env-var config-maps
-		configMap, err = kubeutil.fixRadixAppNameLabel(namespace, appName, configMap)
+		// HACK: fix a label radix-app, if it is wrong. Delete this code after radix-operator fix all env-var config-maps
+		configMap, err = kubeutil.fixRadixAppNameLabel(ctx, namespace, appName, configMap)
 		if err != nil {
 			return nil, err
 		}
 		return configMap, nil
 	}
 	configMap = BuildRadixConfigEnvVarsMetadataConfigMap(appName, componentName)
-	return kubeutil.CreateConfigMap(namespace, configMap)
+	return kubeutil.CreateConfigMap(ctx, namespace, configMap)
 }
 
-func (kubeutil *Kube) fixRadixAppNameLabel(namespace string, appName string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+func (kubeutil *Kube) fixRadixAppNameLabel(ctx context.Context, namespace string, appName string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
 	if appNameLabel, ok := configMap.ObjectMeta.Labels[RadixAppLabel]; ok && !strings.EqualFold(appNameLabel, appName) {
 		desiredConfigMap := configMap.DeepCopy()
 		desiredConfigMap.ObjectMeta.Labels[RadixAppLabel] = appName
-		err := kubeutil.ApplyConfigMap(namespace, configMap, desiredConfigMap)
+		err := kubeutil.ApplyConfigMap(ctx, namespace, configMap, desiredConfigMap)
 		if err != nil {
 			return nil, err
 		}
@@ -187,11 +188,11 @@ func buildRadixConfigEnvVarsConfigMapForType(configMapType RadixConfigMapType, a
 	}
 }
 
-func (kubeutil *Kube) getRadixConfigEnvVarsConfigMap(namespace, configMapName string) (*corev1.ConfigMap, error) {
-	configMap, err := kubeutil.GetConfigMap(namespace, configMapName)
+func (kubeutil *Kube) getRadixConfigEnvVarsConfigMap(ctx context.Context, namespace, configMapName string) (*corev1.ConfigMap, error) {
+	configMap, err := kubeutil.GetConfigMap(ctx, namespace, configMapName)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			return nil, nil //due to k8s api returns pointer to an empty config-map
+			return nil, nil // due to k8s api returns pointer to an empty config-map
 		}
 		return nil, err
 	}

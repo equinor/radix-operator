@@ -10,18 +10,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) createOrUpdateService(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	ports := deployComponent.GetPorts()
 	if len(ports) == 0 {
 		return nil
 	}
 	service := getServiceConfig(deployComponent, deploy.radixDeployment, ports)
-	return deploy.kubeutil.ApplyService(namespace, service)
+	return deploy.kubeutil.ApplyService(ctx, namespace, service)
 }
 
-func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
-	services, err := deploy.kubeutil.ListServices(deploy.radixDeployment.GetNamespace())
+func (deploy *Deployment) garbageCollectServicesNoLongerInSpec(ctx context.Context) error {
+	services, err := deploy.kubeutil.ListServices(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 			continue
 		}
 		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
-			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), service.Name, metav1.DeleteOptions{}); err != nil {
+			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
 				return err
 			}
 		}

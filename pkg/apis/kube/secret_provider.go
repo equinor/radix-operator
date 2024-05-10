@@ -45,14 +45,14 @@ type SecretProviderClassParameterObject struct {
 }
 
 // GetSecretProviderClass Gets secret provider class
-func (kubeutil *Kube) GetSecretProviderClass(namespace string, className string) (*secretsstorev1.SecretProviderClass, error) {
-	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Get(context.Background(), className, metav1.GetOptions{})
+func (kubeutil *Kube) GetSecretProviderClass(ctx context.Context, namespace string, className string) (*secretsstorev1.SecretProviderClass, error) {
+	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Get(ctx, className, metav1.GetOptions{})
 }
 
 // CreateSecretProviderClass Creates secret provider class to namespace
-func (kubeutil *Kube) CreateSecretProviderClass(namespace string, secretProviderClass *secretsstorev1.SecretProviderClass) (savedSecret *secretsstorev1.SecretProviderClass, err error) {
+func (kubeutil *Kube) CreateSecretProviderClass(ctx context.Context, namespace string, secretProviderClass *secretsstorev1.SecretProviderClass) (savedSecret *secretsstorev1.SecretProviderClass, err error) {
 	log.Debug().Msgf("Create secret provider class %s in namespace %s", secretProviderClass.GetName(), namespace)
-	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Create(context.TODO(), secretProviderClass, metav1.CreateOptions{})
+	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Create(ctx, secretProviderClass, metav1.CreateOptions{})
 }
 
 // GetComponentSecretProviderClassName Gets unique name of the component secret storage class

@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -28,7 +27,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixRegistrations
-func NewController(client kubernetes.Interface,
+func NewController(ctx context.Context, client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
@@ -43,7 +42,7 @@ func NewController(client kubernetes.Interface,
 		RadixClient:           radixClient,
 		Informer:              registrationInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:               handler,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
@@ -94,7 +93,7 @@ func NewController(client kubernetes.Interface,
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, v1.KindRadixRegistration, getObject)
+			controller.HandleObject(ctx, obj, v1.KindRadixRegistration, getObject)
 		},
 	}); err != nil {
 		panic(err)
@@ -105,7 +104,7 @@ func NewController(client kubernetes.Interface,
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldSecret := oldObj.(*corev1.Secret)
 			newSecret := newObj.(*corev1.Secret)
-			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), oldSecret.Namespace, metav1.GetOptions{})
+			namespace, err := client.CoreV1().Namespaces().Get(ctx, oldSecret.Namespace, metav1.GetOptions{})
 			if err != nil {
 				logger.Error().Err(err).Msg("Failed to get namespace")
 				return
@@ -118,7 +117,7 @@ func NewController(client kubernetes.Interface,
 			if isGitDeployKey(newSecret) && newSecret.Namespace != "" {
 				// Resync, as deploy key is updated. Resync is triggered on namespace, since RR not directly own the
 				// secret
-				controller.HandleObject(namespace, v1.KindRadixRegistration, getObject)
+				controller.HandleObject(ctx, namespace, v1.KindRadixRegistration, getObject)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -127,7 +126,7 @@ func NewController(client kubernetes.Interface,
 				logger.Error().Msg("corev1.Secret object cast failed during deleted event received.")
 				return
 			}
-			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), secret.Namespace, metav1.GetOptions{})
+			namespace, err := client.CoreV1().Namespaces().Get(ctx, secret.Namespace, metav1.GetOptions{})
 			if err != nil {
 				// Ignore error if namespace does not exist.
 				// This is normal when a RR is deleted, resulting in deletion of namespaces and it's secrets
@@ -140,7 +139,7 @@ func NewController(client kubernetes.Interface,
 			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {
 				// Resync, as deploy key is deleted. Resync is triggered on namespace, since RR not directly own the
 				// secret
-				controller.HandleObject(namespace, v1.KindRadixRegistration, getObject)
+				controller.HandleObject(ctx, namespace, v1.KindRadixRegistration, getObject)
 			}
 		},
 	}); err != nil {
@@ -164,6 +163,6 @@ func deepEqual(old, new *v1.RadixRegistration) bool {
 	return true
 }
 
-func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), name, metav1.GetOptions{})
+func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixRegistrations().Get(ctx, name, metav1.GetOptions{})
 }

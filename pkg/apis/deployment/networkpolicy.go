@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"errors"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -12,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) setDefaultNetworkPolicies() error {
+func (deploy *Deployment) setDefaultNetworkPolicies(ctx context.Context) error {
 	appName := deploy.registration.GetName()
 	env := deploy.radixDeployment.Spec.Environment
 
@@ -28,7 +29,7 @@ func (deploy *Deployment) setDefaultNetworkPolicies() error {
 
 	var errs []error
 	for _, networkPolicy := range networkPolicies {
-		err := deploy.kubeutil.ApplyNetworkPolicy(networkPolicy, ns)
+		err := deploy.kubeutil.ApplyNetworkPolicy(ctx, networkPolicy, ns)
 		if err != nil {
 			errs = append(errs, err)
 		}

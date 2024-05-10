@@ -51,10 +51,10 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
-		err := app.OnSync()
+		err := app.OnSync(context.Background())
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
-			context.TODO(),
+			context.Background(),
 			metav1.ListOptions{
 				LabelSelector: label,
 			})
@@ -62,10 +62,10 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
-		err := app.OnSync()
+		err := app.OnSync(context.Background())
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
-			context.TODO(),
+			context.Background(),
 			metav1.ListOptions{
 				LabelSelector: label,
 			})
@@ -79,7 +79,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 
 	// Create environments manually
 	_, err := radixClient.RadixV1().RadixEnvironments().Create(
-		context.TODO(),
+		context.Background(),
 		&radixv1.RadixEnvironment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   "any-app-qa",
@@ -90,7 +90,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = radixClient.RadixV1().RadixEnvironments().Create(
-		context.TODO(),
+		context.Background(),
 		&radixv1.RadixEnvironment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   "any-app-prod",
@@ -116,10 +116,10 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
-	err = app.OnSync()
+	err = app.OnSync(context.Background())
 	assert.NoError(t, err)
 	environments, err := radixClient.RadixV1().RadixEnvironments().List(
-		context.TODO(),
+		context.Background(),
 		metav1.ListOptions{
 			LabelSelector: label,
 		})
@@ -220,7 +220,7 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 			WithBuildSecrets("secret1", "secret2"))
 	require.NoError(t, err)
 
-	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.Background(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
 	buildSecrets := getSecretByName(defaults.BuildSecretsName, secrets)
@@ -229,11 +229,11 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret1"])
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
 
-	roles, _ := client.RbacV1().Roles(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles(appNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-admin-build-secrets", roles))
 	assert.True(t, roleByNameExists("pipeline-build-secrets", roles))
 
-	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
 	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 
@@ -244,7 +244,7 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 			WithBuildSecrets("secret4", "secret5", "secret6"))
 	require.NoError(t, err)
 
-	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.Background(), metav1.ListOptions{})
 	buildSecrets = getSecretByName(defaults.BuildSecretsName, secrets)
 	assert.Equal(t, 3, len(buildSecrets.Data))
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret4"])
@@ -263,7 +263,7 @@ func Test_SubPipelineServiceAccountsCorrectlySynced(t *testing.T) {
 			WithAppName("any-app"))
 	require.NoError(t, err)
 
-	accounts, err := client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	accounts, err := client.CoreV1().ServiceAccounts(appNamespace).List(context.Background(), metav1.ListOptions{})
 	require.NoError(t, err)
 
 	saTest := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
@@ -280,7 +280,7 @@ func Test_SubPipelineServiceAccountsCorrectlySynced(t *testing.T) {
 			WithEnvironment("prod", "release"))
 	require.NoError(t, err)
 
-	accounts, _ = client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	accounts, _ = client.CoreV1().ServiceAccounts(appNamespace).List(context.Background(), metav1.ListOptions{})
 	saProd = getServiceAccountByName(utils.GetSubPipelineServiceAccountName("prod"), accounts)
 	assert.NotNil(t, saProd)
 	assert.Equal(t, "true", saProd.Labels[kube.IsServiceAccountForSubPipelineLabel])
@@ -297,7 +297,7 @@ func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
 			WithEnvironment("prod", "release"))
 	require.NoError(t, err)
 
-	accounts, err := client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	accounts, err := client.CoreV1().ServiceAccounts(appNamespace).List(context.Background(), metav1.ListOptions{})
 	require.NoError(t, err)
 
 	saTest := getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
@@ -313,7 +313,7 @@ func Test_SubPipelineServiceAccountsCorrectlyDeleted(t *testing.T) {
 			WithEnvironment("dev", "master"))
 	require.NoError(t, err)
 
-	accounts, _ = client.CoreV1().ServiceAccounts(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	accounts, _ = client.CoreV1().ServiceAccounts(appNamespace).List(context.Background(), metav1.ListOptions{})
 
 	saTest = getServiceAccountByName(utils.GetSubPipelineServiceAccountName("test"), accounts)
 	assert.NotNil(t, saTest)
@@ -341,7 +341,7 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithBuildSecrets("secret2"))
 	require.NoError(t, err)
 
-	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.Background(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
 	buildSecrets := getSecretByName(defaults.BuildSecretsName, secrets)
@@ -359,15 +359,15 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 	require.NoError(t, err)
 
 	// Secret is deleted
-	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.False(t, secretByNameExists(defaults.BuildSecretsName, secrets))
 
-	roles, _ := client.RbacV1().Roles(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles(appNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.False(t, roleByNameExists("radix-app-admin-build-secrets", roles))
 	assert.False(t, roleByNameExists("radix-app-reader-build-secrets", roles))
 	assert.False(t, roleByNameExists("pipeline-build-secrets", roles))
 
-	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.False(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
 	assert.False(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 	assert.False(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
@@ -383,10 +383,10 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 			WithBuildSecrets("secret1", "secret2"))
 	require.NoError(t, err)
 
-	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-reader-build-secrets", roles))
 
-	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.True(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 
 	// Delete secret and verify that role and rolebinding is deleted
@@ -396,10 +396,10 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 			WithEnvironment("dev", "master"))
 	require.NoError(t, err)
 
-	roles, _ = client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	roles, _ = client.RbacV1().Roles("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.False(t, roleByNameExists("radix-app-reader-build-secrets", roles))
 
-	rolebindings, _ = client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	rolebindings, _ = client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.False(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 }
 
@@ -424,8 +424,8 @@ func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 		{roleName: "radix-private-image-hubs", expectedVerbs: []string{"get", "list", "watch", "update", "patch", "delete"}, expectedSubjects: adminGroups},
 	}
 
-	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles("any-app-app").List(context.Background(), metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 
 	for _, test := range tests {
 		t.Run(test.roleName, func(t *testing.T) {
@@ -450,7 +450,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 		},
 	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
@@ -477,7 +477,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) 
 		},
 	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
@@ -499,7 +499,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateUsername(t *testing.T) {
 		},
 	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abb2\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmIyOg==\"}}}",
@@ -520,7 +520,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T)
 			Email:    "radix@equinor.com",
 		},
 	})
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme1.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
@@ -539,7 +539,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		},
 	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
@@ -551,7 +551,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		},
 	})
 
-	secret, _ = client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
@@ -565,9 +565,9 @@ func Test_RadixEnvironment(t *testing.T) {
 			WithAppName("any-app"))
 	require.NoError(t, err)
 
-	rr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), "any-app", metav1.GetOptions{})
+	rr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), "any-app", metav1.GetOptions{})
 
-	environments, err := radixClient.RadixV1().RadixEnvironments().List(context.TODO(), metav1.ListOptions{})
+	environments, err := radixClient.RadixV1().RadixEnvironments().List(context.Background(), metav1.ListOptions{})
 
 	t.Run("It creates a single environment", func(t *testing.T) {
 		assert.NoError(t, err)
@@ -619,7 +619,7 @@ func Test_UseBuildKit(t *testing.T) {
 		err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra)
 		require.NoError(t, err)
 
-		raAfterSync, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.TODO(), testScenario.appName, metav1.GetOptions{})
+		raAfterSync, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.Background(), testScenario.appName, metav1.GetOptions{})
 
 		var useBuildKit *bool
 		if raAfterSync.Spec.Build == nil {
@@ -696,7 +696,7 @@ func applyRadixAppWithPrivateImageHub(t *testing.T, privateImageHubs radixv1.Pri
 
 func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) *applicationconfig.ApplicationConfig {
 	ra := applicationBuilder.BuildRA()
-	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
+	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), ra.Name, metav1.GetOptions{})
 
 	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 }
@@ -709,14 +709,14 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
+	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), ra.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 
-	err = applicationConfig.OnSync()
+	err = applicationConfig.OnSync(context.Background())
 	if err != nil {
 		return err
 	}

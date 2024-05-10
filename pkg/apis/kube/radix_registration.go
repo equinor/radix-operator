@@ -10,7 +10,7 @@ import (
 )
 
 // GetRegistration Gets registration using lister if present
-func (kubeutil *Kube) GetRegistration(name string) (*v1.RadixRegistration, error) {
+func (kubeutil *Kube) GetRegistration(ctx context.Context, name string) (*v1.RadixRegistration, error) {
 	var registration *v1.RadixRegistration
 	var err error
 
@@ -20,7 +20,7 @@ func (kubeutil *Kube) GetRegistration(name string) (*v1.RadixRegistration, error
 			return nil, err
 		}
 	} else {
-		registration, err = kubeutil.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), name, metav1.GetOptions{})
+		registration, err = kubeutil.radixclient.RadixV1().RadixRegistrations().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -30,7 +30,7 @@ func (kubeutil *Kube) GetRegistration(name string) (*v1.RadixRegistration, error
 }
 
 // ListRegistrations lists registrations
-func (kubeutil *Kube) ListRegistrations() ([]*v1.RadixRegistration, error) {
+func (kubeutil *Kube) ListRegistrations(ctx context.Context) ([]*v1.RadixRegistration, error) {
 	var registrations []*v1.RadixRegistration
 	var err error
 
@@ -40,7 +40,7 @@ func (kubeutil *Kube) ListRegistrations() ([]*v1.RadixRegistration, error) {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.radixclient.RadixV1().RadixRegistrations().List(context.TODO(), metav1.ListOptions{})
+		list, err := kubeutil.radixclient.RadixV1().RadixRegistrations().List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}

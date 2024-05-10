@@ -37,7 +37,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
 	client, kubeUtil, radixClient := setupTest(t)
 
-	ctx, stopFn := context.WithTimeout(context.TODO(), 5*time.Second)
+	ctx, stopFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer stopFn()
 
 	synced := make(chan bool)
@@ -62,7 +62,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		},
 	)
 	go func() {
-		err := startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, ctx.Done())
+		err := startRegistrationController(ctx, client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler)
 		require.NoError(t, err)
 	}()
 
@@ -131,15 +131,14 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	}
 }
 
-func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop <-chan struct{}) error {
+func startRegistrationController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
 	const waitForChildrenToSync = false
-	controller := NewController(client, radixClient, &handler,
-		kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
+	controller := NewController(ctx, client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
-	kubeInformerFactory.Start(stop)
-	radixInformerFactory.Start(stop)
-	return controller.Run(5, stop)
+	kubeInformerFactory.Start(ctx.Done())
+	radixInformerFactory.Start(ctx.Done())
+	return controller.Run(ctx, 5)
 }

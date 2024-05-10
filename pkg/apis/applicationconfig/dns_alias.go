@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"context"
 	stderrors "errors"
 	"fmt"
 	"strings"
@@ -11,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app *ApplicationConfig) syncDNSAliases() error {
-	existingAliases, err := kube.GetRadixDNSAliasMap(app.radixclient)
+func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
+	existingAliases, err := kube.GetRadixDNSAliasMap(ctx, app.radixclient)
 	if err != nil {
 		return err
 	}
@@ -23,19 +24,19 @@ func (app *ApplicationConfig) syncDNSAliases() error {
 	var errs []error
 	// first - delete
 	for _, dnsAlias := range aliasesToDelete {
-		if err := app.kubeutil.DeleteRadixDNSAliases(dnsAlias); err != nil {
+		if err := app.kubeutil.DeleteRadixDNSAliases(ctx, dnsAlias); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	// then - update
 	for _, dnsAlias := range aliasesToUpdate {
-		if err := app.kubeutil.UpdateRadixDNSAlias(dnsAlias); err != nil {
+		if err := app.kubeutil.UpdateRadixDNSAlias(ctx, dnsAlias); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	// then - create
 	for _, dnsAlias := range aliasesToCreate {
-		if err := app.kubeutil.CreateRadixDNSAlias(dnsAlias); err != nil {
+		if err := app.kubeutil.CreateRadixDNSAlias(ctx, dnsAlias); err != nil {
 			errs = append(errs, err)
 		}
 	}

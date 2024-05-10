@@ -62,7 +62,7 @@ func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.K
 }
 
 func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent) *corev1.ConfigMap {
-	initialEnvVarsConfigMap, _, _ := kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(rd.GetNamespace(),
+	initialEnvVarsConfigMap, _, _ := kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), rd.GetNamespace(),
 		rd.Spec.AppName, deployComponent.GetName())
 	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
 	for envVarName, envVarValue := range deployComponent.GetEnvironmentVariables() {
@@ -71,7 +71,7 @@ func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, 
 		}
 		desiredConfigMap.Data[envVarName] = envVarValue
 	}
-	err := kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
+	err := kubeUtil.ApplyConfigMap(context.Background(), rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
 	s.Require().NoError(err)
 
 	return desiredConfigMap
@@ -141,7 +141,7 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(expectedStatus, batch.Status)
@@ -179,7 +179,7 @@ func (s *syncerTestSuite) Test_RestoreStatusWithInvalidAnnotationValueShouldRetu
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Require().Error(err)
 	s.Contains(err.Error(), "unable to restore status for batch")
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
@@ -231,7 +231,7 @@ func (s *syncerTestSuite) Test_ShouldRestoreStatusFromAnnotationWhenStatusEmpty(
 	job, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(job)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	job, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(expectedStatus, job.Status)
@@ -263,7 +263,7 @@ func (s *syncerTestSuite) Test_ShouldNotRestoreStatusFromAnnotationWhenStatusNot
 	job, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(job)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	job, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(expectedStatus, job.Status)
@@ -283,7 +283,7 @@ func (s *syncerTestSuite) Test_ShouldSkipReconcileResourcesWhenBatchConditionIsD
 			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 			s.Require().NoError(err)
 			sut := s.createSyncer(batch)
-			s.Require().NoError(sut.OnSync())
+			s.Require().NoError(sut.OnSync(context.Background()))
 			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			s.Equal(expectedStatus, batch.Status)
@@ -332,7 +332,7 @@ func (s *syncerTestSuite) Test_ServiceCreated() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allServices, _ := s.kubeClient.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(allServices.Items, 2)
 	for _, jobName := range []string{job1Name, job2Name} {
@@ -380,7 +380,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedWhenPortsIsEmpty() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allServices, _ := s.kubeClient.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(allServices.Items, 0)
 }
@@ -430,7 +430,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedForJobWithPhaseDone() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allServices, _ := s.kubeClient.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
 	s.ElementsMatch([]string{getKubeServiceName(batchName, "job4"), getKubeServiceName(batchName, "job5")}, slice.Map(allServices.Items, func(svc corev1.Service) string { return svc.GetName() }))
 }
@@ -472,7 +472,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 	s.applyRadixDeploymentEnvVarsConfigMaps(s.kubeUtil, rd)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(allJobs.Items, 2)
@@ -576,7 +576,7 @@ func (s *syncerTestSuite) Test_JobNotCreatedForJobWithPhaseDone() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.ElementsMatch([]string{getKubeJobName(batchName, "job4"), getKubeJobName(batchName, "job5")}, slice.Map(allJobs.Items, func(job batchv1.Job) string { return job.GetName() }))
 }
@@ -614,7 +614,7 @@ func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
@@ -656,7 +656,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
@@ -697,7 +697,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithoutJobComponentDefault()
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
@@ -737,7 +737,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName, "azure.workload.identity/use": "true"}
@@ -797,7 +797,7 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	s.Equal(getKubeJobName(batchName, jobName), jobs.Items[0].Name)
@@ -859,7 +859,7 @@ func (s *syncerTestSuite) Test_ReadOnlyFileSystem() {
 			s.Require().NoError(err)
 
 			sut := s.createSyncer(batch)
-			s.Require().NoError(sut.OnSync())
+			s.Require().NoError(sut.OnSync(context.Background()))
 			jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 			s.Require().Len(jobs.Items, 1)
 			job1 := jobs.Items[0]
@@ -908,7 +908,7 @@ func (s *syncerTestSuite) Test_JobWithResources() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 2)
 	job1 := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
@@ -958,7 +958,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, jobName) })[0]
@@ -1007,7 +1007,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, jobName) })[0]
@@ -1057,10 +1057,10 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.certClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, nil, &config.Config{})
-	s.Require().NoError(deploySyncer.OnSync())
+	s.Require().NoError(deploySyncer.OnSync(context.Background()))
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, jobName) })[0]
@@ -1104,7 +1104,7 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 	s.Require().NoError(err)
 
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 2)
 
@@ -1171,13 +1171,13 @@ func (s *syncerTestSuite) Test_StopJob() {
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 
 	batch.Spec.Jobs[0].Stop = utils.BoolPtr(true)
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ = s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 1)
 	s.Equal(getKubeJobName(batchName, job2Name), allJobs.Items[0].GetName())
@@ -1212,7 +1212,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Equal(err, newReconcileRadixDeploymentJobSpecNotFoundError(rdName, missingComponentName))
 	var target reconcileStatus
 	s.ErrorAs(err, &target)
@@ -1238,7 +1238,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
 	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	err = sut.OnSync()
+	err = sut.OnSync(context.Background())
 	s.Equal(err, newReconcileRadixDeploymentNotFoundError(missingRdName))
 	var target reconcileStatus
 	s.ErrorAs(err, &target)
@@ -1330,7 +1330,7 @@ func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 				batch.Spec.Jobs[i].Stop = pointers.Ptr(stop)
 			}
 			sut := s.createSyncer(batch)
-			err = sut.OnSync()
+			err = sut.OnSync(context.Background())
 			s.Equal(scenario.expectedSyncErr, err)
 			batch, _ = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 			s.Equal(scenario.expectedType, batch.Status.Condition.Type)
@@ -1375,7 +1375,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(allJobs.Items, 3)
@@ -1393,7 +1393,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 		status.Active = 1
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
@@ -1408,7 +1408,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 		}
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
@@ -1418,7 +1418,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	// Set job3 to stopped => batch condition is Running
 	batch.Spec.Jobs[2].Stop = utils.BoolPtr(true)
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
@@ -1434,7 +1434,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 		}
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
@@ -1473,7 +1473,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(allJobs.Items, 1)
@@ -1498,7 +1498,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 		status.StartTime = &jobStartTime
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
@@ -1521,7 +1521,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 		}
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
@@ -1544,7 +1544,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 		status.StartTime = &jobStartTime
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
@@ -1588,7 +1588,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(allJobs.Items, 1)
@@ -1612,7 +1612,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 		status.StartTime = &jobStartTime
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
@@ -1634,7 +1634,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 		status.StartTime = &jobStartTime
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
@@ -1676,7 +1676,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(allJobs.Items, 1)
@@ -1700,7 +1700,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 		status.StartTime = &jobStartTime
 	})
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)
@@ -1715,7 +1715,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	// Set job status.conditions to failed => phase is Failed
 	batch.Spec.Jobs[0].Stop = utils.BoolPtr(true)
 	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
+	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
 	s.Require().Len(batch.Status.JobStatuses, 1)

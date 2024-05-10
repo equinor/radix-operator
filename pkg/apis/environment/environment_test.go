@@ -57,7 +57,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	nw, _ := networkpolicy.NewNetworkPolicy(client, kubeUtil, re.Spec.AppName)
 	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
-	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, metav1.CreateOptions{}); err != nil {
+	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{}); err != nil {
 		return nil, nil, env, err
 	}
 	return rr, re, env, nil
@@ -71,7 +71,7 @@ func Test_Create_Namespace(t *testing.T) {
 
 	sync(t, &env)
 
-	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
+	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
 	})
 
@@ -104,7 +104,7 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 
 	sync(t, &env)
 
-	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
+	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
 	})
 
@@ -137,7 +137,7 @@ func Test_Create_EgressRules(t *testing.T) {
 
 	sync(t, &env)
 
-	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
+	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
 	})
 
@@ -159,7 +159,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	sync(t, &env)
 
-	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.Background(), metav1.ListOptions{})
 
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-tekton-env", "radix-app-admin-envs", "radix-pipeline-env", "radix-app-reader-envs")
 	adGroupName := rr.Spec.AdGroups[0]
@@ -185,7 +185,7 @@ func Test_Create_LimitRange(t *testing.T) {
 
 	sync(t, &env)
 
-	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(context.TODO(), metav1.ListOptions{})
+	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(context.Background(), metav1.ListOptions{})
 
 	commonAsserts(t, env, limitRangesAsMeta(limitranges.Items), "mem-cpu-limit-range-env")
 
@@ -234,7 +234,7 @@ func Test_Orphaned_Status(t *testing.T) {
 // sync calls OnSync on the Environment resource and asserts success
 func sync(t *testing.T, env *Environment) {
 	time := metav1.NewTime(time.Now().UTC())
-	err := env.OnSync(time)
+	err := env.OnSync(context.Background(), time)
 
 	t.Run("Method succeeds", func(t *testing.T) {
 		assert.NoError(t, err)
@@ -264,7 +264,7 @@ func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, nam
 	})
 
 	t.Run("Creation is idempotent", func(t *testing.T) {
-		err := env.OnSync(metav1.NewTime(time.Now().UTC()))
+		err := env.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
 		assert.NoError(t, err)
 		assert.Len(t, resources, len(names))
 	})

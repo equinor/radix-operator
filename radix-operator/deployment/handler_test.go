@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
@@ -109,7 +110,7 @@ func (s *handlerSuite) Test_Sync() {
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
-		err := h.Sync(namespace, nonExistingRdName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, nonExistingRdName, s.eventRecorder)
 		s.NoError(err)
 	})
 	s.Run("inactive RD should not call factory method", func() {
@@ -121,7 +122,7 @@ func (s *handlerSuite) Test_Sync() {
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
-		err := h.Sync(namespace, inactiveRdName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, inactiveRdName, s.eventRecorder)
 		s.NoError(err)
 	})
 	s.Run("active RD with missing RR should not call factory method", func() {
@@ -133,7 +134,7 @@ func (s *handlerSuite) Test_Sync() {
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil}
-		err := h.Sync(namespace, activeRdMissingRrName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, activeRdMissingRrName, s.eventRecorder)
 		s.NoError(err)
 	})
 	s.Run("active RD with existing RR calls factory with expected args", func() {
@@ -141,7 +142,7 @@ func (s *handlerSuite) Test_Sync() {
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
 		syncer := deployment.NewMockDeploymentSyncer(ctrl)
-		syncer.EXPECT().OnSync().Times(1)
+		syncer.EXPECT().OnSync(gomock.Any()).Times(1)
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		oauthConfig := defaults.NewOAuth2Config()
 		ingressConfig := ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
@@ -161,7 +162,7 @@ func (s *handlerSuite) Test_Sync() {
 			Return(syncer).
 			Times(1)
 		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, prometheusperatorclient: s.promClient, certClient: s.certClient, deploymentSyncerFactory: factory, oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }, config: expectedConfig}
-		err := h.Sync(namespace, activeRdName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, activeRdName, s.eventRecorder)
 		s.NoError(err)
 		s.True(callbackExecuted)
 	})
@@ -169,7 +170,7 @@ func (s *handlerSuite) Test_Sync() {
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
 		syncer := deployment.NewMockDeploymentSyncer(ctrl)
-		syncer.EXPECT().OnSync().Times(1)
+		syncer.EXPECT().OnSync(gomock.Any()).Times(1)
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
@@ -177,7 +178,7 @@ func (s *handlerSuite) Test_Sync() {
 			Return(syncer).
 			Times(1)
 		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil, deploymentSyncerFactory: factory}
-		err := h.Sync(namespace, activeRdName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, activeRdName, s.eventRecorder)
 		s.NoError(err)
 	})
 }

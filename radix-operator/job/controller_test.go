@@ -63,10 +63,10 @@ func (s *jobTestSuite) TearDownTest() {
 func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	anyAppName := "test-app"
 
-	stop := make(chan struct{})
+	ctx, stop := context.WithCancel(context.Background())
 	synced := make(chan bool)
 
-	defer close(stop)
+	defer stop()
 	defer close(synced)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
@@ -96,7 +96,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 		},
 	)
 	go func() {
-		err := startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+		err := startJobController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler)
 		s.Require().NoError(err)
 	}()
 
@@ -114,7 +114,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	// Update  radix job should sync. Controller will skip if an update
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
-	_, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
+	_, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	op, ok = <-synced
@@ -129,11 +129,11 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	}
 
 	// Only update of Kubernetes Job is something that the job-controller handles
-	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.Background(), &childJob, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
 	childJob.ObjectMeta.ResourceVersion = "1234"
-	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
+	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.Background(), &childJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
 	op, ok = <-synced
@@ -141,14 +141,14 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	s.True(op)
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) error {
+func startJobController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler) error {
 
 	eventRecorder := &record.FakeRecorder{}
 
 	const waitForChildrenToSync = false
-	controller := NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
+	controller := NewController(ctx, client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
-	kubeInformerFactory.Start(stop)
-	radixInformerFactory.Start(stop)
-	return controller.Run(4, stop)
+	kubeInformerFactory.Start(ctx.Done())
+	radixInformerFactory.Start(ctx.Done())
+	return controller.Run(ctx, 4)
 }

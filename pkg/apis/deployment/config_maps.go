@@ -12,13 +12,13 @@ func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec(ctx context.Con
 	namespace := deploy.radixDeployment.Namespace
 
 	// List env var config maps
-	envVarConfigMaps, err := deploy.kubeutil.ListEnvVarsConfigMaps(namespace)
+	envVarConfigMaps, err := deploy.kubeutil.ListEnvVarsConfigMaps(ctx, namespace)
 	if err != nil {
 		return err
 	}
 
 	// List env var metadata config maps
-	envVarMetadataConfigMaps, err := deploy.kubeutil.ListEnvVarsMetadataConfigMaps(namespace)
+	envVarMetadataConfigMaps, err := deploy.kubeutil.ListEnvVarsMetadataConfigMaps(ctx, namespace)
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec(ctx context.Con
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			log.Ctx(ctx).Debug().Msgf("ConfigMap object %s in namespace %s belongs to deleted component %s, garbage collecting the configmap", cm.Name, namespace, componentName)
-			err = deploy.kubeutil.DeleteConfigMap(namespace, cm.Name)
+			err = deploy.kubeutil.DeleteConfigMap(ctx, namespace, cm.Name)
 		}
 		if err != nil {
 			errs = append(errs, err)

@@ -49,8 +49,8 @@ func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclien
 }
 
 // Sync Is created on sync of resource
-func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixApplication, err := t.radixclient.RadixV1().RadixApplications(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+	radixApplication, err := t.radixclient.RadixV1().RadixApplications(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		// The Application resource may no longer exist, in which case we stop
 		// processing.
@@ -62,7 +62,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	radixRegistration, err := t.kubeutil.GetRegistration(radixApplication.Name)
+	radixRegistration, err := t.kubeutil.GetRegistration(ctx, radixApplication.Name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
@@ -77,7 +77,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncApplication := radixApplication.DeepCopy()
 	log.Debug().Msgf("Sync application %s", syncApplication.Name)
 	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsConfig)
-	err = applicationConfig.OnSync()
+	err = applicationConfig.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue

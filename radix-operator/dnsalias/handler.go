@@ -1,6 +1,8 @@
 package dnsalias
 
 import (
+	"context"
+
 	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
@@ -84,8 +86,8 @@ func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOp
 }
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
-func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error {
-	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(name)
+func (h *handler) Sync(ctx context.Context, _, name string, eventRecorder record.EventRecorder) error {
+	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(ctx, name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Info().Msgf("RadixDNSAlias %s in work queue no longer exists", name)
@@ -97,7 +99,7 @@ func (h *handler) Sync(_, name string, eventRecorder record.EventRecorder) error
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Debug().Msgf("Sync RadixDNSAlias %s", name)
 	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
-	err = syncer.OnSync()
+	err = syncer.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		return err

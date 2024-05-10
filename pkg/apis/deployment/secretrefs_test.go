@@ -204,7 +204,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 			assert.NotNil(t, radixDeployment)
 
 			envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-			allSecrets, _ := testEnv.kubeclient.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			allSecrets, _ := testEnv.kubeclient.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 			secrets := test.GetAzureKeyVaultTypeSecrets(allSecrets)
 
 			for _, azureKeyVault := range scenario.radixSecretRefs.AzureKeyVaults {
@@ -227,7 +227,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 			assert.NotNil(t, rd)
 
 			envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-			allSecretProviderClasses, _ := testEnv.secretproviderclient.SecretsstoreV1().SecretProviderClasses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+			allSecretProviderClasses, _ := testEnv.secretproviderclient.SecretsstoreV1().SecretProviderClasses(envNamespace).List(context.Background(), metav1.ListOptions{})
 			secretProviderClasses := allSecretProviderClasses.Items
 			validatedSecretProviderClassesCount := 0
 
