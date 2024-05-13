@@ -105,6 +105,10 @@ func (deploy *Deployment) getScalerConfig(componentName string, minReplicas *int
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
 
+	if minReplicas == nil {
+		minReplicas = pointers.Ptr[int32](DefaultReplicas)
+	}
+
 	triggers := getScalingTriggers(cpuTarget, memoryTarget)
 
 	scaler := &kedav1.ScaledObject{
