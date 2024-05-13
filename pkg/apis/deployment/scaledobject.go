@@ -19,7 +19,7 @@ import (
 
 const targetCPUUtilizationPercentage int32 = 80
 
-func (deploy *Deployment) createOrUpdateScaleObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
 	horizontalScaling := deployComponent.GetHorizontalScaling()
@@ -92,8 +92,6 @@ func (deploy *Deployment) garbageCollectScalersNoLongerInSpec(ctx context.Contex
 				return err
 			}
 		}
-
-		// TODO: Remove ScaledObjects where components no longer have horizontal scaling configured
 	}
 
 	return nil

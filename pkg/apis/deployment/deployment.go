@@ -537,12 +537,12 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	err = deploy.createOrUpdateDeployment(ctx, component)
+	err = deploy.recconcileDeployment(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	err = deploy.createOrUpdateScaleObject(ctx, component)
+	err = deploy.createOrUpdateScaledObject(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create hpa: %w", err)
 	}
