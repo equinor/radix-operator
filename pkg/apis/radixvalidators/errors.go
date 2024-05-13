@@ -30,6 +30,7 @@ var (
 	ErrInvalidResource                                                     = errors.New("invalid resource")
 	ErrDuplicateExternalAlias                                              = errors.New("duplicate external alias")
 	ErrInvalidBranchName                                                   = errors.New("invalid branch name")
+	ErrCombiningTriggersWithResourcesIsIllegal                             = errors.New("combining triggers with resources is invalid")
 	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpa not set or zero")
 	ErrMinReplicasGreaterThanMaxReplicas                                   = errors.New("min replicas greater than max replicas")
 	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set")

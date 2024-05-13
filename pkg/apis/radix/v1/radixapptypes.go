@@ -793,8 +793,7 @@ type RadixHorizontalScaling struct {
 
 	// Defines the resource usage parameters for the horizontal pod autoscaler.
 	// +optional
-	// Deprecated Use a CPU or Memory triggers instead
-	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"`
+	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"` // Deprecated: Use CPU and/or Memory triggers instead
 
 	// Defines a list of triggers the component replicas will scale on.
 	// +optional

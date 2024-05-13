@@ -1907,6 +1907,25 @@ func Test_HPA_Validation(t *testing.T) {
 			true,
 			[]error{},
 		},
+		{
+			"Copmonent with Trigger config and Resource config should fail",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
+					MinReplicas: pointers.Ptr(int32(2)),
+					MaxReplicas: 4,
+					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
+						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+					},
+					Triggers: &[]radixv1.RadixTrigger{
+						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
+						{Name: "memory", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}},
+					},
+				}
+			},
+			false,
+			[]error{radixvalidators.ErrCombiningTriggersWithResourcesIsIllegal},
+		},
 	}
 
 	_, client := validRASetup()

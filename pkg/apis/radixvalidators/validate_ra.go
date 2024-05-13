@@ -1166,6 +1166,10 @@ func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error
 		minReplicas = pointers.Ptr[int32](deployment.DefaultReplicas)
 	}
 
+	if config.RadixHorizontalScalingResources != nil && config.Triggers != nil {
+		errs = append(errs, ErrCombiningTriggersWithResourcesIsIllegal)
+	}
+
 	if maxReplicas == 0 {
 		errs = append(errs, ErrMaxReplicasForHPANotSetOrZero)
 	}
