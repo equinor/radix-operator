@@ -6,7 +6,6 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/cert-manager/cert-manager v1.14.2
 	github.com/equinor/radix-common v1.7.1
-	github.com/evanphx/json-patch/v5 v5.8.1
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/kedacore/keda/v2 v2.13.1
@@ -35,6 +34,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.2 // indirect
 	github.com/evanphx/json-patch v5.8.1+incompatible // indirect
+	github.com/evanphx/json-patch/v5 v5.8.1 // indirect
 	github.com/expr-lang/expr v1.15.8 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
