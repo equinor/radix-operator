@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 )
 
 // GetScaledObject Gets an ScaledObject by its name
@@ -67,7 +67,7 @@ func (kubeutil *Kube) PatchScaledObject(ctx context.Context, namespace string, o
 		return nil, fmt.Errorf("failed to marshal new ScaledObject object: %v", err)
 	}
 
-	mergepatch, err := jsonpatch.CreateMergePatch(oldScalerJSON, newScalerJSON)
+	mergepatch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(oldScalerJSON, newScalerJSON, oldScalerJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create json merge patch ScaledObject objects: %v: %v", err, mergepatch)
 	}
