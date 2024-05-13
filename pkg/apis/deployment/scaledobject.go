@@ -17,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const targetCPUUtilizationPercentage int32 = 80
+const defaultTargetCPUUtilizationPercentage int32 = 80
 
 func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
@@ -46,7 +46,7 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 	}
 
 	if memoryTarget == nil && cpuTarget == nil {
-		cpuTarget = numbers.Int32Ptr(targetCPUUtilizationPercentage)
+		cpuTarget = numbers.Int32Ptr(defaultTargetCPUUtilizationPercentage)
 	}
 
 	scaler := deploy.getScalerConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas, cpuTarget, memoryTarget)
