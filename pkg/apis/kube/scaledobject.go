@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 // GetScaledObject Gets an ScaledObject by its name
@@ -42,6 +42,13 @@ func (kubeutil *Kube) ApplyScaledObject(ctx context.Context, namespace string, s
 	newScaler.ObjectMeta.Annotations = scaledObject.ObjectMeta.Annotations
 	newScaler.ObjectMeta.OwnerReferences = scaledObject.ObjectMeta.OwnerReferences
 	newScaler.Spec = scaledObject.Spec
+
+	// Retain Keda label
+	// ScaledObjectOwnerAnnotation is named Annotation, but its used as a Label
+	if val, ok := oldScaler.ObjectMeta.Labels[v1alpha1.ScaledObjectOwnerAnnotation]; ok {
+		newScaler.ObjectMeta.Labels[v1alpha1.ScaledObjectOwnerAnnotation] = val
+	}
+
 	_, err = kubeutil.PatchScaledObject(ctx, namespace, oldScaler, newScaler)
 	return err
 }
@@ -60,16 +67,17 @@ func (kubeutil *Kube) PatchScaledObject(ctx context.Context, namespace string, o
 		return nil, fmt.Errorf("failed to marshal new ScaledObject object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldScalerJSON, newScalerJSON, v1alpha1.ScaledObject{})
+	mergepatch, err := jsonpatch.CreateMergePatch(oldScalerJSON, newScalerJSON)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create two way merge patch Ingess objects: %v", err)
+		return nil, fmt.Errorf("failed to create json merge patch ScaledObject objects: %v: %v", err, mergepatch)
 	}
 
-	if IsEmptyPatch(patchBytes) {
+	if IsEmptyPatch(mergepatch) {
 		log.Debug().Msgf("No need to patch ScaledObject: %s ", scalerName)
 		return oldScaledObject, nil
 	}
-	patchedScaler, err := kubeutil.kedaClient.KedaV1alpha1().ScaledObjects(namespace).Patch(ctx, scalerName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+
+	patchedScaler, err := kubeutil.kedaClient.KedaV1alpha1().ScaledObjects(namespace).Patch(ctx, scalerName, types.MergePatchType, mergepatch, metav1.PatchOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to patch ScaledObject object: %v", err)
 	}
