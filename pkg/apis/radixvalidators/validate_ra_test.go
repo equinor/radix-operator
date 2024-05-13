@@ -1589,16 +1589,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 
 func Test_HPA_Validation(t *testing.T) {
 	var testScenarios = []struct {
-		name       string
-		updateRA   updateRAFunc
-		isValid    bool
-		isErrorNil bool
+		name     string
+		updateRA updateRAFunc
+		isValid  bool
+		isErrors []error
 	}{
 		{
 			"horizontalScaling is not set",
 			func(ra *radixv1.RadixApplication) {},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"component HPA minReplicas and maxReplicas are not set",
@@ -1606,7 +1606,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrMaxReplicasForHPANotSetOrZero},
 		},
 		{
 			"component HPA maxReplicas is not set and minReplicas is set",
@@ -1616,7 +1616,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"component HPA minReplicas is not set and maxReplicas is set",
@@ -1625,7 +1625,35 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
 			},
 			true,
+			[]error{},
+		},
+		{
+			"component HPA minReplicas is set to 0 but only CPU and Memory resoruces are set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
+				ra.Spec.Components[0].HorizontalScaling.MinReplicas = pointers.Ptr[int32](0)
+				ra.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources = &radixv1.RadixHorizontalScalingResources{
+					Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
+					Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
+				}
+			},
+			false,
+			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
+		},
+		{
+			"component HPA minReplicas is set to 1 and only CPU and Memory resoruces are set",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
+				ra.Spec.Components[0].HorizontalScaling.MinReplicas = pointers.Ptr[int32](1)
+				ra.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources = &radixv1.RadixHorizontalScalingResources{
+					Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
+					Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
+				}
+			},
 			true,
+			[]error{},
 		},
 		{
 			"component HPA minReplicas is greater than maxReplicas",
@@ -1636,7 +1664,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"component HPA maxReplicas is greater than minReplicas",
@@ -1647,7 +1675,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 4
 			},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"component HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
@@ -1657,7 +1685,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"component HPA custom resource scaling for HPA is set, but no resource thresholds for CPU AverageUtilization is not defined",
@@ -1669,7 +1697,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"component HPA custom resource scaling for HPA is set, but no resource thresholds for memory AverageUtilization is not defined",
@@ -1681,7 +1709,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"component HPA custom resource scaling for HPA is set, but no resource thresholds for CPU and memory AverageUtilization are defined",
@@ -1694,7 +1722,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"component HPA custom resource scaling for HPA CPU AverageUtilization is set",
@@ -1706,7 +1734,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"component HPA custom resource scaling for HPA memory AverageUtilization is set",
@@ -1718,7 +1746,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"component HPA custom resource scaling for HPA memory AverageUtilization is set",
@@ -1731,7 +1759,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"environment HPA minReplicas and maxReplicas are not set",
@@ -1739,7 +1767,8 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 			},
 			false,
-			false,
+			// TODO: Maybe this validation should not return ErrMinReplicasGreaterThanMaxReplicas (it happens because minReplicas defaults to 1
+			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas, radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"environment HPA maxReplicas is not set and minReplicas is set",
@@ -1749,7 +1778,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas, radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"environment HPA minReplicas is not set and maxReplicas is set",
@@ -1758,7 +1787,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
 			},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"environment HPA minReplicas is greater than maxReplicas",
@@ -1769,7 +1798,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"environment HPA maxReplicas is greater than minReplicas",
@@ -1780,7 +1809,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 4
 			},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"environment HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
@@ -1792,7 +1821,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.RadixHorizontalScalingResources = &radixv1.RadixHorizontalScalingResources{}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"environment HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
@@ -1802,7 +1831,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for CPU AverageUtilization is not defined",
@@ -1814,7 +1843,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for memory AverageUtilization is not defined",
@@ -1826,7 +1855,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for CPU and memory AverageUtilization are defined",
@@ -1839,7 +1868,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			false,
-			false,
+			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
 			"environment HPA custom resource scaling for HPA CPU AverageUtilization is set",
@@ -1851,7 +1880,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"environment HPA custom resource scaling for HPA memory AverageUtilization is set",
@@ -1863,7 +1892,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			true,
+			[]error{},
 		},
 		{
 			"environment HPA custom resource scaling for HPA memory AverageUtilization is set",
@@ -1876,7 +1905,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			true,
+			[]error{},
 		},
 	}
 
@@ -1891,9 +1920,11 @@ func Test_HPA_Validation(t *testing.T) {
 				assert.NoError(t, err)
 			} else {
 				assert.Error(t, err)
+				assert.NotEqual(t, 0, len(testcase.isErrors), "Test is invalid, should have atleast 1 target error")
+				for _, target := range testcase.isErrors {
+					assert.ErrorIs(t, err, target)
+				}
 			}
-
-			assert.Equal(t, testcase.isErrorNil, err == nil)
 		})
 	}
 }
