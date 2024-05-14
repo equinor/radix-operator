@@ -26,10 +26,10 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 		memoryTarget         *int32
 		expectedMemoryTarget *int
 	}{
-		{"cpu and memory are nil, cpu defaults to 80", nil, numbers.IntPtr(80), nil, nil},
+		{"cpu and memory are nil, cpu defaults to 80", nil, numbers.IntPtr(int(defaultTargetCPUUtilizationPercentage)), nil, nil},
 		{"cpu is nil and memory is non-nil", nil, nil, numbers.Int32Ptr(70), numbers.IntPtr(70)},
 		{"cpu is non-nil and memory is nil", numbers.Int32Ptr(68), numbers.IntPtr(68), nil, nil},
-		{"cpu and memory are non-nil", numbers.Int32Ptr(68), numbers.IntPtr(int(defaultTargetCPUUtilizationPercentage)), numbers.Int32Ptr(70), numbers.IntPtr(70)},
+		{"cpu and memory are non-nil", numbers.Int32Ptr(68), numbers.IntPtr(68), numbers.Int32Ptr(70), numbers.IntPtr(70)},
 	}
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
