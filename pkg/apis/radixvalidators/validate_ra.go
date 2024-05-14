@@ -1181,16 +1181,44 @@ func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error
 		errs = append(errs, ErrNoScalingResourceSet)
 	}
 
-	if *minReplicas == 0 && onlyCpuAndOrMemoryTriggersConfigured(resources) {
+	if *minReplicas == 0 && onlyCpuAndOrMemoryTriggersConfigured(config) {
 		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
 	}
 
 	return errors.Join(errs...)
 }
 
-func onlyCpuAndOrMemoryTriggersConfigured(resources *radixv1.RadixHorizontalScalingResources) bool {
-	// TODO: When using triggers, this must check that no other triggers have been configured
-	return resources.Cpu != nil || resources.Memory != nil
+func onlyCpuAndOrMemoryTriggersConfigured(config *radixv1.RadixHorizontalScaling) bool {
+	var hasCpuOrMemoryTrigger, hasOtherTriggers bool
+
+	if config.RadixHorizontalScalingResources != nil {
+		if config.RadixHorizontalScalingResources.Cpu != nil {
+			hasCpuOrMemoryTrigger = true
+		}
+		if config.RadixHorizontalScalingResources.Memory != nil {
+			hasCpuOrMemoryTrigger = true
+		}
+	}
+
+	if config.Triggers != nil {
+		for _, trigger := range *config.Triggers {
+			if trigger.Cpu != nil {
+				hasCpuOrMemoryTrigger = true
+			}
+			if trigger.Memory != nil {
+				hasCpuOrMemoryTrigger = true
+			}
+
+			if trigger.Cron != nil {
+				hasOtherTriggers = true
+			}
+			if trigger.AzureServiceBus != nil {
+				hasOtherTriggers = true
+			}
+		}
+	}
+
+	return hasCpuOrMemoryTrigger && !hasOtherTriggers
 }
 
 func getHorizontalScalingResourceAverageUtilization(resource *radixv1.RadixHorizontalScalingResource) *int32 {

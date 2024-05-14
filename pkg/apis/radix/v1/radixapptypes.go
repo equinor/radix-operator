@@ -818,10 +818,11 @@ type RadixHorizontalScalingResources struct {
 
 // RadixTrigger defines configuration for a specific trigger.
 type RadixTrigger struct {
-	Name   string                               `json:"name"`
-	Cpu    *RadixHorizontalScalingCPUTrigger    `json:"cpu,omitempty"`
-	Memory *RadixHorizontalScalingMemoryTrigger `json:"memory,omitempty"`
-	Cron   *RadixHorizontalScalingCronTrigger   `json:"cron,omitempty"`
+	Name            string                                        `json:"name"`
+	Cpu             *RadixHorizontalScalingCPUTrigger             `json:"cpu,omitempty"`
+	Memory          *RadixHorizontalScalingMemoryTrigger          `json:"memory,omitempty"`
+	Cron            *RadixHorizontalScalingCronTrigger            `json:"cron,omitempty"`
+	AzureServiceBus *RadixHorizontalScalingAzureServiceBusTrigger `json:"azureServiceBus,omitempty"`
 }
 
 type RadixHorizontalScalingCPUTrigger struct {

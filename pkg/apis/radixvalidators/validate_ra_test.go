@@ -1926,6 +1926,40 @@ func Test_HPA_Validation(t *testing.T) {
 			false,
 			[]error{radixvalidators.ErrCombiningTriggersWithResourcesIsIllegal},
 		},
+		{
+			"Copmonent with 0 replicas is corerct with any other than resource triggers",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
+					MinReplicas: pointers.Ptr(int32(0)),
+					MaxReplicas: 4,
+					Triggers: &[]radixv1.RadixTrigger{
+						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
+						{Name: "memory", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}},
+						{Name: "cron", Cron: &radixv1.RadixHorizontalScalingCronTrigger{
+							Start: "0 5 * * *",
+							Stop:  "0 20 * * *",
+						}},
+					},
+				}
+			},
+			true,
+			[]error{},
+		},
+		{
+			"Copmonent with 0 replicas is invalid with only resource triggers",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
+					MinReplicas: pointers.Ptr(int32(0)),
+					MaxReplicas: 4,
+					Triggers: &[]radixv1.RadixTrigger{
+						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
+						{Name: "memory", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}},
+					},
+				}
+			},
+			false,
+			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
+		},
 	}
 
 	_, client := validRASetup()
