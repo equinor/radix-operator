@@ -7,6 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
+	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -48,12 +49,12 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 			require.NoError(t, err)
 
 			var actualCpuTarget, actualMemoryTarget *int
-			if memoryMetric := utils.GetScaleTrigger(scaler, "memory", "memory"); memoryMetric != nil {
+			if memoryMetric := getScaleTrigger(scaler, "memory", "memory"); memoryMetric != nil {
 				value, err := strconv.Atoi(memoryMetric.Metadata["value"])
 				require.NoError(t, err)
 				actualMemoryTarget = &value
 			}
-			if cpuMetric := utils.GetScaleTrigger(scaler, "cpu", "cpu"); cpuMetric != nil {
+			if cpuMetric := getScaleTrigger(scaler, "cpu", "cpu"); cpuMetric != nil {
 				value, err := strconv.Atoi(cpuMetric.Metadata["value"])
 				require.NoError(t, err)
 				actualCpuTarget = &value
@@ -74,4 +75,14 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 			}
 		})
 	}
+}
+
+// getScaleTrigger returns the trigger spec for the given name  and type or nil if not found
+func getScaleTrigger(hpa *v1alpha1.ScaledObject, triggerName, triggerType string) *v1alpha1.ScaleTriggers {
+	for _, trigger := range hpa.Spec.Triggers {
+		if trigger.Type == triggerType && trigger.Name == triggerName {
+			return &trigger
+		}
+	}
+	return nil
 }
