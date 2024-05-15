@@ -46,8 +46,6 @@ CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
-KUBE_CODEGEN_VERSION = v0.25.3
-
 HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
@@ -117,14 +115,13 @@ ROOT_PACKAGE=github.com/equinor/radix-operator
 CUSTOM_RESOURCE_NAME=radix
 CUSTOM_RESOURCE_VERSION=v1
 
+.PHONY: vendor
+vendor:
+	go mod vendor
+
 .PHONY: code-gen
 code-gen: bootstrap
-	echo
-	$$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh all \
-		$(ROOT_PACKAGE)/pkg/client \
-		$(ROOT_PACKAGE)/pkg/apis \
-		$(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) \
-		--go-header-file hack/boilerplate.txt
+	./hack/update-codegen.sh
 
 .PHONY: crds
 crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds
@@ -161,17 +158,12 @@ generate: bootstrap code-gen crds mocks
 verify-generate: bootstrap generate
 	git diff --exit-code
 
-HAS_SWAGGER       := $(shell command -v swagger;)
 HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
 HAS_MOCKGEN       := $(shell command -v mockgen;)
 HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
-HAS_GENERATE_GROUPS := $(shell command -v $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh)
 
 .PHONY: bootstrap
-bootstrap:
-ifndef HAS_SWAGGER
-	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5
-endif
+bootstrap: vendor
 ifndef HAS_GOLANGCI_LINT
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.55.2
 endif
@@ -180,9 +172,4 @@ ifndef HAS_MOCKGEN
 endif
 ifndef HAS_CONTROLLER_GEN
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
-endif
-ifndef HAS_GENERATE_GROUPS
-	-go install k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)
-	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh
-	chmod +x $$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-internal-groups.sh
 endif

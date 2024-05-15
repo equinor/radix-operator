@@ -96,21 +96,8 @@ For changes to the chart the same procedure applies as for changes to the code. 
 
 The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new type to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
 In order for these objects to work with the SDK, they need to implement certain functions and this is where you run the `code-generator` tool from Kubernetes.
-Make sure you have downloaded latest version of [code-generator](https://github.com/kubernetes/code-generator) by setting up following way:
-* Install `code-generator`. The particular version is specified in the `Makefile`  
-```
-go install k8s.io/code-generator@v0.25.3
-```
-Make `generate-groups.sh` executable:
-```
-chmod +x $GOPATH/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh
-```
-If `radix-operator` project folder is not located in the `$GOPATH/go/src/github.com/equinor` - make a symbolic link from your custom location there, because the code-generator expects this location to be corresponding to the package name, starting from `$GOPATH/go/src`:
-```shell
-ln -s [custom-dev-folder]/radix-operator $GOPATH/go/src/github.com
-```
 
-Generate the strongly type client for Radix v1 objects:
+Generate the strongly type client for Radix v1 objects. `code-gen` will automatically install the required tooling:
 ```shell
 make code-gen
 ```
