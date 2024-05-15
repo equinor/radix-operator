@@ -1591,13 +1591,11 @@ func Test_HPA_Validation(t *testing.T) {
 	var testScenarios = []struct {
 		name     string
 		updateRA updateRAFunc
-		isValid  bool
 		isErrors []error
 	}{
 		{
 			"horizontalScaling is not set",
 			func(ra *radixv1.RadixApplication) {},
-			true,
 			nil,
 		},
 		{
@@ -1605,7 +1603,6 @@ func Test_HPA_Validation(t *testing.T) {
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 			},
-			false,
 			[]error{radixvalidators.ErrMaxReplicasForHPANotSetOrZero},
 		},
 		{
@@ -1615,7 +1612,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
 			},
-			false,
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
@@ -1624,7 +1620,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
 			},
-			true,
 			nil,
 		},
 		{
@@ -1638,7 +1633,6 @@ func Test_HPA_Validation(t *testing.T) {
 					Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
 		},
 		{
@@ -1652,7 +1646,6 @@ func Test_HPA_Validation(t *testing.T) {
 					Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
 				}
 			},
-			true,
 			nil,
 		},
 		{
@@ -1663,7 +1656,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
 				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
 			},
-			false,
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
@@ -1674,7 +1666,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
 				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 4
 			},
-			true,
 			nil,
 		},
 		{
@@ -1684,7 +1675,6 @@ func Test_HPA_Validation(t *testing.T) {
 					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1696,7 +1686,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1708,7 +1697,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1721,7 +1709,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1733,7 +1720,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			true,
 			nil,
 		},
 		{
@@ -1745,7 +1731,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			true,
 			nil,
 		},
 		{
@@ -1758,7 +1743,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			true,
 			nil,
 		},
 		{
@@ -1766,7 +1750,6 @@ func Test_HPA_Validation(t *testing.T) {
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 			},
-			false,
 			// TODO: Maybe this validation should not return ErrMinReplicasGreaterThanMaxReplicas (it happens because minReplicas defaults to 1
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
@@ -1777,7 +1760,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
 			},
-			false,
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
@@ -1786,7 +1768,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
 			},
-			true,
 			nil,
 		},
 		{
@@ -1797,7 +1778,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
 			},
-			false,
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
@@ -1808,7 +1788,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 4
 			},
-			true,
 			nil,
 		},
 		{
@@ -1820,7 +1799,6 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 4
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.RadixHorizontalScalingResources = &radixv1.RadixHorizontalScalingResources{}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1830,7 +1808,6 @@ func Test_HPA_Validation(t *testing.T) {
 					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1842,7 +1819,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1854,7 +1830,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1867,7 +1842,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrNoScalingResourceSet},
 		},
 		{
@@ -1879,7 +1853,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			true,
 			nil,
 		},
 		{
@@ -1891,7 +1864,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			true,
 			nil,
 		},
 		{
@@ -1904,7 +1876,6 @@ func Test_HPA_Validation(t *testing.T) {
 					},
 				}
 			},
-			true,
 			nil,
 		},
 	}
@@ -1916,7 +1887,7 @@ func Test_HPA_Validation(t *testing.T) {
 			testcase.updateRA(validRA)
 			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
-			if testcase.isValid {
+			if testcase.isErrors == nil {
 				assert.NoError(t, err)
 			} else {
 				assert.Error(t, err)
