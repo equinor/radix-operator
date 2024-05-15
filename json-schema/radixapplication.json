@@ -426,7 +426,7 @@
                           "type": "integer"
                         },
                         "resources": {
-                          "description": "Defines the resource usage parameters for the horizontal pod autoscaler.\nDeprecated Use a CPU or Memory triggers instead",
+                          "description": "Defines the resource usage parameters for the horizontal pod autoscaler.",
                           "properties": {
                             "cpu": {
                               "description": "Defines the CPU usage parameters for the horizontal pod autoscaler.",
@@ -466,6 +466,62 @@
                           "items": {
                             "description": "RadixTrigger defines configuration for a specific trigger.",
                             "properties": {
+                              "azureServiceBus": {
+                                "properties": {
+                                  "activationMessageCount": {
+                                    "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
+                                    "type": "integer"
+                                  },
+                                  "authentication": {
+                                    "description": "Azure Service Bus requires Workload Identity configured with a ClientID",
+                                    "properties": {
+                                      "identity": {
+                                        "description": "Identity configuration for federation with external identity providers.",
+                                        "properties": {
+                                          "azure": {
+                                            "description": "Azure identity configuration",
+                                            "properties": {
+                                              "clientId": {
+                                                "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "clientId"
+                                            ],
+                                            "type": "object"
+                                          }
+                                        },
+                                        "type": "object"
+                                      }
+                                    },
+                                    "required": [
+                                      "identity"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "messageCount": {
+                                    "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages",
+                                    "type": "integer"
+                                  },
+                                  "queueName": {
+                                    "description": "QueueName selects the target queue. QueueName wil take precedence over TopicName.",
+                                    "type": "string"
+                                  },
+                                  "subscriptionName": {
+                                    "description": "SubscriptionName is required when TopicName is set.",
+                                    "type": "string"
+                                  },
+                                  "topicName": {
+                                    "description": "TopicName selectes the target topic, alsoe requires SubscriptionName to be set.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "authentication"
+                                ],
+                                "type": "object"
+                              },
                               "cpu": {
                                 "properties": {
                                   "metricType": {
@@ -474,7 +530,6 @@
                                   },
                                   "value": {
                                     "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
-                                    "format": "int32",
                                     "type": "integer"
                                   }
                                 },
@@ -486,8 +541,7 @@
                               "cron": {
                                 "properties": {
                                   "desiredReplicas": {
-                                    "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule. Defaults to 1",
-                                    "format": "int32",
+                                    "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
                                     "type": "integer"
                                   },
                                   "start": {
@@ -499,13 +553,15 @@
                                     "type": "string"
                                   },
                                   "timezone": {
-                                    "description": "Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found here. Defaults to Europe/Oslo",
+                                    "description": "Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones",
                                     "type": "string"
                                   }
                                 },
                                 "required": [
+                                  "desiredReplicas",
                                   "start",
-                                  "stop"
+                                  "stop",
+                                  "timezone"
                                 ],
                                 "type": "object"
                               },
@@ -517,7 +573,6 @@
                                   },
                                   "value": {
                                     "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
-                                    "format": "int32",
                                     "type": "integer"
                                   }
                                 },
@@ -1021,7 +1076,7 @@
                     "type": "integer"
                   },
                   "resources": {
-                    "description": "Defines the resource usage parameters for the horizontal pod autoscaler.\nDeprecated Use a CPU or Memory triggers instead",
+                    "description": "Defines the resource usage parameters for the horizontal pod autoscaler.",
                     "properties": {
                       "cpu": {
                         "description": "Defines the CPU usage parameters for the horizontal pod autoscaler.",
@@ -1061,6 +1116,62 @@
                     "items": {
                       "description": "RadixTrigger defines configuration for a specific trigger.",
                       "properties": {
+                        "azureServiceBus": {
+                          "properties": {
+                            "activationMessageCount": {
+                              "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
+                              "type": "integer"
+                            },
+                            "authentication": {
+                              "description": "Azure Service Bus requires Workload Identity configured with a ClientID",
+                              "properties": {
+                                "identity": {
+                                  "description": "Identity configuration for federation with external identity providers.",
+                                  "properties": {
+                                    "azure": {
+                                      "description": "Azure identity configuration",
+                                      "properties": {
+                                        "clientId": {
+                                          "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "clientId"
+                                      ],
+                                      "type": "object"
+                                    }
+                                  },
+                                  "type": "object"
+                                }
+                              },
+                              "required": [
+                                "identity"
+                              ],
+                              "type": "object"
+                            },
+                            "messageCount": {
+                              "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages",
+                              "type": "integer"
+                            },
+                            "queueName": {
+                              "description": "QueueName selects the target queue. QueueName wil take precedence over TopicName.",
+                              "type": "string"
+                            },
+                            "subscriptionName": {
+                              "description": "SubscriptionName is required when TopicName is set.",
+                              "type": "string"
+                            },
+                            "topicName": {
+                              "description": "TopicName selectes the target topic, alsoe requires SubscriptionName to be set.",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "authentication"
+                          ],
+                          "type": "object"
+                        },
                         "cpu": {
                           "properties": {
                             "metricType": {
@@ -1069,7 +1180,6 @@
                             },
                             "value": {
                               "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
-                              "format": "int32",
                               "type": "integer"
                             }
                           },
@@ -1081,8 +1191,7 @@
                         "cron": {
                           "properties": {
                             "desiredReplicas": {
-                              "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule. Defaults to 1",
-                              "format": "int32",
+                              "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
                               "type": "integer"
                             },
                             "start": {
@@ -1094,13 +1203,15 @@
                               "type": "string"
                             },
                             "timezone": {
-                              "description": "Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found here. Defaults to Europe/Oslo",
+                              "description": "Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones",
                               "type": "string"
                             }
                           },
                           "required": [
+                            "desiredReplicas",
                             "start",
-                            "stop"
+                            "stop",
+                            "timezone"
                           ],
                           "type": "object"
                         },
@@ -1112,7 +1223,6 @@
                             },
                             "value": {
                               "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
-                              "format": "int32",
                               "type": "integer"
                             }
                           },

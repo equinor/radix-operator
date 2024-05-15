@@ -14,7 +14,6 @@ import (
 	"unicode"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -1135,11 +1134,10 @@ func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 	var errs []error
 
 	for _, component := range app.Spec.Components {
-		componentName := component.Name
 		if component.HorizontalScaling != nil {
 			err := validateHorizontalScalingPart(component.HorizontalScaling)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("error validating horizontal scaling for component: %s: %w", componentName, err))
+				errs = append(errs, fmt.Errorf("error validating horizontal scaling for component: %s: %w", component.Name, err))
 			}
 		}
 		for _, envConfig := range component.EnvironmentConfig {
@@ -1149,7 +1147,7 @@ func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 
 			err := validateHorizontalScalingPart(envConfig.HorizontalScaling)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("error validating horizontal scaling for environment %s in component %s: %w", envConfig.Environment, componentName, err))
+				errs = append(errs, fmt.Errorf("error validating horizontal scaling for environment %s in component %s: %w", envConfig.Environment, component.Name, err))
 			}
 		}
 	}
@@ -1160,61 +1158,81 @@ func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error {
 	var errs []error
 
-	maxReplicas := config.MaxReplicas
-	minReplicas := config.MinReplicas
-	if minReplicas == nil {
-		minReplicas = pointers.Ptr[int32](deployment.DefaultReplicas)
-	}
-
 	if config.RadixHorizontalScalingResources != nil && config.Triggers != nil {
 		errs = append(errs, ErrCombiningTriggersWithResourcesIsIllegal)
 	}
 
-	if maxReplicas == 0 {
+	config = config.NormalizeConfig()
+
+	if config.MaxReplicas == 0 {
 		errs = append(errs, ErrMaxReplicasForHPANotSetOrZero)
 	}
-	if *minReplicas > maxReplicas {
+	if *config.MinReplicas > config.MaxReplicas {
 		errs = append(errs, ErrMinReplicasGreaterThanMaxReplicas)
 	}
-	resources := config.RadixHorizontalScalingResources
-	if resources != nil && getHorizontalScalingResourceAverageUtilization(resources.Cpu) == nil && getHorizontalScalingResourceAverageUtilization(resources.Memory) == nil {
-		errs = append(errs, ErrNoScalingResourceSet)
+
+	if *config.MinReplicas == 0 && onlyCpuAndOrMemoryTriggersConfigured(config) {
+		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
 	}
 
-	if *minReplicas == 0 && onlyCpuAndOrMemoryTriggersConfigured(config) {
-		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
+	if err := validateTriggerDefintion(config); err != nil {
+		errs = append(errs, err)
 	}
 
 	return errors.Join(errs...)
 }
 
-func onlyCpuAndOrMemoryTriggersConfigured(config *radixv1.RadixHorizontalScaling) bool {
-	var hasCpuOrMemoryTrigger, hasOtherTriggers bool
+func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
+	var errs []error
 
-	if config.RadixHorizontalScalingResources != nil {
-		if config.RadixHorizontalScalingResources.Cpu != nil {
-			hasCpuOrMemoryTrigger = true
+	for _, trigger := range *config.Triggers {
+		var definitions int
+		if trigger.Cpu != nil {
+			definitions++
 		}
-		if config.RadixHorizontalScalingResources.Memory != nil {
-			hasCpuOrMemoryTrigger = true
+		if trigger.Memory != nil {
+			definitions++
+		}
+		if trigger.Cron != nil {
+			definitions++
+		}
+		if trigger.AzureServiceBus != nil {
+			definitions++
+		}
+
+		if definitions == 0 {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: %w", trigger.Name, ErrNoDefinitionInTrigger))
+		}
+
+		if definitions > 1 {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: %w (found %d definitions)", trigger.Name, ErrMoreThanOneDefinitionInTrigger, definitions))
 		}
 	}
 
-	if config.Triggers != nil {
-		for _, trigger := range *config.Triggers {
-			if trigger.Cpu != nil {
-				hasCpuOrMemoryTrigger = true
-			}
-			if trigger.Memory != nil {
-				hasCpuOrMemoryTrigger = true
-			}
+	return errors.Join(errs...)
+}
 
-			if trigger.Cron != nil {
-				hasOtherTriggers = true
-			}
-			if trigger.AzureServiceBus != nil {
-				hasOtherTriggers = true
-			}
+// onlyCpuAndOrMemoryTriggersConfigured returns true if any CPU/Memory triggers is found, and no other trigger types
+func onlyCpuAndOrMemoryTriggersConfigured(config *radixv1.RadixHorizontalScaling) bool {
+	var hasCpuOrMemoryTrigger, hasOtherTriggers bool
+
+	if config.Triggers == nil {
+		return false
+	}
+
+	for _, trigger := range *config.Triggers {
+		if trigger.Cpu != nil {
+			hasCpuOrMemoryTrigger = true
+		}
+		if trigger.Memory != nil {
+			hasCpuOrMemoryTrigger = true
+		}
+
+		if trigger.Cron != nil {
+			hasOtherTriggers = true
+		}
+		if trigger.AzureServiceBus != nil {
+			hasOtherTriggers = true
 		}
 	}
 

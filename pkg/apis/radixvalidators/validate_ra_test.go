@@ -1960,6 +1960,20 @@ func Test_HPA_Validation(t *testing.T) {
 			false,
 			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
 		},
+		{
+			"Copmonent with multpile definitions in same trigger must fail",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
+					MinReplicas: pointers.Ptr(int32(0)),
+					MaxReplicas: 4,
+					Triggers: &[]radixv1.RadixTrigger{
+						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}, Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}},
+					},
+				}
+			},
+			false,
+			[]error{radixvalidators.ErrMoreThanOneDefinitionInTrigger},
+		},
 	}
 
 	_, client := validRASetup()

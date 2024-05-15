@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,12 +16,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const defaultTargetCPUUtilizationPercentage int32 = 80
-
 func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
-	horizontalScaling := deployComponent.GetHorizontalScaling()
+	horizontalScaling := deployComponent.GetHorizontalScaling().NormalizeConfig()
 
 	// Check if scaler config exists
 	if horizontalScaling == nil {
@@ -34,22 +31,7 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 		return nil
 	}
 
-	var memoryTarget, cpuTarget *int32
-	if horizontalScaling.RadixHorizontalScalingResources != nil {
-		if horizontalScaling.RadixHorizontalScalingResources.Memory != nil {
-			memoryTarget = horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
-		}
-
-		if horizontalScaling.RadixHorizontalScalingResources.Cpu != nil {
-			cpuTarget = horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization
-		}
-	}
-
-	if memoryTarget == nil && cpuTarget == nil {
-		cpuTarget = numbers.Int32Ptr(defaultTargetCPUUtilizationPercentage)
-	}
-
-	scaler := deploy.getScalerConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas, cpuTarget, memoryTarget)
+	scaler := deploy.getScalerConfig(componentName, horizontalScaling)
 
 	return deploy.kubeutil.ApplyScaledObject(ctx, namespace, scaler)
 }
@@ -97,17 +79,13 @@ func (deploy *Deployment) garbageCollectScalersNoLongerInSpec(ctx context.Contex
 	return nil
 }
 
-func (deploy *Deployment) getScalerConfig(componentName string, minReplicas *int32, maxReplicas int32, cpuTarget *int32, memoryTarget *int32) *kedav1.ScaledObject {
+func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.RadixHorizontalScaling) *kedav1.ScaledObject {
 	appName := deploy.radixDeployment.Spec.AppName
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
 
-	if minReplicas == nil {
-		minReplicas = pointers.Ptr[int32](DefaultReplicas)
-	}
-
-	triggers := getScalingTriggers(cpuTarget, memoryTarget)
+	triggers := getScalingTriggers(config)
 
 	scaler := &kedav1.ScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -119,9 +97,9 @@ func (deploy *Deployment) getScalerConfig(componentName string, minReplicas *int
 			OwnerReferences: ownerReference,
 		},
 		Spec: kedav1.ScaledObjectSpec{
-			MinReplicaCount: minReplicas,
-			MaxReplicaCount: pointers.Ptr(maxReplicas),
-			PollingInterval: pointers.Ptr[int32](30), // Default
+			MinReplicaCount: config.MinReplicas,
+			MaxReplicaCount: pointers.Ptr(config.MaxReplicas),
+			PollingInterval: config.PollingInterval,
 			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: true},
 			ScaleTargetRef: &kedav1.ScaleTarget{
 				Kind:       "Deployment",
@@ -135,29 +113,45 @@ func (deploy *Deployment) getScalerConfig(componentName string, minReplicas *int
 	return scaler
 }
 
-func getScalingTriggers(cpuTarget *int32, memoryTarget *int32) []kedav1.ScaleTriggers {
+func getScalingTriggers(config *radixv1.RadixHorizontalScaling) []kedav1.ScaleTriggers {
 	var triggers []kedav1.ScaleTriggers
-	if cpuTarget != nil {
-		triggers = append(triggers, kedav1.ScaleTriggers{
-			Name:       "cpu",
-			Type:       "cpu",
-			MetricType: autoscalingv2.UtilizationMetricType,
-			Metadata: map[string]string{
-				"value": strconv.Itoa(int(*cpuTarget)),
-			},
-		})
+
+	if config == nil || config.Triggers == nil {
+		return triggers
 	}
 
-	if memoryTarget != nil {
-		triggers = append(triggers, kedav1.ScaleTriggers{
-			Name:       "memory",
-			Type:       "memory",
-			MetricType: autoscalingv2.UtilizationMetricType,
-			Metadata: map[string]string{
-				"value": strconv.Itoa(int(*memoryTarget)),
-			},
-		})
+	for _, trigger := range *config.Triggers {
+		switch {
+		case trigger.Cpu != nil:
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name:       trigger.Name,
+				Type:       "cpu",
+				MetricType: trigger.Cpu.MetricType,
+				Metadata: map[string]string{
+					"value": strconv.Itoa(trigger.Cpu.Value),
+				},
+			})
+		case trigger.Memory != nil:
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name:       trigger.Name,
+				Type:       "memory",
+				MetricType: autoscalingv2.UtilizationMetricType,
+				Metadata: map[string]string{
+					"value": strconv.Itoa(trigger.Memory.Value),
+				},
+			})
+		case trigger.Cron != nil:
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name: trigger.Name,
+				Type: "cron",
+				Metadata: map[string]string{
+					// TODO
+				},
+			})
+		case trigger.AzureServiceBus != nil: // TODO
+		}
 	}
+
 	return triggers
 }
 
