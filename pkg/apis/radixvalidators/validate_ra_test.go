@@ -1768,7 +1768,7 @@ func Test_HPA_Validation(t *testing.T) {
 			},
 			false,
 			// TODO: Maybe this validation should not return ErrMinReplicasGreaterThanMaxReplicas (it happens because minReplicas defaults to 1
-			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas, radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
+			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"environment HPA maxReplicas is not set and minReplicas is set",
@@ -1778,7 +1778,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
 			},
 			false,
-			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas, radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
+			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"environment HPA minReplicas is not set and maxReplicas is set",
