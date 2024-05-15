@@ -180,7 +180,18 @@ rules:
   - certificaterequests
   verbs:
   - get
-  - list    
+  - list
+- apiGroups:
+  - keda.sh
+  resources:
+  - scaledobjects
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - patch
+  - delete
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
