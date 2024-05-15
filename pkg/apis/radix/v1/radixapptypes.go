@@ -375,6 +375,7 @@ type RadixComponent struct {
 	// +optional
 	Monitoring *bool `json:"monitoring"`
 
+	Test string `json:"test"`
 	// Deprecated, use publicPort instead.
 	// +optional
 	Public bool `json:"public,omitempty"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
