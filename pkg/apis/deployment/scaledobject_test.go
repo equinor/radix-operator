@@ -34,6 +34,9 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 		{"cpu is non-nil and memory is nil", numbers.Int32Ptr(68), numbers.IntPtr(68), nil, nil},
 		{"cpu and memory are non-nil", numbers.Int32Ptr(68), numbers.IntPtr(68), numbers.Int32Ptr(70), numbers.IntPtr(70)},
 	}
+
+	// TODO: Make sure all of HorizontalScaling values are translated to ScaledObject values
+
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			// Test that memory scaling is not enabled by default
