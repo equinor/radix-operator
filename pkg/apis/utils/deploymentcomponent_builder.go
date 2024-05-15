@@ -200,32 +200,20 @@ func (dcb *deployComponentBuilder) WithIngressConfiguration(ingressConfiguration
 }
 
 func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder {
-	radixHorizontalScalingResources := &v1.RadixHorizontalScalingResources{}
+	scaler := NewHorizontalScalingBuilder().WithMaxReplicas(maxReplicas)
 
-	// if memory is nil, then memory is omitted while cpu is set to provided value
-	if memory == nil {
-		radixHorizontalScalingResources.Cpu = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: cpu,
-		}
+	if minReplicas != nil {
+		scaler.WithMinReplicas(*minReplicas)
+	}
+	if cpu != nil {
+		scaler.WithCPUTrigger(int(*cpu))
 	}
 
-	// if cpu and memory are non-nil, then memory and cpu are set to provided values
 	if memory != nil {
-		radixHorizontalScalingResources.Memory = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: memory,
-		}
-		if cpu != nil {
-			radixHorizontalScalingResources.Cpu = &v1.RadixHorizontalScalingResource{
-				AverageUtilization: cpu,
-			}
-		}
+		scaler.WithMemoryTrigger(int(*memory))
 	}
 
-	dcb.horizontalScaling = &v1.RadixHorizontalScaling{
-		MinReplicas:                     minReplicas,
-		MaxReplicas:                     maxReplicas,
-		RadixHorizontalScalingResources: radixHorizontalScalingResources,
-	}
+	dcb.horizontalScaling = scaler.Build()
 	return dcb
 }
 

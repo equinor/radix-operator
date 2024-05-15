@@ -1191,44 +1191,44 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 			definitions++
 
 			if trigger.Cpu.Value == 0 {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 		}
 		if trigger.Memory != nil {
 			definitions++
 
 			if trigger.Memory.Value == 0 {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 		}
 		if trigger.Cron != nil {
 			definitions++
 
 			if trigger.Cron.Start == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: start must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: start must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 			if trigger.Cron.Stop == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: stop must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: stop must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 			if trigger.Cron.Timezone == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: timezone must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: timezone must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 			if trigger.Cron.DesiredReplicas < 1 {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: desiredReplicas must be positive integer: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: desiredReplicas must be positive integer: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 		}
 		if trigger.AzureServiceBus != nil {
 			definitions++
 
 			if trigger.AzureServiceBus.QueueName != nil && (trigger.AzureServiceBus.TopicName != nil || trigger.AzureServiceBus.SubscriptionName != nil) {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: queueName cannot be used with topicName or subscriptionName: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: queueName cannot be used with topicName or subscriptionName: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 
 			if trigger.AzureServiceBus.QueueName == nil && (trigger.AzureServiceBus.TopicName == nil || trigger.AzureServiceBus.SubscriptionName == nil) {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 			if trigger.AzureServiceBus.Authentication.Identity.Azure == nil {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity is required: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+				errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 		}
 

@@ -34,10 +34,10 @@ var (
 	ErrCombiningTriggersWithResourcesIsIllegal                             = errors.New("combining triggers with resources is invalid")
 	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpa not set or zero")
 	ErrMinReplicasGreaterThanMaxReplicas                                   = errors.New("min replicas greater than max replicas")
-	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set")
+	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set") // Deprecated: Replaaced by ErrInvalidTriggerDefinition
 	ErrNoDefinitionInTrigger                                               = errors.New("no definition in trigger")
 	ErrMoreThanOneDefinitionInTrigger                                      = errors.New("each trigger must contain only one definition")
-	ErrInvalidTrgiggerDefinition                                           = errors.New("invalid trigger definition")
+	ErrInvalidTriggerDefinition                                            = errors.New("invalid trigger definition")
 	ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers         = errors.New("invalid minimum replicas configured. Minimum 1 replica required when configuring only CPU and/or memory triggers")
 	ErrVolumeMountMissingType                                              = errors.New("no types defined")
 	ErrVolumeMountInvalidType                                              = errors.New("invalid type")
