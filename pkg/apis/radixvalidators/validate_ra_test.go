@@ -1598,7 +1598,7 @@ func Test_HPA_Validation(t *testing.T) {
 			"horizontalScaling is not set",
 			func(ra *radixv1.RadixApplication) {},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA minReplicas and maxReplicas are not set",
@@ -1625,7 +1625,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA minReplicas is set to 0 but only CPU and Memory resoruces are set",
@@ -1653,7 +1653,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA minReplicas is greater than maxReplicas",
@@ -1675,7 +1675,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 4
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
@@ -1734,7 +1734,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA custom resource scaling for HPA memory AverageUtilization is set",
@@ -1746,7 +1746,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA custom resource scaling for HPA memory AverageUtilization is set",
@@ -1759,7 +1759,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"environment HPA minReplicas and maxReplicas are not set",
@@ -1787,7 +1787,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"environment HPA minReplicas is greater than maxReplicas",
@@ -1809,7 +1809,7 @@ func Test_HPA_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 4
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"environment HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
@@ -1880,7 +1880,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"environment HPA custom resource scaling for HPA memory AverageUtilization is set",
@@ -1892,7 +1892,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			[]error{},
+			nil,
 		},
 		{
 			"environment HPA custom resource scaling for HPA memory AverageUtilization is set",
@@ -1905,7 +1905,7 @@ func Test_HPA_Validation(t *testing.T) {
 				}
 			},
 			true,
-			[]error{},
+			nil,
 		},
 	}
 
