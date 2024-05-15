@@ -1171,7 +1171,7 @@ func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error
 		errs = append(errs, ErrMinReplicasGreaterThanMaxReplicas)
 	}
 
-	if *config.MinReplicas == 0 && onlyCpuAndOrMemoryTriggersConfigured(config) {
+	if *config.MinReplicas == 0 && !hasNonResourceTypeTriggers(config) {
 		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
 	}
 
@@ -1189,15 +1189,47 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 		var definitions int
 		if trigger.Cpu != nil {
 			definitions++
+
+			if trigger.Cpu.Value == 0 {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
 		}
 		if trigger.Memory != nil {
 			definitions++
+
+			if trigger.Memory.Value == 0 {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
 		}
 		if trigger.Cron != nil {
 			definitions++
+
+			if trigger.Cron.Start == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: start must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
+			if trigger.Cron.Stop == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: stop must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
+			if trigger.Cron.Timezone == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: timezone must be set: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
+			if trigger.Cron.DesiredReplicas < 1 {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: desiredReplicas must be positive integer: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
 		}
 		if trigger.AzureServiceBus != nil {
 			definitions++
+
+			if trigger.AzureServiceBus.QueueName != nil && (trigger.AzureServiceBus.TopicName != nil || trigger.AzureServiceBus.SubscriptionName != nil) {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: queueName cannot be used with topicName or subscriptionName: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
+
+			if trigger.AzureServiceBus.QueueName == nil && (trigger.AzureServiceBus.TopicName == nil || trigger.AzureServiceBus.SubscriptionName == nil) {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
+			if trigger.AzureServiceBus.Authentication.Identity.Azure == nil {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity is required: %w", trigger.Name, ErrInvalidTrgiggerDefinition))
+			}
 		}
 
 		if definitions == 0 {
@@ -1212,31 +1244,22 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 	return errors.Join(errs...)
 }
 
-// onlyCpuAndOrMemoryTriggersConfigured returns true if any CPU/Memory triggers is found, and no other trigger types
-func onlyCpuAndOrMemoryTriggersConfigured(config *radixv1.RadixHorizontalScaling) bool {
-	var hasCpuOrMemoryTrigger, hasOtherTriggers bool
-
+// hasNonResourceTypeTriggers returns true if atleast one non resource type triggers found
+func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
 	if config.Triggers == nil {
 		return false
 	}
 
 	for _, trigger := range *config.Triggers {
-		if trigger.Cpu != nil {
-			hasCpuOrMemoryTrigger = true
-		}
-		if trigger.Memory != nil {
-			hasCpuOrMemoryTrigger = true
-		}
-
 		if trigger.Cron != nil {
-			hasOtherTriggers = true
+			return true
 		}
 		if trigger.AzureServiceBus != nil {
-			hasOtherTriggers = true
+			return true
 		}
 	}
 
-	return hasCpuOrMemoryTrigger && !hasOtherTriggers
+	return false
 }
 
 func getHorizontalScalingResourceAverageUtilization(resource *radixv1.RadixHorizontalScalingResource) *int32 {

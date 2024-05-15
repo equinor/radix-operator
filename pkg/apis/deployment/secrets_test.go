@@ -59,7 +59,7 @@ func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 	verificationOn, verificationOff := v1.VerificationTypeOn, v1.VerificationTypeOff
 
 	// Test
-	radixDeployment, err := applyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	radixDeployment, err := ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(environment).
 		WithComponents(

@@ -426,7 +426,7 @@ func (testEnv *testEnvProps) applyRdComponent(t *testing.T, appName string, envN
 		WithEmptyStatus().
 		WithComponents(componentBuilder)
 
-	rd, err := applyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
+	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
 	assert.NoError(t, err)
 	return rd
 }
@@ -441,13 +441,13 @@ func (testEnv *testEnvProps) applyRdJobComponent(t *testing.T, appName string, e
 		WithEmptyStatus().
 		WithJobComponents(jobBuilder)
 
-	rd, err := applyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
+	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
 	assert.NoError(t, err)
 	return rd
 }
 
 func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
-	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.secretproviderclient, testEnv.certClient = setupTest(t)
+	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
 	return &testEnv
 }

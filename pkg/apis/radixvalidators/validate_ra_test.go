@@ -1908,6 +1908,20 @@ func Test_HPA_Validation(t *testing.T) {
 			[]error{},
 		},
 		{
+			"Copmonent with valid Trigger config should be valid",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
+					MinReplicas: pointers.Ptr(int32(2)),
+					MaxReplicas: 4,
+					Triggers: &[]radixv1.RadixTrigger{
+						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: radixv1.DefaultTargetCPUUtilizationPercentage}},
+					},
+				}
+			},
+			true,
+			[]error{},
+		},
+		{
 			"Copmonent with Trigger config and Resource config should fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
@@ -1927,17 +1941,19 @@ func Test_HPA_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrCombiningTriggersWithResourcesIsIllegal},
 		},
 		{
-			"Copmonent with 0 replicas is corerct with any other than resource triggers",
+			"Copmonent with 0 replicas is correct when combined with atleast 1 non-resource trigger",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
-					MinReplicas: pointers.Ptr(int32(0)),
+					MinReplicas: pointers.Ptr[int32](0),
 					MaxReplicas: 4,
 					Triggers: &[]radixv1.RadixTrigger{
 						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
 						{Name: "memory", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}},
 						{Name: "cron", Cron: &radixv1.RadixHorizontalScalingCronTrigger{
-							Start: "0 5 * * *",
-							Stop:  "0 20 * * *",
+							Start:           "0 5 * * *",
+							Stop:            "0 20 * * *",
+							Timezone:        "Europe/Oslo",
+							DesiredReplicas: 1,
 						}},
 					},
 				}

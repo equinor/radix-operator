@@ -1,13 +1,15 @@
-package deployment
+package deployment_test
 
 import (
 	"context"
 	"strconv"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
+	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,7 +17,7 @@ import (
 )
 
 func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
-	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := deployment.SetupTest(t)
 	rrBuilder := utils.ARadixRegistration().WithName("someapp")
 	raBuilder := utils.ARadixApplication().
 		WithRadixRegistration(rrBuilder)
@@ -40,7 +42,7 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 				WithComponents(utils.NewDeployComponentBuilder().
 					WithHorizontalScaling(numbers.Int32Ptr(1), 3, testcase.cpuTarget, testcase.memoryTarget))
 
-			rd, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+			rd, err := deployment.ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 			assert.NoError(t, err)
 			_, err = kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.Background(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
 			assert.True(t, errors.IsNotFound(err))
@@ -49,12 +51,12 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 			require.NoError(t, err)
 
 			var actualCpuTarget, actualMemoryTarget *int
-			if memoryMetric := utils.GetFirstTriggerByType(scaler, "memory"); memoryMetric != nil {
+			if memoryMetric := getFirstTriggerByType(scaler, "memory"); memoryMetric != nil {
 				value, err := strconv.Atoi(memoryMetric.Metadata["value"])
 				require.NoError(t, err)
 				actualMemoryTarget = &value
 			}
-			if cpuMetric := utils.GetFirstTriggerByType(scaler, "cpu"); cpuMetric != nil {
+			if cpuMetric := getFirstTriggerByType(scaler, "cpu"); cpuMetric != nil {
 				value, err := strconv.Atoi(cpuMetric.Metadata["value"])
 				require.NoError(t, err)
 				actualCpuTarget = &value
@@ -75,4 +77,14 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 			}
 		})
 	}
+}
+
+// getFirstTriggerByType returns the trigger spec for the given name  and type or nil if not found
+func getFirstTriggerByType(scaledObject *v1alpha1.ScaledObject, triggerType string) *v1alpha1.ScaleTriggers {
+	for _, trigger := range scaledObject.Spec.Triggers {
+		if trigger.Type == triggerType {
+			return &trigger
+		}
+	}
+	return nil
 }
