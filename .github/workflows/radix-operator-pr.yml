@@ -50,7 +50,6 @@ jobs:
   build-operator:
     name: Build-operator
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
     steps:
     - uses: actions/checkout@v4
     - name: Build operator image
@@ -62,7 +61,6 @@ jobs:
   build-pipeline:
     name: Build-pipeline
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
     steps:
     - uses: actions/checkout@v4
     - name: Build pipeline image
