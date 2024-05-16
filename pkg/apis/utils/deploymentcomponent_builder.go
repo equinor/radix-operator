@@ -32,6 +32,7 @@ type DeployComponentBuilder interface {
 	WithDNSExternalAliases(...string) DeployComponentBuilder
 	WithExternalDNS(...v1.RadixDeployExternalDNS) DeployComponentBuilder
 	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder
+	WithHorizontalScalingBuilder(builder HorizontalScalingBuilder) DeployComponentBuilder
 	WithRunAsNonRoot(bool) DeployComponentBuilder
 	WithAuthentication(*v1.Authentication) DeployComponentBuilder
 	WithIdentity(*v1.Identity) DeployComponentBuilder
@@ -213,7 +214,11 @@ func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, max
 		scaler.WithMemoryTrigger(int(*memory))
 	}
 
-	dcb.horizontalScaling = scaler.Build()
+	return dcb.WithHorizontalScalingBuilder(scaler)
+}
+
+func (dcb *deployComponentBuilder) WithHorizontalScalingBuilder(builder HorizontalScalingBuilder) DeployComponentBuilder {
+	dcb.horizontalScaling = builder.Build()
 	return dcb
 }
 
