@@ -155,16 +155,16 @@ func validateDNSAlias(ctx context.Context, radixClient radixclient.Interface, ap
 	for _, dnsAlias := range app.Spec.DNSAlias {
 		if _, ok := uniqueAliasNames[dnsAlias.Alias]; ok {
 			errs = append(errs, DuplicateAliasForDNSAliasError(dnsAlias.Alias))
-		} else if err = validateRequiredResourceName("dnsAlias alias", dnsAlias.Alias); err != nil {
+		} else if err = validateRequiredResourceName("dnsAlias alias", dnsAlias.Alias, 63); err != nil {
 			errs = append(errs, err)
 		}
 		uniqueAliasNames[dnsAlias.Alias] = struct{}{}
 		componentNameIsValid, environmentNameIsValid := true, true
-		if err = validateRequiredResourceName("dnsAlias component", dnsAlias.Component); err != nil {
+		if err = validateRequiredResourceName("dnsAlias component", dnsAlias.Component, 63); err != nil {
 			errs = append(errs, err)
 			componentNameIsValid = false
 		}
-		if err = validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment); err != nil {
+		if err = validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment, 63); err != nil {
 			errs = append(errs, err)
 			environmentNameIsValid = false
 		}
@@ -625,7 +625,7 @@ func validatePorts(componentName string, ports []radixv1.ComponentPort) []error 
 			}
 		}
 
-		err := validateRequiredResourceName("port name", port.Name)
+		err := validateRequiredResourceName("port name", port.Name, 15)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -1020,7 +1020,7 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 
 func validateEnvNames(app *radixv1.RadixApplication) error {
 	for _, env := range app.Spec.Environments {
-		err := validateRequiredResourceName("env name", env.Name)
+		err := validateRequiredResourceName("env name", env.Name, 63)
 		if err != nil {
 			return err
 		}
@@ -1178,6 +1178,8 @@ func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error
 	if err := validateTriggerDefintion(config); err != nil {
 		errs = append(errs, err)
 	}
+
+	// TODO: Validate Unique trigger names
 
 	return errors.Join(errs...)
 }
@@ -1543,7 +1545,7 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 }
 
 func validateComponentName(componentName, componentType string) error {
-	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName); err != nil {
+	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName, 50); err != nil {
 		return err
 	}
 

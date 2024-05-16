@@ -332,7 +332,7 @@ type ResourceRequirements struct {
 type RadixComponent struct {
 	// Name of the component.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
@@ -557,10 +557,9 @@ type RadixEnvironmentConfig struct {
 type RadixJobComponent struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
-
 	// Path to the Dockerfile that builds the job.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src-2
 	// +optional

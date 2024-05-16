@@ -54,6 +54,9 @@ type RadixHorizontalScalingResources struct {
 
 // RadixTrigger defines configuration for a specific trigger.
 type RadixTrigger struct {
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=50
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name            string                                        `json:"name"`
 	Cpu             *RadixHorizontalScalingCPUTrigger             `json:"cpu,omitempty"`
 	Memory          *RadixHorizontalScalingMemoryTrigger          `json:"memory,omitempty"`
