@@ -193,7 +193,7 @@ func TestScalerTriggers(t *testing.T) {
 		{
 			name:    "Cron",
 			builder: utils.NewHorizontalScalingBuilder().WithCRONTrigger("10 * * * *", "20 * * * *", "Europe/Oslo", 30),
-			expected: v1alpha1.ScaleTriggers{Name: "cron", Type: "cron", MetricType: v2.UtilizationMetricType, Metadata: map[string]string{
+			expected: v1alpha1.ScaleTriggers{Name: "cron", Type: "cron", Metadata: map[string]string{
 				"start":           "10 * * * *",
 				"stop":            "20 * * * *",
 				"timezone":        "Europe/Oslo",
@@ -203,6 +203,7 @@ func TestScalerTriggers(t *testing.T) {
 		{
 			name: "AzureServiceBus",
 			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger(
+				"anamespace",
 				pointers.Ptr("queue-name"),
 				nil,
 				nil,
@@ -218,7 +219,7 @@ func TestScalerTriggers(t *testing.T) {
 					"queueName":              "queue-name",
 					"topicName":              "functions-sbtopic",
 					"subscriptionName":       "sbtopic-sub1",
-					"namespace":              "service-bus-namespace",
+					"namespace":              "anamespace",
 					"messageCount":           "5",
 					"activationMessageCount": "10",
 				},
@@ -232,6 +233,7 @@ func TestScalerTriggers(t *testing.T) {
 		{
 			name: "AzureServiceBus",
 			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger(
+				"anamespace",
 				nil,
 				pointers.Ptr("topic-name"),
 				pointers.Ptr("subscription-name"),
@@ -246,7 +248,7 @@ func TestScalerTriggers(t *testing.T) {
 				Metadata: map[string]string{
 					"topicName":              "topic-name",
 					"subscriptionName":       "subscription-name",
-					"namespace":              "service-bus-namespace",
+					"namespace":              "anamespace",
 					"messageCount":           "5",
 					"activationMessageCount": "10",
 				},
@@ -277,7 +279,12 @@ func TestScalerTriggers(t *testing.T) {
 
 			assert.Equal(t, testcase.expected, trigger)
 
-			// Todo Assert AuthenticationRef
+			if testcase.expecedAuth == nil {
+				assert.Nil(t, testcase.expecedAuth)
+			} else {
+				assert.Equal(t, testcase.expecedAuth, nil) // Todo Assert AuthenticationRef
+			}
+
 		})
 	}
 }

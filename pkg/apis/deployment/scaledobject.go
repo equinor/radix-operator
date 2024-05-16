@@ -145,10 +145,36 @@ func getScalingTriggers(config *radixv1.RadixHorizontalScaling) []kedav1.ScaleTr
 				Name: trigger.Name,
 				Type: "cron",
 				Metadata: map[string]string{
-					// TODO
+					"start":           trigger.Cron.Start,
+					"stop":            trigger.Cron.Stop,
+					"timezone":        trigger.Cron.Timezone,
+					"desiredReplicas": strconv.Itoa(trigger.Cron.DesiredReplicas),
 				},
 			})
-		case trigger.AzureServiceBus != nil: // TODO
+		case trigger.AzureServiceBus != nil:
+			metadata := map[string]string{
+				"namespace": trigger.AzureServiceBus.Namespace,
+			}
+
+			if trigger.AzureServiceBus.QueueName != nil {
+				metadata["queueName"] = *trigger.AzureServiceBus.QueueName
+			}
+			if trigger.AzureServiceBus.TopicName != nil && trigger.AzureServiceBus.SubscriptionName != nil {
+				metadata["topicName"] = *trigger.AzureServiceBus.TopicName
+				metadata["subscriptionName"] = *trigger.AzureServiceBus.SubscriptionName
+			}
+			if trigger.AzureServiceBus.MessageCount != nil {
+				metadata["messageCount"] = strconv.Itoa(*trigger.AzureServiceBus.MessageCount)
+			}
+			if trigger.AzureServiceBus.ActivationMessageCount != nil {
+				metadata["activationMessageCount"] = strconv.Itoa(*trigger.AzureServiceBus.ActivationMessageCount)
+			}
+
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name:     trigger.Name,
+				Type:     "azure-servicebus",
+				Metadata: metadata,
+			})
 		}
 	}
 

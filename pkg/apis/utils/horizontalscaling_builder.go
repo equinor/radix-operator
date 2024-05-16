@@ -13,7 +13,7 @@ type HorizontalScalingBuilder interface {
 	WithCPUTrigger(value int) HorizontalScalingBuilder
 	WithMemoryTrigger(value int) HorizontalScalingBuilder
 	WithCRONTrigger(start, stop, timezone string, desiredReplicas int) HorizontalScalingBuilder
-	WithAzureServiceBusTrigger(queueName, topicName, subscriptionName, clientId *string, messageCount, acitvationmessageCount *int) HorizontalScalingBuilder
+	WithAzureServiceBusTrigger(namespace string, queueName, topicName, subscriptionName, clientId *string, messageCount, acitvationmessageCount *int) HorizontalScalingBuilder
 	WithTrigger(trigger radixv1.RadixTrigger) HorizontalScalingBuilder
 
 	Build() *radixv1.RadixHorizontalScaling
@@ -26,7 +26,7 @@ type HorizontalScalingBuilderStruct struct {
 	pollingInterval *int32
 }
 
-func (h *HorizontalScalingBuilderStruct) WithAzureServiceBusTrigger(queueName, topicName, subscriptionName, clientId *string, messageCount, acitvationmessageCount *int) HorizontalScalingBuilder {
+func (h *HorizontalScalingBuilderStruct) WithAzureServiceBusTrigger(namespace string, queueName, topicName, subscriptionName, clientId *string, messageCount, acitvationmessageCount *int) HorizontalScalingBuilder {
 	authentication := radixv1.RadixHorizontalScalingAuthentication{
 		Identity: radixv1.Identity{
 			Azure: nil,
@@ -42,6 +42,7 @@ func (h *HorizontalScalingBuilderStruct) WithAzureServiceBusTrigger(queueName, t
 	h.WithTrigger(radixv1.RadixTrigger{
 		Name: "azure service bus",
 		AzureServiceBus: &radixv1.RadixHorizontalScalingAzureServiceBusTrigger{
+			Namespace:              namespace,
 			QueueName:              queueName,
 			TopicName:              topicName,
 			SubscriptionName:       subscriptionName,

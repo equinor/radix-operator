@@ -96,6 +96,9 @@ type RadixHorizontalScalingCronTrigger struct {
 }
 
 type RadixHorizontalScalingAzureServiceBusTrigger struct {
+	// Namespace - Name of the Azure Service Bus namespace that contains your queue or topic.
+	Namespace string `json:"namespace"`
+
 	// QueueName selects the target queue. QueueName wil take precedence over TopicName.
 	QueueName *string `json:"queueName,omitempty"`
 

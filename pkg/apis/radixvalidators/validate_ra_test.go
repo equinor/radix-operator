@@ -1749,7 +1749,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMaxReplicas(4).
-					WithAzureServiceBusTrigger(pointers.Ptr("queue-name"), nil, nil, pointers.Ptr("abcd"), nil, nil).
+					WithAzureServiceBusTrigger("anamespace", pointers.Ptr("queue-name"), nil, nil, pointers.Ptr("abcd"), nil, nil).
 					Build()
 			},
 			true,
@@ -1760,7 +1760,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMaxReplicas(4).
-					WithAzureServiceBusTrigger(nil, nil, nil, nil, nil, nil).
+					WithAzureServiceBusTrigger("", nil, nil, nil, nil, nil, nil).
 					Build()
 			},
 			false,
@@ -1777,7 +1777,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMemoryTrigger(80).
 					WithCPUTrigger(80).
 					WithCRONTrigger("* * * * *", "* * * * *", "Europe/Oslo", 10).
-					WithAzureServiceBusTrigger(pointers.Ptr("queue-name"), nil, nil, pointers.Ptr("abcd"), nil, nil).
+					WithAzureServiceBusTrigger("anamespace", pointers.Ptr("queue-name"), nil, nil, pointers.Ptr("abcd"), nil, nil).
 					Build()
 			},
 			true,

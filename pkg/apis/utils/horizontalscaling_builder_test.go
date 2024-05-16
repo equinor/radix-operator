@@ -70,6 +70,7 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 		{
 			name: "AzureServiceBus",
 			actual: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger(
+				"anamespace",
 				pointers.Ptr("queue-name"),
 				pointers.Ptr("topic-name"),
 				pointers.Ptr("subscription-name"),
@@ -79,6 +80,7 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 			).
 				Build(),
 			expected: v1.RadixTrigger{Name: "azure service bus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
+				Namespace:              "anamespace",
 				QueueName:              pointers.Ptr("queue-name"),
 				TopicName:              pointers.Ptr("topic-name"),
 				SubscriptionName:       pointers.Ptr("subscription-name"),
