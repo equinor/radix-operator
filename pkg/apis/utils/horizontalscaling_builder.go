@@ -40,7 +40,7 @@ func (h *HorizontalScalingBuilderStruct) WithAzureServiceBusTrigger(namespace st
 	}
 
 	h.WithTrigger(radixv1.RadixTrigger{
-		Name: "azure service bus",
+		Name: "azure-service-bus",
 		AzureServiceBus: &radixv1.RadixHorizontalScalingAzureServiceBusTrigger{
 			Namespace:              namespace,
 			QueueName:              queueName,

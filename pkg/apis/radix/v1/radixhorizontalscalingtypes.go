@@ -183,7 +183,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 	if config.Triggers == nil || len(*config.Triggers) == 0 {
 		config.Triggers = &[]RadixTrigger{
 			{
-				Name: "Default CPU",
+				Name: "default-cpu",
 				Cpu: &RadixHorizontalScalingCPUTrigger{
 					MetricType: autoscalingv2.UtilizationMetricType,
 					Value:      DefaultTargetCPUUtilizationPercentage,

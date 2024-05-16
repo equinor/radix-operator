@@ -1210,6 +1210,11 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 
 	for _, trigger := range *config.Triggers {
 		var definitions int
+
+		if err := validateRequiredResourceName(fmt.Sprintf("%s name", trigger.Name), trigger.Name, 50); err != nil {
+			errs = append(errs, fmt.Errorf("%w: %w", err, ErrInvalidTriggerDefinition))
+		}
+
 		if trigger.Cpu != nil {
 			definitions++
 
