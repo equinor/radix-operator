@@ -38,6 +38,7 @@ var (
 	ErrNoDefinitionInTrigger                                               = errors.New("no definition in trigger")
 	ErrMoreThanOneDefinitionInTrigger                                      = errors.New("each trigger must contain only one definition")
 	ErrInvalidTriggerDefinition                                            = errors.New("invalid trigger definition")
+	ErrDuplicateTriggerName                                                = errors.New("duplicate trigger name")
 	ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers         = errors.New("invalid minimum replicas configured. Minimum 1 replica required when configuring only CPU and/or memory triggers")
 	ErrVolumeMountMissingType                                              = errors.New("no types defined")
 	ErrVolumeMountInvalidType                                              = errors.New("invalid type")

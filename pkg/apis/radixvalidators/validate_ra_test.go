@@ -1851,7 +1851,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
 		},
 		{
-			"Copmonent with multpile definitions in same trigger must fail",
+			"Copmonent with multiple definitions in same trigger must fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
@@ -1861,6 +1861,32 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			},
 			false,
 			[]error{radixvalidators.ErrMoreThanOneDefinitionInTrigger},
+		},
+		{
+			"Copmonent with multiple definitions of same type is allowed",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithMaxReplicas(4).
+					WithTrigger(radixv1.RadixTrigger{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixTrigger{Name: "cpu2", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					Build()
+			},
+			true,
+			[]error{},
+		},
+		{
+			"Copmonent must have unique name",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithMaxReplicas(4).
+					WithTrigger(radixv1.RadixTrigger{Name: "test", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixTrigger{Name: "test", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
+					Build()
+			},
+			false,
+			[]error{radixvalidators.ErrDuplicateTriggerName},
 		},
 	}
 

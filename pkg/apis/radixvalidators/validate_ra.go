@@ -1179,7 +1179,28 @@ func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error
 		errs = append(errs, err)
 	}
 
-	// TODO: Validate Unique trigger names
+	if err := validateUniqueTriggerNames(config); err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateUniqueTriggerNames(config *radixv1.RadixHorizontalScaling) error {
+	if config == nil || config.Triggers == nil {
+		return nil
+	}
+
+	var errs []error
+	var names []string
+
+	for _, trigger := range *config.Triggers {
+		if slices.Contains(names, trigger.Name) {
+			errs = append(errs, fmt.Errorf("%w: %s", ErrDuplicateTriggerName, trigger.Name))
+		} else {
+			names = append(names, trigger.Name)
+		}
+	}
 
 	return errors.Join(errs...)
 }
