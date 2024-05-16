@@ -201,7 +201,7 @@ func TestScalerTriggers(t *testing.T) {
 			}},
 		},
 		{
-			name: "AzureServiceBus",
+			name: "AzureServiceBus-Queue",
 			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger(
 				"anamespace",
 				pointers.Ptr("queue-name"),
@@ -212,13 +212,10 @@ func TestScalerTriggers(t *testing.T) {
 				pointers.Ptr(10),
 			),
 			expected: v1alpha1.ScaleTriggers{
-				Name:       "azure service bus",
-				Type:       "azure-servicebus",
-				MetricType: v2.UtilizationMetricType,
+				Name: "azure service bus",
+				Type: "azure-servicebus",
 				Metadata: map[string]string{
 					"queueName":              "queue-name",
-					"topicName":              "functions-sbtopic",
-					"subscriptionName":       "sbtopic-sub1",
 					"namespace":              "anamespace",
 					"messageCount":           "5",
 					"activationMessageCount": "10",
@@ -231,7 +228,7 @@ func TestScalerTriggers(t *testing.T) {
 			}},
 		},
 		{
-			name: "AzureServiceBus",
+			name: "AzureServiceBus-Topic",
 			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger(
 				"anamespace",
 				nil,
@@ -242,9 +239,8 @@ func TestScalerTriggers(t *testing.T) {
 				pointers.Ptr(10),
 			),
 			expected: v1alpha1.ScaleTriggers{
-				Name:       "azure service bus",
-				Type:       "azure-servicebus",
-				MetricType: v2.UtilizationMetricType,
+				Name: "azure service bus",
+				Type: "azure-servicebus",
 				Metadata: map[string]string{
 					"topicName":              "topic-name",
 					"subscriptionName":       "subscription-name",
