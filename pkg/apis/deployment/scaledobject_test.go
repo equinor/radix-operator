@@ -222,10 +222,12 @@ func TestScalerTriggers(t *testing.T) {
 				},
 				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: "somefancyname", Kind: "TriggerAuthentication"},
 			},
-			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{PodIdentity: &v1alpha1.AuthPodIdentity{
-				Provider:   "azure-workload",
-				IdentityID: pointers.Ptr("abcd"),
-			}},
+			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
+				PodIdentity: &v1alpha1.AuthPodIdentity{
+					Provider:   "azure-workload",
+					IdentityID: pointers.Ptr("abcd"),
+				},
+			},
 		},
 		{
 			name: "AzureServiceBus-Topic",
@@ -250,10 +252,12 @@ func TestScalerTriggers(t *testing.T) {
 				},
 				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: "somefancyname", Kind: "TriggerAuthentication"},
 			},
-			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{PodIdentity: &v1alpha1.AuthPodIdentity{
-				Provider:   "azure-workload",
-				IdentityID: pointers.Ptr("abcd"),
-			}},
+			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
+				PodIdentity: &v1alpha1.AuthPodIdentity{
+					Provider:   "azure-workload",
+					IdentityID: pointers.Ptr("abcd"),
+				},
+			},
 		},
 	}
 
