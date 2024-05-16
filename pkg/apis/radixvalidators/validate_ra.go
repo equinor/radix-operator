@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -51,7 +52,7 @@ var (
 		validateDNSAppAlias,
 		validateDNSExternalAlias,
 		validatePrivateImageHubs,
-		validateHPAConfigForRA,
+		validateHorizontalScalingConfigForRA,
 		validateVolumeMountConfigForRA,
 		ValidateNotificationsForRA,
 	}
@@ -1130,45 +1131,62 @@ func validateResourceWithRegexp(resourceName, value, regexpExpression string) er
 	return InvalidResourceNameErrorWithMessage(resourceName, value)
 }
 
-func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
+func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 	var errs []error
+
 	for _, component := range app.Spec.Components {
 		componentName := component.Name
 		if component.HorizontalScaling != nil {
-			maxReplicas := component.HorizontalScaling.MaxReplicas
-			minReplicas := component.HorizontalScaling.MinReplicas
-			if maxReplicas == 0 {
-				errs = append(errs, MaxReplicasForHPANotSetOrZeroErrorWithMessage(componentName))
-			}
-			if minReplicas != nil && *minReplicas > maxReplicas {
-				errs = append(errs, MinReplicasGreaterThanMaxReplicasErrorWithMessage(componentName))
-			}
-			resources := component.HorizontalScaling.RadixHorizontalScalingResources
-			if resources != nil && getHorizontalScalingResourceAverageUtilization(resources.Cpu) == nil && getHorizontalScalingResourceAverageUtilization(resources.Memory) == nil {
-				errs = append(errs, NoScalingResourceSetErrorWithMessage(componentName))
+			err := validateHorizontalScalingPart(component.HorizontalScaling)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("error validating horizontal scaling for component: %s: %w", componentName, err))
 			}
 		}
 		for _, envConfig := range component.EnvironmentConfig {
 			if envConfig.HorizontalScaling == nil {
 				continue
 			}
-			environment := envConfig.Environment
-			maxReplicas := envConfig.HorizontalScaling.MaxReplicas
-			minReplicas := envConfig.HorizontalScaling.MinReplicas
-			if maxReplicas == 0 {
-				errs = append(errs, MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage(componentName, environment))
-			}
-			if minReplicas != nil && *minReplicas > maxReplicas {
-				errs = append(errs, MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage(componentName, environment))
-			}
-			resources := envConfig.HorizontalScaling.RadixHorizontalScalingResources
-			if resources != nil && getHorizontalScalingResourceAverageUtilization(resources.Cpu) == nil && getHorizontalScalingResourceAverageUtilization(resources.Memory) == nil {
-				errs = append(errs, NoScalingResourceSetInEnvironmentErrorWithMessage(componentName, environment))
+
+			err := validateHorizontalScalingPart(envConfig.HorizontalScaling)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("error validating horizontal scaling for environment %s in component %s: %w", envConfig.Environment, componentName, err))
 			}
 		}
 	}
 
 	return errors.Join(errs...)
+}
+
+func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error {
+	var errs []error
+
+	maxReplicas := config.MaxReplicas
+	minReplicas := config.MinReplicas
+	if minReplicas == nil {
+		minReplicas = pointers.Ptr[int32](deployment.DefaultReplicas)
+	}
+
+	if maxReplicas == 0 {
+		errs = append(errs, ErrMaxReplicasForHPANotSetOrZero)
+	}
+	if *minReplicas > maxReplicas {
+		errs = append(errs, ErrMinReplicasGreaterThanMaxReplicas)
+	}
+	resources := config.RadixHorizontalScalingResources
+	if resources != nil && getHorizontalScalingResourceAverageUtilization(resources.Cpu) == nil && getHorizontalScalingResourceAverageUtilization(resources.Memory) == nil {
+		errs = append(errs, ErrNoScalingResourceSet)
+	}
+
+	if *minReplicas == 0 && onlyCpuAndOrMemoryTriggersConfigured(resources) {
+		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
+	}
+
+	return errors.Join(errs...)
+}
+
+func onlyCpuAndOrMemoryTriggersConfigured(resources *radixv1.RadixHorizontalScalingResources) bool {
+	// TODO: When using triggers, this must check that no other triggers have been configured
+	return resources.Cpu != nil || resources.Memory != nil
 }
 
 func getHorizontalScalingResourceAverageUtilization(resource *radixv1.RadixHorizontalScalingResource) *int32 {

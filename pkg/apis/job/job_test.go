@@ -20,6 +20,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
@@ -91,9 +92,10 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	// Setup
 	kubeClient := kubernetes.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset()
+	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(kubeClient, radixClient, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, secretproviderclient)
+	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
 	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.egressIps, s.config.subscriptionID)
 	s.Require().NoError(err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient

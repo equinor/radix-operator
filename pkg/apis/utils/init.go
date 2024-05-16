@@ -8,6 +8,7 @@ import (
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -49,7 +50,7 @@ func (zl ZerologWarningHandlerAdapter) HandleWarningHeader(_ int, _ string, text
 }
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
+func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
 	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
@@ -84,6 +85,13 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 		log.Fatal().Err(err).Msg("Failed to initialize Radix client")
 	}
 
+	kedaClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kedav2.Clientset, error) {
+		return kedav2.NewForConfig(config)
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize KEDA client")
+	}
+
 	prometheusOperatorClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*monitoring.Clientset, error) {
 		return monitoring.NewForConfig(config)
 	})
@@ -105,5 +113,5 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 	}
 
 	log.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, prometheusOperatorClient, secretProviderClient, certClient
+	return client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, certClient
 }

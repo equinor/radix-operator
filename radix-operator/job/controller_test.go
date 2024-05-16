@@ -17,6 +17,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
@@ -46,9 +47,10 @@ func (s *jobTestSuite) SetupSuite() {
 
 func (s *jobTestSuite) SetupTest() {
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(fake.NewSimpleClientset(), fakeradix.NewSimpleClientset(), secretProviderClient)
+	kedaClient := kedafake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(fake.NewSimpleClientset(), fakeradix.NewSimpleClientset(), kedaClient, secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
-	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), secretProviderClient)
+	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), kedaClient, secretProviderClient)
 	err := s.tu.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	s.Require().NoError(err)
 }

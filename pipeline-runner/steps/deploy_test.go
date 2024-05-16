@@ -13,6 +13,7 @@ import (
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/require"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
@@ -40,11 +41,12 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientse
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
+	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
+	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
 	err := testUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
 	require.NoError(t, err)
-	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient, kedaClient, secretproviderclient)
 
 	return kubeclient, kubeUtil, radixclient, testUtils
 }

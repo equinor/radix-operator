@@ -226,3 +226,11 @@ rules:
   - get
   - list
   - patch
+- apiGroups:
+  - keda.sh
+  resources:
+  - scaledobjects
+  verbs:
+  - get
+  - list
+  - watch

@@ -11,6 +11,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/rs/zerolog"
@@ -41,6 +42,7 @@ type alertTestSuite struct {
 	suite.Suite
 	kubeClient           *fake.Clientset
 	radixClient          *fakeradix.Clientset
+	kedaClient           *kedafake.Clientset
 	secretProviderClient *secretproviderfake.Clientset
 	promClient           *prometheusfake.Clientset
 	kubeUtil             *kube.Kube
@@ -58,7 +60,7 @@ func (s *alertTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 }
 

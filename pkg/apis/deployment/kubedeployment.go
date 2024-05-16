@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) createOrUpdateDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
 	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, deployComponent)
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func (deploy *Deployment) createOrUpdateDeployment(ctx context.Context, deployCo
 
 	// If component is stopped or HorizontalScaling is nil then delete hpa if exists before updating deployment
 	if isComponentStopped(deployComponent) || deployComponent.GetHorizontalScaling() == nil {
-		err = deploy.deleteHPAIfExists(ctx, deployComponent.GetName())
+		err = deploy.deleteScaledObjectIfExists(ctx, deployComponent.GetName())
 		if err != nil {
 			return err
 		}

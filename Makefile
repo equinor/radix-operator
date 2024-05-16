@@ -119,12 +119,17 @@ CUSTOM_RESOURCE_VERSION=v1
 
 .PHONY: code-gen
 code-gen: bootstrap
-	echo
+	mkdir -p $$(pwd)/github.com/equinor/radix-operator/ && ln --symbolic $$(pwd)/pkg/ $$(pwd)/github.com/equinor/radix-operator/pkg
+
 	$$(go env GOPATH)/pkg/mod/k8s.io/code-generator@$(KUBE_CODEGEN_VERSION)/generate-groups.sh all \
 		$(ROOT_PACKAGE)/pkg/client \
 		$(ROOT_PACKAGE)/pkg/apis \
 		$(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) \
 		--go-header-file hack/boilerplate.txt
+
+	# Remove hack
+	rm -Rf $$(pwd)/github.com
+	-rm $$(pwd)/pkg/pkg # sometimes the link target is not removed when link is removed
 
 .PHONY: crds
 crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds

@@ -391,7 +391,12 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 		return err
 	}
 
-	err = deploy.garbageCollectHPAsNoLongerInSpec(ctx)
+	err = deploy.garbageCollectDeprecatedHPAs(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectScalersNoLongerInSpec(ctx)
 	if err != nil {
 		return err
 	}
@@ -532,12 +537,12 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	err = deploy.createOrUpdateDeployment(ctx, component)
+	err = deploy.reconcileDeployment(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	err = deploy.createOrUpdateHPA(ctx, component)
+	err = deploy.createOrUpdateScaledObject(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create hpa: %w", err)
 	}

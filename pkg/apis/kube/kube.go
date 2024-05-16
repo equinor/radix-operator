@@ -4,6 +4,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
+	kedav1listers "github.com/kedacore/keda/v2/pkg/generated/listers/keda/v1alpha1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appsv1Listers "k8s.io/client-go/listers/apps/v1"
@@ -123,6 +125,7 @@ const (
 type Kube struct {
 	kubeClient               kubernetes.Interface
 	radixclient              radixclient.Interface
+	kedaClient               kedav2.Interface
 	secretProviderClient     secretProviderClient.Interface
 	RrLister                 v1Lister.RadixRegistrationLister
 	ReLister                 v1Lister.RadixEnvironmentLister
@@ -142,14 +145,17 @@ type Kube struct {
 	ServiceAccountLister     coreListers.ServiceAccountLister
 	LimitRangeLister         coreListers.LimitRangeLister
 	JobLister                batchListers.JobLister
+	ScaledObjectLister       kedav1listers.ScaledObjectLister
+
 	// Do not use ConfigMapLister as it were cases it return outdated data
 }
 
 // New Constructor
-func New(client kubernetes.Interface, radixClient radixclient.Interface, secretProviderClient secretProviderClient.Interface) (*Kube, error) {
+func New(client kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, secretProviderClient secretProviderClient.Interface) (*Kube, error) {
 	kubeutil := &Kube{
 		kubeClient:           client,
 		radixclient:          radixClient,
+		kedaClient:           kedaClient,
 		secretProviderClient: secretProviderClient,
 	}
 	return kubeutil, nil
@@ -157,13 +163,14 @@ func New(client kubernetes.Interface, radixClient radixclient.Interface, secretP
 
 // NewWithListers Constructor
 func NewWithListers(client kubernetes.Interface,
-	radixclient radixclient.Interface,
+	radixclient radixclient.Interface, kedaClient kedav2.Interface,
 	secretProviderClient secretProviderClient.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory) (*Kube, error) {
 	kubeutil := &Kube{
 		kubeClient:               client,
 		radixclient:              radixclient,
+		kedaClient:               kedaClient,
 		secretProviderClient:     secretProviderClient,
 		RrLister:                 radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
 		ReLister:                 radixInformerFactory.Radix().V1().RadixEnvironments().Lister(),
