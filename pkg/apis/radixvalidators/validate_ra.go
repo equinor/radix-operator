@@ -1258,7 +1258,7 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 			if trigger.AzureServiceBus.QueueName == nil && (trigger.AzureServiceBus.TopicName == nil || trigger.AzureServiceBus.SubscriptionName == nil) {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
-			if trigger.AzureServiceBus.Authentication.Identity.Azure == nil {
+			if trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId == "" {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 		}

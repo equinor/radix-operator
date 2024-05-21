@@ -86,6 +86,7 @@ const (
 	RadixBatchTypeLabel                 = "radix-batch-type"
 	RadixAccessValidationLabel          = "radix-access-validation"
 	RadixPipelineTypeLabels             = "radix-pipeline"
+	RadixTriggerLabel                   = "radix-keda-trigger"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule

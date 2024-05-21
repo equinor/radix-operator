@@ -33,6 +33,13 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 
 	scaler := deploy.getScalerConfig(componentName, horizontalScaling)
 
+	auths := deploy.getTriggerAuths(componentName, horizontalScaling)
+	for _, auth := range auths {
+		if err := deploy.kubeutil.ApplyTriggerAuthentication(ctx, namespace, auth); err != nil {
+			return err
+		}
+	}
+
 	return deploy.kubeutil.ApplyScaledObject(ctx, namespace, scaler)
 }
 
@@ -85,7 +92,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
 
-	triggers := getScalingTriggers(config)
+	triggers := getScalingTriggers(componentName, config)
 
 	scaler := &kedav1.ScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -113,7 +120,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 	return scaler
 }
 
-func getScalingTriggers(config *radixv1.RadixHorizontalScaling) []kedav1.ScaleTriggers {
+func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalScaling) []kedav1.ScaleTriggers {
 	var triggers []kedav1.ScaleTriggers
 
 	if config == nil || config.Triggers == nil {
@@ -174,11 +181,50 @@ func getScalingTriggers(config *radixv1.RadixHorizontalScaling) []kedav1.ScaleTr
 				Name:     trigger.Name,
 				Type:     "azure-servicebus",
 				Metadata: metadata,
+				AuthenticationRef: &kedav1.AuthenticationRef{
+					Name: fmt.Sprintf("%s-%s", componentName, trigger.Name),
+					Kind: "TriggerAuthentication",
+				},
 			})
 		}
 	}
 
 	return triggers
+}
+
+func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.RadixHorizontalScaling) []kedav1.TriggerAuthentication {
+	var auths []kedav1.TriggerAuthentication
+
+	if config == nil || config.Triggers == nil {
+		return auths
+	}
+
+	for _, trigger := range *config.Triggers {
+		switch {
+		case trigger.AzureServiceBus != nil:
+			auths = append(auths, kedav1.TriggerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("%s-%s", componentName, trigger.Name), // TODO: Extract this to its own helper
+					Labels: map[string]string{
+						kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName,
+						kube.RadixComponentLabel: componentName,
+						kube.RadixTriggerLabel:   trigger.Name,
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						getOwnerReferenceOfDeployment(deploy.radixDeployment),
+					},
+				},
+				Spec: kedav1.TriggerAuthenticationSpec{
+					PodIdentity: &kedav1.AuthPodIdentity{
+						Provider:   "azure-workload",
+						IdentityID: &trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId,
+					},
+				},
+			})
+		}
+	}
+
+	return auths
 }
 
 func (deploy *Deployment) deleteScaledObjectIfExists(ctx context.Context, componentName string) error {

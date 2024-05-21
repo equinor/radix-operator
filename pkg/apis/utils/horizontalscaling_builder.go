@@ -38,17 +38,13 @@ func (h *HorizontalScalingBuilderStruct) Build() *radixv1.RadixHorizontalScaling
 	return &s
 }
 
-func (h *HorizontalScalingBuilderStruct) WithAzureServiceBusTrigger(namespace string, queueName, topicName, subscriptionName, clientId *string, messageCount, acitvationmessageCount *int) *HorizontalScalingBuilderStruct {
+func (h *HorizontalScalingBuilderStruct) WithAzureServiceBusTrigger(namespace, clientId string, queueName, topicName, subscriptionName *string, messageCount, acitvationmessageCount *int) *HorizontalScalingBuilderStruct {
 	authentication := radixv1.RadixHorizontalScalingAuthentication{
-		Identity: radixv1.Identity{
-			Azure: nil,
+		Identity: radixv1.RequiredIdentity{
+			Azure: radixv1.AzureIdentity{
+				ClientId: clientId,
+			},
 		},
-	}
-
-	if clientId != nil {
-		authentication.Identity.Azure = &radixv1.AzureIdentity{
-			ClientId: *clientId,
-		}
 	}
 
 	h.WithTrigger(radixv1.RadixTrigger{

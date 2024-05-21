@@ -203,16 +203,8 @@ func TestScalerTriggers(t *testing.T) {
 			}},
 		},
 		{
-			name: "AzureServiceBus-Queue",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger(
-				"anamespace",
-				pointers.Ptr("queue-name"),
-				nil,
-				nil,
-				pointers.Ptr("abcd"),
-				pointers.Ptr(5),
-				pointers.Ptr(10),
-			),
+			name:    "AzureServiceBus-Queue",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", pointers.Ptr("queue-name"), nil, nil, pointers.Ptr(5), pointers.Ptr(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",
@@ -232,16 +224,8 @@ func TestScalerTriggers(t *testing.T) {
 			},
 		},
 		{
-			name: "AzureServiceBus-Topic",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger(
-				"anamespace",
-				nil,
-				pointers.Ptr("topic-name"),
-				pointers.Ptr("subscription-name"),
-				pointers.Ptr("abcd"),
-				pointers.Ptr(5),
-				pointers.Ptr(10),
-			),
+			name:    "AzureServiceBus-Topic",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", nil, pointers.Ptr("topic-name"), pointers.Ptr("subscription-name"), pointers.Ptr(5), pointers.Ptr(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",
@@ -293,7 +277,7 @@ func TestScalerTriggers(t *testing.T) {
 				actualAuth, err := kedaClient.KedaV1alpha1().TriggerAuthentications(rd.GetNamespace()).Get(context.Background(), testcase.expected.AuthenticationRef.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 
-				assert.Equal(t, testcase.expecedAuth, actualAuth)
+				assert.Equal(t, *testcase.expecedAuth, actualAuth.Spec)
 			}
 
 		})

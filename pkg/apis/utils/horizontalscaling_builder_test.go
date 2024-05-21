@@ -68,15 +68,7 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 		},
 		{
 			name: "AzureServiceBus",
-			actual: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger(
-				"anamespace",
-				pointers.Ptr("queue-name"),
-				pointers.Ptr("topic-name"),
-				pointers.Ptr("subscription-name"),
-				pointers.Ptr("abcd"),
-				pointers.Ptr(5),
-				pointers.Ptr(10),
-			).
+			actual: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", pointers.Ptr("queue-name"), pointers.Ptr("topic-name"), pointers.Ptr("subscription-name"), pointers.Ptr(5), pointers.Ptr(10)).
 				Build(),
 			expected: v1.RadixTrigger{Name: "azure-service-bus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
 				Namespace:              "anamespace",
@@ -86,7 +78,7 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 				MessageCount:           pointers.Ptr(5),
 				ActivationMessageCount: pointers.Ptr(10),
 				Authentication: v1.RadixHorizontalScalingAuthentication{
-					Identity: v1.Identity{Azure: &v1.AzureIdentity{ClientId: "abcd"}},
+					Identity: v1.RequiredIdentity{Azure: v1.AzureIdentity{ClientId: "abcd"}},
 				},
 			}},
 		},

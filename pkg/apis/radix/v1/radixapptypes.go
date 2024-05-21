@@ -1343,6 +1343,12 @@ type Identity struct {
 	Azure *AzureIdentity `json:"azure,omitempty"`
 }
 
+// RequiredIdentity configuration for federation with required azure identity providers.
+type RequiredIdentity struct {
+	// Azure identity configuration
+	Azure AzureIdentity `json:"azure,omitempty"`
+}
+
 // AzureIdentity properties for Azure AD Workload Identity
 type AzureIdentity struct {
 	// Defines the Client ID for a user defined managed identity or application ID for an application registration.

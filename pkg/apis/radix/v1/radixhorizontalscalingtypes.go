@@ -119,7 +119,7 @@ type RadixHorizontalScalingAzureServiceBusTrigger struct {
 	Authentication RadixHorizontalScalingAuthentication `json:"authentication"`
 }
 type RadixHorizontalScalingAuthentication struct {
-	Identity Identity `json:"identity"`
+	Identity RequiredIdentity `json:"identity"`
 }
 
 // NormalizeConfig copies, migrate deprecations and add defaults to configuration
