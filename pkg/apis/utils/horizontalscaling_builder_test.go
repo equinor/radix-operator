@@ -41,7 +41,6 @@ func Test_HorizontalScalingBuilder(t *testing.T) {
 }
 
 func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
-
 	var testScenarios = []struct {
 		name     string
 		actual   *v1.RadixHorizontalScaling
@@ -79,7 +78,7 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 				pointers.Ptr(10),
 			).
 				Build(),
-			expected: v1.RadixTrigger{Name: "azure service bus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
+			expected: v1.RadixTrigger{Name: "azure-service-bus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
 				Namespace:              "anamespace",
 				QueueName:              pointers.Ptr("queue-name"),
 				TopicName:              pointers.Ptr("topic-name"),

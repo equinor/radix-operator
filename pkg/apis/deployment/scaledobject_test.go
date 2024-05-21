@@ -2,6 +2,7 @@ package deployment_test
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -166,13 +167,14 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 
 func TestScalerTriggers(t *testing.T) {
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := deployment.SetupTest(t)
+	componentName := "a-component-name"
 	rrBuilder := utils.ARadixRegistration().WithName("someapp")
 	raBuilder := utils.ARadixApplication().
 		WithRadixRegistration(rrBuilder)
 
 	var testScenarios = []struct {
 		name        string
-		builder     utils.HorizontalScalingBuilder
+		builder     *utils.HorizontalScalingBuilderStruct
 		expected    v1alpha1.ScaleTriggers
 		expecedAuth *v1alpha1.TriggerAuthenticationSpec
 	}{
@@ -212,7 +214,7 @@ func TestScalerTriggers(t *testing.T) {
 				pointers.Ptr(10),
 			),
 			expected: v1alpha1.ScaleTriggers{
-				Name: "azure service bus",
+				Name: "azure-service-bus",
 				Type: "azure-servicebus",
 				Metadata: map[string]string{
 					"queueName":              "queue-name",
@@ -220,7 +222,7 @@ func TestScalerTriggers(t *testing.T) {
 					"messageCount":           "5",
 					"activationMessageCount": "10",
 				},
-				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: "somefancyname", Kind: "TriggerAuthentication"},
+				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: fmt.Sprintf("%s-azure-service-bus", componentName), Kind: "TriggerAuthentication"},
 			},
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
@@ -241,7 +243,7 @@ func TestScalerTriggers(t *testing.T) {
 				pointers.Ptr(10),
 			),
 			expected: v1alpha1.ScaleTriggers{
-				Name: "azure service bus",
+				Name: "azure-service-bus",
 				Type: "azure-servicebus",
 				Metadata: map[string]string{
 					"topicName":              "topic-name",
@@ -250,7 +252,7 @@ func TestScalerTriggers(t *testing.T) {
 					"messageCount":           "5",
 					"activationMessageCount": "10",
 				},
-				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: "somefancyname", Kind: "TriggerAuthentication"},
+				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: fmt.Sprintf("%s-azure-service-bus", componentName), Kind: "TriggerAuthentication"},
 			},
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
@@ -267,7 +269,13 @@ func TestScalerTriggers(t *testing.T) {
 			rdBuilder := utils.ARadixDeployment().
 				WithRadixApplication(raBuilder).
 				WithComponents(utils.NewDeployComponentBuilder().
-					WithHorizontalScalingBuilder(testcase.builder.WithMinReplicas(1).WithMaxReplicas(3).WithPollingInterval(4).WithCooldownPeriod(5)))
+					WithName(componentName).
+					WithHorizontalScalingBuilder(
+						testcase.builder.
+							WithMinReplicas(1).
+							WithMaxReplicas(3).
+							WithPollingInterval(4).
+							WithCooldownPeriod(5)))
 
 			rd, err := deployment.ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 			assert.NoError(t, err)
@@ -282,7 +290,10 @@ func TestScalerTriggers(t *testing.T) {
 			if testcase.expecedAuth == nil {
 				assert.Nil(t, testcase.expecedAuth)
 			} else {
-				assert.Equal(t, testcase.expecedAuth, nil) // Todo Assert AuthenticationRef
+				actualAuth, err := kedaClient.KedaV1alpha1().TriggerAuthentications(rd.GetNamespace()).Get(context.Background(), testcase.expected.AuthenticationRef.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+
+				assert.Equal(t, testcase.expecedAuth, actualAuth)
 			}
 
 		})
