@@ -13,6 +13,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
@@ -35,8 +36,8 @@ type PipelineRunner struct {
 }
 
 // NewRunner constructor
-func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
-	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
+func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kedaClient kedav2.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+	kubeUtil, _ := kube.New(kubeclient, radixclient, kedaClient, secretsstorevclient)
 	handler := PipelineRunner{
 		definition:               definition,
 		kubeclient:               kubeclient,

@@ -84,3 +84,11 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - keda.sh
+  resources:
+  - scaledobjects
+  verbs:
+  - get
+  - list
+  - watch

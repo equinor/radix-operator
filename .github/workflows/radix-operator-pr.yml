@@ -35,6 +35,18 @@ jobs:
       - name: golangci-lint
         run: golangci-lint run --timeout=30m --max-same-issues=0 --out-format=github-actions
 
+  verify-code-generation:
+    name: Verify Code Generation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Verify Code Generation
+        run: |
+          make verify-generate
+
   build-operator:
     name: Build-operator
     runs-on: ubuntu-latest

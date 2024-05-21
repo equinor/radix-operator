@@ -33,6 +33,7 @@ var (
 	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpa not set or zero")
 	ErrMinReplicasGreaterThanMaxReplicas                                   = errors.New("min replicas greater than max replicas")
 	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set")
+	ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers         = errors.New("invalid minimum replicas configured. Minimum 1 replica required when configuring only CPU and/or memory triggers")
 	ErrVolumeMountMissingType                                              = errors.New("no types defined")
 	ErrVolumeMountInvalidType                                              = errors.New("invalid type")
 	ErrVolumeMountMultipleTypes                                            = errors.New("multiple types defined")
@@ -101,11 +102,6 @@ var (
 	ErrInvalidUseOfPublicPortInWebhookUrl                                  = errors.New("invalid use of public port in webhook")
 	ErrMissingAzureIdentity                                                = errors.New("missing identity")
 )
-
-// AliasForDNSAliasNotDefinedError Error when alias is not valid
-func AliasForDNSAliasNotDefinedError() error {
-	return fmt.Errorf("invalid or missing alias for dnsAlias")
-}
 
 // DuplicateAliasForDNSAliasError Error when aliases are duplicate
 func DuplicateAliasForDNSAliasError(alias string) error {
@@ -243,37 +239,17 @@ func DuplicateExternalAliasErrorWithMessage() error {
 
 // InvalidBranchNameErrorWithMessage Indicates that branch name is invalid
 func InvalidBranchNameErrorWithMessage(branch string) error {
-	return errors.WithMessagef(ErrInvalidBranchName, "invalid branch name %s. See documentation for more info", branch)
-}
-
-// MaxReplicasForHPANotSetOrZeroErrorWithMessage Indicates that minReplicas of horizontalScaling is not set or set to 0
-func MaxReplicasForHPANotSetOrZeroErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrMaxReplicasForHPANotSetOrZero, "maxReplicas is not set or set to 0 for component %s. See documentation for more info", component)
-}
-
-// MinReplicasGreaterThanMaxReplicasErrorWithMessage Indicates that minReplicas is greater than maxReplicas
-func MinReplicasGreaterThanMaxReplicasErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrMinReplicasGreaterThanMaxReplicas, "minReplicas is greater than maxReplicas for component %s. See documentation for more info", component)
-}
-
-// NoScalingResourceSetErrorWithMessage Indicates that no scaling resource is set for horizontal scaling
-func NoScalingResourceSetErrorWithMessage(component string) error {
-	return errors.WithMessagef(ErrNoScalingResourceSet, "no scaling resource is set for component %s. See documentation for more info", component)
+	return errors.WithMessagef(ErrInvalidBranchName, "invalid branch name %s", branch)
 }
 
 // MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage Indicates that minReplicas of horizontalScaling is not set or set to 0
 func MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrMaxReplicasForHPANotSetOrZero, "maxReplicas is not set or set to 0 for component %s in environment %s. See documentation for more info", component, environment)
+	return errors.WithMessagef(ErrMaxReplicasForHPANotSetOrZero, "maxReplicas is not set or set to 0 for component %s in environment %s", component, environment)
 }
 
 // MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage Indicates that minReplicas is greater than maxReplicas
 func MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrMinReplicasGreaterThanMaxReplicas, "minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
-}
-
-// NoScalingResourceSetInEnvironmentErrorWithMessage Indicates that no scaling resource is set for horizontal scaling
-func NoScalingResourceSetInEnvironmentErrorWithMessage(component, environment string) error {
-	return errors.WithMessagef(ErrNoScalingResourceSet, "no scaling resource is set for component %s in environment %s. See documentation for more info", component, environment)
+	return errors.WithMessagef(ErrMinReplicasGreaterThanMaxReplicas, "minReplicas is greater than maxReplicas for component %s in environment %s", component, environment)
 }
 
 func volumeMountValidationError(name string, cause error) error {
