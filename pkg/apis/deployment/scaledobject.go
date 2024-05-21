@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	kedav1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/rs/zerolog/log"
@@ -182,7 +183,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 				Type:     "azure-servicebus",
 				Metadata: metadata,
 				AuthenticationRef: &kedav1.AuthenticationRef{
-					Name: fmt.Sprintf("%s-%s", componentName, trigger.Name),
+					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
 					Kind: "TriggerAuthentication",
 				},
 			})
@@ -204,7 +205,7 @@ func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.
 		case trigger.AzureServiceBus != nil:
 			auths = append(auths, kedav1.TriggerAuthentication{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: fmt.Sprintf("%s-%s", componentName, trigger.Name), // TODO: Extract this to its own helper
+					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
 					Labels: map[string]string{
 						kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName,
 						kube.RadixComponentLabel: componentName,

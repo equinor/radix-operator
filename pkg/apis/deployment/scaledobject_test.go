@@ -2,7 +2,6 @@ package deployment_test
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -214,7 +213,7 @@ func TestScalerTriggers(t *testing.T) {
 					"messageCount":           "5",
 					"activationMessageCount": "10",
 				},
-				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: fmt.Sprintf("%s-azure-service-bus", componentName), Kind: "TriggerAuthentication"},
+				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: utils.GetTriggerAuthenticationName(componentName, "azure-service-bus"), Kind: "TriggerAuthentication"},
 			},
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
@@ -236,7 +235,7 @@ func TestScalerTriggers(t *testing.T) {
 					"messageCount":           "5",
 					"activationMessageCount": "10",
 				},
-				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: fmt.Sprintf("%s-azure-service-bus", componentName), Kind: "TriggerAuthentication"},
+				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: utils.GetTriggerAuthenticationName(componentName, "azure-service-bus"), Kind: "TriggerAuthentication"},
 			},
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
