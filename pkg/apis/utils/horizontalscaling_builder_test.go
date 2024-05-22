@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	v2 "k8s.io/api/autoscaling/v2"
 )
 
 func Test_EmptyHorizontalScalingBuilder(t *testing.T) {
@@ -49,12 +50,12 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 		{
 			name:     "CPU",
 			actual:   utils.NewHorizontalScalingBuilder().WithCPUTrigger(80).Build(),
-			expected: v1.RadixTrigger{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 80}},
+			expected: v1.RadixTrigger{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 80, MetricType: v2.UtilizationMetricType}},
 		},
 		{
 			name:     "Memory",
 			actual:   utils.NewHorizontalScalingBuilder().WithMemoryTrigger(80).Build(),
-			expected: v1.RadixTrigger{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 80}},
+			expected: v1.RadixTrigger{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 80, MetricType: v2.UtilizationMetricType}},
 		},
 		{
 			name:   "Cron",

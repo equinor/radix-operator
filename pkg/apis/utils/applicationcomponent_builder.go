@@ -32,6 +32,7 @@ type RadixApplicationComponentBuilder interface {
 	WithIdentity(*v1.Identity) RadixApplicationComponentBuilder
 	WithReadOnlyFileSystem(*bool) RadixApplicationComponentBuilder
 	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixApplicationComponentBuilder
+	WithHorizontalScalingBuilder(builder HorizontalScalingBuilder) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -225,6 +226,10 @@ func (rcb *radixApplicationComponentBuilder) WithHorizontalScaling(minReplicas *
 			Memory: memoryScalingResource,
 		},
 	}
+	return rcb
+}
+func (rcb *radixApplicationComponentBuilder) WithHorizontalScalingBuilder(builder HorizontalScalingBuilder) RadixApplicationComponentBuilder {
+	rcb.horizontalScaling = builder.Build()
 	return rcb
 }
 

@@ -24,6 +24,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithIdentity(*v1.Identity) RadixEnvironmentConfigBuilder
 	WithImageTagName(string) RadixEnvironmentConfigBuilder
 	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixEnvironmentConfigBuilder
+	WithHorizontalScalingBuilder(builder HorizontalScalingBuilder) RadixEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixEnvironmentConfigBuilder
 }
 
@@ -72,6 +73,10 @@ func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(minReplicas *int
 			Memory: memoryScalingResource,
 		},
 	}
+	return ceb
+}
+func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScalingBuilder(builder HorizontalScalingBuilder) RadixEnvironmentConfigBuilder {
+	ceb.horizontalScaling = builder.Build()
 	return ceb
 }
 

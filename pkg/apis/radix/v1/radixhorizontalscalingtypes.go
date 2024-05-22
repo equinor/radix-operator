@@ -7,8 +7,7 @@ import (
 )
 
 const (
-	DefaultHorizontalScalingPollingInterval = 30
-	DefaultTargetCPUUtilizationPercentage   = 80
+	DefaultTargetCPUUtilizationPercentage = 80
 )
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler.
@@ -158,10 +157,6 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 
 	if config.MinReplicas == nil {
 		config.MinReplicas = pointers.Ptr[int32](1)
-	}
-
-	if config.PollingInterval == nil {
-		config.PollingInterval = pointers.Ptr[int32](DefaultHorizontalScalingPollingInterval)
 	}
 
 	// Set defaults for triggers

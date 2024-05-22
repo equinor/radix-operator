@@ -2,6 +2,7 @@ package utils
 
 import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v2 "k8s.io/api/autoscaling/v2"
 )
 
 type HorizontalScalingBuilderStruct struct {
@@ -18,6 +19,10 @@ func NewHorizontalScalingBuilder() *HorizontalScalingBuilderStruct {
 }
 
 func (h *HorizontalScalingBuilderStruct) Build() *radixv1.RadixHorizontalScaling {
+	if h == nil {
+		return nil
+	}
+
 	s := radixv1.RadixHorizontalScaling{
 		Triggers: &h.triggers,
 	}
@@ -76,7 +81,7 @@ func (h *HorizontalScalingBuilderStruct) WithPollingInterval(pollingInterval int
 func (h *HorizontalScalingBuilderStruct) WithCPUTrigger(value int) *HorizontalScalingBuilderStruct {
 	h.WithTrigger(radixv1.RadixTrigger{
 		Name: "cpu",
-		Cpu:  &radixv1.RadixHorizontalScalingCPUTrigger{Value: value},
+		Cpu:  &radixv1.RadixHorizontalScalingCPUTrigger{Value: value, MetricType: v2.UtilizationMetricType},
 	})
 	return h
 }
@@ -84,7 +89,7 @@ func (h *HorizontalScalingBuilderStruct) WithCPUTrigger(value int) *HorizontalSc
 func (h *HorizontalScalingBuilderStruct) WithMemoryTrigger(value int) *HorizontalScalingBuilderStruct {
 	h.WithTrigger(radixv1.RadixTrigger{
 		Name:   "memory",
-		Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: value},
+		Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: value, MetricType: v2.UtilizationMetricType},
 	})
 	return h
 }
