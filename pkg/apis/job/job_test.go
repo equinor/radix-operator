@@ -255,6 +255,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		ServiceAccountName: "radix-pipeline",
 		SecurityContext:    expectedSecurityCtx,
 		Containers:         expectedContainers,
+		NodeSelector:       map[string]string{corev1.LabelArchStable: defaults.DefaultNodeSelectorArchitecture},
 	}
 	s.Equal(expectedPodSpec, podTemplate.Spec)
 }

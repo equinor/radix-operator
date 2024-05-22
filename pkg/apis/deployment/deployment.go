@@ -17,6 +17,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
@@ -608,6 +609,7 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, de
 	// Remove volumes and volume mounts from job scheduler deployment
 	desiredDeployment.Spec.Template.Spec.Volumes = nil
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
+	desiredDeployment.Spec.Template.Spec.NodeSelector = utils.GetNodeSelector()
 	syncRadixRestartEnvironmentVariable(deployComponent, desiredJobAuxDeployment)
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
 }

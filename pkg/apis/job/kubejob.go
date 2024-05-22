@@ -111,6 +111,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					RestartPolicy: "Never",
 					Affinity:      utils.GetPipelineJobPodSpecAffinity(),
 					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
+					NodeSelector:  utils.GetNodeSelector(),
 				},
 			},
 		},

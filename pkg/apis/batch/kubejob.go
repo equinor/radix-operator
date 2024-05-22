@@ -185,6 +185,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					ActiveDeadlineSeconds:        timeLimitSeconds,
 					ServiceAccountName:           serviceAccountSpec.ServiceAccountName(),
 					AutomountServiceAccountToken: serviceAccountSpec.AutomountServiceAccountToken(),
+					NodeSelector:                 operatorUtils.GetNodeSelector(),
 				},
 			},
 			TTLSecondsAfterFinished: pointers.Ptr(int32(86400)), // delete completed job after 24 hours

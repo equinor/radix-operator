@@ -259,6 +259,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetDeploymentPodSpecAffinity(deployComponent.GetNode(), appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
+	desiredDeployment.Spec.Template.Spec.NodeSelector = utils.GetNodeSelector()
 
 	volumes, err := deploy.GetVolumesForComponent(ctx, deployComponent)
 	if err != nil {
