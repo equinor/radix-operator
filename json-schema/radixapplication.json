@@ -476,7 +476,7 @@
                                     "description": "Azure Service Bus requires Workload Identity configured with a ClientID",
                                     "properties": {
                                       "identity": {
-                                        "description": "Identity configuration for federation with external identity providers.",
+                                        "description": "RequiredIdentity configuration for federation with required azure identity providers.",
                                         "properties": {
                                           "azure": {
                                             "description": "Azure identity configuration",
@@ -504,6 +504,10 @@
                                     "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages",
                                     "type": "integer"
                                   },
+                                  "namespace": {
+                                    "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic.",
+                                    "type": "string"
+                                  },
                                   "queueName": {
                                     "description": "QueueName selects the target queue. QueueName wil take precedence over TopicName.",
                                     "type": "string"
@@ -518,7 +522,8 @@
                                   }
                                 },
                                 "required": [
-                                  "authentication"
+                                  "authentication",
+                                  "namespace"
                                 ],
                                 "type": "object"
                               },
@@ -582,6 +587,9 @@
                                 "type": "object"
                               },
                               "name": {
+                                "maxLength": 50,
+                                "minLength": 1,
+                                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                                 "type": "string"
                               }
                             },
@@ -1126,7 +1134,7 @@
                               "description": "Azure Service Bus requires Workload Identity configured with a ClientID",
                               "properties": {
                                 "identity": {
-                                  "description": "Identity configuration for federation with external identity providers.",
+                                  "description": "RequiredIdentity configuration for federation with required azure identity providers.",
                                   "properties": {
                                     "azure": {
                                       "description": "Azure identity configuration",
@@ -1154,6 +1162,10 @@
                               "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages",
                               "type": "integer"
                             },
+                            "namespace": {
+                              "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic.",
+                              "type": "string"
+                            },
                             "queueName": {
                               "description": "QueueName selects the target queue. QueueName wil take precedence over TopicName.",
                               "type": "string"
@@ -1168,7 +1180,8 @@
                             }
                           },
                           "required": [
-                            "authentication"
+                            "authentication",
+                            "namespace"
                           ],
                           "type": "object"
                         },
@@ -1232,6 +1245,9 @@
                           "type": "object"
                         },
                         "name": {
+                          "maxLength": 50,
+                          "minLength": 1,
+                          "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
                       },
@@ -1306,7 +1322,7 @@
               },
               "name": {
                 "description": "Name of the component.",
-                "maxLength": 253,
+                "maxLength": 50,
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
@@ -2575,7 +2591,7 @@
               },
               "name": {
                 "description": "Name of the environment which the settings applies to.",
-                "maxLength": 253,
+                "maxLength": 50,
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
