@@ -7,8 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1beta1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,11 +55,11 @@ func (syncer *alertSyncer) createOrUpdateAlertManagerConfig(ctx context.Context)
 	return syncer.applyAlertManagerConfig(ctx, ns, amc)
 }
 
-func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespace string, alertManagerConfig *v1alpha1.AlertmanagerConfig) error {
-	oldConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(ctx, alertManagerConfig.Name, metav1.GetOptions{})
+func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespace string, alertManagerConfig *v1beta1.AlertmanagerConfig) error {
+	oldConfig, err := syncer.prometheusClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Get(ctx, alertManagerConfig.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			created, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Create(ctx, alertManagerConfig, metav1.CreateOptions{})
+			created, err := syncer.prometheusClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Create(ctx, alertManagerConfig, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create AlertManagerConfig object: %v", err)
 			}
@@ -88,14 +87,14 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 		return fmt.Errorf("failed to marshal new AlertManagerConfig object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldConfigJSON, newConfigJSON, v1alpha1.AlertmanagerConfig{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldConfigJSON, newConfigJSON, v1beta1.AlertmanagerConfig{})
 	if err != nil {
 		return fmt.Errorf("failed to create two way merge patch AlertManagerConfig objects: %v", err)
 	}
 
 	if !kube.IsEmptyPatch(patchBytes) {
 		// Will perform update as patching does not work
-		updatedConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Update(ctx, newConfig, metav1.UpdateOptions{})
+		updatedConfig, err := syncer.prometheusClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Update(ctx, newConfig, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update AlertManagerConfig object: %v", err)
 		}
@@ -108,7 +107,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 	return nil
 }
 
-func (syncer *alertSyncer) getAlertManagerConfig() (*v1alpha1.AlertmanagerConfig, error) {
+func (syncer *alertSyncer) getAlertManagerConfig() (*v1beta1.AlertmanagerConfig, error) {
 	receivers := syncer.getAlertmanagerConfigReceivers()
 	routes := syncer.getAlertmanagerConfigRoutes()
 
@@ -121,14 +120,14 @@ func (syncer *alertSyncer) getAlertManagerConfig() (*v1alpha1.AlertmanagerConfig
 		routeJSON = append(routeJSON, apiextensionsv1.JSON{Raw: routeBytes})
 	}
 
-	amc := &v1alpha1.AlertmanagerConfig{
+	amc := &v1beta1.AlertmanagerConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            getAlertmanagerConfigName(syncer.radixAlert.Name),
 			OwnerReferences: syncer.getOwnerReference(),
 		},
-		Spec: v1alpha1.AlertmanagerConfigSpec{
+		Spec: v1beta1.AlertmanagerConfigSpec{
 			Receivers: receivers,
-			Route: &v1alpha1.Route{
+			Route: &v1beta1.Route{
 				Receiver: noopRecevierName,
 				Routes:   routeJSON,
 			},
@@ -138,8 +137,8 @@ func (syncer *alertSyncer) getAlertManagerConfig() (*v1alpha1.AlertmanagerConfig
 	return amc, nil
 }
 
-func (syncer *alertSyncer) getAlertmanagerConfigReceivers() []v1alpha1.Receiver {
-	receivers := []v1alpha1.Receiver{{Name: noopRecevierName}}
+func (syncer *alertSyncer) getAlertmanagerConfigReceivers() []v1beta1.Receiver {
+	receivers := []v1beta1.Receiver{{Name: noopRecevierName}}
 
 	for name, receiver := range syncer.radixAlert.Spec.Receivers {
 		receivers = append(receivers, syncer.getAlertmanagerConfigReceiverForRadixAlertReceiver(name, &receiver)...)
@@ -148,8 +147,8 @@ func (syncer *alertSyncer) getAlertmanagerConfigReceivers() []v1alpha1.Receiver 
 	return receivers
 }
 
-func (syncer *alertSyncer) getAlertmanagerConfigReceiverForRadixAlertReceiver(name string, receiver *radixv1.Receiver) []v1alpha1.Receiver {
-	var alertmanagerConfigReceivers []v1alpha1.Receiver
+func (syncer *alertSyncer) getAlertmanagerConfigReceiverForRadixAlertReceiver(name string, receiver *radixv1.Receiver) []v1beta1.Receiver {
+	var alertmanagerConfigReceivers []v1beta1.Receiver
 
 	if !receiver.IsEnabled() {
 		return alertmanagerConfigReceivers
@@ -168,18 +167,18 @@ func (syncer *alertSyncer) getAlertmanagerConfigReceiverForRadixAlertReceiver(na
 	return alertmanagerConfigReceivers
 }
 
-func (syncer *alertSyncer) buildAlertmanagerConfigReceiver(receiver *radixv1.Receiver, receiverName string, resolvable bool) v1alpha1.Receiver {
-	slackConfigsBuilder := func() []v1alpha1.SlackConfig {
+func (syncer *alertSyncer) buildAlertmanagerConfigReceiver(receiver *radixv1.Receiver, receiverName string, resolvable bool) v1beta1.Receiver {
+	slackConfigsBuilder := func() []v1beta1.SlackConfig {
 		if !receiver.SlackConfig.Enabled {
 			return nil
 		}
 
-		return []v1alpha1.SlackConfig{
+		return []v1beta1.SlackConfig{
 			{
 				SendResolved: &resolvable,
-				APIURL: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(syncer.radixAlert.Name)},
-					Key:                  GetSlackConfigSecretKeyName(receiverName),
+				APIURL: &v1beta1.SecretKeySelector{
+					Name: GetAlertSecretName(syncer.radixAlert.Name),
+					Key:  GetSlackConfigSecretKeyName(receiverName),
 				},
 				Text:      syncer.slackMessageTemplate.text,
 				Title:     syncer.slackMessageTemplate.title,
@@ -188,7 +187,7 @@ func (syncer *alertSyncer) buildAlertmanagerConfigReceiver(receiver *radixv1.Rec
 		}
 	}
 
-	return v1alpha1.Receiver{
+	return v1beta1.Receiver{
 		Name:         getRouteReceiverNameForAlert(receiverName, resolvable),
 		SlackConfigs: slackConfigsBuilder(),
 	}
@@ -206,8 +205,8 @@ func (syncer *alertSyncer) getMappedAlertConfigsForReceiverName(receiverName str
 	return mappedAlertConfigs
 }
 
-func (syncer *alertSyncer) getAlertmanagerConfigRoutes() []v1alpha1.Route {
-	var routes []v1alpha1.Route
+func (syncer *alertSyncer) getAlertmanagerConfigRoutes() []v1beta1.Route {
+	var routes []v1beta1.Route
 
 	for _, alert := range syncer.radixAlert.Spec.Alerts {
 		alertConfig, found := syncer.alertConfigs[alert.Alert]
@@ -224,13 +223,13 @@ func (syncer *alertSyncer) getAlertmanagerConfigRoutes() []v1alpha1.Route {
 			syncer.logger.Debug().Msgf("skipping alert %s in RadixAlert %s because receiver %s is disabled", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
 			continue
 		}
-		routes = append(routes, v1alpha1.Route{
+		routes = append(routes, v1beta1.Route{
 			Receiver:       getRouteReceiverNameForAlert(alert.Receiver, alertConfig.Resolvable),
 			GroupBy:        alertConfig.GroupBy,
 			GroupWait:      defaultGroupWait,
 			GroupInterval:  defaultGroupInterval,
 			RepeatInterval: getRepeatInterval(alertConfig),
-			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert.Alert}},
+			Matchers:       []v1beta1.Matcher{{Name: "alertname", Value: alert.Alert}},
 		})
 	}
 

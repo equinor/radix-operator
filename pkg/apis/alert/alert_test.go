@@ -12,7 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
+	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1beta1"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
@@ -126,7 +126,7 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 	s.ElementsMatch([]string{"any-alert-alert-config-admin", "any-alert-alert-config-reader"}, s.getRoleNames(actualRoles))
 	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
 	s.ElementsMatch([]string{"any-alert-alert-config-admin", "any-alert-alert-config-reader"}, s.getRoleBindingNames(actualRoleBindings))
-	_, err = s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(radixAlert.Name), metav1.GetOptions{})
+	_, err = s.promClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(radixAlert.Name), metav1.GetOptions{})
 	s.Nil(err, "alertmanagerConfig not found")
 }
 
@@ -449,7 +449,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_CreateWithOwnerReference
 	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
-	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
+	actualAmr, _ := s.promClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
 	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualAmr.OwnerReferences[0], "alertmanagerconfig ownerReference not as expected")
 }
@@ -462,7 +462,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_UpdateWithOwnerReference
 		Spec:       radixv1.RadixAlertSpec{},
 	}
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
-	_, err := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Create(context.Background(), &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName)}}, metav1.CreateOptions{})
+	_, err := s.promClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Create(context.Background(), &v1beta1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName)}}, metav1.CreateOptions{})
 	s.Nil(err)
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
@@ -470,7 +470,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_UpdateWithOwnerReference
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
-	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
+	actualAmr, _ := s.promClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
 	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualAmr.OwnerReferences[0], "alertmanagerconfig ownerReference not as expected")
 }
@@ -507,18 +507,18 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 		"job":    AlertConfig{GroupBy: []string{"g3"}, Resolvable: false},
 	}
 	slackTemplate := slackMessageTemplate{title: "atitle", titleLink: "alink", text: "atext"}
-	expectedSlackConfigFactory := func(receiverName string, resolvable bool) v1alpha1.SlackConfig {
-		return v1alpha1.SlackConfig{
+	expectedSlackConfigFactory := func(receiverName string, resolvable bool) v1beta1.SlackConfig {
+		return v1beta1.SlackConfig{
 			SendResolved: utils.BoolPtr(resolvable),
-			APIURL: &corev1.SecretKeySelector{
-				Key:                  GetSlackConfigSecretKeyName(receiverName),
-				LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(alertName)}},
+			APIURL: &v1beta1.SecretKeySelector{
+				Key:  GetSlackConfigSecretKeyName(receiverName),
+				Name: GetAlertSecretName(alertName)},
 			Title:     slackTemplate.title,
 			TitleLink: slackTemplate.titleLink,
 			Text:      slackTemplate.text,
 		}
 	}
-	getRouteByAlertandReceiver := func(routes []v1alpha1.Route, alert, receiver string) (route v1alpha1.Route, found bool) {
+	getRouteByAlertandReceiver := func(routes []v1beta1.Route, alert, receiver string) (route v1beta1.Route, found bool) {
 		resolvable := alertConfigs[alert].Resolvable
 		receiverName := getRouteReceiverNameForAlert(receiver, resolvable)
 		for _, r := range routes {
@@ -530,7 +530,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 		}
 		return
 	}
-	expectedRouteFactory := func(alert, receiver string) v1alpha1.Route {
+	expectedRouteFactory := func(alert, receiver string) v1beta1.Route {
 		resolvable := alertConfigs[alert].Resolvable
 		receiverName := getRouteReceiverNameForAlert(receiver, resolvable)
 		repeateInterval := nonResolvableRepeatInterval
@@ -538,9 +538,9 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 			repeateInterval = resolvableRepeatInterval
 		}
 
-		return v1alpha1.Route{
+		return v1beta1.Route{
 			Receiver:       receiverName,
-			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert}},
+			Matchers:       []v1beta1.Matcher{{Name: "alertname", Value: alert}},
 			GroupBy:        alertConfigs[alert].GroupBy,
 			GroupWait:      defaultGroupWait,
 			GroupInterval:  defaultGroupInterval,
@@ -553,7 +553,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	s.Require().NoError(err)
 
 	// Receivers
-	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
+	actualAmr, _ := s.promClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
 	s.Len(actualAmr.Spec.Receivers, 5)
 	_, found := s.getAlertManagerReceiverByName(actualAmr.Spec.Receivers, noopRecevierName)
 	s.True(found)
@@ -576,9 +576,9 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	// Routes
 	s.Equal(noopRecevierName, actualAmr.Spec.Route.Receiver)
 	s.Len(actualAmr.Spec.Route.Routes, 4)
-	var childRoutes []v1alpha1.Route
+	var childRoutes []v1beta1.Route
 	for _, routeJson := range actualAmr.Spec.Route.Routes {
-		childRoute := v1alpha1.Route{}
+		childRoute := v1beta1.Route{}
 		err = json.Unmarshal(routeJson.Raw, &childRoute)
 		s.Nil(err)
 		childRoutes = append(childRoutes, childRoute)
@@ -614,12 +614,12 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
-	actualAmr, _ = s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
+	actualAmr, _ = s.promClient.MonitoringV1beta1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
 	s.Len(actualAmr.Spec.Receivers, 3)
 	s.Len(actualAmr.Spec.Route.Routes, 2)
 }
 
-func (s *alertTestSuite) getAlertManagerReceiverByName(subjects []v1alpha1.Receiver, name string) (receiver v1alpha1.Receiver, found bool) {
+func (s *alertTestSuite) getAlertManagerReceiverByName(subjects []v1beta1.Receiver, name string) (receiver v1beta1.Receiver, found bool) {
 	for _, s := range subjects {
 		if s.Name == name {
 			receiver = s
