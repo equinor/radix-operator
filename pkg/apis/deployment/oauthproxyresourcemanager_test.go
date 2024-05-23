@@ -214,7 +214,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 		{
 			name: "component with hpa and default config",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
+				WithComponent(baseComp().WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
