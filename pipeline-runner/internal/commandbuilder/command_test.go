@@ -40,12 +40,12 @@ func Test_JoinHasCorrectElements(t *testing.T) {
 		a.AddArgf("Hei!")
 	}
 
-	a.AddArgf("End")
+	a.AddArgf("Stop")
 
 	actual := a.String()
 
 	assert.True(t, strings.HasPrefix(actual, "Start"))
-	assert.True(t, strings.HasSuffix(actual, "End"))
+	assert.True(t, strings.HasSuffix(actual, "Stop"))
 }
 
 func Test_CommandList_JoinsCorrectly(t *testing.T) {

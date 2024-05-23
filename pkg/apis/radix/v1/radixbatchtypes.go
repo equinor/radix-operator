@@ -241,7 +241,7 @@ type RadixBatchJobStatus struct {
 	// The value is set when phase is either Succeeded, Failed or Stopped.
 	// - Succeeded: Value from CompletionTime of the Kubernetes job.
 	// - Failed: Value from LastTransitionTime of the Failed condition of the Kubernetes job.
-	// - Stopped: The timestamp a job with End=true was reonciled.
+	// - Stopped: The timestamp a job with Stop=true was reonciled.
 	// +optional
 	EndTime *meta_v1.Time `json:"endTime,omitempty"`
 

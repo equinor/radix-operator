@@ -94,12 +94,12 @@ func (h *HorizontalScalingBuilderStruct) WithMemoryTrigger(value int) *Horizonta
 	return h
 }
 
-func (h *HorizontalScalingBuilderStruct) WithCRONTrigger(start, stop, timezone string, desiredReplicas int) *HorizontalScalingBuilderStruct {
+func (h *HorizontalScalingBuilderStruct) WithCRONTrigger(start, end, timezone string, desiredReplicas int) *HorizontalScalingBuilderStruct {
 	h.WithTrigger(radixv1.RadixTrigger{
 		Name: "cron",
 		Cron: &radixv1.RadixHorizontalScalingCronTrigger{
 			Start:           start,
-			End:             stop,
+			End:             end,
 			Timezone:        timezone,
 			DesiredReplicas: desiredReplicas,
 		},
