@@ -62,7 +62,7 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 			actual: utils.NewHorizontalScalingBuilder().WithCRONTrigger("10 * * * *", "20 * * * *", "Europe/Oslo", 30).Build(),
 			expected: v1.RadixTrigger{Name: "cron", Cron: &v1.RadixHorizontalScalingCronTrigger{
 				Start:           "10 * * * *",
-				Stop:            "20 * * * *",
+				End:             "20 * * * *",
 				Timezone:        "Europe/Oslo",
 				DesiredReplicas: 30,
 			}},

@@ -116,7 +116,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 			MinReplicaCount: config.MinReplicas,
 			MaxReplicaCount: pointers.Ptr(config.MaxReplicas),
 			PollingInterval: config.PollingInterval,
-			CooldownPeriod: config.CooldownPeriod,
+			CooldownPeriod:  config.CooldownPeriod,
 			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: true},
 			ScaleTargetRef: &kedav1.ScaleTarget{
 				Kind:       "Deployment",
@@ -163,7 +163,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 				Type: "cron",
 				Metadata: map[string]string{
 					"start":           trigger.Cron.Start,
-					"stop":            trigger.Cron.Stop,
+					"stop":            trigger.Cron.End,
 					"timezone":        trigger.Cron.Timezone,
 					"desiredReplicas": strconv.Itoa(trigger.Cron.DesiredReplicas),
 				},

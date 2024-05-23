@@ -87,8 +87,8 @@ type RadixHorizontalScalingCronTrigger struct {
 	// Start is a Cron expression indicating the start of the cron schedule.
 	Start string `json:"start"`
 
-	// Stop is a Cron expression indicating the Stop of the cron schedule.
-	Stop string `json:"stop"`
+	// End is a Cron expression indicating the End of the cron schedule.
+	End string `json:"stop"`
 
 	// Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 	Timezone string `json:"timezone"`

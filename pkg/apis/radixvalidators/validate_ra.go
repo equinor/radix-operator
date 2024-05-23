@@ -1235,8 +1235,8 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 			if trigger.Cron.Start == "" {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: start must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
-			if trigger.Cron.Stop == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: stop must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			if trigger.Cron.End == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: end must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 			if trigger.Cron.Timezone == "" {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: timezone must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))

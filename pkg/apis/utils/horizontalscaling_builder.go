@@ -99,7 +99,7 @@ func (h *HorizontalScalingBuilderStruct) WithCRONTrigger(start, stop, timezone s
 		Name: "cron",
 		Cron: &radixv1.RadixHorizontalScalingCronTrigger{
 			Start:           start,
-			Stop:            stop,
+			End:             stop,
 			Timezone:        timezone,
 			DesiredReplicas: desiredReplicas,
 		},
