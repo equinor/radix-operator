@@ -1591,21 +1591,18 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 	var testScenarios = []struct {
 		name     string
 		updateRA updateRAFunc
-		isValid  bool
 		isErrors []error
 	}{
 		{
 			"horizontalScaling is not set",
 			func(ra *radixv1.RadixApplication) {},
-			true,
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA minReplicas and maxReplicas are not set",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().Build()
 			},
-			false,
 			[]error{radixvalidators.ErrMaxReplicasForHPANotSetOrZero},
 		},
 		{
@@ -1615,7 +1612,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMinReplicas(3).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
@@ -1625,7 +1621,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMaxReplicas(2).
 					Build()
 			},
-			true,
 			[]error{},
 		},
 		{
@@ -1638,7 +1633,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMemoryTrigger(80).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
 		},
 		{
@@ -1651,7 +1645,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMemoryTrigger(80).
 					Build()
 			},
-			true,
 			[]error{},
 		},
 		{
@@ -1662,7 +1655,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMaxReplicas(2).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
@@ -1673,8 +1665,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMaxReplicas(4).
 					Build()
 			},
-			true,
-			[]error{},
+			nil,
 		},
 		{
 			"Valid CPU trigger should be successfull",
@@ -1684,7 +1675,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithCPUTrigger(radixv1.DefaultTargetCPUUtilizationPercentage).
 					Build()
 			},
-			true,
 			[]error{},
 		},
 		{
@@ -1696,7 +1686,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithTrigger(radixv1.RadixTrigger{Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{}}).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
 		{
@@ -1707,8 +1696,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMemoryTrigger(80).
 					Build()
 			},
-			true,
-			[]error{},
+			nil,
 		},
 		{
 			"Invalid Memory trigger should fail",
@@ -1719,7 +1707,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithTrigger(radixv1.RadixTrigger{Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{}}).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
 		{
@@ -1730,8 +1717,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithCRONTrigger("* * * * *", "* * * * *", "Europe/Oslo", 10).
 					Build()
 			},
-			true,
-			[]error{},
+			nil,
 		},
 		{
 			"Invalid CRON trigger should fail",
@@ -1741,8 +1727,9 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithTrigger(radixv1.RadixTrigger{Name: "cron", Cron: &radixv1.RadixHorizontalScalingCronTrigger{}}).
 					Build()
 			},
-			false,
-			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+				}
+			},
+			nil,
 		},
 		{
 			"Valid AzureServiceBus trigger should be successfull",
@@ -1752,8 +1739,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithAzureServiceBusTrigger("anamespace", "abcd", pointers.Ptr("queue-name"), nil, nil, nil, nil).
 					Build()
 			},
-			true,
-			[]error{},
+			nil,
 		},
 		{
 			"Invalid AzureServiceBus trigger should fail",
@@ -1763,6 +1749,8 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithAzureServiceBusTrigger("", "", nil, nil, nil, nil, nil).
 					Build()
 			},
+			// TODO: Maybe this validation should not return ErrMinReplicasGreaterThanMaxReplicas (it happens because minReplicas defaults to 1
+			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 			false,
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
@@ -1790,6 +1778,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMaxReplicas(4).
 					Build()
 			},
+			nil,
 			true,
 			[]error{},
 		},
@@ -1834,6 +1823,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					Build()
 
 			},
+			nil,
 			true,
 			[]error{},
 		},
@@ -1897,7 +1887,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			testcase.updateRA(validRA)
 			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
 
-			if testcase.isValid {
+			if testcase.isErrors == nil {
 				assert.NoError(t, err)
 			} else {
 				assert.Error(t, err)

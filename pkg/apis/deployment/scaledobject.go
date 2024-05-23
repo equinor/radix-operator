@@ -46,13 +46,21 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 
 func (deploy *Deployment) garbageCollectDeprecatedHPAs(ctx context.Context) error {
 	namespace := deploy.radixDeployment.GetNamespace()
-	hpas, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{})
+	hpas, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{LabelSelector: labels.ForApplicationName(deploy.registration.Name).String()})
 
 	if err != nil {
 		return err
 	}
 
 	for _, hpa := range hpas.Items {
+		// If owner reference is *not* RadixDeployment, skip deleting it
+		if len(hpa.OwnerReferences) == 0 {
+			continue
+		}
+		if owner := hpa.OwnerReferences[0]; owner.Kind != radixv1.KindRadixDeployment {
+			continue
+		}
+
 		err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, hpa.Name, metav1.DeleteOptions{})
 		if err != nil && errors.IsNotFound(err) {
 			return err
@@ -108,6 +116,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 			MinReplicaCount: config.MinReplicas,
 			MaxReplicaCount: pointers.Ptr(config.MaxReplicas),
 			PollingInterval: config.PollingInterval,
+			CooldownPeriod: config.CooldownPeriod,
 			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: true},
 			ScaleTargetRef: &kedav1.ScaleTarget{
 				Kind:       "Deployment",

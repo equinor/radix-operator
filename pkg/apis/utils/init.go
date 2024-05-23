@@ -89,7 +89,7 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 		return kedav2.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize Prometheus client")
+		log.Fatal().Err(err).Msg("Failed to initialize KEDA client")
 	}
 
 	prometheusOperatorClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*monitoring.Clientset, error) {
