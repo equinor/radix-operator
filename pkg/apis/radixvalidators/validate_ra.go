@@ -1293,13 +1293,6 @@ func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
 	return false
 }
 
-func getHorizontalScalingResourceAverageUtilization(resource *radixv1.RadixHorizontalScalingResource) *int32 {
-	if resource == nil {
-		return nil
-	}
-	return resource.AverageUtilization
-}
-
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, component := range app.Spec.Components {
