@@ -1621,7 +1621,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMaxReplicas(2).
 					Build()
 			},
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA minReplicas is set to 0 but only CPU and Memory resoruces are set",
@@ -1645,7 +1645,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMemoryTrigger(80).
 					Build()
 			},
-			[]error{},
+			nil,
 		},
 		{
 			"component HPA minReplicas is greater than maxReplicas",
@@ -1675,7 +1675,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithCPUTrigger(radixv1.DefaultTargetCPUUtilizationPercentage).
 					Build()
 			},
-			[]error{},
+			nil,
 		},
 		{
 			"Invalid CPU trigger should fail",
@@ -1727,9 +1727,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithTrigger(radixv1.RadixTrigger{Name: "cron", Cron: &radixv1.RadixHorizontalScalingCronTrigger{}}).
 					Build()
 			},
-				}
-			},
-			nil,
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
 		{
 			"Valid AzureServiceBus trigger should be successfull",
@@ -1749,9 +1747,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithAzureServiceBusTrigger("", "", nil, nil, nil, nil, nil).
 					Build()
 			},
-			// TODO: Maybe this validation should not return ErrMinReplicasGreaterThanMaxReplicas (it happens because minReplicas defaults to 1
-			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
-			false,
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
 		{
@@ -1768,8 +1763,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithAzureServiceBusTrigger("anamespace", "abcd", pointers.Ptr("queue-name"), nil, nil, nil, nil).
 					Build()
 			},
-			true,
-			[]error{},
+			nil,
 		},
 		{
 			"environment HPA minReplicas is not set and maxReplicas is set",
@@ -1779,8 +1773,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					Build()
 			},
 			nil,
-			true,
-			[]error{},
 		},
 		{
 			"invalid environment HPA is not valid",
@@ -1789,7 +1781,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMaxReplicas(0).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
@@ -1808,7 +1799,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					},
 				}
 			},
-			false,
 			[]error{radixvalidators.ErrCombiningTriggersWithResourcesIsIllegal},
 		},
 		{
@@ -1824,8 +1814,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 
 			},
 			nil,
-			true,
-			[]error{},
 		},
 		{
 			"Copmonent with 0 replicas is invalid with only resource triggers",
@@ -1837,7 +1825,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMemoryTrigger(99).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
 		},
 		{
@@ -1849,7 +1836,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithTrigger(radixv1.RadixTrigger{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}, Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrMoreThanOneDefinitionInTrigger},
 		},
 		{
@@ -1862,8 +1848,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithTrigger(radixv1.RadixTrigger{Name: "cpu2", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
 					Build()
 			},
-			true,
-			[]error{},
+			nil,
 		},
 		{
 			"Copmonent must have unique name",
@@ -1875,7 +1860,6 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithTrigger(radixv1.RadixTrigger{Name: "test", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
 					Build()
 			},
-			false,
 			[]error{radixvalidators.ErrDuplicateTriggerName},
 		},
 	}
