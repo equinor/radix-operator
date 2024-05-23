@@ -35,8 +35,7 @@ type DeployComponentBuilder interface {
 	// Deprecated: For backwards compatibility WithDNSExternalAliases is still supported, new code should use WithPublicPort instead
 	WithDNSExternalAliases(...string) DeployComponentBuilder
 	WithExternalDNS(...v1.RadixDeployExternalDNS) DeployComponentBuilder
-	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder
-	WithHorizontalScalingBuilder(builder HorizontalScalingBuilder) DeployComponentBuilder
+	WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) DeployComponentBuilder
 	WithRunAsNonRoot(bool) DeployComponentBuilder
 	WithAuthentication(*v1.Authentication) DeployComponentBuilder
 	WithIdentity(*v1.Identity) DeployComponentBuilder
@@ -204,25 +203,8 @@ func (dcb *deployComponentBuilder) WithIngressConfiguration(ingressConfiguration
 	return dcb
 }
 
-func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder {
-	scaler := NewHorizontalScalingBuilder().WithMaxReplicas(maxReplicas)
-
-	if minReplicas != nil {
-		scaler.WithMinReplicas(*minReplicas)
-	}
-	if cpu != nil {
-		scaler.WithCPUTrigger(int(*cpu))
-	}
-
-	if memory != nil {
-		scaler.WithMemoryTrigger(int(*memory))
-	}
-
-	return dcb.WithHorizontalScalingBuilder(scaler)
-}
-
-func (dcb *deployComponentBuilder) WithHorizontalScalingBuilder(builder HorizontalScalingBuilder) DeployComponentBuilder {
-	dcb.horizontalScaling = builder.Build()
+func (dcb *deployComponentBuilder) WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) DeployComponentBuilder {
+	dcb.horizontalScaling = scaling
 	return dcb
 }
 

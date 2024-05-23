@@ -27,24 +27,31 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 
 	var testScenarios = []struct {
 		name                 string
-		cpuTarget            *int32
+		cpuTarget            *int
 		expectedCpuTarget    *int
-		memoryTarget         *int32
+		memoryTarget         *int
 		expectedMemoryTarget *int
 	}{
 		{"cpu and memory are nil, cpu defaults to 80", nil, numbers.IntPtr(radixv1.DefaultTargetCPUUtilizationPercentage), nil, nil},
-		{"cpu is nil and memory is non-nil", nil, nil, numbers.Int32Ptr(70), numbers.IntPtr(70)},
-		{"cpu is non-nil and memory is nil", numbers.Int32Ptr(68), numbers.IntPtr(68), nil, nil},
-		{"cpu and memory are non-nil", numbers.Int32Ptr(68), numbers.IntPtr(68), numbers.Int32Ptr(70), numbers.IntPtr(70)},
+		{"cpu is nil and memory is non-nil", nil, nil, numbers.IntPtr(70), numbers.IntPtr(70)},
+		{"cpu is non-nil and memory is nil", numbers.IntPtr(68), numbers.IntPtr(68), nil, nil},
+		{"cpu and memory are non-nil", numbers.IntPtr(68), numbers.IntPtr(68), numbers.IntPtr(70), numbers.IntPtr(70)},
 	}
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			// Test that memory scaling is not enabled by default
+			scalerBUilder := utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(3)
+			if testcase.cpuTarget != nil {
+				scalerBUilder.WithCPUTrigger(*testcase.cpuTarget)
+			}
+			if testcase.memoryTarget != nil {
+				scalerBUilder.WithMemoryTrigger(*testcase.memoryTarget)
+			}
+
 			rdBuilder := utils.ARadixDeployment().
 				WithRadixApplication(raBuilder).
-				WithComponents(utils.NewDeployComponentBuilder().
-					WithHorizontalScaling(numbers.Int32Ptr(1), 3, testcase.cpuTarget, testcase.memoryTarget))
+				WithComponents(utils.NewDeployComponentBuilder().WithHorizontalScaling(scalerBUilder.Build()))
 
 			rd, err := deployment.ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 			assert.NoError(t, err)
@@ -91,8 +98,6 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 	componentOneName := "componentOneName"
 	componentTwoName := "componentTwoName"
 	componentThreeName := "componentThreeName"
-	minReplicas := int32(2)
-	maxReplicas := int32(4)
 
 	// Test
 	_, err := deployment.ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -104,19 +109,19 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(0)).
-				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil)))
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build())))
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -139,13 +144,13 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(0)).
-				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
@@ -253,12 +258,13 @@ func TestScalerTriggers(t *testing.T) {
 				WithRadixApplication(raBuilder).
 				WithComponents(utils.NewDeployComponentBuilder().
 					WithName(componentName).
-					WithHorizontalScalingBuilder(
+					WithHorizontalScaling(
 						testcase.builder.
 							WithMinReplicas(1).
 							WithMaxReplicas(3).
 							WithPollingInterval(4).
-							WithCooldownPeriod(5)))
+							WithCooldownPeriod(5).Build(),
+					))
 
 			rd, err := deployment.ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 			assert.NoError(t, err)

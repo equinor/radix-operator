@@ -1084,14 +1084,14 @@ func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
 			environmentConfigBuilder := utils.AnEnvironmentConfig().WithEnvironment(env)
 			if testCase.environmentHorizontalScaling != nil {
 				hs := testCase.environmentHorizontalScaling
-				environmentConfigBuilder = environmentConfigBuilder.WithHorizontalScalingBuilder(hs)
+				environmentConfigBuilder = environmentConfigBuilder.WithHorizontalScaling(hs.Build())
 			}
 			componentBuilder := utils.NewApplicationComponentBuilder().
 				WithName(componentName).
 				WithEnvironmentConfigs(environmentConfigBuilder)
 			if testCase.componentHorizontalScaling != nil {
 				hs := testCase.componentHorizontalScaling
-				componentBuilder = componentBuilder.WithHorizontalScalingBuilder(hs)
+				componentBuilder = componentBuilder.WithHorizontalScaling(hs.Build())
 			}
 
 			ra := utils.ARadixApplication().WithComponents(componentBuilder).BuildRA()
@@ -1141,11 +1141,11 @@ func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			componentBuilder := utils.NewApplicationComponentBuilder().WithName(componentName)
 			for envName, hs := range testCase.environmentHorizontalScaling {
-				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithHorizontalScalingBuilder(hs))
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithHorizontalScaling(hs.Build()))
 			}
 			if testCase.componentHorizontalScaling != nil {
 				hs := testCase.componentHorizontalScaling
-				componentBuilder = componentBuilder.WithHorizontalScalingBuilder(hs)
+				componentBuilder = componentBuilder.WithHorizontalScaling(hs.Build())
 			}
 
 			ra := utils.ARadixApplication().WithEnvironment(env1, "").WithEnvironment(env2, "").WithComponent(componentBuilder).BuildRA()

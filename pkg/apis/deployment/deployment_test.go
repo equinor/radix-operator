@@ -1555,11 +1555,11 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 		WithComponents(
 			utils.NewDeployComponentBuilder().WithName("comp1"),
 			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(2)),
-			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(pointers.Ptr(4)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
-			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(pointers.Ptr(6)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
-			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(pointers.Ptr(11)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
-			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
-			utils.NewDeployComponentBuilder().WithName("comp7").WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(pointers.Ptr(4)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(pointers.Ptr(6)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(pointers.Ptr(11)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp7").WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 		))
 	require.NoError(t, err)
 	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
@@ -1589,7 +1589,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1606,7 +1606,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1619,7 +1619,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1651,7 +1651,7 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(2)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1664,7 +1664,7 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1677,7 +1677,7 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(2)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 

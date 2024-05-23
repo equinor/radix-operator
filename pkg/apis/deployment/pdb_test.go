@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,7 +33,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
 				WithReplicas(test.IntPtr(4)).
-				WithHorizontalScaling(numbers.Int32Ptr(2), 4, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
@@ -43,7 +42,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
-				WithPublicPort("http").WithHorizontalScaling(nil, 2, nil, nil)))
+				WithPublicPort("http").WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMaxReplicas(2).Build())))
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -325,7 +324,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(4)).
-				WithHorizontalScaling(numbers.Int32Ptr(4), 6, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(4).WithMaxReplicas(6).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
@@ -354,7 +353,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(numbers.Int32Ptr(1), 6, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(6).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
