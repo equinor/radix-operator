@@ -45,22 +45,22 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 	var testScenarios = []struct {
 		name     string
 		actual   *v1.RadixHorizontalScaling
-		expected v1.RadixTrigger
+		expected v1.RadixHorizontalScalingTrigger
 	}{
 		{
 			name:     "CPU",
 			actual:   utils.NewHorizontalScalingBuilder().WithCPUTrigger(80).Build(),
-			expected: v1.RadixTrigger{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 80, MetricType: v2.UtilizationMetricType}},
+			expected: v1.RadixHorizontalScalingTrigger{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 80, MetricType: v2.UtilizationMetricType}},
 		},
 		{
 			name:     "Memory",
 			actual:   utils.NewHorizontalScalingBuilder().WithMemoryTrigger(80).Build(),
-			expected: v1.RadixTrigger{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 80, MetricType: v2.UtilizationMetricType}},
+			expected: v1.RadixHorizontalScalingTrigger{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 80, MetricType: v2.UtilizationMetricType}},
 		},
 		{
 			name:   "Cron",
 			actual: utils.NewHorizontalScalingBuilder().WithCRONTrigger("10 * * * *", "20 * * * *", "Europe/Oslo", 30).Build(),
-			expected: v1.RadixTrigger{Name: "cron", Cron: &v1.RadixHorizontalScalingCronTrigger{
+			expected: v1.RadixHorizontalScalingTrigger{Name: "cron", Cron: &v1.RadixHorizontalScalingCronTrigger{
 				Start:           "10 * * * *",
 				End:             "20 * * * *",
 				Timezone:        "Europe/Oslo",
@@ -71,7 +71,7 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 			name: "AzureServiceBus",
 			actual: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", pointers.Ptr("queue-name"), pointers.Ptr("topic-name"), pointers.Ptr("subscription-name"), pointers.Ptr(5), pointers.Ptr(10)).
 				Build(),
-			expected: v1.RadixTrigger{Name: "azure-service-bus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
+			expected: v1.RadixHorizontalScalingTrigger{Name: "azure-service-bus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
 				Namespace:              "anamespace",
 				QueueName:              pointers.Ptr("queue-name"),
 				TopicName:              pointers.Ptr("topic-name"),

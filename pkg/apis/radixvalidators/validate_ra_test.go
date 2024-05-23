@@ -1683,7 +1683,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(2).
 					WithMaxReplicas(4).
-					WithTrigger(radixv1.RadixTrigger{Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{}}).
 					Build()
 			},
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
@@ -1704,7 +1704,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(2).
 					WithMaxReplicas(4).
-					WithTrigger(radixv1.RadixTrigger{Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{}}).
 					Build()
 			},
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
@@ -1724,7 +1724,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMaxReplicas(4).
-					WithTrigger(radixv1.RadixTrigger{Name: "cron", Cron: &radixv1.RadixHorizontalScalingCronTrigger{}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "cron", Cron: &radixv1.RadixHorizontalScalingCronTrigger{}}).
 					Build()
 			},
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
@@ -1793,7 +1793,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
 						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
 					},
-					Triggers: &[]radixv1.RadixTrigger{
+					Triggers: &[]radixv1.RadixHorizontalScalingTrigger{
 						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
 						{Name: "memory", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}},
 					},
@@ -1833,7 +1833,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
 					WithMaxReplicas(4).
-					WithTrigger(radixv1.RadixTrigger{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}, Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}, Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
 					Build()
 			},
 			[]error{radixvalidators.ErrMoreThanOneDefinitionInTrigger},
@@ -1844,8 +1844,8 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
 					WithMaxReplicas(4).
-					WithTrigger(radixv1.RadixTrigger{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
-					WithTrigger(radixv1.RadixTrigger{Name: "cpu2", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "cpu2", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
 					Build()
 			},
 			nil,
@@ -1856,8 +1856,8 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
 					WithMaxReplicas(4).
-					WithTrigger(radixv1.RadixTrigger{Name: "test", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
-					WithTrigger(radixv1.RadixTrigger{Name: "test", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "test", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "test", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
 					Build()
 			},
 			[]error{radixvalidators.ErrDuplicateTriggerName},

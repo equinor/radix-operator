@@ -32,7 +32,7 @@ type RadixHorizontalScaling struct {
 
 	// Defines a list of triggers the component replicas will scale on.
 	// +optional
-	Triggers *[]RadixTrigger `json:"triggers,omitempty"`
+	Triggers *[]RadixHorizontalScalingTrigger `json:"triggers,omitempty"`
 }
 
 type RadixHorizontalScalingResource struct {
@@ -51,8 +51,8 @@ type RadixHorizontalScalingResources struct {
 	Memory *RadixHorizontalScalingResource `json:"memory,omitempty"`
 }
 
-// RadixTrigger defines configuration for a specific trigger.
-type RadixTrigger struct {
+// RadixHorizontalScalingTrigger defines configuration for a specific trigger.
+type RadixHorizontalScalingTrigger struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
@@ -132,10 +132,10 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 	config.RadixHorizontalScalingResources = nil
 
 	if config.Triggers == nil && c.RadixHorizontalScalingResources != nil {
-		config.Triggers = &[]RadixTrigger{}
+		config.Triggers = &[]RadixHorizontalScalingTrigger{}
 
 		if c.RadixHorizontalScalingResources.Cpu != nil && c.RadixHorizontalScalingResources.Cpu.AverageUtilization != nil {
-			*config.Triggers = append(*config.Triggers, RadixTrigger{
+			*config.Triggers = append(*config.Triggers, RadixHorizontalScalingTrigger{
 				Name: "CPU",
 				Cpu: &RadixHorizontalScalingCPUTrigger{
 					MetricType: autoscalingv2.UtilizationMetricType,
@@ -145,7 +145,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 		}
 
 		if c.RadixHorizontalScalingResources.Memory != nil && c.RadixHorizontalScalingResources.Memory.AverageUtilization != nil {
-			*config.Triggers = append(*config.Triggers, RadixTrigger{
+			*config.Triggers = append(*config.Triggers, RadixHorizontalScalingTrigger{
 				Name: "Memory",
 				Memory: &RadixHorizontalScalingMemoryTrigger{
 					MetricType: autoscalingv2.UtilizationMetricType,
@@ -176,7 +176,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 	}
 
 	if config.Triggers == nil || len(*config.Triggers) == 0 {
-		config.Triggers = &[]RadixTrigger{
+		config.Triggers = &[]RadixHorizontalScalingTrigger{
 			{
 				Name: "default-cpu",
 				Cpu: &RadixHorizontalScalingCPUTrigger{

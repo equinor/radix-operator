@@ -9,7 +9,7 @@ type HorizontalScalingBuilderStruct struct {
 	minReplicas     *int32
 	maxReplicas     *int32
 	cooldownPeriod  *int32
-	triggers        []radixv1.RadixTrigger
+	triggers        []radixv1.RadixHorizontalScalingTrigger
 	pollingInterval *int32
 }
 
@@ -52,7 +52,7 @@ func (h *HorizontalScalingBuilderStruct) WithAzureServiceBusTrigger(namespace, c
 		},
 	}
 
-	h.WithTrigger(radixv1.RadixTrigger{
+	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
 		Name: "azure-service-bus",
 		AzureServiceBus: &radixv1.RadixHorizontalScalingAzureServiceBusTrigger{
 			Namespace:              namespace,
@@ -79,7 +79,7 @@ func (h *HorizontalScalingBuilderStruct) WithPollingInterval(pollingInterval int
 }
 
 func (h *HorizontalScalingBuilderStruct) WithCPUTrigger(value int) *HorizontalScalingBuilderStruct {
-	h.WithTrigger(radixv1.RadixTrigger{
+	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
 		Name: "cpu",
 		Cpu:  &radixv1.RadixHorizontalScalingCPUTrigger{Value: value, MetricType: v2.UtilizationMetricType},
 	})
@@ -87,7 +87,7 @@ func (h *HorizontalScalingBuilderStruct) WithCPUTrigger(value int) *HorizontalSc
 }
 
 func (h *HorizontalScalingBuilderStruct) WithMemoryTrigger(value int) *HorizontalScalingBuilderStruct {
-	h.WithTrigger(radixv1.RadixTrigger{
+	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
 		Name:   "memory",
 		Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: value, MetricType: v2.UtilizationMetricType},
 	})
@@ -95,7 +95,7 @@ func (h *HorizontalScalingBuilderStruct) WithMemoryTrigger(value int) *Horizonta
 }
 
 func (h *HorizontalScalingBuilderStruct) WithCRONTrigger(start, end, timezone string, desiredReplicas int) *HorizontalScalingBuilderStruct {
-	h.WithTrigger(radixv1.RadixTrigger{
+	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
 		Name: "cron",
 		Cron: &radixv1.RadixHorizontalScalingCronTrigger{
 			Start:           start,
@@ -107,7 +107,7 @@ func (h *HorizontalScalingBuilderStruct) WithCRONTrigger(start, end, timezone st
 	return h
 }
 
-func (h *HorizontalScalingBuilderStruct) WithTrigger(trigger radixv1.RadixTrigger) *HorizontalScalingBuilderStruct {
+func (h *HorizontalScalingBuilderStruct) WithTrigger(trigger radixv1.RadixHorizontalScalingTrigger) *HorizontalScalingBuilderStruct {
 	h.triggers = append(h.triggers, trigger)
 	return h
 }
