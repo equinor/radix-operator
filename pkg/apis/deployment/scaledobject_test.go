@@ -201,7 +201,7 @@ func TestScalerTriggers(t *testing.T) {
 			builder: utils.NewHorizontalScalingBuilder().WithCRONTrigger("10 * * * *", "20 * * * *", "Europe/Oslo", 30),
 			expected: v1alpha1.ScaleTriggers{Name: "cron", Type: "cron", Metadata: map[string]string{
 				"start":           "10 * * * *",
-				"stop":            "20 * * * *",
+				"end":             "20 * * * *",
 				"timezone":        "Europe/Oslo",
 				"desiredReplicas": "30",
 			}},

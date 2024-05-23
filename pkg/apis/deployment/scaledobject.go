@@ -163,7 +163,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 				Type: "cron",
 				Metadata: map[string]string{
 					"start":           trigger.Cron.Start,
-					"stop":            trigger.Cron.End,
+					"end":             trigger.Cron.End,
 					"timezone":        trigger.Cron.Timezone,
 					"desiredReplicas": strconv.Itoa(trigger.Cron.DesiredReplicas),
 				},
