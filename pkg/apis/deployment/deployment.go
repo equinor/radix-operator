@@ -537,7 +537,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	err = deploy.recconcileDeployment(ctx, component)
+	err = deploy.reconcileDeployment(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
