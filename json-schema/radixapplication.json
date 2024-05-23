@@ -464,7 +464,7 @@
                         "triggers": {
                           "description": "Defines a list of triggers the component replicas will scale on.",
                           "items": {
-                            "description": "RadixTrigger defines configuration for a specific trigger.",
+                            "description": "RadixHorizontalScalingTrigger defines configuration for a specific trigger.",
                             "properties": {
                               "azureServiceBus": {
                                 "properties": {
@@ -549,12 +549,12 @@
                                     "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
                                     "type": "integer"
                                   },
-                                  "start": {
-                                    "description": "Start is a Cron expression indicating the start of the cron schedule.",
+                                  "end": {
+                                    "description": "End is a Cron expression indicating the End of the cron schedule.",
                                     "type": "string"
                                   },
-                                  "stop": {
-                                    "description": "Stop is a Cron expression indicating the Stop of the cron schedule.",
+                                  "start": {
+                                    "description": "Start is a Cron expression indicating the start of the cron schedule.",
                                     "type": "string"
                                   },
                                   "timezone": {
@@ -564,8 +564,8 @@
                                 },
                                 "required": [
                                   "desiredReplicas",
+                                  "end",
                                   "start",
-                                  "stop",
                                   "timezone"
                                 ],
                                 "type": "object"
@@ -1122,7 +1122,7 @@
                   "triggers": {
                     "description": "Defines a list of triggers the component replicas will scale on.",
                     "items": {
-                      "description": "RadixTrigger defines configuration for a specific trigger.",
+                      "description": "RadixHorizontalScalingTrigger defines configuration for a specific trigger.",
                       "properties": {
                         "azureServiceBus": {
                           "properties": {
@@ -1207,12 +1207,12 @@
                               "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
                               "type": "integer"
                             },
-                            "start": {
-                              "description": "Start is a Cron expression indicating the start of the cron schedule.",
+                            "end": {
+                              "description": "End is a Cron expression indicating the End of the cron schedule.",
                               "type": "string"
                             },
-                            "stop": {
-                              "description": "Stop is a Cron expression indicating the Stop of the cron schedule.",
+                            "start": {
+                              "description": "Start is a Cron expression indicating the start of the cron schedule.",
                               "type": "string"
                             },
                             "timezone": {
@@ -1222,8 +1222,8 @@
                           },
                           "required": [
                             "desiredReplicas",
+                            "end",
                             "start",
-                            "stop",
                             "timezone"
                           ],
                           "type": "object"
