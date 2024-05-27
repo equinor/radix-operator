@@ -431,6 +431,7 @@ spec:
                                   trigger reported active before scaling the resource
                                   back to 0. Defaults to 5min
                                 format: int32
+                                minimum: 15
                                 type: integer
                               maxReplicas:
                                 description: Defines the maximum number of replicas.
@@ -438,6 +439,7 @@ spec:
                                 minimum: 1
                                 type: integer
                               minReplicas:
+                                default: 1
                                 description: Defines the minimum number of replicas.
                                 format: int32
                                 minimum: 0
@@ -446,10 +448,12 @@ spec:
                                 description: PollingInterval configures how often
                                   to check each trigger on. Defaults to 30sec
                                 format: int32
+                                minimum: 15
                                 type: integer
                               resources:
-                                description: Defines the resource usage parameters
-                                  for the horizontal pod autoscaler.
+                                description: |-
+                                  Deprecated: Use CPU and/or Memory triggers instead
+                                  Defines the resource usage parameters for the horizontal pod autoscaler.
                                 properties:
                                   cpu:
                                     description: Defines the CPU usage parameters
@@ -482,7 +486,7 @@ spec:
                                 type: object
                               triggers:
                                 description: Defines a list of triggers the component
-                                  replicas will scale on.
+                                  replicas will scale on. Defaults to 80% CPU.
                                 items:
                                   description: RadixHorizontalScalingTrigger defines
                                     configuration for a specific trigger.
@@ -493,15 +497,16 @@ spec:
                                           description: 'ActivationMessageCount = Target
                                             value for activating the scaler. (Default:
                                             0, Optional)'
+                                          minimum: 0
                                           type: integer
                                         authentication:
                                           description: Azure Service Bus requires
                                             Workload Identity configured with a ClientID
                                           properties:
                                             identity:
-                                              description: RequiredIdentity configuration
-                                                for federation with required azure
-                                                identity providers.
+                                              description: RadixHorizontalScalingRequiredIdentity
+                                                configuration for federation with
+                                                required azure identity providers.
                                               properties:
                                                 azure:
                                                   description: Azure identity configuration
@@ -515,19 +520,23 @@ spec:
                                                   required:
                                                   - clientId
                                                   type: object
+                                              required:
+                                              - azure
                                               type: object
                                           required:
                                           - identity
                                           type: object
                                         messageCount:
-                                          description: MessageCount  - Amount of active
-                                            messages in your Azure Service Bus queue
-                                            or topic to scale on. Defaults to 5 messages
+                                          description: |-
+                                            MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
+                                            DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.
+                                          minimum: 1
                                           type: integer
                                         namespace:
                                           description: Namespace - Name of the Azure
                                             Service Bus namespace that contains your
-                                            queue or topic.
+                                            queue or topic. Required when using workload
+                                            identity
                                           type: string
                                         queueName:
                                           description: QueueName selects the target
@@ -540,7 +549,7 @@ spec:
                                           type: string
                                         topicName:
                                           description: TopicName selectes the target
-                                            topic, alsoe requires SubscriptionName
+                                            topic, also requires SubscriptionName
                                             to be set.
                                           type: string
                                       required:
@@ -552,13 +561,17 @@ spec:
                                         metricType:
                                           description: Defines the type of metric
                                             to use. Options are Utilization or AverageValue.
-                                            Defaults to Utilization.
+                                            Defaults to AverageValue.
+                                          enum:
+                                          - Utilization
+                                          - AverageValue
                                           type: string
                                         value:
                                           description: |-
                                             Value to trigger scaling actions for:
                                             When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
                                             When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+                                          minimum: 15
                                           type: integer
                                       required:
                                       - value
@@ -570,14 +583,19 @@ spec:
                                             to which the resource has to be scaled
                                             between the start and end of the cron
                                             schedule.
+                                          minimum: 1
                                           type: integer
                                         end:
                                           description: End is a Cron expression indicating
                                             the End of the cron schedule.
+                                          pattern: ^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*)
+                                            ?){5})$
                                           type: string
                                         start:
                                           description: Start is a Cron expression
                                             indicating the start of the cron schedule.
+                                          pattern: ^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*)
+                                            ?){5})$
                                           type: string
                                         timezone:
                                           description: Timezone One of the acceptable
@@ -596,13 +614,17 @@ spec:
                                         metricType:
                                           description: Defines the type of metric
                                             to use. Options are Utilization or AverageValue.
-                                            Defaults to Utilization.
+                                            Defaults to AverageValue.
+                                          enum:
+                                          - Utilization
+                                          - AverageValue
                                           type: string
                                         value:
                                           description: |-
                                             Value to trigger scaling actions for:
                                             When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
                                             When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+                                          minimum: 15
                                           type: integer
                                       required:
                                       - value
@@ -617,9 +639,7 @@ spec:
                                   type: object
                                 type: array
                             required:
-                            - cooldownPeriod
                             - maxReplicas
-                            - pollingInterval
                             type: object
                           identity:
                             description: |-
@@ -1087,6 +1107,7 @@ spec:
                             reported active before scaling the resource back to 0.
                             Defaults to 5min
                           format: int32
+                          minimum: 15
                           type: integer
                         maxReplicas:
                           description: Defines the maximum number of replicas.
@@ -1094,6 +1115,7 @@ spec:
                           minimum: 1
                           type: integer
                         minReplicas:
+                          default: 1
                           description: Defines the minimum number of replicas.
                           format: int32
                           minimum: 0
@@ -1102,10 +1124,12 @@ spec:
                           description: PollingInterval configures how often to check
                             each trigger on. Defaults to 30sec
                           format: int32
+                          minimum: 15
                           type: integer
                         resources:
-                          description: Defines the resource usage parameters for the
-                            horizontal pod autoscaler.
+                          description: |-
+                            Deprecated: Use CPU and/or Memory triggers instead
+                            Defines the resource usage parameters for the horizontal pod autoscaler.
                           properties:
                             cpu:
                               description: Defines the CPU usage parameters for the
@@ -1136,7 +1160,7 @@ spec:
                           type: object
                         triggers:
                           description: Defines a list of triggers the component replicas
-                            will scale on.
+                            will scale on. Defaults to 80% CPU.
                           items:
                             description: RadixHorizontalScalingTrigger defines configuration
                               for a specific trigger.
@@ -1147,15 +1171,16 @@ spec:
                                     description: 'ActivationMessageCount = Target
                                       value for activating the scaler. (Default: 0,
                                       Optional)'
+                                    minimum: 0
                                     type: integer
                                   authentication:
                                     description: Azure Service Bus requires Workload
                                       Identity configured with a ClientID
                                     properties:
                                       identity:
-                                        description: RequiredIdentity configuration
-                                          for federation with required azure identity
-                                          providers.
+                                        description: RadixHorizontalScalingRequiredIdentity
+                                          configuration for federation with required
+                                          azure identity providers.
                                         properties:
                                           azure:
                                             description: Azure identity configuration
@@ -1169,18 +1194,22 @@ spec:
                                             required:
                                             - clientId
                                             type: object
+                                        required:
+                                        - azure
                                         type: object
                                     required:
                                     - identity
                                     type: object
                                   messageCount:
-                                    description: MessageCount  - Amount of active
-                                      messages in your Azure Service Bus queue or
-                                      topic to scale on. Defaults to 5 messages
+                                    description: |-
+                                      MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
+                                      DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.
+                                    minimum: 1
                                     type: integer
                                   namespace:
                                     description: Namespace - Name of the Azure Service
                                       Bus namespace that contains your queue or topic.
+                                      Required when using workload identity
                                     type: string
                                   queueName:
                                     description: QueueName selects the target queue.
@@ -1192,7 +1221,7 @@ spec:
                                     type: string
                                   topicName:
                                     description: TopicName selectes the target topic,
-                                      alsoe requires SubscriptionName to be set.
+                                      also requires SubscriptionName to be set.
                                     type: string
                                 required:
                                 - authentication
@@ -1203,13 +1232,17 @@ spec:
                                   metricType:
                                     description: Defines the type of metric to use.
                                       Options are Utilization or AverageValue. Defaults
-                                      to Utilization.
+                                      to AverageValue.
+                                    enum:
+                                    - Utilization
+                                    - AverageValue
                                     type: string
                                   value:
                                     description: |-
                                       Value to trigger scaling actions for:
                                       When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
                                       When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+                                    minimum: 15
                                     type: integer
                                 required:
                                 - value
@@ -1220,14 +1253,19 @@ spec:
                                     description: DesiredReplicas Number of replicas
                                       to which the resource has to be scaled between
                                       the start and end of the cron schedule.
+                                    minimum: 1
                                     type: integer
                                   end:
                                     description: End is a Cron expression indicating
                                       the End of the cron schedule.
+                                    pattern: ^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*)
+                                      ?){5})$
                                     type: string
                                   start:
                                     description: Start is a Cron expression indicating
                                       the start of the cron schedule.
+                                    pattern: ^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*)
+                                      ?){5})$
                                     type: string
                                   timezone:
                                     description: Timezone One of the acceptable values
@@ -1245,13 +1283,17 @@ spec:
                                   metricType:
                                     description: Defines the type of metric to use.
                                       Options are Utilization or AverageValue. Defaults
-                                      to Utilization.
+                                      to AverageValue.
+                                    enum:
+                                    - Utilization
+                                    - AverageValue
                                     type: string
                                   value:
                                     description: |-
                                       Value to trigger scaling actions for:
                                       When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
                                       When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+                                    minimum: 15
                                     type: integer
                                 required:
                                 - value
@@ -1266,9 +1308,7 @@ spec:
                             type: object
                           type: array
                       required:
-                      - cooldownPeriod
                       - maxReplicas
-                      - pollingInterval
                       type: object
                     identity:
                       description: |-

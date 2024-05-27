@@ -37,7 +37,7 @@ type RadixHorizontalScaling struct {
 	// +optional
 	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"`
 
-	// Defines a list of triggers the component replicas will scale on.
+	// Defines a list of triggers the component replicas will scale on. Defaults to 80% CPU.
 	// +optional
 	Triggers []RadixHorizontalScalingTrigger `json:"triggers,omitempty"`
 }
@@ -73,61 +73,82 @@ type RadixHorizontalScalingTrigger struct {
 type RadixHorizontalScalingCPUTrigger struct {
 	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.
 	// +optional
+	// +kubebuilder:validation:Enum=Utilization;AverageValue
 	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"`
 
 	// Value to trigger scaling actions for:
 	// When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
 	// When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+	// +kubebuilder:validation:Minimum=15
 	Value int `json:"value"`
 }
 type RadixHorizontalScalingMemoryTrigger struct {
 	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.
 	// +optional
+	// +kubebuilder:validation:Enum=Utilization;AverageValue
 	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"`
 
 	// Value to trigger scaling actions for:
 	// When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
 	// When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+	// +kubebuilder:validation:Minimum=15
 	Value int `json:"value"`
 }
 type RadixHorizontalScalingCronTrigger struct {
 	// Start is a Cron expression indicating the start of the cron schedule.
+	// +kubebuilder:validation:Pattern=`^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5})$`
 	Start string `json:"start"`
 
 	// End is a Cron expression indicating the End of the cron schedule.
+	// +kubebuilder:validation:Pattern=`^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5})$`
 	End string `json:"end"`
 
 	// Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 	Timezone string `json:"timezone"`
 
 	// DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.
+	// +kubebuilder:validation:Minimum=1
 	DesiredReplicas int `json:"desiredReplicas"`
 }
 
 type RadixHorizontalScalingAzureServiceBusTrigger struct {
-	// Namespace - Name of the Azure Service Bus namespace that contains your queue or topic.
+	// Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity
 	Namespace string `json:"namespace"`
 
 	// QueueName selects the target queue. QueueName wil take precedence over TopicName.
+	// +optional
 	QueueName *string `json:"queueName,omitempty"`
 
-	// TopicName selectes the target topic, alsoe requires SubscriptionName to be set.
+	// TopicName selectes the target topic, also requires SubscriptionName to be set.
+	// +optional
 	TopicName *string `json:"topicName,omitempty"`
 
 	// SubscriptionName is required when TopicName is set.
+	// +optional
 	SubscriptionName *string `json:"subscriptionName,omitempty"`
 
 	// MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
+	// +optional
+	// DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.
+	// +kubebuilder:validation:Minimum=1
 	MessageCount *int `json:"messageCount,omitempty"`
 
 	// ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)
+	// +optional
+	// +kubebuilder:validation:Minimum=0
 	ActivationMessageCount *int `json:"activationMessageCount,omitempty"`
 
 	// Azure Service Bus requires Workload Identity configured with a ClientID
 	Authentication RadixHorizontalScalingAuthentication `json:"authentication"`
 }
 type RadixHorizontalScalingAuthentication struct {
-	Identity RequiredIdentity `json:"identity"`
+	Identity RadixHorizontalScalingRequiredIdentity `json:"identity"`
+}
+
+// RadixHorizontalScalingRequiredIdentity configuration for federation with required azure identity providers.
+type RadixHorizontalScalingRequiredIdentity struct {
+	// Azure identity configuration
+	Azure AzureIdentity `json:"azure"`
 }
 
 // NormalizeConfig copies, migrate deprecations and add defaults to configuration

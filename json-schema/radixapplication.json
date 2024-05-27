@@ -406,6 +406,7 @@
                         "cooldownPeriod": {
                           "description": "CooldownPeriod to wait after the last trigger reported active before scaling the resource back to 0. Defaults to 5min",
                           "format": "int32",
+                          "minimum": 15,
                           "type": "integer"
                         },
                         "maxReplicas": {
@@ -415,6 +416,7 @@
                           "type": "integer"
                         },
                         "minReplicas": {
+                          "default": 1,
                           "description": "Defines the minimum number of replicas.",
                           "format": "int32",
                           "minimum": 0,
@@ -423,10 +425,11 @@
                         "pollingInterval": {
                           "description": "PollingInterval configures how often to check each trigger on. Defaults to 30sec",
                           "format": "int32",
+                          "minimum": 15,
                           "type": "integer"
                         },
                         "resources": {
-                          "description": "Defines the resource usage parameters for the horizontal pod autoscaler.",
+                          "description": "Deprecated: Use CPU and/or Memory triggers instead\nDefines the resource usage parameters for the horizontal pod autoscaler.",
                           "properties": {
                             "cpu": {
                               "description": "Defines the CPU usage parameters for the horizontal pod autoscaler.",
@@ -462,7 +465,7 @@
                           "type": "object"
                         },
                         "triggers": {
-                          "description": "Defines a list of triggers the component replicas will scale on.",
+                          "description": "Defines a list of triggers the component replicas will scale on. Defaults to 80% CPU.",
                           "items": {
                             "description": "RadixHorizontalScalingTrigger defines configuration for a specific trigger.",
                             "properties": {
@@ -470,13 +473,14 @@
                                 "properties": {
                                   "activationMessageCount": {
                                     "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
+                                    "minimum": 0,
                                     "type": "integer"
                                   },
                                   "authentication": {
                                     "description": "Azure Service Bus requires Workload Identity configured with a ClientID",
                                     "properties": {
                                       "identity": {
-                                        "description": "RequiredIdentity configuration for federation with required azure identity providers.",
+                                        "description": "RadixHorizontalScalingRequiredIdentity configuration for federation with required azure identity providers.",
                                         "properties": {
                                           "azure": {
                                             "description": "Azure identity configuration",
@@ -492,6 +496,9 @@
                                             "type": "object"
                                           }
                                         },
+                                        "required": [
+                                          "azure"
+                                        ],
                                         "type": "object"
                                       }
                                     },
@@ -501,11 +508,12 @@
                                     "type": "object"
                                   },
                                   "messageCount": {
-                                    "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages",
+                                    "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages\nDesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
+                                    "minimum": 1,
                                     "type": "integer"
                                   },
                                   "namespace": {
-                                    "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic.",
+                                    "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity",
                                     "type": "string"
                                   },
                                   "queueName": {
@@ -517,7 +525,7 @@
                                     "type": "string"
                                   },
                                   "topicName": {
-                                    "description": "TopicName selectes the target topic, alsoe requires SubscriptionName to be set.",
+                                    "description": "TopicName selectes the target topic, also requires SubscriptionName to be set.",
                                     "type": "string"
                                   }
                                 },
@@ -530,11 +538,16 @@
                               "cpu": {
                                 "properties": {
                                   "metricType": {
-                                    "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to Utilization.",
+                                    "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
+                                    "enum": [
+                                      "Utilization",
+                                      "AverageValue"
+                                    ],
                                     "type": "string"
                                   },
                                   "value": {
                                     "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
+                                    "minimum": 15,
                                     "type": "integer"
                                   }
                                 },
@@ -547,14 +560,17 @@
                                 "properties": {
                                   "desiredReplicas": {
                                     "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
+                                    "minimum": 1,
                                     "type": "integer"
                                   },
                                   "end": {
                                     "description": "End is a Cron expression indicating the End of the cron schedule.",
+                                    "pattern": "^((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})$",
                                     "type": "string"
                                   },
                                   "start": {
                                     "description": "Start is a Cron expression indicating the start of the cron schedule.",
+                                    "pattern": "^((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})$",
                                     "type": "string"
                                   },
                                   "timezone": {
@@ -573,11 +589,16 @@
                               "memory": {
                                 "properties": {
                                   "metricType": {
-                                    "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to Utilization.",
+                                    "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
+                                    "enum": [
+                                      "Utilization",
+                                      "AverageValue"
+                                    ],
                                     "type": "string"
                                   },
                                   "value": {
                                     "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
+                                    "minimum": 15,
                                     "type": "integer"
                                   }
                                 },
@@ -602,9 +623,7 @@
                         }
                       },
                       "required": [
-                        "cooldownPeriod",
-                        "maxReplicas",
-                        "pollingInterval"
+                        "maxReplicas"
                       ],
                       "type": "object"
                     },
@@ -1064,6 +1083,7 @@
                   "cooldownPeriod": {
                     "description": "CooldownPeriod to wait after the last trigger reported active before scaling the resource back to 0. Defaults to 5min",
                     "format": "int32",
+                    "minimum": 15,
                     "type": "integer"
                   },
                   "maxReplicas": {
@@ -1073,6 +1093,7 @@
                     "type": "integer"
                   },
                   "minReplicas": {
+                    "default": 1,
                     "description": "Defines the minimum number of replicas.",
                     "format": "int32",
                     "minimum": 0,
@@ -1081,10 +1102,11 @@
                   "pollingInterval": {
                     "description": "PollingInterval configures how often to check each trigger on. Defaults to 30sec",
                     "format": "int32",
+                    "minimum": 15,
                     "type": "integer"
                   },
                   "resources": {
-                    "description": "Defines the resource usage parameters for the horizontal pod autoscaler.",
+                    "description": "Deprecated: Use CPU and/or Memory triggers instead\nDefines the resource usage parameters for the horizontal pod autoscaler.",
                     "properties": {
                       "cpu": {
                         "description": "Defines the CPU usage parameters for the horizontal pod autoscaler.",
@@ -1120,7 +1142,7 @@
                     "type": "object"
                   },
                   "triggers": {
-                    "description": "Defines a list of triggers the component replicas will scale on.",
+                    "description": "Defines a list of triggers the component replicas will scale on. Defaults to 80% CPU.",
                     "items": {
                       "description": "RadixHorizontalScalingTrigger defines configuration for a specific trigger.",
                       "properties": {
@@ -1128,13 +1150,14 @@
                           "properties": {
                             "activationMessageCount": {
                               "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
+                              "minimum": 0,
                               "type": "integer"
                             },
                             "authentication": {
                               "description": "Azure Service Bus requires Workload Identity configured with a ClientID",
                               "properties": {
                                 "identity": {
-                                  "description": "RequiredIdentity configuration for federation with required azure identity providers.",
+                                  "description": "RadixHorizontalScalingRequiredIdentity configuration for federation with required azure identity providers.",
                                   "properties": {
                                     "azure": {
                                       "description": "Azure identity configuration",
@@ -1150,6 +1173,9 @@
                                       "type": "object"
                                     }
                                   },
+                                  "required": [
+                                    "azure"
+                                  ],
                                   "type": "object"
                                 }
                               },
@@ -1159,11 +1185,12 @@
                               "type": "object"
                             },
                             "messageCount": {
-                              "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages",
+                              "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages\nDesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
+                              "minimum": 1,
                               "type": "integer"
                             },
                             "namespace": {
-                              "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic.",
+                              "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity",
                               "type": "string"
                             },
                             "queueName": {
@@ -1175,7 +1202,7 @@
                               "type": "string"
                             },
                             "topicName": {
-                              "description": "TopicName selectes the target topic, alsoe requires SubscriptionName to be set.",
+                              "description": "TopicName selectes the target topic, also requires SubscriptionName to be set.",
                               "type": "string"
                             }
                           },
@@ -1188,11 +1215,16 @@
                         "cpu": {
                           "properties": {
                             "metricType": {
-                              "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to Utilization.",
+                              "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
+                              "enum": [
+                                "Utilization",
+                                "AverageValue"
+                              ],
                               "type": "string"
                             },
                             "value": {
                               "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
+                              "minimum": 15,
                               "type": "integer"
                             }
                           },
@@ -1205,14 +1237,17 @@
                           "properties": {
                             "desiredReplicas": {
                               "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
+                              "minimum": 1,
                               "type": "integer"
                             },
                             "end": {
                               "description": "End is a Cron expression indicating the End of the cron schedule.",
+                              "pattern": "^((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})$",
                               "type": "string"
                             },
                             "start": {
                               "description": "Start is a Cron expression indicating the start of the cron schedule.",
+                              "pattern": "^((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})$",
                               "type": "string"
                             },
                             "timezone": {
@@ -1231,11 +1266,16 @@
                         "memory": {
                           "properties": {
                             "metricType": {
-                              "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to Utilization.",
+                              "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
+                              "enum": [
+                                "Utilization",
+                                "AverageValue"
+                              ],
                               "type": "string"
                             },
                             "value": {
                               "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
+                              "minimum": 15,
                               "type": "integer"
                             }
                           },
@@ -1260,9 +1300,7 @@
                   }
                 },
                 "required": [
-                  "cooldownPeriod",
-                  "maxReplicas",
-                  "pollingInterval"
+                  "maxReplicas"
                 ],
                 "type": "object"
               },

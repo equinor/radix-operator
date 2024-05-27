@@ -79,7 +79,7 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 				MessageCount:           pointers.Ptr(5),
 				ActivationMessageCount: pointers.Ptr(10),
 				Authentication: radixv1.RadixHorizontalScalingAuthentication{
-					Identity: radixv1.RequiredIdentity{Azure: radixv1.AzureIdentity{ClientId: "abcd"}},
+					Identity: radixv1.RadixHorizontalScalingRequiredIdentity{Azure: radixv1.AzureIdentity{ClientId: "abcd"}},
 				},
 			}},
 		},
