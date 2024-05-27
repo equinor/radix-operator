@@ -468,8 +468,11 @@
                           "description": "Defines a list of triggers the component replicas will scale on. Defaults to 80% CPU.",
                           "items": {
                             "description": "RadixHorizontalScalingTrigger defines configuration for a specific trigger.",
+                            "maxProperties": 2,
+                            "minProperties": 2,
                             "properties": {
                               "azureServiceBus": {
+                                "description": "AzureServiceBus defines a trigger that scales based on number of messages in queue",
                                 "properties": {
                                   "activationMessageCount": {
                                     "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
@@ -514,18 +517,30 @@
                                   },
                                   "namespace": {
                                     "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity",
+                                    "maxLength": 50,
+                                    "minLength": 6,
+                                    "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
                                     "type": "string"
                                   },
                                   "queueName": {
                                     "description": "QueueName selects the target queue. QueueName wil take precedence over TopicName.",
+                                    "maxLength": 260,
+                                    "minLength": 1,
+                                    "pattern": "^(([a-z0-9][_-a-z0-9\\.\\/]*)?[a-z0-9])?$",
                                     "type": "string"
                                   },
                                   "subscriptionName": {
                                     "description": "SubscriptionName is required when TopicName is set.",
+                                    "maxLength": 50,
+                                    "minLength": 1,
+                                    "pattern": "^(([a-z0-9][_-a-z0-9\\.\\/]*)?[a-z0-9])?$",
                                     "type": "string"
                                   },
                                   "topicName": {
-                                    "description": "TopicName selectes the target topic, also requires SubscriptionName to be set.",
+                                    "description": "TopicName selectes the target topic, requires SubscriptionName to be set.",
+                                    "maxLength": 260,
+                                    "minLength": 1,
+                                    "pattern": "^(([a-z0-9][_-a-z0-9\\.\\/]*)?[a-z0-9])?$",
                                     "type": "string"
                                   }
                                 },
@@ -536,6 +551,7 @@
                                 "type": "object"
                               },
                               "cpu": {
+                                "description": "Cpu defines a trigger based on CPU usage",
                                 "properties": {
                                   "metricType": {
                                     "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
@@ -557,6 +573,7 @@
                                 "type": "object"
                               },
                               "cron": {
+                                "description": "Cron defines a trigger that scales based on start and end times",
                                 "properties": {
                                   "desiredReplicas": {
                                     "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
@@ -587,6 +604,7 @@
                                 "type": "object"
                               },
                               "memory": {
+                                "description": "Memory defines a trigger based on memory usage",
                                 "properties": {
                                   "metricType": {
                                     "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
@@ -608,6 +626,7 @@
                                 "type": "object"
                               },
                               "name": {
+                                "description": "Name of trigger, must be unique",
                                 "maxLength": 50,
                                 "minLength": 1,
                                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
@@ -1149,8 +1168,11 @@
                     "description": "Defines a list of triggers the component replicas will scale on. Defaults to 80% CPU.",
                     "items": {
                       "description": "RadixHorizontalScalingTrigger defines configuration for a specific trigger.",
+                      "maxProperties": 2,
+                      "minProperties": 2,
                       "properties": {
                         "azureServiceBus": {
+                          "description": "AzureServiceBus defines a trigger that scales based on number of messages in queue",
                           "properties": {
                             "activationMessageCount": {
                               "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
@@ -1195,18 +1217,30 @@
                             },
                             "namespace": {
                               "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity",
+                              "maxLength": 50,
+                              "minLength": 6,
+                              "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
                               "type": "string"
                             },
                             "queueName": {
                               "description": "QueueName selects the target queue. QueueName wil take precedence over TopicName.",
+                              "maxLength": 260,
+                              "minLength": 1,
+                              "pattern": "^(([a-z0-9][_-a-z0-9\\.\\/]*)?[a-z0-9])?$",
                               "type": "string"
                             },
                             "subscriptionName": {
                               "description": "SubscriptionName is required when TopicName is set.",
+                              "maxLength": 50,
+                              "minLength": 1,
+                              "pattern": "^(([a-z0-9][_-a-z0-9\\.\\/]*)?[a-z0-9])?$",
                               "type": "string"
                             },
                             "topicName": {
-                              "description": "TopicName selectes the target topic, also requires SubscriptionName to be set.",
+                              "description": "TopicName selectes the target topic, requires SubscriptionName to be set.",
+                              "maxLength": 260,
+                              "minLength": 1,
+                              "pattern": "^(([a-z0-9][_-a-z0-9\\.\\/]*)?[a-z0-9])?$",
                               "type": "string"
                             }
                           },
@@ -1217,6 +1251,7 @@
                           "type": "object"
                         },
                         "cpu": {
+                          "description": "Cpu defines a trigger based on CPU usage",
                           "properties": {
                             "metricType": {
                               "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
@@ -1238,6 +1273,7 @@
                           "type": "object"
                         },
                         "cron": {
+                          "description": "Cron defines a trigger that scales based on start and end times",
                           "properties": {
                             "desiredReplicas": {
                               "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
@@ -1268,6 +1304,7 @@
                           "type": "object"
                         },
                         "memory": {
+                          "description": "Memory defines a trigger based on memory usage",
                           "properties": {
                             "metricType": {
                               "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
@@ -1289,6 +1326,7 @@
                           "type": "object"
                         },
                         "name": {
+                          "description": "Name of trigger, must be unique",
                           "maxLength": 50,
                           "minLength": 1,
                           "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
