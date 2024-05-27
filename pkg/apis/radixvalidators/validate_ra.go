@@ -25,6 +25,7 @@ import (
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/uuid"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -1221,12 +1222,23 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 			if trigger.Cpu.Value == 0 {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
+
+			validCpuMetricTypes := []autoscalingv2.MetricTargetType{autoscalingv2.AverageValueMetricType, autoscalingv2.UtilizationMetricType}
+			if !slices.Contains(validCpuMetricTypes, trigger.Cpu.MetricType) {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: metric type %s is invalid: %w", trigger.Name, trigger.Cpu.MetricType, ErrInvalidTriggerDefinition))
+			}
+
 		}
 		if trigger.Memory != nil {
 			definitions++
 
 			if trigger.Memory.Value == 0 {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			validMemoryMetricTypes := []autoscalingv2.MetricTargetType{autoscalingv2.AverageValueMetricType, autoscalingv2.UtilizationMetricType}
+			if !slices.Contains(validMemoryMetricTypes, trigger.Memory.MetricType) {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: metric type %s is invalid: %w", trigger.Name, trigger.Memory.MetricType, ErrInvalidTriggerDefinition))
 			}
 		}
 		if trigger.Cron != nil {

@@ -24,19 +24,18 @@ type RadixHorizontalScaling struct {
 
 	// PollingInterval configures how often to check each trigger on. Defaults to 30sec
 	// +optional
-	// +kubebuilder:default=30
 	// +kubebuilder:validation:Minimum=15
 	PollingInterval *int32 `json:"pollingInterval"` // 30
 
 	// CooldownPeriod to wait after the last trigger reported active before scaling the resource back to 0. Defaults to 5min
 	// +optional
-	// +kubebuilder:default=300
 	// +kubebuilder:validation:Minimum=15
 	CooldownPeriod *int32 `json:"cooldownPeriod"` // 300
 
+	// Deprecated: Use CPU and/or Memory triggers instead
 	// Defines the resource usage parameters for the horizontal pod autoscaler.
 	// +optional
-	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"` // Deprecated: Use CPU and/or Memory triggers instead
+	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"`
 
 	// Defines a list of triggers the component replicas will scale on.
 	// +optional
@@ -84,7 +83,7 @@ type RadixHorizontalScalingCPUTrigger struct {
 type RadixHorizontalScalingMemoryTrigger struct {
 	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.
 	// +optional
-	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"` // TODO: Copy values and only allow Utilization and AverageValue
+	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"`
 
 	// Value to trigger scaling actions for:
 	// When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.

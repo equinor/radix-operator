@@ -1862,6 +1862,26 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			},
 			[]error{radixvalidators.ErrDuplicateTriggerName},
 		},
+		{
+			"Cpu trigger must have valid metricType",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "test", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99, MetricType: "test"}}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Memory trigger must have valid metricType",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "test", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99, MetricType: "test"}}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
 	}
 
 	_, client := validRASetup()
