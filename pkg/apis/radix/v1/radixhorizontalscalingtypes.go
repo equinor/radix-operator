@@ -72,7 +72,7 @@ type RadixHorizontalScalingTrigger struct {
 }
 
 type RadixHorizontalScalingCPUTrigger struct {
-	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to Utilization.
+	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.
 	// +optional
 	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"`
 
@@ -170,11 +170,11 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 		switch {
 		case trigger.Cpu != nil:
 			if trigger.Cpu.MetricType == "" {
-				trigger.Cpu.MetricType = autoscalingv2.UtilizationMetricType
+				trigger.Cpu.MetricType = autoscalingv2.AverageValueMetricType
 			}
 		case trigger.Memory != nil:
 			if trigger.Memory.MetricType == "" {
-				trigger.Memory.MetricType = autoscalingv2.UtilizationMetricType
+				trigger.Memory.MetricType = autoscalingv2.AverageValueMetricType
 			}
 		}
 	}
@@ -183,7 +183,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 		config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
 			Name: "default-cpu",
 			Cpu: &RadixHorizontalScalingCPUTrigger{
-				MetricType: autoscalingv2.UtilizationMetricType,
+				MetricType: autoscalingv2.AverageValueMetricType,
 				Value:      DefaultTargetCPUUtilizationPercentage,
 			},
 		})

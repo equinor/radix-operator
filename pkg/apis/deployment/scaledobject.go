@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	kedav1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/rs/zerolog/log"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -133,7 +132,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalScaling) []kedav1.ScaleTriggers {
 	var triggers []kedav1.ScaleTriggers
 
-	if config == nil || config.Triggers == nil {
+	if config == nil {
 		return triggers
 	}
 
@@ -152,7 +151,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name:       trigger.Name,
 				Type:       "memory",
-				MetricType: autoscalingv2.UtilizationMetricType,
+				MetricType: trigger.Memory.MetricType,
 				Metadata: map[string]string{
 					"value": strconv.Itoa(trigger.Memory.Value),
 				},
@@ -205,7 +204,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.RadixHorizontalScaling) []kedav1.TriggerAuthentication {
 	var auths []kedav1.TriggerAuthentication
 
-	if config == nil || config.Triggers == nil {
+	if config == nil {
 		return auths
 	}
 

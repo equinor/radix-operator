@@ -2009,13 +2009,9 @@ func (in *RadixHorizontalScaling) DeepCopyInto(out *RadixHorizontalScaling) {
 	}
 	if in.Triggers != nil {
 		in, out := &in.Triggers, &out.Triggers
-		*out = new([]RadixHorizontalScalingTrigger)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make([]RadixHorizontalScalingTrigger, len(*in))
-			for i := range *in {
-				(*in)[i].DeepCopyInto(&(*out)[i])
-			}
+		*out = make([]RadixHorizontalScalingTrigger, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	return

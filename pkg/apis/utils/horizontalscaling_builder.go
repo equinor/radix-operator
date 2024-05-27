@@ -81,7 +81,7 @@ func (h *HorizontalScalingBuilderStruct) WithPollingInterval(pollingInterval int
 func (h *HorizontalScalingBuilderStruct) WithCPUTrigger(value int) *HorizontalScalingBuilderStruct {
 	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
 		Name: "cpu",
-		Cpu:  &radixv1.RadixHorizontalScalingCPUTrigger{Value: value, MetricType: v2.UtilizationMetricType},
+		Cpu:  &radixv1.RadixHorizontalScalingCPUTrigger{Value: value, MetricType: v2.AverageValueMetricType},
 	})
 	return h
 }
@@ -89,7 +89,7 @@ func (h *HorizontalScalingBuilderStruct) WithCPUTrigger(value int) *HorizontalSc
 func (h *HorizontalScalingBuilderStruct) WithMemoryTrigger(value int) *HorizontalScalingBuilderStruct {
 	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
 		Name:   "memory",
-		Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: value, MetricType: v2.UtilizationMetricType},
+		Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: value, MetricType: v2.AverageValueMetricType},
 	})
 	return h
 }
