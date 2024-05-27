@@ -82,7 +82,7 @@ type RadixHorizontalScalingCPUTrigger struct {
 	Value int `json:"value"`
 }
 type RadixHorizontalScalingMemoryTrigger struct {
-	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to Utilization.
+	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.
 	// +optional
 	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"` // TODO: Copy values and only allow Utilization and AverageValue
 
