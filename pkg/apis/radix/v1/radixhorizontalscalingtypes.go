@@ -127,18 +127,30 @@ type RadixHorizontalScalingCronTrigger struct {
 
 type RadixHorizontalScalingAzureServiceBusTrigger struct {
 	// Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity
+	// +kubebuilder:validation:MinLength=6
+	// +kubebuilder:validation:MaxLength=50
+	// +kubebuilder:validation:Pattern=^(([a-z][-a-z0-9]*)?[a-z0-9])?$
 	Namespace string `json:"namespace"`
 
 	// QueueName selects the target queue. QueueName wil take precedence over TopicName.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=260
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
 	QueueName *string `json:"queueName,omitempty"`
 
-	// TopicName selectes the target topic, also requires SubscriptionName to be set.
+	// TopicName selectes the target topic, requires SubscriptionName to be set.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=260
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
 	TopicName *string `json:"topicName,omitempty"`
 
 	// SubscriptionName is required when TopicName is set.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=50
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
 	SubscriptionName *string `json:"subscriptionName,omitempty"`
 
 	// MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
