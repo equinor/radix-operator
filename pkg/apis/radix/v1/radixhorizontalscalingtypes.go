@@ -61,14 +61,26 @@ type RadixHorizontalScalingResources struct {
 }
 
 // RadixHorizontalScalingTrigger defines configuration for a specific trigger.
+// +kubebuilder:validation:MinProperties=2
+// +kubebuilder:validation:MaxProperties=2
 type RadixHorizontalScalingTrigger struct {
+	// Name of trigger, must be unique
+	// +required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-	Name            string                                        `json:"name"`
-	Cpu             *RadixHorizontalScalingCPUTrigger             `json:"cpu,omitempty"`
-	Memory          *RadixHorizontalScalingMemoryTrigger          `json:"memory,omitempty"`
-	Cron            *RadixHorizontalScalingCronTrigger            `json:"cron,omitempty"`
+	Name string `json:"name"`
+
+	// Cpu defines a trigger based on CPU usage
+	Cpu *RadixHorizontalScalingCPUTrigger `json:"cpu,omitempty"`
+
+	// Memory defines a trigger based on memory usage
+	Memory *RadixHorizontalScalingMemoryTrigger `json:"memory,omitempty"`
+
+	// Cron defines a trigger that scales based on start and end times
+	Cron *RadixHorizontalScalingCronTrigger `json:"cron,omitempty"`
+
+	// AzureServiceBus defines a trigger that scales based on number of messages in queue
 	AzureServiceBus *RadixHorizontalScalingAzureServiceBusTrigger `json:"azureServiceBus,omitempty"`
 }
 
