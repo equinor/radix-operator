@@ -619,7 +619,11 @@
                             ],
                             "type": "object"
                           },
-                          "type": "array"
+                          "type": "array",
+                          "x-kubernetes-list-map-keys": [
+                            "name"
+                          ],
+                          "x-kubernetes-list-type": "map"
                         }
                       },
                       "required": [
@@ -1296,7 +1300,11 @@
                       ],
                       "type": "object"
                     },
-                    "type": "array"
+                    "type": "array",
+                    "x-kubernetes-list-map-keys": [
+                      "name"
+                    ],
+                    "x-kubernetes-list-type": "map"
                   }
                 },
                 "required": [

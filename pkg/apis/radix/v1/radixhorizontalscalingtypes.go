@@ -39,6 +39,8 @@ type RadixHorizontalScaling struct {
 
 	// Defines a list of triggers the component replicas will scale on. Defaults to 80% CPU.
 	// +optional
+	// +listType=map
+	// +listMapKey=name
 	Triggers []RadixHorizontalScalingTrigger `json:"triggers,omitempty"`
 }
 
