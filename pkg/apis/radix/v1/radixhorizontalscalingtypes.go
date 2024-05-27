@@ -114,11 +114,13 @@ type RadixHorizontalScalingAzureServiceBusTrigger struct {
 
 	// TopicName selectes the target topic, alsoe requires SubscriptionName to be set.
 	TopicName *string `json:"topicName,omitempty"`
+
 	// SubscriptionName is required when TopicName is set.
 	SubscriptionName *string `json:"subscriptionName,omitempty"`
 
 	// MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
 	MessageCount *int `json:"messageCount,omitempty"`
+
 	// ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)
 	ActivationMessageCount *int `json:"activationMessageCount,omitempty"`
 
