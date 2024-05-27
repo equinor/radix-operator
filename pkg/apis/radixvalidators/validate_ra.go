@@ -1158,7 +1158,7 @@ func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error {
 	var errs []error
 
-	if config.RadixHorizontalScalingResources != nil && config.Triggers != nil {
+	if config.RadixHorizontalScalingResources != nil && len(config.Triggers) > 0 {
 		errs = append(errs, ErrCombiningTriggersWithResourcesIsIllegal)
 	}
 
@@ -1187,14 +1187,14 @@ func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error
 }
 
 func validateUniqueTriggerNames(config *radixv1.RadixHorizontalScaling) error {
-	if config == nil || config.Triggers == nil {
+	if config == nil {
 		return nil
 	}
 
 	var errs []error
 	var names []string
 
-	for _, trigger := range *config.Triggers {
+	for _, trigger := range config.Triggers {
 		if slices.Contains(names, trigger.Name) {
 			errs = append(errs, fmt.Errorf("%w: %s", ErrDuplicateTriggerName, trigger.Name))
 		} else {
@@ -1208,7 +1208,7 @@ func validateUniqueTriggerNames(config *radixv1.RadixHorizontalScaling) error {
 func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 	var errs []error
 
-	for _, trigger := range *config.Triggers {
+	for _, trigger := range config.Triggers {
 		var definitions int
 
 		if err := validateRequiredResourceName(fmt.Sprintf("%s name", trigger.Name), trigger.Name, 50); err != nil {
@@ -1277,11 +1277,7 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 
 // hasNonResourceTypeTriggers returns true if atleast one non resource type triggers found
 func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
-	if config.Triggers == nil {
-		return false
-	}
-
-	for _, trigger := range *config.Triggers {
+	for _, trigger := range config.Triggers {
 		if trigger.Cron != nil {
 			return true
 		}

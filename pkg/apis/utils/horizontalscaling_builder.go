@@ -24,7 +24,7 @@ func (h *HorizontalScalingBuilderStruct) Build() *radixv1.RadixHorizontalScaling
 	}
 
 	s := radixv1.RadixHorizontalScaling{
-		Triggers: &h.triggers,
+		Triggers: h.triggers,
 	}
 
 	if h.minReplicas != nil {

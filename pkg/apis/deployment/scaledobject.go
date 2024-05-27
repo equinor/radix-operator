@@ -137,7 +137,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 		return triggers
 	}
 
-	for _, trigger := range *config.Triggers {
+	for _, trigger := range config.Triggers {
 		switch {
 		case trigger.Cpu != nil:
 			triggers = append(triggers, kedav1.ScaleTriggers{
@@ -209,7 +209,7 @@ func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.
 		return auths
 	}
 
-	for _, trigger := range *config.Triggers {
+	for _, trigger := range config.Triggers {
 		switch {
 		case trigger.AzureServiceBus != nil:
 			auths = append(auths, kedav1.TriggerAuthentication{

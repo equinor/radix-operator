@@ -88,8 +88,8 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			require.NotNil(t, testcase.actual)
-			require.Len(t, *testcase.actual.Triggers, 1)
-			assert.Equal(t, testcase.expected, (*testcase.actual.Triggers)[0])
+			require.Len(t, testcase.actual.Triggers, 1)
+			assert.Equal(t, testcase.expected, (testcase.actual.Triggers)[0])
 		})
 	}
 }

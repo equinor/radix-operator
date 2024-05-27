@@ -1793,7 +1793,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
 						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
 					},
-					Triggers: &[]radixv1.RadixHorizontalScalingTrigger{
+					Triggers: []radixv1.RadixHorizontalScalingTrigger{
 						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
 						{Name: "memory", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}},
 					},

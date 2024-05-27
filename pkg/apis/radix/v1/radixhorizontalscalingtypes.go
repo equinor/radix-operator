@@ -13,8 +13,9 @@ const (
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler.
 type RadixHorizontalScaling struct {
 	// Defines the minimum number of replicas.
-	// +kubebuilder:validation:Minimum=0
 	// +optional
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=0
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
 	// Defines the maximum number of replicas.
@@ -22,8 +23,15 @@ type RadixHorizontalScaling struct {
 	MaxReplicas int32 `json:"maxReplicas"`
 
 	// PollingInterval configures how often to check each trigger on. Defaults to 30sec
+	// +optional
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=15
 	PollingInterval *int32 `json:"pollingInterval"` // 30
+
 	// CooldownPeriod to wait after the last trigger reported active before scaling the resource back to 0. Defaults to 5min
+	// +optional
+	// +kubebuilder:default=300
+	// +kubebuilder:validation:Minimum=15
 	CooldownPeriod *int32 `json:"cooldownPeriod"` // 300
 
 	// Defines the resource usage parameters for the horizontal pod autoscaler.
@@ -32,7 +40,7 @@ type RadixHorizontalScaling struct {
 
 	// Defines a list of triggers the component replicas will scale on.
 	// +optional
-	Triggers *[]RadixHorizontalScalingTrigger `json:"triggers,omitempty"`
+	Triggers []RadixHorizontalScalingTrigger `json:"triggers,omitempty"`
 }
 
 type RadixHorizontalScalingResource struct {
@@ -131,11 +139,9 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 	config := c.DeepCopy()
 	config.RadixHorizontalScalingResources = nil
 
-	if config.Triggers == nil && c.RadixHorizontalScalingResources != nil {
-		config.Triggers = &[]RadixHorizontalScalingTrigger{}
-
+	if c.RadixHorizontalScalingResources != nil && len(config.Triggers) == 0 {
 		if c.RadixHorizontalScalingResources.Cpu != nil && c.RadixHorizontalScalingResources.Cpu.AverageUtilization != nil {
-			*config.Triggers = append(*config.Triggers, RadixHorizontalScalingTrigger{
+			config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
 				Name: "CPU",
 				Cpu: &RadixHorizontalScalingCPUTrigger{
 					MetricType: autoscalingv2.UtilizationMetricType,
@@ -145,7 +151,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 		}
 
 		if c.RadixHorizontalScalingResources.Memory != nil && c.RadixHorizontalScalingResources.Memory.AverageUtilization != nil {
-			*config.Triggers = append(*config.Triggers, RadixHorizontalScalingTrigger{
+			config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
 				Name: "Memory",
 				Memory: &RadixHorizontalScalingMemoryTrigger{
 					MetricType: autoscalingv2.UtilizationMetricType,
@@ -160,31 +166,27 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 	}
 
 	// Set defaults for triggers
-	if config.Triggers != nil {
-		for _, trigger := range *config.Triggers {
-			switch {
-			case trigger.Cpu != nil:
-				if trigger.Cpu.MetricType == "" {
-					trigger.Cpu.MetricType = autoscalingv2.UtilizationMetricType
-				}
-			case trigger.Memory != nil:
-				if trigger.Memory.MetricType == "" {
-					trigger.Memory.MetricType = autoscalingv2.UtilizationMetricType
-				}
+	for _, trigger := range config.Triggers {
+		switch {
+		case trigger.Cpu != nil:
+			if trigger.Cpu.MetricType == "" {
+				trigger.Cpu.MetricType = autoscalingv2.UtilizationMetricType
+			}
+		case trigger.Memory != nil:
+			if trigger.Memory.MetricType == "" {
+				trigger.Memory.MetricType = autoscalingv2.UtilizationMetricType
 			}
 		}
 	}
 
-	if config.Triggers == nil || len(*config.Triggers) == 0 {
-		config.Triggers = &[]RadixHorizontalScalingTrigger{
-			{
-				Name: "default-cpu",
-				Cpu: &RadixHorizontalScalingCPUTrigger{
-					MetricType: autoscalingv2.UtilizationMetricType,
-					Value:      DefaultTargetCPUUtilizationPercentage,
-				},
+	if len(config.Triggers) == 0 {
+		config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
+			Name: "default-cpu",
+			Cpu: &RadixHorizontalScalingCPUTrigger{
+				MetricType: autoscalingv2.UtilizationMetricType,
+				Value:      DefaultTargetCPUUtilizationPercentage,
 			},
-		}
+		})
 	}
 
 	return config
