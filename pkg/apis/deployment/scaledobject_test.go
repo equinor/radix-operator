@@ -208,7 +208,7 @@ func TestScalerTriggers(t *testing.T) {
 		},
 		{
 			name:    "AzureServiceBus-Queue",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", pointers.Ptr("queue-name"), nil, nil, pointers.Ptr(5), pointers.Ptr(10)),
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", pointers.Ptr(5), pointers.Ptr(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",
@@ -229,7 +229,7 @@ func TestScalerTriggers(t *testing.T) {
 		},
 		{
 			name:    "AzureServiceBus-Topic",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", nil, pointers.Ptr("topic-name"), pointers.Ptr("subscription-name"), pointers.Ptr(5), pointers.Ptr(10)),
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "", "topic-name", "subscription-name", pointers.Ptr(5), pointers.Ptr(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",

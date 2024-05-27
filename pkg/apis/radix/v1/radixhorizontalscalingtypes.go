@@ -25,12 +25,12 @@ type RadixHorizontalScaling struct {
 	// PollingInterval configures how often to check each trigger on. Defaults to 30sec
 	// +optional
 	// +kubebuilder:validation:Minimum=15
-	PollingInterval *int32 `json:"pollingInterval"` // 30
+	PollingInterval *int32 `json:"pollingInterval,omitempty"` // 30
 
 	// CooldownPeriod to wait after the last trigger reported active before scaling the resource back to 0. Defaults to 5min
 	// +optional
 	// +kubebuilder:validation:Minimum=15
-	CooldownPeriod *int32 `json:"cooldownPeriod"` // 300
+	CooldownPeriod *int32 `json:"cooldownPeriod,omitempty"` // 300
 
 	// Deprecated: Use CPU and/or Memory triggers instead
 	// Defines the resource usage parameters for the horizontal pod autoscaler.
@@ -137,21 +137,21 @@ type RadixHorizontalScalingAzureServiceBusTrigger struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=260
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
-	QueueName *string `json:"queueName,omitempty"`
+	QueueName string `json:"queueName,omitempty"`
 
 	// TopicName selectes the target topic, requires SubscriptionName to be set.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=260
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
-	TopicName *string `json:"topicName,omitempty"`
+	TopicName string `json:"topicName,omitempty"`
 
 	// SubscriptionName is required when TopicName is set.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
-	SubscriptionName *string `json:"subscriptionName,omitempty"`
+	SubscriptionName string `json:"subscriptionName,omitempty"`
 
 	// MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
 	// +optional

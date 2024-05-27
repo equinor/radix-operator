@@ -1260,14 +1260,15 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 		if trigger.AzureServiceBus != nil {
 			definitions++
 
-			if trigger.AzureServiceBus.QueueName != nil && (trigger.AzureServiceBus.TopicName != nil || trigger.AzureServiceBus.SubscriptionName != nil) {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: queueName cannot be used with topicName or subscriptionName: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			}
 			if trigger.AzureServiceBus.Namespace == "" {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: Name of the Azure Service Bus namespace that contains your queue or topic: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 
-			if trigger.AzureServiceBus.QueueName == nil && (trigger.AzureServiceBus.TopicName == nil || trigger.AzureServiceBus.SubscriptionName == nil) {
+			if trigger.AzureServiceBus.QueueName != "" && (trigger.AzureServiceBus.TopicName != "" || trigger.AzureServiceBus.SubscriptionName != "") {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: queueName cannot be used with topicName or subscriptionName: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			if trigger.AzureServiceBus.QueueName == "" && (trigger.AzureServiceBus.TopicName == "" || trigger.AzureServiceBus.SubscriptionName == "") {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 			if trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId == "" {
