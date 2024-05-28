@@ -603,13 +603,14 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, de
 	desiredJobAuxDeployment.ObjectMeta.Labels = deploy.getJobAuxDeploymentLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
+	desiredJobAuxDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForJobAPIAuxComponent()
 	// Copy volumes and volume mounts from desired deployment to job aux deployment
 	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
 	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
 	// Remove volumes and volume mounts from job scheduler deployment
 	desiredDeployment.Spec.Template.Spec.Volumes = nil
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
-	desiredDeployment.Spec.Template.Spec.NodeSelector = utils.GetNodeSelector()
+
 	syncRadixRestartEnvironmentVariable(deployComponent, desiredJobAuxDeployment)
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
 }

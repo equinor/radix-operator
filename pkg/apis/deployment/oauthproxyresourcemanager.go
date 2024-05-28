@@ -672,7 +672,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 						},
 					},
 					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
-					NodeSelector:    utils.GetNodeSelector(),
+					Affinity:        utils.GetAffinityForOAuthAuxComponent(),
 				},
 			},
 		},

@@ -345,15 +345,28 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.Equal(t, componentName, deploy.Spec.Template.Labels[kube.RadixComponentLabel], "invalid/missing value for label component-name")
 				}
 
-				expectedStartegy := appsv1.DeploymentStrategy{
+				expectedStrategy := appsv1.DeploymentStrategy{
 					Type: appsv1.RollingUpdateDeploymentStrategyType,
 					RollingUpdate: &appsv1.RollingUpdateDeployment{
 						MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
 						MaxSurge:       &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
 					},
 				}
+
 				for _, deployment := range deployments {
-					assert.Equal(t, expectedStartegy, deployment.Spec.Strategy)
+					assert.Equal(t, expectedStrategy, deployment.Spec.Strategy)
+
+					expectedAffinity := &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+						}}}}},
+						PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+							{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{appName}},
+							{Key: kube.RadixComponentLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{deployment.Name}},
+						}}}}}},
+					}
+					assert.Equal(t, expectedAffinity, deployment.Spec.Template.Spec.Affinity)
 				}
 			})
 
@@ -553,6 +566,16 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 					assert.Equal(t, 2, len(jobAuxDeployments), "Unexpected job aux deployments component amount")
 				}
 
+				expectedAuxAffinity := &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+						{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+						{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+					}}}}},
+				}
+				for _, deployment := range jobAuxDeployments {
+					assert.Equal(t, expectedAuxAffinity, deployment.Spec.Template.Spec.Affinity)
+				}
+
 				assert.Equal(t, jobName, getDeploymentByName(jobName, deployments).Name, "app deployment not there")
 				assert.Equal(t, int32(1), *getDeploymentByName(jobName, deployments).Spec.Replicas, "number of replicas was unexpected")
 
@@ -593,7 +616,20 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 					deploy := getDeploymentByName(job, deployments)
 					assert.Equal(t, job, deploy.Spec.Template.Labels[kube.RadixComponentLabel], "invalid/missing value for label component-name")
 					assert.Equal(t, "true", deploy.Spec.Template.Labels[kube.RadixPodIsJobSchedulerLabel], "invalid/missing value for label is-job-scheduler-pod")
+
+					expectedAffinity := &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+						}}}}},
+						PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+							{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{appName}},
+							{Key: kube.RadixComponentLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{job}},
+						}}}}}},
+					}
+					assert.Equal(t, expectedAffinity, deploy.Spec.Template.Spec.Affinity)
 				}
+
 			})
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
@@ -2868,9 +2904,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	componentName1 := "componentName1"
 	componentName2 := "componentName2"
 	componentName3 := "componentName3"
-	componentName4 := "componentName4"
-	jobComponentName1 := "jobComponentName1"
-	jobComponentName2 := "jobComponentName2"
+	jobComponentName := "jobComponentName"
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	// Test
 	gpuNvidiaV100 := "nvidia-v100"
@@ -2894,17 +2928,10 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 				WithName(componentName3).
 				WithPort("http", 8082).
 				WithPublicPort("http").
-				WithNodeGpu(fmt.Sprintf("%s, %s, -%s", gpuNvidiaV100, gpuNvidiaP100, gpuNvidiaK80)),
-			utils.NewDeployComponentBuilder().
-				WithName(componentName4).
-				WithPort("http", 8084).
-				WithPublicPort("http")).
+				WithNodeGpu(fmt.Sprintf("%s, %s, -%s", gpuNvidiaV100, gpuNvidiaP100, gpuNvidiaK80))).
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().
-				WithName(jobComponentName1).
-				WithPort("http", 8085),
-			utils.NewDeployJobComponentBuilder().
-				WithName(jobComponentName2).
+				WithName(jobComponentName).
 				WithPort("http", 8085).
 				WithNodeGpu(fmt.Sprintf("%s, -%s", gpuNvidiaP100, gpuNvidiaK80))))
 	require.NoError(t, err)
@@ -2963,30 +2990,20 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Len(t, tolerations, 1)
 		assert.Equal(t, corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
 	})
-	t.Run("has node with no gpu", func(t *testing.T) {
-		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName4, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
-		tolerations := deployment.Spec.Template.Spec.Tolerations
-		assert.Len(t, tolerations, 0)
-	})
-	t.Run("job has no node GPU, it is JobScheduler component", func(t *testing.T) {
-		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), jobComponentName1, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
-		tolerations := deployment.Spec.Template.Spec.Tolerations
-		assert.Len(t, tolerations, 0)
-	})
 	t.Run("job has node with GPUs, it is JobScheduler component", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), jobComponentName2, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), jobComponentName, metav1.GetOptions{})
+		expectedAffinity := &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+				{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+				{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+			}}}}},
+			PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{anyAppName}},
+				{Key: kube.RadixComponentLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{jobComponentName}},
+			}}}}}},
+		}
+		assert.Equal(t, expectedAffinity, deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
 	})
@@ -3155,12 +3172,22 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 				WithNodeGpuCount(nodeGpuCount10)))
 	require.NoError(t, err)
 
+	defaultAffinityBuilder := func(componentName string) *corev1.Affinity {
+		return &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+				{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+				{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+			}}}}},
+			PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{anyAppName}},
+				{Key: kube.RadixComponentLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{componentName}},
+			}}}}}},
+		}
+	}
 	t.Run("missing node.gpu", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName1, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
+		assert.Equal(t, defaultAffinityBuilder(componentName1), deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0) // missing node.gpu
 	})
@@ -3191,50 +3218,35 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	t.Run("has node with gpu-count 0", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName3, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
-
+		assert.Equal(t, defaultAffinityBuilder(componentName3), deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
 	})
 	t.Run("has node with gpu-count -1", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName4, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
-
+		assert.Equal(t, defaultAffinityBuilder(componentName4), deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
 	})
 	t.Run("has node with invalid value of gpu-count", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName5, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
-
+		assert.Equal(t, defaultAffinityBuilder(componentName5), deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
 	})
 	t.Run("has node with no gpu-count", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName6, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
-
+		assert.Equal(t, defaultAffinityBuilder(componentName6), deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
 	})
 	t.Run("job has node, but pod template of Job Scheduler does not have it", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), jobComponentName, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
-
+		assert.Equal(t, defaultAffinityBuilder(jobComponentName), deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
 	})
@@ -3275,28 +3287,18 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	t.Run("has node with gpu and gpu-count 10", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
-		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-		assert.Len(t, nodeSelectorTerms, 1)
-		assert.Len(t, nodeSelectorTerms[0].MatchExpressions, 3)
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixGpuCountLabel,
-			Operator: corev1.NodeSelectorOpGt,
-			Values:   []string{"9"},
-		}, nodeSelectorTerms[0].MatchExpressions[0])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixGpuLabel,
-			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{gpuNvidiaV100, gpuNvidiaP100},
-		}, nodeSelectorTerms[0].MatchExpressions[1])
-		assert.Equal(t, corev1.NodeSelectorRequirement{
-			Key:      kube.RadixGpuLabel,
-			Operator: corev1.NodeSelectorOpNotIn,
-			Values:   []string{gpuNvidiaK80},
-		}, nodeSelectorTerms[0].MatchExpressions[2])
-
+		expectedAffinity := &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+				{Key: kube.RadixGpuCountLabel, Operator: corev1.NodeSelectorOpGt, Values: []string{"9"}},
+				{Key: kube.RadixGpuLabel, Operator: corev1.NodeSelectorOpIn, Values: []string{gpuNvidiaV100, gpuNvidiaP100}},
+				{Key: kube.RadixGpuLabel, Operator: corev1.NodeSelectorOpNotIn, Values: []string{gpuNvidiaK80}},
+			}}}}},
+			PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{anyAppName}},
+				{Key: kube.RadixComponentLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{componentName}},
+			}}}}}},
+		}
+		assert.Equal(t, expectedAffinity, deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 1)
 		assert.Equal(t, corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
@@ -3304,10 +3306,17 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	t.Run("job has node, but pod template of Job Scheduler does not have it", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), jobComponentName, metav1.GetOptions{})
-		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.Nil(t, affinity.NodeAffinity)
-
+		expectedAffinity := &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+				{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+				{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+			}}}}},
+			PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{anyAppName}},
+				{Key: kube.RadixComponentLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{jobComponentName}},
+			}}}}}},
+		}
+		assert.Equal(t, expectedAffinity, deployment.Spec.Template.Spec.Affinity)
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
 	})
