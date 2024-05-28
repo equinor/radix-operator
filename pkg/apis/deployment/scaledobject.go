@@ -169,10 +169,11 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 				},
 			})
 		case trigger.AzureServiceBus != nil:
-			metadata := map[string]string{
-				"namespace": trigger.AzureServiceBus.Namespace,
-			}
+			metadata := map[string]string{}
 
+			if trigger.AzureServiceBus.Namespace != "" {
+				metadata["namespace"] = trigger.AzureServiceBus.Namespace
+			}
 			if trigger.AzureServiceBus.QueueName != "" {
 				metadata["queueName"] = trigger.AzureServiceBus.QueueName
 			}
