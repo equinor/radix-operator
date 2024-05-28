@@ -177,8 +177,10 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 			if trigger.AzureServiceBus.QueueName != "" {
 				metadata["queueName"] = trigger.AzureServiceBus.QueueName
 			}
-			if trigger.AzureServiceBus.TopicName != "" && trigger.AzureServiceBus.SubscriptionName != "" {
+			if trigger.AzureServiceBus.TopicName != "" {
 				metadata["topicName"] = trigger.AzureServiceBus.TopicName
+			}
+			if trigger.AzureServiceBus.SubscriptionName != "" {
 				metadata["subscriptionName"] = trigger.AzureServiceBus.SubscriptionName
 			}
 			if trigger.AzureServiceBus.MessageCount != nil {
