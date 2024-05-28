@@ -147,6 +147,7 @@ type Kube struct {
 	LimitRangeLister         coreListers.LimitRangeLister
 	JobLister                batchListers.JobLister
 	ScaledObjectLister       kedav1listers.ScaledObjectLister
+	TriggerAuthLister        kedav1listers.TriggerAuthenticationLister
 
 	// Do not use ConfigMapLister as it were cases it return outdated data
 }

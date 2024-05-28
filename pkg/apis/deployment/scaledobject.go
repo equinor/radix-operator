@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -88,6 +89,36 @@ func (deploy *Deployment) garbageCollectScalersNoLongerInSpec(ctx context.Contex
 			err = deploy.kubeutil.DeleteScaledObject(ctx, scaler)
 			if err != nil {
 				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectTriggerAuthsNoLongerInSpec(ctx context.Context) error {
+	namespace := deploy.radixDeployment.GetNamespace()
+
+	for _, component := range deploy.radixDeployment.Spec.Components {
+		horizontalScaling := component.HorizontalScaling.NormalizeConfig()
+		targetAuths := deploy.getTriggerAuths(component.Name, horizontalScaling)
+		currentAuths, err := deploy.kubeutil.ListTriggerAuthenticationsWithSelector(ctx, namespace, labels.ForComponentName(component.Name).String())
+
+		for _, currentAuth := range currentAuths {
+			_, ok := RadixComponentNameFromComponentLabel(currentAuth)
+			if !ok {
+				continue
+			}
+
+			found := slices.ContainsFunc(targetAuths, func(item kedav1.TriggerAuthentication) bool {
+				return item.Name == currentAuth.Name
+			})
+
+			if !found {
+				err = deploy.kubeutil.DeleteTriggerAuthentication(ctx, currentAuth)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -251,6 +282,22 @@ func (deploy *Deployment) deleteScaledObjectIfExists(ctx context.Context, compon
 	err = deploy.kubeutil.DeleteScaledObject(ctx, scalers...)
 	if err != nil && errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete existing ScaledObject: %w", err)
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) deleteTargetAuthenticationIfExists(ctx context.Context, componentName string) error {
+	namespace := deploy.radixDeployment.GetNamespace()
+
+	auths, err := deploy.kubeutil.ListTriggerAuthenticationsWithSelector(ctx, namespace, labels.ForComponentName(componentName).String())
+	if err != nil {
+		return fmt.Errorf("failed to list TargetAuthentication: %w", err)
+	}
+
+	err = deploy.kubeutil.DeleteTriggerAuthentication(ctx, auths...)
+	if err != nil && errors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete existing TargetAuthentication: %w", err)
 	}
 
 	return nil
