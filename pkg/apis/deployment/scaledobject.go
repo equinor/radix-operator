@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	kedav1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/rs/zerolog/log"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -120,7 +121,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 			ScaleTargetRef: &kedav1.ScaleTarget{
 				Kind:       "Deployment",
 				Name:       componentName,
-				APIVersion: "apps/radixv1",
+				APIVersion: appsv1.SchemeGroupVersion.Identifier(),
 			},
 			Triggers: triggers,
 		},
