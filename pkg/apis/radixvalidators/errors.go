@@ -9,7 +9,6 @@ import (
 )
 
 var (
-	ErrValidationNotImplemented                                            = errors.New("validation not implemented")
 	ErrMissingPrivateImageHubUsername                                      = errors.New("missing private image hub username")
 	ErrEnvForDNSAppAliasNotDefined                                         = errors.New("env for dns app alias not defined")
 	ErrComponentForDNSAppAliasNotDefined                                   = errors.New("component for dns app alias not defined")
