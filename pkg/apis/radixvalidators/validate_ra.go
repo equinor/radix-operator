@@ -25,6 +25,7 @@ import (
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/uuid"
+	"github.com/robfig/cron/v3"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -1246,13 +1247,20 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 
 			if trigger.Cron.Start == "" {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: start must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			} else if err := validateKedaCronSchedule(trigger.Cron.Start); err != nil {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: start is invalid: %w: %w", trigger.Name, err, ErrInvalidTriggerDefinition))
 			}
+
 			if trigger.Cron.End == "" {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: end must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			} else if err := validateKedaCronSchedule(trigger.Cron.End); err != nil {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: end is invalid: %w: %w", trigger.Name, err, ErrInvalidTriggerDefinition))
 			}
+
 			if trigger.Cron.Timezone == "" {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: timezone must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
+
 			if trigger.Cron.DesiredReplicas < 1 {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: desiredReplicas must be positive integer: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
@@ -1286,6 +1294,13 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 	}
 
 	return errors.Join(errs...)
+}
+
+func validateKedaCronSchedule(schedule string) error {
+	// Validate same schedule as KEDA: github.com/kedacore/keda/pkg/scalers/cron_scaler.go:71
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	_, err := parser.Parse(schedule)
+	return err
 }
 
 // hasNonResourceTypeTriggers returns true if atleast one non resource type triggers found

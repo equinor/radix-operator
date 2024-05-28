@@ -1720,6 +1720,16 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			nil,
 		},
 		{
+			"Invalid CRON schedule must fail",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithCRONTrigger("* * * *", "@hourly", "Europe/Oslo", 10).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
 			"Invalid CRON trigger should fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().

@@ -552,14 +552,14 @@ spec:
                                             TopicName.
                                           maxLength: 260
                                           minLength: 1
-                                          pattern: ^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
+                                          pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
                                           type: string
                                         subscriptionName:
                                           description: SubscriptionName is required
                                             when TopicName is set.
                                           maxLength: 50
                                           minLength: 1
-                                          pattern: ^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
+                                          pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
                                           type: string
                                         topicName:
                                           description: TopicName selectes the target
@@ -567,7 +567,7 @@ spec:
                                             set.
                                           maxLength: 260
                                           minLength: 1
-                                          pattern: ^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
+                                          pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
                                           type: string
                                       required:
                                       - authentication
@@ -1250,21 +1250,21 @@ spec:
                                       QueueName wil take precedence over TopicName.
                                     maxLength: 260
                                     minLength: 1
-                                    pattern: ^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
+                                    pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
                                     type: string
                                   subscriptionName:
                                     description: SubscriptionName is required when
                                       TopicName is set.
                                     maxLength: 50
                                     minLength: 1
-                                    pattern: ^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
+                                    pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
                                     type: string
                                   topicName:
                                     description: TopicName selectes the target topic,
                                       requires SubscriptionName to be set.
                                     maxLength: 260
                                     minLength: 1
-                                    pattern: ^(([a-z0-9][_-a-z0-9\.\/]*)?[a-z0-9])?$
+                                    pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
                                     type: string
                                 required:
                                 - authentication
