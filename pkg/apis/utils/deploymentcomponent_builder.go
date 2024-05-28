@@ -4,10 +4,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-type HorizontalScalingBuilder interface {
-	Build() *v1.RadixHorizontalScaling
-}
-
 // DeployComponentBuilder Handles construction of RD component
 type DeployComponentBuilder interface {
 	WithName(string) DeployComponentBuilder
