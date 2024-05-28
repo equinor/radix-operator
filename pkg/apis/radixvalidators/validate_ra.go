@@ -1268,6 +1268,7 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 		if trigger.AzureServiceBus != nil {
 			definitions++
 
+			// TODO: this is only requrired when using WorkloadIdentity
 			if trigger.AzureServiceBus.Namespace == "" {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: Name of the Azure Service Bus namespace that contains your queue or topic: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
