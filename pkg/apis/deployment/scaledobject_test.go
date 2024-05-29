@@ -165,6 +165,7 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 		assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
 		assert.False(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should not exist")
 		assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
+		// TODO: Assert no TriggerAuth for componentThree
 	})
 
 }
