@@ -121,17 +121,19 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build())))
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).WithAzureServiceBusTrigger("test", "abcd", "queue", "", "", nil, nil).Build())))
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate scaled objects", func(t *testing.T) {
 		scalers, _ := kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
+		authTriggers, _ := kedaClient.KedaV1alpha1().TriggerAuthentications(envNamespace).List(context.Background(), metav1.ListOptions{})
 		require.Equal(t, 2, len(scalers.Items), "Number of horizontal pod autoscalers wasn't as expected")
 		assert.False(t, scaledObjectByNameExists(componentOneName, scalers), "componentOneName horizontal pod autoscaler should not exist")
 		assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
 		assert.True(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should exist")
 		assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
+		require.Len(t, authTriggers.Items, 1, "componentThree requires AuthTrigger for Azure Service Bus")
 	})
 
 	// Test - remove HPA from component three
@@ -160,12 +162,13 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 
 	t.Run("validate scaled objects after reconfiguration", func(t *testing.T) {
 		scalers, _ := kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
+		authTriggers, _ := kedaClient.KedaV1alpha1().TriggerAuthentications(envNamespace).List(context.Background(), metav1.ListOptions{})
 		require.Equal(t, 1, len(scalers.Items), "Number of horizontal pod autoscalers wasn't as expected")
 		assert.False(t, scaledObjectByNameExists(componentOneName, scalers), "componentOneName horizontal pod autoscaler should not exist")
 		assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
 		assert.False(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should not exist")
 		assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
-		// TODO: Assert no TriggerAuth for componentThree
+		assert.Len(t, authTriggers.Items, 0, "AuthTrigger should be removed when not required anymore by componentThree")
 	})
 
 }
