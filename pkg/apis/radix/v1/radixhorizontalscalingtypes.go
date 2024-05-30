@@ -2,13 +2,10 @@ package v1
 
 import (
 	"github.com/equinor/radix-common/utils/pointers"
-	// "github.com/equinor/radix-operator/pkg/apis/deployment"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 )
 
 const (
-	DefaultTargetCPUUtilizationPercentage      = 80
-	DefaultResourceHorizontalScalingMetricType = autoscalingv2.UtilizationMetricType
+	DefaultTargetCPUUtilizationPercentage = 80
 )
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler.
