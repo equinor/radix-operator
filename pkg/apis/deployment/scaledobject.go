@@ -3,26 +3,25 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 
-	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	kedav1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/rs/zerolog/log"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const defaultTargetCPUUtilizationPercentage int32 = 80
-
 func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
-	horizontalScaling := deployComponent.GetHorizontalScaling()
+	horizontalScaling := deployComponent.GetHorizontalScaling().NormalizeConfig()
 
 	// Check if scaler config exists
 	if horizontalScaling == nil {
@@ -34,22 +33,14 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 		return nil
 	}
 
-	var memoryTarget, cpuTarget *int32
-	if horizontalScaling.RadixHorizontalScalingResources != nil {
-		if horizontalScaling.RadixHorizontalScalingResources.Memory != nil {
-			memoryTarget = horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
-		}
+	scaler := deploy.getScalerConfig(componentName, horizontalScaling)
 
-		if horizontalScaling.RadixHorizontalScalingResources.Cpu != nil {
-			cpuTarget = horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization
+	auths := deploy.getTriggerAuths(componentName, horizontalScaling)
+	for _, auth := range auths {
+		if err := deploy.kubeutil.ApplyTriggerAuthentication(ctx, namespace, auth); err != nil {
+			return err
 		}
 	}
-
-	if memoryTarget == nil && cpuTarget == nil {
-		cpuTarget = numbers.Int32Ptr(defaultTargetCPUUtilizationPercentage)
-	}
-
-	scaler := deploy.getScalerConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas, cpuTarget, memoryTarget)
 
 	return deploy.kubeutil.ApplyScaledObject(ctx, namespace, scaler)
 }
@@ -105,17 +96,46 @@ func (deploy *Deployment) garbageCollectScalersNoLongerInSpec(ctx context.Contex
 	return nil
 }
 
-func (deploy *Deployment) getScalerConfig(componentName string, minReplicas *int32, maxReplicas int32, cpuTarget *int32, memoryTarget *int32) *kedav1.ScaledObject {
+func (deploy *Deployment) garbageCollectTriggerAuthsNoLongerInSpec(ctx context.Context) error {
+	namespace := deploy.radixDeployment.GetNamespace()
+
+	for _, component := range deploy.radixDeployment.Spec.Components {
+		horizontalScaling := component.HorizontalScaling.NormalizeConfig()
+		targetAuths := deploy.getTriggerAuths(component.Name, horizontalScaling)
+		currentAuths, err := deploy.kubeutil.ListTriggerAuthenticationsWithSelector(ctx, namespace, labels.ForComponentName(component.Name).String())
+		if err != nil {
+			return err
+		}
+
+		for _, currentAuth := range currentAuths {
+			_, ok := RadixComponentNameFromComponentLabel(currentAuth)
+			if !ok {
+				continue
+			}
+
+			found := slices.ContainsFunc(targetAuths, func(item kedav1.TriggerAuthentication) bool {
+				return item.Name == currentAuth.Name
+			})
+
+			if !found {
+				err = deploy.kubeutil.DeleteTriggerAuthentication(ctx, currentAuth)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.RadixHorizontalScaling) *kedav1.ScaledObject {
 	appName := deploy.radixDeployment.Spec.AppName
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
 
-	if minReplicas == nil {
-		minReplicas = pointers.Ptr[int32](DefaultReplicas)
-	}
-
-	triggers := getScalingTriggers(cpuTarget, memoryTarget)
+	triggers := getScalingTriggers(componentName, config)
 
 	scaler := &kedav1.ScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -127,14 +147,15 @@ func (deploy *Deployment) getScalerConfig(componentName string, minReplicas *int
 			OwnerReferences: ownerReference,
 		},
 		Spec: kedav1.ScaledObjectSpec{
-			MinReplicaCount: minReplicas,
-			MaxReplicaCount: pointers.Ptr(maxReplicas),
-			PollingInterval: pointers.Ptr[int32](30), // Default
+			MinReplicaCount: config.MinReplicas,
+			MaxReplicaCount: pointers.Ptr(config.MaxReplicas),
+			PollingInterval: config.PollingInterval,
+			CooldownPeriod:  config.CooldownPeriod,
 			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: true},
 			ScaleTargetRef: &kedav1.ScaleTarget{
 				Kind:       "Deployment",
 				Name:       componentName,
-				APIVersion: "apps/radixv1",
+				APIVersion: appsv1.SchemeGroupVersion.Identifier(),
 			},
 			Triggers: triggers,
 		},
@@ -143,30 +164,114 @@ func (deploy *Deployment) getScalerConfig(componentName string, minReplicas *int
 	return scaler
 }
 
-func getScalingTriggers(cpuTarget *int32, memoryTarget *int32) []kedav1.ScaleTriggers {
+func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalScaling) []kedav1.ScaleTriggers {
 	var triggers []kedav1.ScaleTriggers
-	if cpuTarget != nil {
-		triggers = append(triggers, kedav1.ScaleTriggers{
-			Name:       "cpu",
-			Type:       "cpu",
-			MetricType: autoscalingv2.UtilizationMetricType,
-			Metadata: map[string]string{
-				"value": strconv.Itoa(int(*cpuTarget)),
-			},
-		})
+
+	if config == nil {
+		return triggers
 	}
 
-	if memoryTarget != nil {
-		triggers = append(triggers, kedav1.ScaleTriggers{
-			Name:       "memory",
-			Type:       "memory",
-			MetricType: autoscalingv2.UtilizationMetricType,
-			Metadata: map[string]string{
-				"value": strconv.Itoa(int(*memoryTarget)),
-			},
-		})
+	for _, trigger := range config.Triggers {
+		switch {
+		case trigger.Cpu != nil:
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name:       trigger.Name,
+				Type:       "cpu",
+				MetricType: trigger.Cpu.MetricType,
+				Metadata: map[string]string{
+					"value": strconv.Itoa(trigger.Cpu.Value),
+				},
+			})
+		case trigger.Memory != nil:
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name:       trigger.Name,
+				Type:       "memory",
+				MetricType: trigger.Memory.MetricType,
+				Metadata: map[string]string{
+					"value": strconv.Itoa(trigger.Memory.Value),
+				},
+			})
+		case trigger.Cron != nil:
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name: trigger.Name,
+				Type: "cron",
+				Metadata: map[string]string{
+					"start":           trigger.Cron.Start,
+					"end":             trigger.Cron.End,
+					"timezone":        trigger.Cron.Timezone,
+					"desiredReplicas": strconv.Itoa(trigger.Cron.DesiredReplicas),
+				},
+			})
+		case trigger.AzureServiceBus != nil:
+			metadata := map[string]string{}
+
+			if trigger.AzureServiceBus.Namespace != "" {
+				metadata["namespace"] = trigger.AzureServiceBus.Namespace
+			}
+			if trigger.AzureServiceBus.QueueName != "" {
+				metadata["queueName"] = trigger.AzureServiceBus.QueueName
+			}
+			if trigger.AzureServiceBus.TopicName != "" {
+				metadata["topicName"] = trigger.AzureServiceBus.TopicName
+			}
+			if trigger.AzureServiceBus.SubscriptionName != "" {
+				metadata["subscriptionName"] = trigger.AzureServiceBus.SubscriptionName
+			}
+			if trigger.AzureServiceBus.MessageCount != nil {
+				metadata["messageCount"] = strconv.Itoa(*trigger.AzureServiceBus.MessageCount)
+			}
+			if trigger.AzureServiceBus.ActivationMessageCount != nil {
+				metadata["activationMessageCount"] = strconv.Itoa(*trigger.AzureServiceBus.ActivationMessageCount)
+			}
+
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name:     trigger.Name,
+				Type:     "azure-servicebus",
+				Metadata: metadata,
+				AuthenticationRef: &kedav1.AuthenticationRef{
+					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
+					Kind: "TriggerAuthentication",
+				},
+			})
+		}
 	}
+
 	return triggers
+}
+
+func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.RadixHorizontalScaling) []kedav1.TriggerAuthentication {
+	var auths []kedav1.TriggerAuthentication
+
+	if config == nil {
+		return auths
+	}
+
+	for _, trigger := range config.Triggers {
+		switch {
+		case trigger.AzureServiceBus != nil:
+			auths = append(auths, kedav1.TriggerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
+					Labels: map[string]string{
+						kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName,
+						kube.RadixComponentLabel: componentName,
+						kube.RadixTriggerLabel:   trigger.Name,
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						getOwnerReferenceOfDeployment(deploy.radixDeployment),
+					},
+				},
+				Spec: kedav1.TriggerAuthenticationSpec{
+					PodIdentity: &kedav1.AuthPodIdentity{
+						Provider:   "azure-workload",
+						IdentityID: &trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId,
+					},
+				},
+			})
+		}
+	}
+
+	return auths
 }
 
 func (deploy *Deployment) deleteScaledObjectIfExists(ctx context.Context, componentName string) error {
@@ -180,6 +285,22 @@ func (deploy *Deployment) deleteScaledObjectIfExists(ctx context.Context, compon
 	err = deploy.kubeutil.DeleteScaledObject(ctx, scalers...)
 	if err != nil && errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete existing ScaledObject: %w", err)
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) deleteTargetAuthenticationIfExists(ctx context.Context, componentName string) error {
+	namespace := deploy.radixDeployment.GetNamespace()
+
+	auths, err := deploy.kubeutil.ListTriggerAuthenticationsWithSelector(ctx, namespace, labels.ForComponentName(componentName).String())
+	if err != nil {
+		return fmt.Errorf("failed to list TargetAuthentication: %w", err)
+	}
+
+	err = deploy.kubeutil.DeleteTriggerAuthentication(ctx, auths...)
+	if err != nil && errors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete existing TargetAuthentication: %w", err)
 	}
 
 	return nil

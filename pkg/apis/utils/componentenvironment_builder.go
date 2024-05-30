@@ -23,7 +23,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithEnabled(bool) RadixEnvironmentConfigBuilder
 	WithIdentity(*v1.Identity) RadixEnvironmentConfigBuilder
 	WithImageTagName(string) RadixEnvironmentConfigBuilder
-	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixEnvironmentConfigBuilder
+	WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixEnvironmentConfigBuilder
 }
 
@@ -48,30 +48,8 @@ type radixEnvironmentConfigBuilder struct {
 	readOnlyFileSystem      *bool
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixEnvironmentConfigBuilder {
-	var cpuScalingResource *v1.RadixHorizontalScalingResource
-	var memoryScalingResource *v1.RadixHorizontalScalingResource
-
-	if cpu != nil {
-		cpuScalingResource = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: cpu,
-		}
-	}
-
-	if memory != nil {
-		memoryScalingResource = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: memory,
-		}
-	}
-
-	ceb.horizontalScaling = &v1.RadixHorizontalScaling{
-		MinReplicas: minReplicas,
-		MaxReplicas: maxReplicas,
-		RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
-			Cpu:    cpuScalingResource,
-			Memory: memoryScalingResource,
-		},
-	}
+func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder {
+	ceb.horizontalScaling = scaling
 	return ceb
 }
 

@@ -14,7 +14,6 @@ import (
 	"unicode"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -26,6 +25,8 @@ import (
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/uuid"
+	"github.com/robfig/cron/v3"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -156,16 +157,16 @@ func validateDNSAlias(ctx context.Context, radixClient radixclient.Interface, ap
 	for _, dnsAlias := range app.Spec.DNSAlias {
 		if _, ok := uniqueAliasNames[dnsAlias.Alias]; ok {
 			errs = append(errs, DuplicateAliasForDNSAliasError(dnsAlias.Alias))
-		} else if err = validateRequiredResourceName("dnsAlias alias", dnsAlias.Alias); err != nil {
+		} else if err = validateRequiredResourceName("dnsAlias alias", dnsAlias.Alias, 63); err != nil {
 			errs = append(errs, err)
 		}
 		uniqueAliasNames[dnsAlias.Alias] = struct{}{}
 		componentNameIsValid, environmentNameIsValid := true, true
-		if err = validateRequiredResourceName("dnsAlias component", dnsAlias.Component); err != nil {
+		if err = validateRequiredResourceName("dnsAlias component", dnsAlias.Component, 63); err != nil {
 			errs = append(errs, err)
 			componentNameIsValid = false
 		}
-		if err = validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment); err != nil {
+		if err = validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment, 63); err != nil {
 			errs = append(errs, err)
 			environmentNameIsValid = false
 		}
@@ -626,7 +627,7 @@ func validatePorts(componentName string, ports []radixv1.ComponentPort) []error 
 			}
 		}
 
-		err := validateRequiredResourceName("port name", port.Name)
+		err := validateRequiredResourceName("port name", port.Name, 15)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -1021,7 +1022,7 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 
 func validateEnvNames(app *radixv1.RadixApplication) error {
 	for _, env := range app.Spec.Environments {
-		err := validateRequiredResourceName("env name", env.Name)
+		err := validateRequiredResourceName("env name", env.Name, 63)
 		if err != nil {
 			return err
 		}
@@ -1135,11 +1136,10 @@ func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 	var errs []error
 
 	for _, component := range app.Spec.Components {
-		componentName := component.Name
 		if component.HorizontalScaling != nil {
 			err := validateHorizontalScalingPart(component.HorizontalScaling)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("error validating horizontal scaling for component: %s: %w", componentName, err))
+				errs = append(errs, fmt.Errorf("error validating horizontal scaling for component: %s: %w", component.Name, err))
 			}
 		}
 		for _, envConfig := range component.EnvironmentConfig {
@@ -1149,7 +1149,7 @@ func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 
 			err := validateHorizontalScalingPart(envConfig.HorizontalScaling)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("error validating horizontal scaling for environment %s in component %s: %w", envConfig.Environment, componentName, err))
+				errs = append(errs, fmt.Errorf("error validating horizontal scaling for environment %s in component %s: %w", envConfig.Environment, component.Name, err))
 			}
 		}
 	}
@@ -1160,40 +1160,162 @@ func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error {
 	var errs []error
 
-	maxReplicas := config.MaxReplicas
-	minReplicas := config.MinReplicas
-	if minReplicas == nil {
-		minReplicas = pointers.Ptr[int32](deployment.DefaultReplicas)
+	if config.RadixHorizontalScalingResources != nil && len(config.Triggers) > 0 { //nolint:staticcheck // backward compatibility support
+		errs = append(errs, ErrCombiningTriggersWithResourcesIsIllegal)
 	}
 
-	if maxReplicas == 0 {
+	config = config.NormalizeConfig()
+
+	if config.MaxReplicas == 0 {
 		errs = append(errs, ErrMaxReplicasForHPANotSetOrZero)
 	}
-	if *minReplicas > maxReplicas {
+	if *config.MinReplicas > config.MaxReplicas {
 		errs = append(errs, ErrMinReplicasGreaterThanMaxReplicas)
 	}
-	resources := config.RadixHorizontalScalingResources
-	if resources != nil && getHorizontalScalingResourceAverageUtilization(resources.Cpu) == nil && getHorizontalScalingResourceAverageUtilization(resources.Memory) == nil {
-		errs = append(errs, ErrNoScalingResourceSet)
+
+	if *config.MinReplicas == 0 && !hasNonResourceTypeTriggers(config) {
+		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
 	}
 
-	if *minReplicas == 0 && onlyCpuAndOrMemoryTriggersConfigured(resources) {
-		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
+	if err := validateTriggerDefintion(config); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateUniqueTriggerNames(config); err != nil {
+		errs = append(errs, err)
 	}
 
 	return errors.Join(errs...)
 }
 
-func onlyCpuAndOrMemoryTriggersConfigured(resources *radixv1.RadixHorizontalScalingResources) bool {
-	// TODO: When using triggers, this must check that no other triggers have been configured
-	return resources.Cpu != nil || resources.Memory != nil
-}
-
-func getHorizontalScalingResourceAverageUtilization(resource *radixv1.RadixHorizontalScalingResource) *int32 {
-	if resource == nil {
+func validateUniqueTriggerNames(config *radixv1.RadixHorizontalScaling) error {
+	if config == nil {
 		return nil
 	}
-	return resource.AverageUtilization
+
+	var errs []error
+	var names []string
+
+	for _, trigger := range config.Triggers {
+		if slices.Contains(names, trigger.Name) {
+			errs = append(errs, fmt.Errorf("%w: %s", ErrDuplicateTriggerName, trigger.Name))
+		} else {
+			names = append(names, trigger.Name)
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
+	var errs []error
+
+	for _, trigger := range config.Triggers {
+		var definitions int
+
+		if err := validateRequiredResourceName(fmt.Sprintf("%s name", trigger.Name), trigger.Name, 50); err != nil {
+			errs = append(errs, fmt.Errorf("%w: %w", err, ErrInvalidTriggerDefinition))
+		}
+
+		if trigger.Cpu != nil {
+			definitions++
+
+			if trigger.Cpu.Value == 0 {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			validCpuMetricTypes := []autoscalingv2.MetricTargetType{autoscalingv2.AverageValueMetricType, autoscalingv2.UtilizationMetricType}
+			if !slices.Contains(validCpuMetricTypes, trigger.Cpu.MetricType) {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: metric type %s is invalid: %w", trigger.Name, trigger.Cpu.MetricType, ErrInvalidTriggerDefinition))
+			}
+
+		}
+		if trigger.Memory != nil {
+			definitions++
+
+			if trigger.Memory.Value == 0 {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			validMemoryMetricTypes := []autoscalingv2.MetricTargetType{autoscalingv2.AverageValueMetricType, autoscalingv2.UtilizationMetricType}
+			if !slices.Contains(validMemoryMetricTypes, trigger.Memory.MetricType) {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: metric type %s is invalid: %w", trigger.Name, trigger.Memory.MetricType, ErrInvalidTriggerDefinition))
+			}
+		}
+		if trigger.Cron != nil {
+			definitions++
+
+			if trigger.Cron.Start == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: start must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			} else if err := validateKedaCronSchedule(trigger.Cron.Start); err != nil {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: start is invalid: %w: %w", trigger.Name, err, ErrInvalidTriggerDefinition))
+			}
+
+			if trigger.Cron.End == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: end must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			} else if err := validateKedaCronSchedule(trigger.Cron.End); err != nil {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: end is invalid: %w: %w", trigger.Name, err, ErrInvalidTriggerDefinition))
+			}
+
+			if trigger.Cron.Timezone == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: timezone must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			if trigger.Cron.DesiredReplicas < 1 {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: desiredReplicas must be positive integer: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+		}
+		if trigger.AzureServiceBus != nil {
+			definitions++
+
+			// TODO: this is only requrired when using WorkloadIdentity
+			if trigger.AzureServiceBus.Namespace == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: Name of the Azure Service Bus namespace that contains your queue or topic: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			if trigger.AzureServiceBus.QueueName != "" && (trigger.AzureServiceBus.TopicName != "" || trigger.AzureServiceBus.SubscriptionName != "") {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: queueName cannot be used with topicName or subscriptionName: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			if trigger.AzureServiceBus.QueueName == "" && (trigger.AzureServiceBus.TopicName == "" || trigger.AzureServiceBus.SubscriptionName == "") {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+			if trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+		}
+
+		if definitions == 0 {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: %w", trigger.Name, ErrNoDefinitionInTrigger))
+		}
+
+		if definitions > 1 {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: %w (found %d definitions)", trigger.Name, ErrMoreThanOneDefinitionInTrigger, definitions))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateKedaCronSchedule(schedule string) error {
+	// Validate same schedule as KEDA: github.com/kedacore/keda/pkg/scalers/cron_scaler.go:71
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	_, err := parser.Parse(schedule)
+	return err
+}
+
+// hasNonResourceTypeTriggers returns true if atleast one non resource type triggers found
+func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
+	for _, trigger := range config.Triggers {
+		if trigger.Cron != nil {
+			return true
+		}
+		if trigger.AzureServiceBus != nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
@@ -1467,7 +1589,7 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 }
 
 func validateComponentName(componentName, componentType string) error {
-	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName); err != nil {
+	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName, 50); err != nil {
 		return err
 	}
 

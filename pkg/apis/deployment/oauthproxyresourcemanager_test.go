@@ -214,21 +214,21 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 		{
 			name: "component with hpa and default config",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				WithComponent(baseComp().WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
 		{
 			name: "component with hpa and replicas set to 1",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
 		{
 			name: "component with hpa and replicas set to 2",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(2)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(2)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
@@ -236,7 +236,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 
 			name: "component with hpa and replicas set to 0",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 0,
 		},

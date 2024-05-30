@@ -87,7 +87,7 @@ func Test_invalid_ra(t *testing.T) {
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
 	tooLongPortName := "abcdefghijklmnop"
 	invalidBranchName := "/master"
-	invalidResourceName := "invalid,char.resourcename"
+	invalidResourceName := "invalid,char.re"
 	oauthAuxSuffixComponentName := fmt.Sprintf("app-%s", defaults.OAuthProxyAuxiliaryComponentSuffix)
 	oauthAuxSuffixJobName := fmt.Sprintf("job-%s", defaults.OAuthProxyAuxiliaryComponentSuffix)
 	invalidVariableName := "invalid:variable"
@@ -1587,7 +1587,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	}
 }
 
-func Test_HPA_Validation(t *testing.T) {
+func Test_HorizontalScaling_Validation(t *testing.T) {
 	var testScenarios = []struct {
 		name     string
 		updateRA updateRAFunc
@@ -1601,282 +1601,296 @@ func Test_HPA_Validation(t *testing.T) {
 		{
 			"component HPA minReplicas and maxReplicas are not set",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().Build()
 			},
 			[]error{radixvalidators.ErrMaxReplicasForHPANotSetOrZero},
 		},
 		{
 			"component HPA maxReplicas is not set and minReplicas is set",
 			func(ra *radixv1.RadixApplication) {
-				minReplica := int32(3)
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(3).
+					Build()
 			},
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"component HPA minReplicas is not set and maxReplicas is set",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(2).
+					Build()
 			},
 			nil,
 		},
 		{
 			"component HPA minReplicas is set to 0 but only CPU and Memory resoruces are set",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
-				ra.Spec.Components[0].HorizontalScaling.MinReplicas = pointers.Ptr[int32](0)
-				ra.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources = &radixv1.RadixHorizontalScalingResources{
-					Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
-					Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
-				}
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(0).
+					WithMaxReplicas(2).
+					WithCPUTrigger(80).
+					WithMemoryTrigger(80).
+					Build()
 			},
 			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
 		},
 		{
 			"component HPA minReplicas is set to 1 and only CPU and Memory resoruces are set",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
-				ra.Spec.Components[0].HorizontalScaling.MinReplicas = pointers.Ptr[int32](1)
-				ra.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources = &radixv1.RadixHorizontalScalingResources{
-					Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
-					Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](80)},
-				}
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithMaxReplicas(2).
+					WithCPUTrigger(80).
+					WithMemoryTrigger(80).
+					Build()
 			},
 			nil,
 		},
 		{
 			"component HPA minReplicas is greater than maxReplicas",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				minReplica := int32(3)
-				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
-				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 2
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(3).
+					WithMaxReplicas(2).
+					Build()
 			},
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
 			"component HPA maxReplicas is greater than minReplicas",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				minReplica := int32(3)
-				ra.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
-				ra.Spec.Components[0].HorizontalScaling.MaxReplicas = 4
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(3).
+					WithMaxReplicas(4).
+					Build()
 			},
 			nil,
 		},
 		{
-			"component HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
+			"Valid CPU trigger should be successfull",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{},
-				}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"component HPA custom resource scaling for HPA is set, but no resource thresholds for CPU AverageUtilization is not defined",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu: &radixv1.RadixHorizontalScalingResource{},
-					},
-				}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"component HPA custom resource scaling for HPA is set, but no resource thresholds for memory AverageUtilization is not defined",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Memory: &radixv1.RadixHorizontalScalingResource{},
-					},
-				}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"component HPA custom resource scaling for HPA is set, but no resource thresholds for CPU and memory AverageUtilization are defined",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu:    &radixv1.RadixHorizontalScalingResource{},
-						Memory: &radixv1.RadixHorizontalScalingResource{},
-					},
-				}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"component HPA custom resource scaling for HPA CPU AverageUtilization is set",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
-					},
-				}
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithCPUTrigger(radixv1.DefaultTargetCPUUtilizationPercentage).
+					Build()
 			},
 			nil,
 		},
 		{
-			"component HPA custom resource scaling for HPA memory AverageUtilization is set",
+			"Invalid CPU trigger should fail",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
-					},
-				}
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(2).
+					WithMaxReplicas(4).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{}}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Valid Memory trigger should be successfull",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithMemoryTrigger(80).
+					Build()
 			},
 			nil,
 		},
 		{
-			"component HPA custom resource scaling for HPA memory AverageUtilization is set",
+			"Invalid Memory trigger should fail",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
-						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
-					},
-				}
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(2).
+					WithMaxReplicas(4).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{}}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Valid CRON trigger should be successfull",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithCRONTrigger("* * * * *", "* * * * *", "Europe/Oslo", 10).
+					Build()
 			},
 			nil,
 		},
 		{
-			"environment HPA minReplicas and maxReplicas are not set",
+			"Invalid CRON schedule must fail",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithCRONTrigger("* * * *", "@hourly", "Europe/Oslo", 10).
+					Build()
 			},
-			// TODO: Maybe this validation should not return ErrMinReplicasGreaterThanMaxReplicas (it happens because minReplicas defaults to 1
-			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
 		{
-			"environment HPA maxReplicas is not set and minReplicas is set",
+			"Invalid CRON trigger should fail",
 			func(ra *radixv1.RadixApplication) {
-				minReplica := int32(3)
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "cron", Cron: &radixv1.RadixHorizontalScalingCronTrigger{}}).
+					Build()
 			},
-			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Valid AzureServiceBus trigger should be successfull",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", nil, nil).
+					Build()
+			},
+			nil,
+		},
+		{
+			"Invalid AzureServiceBus trigger should fail",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureServiceBusTrigger("", "", "", "", "", nil, nil).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"component HPA custom resource scaling for HPA is valid",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(2).
+					WithMaxReplicas(4).
+					WithCooldownPeriod(10).
+					WithPollingInterval(10).
+					WithMemoryTrigger(80).
+					WithCPUTrigger(80).
+					WithCRONTrigger("* * * * *", "* * * * *", "Europe/Oslo", 10).
+					WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", nil, nil).
+					Build()
+			},
+			nil,
 		},
 		{
 			"environment HPA minReplicas is not set and maxReplicas is set",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					Build()
 			},
 			nil,
 		},
 		{
-			"environment HPA minReplicas is greater than maxReplicas",
+			"invalid environment HPA is not valid",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				minReplica := int32(3)
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(0).
+					Build()
 			},
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
-			"environment HPA maxReplicas is greater than minReplicas",
+			"Copmonent with Trigger config and Resource config should fail",
 			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				minReplica := int32(3)
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 4
-			},
-			nil,
-		},
-		{
-			"environment HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{}
-				minReplica := int32(2)
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 4
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.RadixHorizontalScalingResources = &radixv1.RadixHorizontalScalingResources{}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"environment HPA custom resource scaling for HPA is set, but no resource thresholds are defined",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{},
-				}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for CPU AverageUtilization is not defined",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu: &radixv1.RadixHorizontalScalingResource{},
-					},
-				}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for memory AverageUtilization is not defined",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Memory: &radixv1.RadixHorizontalScalingResource{},
-					},
-				}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"environment HPA custom resource scaling for HPA is set, but no resource thresholds for CPU and memory AverageUtilization are defined",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu:    &radixv1.RadixHorizontalScalingResource{},
-						Memory: &radixv1.RadixHorizontalScalingResource{},
-					},
-				}
-			},
-			[]error{radixvalidators.ErrNoScalingResourceSet},
-		},
-		{
-			"environment HPA custom resource scaling for HPA CPU AverageUtilization is set",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
-					},
-				}
-			},
-			nil,
-		},
-		{
-			"environment HPA custom resource scaling for HPA memory AverageUtilization is set",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
-					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
-					},
-				}
-			},
-			nil,
-		},
-		{
-			"environment HPA custom resource scaling for HPA memory AverageUtilization is set",
-			func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{MinReplicas: pointers.Ptr(int32(2)), MaxReplicas: 4,
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
+					MinReplicas: pointers.Ptr(int32(2)),
+					MaxReplicas: 4,
 					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
 						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
 						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
 					},
+					Triggers: []radixv1.RadixHorizontalScalingTrigger{
+						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
+						{Name: "memory", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}},
+					},
 				}
 			},
+			[]error{radixvalidators.ErrCombiningTriggersWithResourcesIsIllegal},
+		},
+		{
+			"Copmonent with 0 replicas is correct when combined with atleast 1 non-resource trigger",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(0).
+					WithMaxReplicas(4).
+					WithCPUTrigger(99).
+					WithMemoryTrigger(99).
+					WithCRONTrigger("0 5 * * *", "0 20 * * *", "Europe/Oslo", 1).
+					Build()
+
+			},
 			nil,
+		},
+		{
+			"Copmonent with 0 replicas is invalid with only resource triggers",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(0).
+					WithMaxReplicas(4).
+					WithCPUTrigger(99).
+					WithMemoryTrigger(99).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
+		},
+		{
+			"Copmonent with multiple definitions in same trigger must fail",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithMaxReplicas(4).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}, Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
+					Build()
+			},
+			[]error{radixvalidators.ErrMoreThanOneDefinitionInTrigger},
+		},
+		{
+			"Copmonent with multiple definitions of same type is allowed",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithMaxReplicas(4).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "cpu2", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					Build()
+			},
+			nil,
+		},
+		{
+			"Copmonent must have unique name",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithMaxReplicas(4).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "test", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}}).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "test", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99}}).
+					Build()
+			},
+			[]error{radixvalidators.ErrDuplicateTriggerName},
+		},
+		{
+			"Cpu trigger must have valid metricType",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "test", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99, MetricType: "test"}}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Memory trigger must have valid metricType",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMinReplicas(1).
+					WithTrigger(radixv1.RadixHorizontalScalingTrigger{Name: "test", Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: 99, MetricType: "test"}}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
 	}
 
