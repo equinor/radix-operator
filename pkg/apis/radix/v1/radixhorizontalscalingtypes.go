@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	DefaultTargetCPUUtilizationPercentage = 80
+	DefaultTargetCPUUtilizationPercentage      = 80
+	DefaultResourceHorizontalScalingMetricType = autoscalingv2.UtilizationMetricType
 )
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler.
@@ -85,26 +86,13 @@ type RadixHorizontalScalingTrigger struct {
 }
 
 type RadixHorizontalScalingCPUTrigger struct {
-	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.
-	// +optional
-	// +kubebuilder:validation:Enum=Utilization;AverageValue
-	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"`
-
-	// Value to trigger scaling actions for:
-	// When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
-	// When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+	// Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
 	// +kubebuilder:validation:Minimum=15
 	Value int `json:"value"`
 }
-type RadixHorizontalScalingMemoryTrigger struct {
-	// Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.
-	// +optional
-	// +kubebuilder:validation:Enum=Utilization;AverageValue
-	MetricType autoscalingv2.MetricTargetType `json:"metricType,omitempty"`
 
-	// Value to trigger scaling actions for:
-	// When using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
-	// When using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).
+type RadixHorizontalScalingMemoryTrigger struct {
+	// Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
 	// +kubebuilder:validation:Minimum=15
 	Value int `json:"value"`
 }
@@ -192,8 +180,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 			config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
 				Name: "CPU",
 				Cpu: &RadixHorizontalScalingCPUTrigger{
-					MetricType: autoscalingv2.UtilizationMetricType,
-					Value:      int(*c.RadixHorizontalScalingResources.Cpu.AverageUtilization),
+					Value: int(*c.RadixHorizontalScalingResources.Cpu.AverageUtilization),
 				},
 			})
 		}
@@ -202,8 +189,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 			config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
 				Name: "Memory",
 				Memory: &RadixHorizontalScalingMemoryTrigger{
-					MetricType: autoscalingv2.UtilizationMetricType,
-					Value:      int(*c.RadixHorizontalScalingResources.Memory.AverageUtilization),
+					Value: int(*c.RadixHorizontalScalingResources.Memory.AverageUtilization),
 				},
 			})
 		}
@@ -213,26 +199,11 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 		config.MinReplicas = pointers.Ptr[int32](1)
 	}
 
-	// Set defaults for triggers
-	for _, trigger := range config.Triggers {
-		switch {
-		case trigger.Cpu != nil:
-			if trigger.Cpu.MetricType == "" {
-				trigger.Cpu.MetricType = autoscalingv2.AverageValueMetricType
-			}
-		case trigger.Memory != nil:
-			if trigger.Memory.MetricType == "" {
-				trigger.Memory.MetricType = autoscalingv2.AverageValueMetricType
-			}
-		}
-	}
-
 	if len(config.Triggers) == 0 {
 		config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
 			Name: "default-cpu",
 			Cpu: &RadixHorizontalScalingCPUTrigger{
-				MetricType: autoscalingv2.AverageValueMetricType,
-				Value:      DefaultTargetCPUUtilizationPercentage,
+				Value: DefaultTargetCPUUtilizationPercentage,
 			},
 		})
 	}

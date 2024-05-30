@@ -189,14 +189,14 @@ func TestScalerTriggers(t *testing.T) {
 		{
 			name:    "CPU",
 			builder: utils.NewHorizontalScalingBuilder().WithCPUTrigger(80),
-			expected: v1alpha1.ScaleTriggers{Name: "cpu", Type: "cpu", MetricType: autoscalingv2.AverageValueMetricType, Metadata: map[string]string{
+			expected: v1alpha1.ScaleTriggers{Name: "cpu", Type: "cpu", MetricType: autoscalingv2.UtilizationMetricType, Metadata: map[string]string{
 				"value": "80",
 			}},
 		},
 		{
 			name:    "Memory",
 			builder: utils.NewHorizontalScalingBuilder().WithMemoryTrigger(80),
-			expected: v1alpha1.ScaleTriggers{Name: "memory", Type: "memory", MetricType: autoscalingv2.AverageValueMetricType, Metadata: map[string]string{
+			expected: v1alpha1.ScaleTriggers{Name: "memory", Type: "memory", MetricType: autoscalingv2.UtilizationMetricType, Metadata: map[string]string{
 				"value": "80",
 			}},
 		},

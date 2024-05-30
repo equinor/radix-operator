@@ -177,7 +177,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name:       trigger.Name,
 				Type:       "cpu",
-				MetricType: trigger.Cpu.MetricType,
+				MetricType: radixv1.DefaultResourceHorizontalScalingMetricType,
 				Metadata: map[string]string{
 					"value": strconv.Itoa(trigger.Cpu.Value),
 				},
@@ -186,7 +186,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name:       trigger.Name,
 				Type:       "memory",
-				MetricType: trigger.Memory.MetricType,
+				MetricType: radixv1.DefaultResourceHorizontalScalingMetricType,
 				Metadata: map[string]string{
 					"value": strconv.Itoa(trigger.Memory.Value),
 				},
