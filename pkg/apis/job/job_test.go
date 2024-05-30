@@ -195,7 +195,11 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	s.Equal(corev1.RestartPolicyNever, podTemplate.Spec.RestartPolicy)
 	expectedTolerations := []corev1.Toleration{{Key: kube.NodeTaintJobsKey, Effect: corev1.TaintEffectNoSchedule, Operator: corev1.TolerationOpExists}}
 	s.ElementsMatch(expectedTolerations, podTemplate.Spec.Tolerations)
-	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists}}}}}}}
+	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+	}}}}}}
 	s.Equal(expectedAffinity, podTemplate.Spec.Affinity)
 	expectedSecurityCtx := &corev1.PodSecurityContext{FSGroup: pointers.Ptr[int64](1000), RunAsNonRoot: pointers.Ptr(true), SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault}}
 	s.Equal(expectedSecurityCtx, podTemplate.Spec.SecurityContext)
