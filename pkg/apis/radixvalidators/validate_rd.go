@@ -57,7 +57,7 @@ func CanRadixDeploymentBeInserted(deploy *radixv1.RadixDeployment) error {
 		errs = append(errs, err...)
 	}
 
-	err = validateRequiredResourceName("env name", deploy.Spec.Environment)
+	err = validateRequiredResourceName("env name", deploy.Spec.Environment, 253)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -68,7 +68,7 @@ func CanRadixDeploymentBeInserted(deploy *radixv1.RadixDeployment) error {
 func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {
 	errs := make([]error, 0)
 	for _, component := range deployment.Spec.Components {
-		if err := validateRequiredResourceName("component name", component.Name); err != nil {
+		if err := validateRequiredResourceName("component name", component.Name, 253); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -87,7 +87,7 @@ func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {
 func validateDeployJobComponents(deployment *radixv1.RadixDeployment) []error {
 	errs := make([]error, 0)
 	for _, job := range deployment.Spec.Jobs {
-		if err := validateRequiredResourceName("job name", job.Name); err != nil {
+		if err := validateRequiredResourceName("job name", job.Name, 253); err != nil {
 			errs = append(errs, err)
 		}
 

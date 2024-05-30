@@ -7,15 +7,14 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestHorizontalScaleChangePDB(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
-	defer teardownTest()
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -23,7 +22,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 	componentThreeName := "componentThreeName"
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -34,7 +33,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
 				WithReplicas(test.IntPtr(4)).
-				WithHorizontalScaling(numbers.Int32Ptr(2), 4, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
@@ -43,7 +42,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
-				WithPublicPort("http").WithHorizontalScaling(nil, 2, nil, nil)))
+				WithPublicPort("http").WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMaxReplicas(2).Build())))
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -61,7 +60,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Remove components
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -88,8 +87,8 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 }
 
 func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
-	defer teardownTest()
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -97,7 +96,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 	componentThreeName := "componentThreeName"
 
 	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -134,7 +133,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Remove components
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -161,8 +160,8 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 }
 
 func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
-	defer teardownTest()
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -170,7 +169,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Define one component with >1 replicas and one component with <2 replicas
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -197,7 +196,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Define two components with <2 replicas
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -222,7 +221,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	assert.Equal(t, 0, len(pdbs.Items))
 
 	// Define one component with >1 replicas and one component with <2 replicas
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -250,7 +249,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Delete component with >1 replicas. Expect PDBs to be removed
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -271,7 +270,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	componentThreeName := "componentThreeName"
 
 	// Set 3 components with >1 replicas. Expect 3 PDBs
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -306,8 +305,8 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 }
 
 func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
-	defer teardownTest()
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -315,7 +314,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Define one component with >1 replicas and one component with <2 replicas
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -325,7 +324,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(4)).
-				WithHorizontalScaling(numbers.Int32Ptr(4), 6, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(4).WithMaxReplicas(6).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
@@ -343,7 +342,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Define two components with <2 replicas
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -354,7 +353,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(numbers.Int32Ptr(1), 6, nil, nil),
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(6).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
@@ -370,15 +369,15 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 }
 
 func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
-	defer teardownTest()
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Define a component with >1 replicas
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().
@@ -408,7 +407,7 @@ func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
 	assert.Equal(t, "wrong", pdbWithWrongLabels.ObjectMeta.Labels[kube.RadixComponentLabel])
 	assert.Equal(t, "wrong", pdbWithWrongLabels.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithJobComponents().

@@ -86,6 +86,7 @@ const (
 	RadixBatchTypeLabel                 = "radix-batch-type"
 	RadixAccessValidationLabel          = "radix-access-validation"
 	RadixPipelineTypeLabels             = "radix-pipeline"
+	RadixTriggerLabel                   = "radix-keda-trigger"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
@@ -146,6 +147,7 @@ type Kube struct {
 	LimitRangeLister         coreListers.LimitRangeLister
 	JobLister                batchListers.JobLister
 	ScaledObjectLister       kedav1listers.ScaledObjectLister
+	TriggerAuthLister        kedav1listers.TriggerAuthenticationLister
 
 	// Do not use ConfigMapLister as it were cases it return outdated data
 }

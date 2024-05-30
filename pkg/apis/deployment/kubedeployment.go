@@ -33,6 +33,11 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 		if err != nil {
 			return err
 		}
+
+		err = deploy.deleteTargetAuthenticationIfExists(ctx, deployComponent.GetName())
+		if err != nil {
+			return err
+		}
 	}
 
 	err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, desiredDeployment)

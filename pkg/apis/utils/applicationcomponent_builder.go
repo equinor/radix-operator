@@ -31,7 +31,7 @@ type RadixApplicationComponentBuilder interface {
 	WithEnabled(bool) RadixApplicationComponentBuilder
 	WithIdentity(*v1.Identity) RadixApplicationComponentBuilder
 	WithReadOnlyFileSystem(*bool) RadixApplicationComponentBuilder
-	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixApplicationComponentBuilder
+	WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -201,30 +201,8 @@ func (rcb *radixApplicationComponentBuilder) WithReadOnlyFileSystem(readOnlyFile
 	return rcb
 }
 
-func (rcb *radixApplicationComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixApplicationComponentBuilder {
-	var cpuScalingResource *v1.RadixHorizontalScalingResource
-	var memoryScalingResource *v1.RadixHorizontalScalingResource
-
-	if cpu != nil {
-		cpuScalingResource = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: cpu,
-		}
-	}
-
-	if memory != nil {
-		memoryScalingResource = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: memory,
-		}
-	}
-
-	rcb.horizontalScaling = &v1.RadixHorizontalScaling{
-		MinReplicas: minReplicas,
-		MaxReplicas: maxReplicas,
-		RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
-			Cpu:    cpuScalingResource,
-			Memory: memoryScalingResource,
-		},
-	}
+func (rcb *radixApplicationComponentBuilder) WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixApplicationComponentBuilder {
+	rcb.horizontalScaling = scaling
 	return rcb
 }
 

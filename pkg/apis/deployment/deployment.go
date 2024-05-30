@@ -402,6 +402,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 		return err
 	}
 
+	err = deploy.garbageCollectTriggerAuthsNoLongerInSpec(ctx)
+	if err != nil {
+		return err
+	}
+
 	err = deploy.garbageCollectServicesNoLongerInSpec(ctx)
 	if err != nil {
 		return err

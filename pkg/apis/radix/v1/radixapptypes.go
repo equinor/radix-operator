@@ -332,7 +332,7 @@ type ResourceRequirements struct {
 type RadixComponent struct {
 	// Name of the component.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
@@ -557,10 +557,9 @@ type RadixEnvironmentConfig struct {
 type RadixJobComponent struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
-
 	// Path to the Dockerfile that builds the job.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src-2
 	// +optional
@@ -772,39 +771,6 @@ type RadixJobComponentPayload struct {
 	// Path to the folder where payload is mounted
 	// +kubebuilder:validation:MinLength=1
 	Path string `json:"path"`
-}
-
-// RadixHorizontalScaling defines configuration for horizontal pod autoscaler.
-// If set, this will override replicas config
-type RadixHorizontalScaling struct {
-	// Defines the minimum number of replicas.
-	// +kubebuilder:validation:Minimum=0
-	// +optional
-	MinReplicas *int32 `json:"minReplicas,omitempty"`
-
-	// Defines the maximum number of replicas.
-	// +kubebuilder:validation:Minimum=1
-	MaxReplicas int32 `json:"maxReplicas"`
-
-	// Defines the resource usage parameters for the horizontal pod autoscaler.
-	// +optional
-	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"`
-}
-
-type RadixHorizontalScalingResource struct {
-	// Defines the resource usage which triggers scaling for the horizontal pod autoscaler.
-	// +kubebuilder:validation:Minimum=1
-	AverageUtilization *int32 `json:"averageUtilization"`
-}
-
-type RadixHorizontalScalingResources struct {
-	// Defines the CPU usage parameters for the horizontal pod autoscaler.
-	// +optional
-	Cpu *RadixHorizontalScalingResource `json:"cpu,omitempty"`
-
-	// Defines the memory usage parameters for the horizontal pod autoscaler.
-	// +optional
-	Memory *RadixHorizontalScalingResource `json:"memory,omitempty"`
 }
 
 // PrivateImageHubEntries defines authentication information for private image registries.
