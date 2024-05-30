@@ -103,6 +103,9 @@ func (deploy *Deployment) garbageCollectTriggerAuthsNoLongerInSpec(ctx context.C
 		horizontalScaling := component.HorizontalScaling.NormalizeConfig()
 		targetAuths := deploy.getTriggerAuths(component.Name, horizontalScaling)
 		currentAuths, err := deploy.kubeutil.ListTriggerAuthenticationsWithSelector(ctx, namespace, labels.ForComponentName(component.Name).String())
+		if err != nil {
+			return err
+		}
 
 		for _, currentAuth := range currentAuths {
 			_, ok := RadixComponentNameFromComponentLabel(currentAuth)

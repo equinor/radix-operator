@@ -126,7 +126,7 @@ func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommon
 
 	// If original env config has triggers, use that instead of component level triggers. No merging should happen.
 	// (We cannot compare normalized config, since it adds default CPU trigger
-	if len(environmentHorizontalScaling.Triggers) > 0 || environmentHorizontalScaling.RadixHorizontalScalingResources != nil {
+	if len(environmentHorizontalScaling.Triggers) > 0 || environmentHorizontalScaling.RadixHorizontalScalingResources != nil { //nolint:staticcheck // backward compatibility support
 		finalHorizontalScaling.Triggers = environmentHorizontalScaling.NormalizeConfig().Triggers
 	}
 	return finalHorizontalScaling, nil

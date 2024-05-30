@@ -1160,7 +1160,7 @@ func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {
 func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error {
 	var errs []error
 
-	if config.RadixHorizontalScalingResources != nil && len(config.Triggers) > 0 {
+	if config.RadixHorizontalScalingResources != nil && len(config.Triggers) > 0 { //nolint:staticcheck // backward compatibility support
 		errs = append(errs, ErrCombiningTriggersWithResourcesIsIllegal)
 	}
 
