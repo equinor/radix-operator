@@ -185,6 +185,7 @@ rules:
   - keda.sh
   resources:
   - scaledobjects
+  - triggerauthentications
   verbs:
   - get
   - list

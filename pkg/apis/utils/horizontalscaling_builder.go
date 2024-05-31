@@ -2,7 +2,6 @@ package utils
 
 import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v2 "k8s.io/api/autoscaling/v2"
 )
 
 type HorizontalScalingBuilderStruct struct {
@@ -81,7 +80,7 @@ func (h *HorizontalScalingBuilderStruct) WithPollingInterval(pollingInterval int
 func (h *HorizontalScalingBuilderStruct) WithCPUTrigger(value int) *HorizontalScalingBuilderStruct {
 	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
 		Name: "cpu",
-		Cpu:  &radixv1.RadixHorizontalScalingCPUTrigger{Value: value, MetricType: v2.AverageValueMetricType},
+		Cpu:  &radixv1.RadixHorizontalScalingCPUTrigger{Value: value},
 	})
 	return h
 }
@@ -89,7 +88,7 @@ func (h *HorizontalScalingBuilderStruct) WithCPUTrigger(value int) *HorizontalSc
 func (h *HorizontalScalingBuilderStruct) WithMemoryTrigger(value int) *HorizontalScalingBuilderStruct {
 	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
 		Name:   "memory",
-		Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: value, MetricType: v2.AverageValueMetricType},
+		Memory: &radixv1.RadixHorizontalScalingMemoryTrigger{Value: value},
 	})
 	return h
 }

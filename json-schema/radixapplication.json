@@ -553,16 +553,8 @@
                               "cpu": {
                                 "description": "Cpu defines a trigger based on CPU usage",
                                 "properties": {
-                                  "metricType": {
-                                    "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
-                                    "enum": [
-                                      "Utilization",
-                                      "AverageValue"
-                                    ],
-                                    "type": "string"
-                                  },
                                   "value": {
-                                    "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
+                                    "description": "Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
                                     "minimum": 15,
                                     "type": "integer"
                                   }
@@ -606,16 +598,8 @@
                               "memory": {
                                 "description": "Memory defines a trigger based on memory usage",
                                 "properties": {
-                                  "metricType": {
-                                    "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
-                                    "enum": [
-                                      "Utilization",
-                                      "AverageValue"
-                                    ],
-                                    "type": "string"
-                                  },
                                   "value": {
-                                    "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
+                                    "description": "Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
                                     "minimum": 15,
                                     "type": "integer"
                                   }
@@ -1253,16 +1237,8 @@
                         "cpu": {
                           "description": "Cpu defines a trigger based on CPU usage",
                           "properties": {
-                            "metricType": {
-                              "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
-                              "enum": [
-                                "Utilization",
-                                "AverageValue"
-                              ],
-                              "type": "string"
-                            },
                             "value": {
-                              "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
+                              "description": "Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
                               "minimum": 15,
                               "type": "integer"
                             }
@@ -1306,16 +1282,8 @@
                         "memory": {
                           "description": "Memory defines a trigger based on memory usage",
                           "properties": {
-                            "metricType": {
-                              "description": "Defines the type of metric to use. Options are Utilization or AverageValue. Defaults to AverageValue.",
-                              "enum": [
-                                "Utilization",
-                                "AverageValue"
-                              ],
-                              "type": "string"
-                            },
                             "value": {
-                              "description": "Value to trigger scaling actions for:\nWhen using Utilization, the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.\nWhen using AverageValue, the target value is the target value of the average of the metric across all relevant pods (quantity).",
+                              "description": "Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
                               "minimum": 15,
                               "type": "integer"
                             }

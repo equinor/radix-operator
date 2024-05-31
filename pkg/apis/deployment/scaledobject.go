@@ -14,6 +14,7 @@ import (
 	kedav1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -177,7 +178,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name:       trigger.Name,
 				Type:       "cpu",
-				MetricType: trigger.Cpu.MetricType,
+				MetricType: autoscalingv2.UtilizationMetricType,
 				Metadata: map[string]string{
 					"value": strconv.Itoa(trigger.Cpu.Value),
 				},
@@ -186,7 +187,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name:       trigger.Name,
 				Type:       "memory",
-				MetricType: trigger.Memory.MetricType,
+				MetricType: autoscalingv2.UtilizationMetricType,
 				Metadata: map[string]string{
 					"value": strconv.Itoa(trigger.Memory.Value),
 				},
