@@ -730,6 +730,19 @@ spec:
                                   that is explicitly specified, otherwise to an implementation-defined value.
                                 type: object
                             type: object
+                          runtime:
+                            description: Runtime defines environment specific target
+                              runtime requirements for the component
+                            properties:
+                              architecture:
+                                default: amd64
+                                description: CPU architecture target for the component
+                                  or job. Defaults to arm64.
+                                enum:
+                                - amd64
+                                - arm64
+                                type: string
+                            type: object
                           secretRefs:
                             description: |-
                               Environment specific configuration for external secret stores, like Azure KeyVault.
@@ -1467,6 +1480,19 @@ spec:
                             that is explicitly specified, otherwise to an implementation-defined value.
                           type: object
                       type: object
+                    runtime:
+                      description: Runtime defines the target runtime requirements
+                        for the component
+                      properties:
+                        architecture:
+                          default: amd64
+                          description: CPU architecture target for the component or
+                            job. Defaults to arm64.
+                          enum:
+                          - amd64
+                          - arm64
+                          type: string
+                      type: object
                     secretRefs:
                       description: |-
                         Configuration for external secret stores, like Azure KeyVault.
@@ -2197,6 +2223,19 @@ spec:
                                   that is explicitly specified, otherwise to an implementation-defined value.
                                 type: object
                             type: object
+                          runtime:
+                            description: Runtime defines environment specific target
+                              runtime requirements for the job
+                            properties:
+                              architecture:
+                                default: amd64
+                                description: CPU architecture target for the component
+                                  or job. Defaults to arm64.
+                                enum:
+                                - amd64
+                                - arm64
+                                type: string
+                            type: object
                           secretRefs:
                             description: |-
                               Environment specific configuration for external secret stores, like Azure KeyVault.
@@ -2724,6 +2763,19 @@ spec:
                             If Requests is omitted for a container, it defaults to Limits if
                             that is explicitly specified, otherwise to an implementation-defined value.
                           type: object
+                      type: object
+                    runtime:
+                      description: Runtime defines target runtime requirements for
+                        the job
+                      properties:
+                        architecture:
+                          default: amd64
+                          description: CPU architecture target for the component or
+                            job. Defaults to arm64.
+                          enum:
+                          - amd64
+                          - arm64
+                          type: string
                       type: object
                     schedulerPort:
                       description: |-

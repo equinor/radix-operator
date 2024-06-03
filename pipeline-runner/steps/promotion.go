@@ -198,6 +198,7 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 		// Environment variables, SecretRefs are taken from current configuration
 		newEnvJob.Secrets = job.Secrets
 		newEnvJob.Image = job.Image
+		newEnvJob.Runtime = job.Runtime
 		radixDeployment.Spec.Jobs[idx] = newEnvJob
 	}
 
@@ -223,6 +224,7 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 		// Environment variables, SecretRefs are taken from current configuration
 		newEnvComponent.Secrets = component.Secrets
 		newEnvComponent.Image = component.Image
+		newEnvComponent.Runtime = component.Runtime
 		radixDeployment.Spec.Components[idx] = newEnvComponent
 	}
 

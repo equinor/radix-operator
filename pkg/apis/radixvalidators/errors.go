@@ -106,6 +106,7 @@ var (
 	ErrInvalidPortInWebhookUrl                                             = errors.Wrap(ErrWebhook, "invalid port in webhook")
 	ErrInvalidUseOfPublicPortInWebhookUrl                                  = errors.New("invalid use of public port in webhook")
 	ErrMissingAzureIdentity                                                = errors.New("missing identity")
+	ErrInvalidRuntimeArchitecture                                          = errors.New("invalid runtime architecture")
 )
 
 // DuplicateAliasForDNSAliasError Error when aliases are duplicate

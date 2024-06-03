@@ -896,3 +896,123 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 	assert.Equal(t, srcRadixConfigHash, promotedRD.GetAnnotations()[kube.RadixConfigHash])
 	assert.Equal(t, srcDeploymentCommitID, promotedRD.GetLabels()[kube.RadixCommitLabel])
 }
+
+// TODO: Write test
+func TestPromote_KeepSourceDeploymentRuntime(t *testing.T) {
+	// anyApp := "any-app"
+	// anyDeploymentName := "deployment-1"
+	// anyImageTag := "abcdef"
+	// anyBuildDeployJobName := "any-build-deploy-job"
+	// anyPromoteJobName := "any-promote-job"
+	// anyProdEnvironment := "prod"
+	// anyDevEnvironment := "dev"
+
+	// Setup
+	// kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
+
+	// _, err := commonTestUtils.ApplyDeployment(
+	// 	context.Background(),
+	// 	utils.ARadixDeployment().
+	// 		WithRadixApplication(
+	// 			utils.NewRadixApplicationBuilder().
+	// 				WithRadixRegistration(
+	// 					utils.ARadixRegistration().
+	// 						WithName(anyApp)).
+	// 				WithAppName(anyApp).
+	// 				WithEnvironment(anyDevEnvironment, "master").
+	// 				WithEnvironment(anyProdEnvironment, "").
+	// 				WithComponents(
+	// 					utils.AnApplicationComponent().
+	// 						WithName("app").
+	// 						WithCommonResource(map[string]string{
+	// 							"memory": "64Mi",
+	// 							"cpu":    "250m",
+	// 						}, map[string]string{
+	// 							"memory": "128Mi",
+	// 							"cpu":    "500m",
+	// 						}).
+	// 						WithEnvironmentConfigs(
+	// 							utils.AnEnvironmentConfig().
+	// 								WithEnvironment(anyProdEnvironment).
+	// 								WithResource(
+	// 									map[string]string{
+	// 										"memory": "128Mi",
+	// 										"cpu":    "500m",
+	// 									}, map[string]string{
+	// 										"memory": "256Mi",
+	// 										"cpu":    "750m",
+	// 									}))).
+	// 				WithJobComponents(
+	// 					utils.AnApplicationJobComponent().
+	// 						WithName("job").
+	// 						WithSchedulerPort(numbers.Int32Ptr(8888)).
+	// 						WithCommonResource(
+	// 							map[string]string{
+	// 								"memory": "11Mi",
+	// 								"cpu":    "22m",
+	// 							}, map[string]string{
+	// 								"memory": "33Mi",
+	// 								"cpu":    "44m",
+	// 							}).
+	// 						WithEnvironmentConfigs(
+	// 							utils.AJobComponentEnvironmentConfig().
+	// 								WithEnvironment(anyProdEnvironment).
+	// 								WithResource(
+	// 									map[string]string{
+	// 										"memory": "111Mi",
+	// 										"cpu":    "222m",
+	// 									}, map[string]string{
+	// 										"memory": "333Mi",
+	// 										"cpu":    "444m",
+	// 									})),
+	// 				)).
+	// 		WithAppName(anyApp).
+	// 		WithDeploymentName(anyDeploymentName).
+	// 		WithEnvironment(anyDevEnvironment).
+	// 		WithImageTag(anyImageTag).
+	// 		WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
+	// require.NoError(t, err)
+
+	// // Create prod environment without any deployments
+	// test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+
+	// rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
+	// ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
+
+	// cli := steps.NewPromoteStep()
+	// cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	// pipelineInfo := &model.PipelineInfo{
+	// 	PipelineArguments: model.PipelineArguments{
+	// 		FromEnvironment: anyDevEnvironment,
+	// 		ToEnvironment:   anyProdEnvironment,
+	// 		DeploymentName:  anyDeploymentName,
+	// 		JobName:         anyPromoteJobName,
+	// 		ImageTag:        anyImageTag,
+	// 		CommitID:        anyCommitID,
+	// 	},
+	// }
+
+	// applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
+	// gitCommitHash := pipelineInfo.GitCommitHash
+	// gitTags := pipelineInfo.GitTags
+	// pipelineInfo.SetApplicationConfig(applicationConfig)
+	// pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+	// err = cli.Run(context.Background(), pipelineInfo)
+	// require.NoError(t, err)
+
+	// rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.Background(), metav1.ListOptions{})
+	// assert.Equal(t, 1, len(rds.Items))
+	// assert.True(t, strings.HasPrefix(rds.Items[0].Name, fmt.Sprintf("%s-%s-", anyProdEnvironment, anyImageTag)))
+	// assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
+	// assert.Equal(t, anyImageTag, rds.Items[0].Labels[kube.RadixImageTagLabel])
+	// assert.Equal(t, anyPromoteJobName, rds.Items[0].Labels[kube.RadixJobNameLabel])
+	// assert.Equal(t, "500m", rds.Items[0].Spec.Components[0].Resources.Requests["cpu"])
+	// assert.Equal(t, "128Mi", rds.Items[0].Spec.Components[0].Resources.Requests["memory"])
+	// assert.Equal(t, "750m", rds.Items[0].Spec.Components[0].Resources.Limits["cpu"])
+	// assert.Equal(t, "256Mi", rds.Items[0].Spec.Components[0].Resources.Limits["memory"])
+	// assert.Equal(t, "222m", rds.Items[0].Spec.Jobs[0].Resources.Requests["cpu"])
+	// assert.Equal(t, "111Mi", rds.Items[0].Spec.Jobs[0].Resources.Requests["memory"])
+	// assert.Equal(t, "444m", rds.Items[0].Spec.Jobs[0].Resources.Limits["cpu"])
+	// assert.Equal(t, "333Mi", rds.Items[0].Spec.Jobs[0].Resources.Limits["memory"])
+}

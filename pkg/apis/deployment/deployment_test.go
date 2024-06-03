@@ -440,6 +440,67 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	}
 }
 
+func TestObjectSynced_Components_AffinityAccordingToSpec(t *testing.T) {
+	var (
+		appName             = "anyapp"
+		environment         = "anyenv"
+		comp1, comp2, comp3 = "comp1", "comp2", "comp3"
+	)
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+
+	rrBuilder := utils.ARadixRegistration()
+	raBuilder := utils.ARadixApplication().WithRadixRegistration(rrBuilder)
+	rdBuilder := utils.ARadixDeployment().
+		WithRadixApplication(raBuilder).
+		WithAppName(appName).
+		WithEnvironment(environment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(comp1).
+				WithRuntime(nil),
+			utils.NewDeployComponentBuilder().
+				WithName(comp2).
+				WithRuntime(&radixv1.Runtime{Architecture: ""}),
+			utils.NewDeployComponentBuilder().
+				WithName(comp3).
+				WithRuntime(&radixv1.Runtime{Architecture: "customarch"}))
+
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	deployments, err := kubeclient.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, environment)).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+
+	// Check affinity for comp1
+	deployment := getDeploymentByName(comp1, deployments.Items)
+	require.NotNil(t, deployment)
+	expectedAffinity := &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+	}}}}}
+	assert.Equal(t, expectedAffinity, deployment.Spec.Template.Spec.Affinity.NodeAffinity)
+
+	// Check affinity for comp2
+	deployment = getDeploymentByName(comp2, deployments.Items)
+	require.NotNil(t, deployment)
+	expectedAffinity = &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+	}}}}}
+	assert.Equal(t, expectedAffinity, deployment.Spec.Template.Spec.Affinity.NodeAffinity)
+
+	// Check affinity for comp3
+	deployment = getDeploymentByName(comp3, deployments.Items)
+	require.NotNil(t, deployment)
+	expectedAffinity = &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"customarch"}},
+	}}}}}
+	assert.Equal(t, expectedAffinity, deployment.Spec.Template.Spec.Affinity.NodeAffinity)
+}
+
 func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 	const jobSchedulerImage = "radix-job-scheduler:latest"
 	defer TeardownTest()
@@ -495,7 +556,8 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							WithSchedulerPort(&schedulerPortUpdate).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{remainingSecret, addingSecret}).
-							WithAlwaysPullImageOnDeploy(false),
+							WithAlwaysPullImageOnDeploy(false).
+							WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 					).
 					WithComponents()
 				_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, existingRadixDeploymentBuilder)
@@ -539,9 +601,10 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							WithSchedulerPort(&schedulerPortCreate).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{outdatedSecret, remainingSecret}).
-							WithAlwaysPullImageOnDeploy(false),
+							WithAlwaysPullImageOnDeploy(false).
+							WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 						utils.NewDeployJobComponentBuilder().
-							WithName(jobName2).WithSchedulerPort(&schedulerPortCreate),
+							WithName(jobName2).WithSchedulerPort(&schedulerPortCreate).WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 					).
 					WithComponents()
 
@@ -572,7 +635,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 					}}}}},
 				}
 				for _, deployment := range jobAuxDeployments {
-					assert.Equal(t, expectedAuxAffinity, deployment.Spec.Template.Spec.Affinity)
+					assert.Equal(t, expectedAuxAffinity, deployment.Spec.Template.Spec.Affinity, "job aux component must not use job's runtime config")
 				}
 
 				assert.Equal(t, jobName, getDeploymentByName(jobName, deployments).Name, "app deployment not there")
@@ -626,7 +689,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							{Key: kube.RadixComponentLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{job}},
 						}}}}}},
 					}
-					assert.Equal(t, expectedAffinity, deploy.Spec.Template.Spec.Affinity)
+					assert.Equal(t, expectedAffinity, deploy.Spec.Template.Spec.Affinity, "job api server must not use job's runtime config")
 				}
 
 			})

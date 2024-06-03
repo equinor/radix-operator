@@ -32,6 +32,7 @@ type RadixApplicationComponentBuilder interface {
 	WithIdentity(*v1.Identity) RadixApplicationComponentBuilder
 	WithReadOnlyFileSystem(*bool) RadixApplicationComponentBuilder
 	WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixApplicationComponentBuilder
+	WithRuntime(runtime *v1.Runtime) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -60,6 +61,7 @@ type radixApplicationComponentBuilder struct {
 	monitoring              *bool
 	imageTagName            string
 	horizontalScaling       *v1.RadixHorizontalScaling
+	runtime                 *v1.Runtime
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -206,6 +208,11 @@ func (rcb *radixApplicationComponentBuilder) WithHorizontalScaling(scaling *v1.R
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithRuntime(runtime *v1.Runtime) RadixApplicationComponentBuilder {
+	rcb.runtime = runtime
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent {
 	var environmentConfig = make([]v1.RadixEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -237,6 +244,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		ImageTagName:            rcb.imageTagName,
 		HorizontalScaling:       rcb.horizontalScaling,
 		VolumeMounts:            rcb.volumeMounts,
+		Runtime:                 rcb.runtime,
 	}
 }
 

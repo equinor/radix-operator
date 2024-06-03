@@ -708,6 +708,21 @@
                       },
                       "type": "object"
                     },
+                    "runtime": {
+                      "description": "Runtime defines environment specific target runtime requirements for the component",
+                      "properties": {
+                        "architecture": {
+                          "default": "amd64",
+                          "description": "CPU architecture target for the component or job. Defaults to arm64.",
+                          "enum": [
+                            "amd64",
+                            "arm64"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "secretRefs": {
                       "description": "Environment specific configuration for external secret stores, like Azure KeyVault.\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                       "properties": {
@@ -1455,6 +1470,21 @@
                     },
                     "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
                     "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "runtime": {
+                "description": "Runtime defines the target runtime requirements for the component",
+                "properties": {
+                  "architecture": {
+                    "default": "amd64",
+                    "description": "CPU architecture target for the component or job. Defaults to arm64.",
+                    "enum": [
+                      "amd64",
+                      "arm64"
+                    ],
+                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -2213,6 +2243,21 @@
                       },
                       "type": "object"
                     },
+                    "runtime": {
+                      "description": "Runtime defines environment specific target runtime requirements for the job",
+                      "properties": {
+                        "architecture": {
+                          "default": "amd64",
+                          "description": "CPU architecture target for the component or job. Defaults to arm64.",
+                          "enum": [
+                            "amd64",
+                            "arm64"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "secretRefs": {
                       "description": "Environment specific configuration for external secret stores, like Azure KeyVault.\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                       "properties": {
@@ -2740,6 +2785,21 @@
                     },
                     "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
                     "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "runtime": {
+                "description": "Runtime defines target runtime requirements for the job",
+                "properties": {
+                  "architecture": {
+                    "default": "amd64",
+                    "description": "CPU architecture target for the component or job. Defaults to arm64.",
+                    "enum": [
+                      "amd64",
+                      "arm64"
+                    ],
+                    "type": "string"
                   }
                 },
                 "type": "object"

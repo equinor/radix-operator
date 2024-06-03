@@ -1400,6 +1400,56 @@ func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
 	}
 }
 
+func Test_GetRadixComponents_Runtime(t *testing.T) {
+	const (
+		environment = "dev"
+	)
+	// Test cases with different values for ReadOnlyFileSystem
+	tests := map[string]struct {
+		commonRuntime   *radixv1.Runtime
+		envRuntime      *radixv1.Runtime
+		expectedRuntime *radixv1.Runtime
+	}{
+		"nil when runtime not set":         {nil, nil, nil},
+		"nil when common and env is empty": {&radixv1.Runtime{Architecture: ""}, &radixv1.Runtime{Architecture: ""}, nil},
+		"use common when env is nil":       {&radixv1.Runtime{Architecture: "commonarch"}, nil, &radixv1.Runtime{Architecture: "commonarch"}},
+		"use common when env is empty":     {&radixv1.Runtime{Architecture: "commonarch"}, &radixv1.Runtime{Architecture: ""}, &radixv1.Runtime{Architecture: "commonarch"}},
+		"use env when set":                 {&radixv1.Runtime{Architecture: "commonarch"}, &radixv1.Runtime{Architecture: "envarch"}, &radixv1.Runtime{Architecture: "envarch"}},
+		"use env when common is nil":       {nil, &radixv1.Runtime{Architecture: "envarch"}, &radixv1.Runtime{Architecture: "envarch"}},
+		"use env when common is empty":     {&radixv1.Runtime{Architecture: ""}, &radixv1.Runtime{Architecture: "envarch"}, &radixv1.Runtime{Architecture: "envarch"}},
+	}
+
+	for testName, test := range tests {
+		t.Run(testName, func(t *testing.T) {
+			componentImages := make(pipeline.DeployComponentImages)
+			var componentBuilders []utils.RadixApplicationComponentBuilder
+
+			componentBuilder := utils.NewApplicationComponentBuilder().
+				WithName("compName").
+				WithRuntime(test.commonRuntime).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().
+					WithEnvironment(environment).
+					WithRuntime(test.envRuntime))
+			componentBuilders = append(componentBuilders, componentBuilder)
+
+			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithComponents(componentBuilders...).BuildRA()
+
+			deployComponents, err := GetRadixComponentsForEnv(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil)
+			assert.NoError(t, err)
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
+				return component.Name == "compName"
+			})
+			require.True(t, exists)
+			actualRuntime := deployComponent.Runtime
+			if test.expectedRuntime == nil {
+				assert.Nil(t, actualRuntime)
+			} else {
+				assert.Equal(t, test.expectedRuntime, actualRuntime)
+			}
+		})
+	}
+}
+
 func convertRadixDeployComponentToNameSet(deployComponents []radixv1.RadixDeployComponent) map[string]bool {
 	set := make(map[string]bool)
 	for _, deployComponent := range deployComponents {

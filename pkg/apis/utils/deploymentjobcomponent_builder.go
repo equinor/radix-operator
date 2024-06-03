@@ -27,6 +27,7 @@ type DeployJobComponentBuilder interface {
 	WithTimeLimitSeconds(*int64) DeployJobComponentBuilder
 	WithIdentity(*v1.Identity) DeployJobComponentBuilder
 	WithNotifications(*v1.Notifications) DeployJobComponentBuilder
+	WithRuntime(*v1.Runtime) DeployJobComponentBuilder
 	BuildJobComponent() v1.RadixDeployJobComponent
 }
 
@@ -48,6 +49,7 @@ type deployJobComponentBuilder struct {
 	timeLimitSeconds        *int64
 	identity                *v1.Identity
 	notifications           *v1.Notifications
+	runtime                 *v1.Runtime
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployJobComponentBuilder {
@@ -170,6 +172,11 @@ func (dcb *deployJobComponentBuilder) WithNotifications(notifications *v1.Notifi
 	return dcb
 }
 
+func (dcb *deployJobComponentBuilder) WithRuntime(runtime *v1.Runtime) DeployJobComponentBuilder {
+	dcb.runtime = runtime
+	return dcb
+}
+
 func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobComponent {
 	var payload *v1.RadixJobComponentPayload
 	if dcb.payloadPath != nil {
@@ -194,6 +201,7 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		TimeLimitSeconds:        dcb.timeLimitSeconds,
 		Identity:                dcb.identity,
 		Notifications:           dcb.notifications,
+		Runtime:                 dcb.runtime,
 	}
 }
 

@@ -3,6 +3,7 @@ package deployment
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"dario.cat/mergo"
 	commonutils "github.com/equinor/radix-common/utils"
@@ -72,9 +73,8 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 		deployComponent.Identity = identity
 		deployComponent.ReadOnlyFileSystem = getRadixCommonComponentReadOnlyFileSystem(&radixComponent, environmentSpecificConfig)
 		deployComponent.Monitoring = getRadixCommonComponentMonitoring(&radixComponent, environmentSpecificConfig)
-		if deployComponent.HorizontalScaling, err = getRadixCommonComponentHorizontalScaling(&radixComponent, environmentSpecificConfig); err != nil {
-			return nil, err
-		}
+		deployComponent.HorizontalScaling = getRadixCommonComponentHorizontalScaling(&radixComponent, environmentSpecificConfig)
+		deployComponent.Runtime = getRadixCommonComponentRuntime(&radixComponent, environmentSpecificConfig)
 		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
 			return nil, err
 		}
@@ -99,14 +99,33 @@ func getRadixCommonComponentMonitoring(radixComponent radixv1.RadixCommonCompone
 	return !commonutils.IsNil(monitoring) && *monitoring
 }
 
-func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) (*radixv1.RadixHorizontalScaling, error) {
+func getRadixCommonComponentRuntime(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *radixv1.Runtime {
+	var finalRuntime radixv1.Runtime
+
+	if rt := radixComponent.GetRuntime(); rt != nil {
+		finalRuntime.Architecture = rt.Architecture
+	}
+
+	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRuntime() != nil {
+		if arch := environmentSpecificConfig.GetRuntime().Architecture; len(arch) > 0 {
+			finalRuntime.Architecture = arch
+		}
+	}
+
+	if reflect.DeepEqual(finalRuntime, radixv1.Runtime{}) {
+		return nil
+	}
+	return &finalRuntime
+}
+
+func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *radixv1.RadixHorizontalScaling {
 	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetHorizontalScaling() == nil {
-		return radixComponent.GetHorizontalScaling().NormalizeConfig(), nil
+		return radixComponent.GetHorizontalScaling().NormalizeConfig()
 	}
 
 	environmentHorizontalScaling := environmentSpecificConfig.GetHorizontalScaling()
 	if radixComponent.GetHorizontalScaling() == nil {
-		return environmentHorizontalScaling.NormalizeConfig(), nil
+		return environmentHorizontalScaling.NormalizeConfig()
 	}
 
 	finalHorizontalScaling := radixComponent.GetHorizontalScaling().NormalizeConfig()
@@ -129,7 +148,7 @@ func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommon
 	if len(environmentHorizontalScaling.Triggers) > 0 || environmentHorizontalScaling.RadixHorizontalScalingResources != nil { //nolint:staticcheck // backward compatibility support
 		finalHorizontalScaling.Triggers = environmentHorizontalScaling.NormalizeConfig().Triggers
 	}
-	return finalHorizontalScaling, nil
+	return finalHorizontalScaling
 
 }
 

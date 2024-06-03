@@ -85,6 +85,10 @@ func (js *jobSchedulerComponent) GetNode() *v1.RadixNode {
 	return nil
 }
 
+func (js *jobSchedulerComponent) GetRuntime() *v1.Runtime {
+	return nil
+}
+
 func isDeployComponentJobSchedulerDeployment(deployComponent v1.RadixCommonDeployComponent) bool {
 	_, isJobScheduler := interface{}(deployComponent).(*jobSchedulerComponent)
 	return isJobScheduler

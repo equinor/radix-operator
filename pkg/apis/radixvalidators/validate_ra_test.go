@@ -641,6 +641,18 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid identity.azure.clientId for job environment config", radixvalidators.InvalidUUIDErrorWithMessage("identity.azure.clientId", "1111-22-33-44"), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Identity.Azure.ClientId = "1111-22-33-44"
 		}},
+		{"invalid runtime architecture for component", radixvalidators.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Runtime.Architecture = "anyarch"
+		}},
+		{"invalid runtime architecture for component environment config", radixvalidators.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Runtime.Architecture = "anyarch"
+		}},
+		{"invalid runtime architecture for job", radixvalidators.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].Runtime.Architecture = "anyarch"
+		}},
+		{"invalid runtime architecture for job environment config", radixvalidators.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Runtime.Architecture = "anyarch"
+		}},
 	}
 
 	_, client := validRASetup()

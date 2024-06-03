@@ -24,6 +24,8 @@ type RadixCommonEnvironmentConfig interface {
 	GetMonitoring() *bool
 	// GetVolumeMounts Get volume mounts configurations
 	GetVolumeMounts() []RadixVolumeMount
+	// GetRuntime Gets environment specific target runtime requirements
+	GetRuntime() *Runtime
 	getEnabled() *bool
 }
 
@@ -85,6 +87,10 @@ func (config *RadixEnvironmentConfig) GetMonitoring() *bool {
 
 func (config *RadixEnvironmentConfig) GetVolumeMounts() []RadixVolumeMount {
 	return config.VolumeMounts
+}
+
+func (config *RadixEnvironmentConfig) GetRuntime() *Runtime {
+	return config.Runtime
 }
 
 func (config *RadixEnvironmentConfig) getEnabled() *bool {
@@ -154,6 +160,10 @@ func (config *RadixJobComponentEnvironmentConfig) GetMonitoring() *bool {
 
 func (config *RadixJobComponentEnvironmentConfig) GetVolumeMounts() []RadixVolumeMount {
 	return config.VolumeMounts
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetRuntime() *Runtime {
+	return config.Runtime
 }
 
 func (config *RadixJobComponentEnvironmentConfig) getEnabled() *bool {
