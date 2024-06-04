@@ -1,5 +1,7 @@
 package pipeline
 
+import radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+
 // DeployComponentImage Holds info about the image associated with a component
 type DeployComponentImage struct {
 	ImagePath    string
@@ -22,6 +24,7 @@ type BuildComponentImage struct {
 	Dockerfile    string
 	ImageName     string
 	ImagePath     string
+	Runtime       *radixv1.Runtime
 }
 
 // EnvironmentBuildComponentImages maps component names with build information for environment

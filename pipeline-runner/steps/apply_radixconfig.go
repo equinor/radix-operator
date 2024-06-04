@@ -225,6 +225,7 @@ type (
 		ImageSource   containerImageSourceEnum
 		Image         string
 		Source        radixv1.ComponentSource
+		Runtime       *radixv1.Runtime
 	}
 
 	environmentComponentImageSourceMap map[string][]componentImageSource
@@ -267,7 +268,7 @@ func (cli *ApplyConfigStepImplementation) getComponentSources(appComponents []ra
 	componentSource := make([]componentImageSource, 0)
 	componentsEnabledInEnv := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
 	for _, component := range componentsEnabledInEnv {
-		imageSource := componentImageSource{ComponentName: component.GetName()}
+		imageSource := componentImageSource{ComponentName: component.GetName(), Runtime: component.GetRuntimeForEnvironment(envName)}
 		if image := component.GetImageForEnvironment(envName); len(image) > 0 {
 			imageSource.ImageSource = fromImagePath
 			imageSource.Image = image
@@ -316,6 +317,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 				Dockerfile:    getDockerfileName(imageSource.Source.DockefileName),
 				ImageName:     imageName,
 				ImagePath:     imagePath,
+				Runtime:       imageSource.Runtime,
 			})
 			componentImageSourceMap[envName][imageSourceIndex].Image = imagePath
 		}
