@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	commonslice "github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -897,122 +898,82 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 	assert.Equal(t, srcDeploymentCommitID, promotedRD.GetLabels()[kube.RadixCommitLabel])
 }
 
-// TODO: Write test
-func TestPromote_KeepSourceDeploymentRuntime(t *testing.T) {
-	// anyApp := "any-app"
-	// anyDeploymentName := "deployment-1"
-	// anyImageTag := "abcdef"
-	// anyBuildDeployJobName := "any-build-deploy-job"
-	// anyPromoteJobName := "any-promote-job"
-	// anyProdEnvironment := "prod"
-	// anyDevEnvironment := "dev"
+func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
+	var (
+		appName         string = "anyapp"
+		comp1, comp2    string = "comp1", "comp2"
+		job1, job2      string = "job1", "job2"
+		envDev, envProd string = "dev", "prod"
+		rdSource        string = "rdsource"
+		schedulerPort   int32  = 9999
+	)
 
 	// Setup
-	// kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
+	rr := utils.NewRegistrationBuilder().WithName(appName)
+	ra := utils.NewRadixApplicationBuilder().WithRadixRegistration(rr).WithAppName(appName).
+		WithEnvironmentNoBranch(envDev).WithEnvironmentNoBranch(envProd).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithName(comp1).WithRuntime(&v1.Runtime{Architecture: "commonarch"}),
+			utils.NewApplicationComponentBuilder().WithName(comp2).WithRuntime(&v1.Runtime{Architecture: "commonarch"}).WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envProd).WithRuntime(&v1.Runtime{Architecture: "prodarch"})),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithName(job1).WithSchedulerPort(&schedulerPort).WithRuntime(&v1.Runtime{Architecture: "commonarch"}),
+			utils.NewApplicationJobComponentBuilder().WithName(job2).WithSchedulerPort(&schedulerPort).WithRuntime(&v1.Runtime{Architecture: "commonarch"}).WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envProd).WithRuntime(&v1.Runtime{Architecture: "prodarch"})),
+		)
 
-	// _, err := commonTestUtils.ApplyDeployment(
-	// 	context.Background(),
-	// 	utils.ARadixDeployment().
-	// 		WithRadixApplication(
-	// 			utils.NewRadixApplicationBuilder().
-	// 				WithRadixRegistration(
-	// 					utils.ARadixRegistration().
-	// 						WithName(anyApp)).
-	// 				WithAppName(anyApp).
-	// 				WithEnvironment(anyDevEnvironment, "master").
-	// 				WithEnvironment(anyProdEnvironment, "").
-	// 				WithComponents(
-	// 					utils.AnApplicationComponent().
-	// 						WithName("app").
-	// 						WithCommonResource(map[string]string{
-	// 							"memory": "64Mi",
-	// 							"cpu":    "250m",
-	// 						}, map[string]string{
-	// 							"memory": "128Mi",
-	// 							"cpu":    "500m",
-	// 						}).
-	// 						WithEnvironmentConfigs(
-	// 							utils.AnEnvironmentConfig().
-	// 								WithEnvironment(anyProdEnvironment).
-	// 								WithResource(
-	// 									map[string]string{
-	// 										"memory": "128Mi",
-	// 										"cpu":    "500m",
-	// 									}, map[string]string{
-	// 										"memory": "256Mi",
-	// 										"cpu":    "750m",
-	// 									}))).
-	// 				WithJobComponents(
-	// 					utils.AnApplicationJobComponent().
-	// 						WithName("job").
-	// 						WithSchedulerPort(numbers.Int32Ptr(8888)).
-	// 						WithCommonResource(
-	// 							map[string]string{
-	// 								"memory": "11Mi",
-	// 								"cpu":    "22m",
-	// 							}, map[string]string{
-	// 								"memory": "33Mi",
-	// 								"cpu":    "44m",
-	// 							}).
-	// 						WithEnvironmentConfigs(
-	// 							utils.AJobComponentEnvironmentConfig().
-	// 								WithEnvironment(anyProdEnvironment).
-	// 								WithResource(
-	// 									map[string]string{
-	// 										"memory": "111Mi",
-	// 										"cpu":    "222m",
-	// 									}, map[string]string{
-	// 										"memory": "333Mi",
-	// 										"cpu":    "444m",
-	// 									})),
-	// 				)).
-	// 		WithAppName(anyApp).
-	// 		WithDeploymentName(anyDeploymentName).
-	// 		WithEnvironment(anyDevEnvironment).
-	// 		WithImageTag(anyImageTag).
-	// 		WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
-	// require.NoError(t, err)
+	_, err := commonTestUtils.ApplyApplication(ra)
+	require.NoError(t, err)
+	test.CreateEnvNamespace(kubeclient, appName, envDev)
+	test.CreateEnvNamespace(kubeclient, appName, envProd)
 
-	// // Create prod environment without any deployments
-	// test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+	rd := utils.NewDeploymentBuilder().
+		WithDeploymentName(rdSource).
+		WithAppName(appName).
+		WithEnvironment(envDev).
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName(comp1).WithRuntime(nil),
+			utils.NewDeployComponentBuilder().WithName(comp2).WithRuntime(&v1.Runtime{Architecture: "comp2arch"}),
+		).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName(job1).WithRuntime(nil),
+			utils.NewDeployJobComponentBuilder().WithName(job2).WithRuntime(&v1.Runtime{Architecture: "job2arch"}),
+		)
 
-	// rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
-	// ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
+	_, err = commonTestUtils.ApplyDeployment(context.Background(), rd)
+	require.NoError(t, err)
 
-	// cli := steps.NewPromoteStep()
-	// cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli := steps.NewPromoteStep()
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr.BuildRR())
 
-	// pipelineInfo := &model.PipelineInfo{
-	// 	PipelineArguments: model.PipelineArguments{
-	// 		FromEnvironment: anyDevEnvironment,
-	// 		ToEnvironment:   anyProdEnvironment,
-	// 		DeploymentName:  anyDeploymentName,
-	// 		JobName:         anyPromoteJobName,
-	// 		ImageTag:        anyImageTag,
-	// 		CommitID:        anyCommitID,
-	// 	},
-	// }
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			DeploymentName:  rdSource,
+			FromEnvironment: envDev,
+			ToEnvironment:   envProd,
+			JobName:         "ajob",
+			ImageTag:        "atag",
+		},
+	}
 
-	// applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
-	// gitCommitHash := pipelineInfo.GitCommitHash
-	// gitTags := pipelineInfo.GitTags
-	// pipelineInfo.SetApplicationConfig(applicationConfig)
-	// pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-	// err = cli.Run(context.Background(), pipelineInfo)
-	// require.NoError(t, err)
+	err = cli.Run(context.Background(), pipelineInfo)
+	require.NoError(t, err)
 
-	// rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.Background(), metav1.ListOptions{})
-	// assert.Equal(t, 1, len(rds.Items))
-	// assert.True(t, strings.HasPrefix(rds.Items[0].Name, fmt.Sprintf("%s-%s-", anyProdEnvironment, anyImageTag)))
-	// assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
-	// assert.Equal(t, anyImageTag, rds.Items[0].Labels[kube.RadixImageTagLabel])
-	// assert.Equal(t, anyPromoteJobName, rds.Items[0].Labels[kube.RadixJobNameLabel])
-	// assert.Equal(t, "500m", rds.Items[0].Spec.Components[0].Resources.Requests["cpu"])
-	// assert.Equal(t, "128Mi", rds.Items[0].Spec.Components[0].Resources.Requests["memory"])
-	// assert.Equal(t, "750m", rds.Items[0].Spec.Components[0].Resources.Limits["cpu"])
-	// assert.Equal(t, "256Mi", rds.Items[0].Spec.Components[0].Resources.Limits["memory"])
-	// assert.Equal(t, "222m", rds.Items[0].Spec.Jobs[0].Resources.Requests["cpu"])
-	// assert.Equal(t, "111Mi", rds.Items[0].Spec.Jobs[0].Resources.Requests["memory"])
-	// assert.Equal(t, "444m", rds.Items[0].Spec.Jobs[0].Resources.Limits["cpu"])
-	// assert.Equal(t, "333Mi", rds.Items[0].Spec.Jobs[0].Resources.Limits["memory"])
+	rdListProd, err := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envProd)).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, rdListProd.Items, 1)
+	rdProd := rdListProd.Items[0]
+	comp1Prod, found := commonslice.FindFirst(rdProd.Spec.Components, func(c v1.RadixDeployComponent) bool { return c.Name == comp1 })
+	require.True(t, found)
+	comp2Prod, found := commonslice.FindFirst(rdProd.Spec.Components, func(c v1.RadixDeployComponent) bool { return c.Name == comp2 })
+	require.True(t, found)
+	job1Prod, found := commonslice.FindFirst(rdProd.Spec.Jobs, func(c v1.RadixDeployJobComponent) bool { return c.Name == job1 })
+	require.True(t, found)
+	job2Prod, found := commonslice.FindFirst(rdProd.Spec.Jobs, func(c v1.RadixDeployJobComponent) bool { return c.Name == job2 })
+	require.True(t, found)
+	assert.Nil(t, comp1Prod.Runtime, "%s should use Runtime from source RD", comp1Prod.Name)
+	assert.Equal(t, &v1.Runtime{Architecture: "comp2arch"}, comp2Prod.Runtime, "%s should use Runtime from source RD", comp2Prod.Name)
+	assert.Nil(t, job1Prod.Runtime, "%s should use Runtime from source RD", job1Prod.Name)
+	assert.Equal(t, &v1.Runtime{Architecture: "job2arch"}, job2Prod.Runtime, "%s should use Runtime from source RD", job2Prod.Name)
+
 }
