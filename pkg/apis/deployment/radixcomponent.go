@@ -3,7 +3,6 @@ package deployment
 import (
 	"errors"
 	"fmt"
-	"reflect"
 
 	"dario.cat/mergo"
 	commonutils "github.com/equinor/radix-common/utils"
@@ -74,7 +73,7 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 		deployComponent.ReadOnlyFileSystem = getRadixCommonComponentReadOnlyFileSystem(&radixComponent, environmentSpecificConfig)
 		deployComponent.Monitoring = getRadixCommonComponentMonitoring(&radixComponent, environmentSpecificConfig)
 		deployComponent.HorizontalScaling = getRadixCommonComponentHorizontalScaling(&radixComponent, environmentSpecificConfig)
-		deployComponent.Runtime = getRadixCommonComponentRuntime(&radixComponent, environmentSpecificConfig)
+		deployComponent.Runtime = radixComponent.GetRuntimeForEnvironment(env)
 		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
 			return nil, err
 		}
@@ -97,25 +96,6 @@ func getRadixCommonComponentMonitoring(radixComponent radixv1.RadixCommonCompone
 	}
 	monitoring := radixComponent.GetMonitoring()
 	return !commonutils.IsNil(monitoring) && *monitoring
-}
-
-func getRadixCommonComponentRuntime(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *radixv1.Runtime {
-	var finalRuntime radixv1.Runtime
-
-	if rt := radixComponent.GetRuntime(); rt != nil {
-		finalRuntime.Architecture = rt.Architecture
-	}
-
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRuntime() != nil {
-		if arch := environmentSpecificConfig.GetRuntime().Architecture; len(arch) > 0 {
-			finalRuntime.Architecture = arch
-		}
-	}
-
-	if reflect.DeepEqual(finalRuntime, radixv1.Runtime{}) {
-		return nil
-	}
-	return &finalRuntime
 }
 
 func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *radixv1.RadixHorizontalScaling {
