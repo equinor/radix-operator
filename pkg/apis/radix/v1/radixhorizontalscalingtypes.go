@@ -175,7 +175,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 	if c.RadixHorizontalScalingResources != nil && len(config.Triggers) == 0 {
 		if c.RadixHorizontalScalingResources.Cpu != nil && c.RadixHorizontalScalingResources.Cpu.AverageUtilization != nil {
 			config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
-				Name: "CPU",
+				Name: "cpu",
 				Cpu: &RadixHorizontalScalingCPUTrigger{
 					Value: int(*c.RadixHorizontalScalingResources.Cpu.AverageUtilization),
 				},
@@ -184,7 +184,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 
 		if c.RadixHorizontalScalingResources.Memory != nil && c.RadixHorizontalScalingResources.Memory.AverageUtilization != nil {
 			config.Triggers = append(config.Triggers, RadixHorizontalScalingTrigger{
-				Name: "Memory",
+				Name: "memory",
 				Memory: &RadixHorizontalScalingMemoryTrigger{
 					Value: int(*c.RadixHorizontalScalingResources.Memory.AverageUtilization),
 				},
