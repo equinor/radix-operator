@@ -1047,41 +1047,35 @@ func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
-	ptrInt1 := pointers.Ptr[int32](1)
-	ptrInt2 := pointers.Ptr[int32](2)
-	ptrInt70 := pointers.Ptr[int32](70)
-	ptrInt75 := pointers.Ptr[int32](75)
-	ptrInt80 := pointers.Ptr[int32](80)
-	ptrInt85 := pointers.Ptr[int32](85)
 	testCases := []struct {
 		description                  string
-		componentHorizontalScaling   *radixv1.RadixHorizontalScaling
-		environmentHorizontalScaling *radixv1.RadixHorizontalScaling
+		componentHorizontalScaling   *utils.HorizontalScalingBuilderStruct
+		environmentHorizontalScaling *utils.HorizontalScalingBuilderStruct
 
-		expectedHorizontalScaling *radixv1.RadixHorizontalScaling
+		expectedHorizontalScaling *utils.HorizontalScalingBuilderStruct
 	}{
 		{description: "No configuration set"},
 		{
 			description:                "Component sets HorizontalScaling",
-			componentHorizontalScaling: getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
-			expectedHorizontalScaling:  getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+			componentHorizontalScaling: utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(10).WithCPUTrigger(80).WithMemoryTrigger(70),
+			expectedHorizontalScaling:  utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(10).WithCPUTrigger(80).WithMemoryTrigger(70),
 		},
 		{
 			description:                  "Env sets HorizontalScaling",
-			environmentHorizontalScaling: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
-			expectedHorizontalScaling:    getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+			environmentHorizontalScaling: utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(8).WithCPUTrigger(85).WithMemoryTrigger(75),
+			expectedHorizontalScaling:    utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(8).WithCPUTrigger(85).WithMemoryTrigger(75),
 		},
 		{
 			description:                  "Env overrides all the component sets HorizontalScaling",
-			componentHorizontalScaling:   getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
-			environmentHorizontalScaling: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
-			expectedHorizontalScaling:    getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+			componentHorizontalScaling:   utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(10).WithCPUTrigger(80).WithMemoryTrigger(70),
+			environmentHorizontalScaling: utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(8).WithCPUTrigger(85).WithMemoryTrigger(75),
+			expectedHorizontalScaling:    utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(8).WithCPUTrigger(85).WithMemoryTrigger(75),
 		},
 		{
-			description:                  "Env overrides and adds HorizontalScaling props",
-			componentHorizontalScaling:   getRadixHorizontalScaling(ptrInt2, 10, nil, ptrInt70),
-			environmentHorizontalScaling: getRadixHorizontalScaling(nil, 8, ptrInt85, nil),
-			expectedHorizontalScaling:    getRadixHorizontalScaling(ptrInt2, 8, ptrInt85, ptrInt70),
+			description:                  "Env overrides triggers from component",
+			componentHorizontalScaling:   utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(10).WithMemoryTrigger(70),
+			environmentHorizontalScaling: utils.NewHorizontalScalingBuilder().WithMaxReplicas(8).WithCPUTrigger(85),
+			expectedHorizontalScaling:    utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(8).WithCPUTrigger(85),
 		},
 	}
 
@@ -1090,14 +1084,14 @@ func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
 			environmentConfigBuilder := utils.AnEnvironmentConfig().WithEnvironment(env)
 			if testCase.environmentHorizontalScaling != nil {
 				hs := testCase.environmentHorizontalScaling
-				environmentConfigBuilder = environmentConfigBuilder.WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources))
+				environmentConfigBuilder = environmentConfigBuilder.WithHorizontalScaling(hs.Build())
 			}
 			componentBuilder := utils.NewApplicationComponentBuilder().
 				WithName(componentName).
 				WithEnvironmentConfigs(environmentConfigBuilder)
 			if testCase.componentHorizontalScaling != nil {
 				hs := testCase.componentHorizontalScaling
-				componentBuilder = componentBuilder.WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources))
+				componentBuilder = componentBuilder.WithHorizontalScaling(hs.Build())
 			}
 
 			ra := utils.ARadixApplication().WithComponents(componentBuilder).BuildRA()
@@ -1107,7 +1101,7 @@ func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
 				return component.Name == componentName
 			})
 			require.True(t, exists)
-			assert.Equal(t, testCase.expectedHorizontalScaling, deployComponent.HorizontalScaling)
+			assert.Equal(t, testCase.expectedHorizontalScaling.Build(), deployComponent.HorizontalScaling)
 		})
 	}
 }
@@ -1122,29 +1116,23 @@ func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
 		env1 = "env1"
 		env2 = "env2"
 	)
-	ptrInt1 := pointers.Ptr[int32](1)
-	ptrInt2 := pointers.Ptr[int32](2)
-	ptrInt70 := pointers.Ptr[int32](70)
-	ptrInt75 := pointers.Ptr[int32](75)
-	ptrInt80 := pointers.Ptr[int32](80)
-	ptrInt85 := pointers.Ptr[int32](85)
 
 	testCases := []struct {
 		description                  string
-		componentHorizontalScaling   *radixv1.RadixHorizontalScaling
-		environmentHorizontalScaling map[string]*radixv1.RadixHorizontalScaling
+		componentHorizontalScaling   *utils.HorizontalScalingBuilderStruct
+		environmentHorizontalScaling map[string]*utils.HorizontalScalingBuilderStruct
 
-		expectedHorizontalScaling map[string]*radixv1.RadixHorizontalScaling
+		expectedHorizontalScaling map[string]*utils.HorizontalScalingBuilderStruct
 	}{
 		{
 			description:                "Component sets HorizontalScaling",
-			componentHorizontalScaling: getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
-			environmentHorizontalScaling: map[string]*radixv1.RadixHorizontalScaling{
-				env1: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
+			componentHorizontalScaling: utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(10).WithCPUTrigger(80).WithMemoryTrigger(70),
+			environmentHorizontalScaling: map[string]*utils.HorizontalScalingBuilderStruct{
+				env1: utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(8).WithCPUTrigger(85).WithMemoryTrigger(75),
 			},
-			expectedHorizontalScaling: map[string]*radixv1.RadixHorizontalScaling{
-				env1: getRadixHorizontalScaling(ptrInt1, 8, ptrInt85, ptrInt75),
-				env2: getRadixHorizontalScaling(ptrInt2, 10, ptrInt80, ptrInt70),
+			expectedHorizontalScaling: map[string]*utils.HorizontalScalingBuilderStruct{
+				env1: utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(8).WithCPUTrigger(85).WithMemoryTrigger(75),
+				env2: utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(10).WithCPUTrigger(80).WithMemoryTrigger(70),
 			},
 		},
 	}
@@ -1153,11 +1141,11 @@ func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			componentBuilder := utils.NewApplicationComponentBuilder().WithName(componentName)
 			for envName, hs := range testCase.environmentHorizontalScaling {
-				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources)))
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithHorizontalScaling(hs.Build()))
 			}
 			if testCase.componentHorizontalScaling != nil {
 				hs := testCase.componentHorizontalScaling
-				componentBuilder = componentBuilder.WithHorizontalScaling(hs.MinReplicas, hs.MaxReplicas, getHSCPUAverageUtilization(hs.RadixHorizontalScalingResources), getHSMemoryAverageUtilization(hs.RadixHorizontalScalingResources))
+				componentBuilder = componentBuilder.WithHorizontalScaling(hs.Build())
 			}
 
 			ra := utils.ARadixApplication().WithEnvironment(env1, "").WithEnvironment(env2, "").WithComponent(componentBuilder).BuildRA()
@@ -1167,7 +1155,7 @@ func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
 					return component.Name == componentName
 				})
 				require.True(t, exists)
-				assert.Equal(t, testCase.expectedHorizontalScaling[envName], deployComponent.HorizontalScaling)
+				assert.Equal(t, testCase.expectedHorizontalScaling[envName].Build(), deployComponent.HorizontalScaling)
 			}
 		})
 	}
@@ -1410,36 +1398,6 @@ func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
 			}
 		})
 	}
-}
-
-func getRadixHorizontalScaling(minReplicas *int32, maxReplicas int32, cpuResources, memoryResources *int32) *radixv1.RadixHorizontalScaling {
-	return &radixv1.RadixHorizontalScaling{MinReplicas: minReplicas, MaxReplicas: maxReplicas,
-		RadixHorizontalScalingResources: getRadixHorizontalScalingResources(cpuResources, memoryResources)}
-}
-
-func getRadixHorizontalScalingResources(cpu, memory *int32) *radixv1.RadixHorizontalScalingResources {
-	resources := radixv1.RadixHorizontalScalingResources{}
-	if cpu != nil {
-		resources.Cpu = &radixv1.RadixHorizontalScalingResource{AverageUtilization: cpu}
-	}
-	if memory != nil {
-		resources.Memory = &radixv1.RadixHorizontalScalingResource{AverageUtilization: memory}
-	}
-	return &resources
-}
-
-func getHSCPUAverageUtilization(resource *radixv1.RadixHorizontalScalingResources) *int32 {
-	if resource == nil || resource.Cpu == nil {
-		return nil
-	}
-	return resource.Cpu.AverageUtilization
-}
-
-func getHSMemoryAverageUtilization(resource *radixv1.RadixHorizontalScalingResources) *int32 {
-	if resource == nil || resource.Memory == nil {
-		return nil
-	}
-	return resource.Memory.AverageUtilization
 }
 
 func convertRadixDeployComponentToNameSet(deployComponents []radixv1.RadixDeployComponent) map[string]bool {

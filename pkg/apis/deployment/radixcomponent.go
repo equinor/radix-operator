@@ -101,24 +101,36 @@ func getRadixCommonComponentMonitoring(radixComponent radixv1.RadixCommonCompone
 
 func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) (*radixv1.RadixHorizontalScaling, error) {
 	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetHorizontalScaling() == nil {
-		return radixComponent.GetHorizontalScaling(), nil
+		return radixComponent.GetHorizontalScaling().NormalizeConfig(), nil
 	}
+
 	environmentHorizontalScaling := environmentSpecificConfig.GetHorizontalScaling()
 	if radixComponent.GetHorizontalScaling() == nil {
-		return environmentHorizontalScaling, nil
+		return environmentHorizontalScaling.NormalizeConfig(), nil
 	}
-	finalHorizontalScaling := radixComponent.GetHorizontalScaling().DeepCopy()
+
+	finalHorizontalScaling := radixComponent.GetHorizontalScaling().NormalizeConfig()
 	if environmentHorizontalScaling.MinReplicas != nil {
 		finalHorizontalScaling.MinReplicas = environmentHorizontalScaling.MinReplicas
 	}
 	if environmentHorizontalScaling.MaxReplicas > 0 && (finalHorizontalScaling.MinReplicas == nil || *finalHorizontalScaling.MinReplicas < environmentHorizontalScaling.MaxReplicas) {
 		finalHorizontalScaling.MaxReplicas = environmentHorizontalScaling.MaxReplicas
 	}
+	if environmentHorizontalScaling.CooldownPeriod != nil {
+		finalHorizontalScaling.CooldownPeriod = environmentHorizontalScaling.CooldownPeriod
+	}
+	if environmentHorizontalScaling.PollingInterval != nil {
+		finalHorizontalScaling.PollingInterval = environmentHorizontalScaling.PollingInterval
+	}
+	// TODO Write tests
 
-	if err := mergo.Merge(finalHorizontalScaling.RadixHorizontalScalingResources, environmentHorizontalScaling.RadixHorizontalScalingResources, mergo.WithOverride); err != nil {
-		return nil, err
+	// If original env config has triggers, use that instead of component level triggers. No merging should happen.
+	// (We cannot compare normalized config, since it adds default CPU trigger
+	if len(environmentHorizontalScaling.Triggers) > 0 || environmentHorizontalScaling.RadixHorizontalScalingResources != nil { //nolint:staticcheck // backward compatibility support
+		finalHorizontalScaling.Triggers = environmentHorizontalScaling.NormalizeConfig().Triggers
 	}
 	return finalHorizontalScaling, nil
+
 }
 
 func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) ([]radixv1.RadixVolumeMount, error) {

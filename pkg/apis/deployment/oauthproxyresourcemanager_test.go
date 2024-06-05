@@ -214,21 +214,21 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 		{
 			name: "component with hpa and default config",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				WithComponent(baseComp().WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
 		{
 			name: "component with hpa and replicas set to 1",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
 		{
 			name: "component with hpa and replicas set to 2",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(2)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(2)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
@@ -236,7 +236,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 
 			name: "component with hpa and replicas set to 0",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr[int32](3), 4, pointers.Ptr[int32](1), pointers.Ptr[int32](1))).
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 0,
 		},
@@ -317,6 +317,14 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Equal(defaults.OAuthProxyPortName, defaultContainer.Ports[0].Name)
 	s.NotNil(defaultContainer.ReadinessProbe)
 	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
+
+	expectedAffinity := &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+			{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+		}}}}},
+	}
+	s.Equal(expectedAffinity, actualDeploy.Spec.Template.Spec.Affinity)
 
 	s.Len(defaultContainer.Env, 30)
 	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))

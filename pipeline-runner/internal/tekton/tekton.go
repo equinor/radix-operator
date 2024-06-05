@@ -63,7 +63,7 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 					},
 					Volumes:       getJobVolumes(),
 					RestartPolicy: "Never",
-					Affinity:      utils.GetPipelineJobPodSpecAffinity(),
+					Affinity:      utils.GetAffinityForPipelineJob(),
 					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},

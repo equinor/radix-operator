@@ -105,7 +105,7 @@ func validateRadixRegistrationAppName(rr *v1.RadixRegistration) error {
 }
 
 func validateAppName(appName string) error {
-	return validateRequiredResourceName("app name", appName)
+	return validateRequiredResourceName("app name", appName, 253)
 }
 
 func validateRadixRegistrationConfigurationItem(rr *v1.RadixRegistration) error {
@@ -119,9 +119,9 @@ func validateConfigurationItem(value string) error {
 	return nil
 }
 
-func validateRequiredResourceName(resourceName, value string) error {
-	if len(value) > 253 {
-		return InvalidStringValueMaxLengthErrorWithMessage(resourceName, value, 253)
+func validateRequiredResourceName(resourceName, value string, maxLength int) error {
+	if len(value) > maxLength {
+		return InvalidStringValueMaxLengthErrorWithMessage(resourceName, value, maxLength)
 	}
 
 	if value == "" {

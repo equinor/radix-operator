@@ -123,7 +123,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 					Containers:      buildContainers,
 					SecurityContext: buildPodSecurityContext,
 					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets, isUsingBuildKit(pipelineInfo), buildContainers),
-					Affinity:        utils.GetPipelineJobPodSpecAffinity(),
+					Affinity:        utils.GetAffinityForPipelineJob(),
 					Tolerations:     utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},

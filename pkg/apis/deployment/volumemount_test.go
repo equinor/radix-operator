@@ -1380,7 +1380,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 func Test_EmptyDir(t *testing.T) {
 	appName, envName, compName := "anyapp", "anyenv", "anycomp"
 
-	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := setupTest(t)
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	builder := utils.NewDeploymentBuilder().
 		WithRadixApplication(utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))).
 		WithAppName(appName).
@@ -1392,7 +1392,7 @@ func Test_EmptyDir(t *testing.T) {
 			),
 		)
 
-	rd, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, builder)
+	rd, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, builder)
 	require.NoError(t, err)
 	assert.NotNil(t, rd)
 

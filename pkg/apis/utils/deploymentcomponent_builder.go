@@ -31,7 +31,7 @@ type DeployComponentBuilder interface {
 	// Deprecated: For backwards compatibility WithDNSExternalAliases is still supported, new code should use WithPublicPort instead
 	WithDNSExternalAliases(...string) DeployComponentBuilder
 	WithExternalDNS(...v1.RadixDeployExternalDNS) DeployComponentBuilder
-	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder
+	WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) DeployComponentBuilder
 	WithRunAsNonRoot(bool) DeployComponentBuilder
 	WithAuthentication(*v1.Authentication) DeployComponentBuilder
 	WithIdentity(*v1.Identity) DeployComponentBuilder
@@ -199,33 +199,8 @@ func (dcb *deployComponentBuilder) WithIngressConfiguration(ingressConfiguration
 	return dcb
 }
 
-func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder {
-	radixHorizontalScalingResources := &v1.RadixHorizontalScalingResources{}
-
-	// if memory is nil, then memory is omitted while cpu is set to provided value
-	if memory == nil {
-		radixHorizontalScalingResources.Cpu = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: cpu,
-		}
-	}
-
-	// if cpu and memory are non-nil, then memory and cpu are set to provided values
-	if memory != nil {
-		radixHorizontalScalingResources.Memory = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: memory,
-		}
-		if cpu != nil {
-			radixHorizontalScalingResources.Cpu = &v1.RadixHorizontalScalingResource{
-				AverageUtilization: cpu,
-			}
-		}
-	}
-
-	dcb.horizontalScaling = &v1.RadixHorizontalScaling{
-		MinReplicas:                     minReplicas,
-		MaxReplicas:                     maxReplicas,
-		RadixHorizontalScalingResources: radixHorizontalScalingResources,
-	}
+func (dcb *deployComponentBuilder) WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) DeployComponentBuilder {
+	dcb.horizontalScaling = scaling
 	return dcb
 }
 

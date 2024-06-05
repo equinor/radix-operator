@@ -517,17 +517,15 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(corev1.PullAlways, kubejob.Spec.Template.Spec.Containers[0].ImagePullPolicy)
 		s.Equal("default", kubejob.Spec.Template.Spec.ServiceAccountName)
 		s.Equal(utils.BoolPtr(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
-		s.Require().Len(kubejob.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, 1)
-		s.Equal(corev1.NodeSelectorRequirement{
-			Key:      kube.RadixJobNodeLabel,
-			Operator: corev1.NodeSelectorOpExists,
-		}, kubejob.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0])
+		expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+			{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+			{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+		}}}}}}
+		s.Equal(expectedAffinity, kubejob.Spec.Template.Spec.Affinity)
 		s.Len(kubejob.Spec.Template.Spec.Tolerations, 1)
-		s.Equal(corev1.Toleration{
-			Key:      kube.NodeTaintJobsKey,
-			Operator: corev1.TolerationOpExists,
-			Effect:   corev1.TaintEffectNoSchedule,
-		}, kubejob.Spec.Template.Spec.Tolerations[0])
+		expectedTolerations := []corev1.Toleration{{Key: kube.NodeTaintJobsKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}}
+		s.ElementsMatch(expectedTolerations, kubejob.Spec.Template.Spec.Tolerations)
 		s.Len(kubejob.Spec.Template.Spec.Volumes, 0)
 		s.Len(kubejob.Spec.Template.Spec.Containers[0].VolumeMounts, 0)
 		services, err := s.kubeClient.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})

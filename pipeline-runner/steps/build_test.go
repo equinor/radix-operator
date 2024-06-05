@@ -173,6 +173,12 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: "var-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 	}
 	s.ElementsMatch(expectedVolumes, job.Spec.Template.Spec.Volumes)
+	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+	}}}}}}
+	s.Equal(expectedAffinity, job.Spec.Template.Spec.Affinity)
 
 	// Check init containers
 	s.Len(job.Spec.Template.Spec.InitContainers, 2)
@@ -1469,6 +1475,12 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
 	}
 	s.ElementsMatch(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
+	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+	}}}}}}
+	s.Equal(expectedAffinity, job.Spec.Template.Spec.Affinity)
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {

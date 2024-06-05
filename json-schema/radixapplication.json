@@ -403,6 +403,12 @@
                     "horizontalScaling": {
                       "description": "Configuration for automatic horizontal scaling of replicas.\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling",
                       "properties": {
+                        "cooldownPeriod": {
+                          "description": "CooldownPeriod to wait after the last trigger reported active before scaling the resource back to 0. Defaults to 5min",
+                          "format": "int32",
+                          "minimum": 15,
+                          "type": "integer"
+                        },
                         "maxReplicas": {
                           "description": "Defines the maximum number of replicas.",
                           "format": "int32",
@@ -410,13 +416,20 @@
                           "type": "integer"
                         },
                         "minReplicas": {
+                          "default": 1,
                           "description": "Defines the minimum number of replicas.",
                           "format": "int32",
                           "minimum": 0,
                           "type": "integer"
                         },
+                        "pollingInterval": {
+                          "description": "PollingInterval configures how often to check each trigger on. Defaults to 30sec",
+                          "format": "int32",
+                          "minimum": 15,
+                          "type": "integer"
+                        },
                         "resources": {
-                          "description": "Defines the resource usage parameters for the horizontal pod autoscaler.",
+                          "description": "Deprecated: Use CPU and/or Memory triggers instead\nDefines the resource usage parameters for the horizontal pod autoscaler.",
                           "properties": {
                             "cpu": {
                               "description": "Defines the CPU usage parameters for the horizontal pod autoscaler.",
@@ -450,6 +463,170 @@
                             }
                           },
                           "type": "object"
+                        },
+                        "triggers": {
+                          "description": "Defines a list of triggers the component replicas will scale on. Defaults to 80% CPU.",
+                          "items": {
+                            "description": "RadixHorizontalScalingTrigger defines configuration for a specific trigger.",
+                            "maxProperties": 2,
+                            "minProperties": 2,
+                            "properties": {
+                              "azureServiceBus": {
+                                "description": "AzureServiceBus defines a trigger that scales based on number of messages in queue",
+                                "properties": {
+                                  "activationMessageCount": {
+                                    "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "authentication": {
+                                    "description": "Azure Service Bus requires Workload Identity configured with a ClientID",
+                                    "properties": {
+                                      "identity": {
+                                        "description": "RadixHorizontalScalingRequiredIdentity configuration for federation with required azure identity providers.",
+                                        "properties": {
+                                          "azure": {
+                                            "description": "Azure identity configuration",
+                                            "properties": {
+                                              "clientId": {
+                                                "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "clientId"
+                                            ],
+                                            "type": "object"
+                                          }
+                                        },
+                                        "required": [
+                                          "azure"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    },
+                                    "required": [
+                                      "identity"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "messageCount": {
+                                    "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages\nDesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "namespace": {
+                                    "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity",
+                                    "maxLength": 50,
+                                    "minLength": 6,
+                                    "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
+                                    "type": "string"
+                                  },
+                                  "queueName": {
+                                    "description": "QueueName selects the target queue. QueueName wil take precedence over TopicName.",
+                                    "maxLength": 260,
+                                    "minLength": 1,
+                                    "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
+                                    "type": "string"
+                                  },
+                                  "subscriptionName": {
+                                    "description": "SubscriptionName is required when TopicName is set.",
+                                    "maxLength": 50,
+                                    "minLength": 1,
+                                    "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
+                                    "type": "string"
+                                  },
+                                  "topicName": {
+                                    "description": "TopicName selectes the target topic, requires SubscriptionName to be set.",
+                                    "maxLength": 260,
+                                    "minLength": 1,
+                                    "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "authentication",
+                                  "namespace"
+                                ],
+                                "type": "object"
+                              },
+                              "cpu": {
+                                "description": "Cpu defines a trigger based on CPU usage",
+                                "properties": {
+                                  "value": {
+                                    "description": "Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
+                                    "minimum": 15,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "value"
+                                ],
+                                "type": "object"
+                              },
+                              "cron": {
+                                "description": "Cron defines a trigger that scales based on start and end times",
+                                "properties": {
+                                  "desiredReplicas": {
+                                    "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "end": {
+                                    "description": "End is a Cron expression indicating the End of the cron schedule.",
+                                    "pattern": "^((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})$",
+                                    "type": "string"
+                                  },
+                                  "start": {
+                                    "description": "Start is a Cron expression indicating the start of the cron schedule.",
+                                    "pattern": "^((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})$",
+                                    "type": "string"
+                                  },
+                                  "timezone": {
+                                    "description": "Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "desiredReplicas",
+                                  "end",
+                                  "start",
+                                  "timezone"
+                                ],
+                                "type": "object"
+                              },
+                              "memory": {
+                                "description": "Memory defines a trigger based on memory usage",
+                                "properties": {
+                                  "value": {
+                                    "description": "Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
+                                    "minimum": 15,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "value"
+                                ],
+                                "type": "object"
+                              },
+                              "name": {
+                                "description": "Name of trigger, must be unique",
+                                "maxLength": 50,
+                                "minLength": 1,
+                                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-map-keys": [
+                            "name"
+                          ],
+                          "x-kubernetes-list-type": "map"
                         }
                       },
                       "required": [
@@ -910,6 +1087,12 @@
               "horizontalScaling": {
                 "description": "Configuration for automatic horizontal scaling of replicas.\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling",
                 "properties": {
+                  "cooldownPeriod": {
+                    "description": "CooldownPeriod to wait after the last trigger reported active before scaling the resource back to 0. Defaults to 5min",
+                    "format": "int32",
+                    "minimum": 15,
+                    "type": "integer"
+                  },
                   "maxReplicas": {
                     "description": "Defines the maximum number of replicas.",
                     "format": "int32",
@@ -917,13 +1100,20 @@
                     "type": "integer"
                   },
                   "minReplicas": {
+                    "default": 1,
                     "description": "Defines the minimum number of replicas.",
                     "format": "int32",
                     "minimum": 0,
                     "type": "integer"
                   },
+                  "pollingInterval": {
+                    "description": "PollingInterval configures how often to check each trigger on. Defaults to 30sec",
+                    "format": "int32",
+                    "minimum": 15,
+                    "type": "integer"
+                  },
                   "resources": {
-                    "description": "Defines the resource usage parameters for the horizontal pod autoscaler.",
+                    "description": "Deprecated: Use CPU and/or Memory triggers instead\nDefines the resource usage parameters for the horizontal pod autoscaler.",
                     "properties": {
                       "cpu": {
                         "description": "Defines the CPU usage parameters for the horizontal pod autoscaler.",
@@ -957,6 +1147,170 @@
                       }
                     },
                     "type": "object"
+                  },
+                  "triggers": {
+                    "description": "Defines a list of triggers the component replicas will scale on. Defaults to 80% CPU.",
+                    "items": {
+                      "description": "RadixHorizontalScalingTrigger defines configuration for a specific trigger.",
+                      "maxProperties": 2,
+                      "minProperties": 2,
+                      "properties": {
+                        "azureServiceBus": {
+                          "description": "AzureServiceBus defines a trigger that scales based on number of messages in queue",
+                          "properties": {
+                            "activationMessageCount": {
+                              "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "authentication": {
+                              "description": "Azure Service Bus requires Workload Identity configured with a ClientID",
+                              "properties": {
+                                "identity": {
+                                  "description": "RadixHorizontalScalingRequiredIdentity configuration for federation with required azure identity providers.",
+                                  "properties": {
+                                    "azure": {
+                                      "description": "Azure identity configuration",
+                                      "properties": {
+                                        "clientId": {
+                                          "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "clientId"
+                                      ],
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "azure"
+                                  ],
+                                  "type": "object"
+                                }
+                              },
+                              "required": [
+                                "identity"
+                              ],
+                              "type": "object"
+                            },
+                            "messageCount": {
+                              "description": "MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages\nDesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "namespace": {
+                              "description": "Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity",
+                              "maxLength": 50,
+                              "minLength": 6,
+                              "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
+                              "type": "string"
+                            },
+                            "queueName": {
+                              "description": "QueueName selects the target queue. QueueName wil take precedence over TopicName.",
+                              "maxLength": 260,
+                              "minLength": 1,
+                              "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
+                              "type": "string"
+                            },
+                            "subscriptionName": {
+                              "description": "SubscriptionName is required when TopicName is set.",
+                              "maxLength": 50,
+                              "minLength": 1,
+                              "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
+                              "type": "string"
+                            },
+                            "topicName": {
+                              "description": "TopicName selectes the target topic, requires SubscriptionName to be set.",
+                              "maxLength": 260,
+                              "minLength": 1,
+                              "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "authentication",
+                            "namespace"
+                          ],
+                          "type": "object"
+                        },
+                        "cpu": {
+                          "description": "Cpu defines a trigger based on CPU usage",
+                          "properties": {
+                            "value": {
+                              "description": "Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
+                              "minimum": 15,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "value"
+                          ],
+                          "type": "object"
+                        },
+                        "cron": {
+                          "description": "Cron defines a trigger that scales based on start and end times",
+                          "properties": {
+                            "desiredReplicas": {
+                              "description": "DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "end": {
+                              "description": "End is a Cron expression indicating the End of the cron schedule.",
+                              "pattern": "^((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})$",
+                              "type": "string"
+                            },
+                            "start": {
+                              "description": "Start is a Cron expression indicating the start of the cron schedule.",
+                              "pattern": "^((((\\d+,)+\\d+|(\\d+(\\/|-)\\d+)|\\d+|\\*) ?){5})$",
+                              "type": "string"
+                            },
+                            "timezone": {
+                              "description": "Timezone One of the acceptable values from the IANA Time Zone Database. The list of timezones can be found at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "desiredReplicas",
+                            "end",
+                            "start",
+                            "timezone"
+                          ],
+                          "type": "object"
+                        },
+                        "memory": {
+                          "description": "Memory defines a trigger based on memory usage",
+                          "properties": {
+                            "value": {
+                              "description": "Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.",
+                              "minimum": 15,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "value"
+                          ],
+                          "type": "object"
+                        },
+                        "name": {
+                          "description": "Name of trigger, must be unique",
+                          "maxLength": 50,
+                          "minLength": 1,
+                          "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-map-keys": [
+                      "name"
+                    ],
+                    "x-kubernetes-list-type": "map"
                   }
                 },
                 "required": [
@@ -1020,7 +1374,7 @@
               },
               "name": {
                 "description": "Name of the component.",
-                "maxLength": 253,
+                "maxLength": 50,
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
@@ -2289,7 +2643,7 @@
               },
               "name": {
                 "description": "Name of the environment which the settings applies to.",
-                "maxLength": 253,
+                "maxLength": 50,
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
