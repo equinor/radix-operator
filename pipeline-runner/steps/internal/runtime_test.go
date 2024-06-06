@@ -1,13 +1,14 @@
-package v1_test
+package internal_test
 
 import (
 	"testing"
 
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_RadixComponent_GetRuntimeForEnvironment(t *testing.T) {
+func Test_GetRuntimeForEnvironment(t *testing.T) {
 	tests := map[string]struct {
 		runtime  *v1.Runtime
 		env      []v1.RadixEnvironmentConfig
@@ -67,7 +68,7 @@ func Test_RadixComponent_GetRuntimeForEnvironment(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			comp := v1.RadixComponent{Runtime: test.runtime, EnvironmentConfig: test.env}
-			actual := comp.GetRuntimeForEnvironment(test.getEnv)
+			actual := internal.GetRuntimeForEnvironment(&comp, test.getEnv)
 			if test.expected == nil {
 				assert.Nil(t, actual)
 			} else {

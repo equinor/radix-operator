@@ -36,7 +36,7 @@ func CloneInitContainers(sshURL, branch string, containerSecContext corev1.Secur
 
 // CloneInitContainersWithContainerName The sidecars for cloning repo
 func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, containerSecContext corev1.SecurityContext) []corev1.Container {
-	gitCloneCmd := fmt.Sprintf("git clone --recurse-submodules %s -b %s --verbose --progress %s", sshURL, branch, Workspace)
+	gitCloneCmd := []string{"git", "clone", "--recurse-submodules", sshURL, "-b", branch, "--verbose", "--progress", Workspace}
 	containers := []corev1.Container{
 		{
 			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),
@@ -48,10 +48,9 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 		},
 		{
 			Name:            cloneContainerName,
-			Image:           "alpine/git:user",
+			Image:           "alpine/git:2.45.1",
 			ImagePullPolicy: "IfNotPresent",
-			Command:         []string{"/bin/sh", "-c"},
-			Args:            []string{gitCloneCmd},
+			Command:         gitCloneCmd,
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      BuildContextVolumeName,
@@ -59,7 +58,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 				},
 				{
 					Name:      GitSSHKeyVolumeName,
-					MountPath: "/home/git-user/.ssh",
+					MountPath: "/.ssh",
 					ReadOnly:  true,
 				},
 			},

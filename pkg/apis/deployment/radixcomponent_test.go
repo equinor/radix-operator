@@ -1400,46 +1400,62 @@ func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
 	}
 }
 
-func Test_GetRadixComponents_Runtime(t *testing.T) {
-	const (
-		environment = "dev"
-	)
-	// Test cases with different values for ReadOnlyFileSystem
+func Test_GetRadixComponentsForEnv_Runtime_AlwaysUseFromDeployComponentImages(t *testing.T) {
+	componentBuilder := utils.NewApplicationComponentBuilder().
+		WithName("anycomp").
+		WithRuntime(&radixv1.Runtime{Architecture: "commonarch"}).
+		WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().
+			WithEnvironment("dev").
+			WithRuntime(&radixv1.Runtime{Architecture: "devarch"}))
+
+	ra := utils.ARadixApplication().
+		WithEnvironmentNoBranch("dev").
+		WithEnvironmentNoBranch("prod").
+		WithComponents(componentBuilder).BuildRA()
+
 	tests := map[string]struct {
-		commonRuntime   *radixv1.Runtime
-		envRuntime      *radixv1.Runtime
+		env             string
+		deployImages    pipeline.DeployComponentImages
 		expectedRuntime *radixv1.Runtime
 	}{
-		"nil when runtime not set":         {nil, nil, nil},
-		"nil when common and env is empty": {&radixv1.Runtime{Architecture: ""}, &radixv1.Runtime{Architecture: ""}, nil},
-		"use common when env is nil":       {&radixv1.Runtime{Architecture: "commonarch"}, nil, &radixv1.Runtime{Architecture: "commonarch"}},
-		"use common when env is empty":     {&radixv1.Runtime{Architecture: "commonarch"}, &radixv1.Runtime{Architecture: ""}, &radixv1.Runtime{Architecture: "commonarch"}},
-		"use env when set":                 {&radixv1.Runtime{Architecture: "commonarch"}, &radixv1.Runtime{Architecture: "envarch"}, &radixv1.Runtime{Architecture: "envarch"}},
-		"use env when common is nil":       {nil, &radixv1.Runtime{Architecture: "envarch"}, &radixv1.Runtime{Architecture: "envarch"}},
-		"use env when common is empty":     {&radixv1.Runtime{Architecture: ""}, &radixv1.Runtime{Architecture: "envarch"}, &radixv1.Runtime{Architecture: "envarch"}},
+		"dev:nil when deployImages is nil": {
+			env:             "dev",
+			deployImages:    nil,
+			expectedRuntime: nil,
+		},
+		"dev:nil when comp not defined in deployImages": {
+			env:             "dev",
+			deployImages:    pipeline.DeployComponentImages{"othercomp": {Runtime: &radixv1.Runtime{Architecture: "othercomparch"}}},
+			expectedRuntime: nil,
+		},
+		"dev:runtime from deployImage comp when defined": {
+			env:             "dev",
+			deployImages:    pipeline.DeployComponentImages{"anycomp": {Runtime: &radixv1.Runtime{Architecture: "anycomparch"}}},
+			expectedRuntime: &radixv1.Runtime{Architecture: "anycomparch"},
+		},
+		"prod:nil when deployImages is nil": {
+			env:             "prod",
+			deployImages:    nil,
+			expectedRuntime: nil,
+		},
+		"prod:nil when comp not defined in deployImages": {
+			env:             "prod",
+			deployImages:    pipeline.DeployComponentImages{"othercomp": {Runtime: &radixv1.Runtime{Architecture: "othercomparch"}}},
+			expectedRuntime: nil,
+		},
+		"prod:runtime from deployImage comp when defined": {
+			env:             "prod",
+			deployImages:    pipeline.DeployComponentImages{"anycomp": {Runtime: &radixv1.Runtime{Architecture: "anycomparch"}}},
+			expectedRuntime: &radixv1.Runtime{Architecture: "anycomparch"},
+		},
 	}
 
-	for testName, test := range tests {
-		t.Run(testName, func(t *testing.T) {
-			componentImages := make(pipeline.DeployComponentImages)
-			var componentBuilders []utils.RadixApplicationComponentBuilder
-
-			componentBuilder := utils.NewApplicationComponentBuilder().
-				WithName("compName").
-				WithRuntime(test.commonRuntime).
-				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().
-					WithEnvironment(environment).
-					WithRuntime(test.envRuntime))
-			componentBuilders = append(componentBuilders, componentBuilder)
-
-			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithComponents(componentBuilders...).BuildRA()
-
-			deployComponents, err := GetRadixComponentsForEnv(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil)
-			assert.NoError(t, err)
-			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
-				return component.Name == "compName"
-			})
-			require.True(t, exists)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			deployComponents, err := GetRadixComponentsForEnv(ra, test.env, test.deployImages, make(radixv1.EnvVarsMap), nil)
+			require.NoError(t, err)
+			require.Len(t, deployComponents, 1)
+			deployComponent := deployComponents[0]
 			actualRuntime := deployComponent.Runtime
 			if test.expectedRuntime == nil {
 				assert.Nil(t, actualRuntime)

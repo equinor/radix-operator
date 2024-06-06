@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"reflect"
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -1453,9 +1452,6 @@ type RadixCommonComponent interface {
 	GetImageTagName() string
 	// GetRuntime Gets target runtime requirements
 	GetRuntime() *Runtime
-	// GetRuntimeForEnvironment Returns Runtime configuration by combining Runtime from the
-	// specified environment with Runtime configuration on the component level.
-	GetRuntimeForEnvironment(environment string) *Runtime
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1574,10 +1570,6 @@ func (component *RadixComponent) GetHorizontalScaling() *RadixHorizontalScaling 
 
 func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
 	return getEnabledForEnvironment(component, environment)
-}
-
-func (component *RadixComponent) GetRuntimeForEnvironment(environment string) *Runtime {
-	return getRuntimeForEnvironment(component, environment)
 }
 
 func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
@@ -1710,10 +1702,6 @@ func (component *RadixJobComponent) GetHorizontalScaling() *RadixHorizontalScali
 	return nil
 }
 
-func (component *RadixJobComponent) GetRuntimeForEnvironment(environment string) *Runtime {
-	return getRuntimeForEnvironment(component, environment)
-}
-
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
 	for _, environmentConfig := range environmentConfigs {
 		if strings.EqualFold(environment, environmentConfig.GetEnvironment()) {
@@ -1771,25 +1759,4 @@ func getSourceForEnvironment(component RadixCommonComponent, environment string)
 		}
 	}
 	return source
-}
-
-func getRuntimeForEnvironment(radixComponent RadixCommonComponent, environment string) *Runtime {
-	var finalRuntime Runtime
-
-	if rt := radixComponent.GetRuntime(); rt != nil {
-		finalRuntime.Architecture = rt.Architecture
-	}
-
-	environmentSpecificConfig := radixComponent.GetEnvironmentConfigByName(environment)
-
-	if !commonUtils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRuntime() != nil {
-		if arch := environmentSpecificConfig.GetRuntime().Architecture; len(arch) > 0 {
-			finalRuntime.Architecture = arch
-		}
-	}
-
-	if reflect.ValueOf(finalRuntime).IsZero() {
-		return nil
-	}
-	return &finalRuntime
 }

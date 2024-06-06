@@ -73,7 +73,7 @@ func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, env st
 		deployComponent.ReadOnlyFileSystem = getRadixCommonComponentReadOnlyFileSystem(&radixComponent, environmentSpecificConfig)
 		deployComponent.Monitoring = getRadixCommonComponentMonitoring(&radixComponent, environmentSpecificConfig)
 		deployComponent.HorizontalScaling = getRadixCommonComponentHorizontalScaling(&radixComponent, environmentSpecificConfig)
-		deployComponent.Runtime = radixComponent.GetRuntimeForEnvironment(env)
+		deployComponent.Runtime = componentImage.Runtime
 		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
 			return nil, err
 		}

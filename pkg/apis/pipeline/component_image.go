@@ -6,6 +6,7 @@ import radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 type DeployComponentImage struct {
 	ImagePath    string
 	ImageTagName string
+	Runtime      *radixv1.Runtime
 	Build        bool
 }
 

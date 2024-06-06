@@ -30,9 +30,9 @@ func GetAffinityForBatchJob(job *v1.RadixDeployJobComponent, node *v1.RadixNode)
 }
 
 // GetAffinityForPipelineJob Gets pipeline job pod specific affinity
-func GetAffinityForPipelineJob() *corev1.Affinity {
+func GetAffinityForPipelineJob(runtime *v1.Runtime) *corev1.Affinity {
 	return &corev1.Affinity{
-		NodeAffinity: getNodeAffinityForPipelineJob(),
+		NodeAffinity: getNodeAffinityForPipelineJob(runtime),
 	}
 }
 
@@ -94,12 +94,12 @@ func getNodeAffinityForBatchJob(job *v1.RadixDeployJobComponent, node *v1.RadixN
 	}
 }
 
-func getNodeAffinityForPipelineJob() *corev1.NodeAffinity {
+func getNodeAffinityForPipelineJob(runtime *v1.Runtime) *corev1.NodeAffinity {
 	return &corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 			NodeSelectorTerms: []corev1.NodeSelectorTerm{
 				{
-					MatchExpressions: slices.Concat(getNodeSelectorRequirementsForJobNodePool(), getNodeSelectorRequirementsForRuntimeEnvironment(nil)),
+					MatchExpressions: slices.Concat(getNodeSelectorRequirementsForJobNodePool(), getNodeSelectorRequirementsForRuntimeEnvironment(runtime)),
 				},
 			},
 		},
@@ -189,14 +189,9 @@ func addNodeSelectorRequirement(nodeSelectorTerm *corev1.NodeSelectorTerm, key s
 }
 
 func getNodeSelectorRequirementsForRuntimeEnvironment(runtime *v1.Runtime) []corev1.NodeSelectorRequirement {
-	arch := defaults.DefaultNodeSelectorArchitecture
-	if runtime != nil && len(runtime.Architecture) > 0 {
-		arch = string(runtime.Architecture)
-	}
-
 	return []corev1.NodeSelectorRequirement{
 		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{arch}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{GetArchitectureFromRuntime(runtime)}},
 	}
 }
 

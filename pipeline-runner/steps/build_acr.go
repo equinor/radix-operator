@@ -51,7 +51,7 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(
 
 	log.Debug().Msg("build a build-job")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-	job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, buildComponentImages...)
+	job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, nil, buildComponentImages...)
 	return []*batchv1.Job{job}, nil
 }
 
@@ -63,7 +63,7 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(
 			log.Debug().Msgf("build a job for the image %s", componentImage.ImageName)
 			hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
 
-			job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, componentImage)
+			job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, componentImage.Runtime, componentImage)
 
 			job.ObjectMeta.Labels[kube.RadixEnvLabel] = envName
 			job.ObjectMeta.Labels[kube.RadixComponentLabel] = componentImage.ComponentName
@@ -73,7 +73,7 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(
 	return jobs, nil
 }
 
-func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, buildComponentImages ...pipeline.BuildComponentImage) *batchv1.Job {
+func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, jobRuntime *v1.Runtime, buildComponentImages ...pipeline.BuildComponentImage) *batchv1.Job {
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
@@ -123,7 +123,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 					Containers:      buildContainers,
 					SecurityContext: buildPodSecurityContext,
 					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets, isUsingBuildKit(pipelineInfo), buildContainers),
-					Affinity:        utils.GetAffinityForPipelineJob(),
+					Affinity:        utils.GetAffinityForPipelineJob(jobRuntime),
 					Tolerations:     utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},

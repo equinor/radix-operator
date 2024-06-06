@@ -2,12 +2,12 @@ package steps
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
-	"github.com/equinor/radix-common/utils"
+	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
@@ -22,7 +22,6 @@ import (
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -146,13 +145,38 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Co
 }
 
 func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
-		return ErrDeployOnlyPipelineDoesNotSupportBuild
+
+	if err := validateBuildComponents(pipelineInfo); err != nil {
+		return err
 	}
+
 	if err := validateDeployComponents(pipelineInfo); err != nil {
 		return err
 	}
 	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
+}
+
+func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
+		return ErrDeployOnlyPipelineDoesNotSupportBuild
+	}
+
+	if !isUsingBuildKit(pipelineInfo) {
+		var hasNonDefaultRuntimeArchitecture bool
+		for _, x := range pipelineInfo.BuildComponentImages {
+			hasNonDefaultRuntimeArchitecture = slice.Any(x, func(c pipeline.BuildComponentImage) bool {
+				return operatorutils.GetArchitectureFromRuntime(c.Runtime) != defaults.DefaultNodeSelectorArchitecture
+			})
+			if hasNonDefaultRuntimeArchitecture {
+				break
+			}
+		}
+		if hasNonDefaultRuntimeArchitecture {
+			return ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError
+		}
+	}
+
+	return nil
 }
 
 func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
@@ -177,7 +201,7 @@ func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
 			}
 		}
 	}
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }
 
 func getComponentMap(pipelineInfo *model.PipelineInfo) map[string]radixv1.RadixCommonComponent {
@@ -201,7 +225,7 @@ func printEnvironmentComponentImageSources(imageSourceMap environmentComponentIm
 			continue
 		}
 		for _, componentSource := range componentImageSources {
-			log.Info().Msgf("    - %s from %s", componentSource.ComponentName, getImageSourceDescription(componentSource.ImageSource))
+			log.Info().Msgf("    - %s (arch: %s) from %s", componentSource.ComponentName, operatorutils.GetArchitectureFromRuntime(componentSource.Runtime), getImageSourceDescription(componentSource.ImageSource))
 		}
 	}
 }
@@ -268,18 +292,19 @@ func (cli *ApplyConfigStepImplementation) getComponentSources(appComponents []ra
 	componentSource := make([]componentImageSource, 0)
 	componentsEnabledInEnv := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
 	for _, component := range componentsEnabledInEnv {
-		imageSource := componentImageSource{ComponentName: component.GetName(), Runtime: component.GetRuntimeForEnvironment(envName)}
+		imageSource := componentImageSource{ComponentName: component.GetName(), Runtime: internal.GetRuntimeForEnvironment(component, envName)}
 		if image := component.GetImageForEnvironment(envName); len(image) > 0 {
 			imageSource.ImageSource = fromImagePath
 			imageSource.Image = image
 		} else {
 			currentlyDeployedComponent := getCurrentlyDeployedComponent(activeRadixDeployment, component.GetName())
-			if utils.IsNil(currentlyDeployedComponent) || mustBuildComponent(component) {
+			if commonutils.IsNil(currentlyDeployedComponent) || mustBuildComponent(component) {
 				imageSource.ImageSource = fromBuild
 				imageSource.Source = component.GetSourceForEnvironment(envName)
 			} else {
 				imageSource.ImageSource = fromDeployment
 				imageSource.Image = currentlyDeployedComponent.GetImage()
+				imageSource.Runtime = currentlyDeployedComponent.GetRuntime()
 			}
 		}
 		componentSource = append(componentSource, imageSource)
@@ -330,7 +355,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 func getLengthLimitedName(name string) string {
 	validatedName := strings.ToLower(name)
 	if len(validatedName) > 10 {
-		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(utils.RandString(4)))
+		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandString(4)))
 	}
 	return validatedName
 }
@@ -343,6 +368,7 @@ func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInf
 			deployComponentImage := pipeline.DeployComponentImage{
 				ImageTagName: pipelineInfo.PipelineArguments.ImageTagNames[cis.ComponentName],
 				Build:        cis.ImageSource == fromBuild,
+				Runtime:      cis.Runtime,
 			}
 			if cis.ImageSource == fromBuild {
 				if buildComponentImages, ok := pipelineInfo.BuildComponentImages[envName]; ok {
@@ -422,7 +448,7 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 
 	return func(comp radixv1.RadixCommonComponent) bool {
 		return slice.Any(envBuildContext.Components, func(s string) bool { return s == comp.GetName() }) ||
-			utils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
+			commonutils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
 	}, nil
 }
 
@@ -510,7 +536,7 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(ctx context.Context, na
 	}
 	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
 	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
-	err = stderrors.Join(commitErr, tagsErr)
+	err = errors.Join(commitErr, tagsErr)
 	if err != nil {
 		log.Error().Err(err).Msgf("could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
 		return "", ""
@@ -588,14 +614,14 @@ func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironm
 
 				component := ra.GetCommonComponentByName(componentName)
 				env := component.GetEnvironmentConfigByName(envName)
-				if len(component.GetImageTagName()) > 0 || (!utils.IsNil(env) && len(env.GetImageTagName()) > 0) {
+				if len(component.GetImageTagName()) > 0 || (!commonutils.IsNil(env) && len(env.GetImageTagName()) > 0) {
 					continue
 				}
 
-				errs = append(errs, errors.WithMessagef(ErrMissingRequiredImageTagName, "component %s in environment %s", componentName, envName))
+				errs = append(errs, fmt.Errorf("component %s in environment %s: %w", componentName, envName, ErrMissingRequiredImageTagName))
 			}
 		}
 	}
 
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }
