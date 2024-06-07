@@ -14,13 +14,3 @@ const RadixCacheLayerNamePrefix = "radix-cache"
 
 // DefaultRadixConfigFileName Default name for the radix configuration file
 const DefaultRadixConfigFileName = "radixconfig.yaml"
-
-// SecurityContextRunAsUser The user ID to run the container as
-const SecurityContextRunAsUser = 65534 // Required by container image alpine/git used in pipeline for cloning repos
-
-// SecurityContextRunAsGroup A group ID which the user running the container is member of
-const SecurityContextRunAsGroup = 1000
-
-// SecurityContextFsGroup A group ID which the user running the container is member of. This is also the group ID of
-// files in any mounted volume
-const SecurityContextFsGroup = 1000
