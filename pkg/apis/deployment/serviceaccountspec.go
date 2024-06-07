@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -22,7 +23,7 @@ func (spec *radixAPIServiceAccountSpec) ServiceAccountName() string {
 }
 
 func (spec *radixAPIServiceAccountSpec) AutomountServiceAccountToken() *bool {
-	return utils.BoolPtr(true)
+	return pointers.Ptr(true)
 }
 
 // Service account spec for Radix GitHub Webhook deployment
@@ -33,7 +34,7 @@ func (spec *radixWebhookServiceAccountSpec) ServiceAccountName() string {
 }
 
 func (spec *radixWebhookServiceAccountSpec) AutomountServiceAccountToken() *bool {
-	return utils.BoolPtr(true)
+	return pointers.Ptr(true)
 }
 
 // Service account spec for Radix job scheduler deployment
@@ -44,7 +45,7 @@ func (spec *jobSchedulerServiceAccountSpec) ServiceAccountName() string {
 }
 
 func (spec *jobSchedulerServiceAccountSpec) AutomountServiceAccountToken() *bool {
-	return utils.BoolPtr(true)
+	return pointers.Ptr(true)
 }
 
 // Service account spec for Radix component deployments
@@ -60,7 +61,7 @@ func (spec *radixComponentServiceAccountSpec) ServiceAccountName() string {
 }
 
 func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bool {
-	return utils.BoolPtr(false)
+	return pointers.Ptr(false)
 }
 
 // NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent

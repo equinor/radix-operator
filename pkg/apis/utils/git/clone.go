@@ -2,8 +2,12 @@ package git
 
 import (
 	"fmt"
+	"path"
 
+	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -30,26 +34,38 @@ const (
 )
 
 // CloneInitContainers The sidecars for cloning repo
-func CloneInitContainers(sshURL, branch string, containerSecContext corev1.SecurityContext) []corev1.Container {
-	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, containerSecContext)
+func CloneInitContainers(sshURL, branch string) []corev1.Container {
+	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName)
 }
 
 // CloneInitContainersWithContainerName The sidecars for cloning repo
-func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, containerSecContext corev1.SecurityContext) []corev1.Container {
+func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string) []corev1.Container {
 	gitCloneCmd := []string{"git", "clone", "--recurse-submodules", sshURL, "-b", branch, "--verbose", "--progress", Workspace}
 	containers := []corev1.Container{
 		{
 			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),
 			Image:           "alpine",
+			ImagePullPolicy: corev1.PullAlways,
 			Args:            []string{waitForGithubToRespond},
 			Command:         []string{"/bin/sh", "-c"},
-			ImagePullPolicy: "Always",
-			SecurityContext: &containerSecContext,
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+				},
+			},
+			SecurityContext: securitycontext.Container(
+				securitycontext.WithContainerRunAsUser(1000), // Any user will probably do
+				securitycontext.WithContainerRunAsGroup(1000),
+				securitycontext.WithContainerDropAllCapabilities(),
+				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+			),
 		},
 		{
 			Name:            cloneContainerName,
 			Image:           "alpine/git:2.45.1",
-			ImagePullPolicy: "IfNotPresent",
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         gitCloneCmd,
 			VolumeMounts: []corev1.VolumeMount{
 				{
@@ -62,7 +78,39 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 					ReadOnly:  true,
 				},
 			},
-			SecurityContext: &containerSecContext,
+			SecurityContext: securitycontext.Container(
+				securitycontext.WithContainerRunAsUser(65534), // Must be this user when running as non root
+				securitycontext.WithContainerRunAsGroup(1000),
+				securitycontext.WithContainerDropAllCapabilities(),
+				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+			),
+		},
+		{
+			Name:            fmt.Sprintf("%schmod", InternalContainerPrefix),
+			Image:           "bash",
+			ImagePullPolicy: corev1.PullAlways,
+			Command:         []string{"/usr/local/bin/bash", "-O", "dotglob", "-c"},
+			Args:            []string{fmt.Sprintf("chmod -R g+rw %s", path.Join(Workspace, "*"))},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      BuildContextVolumeName,
+					MountPath: Workspace,
+				},
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+				},
+			},
+			SecurityContext: securitycontext.Container(
+				securitycontext.WithContainerRunAsUser(65534), // Must be this user when running as non root
+				securitycontext.WithContainerRunAsGroup(1000),
+				securitycontext.WithContainerDropAllCapabilities(),
+				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+			),
 		},
 	}
 

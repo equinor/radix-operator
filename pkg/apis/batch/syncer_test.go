@@ -516,7 +516,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		}))
 		s.Equal(corev1.PullAlways, kubejob.Spec.Template.Spec.Containers[0].ImagePullPolicy)
 		s.Equal("default", kubejob.Spec.Template.Spec.ServiceAccountName)
-		s.Equal(utils.BoolPtr(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
+		s.Equal(pointers.Ptr(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
 		expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
 			{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
 			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
@@ -799,7 +799,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 	expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName, "azure.workload.identity/use": "true"}
 	s.Equal(expectedPodLabels, jobs.Items[0].Spec.Template.Labels)
 	s.Equal(utils.GetComponentServiceAccountName(componentName), jobs.Items[0].Spec.Template.Spec.ServiceAccountName)
-	s.Equal(utils.BoolPtr(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
+	s.Equal(pointers.Ptr(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
 }
 
 func (s *syncerTestSuite) Test_JobWithPayload() {
@@ -1227,7 +1227,7 @@ func (s *syncerTestSuite) Test_StopJob() {
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 
-	batch.Spec.Jobs[0].Stop = utils.BoolPtr(true)
+	batch.Spec.Jobs[0].Stop = pointers.Ptr(true)
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ = s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
@@ -1468,7 +1468,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	s.Nil(batch.Status.Condition.CompletionTime)
 
 	// Set job3 to stopped => batch condition is Running
-	batch.Spec.Jobs[2].Stop = utils.BoolPtr(true)
+	batch.Spec.Jobs[2].Stop = pointers.Ptr(true)
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
@@ -1765,7 +1765,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	s.Nil(batch.Status.JobStatuses[0].EndTime)
 
 	// Set job status.conditions to failed => phase is Failed
-	batch.Spec.Jobs[0].Stop = utils.BoolPtr(true)
+	batch.Spec.Jobs[0].Stop = pointers.Ptr(true)
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})

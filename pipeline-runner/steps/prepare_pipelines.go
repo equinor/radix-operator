@@ -199,7 +199,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		},
 	}
 	sshURL := registration.Spec.CloneURL
-	initContainers := cli.getInitContainerCloningRepo(pipelineInfo, configBranch, sshURL)
+	initContainers := cli.getInitContainerCloningRepo(configBranch, sshURL)
 
 	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
@@ -212,9 +212,8 @@ func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
 	return ""
 }
 
-func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipelineInfo *model.PipelineInfo, configBranch, sshURL string) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName,
-		pipelineInfo.PipelineArguments.ContainerSecurityContext)
+func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(configBranch, sshURL string) []corev1.Container {
+	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName)
 }
 
 func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx context.Context, appName, sourceEnvName, sourceDeploymentName string) (string, string, error) {

@@ -5,10 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
@@ -49,16 +51,24 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.RadixTektonServiceAccountName,
-					SecurityContext:    &pipelineInfo.PipelineArguments.PodSecurityContext,
-					InitContainers:     initContainers,
+					SecurityContext: securitycontext.Pod(
+						securitycontext.WithPodFSGroup(1000),
+						securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
+					InitContainers: initContainers,
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
 							Image:           fmt.Sprintf("%s/%s", pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.PipelineArguments.TektonPipeline),
 							ImagePullPolicy: corev1.PullAlways,
 							VolumeMounts:    getJobContainerVolumeMounts(),
-							SecurityContext: &pipelineInfo.PipelineArguments.ContainerSecurityContext,
-							Env:             *envVars,
+							SecurityContext: securitycontext.Container(
+								securitycontext.WithContainerDropAllCapabilities(),
+								securitycontext.WithContainerRunAsUser(1000),
+								securitycontext.WithContainerRunAsGroup(1000),
+								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+							),
+							Env: *envVars,
 						},
 					},
 					Volumes:       getJobVolumes(),

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -133,7 +134,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 				WithAuthentication(
 					&v1.Authentication{
 						ClientCertificate: &v1.ClientCertificate{
-							PassCertificateToUpstream: utils.BoolPtr(true),
+							PassCertificateToUpstream: pointers.Ptr(true),
 						},
 					},
 				).
@@ -147,7 +148,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 							&v1.Authentication{
 								ClientCertificate: &v1.ClientCertificate{
 									Verification:              &certificateVerification,
-									PassCertificateToUpstream: utils.BoolPtr(false),
+									PassCertificateToUpstream: pointers.Ptr(false),
 								},
 							},
 						).
@@ -159,7 +160,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 				WithAuthentication(
 					&v1.Authentication{
 						ClientCertificate: &v1.ClientCertificate{
-							PassCertificateToUpstream: utils.BoolPtr(true),
+							PassCertificateToUpstream: pointers.Ptr(true),
 						},
 					},
 				).
@@ -262,13 +263,13 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 		x0 := &v1.Authentication{
 			ClientCertificate: &v1.ClientCertificate{
 				Verification:              &certificateVerification,
-				PassCertificateToUpstream: utils.BoolPtr(false),
+				PassCertificateToUpstream: pointers.Ptr(false),
 			},
 		}
 
 		x1 := &v1.Authentication{
 			ClientCertificate: &v1.ClientCertificate{
-				PassCertificateToUpstream: utils.BoolPtr(true),
+				PassCertificateToUpstream: pointers.Ptr(true),
 			},
 		}
 

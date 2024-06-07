@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	commonslice "github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -483,7 +484,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 							WithAuthentication(
 								&v1.Authentication{
 									ClientCertificate: &v1.ClientCertificate{
-										PassCertificateToUpstream: utils.BoolPtr(true),
+										PassCertificateToUpstream: pointers.Ptr(true),
 									},
 								},
 							).
@@ -534,7 +535,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	x0 := &v1.Authentication{
 		ClientCertificate: &v1.ClientCertificate{
 			Verification:              &verification,
-			PassCertificateToUpstream: utils.BoolPtr(true),
+			PassCertificateToUpstream: pointers.Ptr(true),
 		},
 	}
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)

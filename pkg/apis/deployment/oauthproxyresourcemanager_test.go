@@ -260,8 +260,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	returnOAuth := &v1.OAuth2{
 		ClientID:               commonUtils.RandString(20),
 		Scope:                  commonUtils.RandString(20),
-		SetXAuthRequestHeaders: commonUtils.BoolPtr(true),
-		SetAuthorizationHeader: commonUtils.BoolPtr(false),
+		SetXAuthRequestHeaders: pointers.Ptr(true),
+		SetAuthorizationHeader: pointers.Ptr(false),
 		ProxyPrefix:            commonUtils.RandString(20),
 		LoginURL:               commonUtils.RandString(20),
 		RedeemURL:              commonUtils.RandString(20),
@@ -273,7 +273,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 			SameSite: v1.CookieSameSiteType(commonUtils.RandString(20)),
 		},
 		CookieStore: &v1.OAuth2CookieStore{
-			Minimal: utils.BoolPtr(true),
+			Minimal: pointers.Ptr(true),
 		},
 		RedisStore: &v1.OAuth2RedisStore{
 			ConnectionURL: commonUtils.RandString(20),
@@ -281,8 +281,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 		OIDC: &v1.OAuth2OIDC{
 			IssuerURL:               commonUtils.RandString(20),
 			JWKSURL:                 commonUtils.RandString(20),
-			SkipDiscovery:           commonUtils.BoolPtr(true),
-			InsecureSkipVerifyNonce: commonUtils.BoolPtr(false),
+			SkipDiscovery:           pointers.Ptr(true),
+			InsecureSkipVerifyNonce: pointers.Ptr(false),
 		},
 	}
 	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
@@ -830,7 +830,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetOwnerReferenceOfIngress() {
 	actualOwnerReferences := ingress.GetOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
-	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: networkingv1.SchemeGroupVersion.Identifier(), Kind: k8s.KindIngress, Name: "anyingress", UID: "anyuid", Controller: utils.BoolPtr(true)}}, actualOwnerReferences)
+	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: networkingv1.SchemeGroupVersion.Identifier(), Kind: k8s.KindIngress, Name: "anyingress", UID: "anyuid", Controller: pointers.Ptr(true)}}, actualOwnerReferences)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetIngressName() {

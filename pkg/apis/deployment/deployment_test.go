@@ -859,8 +859,8 @@ func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
 
 	tests := map[string]scenarioSpec{
 		"notSet": {readOnlyFileSystem: nil, expectedReadOnlyFileSystem: nil},
-		"false":  {readOnlyFileSystem: utils.BoolPtr(false), expectedReadOnlyFileSystem: utils.BoolPtr(false)},
-		"true":   {readOnlyFileSystem: utils.BoolPtr(true), expectedReadOnlyFileSystem: utils.BoolPtr(true)},
+		"false":  {readOnlyFileSystem: pointers.Ptr(false), expectedReadOnlyFileSystem: pointers.Ptr(false)},
+		"true":   {readOnlyFileSystem: pointers.Ptr(true), expectedReadOnlyFileSystem: pointers.Ptr(true)},
 	}
 
 	for name, test := range tests {
@@ -989,7 +989,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
@@ -1017,7 +1017,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
 
@@ -1041,7 +1041,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
 
@@ -1057,7 +1057,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		_, hasLabel := expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"]
 		assert.False(t, hasLabel)
@@ -1164,7 +1164,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 	})
@@ -1185,7 +1185,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		allDeployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
-		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// Change app to be a job
@@ -1202,11 +1202,11 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			metav1.ListOptions{})
 		expectedJobDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
 		assert.Equal(t, 1, len(expectedJobDeployments))
-		assert.Equal(t, utils.BoolPtr(true), expectedJobDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(true), expectedJobDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedJobDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		expectedJobAuxDeployments := getDeploymentsForRadixJobAux(allDeployments.Items)
 		assert.Equal(t, 1, len(expectedJobAuxDeployments))
-		assert.Equal(t, utils.BoolPtr(false), expectedJobAuxDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(false), expectedJobAuxDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedJobAuxDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// And change app back to a component
@@ -1222,7 +1222,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		allDeployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(allDeployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
-		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
@@ -1237,7 +1237,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 	})
@@ -1253,7 +1253,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-api", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, pointers.Ptr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixAPIServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 }

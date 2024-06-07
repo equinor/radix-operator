@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	maputils "github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -94,13 +95,13 @@ func Test_ClientCertificateAnnotations(t *testing.T) {
 
 	config1 := &radixv1.Authentication{
 		ClientCertificate: &radixv1.ClientCertificate{
-			PassCertificateToUpstream: utils.BoolPtr(true),
+			PassCertificateToUpstream: pointers.Ptr(true),
 		},
 	}
 
 	config2 := &radixv1.Authentication{
 		ClientCertificate: &radixv1.ClientCertificate{
-			PassCertificateToUpstream: utils.BoolPtr(false),
+			PassCertificateToUpstream: pointers.Ptr(false),
 		},
 	}
 
@@ -184,7 +185,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthSigninAndUrlAnnotations() {
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_All() {
-	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(true)}, nil)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(true), SetAuthorizationHeader: pointers.Ptr(true)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
 	s.Nil(err)
@@ -192,7 +193,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_All() {
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_XAuthHeadersOnly() {
-	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(false)}, nil)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(true), SetAuthorizationHeader: pointers.Ptr(false)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
 	s.Nil(err)
@@ -200,7 +201,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_XAuthHea
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_AuthorizationHeaderOnly() {
-	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)}, nil)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(false), SetAuthorizationHeader: pointers.Ptr(true)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
 	s.Nil(err)
@@ -208,7 +209,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_Authoriz
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_OAuthConfig_ApplyTo_ReturnError() {
-	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)}, errors.New("any error"))
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(false), SetAuthorizationHeader: pointers.Ptr(true)}, errors.New("any error"))
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
 	s.Error(err)

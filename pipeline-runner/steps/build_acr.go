@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -78,19 +79,19 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pipelineJobName := pipelineInfo.PipelineArguments.JobName
-	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
+	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch)
 	buildContainers := createContainerImageBuildingContainers(appName, pipelineInfo, buildComponentImages, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 	componentImagesAnnotation, _ := json.Marshal(buildComponentImages)
 	annotations := radixannotations.ForClusterAutoscalerSafeToEvict(false)
-	buildPodSecurityContext := &pipelineInfo.PipelineArguments.PodSecurityContext
+	buildPodSecurityContext := getAcrTaskBuildPodSecurityContext()
 
 	if isUsingBuildKit(pipelineInfo) {
 		for _, buildContainer := range buildContainers {
 			annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
 		}
-		buildPodSecurityContext = &pipelineInfo.PipelineArguments.BuildKitPodSecurityContext
+		buildPodSecurityContext = getBuildKitPodSecurityContext()
 	}
 
 	buildJobName := fmt.Sprintf("radix-builder-%s-%s-%s", timestamp, imageTag, hash)
@@ -238,11 +239,11 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
 
 	imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageBuilder)
-	buildContainerSecContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
+	buildContainerSecContext := getAcrTaskBuildContainerSecurityContext()
 	var secretMountsArgsString string
 	if isUsingBuildKit(pipelineInfo) {
 		imageBuilder = pipelineInfo.PipelineArguments.BuildKitImageBuilder
-		buildContainerSecContext = getBuildContainerSecContext()
+		buildContainerSecContext = getBuildKitContainerSecurityContext()
 		secretMountsArgsString = getSecretArgs(buildSecrets)
 	}
 
@@ -565,7 +566,30 @@ func isUsingBuildKit(pipelineInfo *model.PipelineInfo) bool {
 	return pipelineInfo.RadixApplication.Spec.Build != nil && pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit
 }
 
-func getBuildContainerSecContext() *corev1.SecurityContext {
+func getAcrTaskBuildPodSecurityContext() *corev1.PodSecurityContext {
+	return securitycontext.Pod(
+		securitycontext.WithPodFSGroup(1000),
+		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
+}
+
+func getBuildKitPodSecurityContext() *corev1.PodSecurityContext {
+	return securitycontext.Pod(
+		securitycontext.WithPodFSGroup(1000),
+		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithPodRunAsNonRoot(pointers.Ptr(false)))
+}
+
+func getAcrTaskBuildContainerSecurityContext() *corev1.SecurityContext {
+	return securitycontext.Container(
+		securitycontext.WithContainerDropAllCapabilities(),
+		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithContainerRunAsUser(1000),
+		securitycontext.WithContainerRunAsGroup(1000),
+		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+	)
+}
+
+func getBuildKitContainerSecurityContext() *corev1.SecurityContext {
 	return securitycontext.Container(
 		securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
@@ -573,8 +597,8 @@ func getBuildContainerSecContext() *corev1.SecurityContext {
 			Type:             corev1.SeccompProfileTypeLocalhost,
 			LocalhostProfile: utils.StringPtr("allow-buildah.json"),
 		}),
-		securitycontext.WithContainerRunAsNonRoot(utils.BoolPtr(false)),
-		securitycontext.WithReadOnlyRootFileSystem(utils.BoolPtr(true)),
+		securitycontext.WithContainerRunAsNonRoot(pointers.Ptr(false)),
+		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
 	)
 }
 

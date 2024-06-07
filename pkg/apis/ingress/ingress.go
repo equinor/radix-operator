@@ -2,10 +2,10 @@ package ingress
 
 import (
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -67,7 +67,7 @@ func ParseClientCertificateConfiguration(clientCertificate radixv1.ClientCertifi
 	verification := radixv1.VerificationTypeOff
 	certificate = radixv1.ClientCertificate{
 		Verification:              &verification,
-		PassCertificateToUpstream: utils.BoolPtr(false),
+		PassCertificateToUpstream: pointers.Ptr(false),
 	}
 
 	if passUpstream := clientCertificate.PassCertificateToUpstream; passUpstream != nil {
