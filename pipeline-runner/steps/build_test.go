@@ -28,6 +28,7 @@ import (
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -376,6 +377,138 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	}
 	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
 		return deployComponentSpec{Name: c.Name, Image: c.Image}
+	})
+	s.ElementsMatch(expectedJobComponents, actualJobComponents)
+}
+
+func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_ExpectedRuntime() {
+	appName, envName, rjName, buildBranch, jobPort := "anyapp", "dev", "anyrj", "anybranch", pointers.Ptr[int32](9999)
+	prepareConfigMapName := "preparecm"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithBuildKit(pointers.Ptr(true)).
+		WithEnvironment(envName, buildBranch).
+		WithEnvironmentNoBranch("otherenv").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithName("comp1-build"),
+			utils.NewApplicationComponentBuilder().WithName("comp2-build").WithRuntime(&radixv1.Runtime{Architecture: ""}),
+			utils.NewApplicationComponentBuilder().WithName("comp3-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
+			utils.NewApplicationComponentBuilder().WithName("comp4-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+			utils.NewApplicationComponentBuilder().WithName("comp5-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
+			utils.NewApplicationComponentBuilder().WithName("comp6-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationComponentBuilder().WithName("comp7-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationComponentBuilder().WithName("comp1-deploy"),
+			utils.NewApplicationComponentBuilder().WithName("comp2-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: ""}),
+			utils.NewApplicationComponentBuilder().WithName("comp3-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
+			utils.NewApplicationComponentBuilder().WithName("comp4-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+			utils.NewApplicationComponentBuilder().WithName("comp5-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
+			utils.NewApplicationComponentBuilder().WithName("comp6-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationComponentBuilder().WithName("comp7-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithName("job1-build").WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job2-build").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job3-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job4-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job5-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
+			utils.NewApplicationJobComponentBuilder().WithName("job6-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationJobComponentBuilder().WithName("job7-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationJobComponentBuilder().WithName("job1-deploy").WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job2-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job3-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job4-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job5-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
+			utils.NewApplicationJobComponentBuilder().WithName("job6-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationJobComponentBuilder().WithName("job7-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+		).
+		BuildRA()
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	pipeline := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType: "build-deploy",
+			Branch:       buildBranch,
+			JobName:      rjName,
+			Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+		},
+		RadixConfigMapName: prepareConfigMapName,
+	}
+
+	applyStep := steps.NewApplyConfigStep()
+	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
+	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
+	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
+
+	// Check RadixDeployment component and job images
+	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(rds.Items, 1)
+	rd := rds.Items[0]
+	type deployComponentSpec struct {
+		Name    string
+		Runtime *radixv1.Runtime
+	}
+	expectedDeployComponents := []deployComponentSpec{
+		{Name: "comp1-build", Runtime: nil},
+		{Name: "comp2-build", Runtime: nil},
+		{Name: "comp3-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "comp4-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp5-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp6-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "comp7-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp1-deploy", Runtime: nil},
+		{Name: "comp2-deploy", Runtime: nil},
+		{Name: "comp3-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "comp4-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp5-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp6-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "comp7-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+	}
+	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Runtime: c.Runtime}
+	})
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	expectedJobComponents := []deployComponentSpec{
+		{Name: "job1-build", Runtime: nil},
+		{Name: "job2-build", Runtime: nil},
+		{Name: "job3-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "job4-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job5-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job6-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "job7-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job1-deploy", Runtime: nil},
+		{Name: "job2-deploy", Runtime: nil},
+		{Name: "job3-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "job4-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job5-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job6-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "job7-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+	}
+	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Runtime: c.Runtime}
 	})
 	s.ElementsMatch(expectedJobComponents, actualJobComponents)
 }
@@ -1475,12 +1608,6 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
 	}
 	s.ElementsMatch(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
-	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
-		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
-		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
-	}}}}}}
-	s.Equal(expectedAffinity, job.Spec.Template.Spec.Affinity)
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
@@ -1645,6 +1772,78 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	)
 	expectedCommand := []string{"/bin/bash", "-c", expectedBuildCmd}
 	s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
+}
+
+func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_RuntimeAffinity() {
+	appName, rjName, comp1Name, comp2Name := "anyapp", "anyrj", "c1", "c2"
+	prepareConfigMapName := "preparecm"
+	gitConfigMapName, gitHash, gitTags := "gitcm", "githash", "gittags"
+	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithBuildKit(pointers.Ptr(true)).
+		WithEnvironment("dev", "main").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(comp1Name),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(comp2Name).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+		).
+		BuildRA()
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
+	pipeline := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType:         "build-deploy",
+			Branch:               "main",
+			JobName:              rjName,
+			BuildKitImageBuilder: "anybuildkitimage:tag",
+			ImageTag:             "anyimagetag",
+			ContainerRegistry:    "anyregistry",
+			AppContainerRegistry: "anyappregistry",
+			Clustertype:          "anyclustertype",
+			Clustername:          "anyclustername",
+			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+		},
+		RadixConfigMapName: prepareConfigMapName,
+		GitConfigMapName:   gitConfigMapName,
+	}
+	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
+	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(2)
+
+	applyStep := steps.NewApplyConfigStep()
+	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 2)
+
+	getJobByName := func(jobName string) (batchv1.Job, bool) {
+		return slice.FindFirst(jobs.Items, func(j batchv1.Job) bool {
+			return j.Labels[kube.RadixComponentLabel] == jobName
+		})
+	}
+
+	comp1job, ok := getJobByName(comp1Name)
+	s.True(ok)
+	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+	}}}}}}
+	s.Equal(expectedAffinity, comp1job.Spec.Template.Spec.Affinity)
+
+	comp2job, ok := getJobByName(comp2Name)
+	s.True(ok)
+	expectedAffinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
+	}}}}}}
+	s.Equal(expectedAffinity, comp2job.Spec.Template.Spec.Affinity)
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
