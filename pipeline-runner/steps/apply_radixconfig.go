@@ -163,8 +163,8 @@ func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
 
 	if !pipelineInfo.IsUsingBuildKit() {
 		var hasNonDefaultRuntimeArchitecture bool
-		for _, x := range pipelineInfo.BuildComponentImages {
-			hasNonDefaultRuntimeArchitecture = slice.Any(x, func(c pipeline.BuildComponentImage) bool {
+		for _, buildComponents := range pipelineInfo.BuildComponentImages {
+			hasNonDefaultRuntimeArchitecture = slice.Any(buildComponents, func(c pipeline.BuildComponentImage) bool {
 				return operatorutils.GetArchitectureFromRuntime(c.Runtime) != defaults.DefaultNodeSelectorArchitecture
 			})
 			if hasNonDefaultRuntimeArchitecture {
