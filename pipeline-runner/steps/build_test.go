@@ -181,8 +181,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.Equal(expectedAffinity, job.Spec.Template.Spec.Affinity)
 
 	// Check init containers
-	s.Len(job.Spec.Template.Spec.InitContainers, 2)
-	s.ElementsMatch([]string{"internal-nslookup", "clone"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
+	s.ElementsMatch([]string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 	cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 	s.Equal("alpine/git:2.45.1", cloneContainer.Image)
 	s.Equal([]string{"git", "clone", "--recurse-submodules", cloneURL, "-b", buildBranch, "--verbose", "--progress", git.Workspace}, cloneContainer.Command)
