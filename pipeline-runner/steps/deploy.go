@@ -82,12 +82,12 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
 
-	radixApplicationHash, err := createRadixApplicationHash(pipelineInfo.RadixApplication)
+	radixApplicationHash, err := internal.CreateRadixApplicationHash(pipelineInfo.RadixApplication)
 	if err != nil {
 		return err
 	}
 
-	buildSecretHash, err := createBuildSecretHash(pipelineInfo.BuildSecret)
+	buildSecretHash, err := internal.CreateBuildSecretHash(pipelineInfo.BuildSecret)
 	if err != nil {
 		return err
 	}

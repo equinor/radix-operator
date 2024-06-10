@@ -1,4 +1,4 @@
-package steps
+package internal
 
 import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/hash"
@@ -12,12 +12,20 @@ const (
 	magicValueForNilBuildSecretData  = "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj"
 )
 
-func createRadixApplicationHash(ra *radixv1.RadixApplication) (string, error) {
+func CreateRadixApplicationHash(ra *radixv1.RadixApplication) (string, error) {
 	return hash.ToHashString(hash.SHA256, getRadixApplicationOrMagicValue(ra))
 }
 
-func compareRadixApplicationHash(targetHash string, ra *radixv1.RadixApplication) (bool, error) {
+func CompareRadixApplicationHash(targetHash string, ra *radixv1.RadixApplication) (bool, error) {
 	return hash.CompareWithHashString(getRadixApplicationOrMagicValue(ra), targetHash)
+}
+
+func CreateBuildSecretHash(secret *corev1.Secret) (string, error) {
+	return hash.ToHashString(hash.SHA256, getBuildSecretOrMagicValue(secret))
+}
+
+func CompareBuildSecretHash(targetHash string, secret *corev1.Secret) (bool, error) {
+	return hash.CompareWithHashString(getBuildSecretOrMagicValue(secret), targetHash)
 }
 
 func getRadixApplicationOrMagicValue(ra *radixv1.RadixApplication) any {
@@ -25,14 +33,6 @@ func getRadixApplicationOrMagicValue(ra *radixv1.RadixApplication) any {
 		return magicValueForNilRadixApplication
 	}
 	return ra.Spec
-}
-
-func createBuildSecretHash(secret *corev1.Secret) (string, error) {
-	return hash.ToHashString(hash.SHA256, getBuildSecretOrMagicValue(secret))
-}
-
-func compareBuildSecretHash(targetHash string, secret *corev1.Secret) (bool, error) {
-	return hash.CompareWithHashString(getBuildSecretOrMagicValue(secret), targetHash)
 }
 
 func getBuildSecretOrMagicValue(secret *corev1.Secret) any {

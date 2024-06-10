@@ -398,7 +398,7 @@ func isRadixConfigNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, ra *
 	if len(currentRdConfigHash) == 0 {
 		return true, nil
 	}
-	hashEqual, err := compareRadixApplicationHash(currentRdConfigHash, ra)
+	hashEqual, err := internal.CompareRadixApplicationHash(currentRdConfigHash, ra)
 	if !hashEqual && err == nil {
 		log.Info().Msgf("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
 	}
@@ -413,7 +413,7 @@ func isBuildSecretNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, buil
 	if len(targetHash) == 0 {
 		return true, nil
 	}
-	hashEqual, err := compareBuildSecretHash(targetHash, buildSecret)
+	hashEqual, err := internal.CompareBuildSecretHash(targetHash, buildSecret)
 	if !hashEqual && err == nil {
 		log.Info().Msgf("Build secrets updated since last deployment to environment %s", rd.Spec.Environment)
 	}
