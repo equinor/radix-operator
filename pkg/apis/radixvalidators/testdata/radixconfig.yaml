@@ -73,6 +73,7 @@ spec:
       publicPort: ""
       variables:
         DB_NAME: "my-db"
+      runtime: {}
       environmentConfig:
         - environment: dev
           variables:
@@ -160,6 +161,7 @@ spec:
     - name: job2
       src: job2/
       schedulerPort: 8888
+      runtime: {}
     - name: job3
       src: job3/
       schedulerPort: 8888
