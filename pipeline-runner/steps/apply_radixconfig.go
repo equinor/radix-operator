@@ -161,7 +161,7 @@ func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
 		return ErrDeployOnlyPipelineDoesNotSupportBuild
 	}
 
-	if !isUsingBuildKit(pipelineInfo) {
+	if !pipelineInfo.IsUsingBuildKit() {
 		var hasNonDefaultRuntimeArchitecture bool
 		for _, x := range pipelineInfo.BuildComponentImages {
 			hasNonDefaultRuntimeArchitecture = slice.Any(x, func(c pipeline.BuildComponentImage) bool {

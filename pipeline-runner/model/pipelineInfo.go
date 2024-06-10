@@ -180,3 +180,7 @@ func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
 func (info *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
 	return info.PipelineArguments.PipelineType == string(pipelineType)
 }
+
+func (info *PipelineInfo) IsUsingBuildKit() bool {
+	return info.RadixApplication.Spec.Build != nil && info.RadixApplication.Spec.Build.UseBuildKit != nil && *info.RadixApplication.Spec.Build.UseBuildKit
+}

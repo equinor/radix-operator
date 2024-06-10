@@ -38,7 +38,7 @@ const (
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
 	rr := step.GetRegistration()
-	if isUsingBuildKit(pipelineInfo) {
+	if pipelineInfo.IsUsingBuildKit() {
 		return step.buildContainerImageBuildingJobsForBuildKit(rr, pipelineInfo, buildSecrets)
 	}
 	return step.buildContainerImageBuildingJobsForACRTasks(rr, pipelineInfo, buildSecrets)
@@ -87,7 +87,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 	annotations := radixannotations.ForClusterAutoscalerSafeToEvict(false)
 	buildPodSecurityContext := getAcrTaskBuildPodSecurityContext()
 
-	if isUsingBuildKit(pipelineInfo) {
+	if pipelineInfo.IsUsingBuildKit() {
 		for _, buildContainer := range buildContainers {
 			annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
 		}
@@ -123,7 +123,7 @@ func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *mode
 					InitContainers:  initContainers,
 					Containers:      buildContainers,
 					SecurityContext: buildPodSecurityContext,
-					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets, isUsingBuildKit(pipelineInfo), buildContainers),
+					Volumes:         getContainerImageBuildingJobVolumes(&defaultMode, buildSecrets, pipelineInfo.IsUsingBuildKit(), buildContainers),
 					Affinity:        utils.GetAffinityForPipelineJob(jobRuntime),
 					Tolerations:     utils.GetPipelineJobPodSpecTolerations(),
 				},
@@ -241,7 +241,7 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 	imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageBuilder)
 	buildContainerSecContext := getAcrTaskBuildContainerSecurityContext()
 	var secretMountsArgsString string
-	if isUsingBuildKit(pipelineInfo) {
+	if pipelineInfo.IsUsingBuildKit() {
 		imageBuilder = pipelineInfo.PipelineArguments.BuildKitImageBuilder
 		buildContainerSecContext = getBuildKitContainerSecurityContext()
 		secretMountsArgsString = getSecretArgs(buildSecrets)
@@ -261,7 +261,7 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 			Command:         command,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			VolumeMounts:    getContainerImageBuildingJobVolumeMounts(buildSecrets, isUsingBuildKit(pipelineInfo), componentImage.ContainerName),
+			VolumeMounts:    getContainerImageBuildingJobVolumeMounts(buildSecrets, pipelineInfo.IsUsingBuildKit(), componentImage.ContainerName),
 			SecurityContext: buildContainerSecContext,
 			Resources:       resources,
 		}
@@ -272,7 +272,7 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 
 func getContainerEnvVars(appName string, pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar, clusterTypeImage string, clusterNameImage string) []corev1.EnvVar {
 	envVars := getStandardEnvVars(appName, pipelineInfo, componentImage, clusterTypeImage, clusterNameImage)
-	if isUsingBuildKit(pipelineInfo) {
+	if pipelineInfo.IsUsingBuildKit() {
 		envVars = append(envVars, getBuildKitEnvVars()...)
 	}
 	envVars = append(envVars, buildSecrets...)
@@ -281,7 +281,7 @@ func getContainerEnvVars(appName string, pipelineInfo *model.PipelineInfo, compo
 
 func getContainerResources(pipelineInfo *model.PipelineInfo) corev1.ResourceRequirements {
 	var resources corev1.ResourceRequirements
-	if isUsingBuildKit(pipelineInfo) {
+	if pipelineInfo.IsUsingBuildKit() {
 		resources = corev1.ResourceRequirements{
 			Requests: map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceCPU:    resource.MustParse(pipelineInfo.PipelineArguments.Builder.ResourcesRequestsCPU),
@@ -296,7 +296,7 @@ func getContainerResources(pipelineInfo *model.PipelineInfo) corev1.ResourceRequ
 }
 
 func getContainerCommand(pipelineInfo *model.PipelineInfo, containerRegistry string, secretMountsArgsString string, componentImage pipeline.BuildComponentImage, clusterTypeImage, clusterNameImage string) []string {
-	if !isUsingBuildKit(pipelineInfo) {
+	if !pipelineInfo.IsUsingBuildKit() {
 		return nil
 	}
 	cacheImagePath := utils.GetImageCachePath(pipelineInfo.PipelineArguments.AppContainerRegistry, pipelineInfo.RadixApplication.Name)
@@ -560,10 +560,6 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString string,
 	}
 
 	return []string{"/bin/bash", "-c", commandList.String()}
-}
-
-func isUsingBuildKit(pipelineInfo *model.PipelineInfo) bool {
-	return pipelineInfo.RadixApplication.Spec.Build != nil && pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit
 }
 
 func getAcrTaskBuildPodSecurityContext() *corev1.PodSecurityContext {
