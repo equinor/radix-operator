@@ -471,7 +471,8 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 		"non-buildkit: succeed if all components are amd64": {
 			components: []utils.RadixApplicationComponentBuilder{
 				utils.NewApplicationComponentBuilder().WithName("comp1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-				utils.NewApplicationComponentBuilder().WithName("comp2").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithRuntime(&radixv1.Runtime{Architecture: ""}),
+				utils.NewApplicationComponentBuilder().WithName("comp3"),
 			},
 			useBuildKit: false,
 			expectError: false,
@@ -487,7 +488,8 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 		"non-buildkit: succeed if all jobs are amd64": {
 			jobs: []utils.RadixApplicationJobComponentBuilder{
 				utils.NewApplicationJobComponentBuilder().WithName("job1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(&schedulerPort),
-				utils.NewApplicationJobComponentBuilder().WithName("job2").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(&schedulerPort),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(&schedulerPort),
+				utils.NewApplicationJobComponentBuilder().WithName("job3").WithSchedulerPort(&schedulerPort),
 			},
 			useBuildKit: false,
 			expectError: false,
