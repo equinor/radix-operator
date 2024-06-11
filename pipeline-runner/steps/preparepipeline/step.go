@@ -1,4 +1,4 @@
-package steps
+package preparepipeline
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
@@ -222,7 +223,7 @@ func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx co
 	if err != nil {
 		return "", "", err
 	}
-	gitHash := getGitCommitHashFromDeployment(rd)
+	gitHash := internal.GetGitCommitHashFromDeployment(rd)
 	gitBranch := rd.Annotations[kube.RadixBranchAnnotation]
 	return gitHash, gitBranch, err
 }

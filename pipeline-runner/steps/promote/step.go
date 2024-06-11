@@ -1,4 +1,4 @@
-package steps
+package promote
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -16,31 +17,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// EmptyArgument Argument by name cannot be empty
-func EmptyArgument(argumentName string) error {
-	return fmt.Errorf("%s cannot be empty", argumentName)
-}
-
-// NonExistingFromEnvironment From environment does not exist
-func NonExistingFromEnvironment(environment string) error {
-	return fmt.Errorf("non existing from environment %s", environment)
-}
-
-// NonExistingToEnvironment From environment does not exist
-func NonExistingToEnvironment(environment string) error {
-	return fmt.Errorf("non existing to environment %s", environment)
-}
-
-// NonExistingDeployment Deployment wasn't found
-func NonExistingDeployment(deploymentName string) error {
-	return fmt.Errorf("non existing deployment %s", deploymentName)
-}
-
-// NonExistingComponentName Component by name was not found
-func NonExistingComponentName(appName, componentName string) error {
-	return fmt.Errorf("unable to get application component %s for app %s", componentName, appName)
-}
 
 // PromoteStepImplementation Step to promote deployment to another environment,
 // or inside environment
@@ -233,7 +209,7 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 
 func getDefaultEnvVarsFromRadixDeployment(radixDeployment *v1.RadixDeployment) v1.EnvVarsMap {
 	envVarsMap := make(v1.EnvVarsMap)
-	gitCommitHash := getGitCommitHashFromDeployment(radixDeployment)
+	gitCommitHash := internal.GetGitCommitHashFromDeployment(radixDeployment)
 	if gitCommitHash != "" {
 		envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
 	}
@@ -241,14 +217,4 @@ func getDefaultEnvVarsFromRadixDeployment(radixDeployment *v1.RadixDeployment) v
 		envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
 	}
 	return envVarsMap
-}
-
-func getGitCommitHashFromDeployment(radixDeployment *v1.RadixDeployment) string {
-	if gitCommitHash, ok := radixDeployment.Annotations[kube.RadixCommitAnnotation]; ok {
-		return gitCommitHash
-	}
-	if gitCommitHash, ok := radixDeployment.Labels[kube.RadixCommitLabel]; ok {
-		return gitCommitHash
-	}
-	return ""
 }

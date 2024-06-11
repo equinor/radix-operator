@@ -1,15 +1,13 @@
-package steps_test
+package applyconfig_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
 	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -20,10 +18,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-)
-
-const (
-	sampleApp = "./testdata/radixconfig.yaml"
 )
 
 func Test_RunApplyConfigTestSuite(t *testing.T) {
@@ -70,10 +64,10 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFa
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	err := applyStep.Run(context.Background(), &pipeline)
-	s.ErrorIs(err, steps.ErrDeployOnlyPipelineDoesNotSupportBuild)
+	s.ErrorIs(err, applyconfig.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
 
 func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
@@ -99,10 +93,10 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	err := applyStep.Run(context.Background(), &pipeline)
-	s.ErrorIs(err, steps.ErrDeployOnlyPipelineDoesNotSupportBuild)
+	s.ErrorIs(err, applyconfig.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
 
 func (s *applyConfigTestSuite) Test_ApplyConfig_ShouldNotFail() {
@@ -141,7 +135,7 @@ func (s *applyConfigTestSuite) Test_ApplyConfig_ShouldNotFail() {
 				RadixConfigMapName: prepareConfigMapName,
 			}
 
-			applyStep := steps.NewApplyConfigStep()
+			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 			err := applyStep.Run(context.Background(), &pipeline)
 			s.NoError(err)
@@ -160,9 +154,9 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 		expectedError        error
 	}
 	scenarios := []scenario{
-		{name: "no imageTagName in a component or an environment", expectedError: steps.ErrMissingRequiredImageTagName},
+		{name: "no imageTagName in a component or an environment", expectedError: applyconfig.ErrMissingRequiredImageTagName},
 		{name: "imageTagName is in a component", componentTagName: "some-component-tag"},
-		{name: "imageTagName is not set in an environment", hasEnvironmentConfig: true, expectedError: steps.ErrMissingRequiredImageTagName},
+		{name: "imageTagName is not set in an environment", hasEnvironmentConfig: true, expectedError: applyconfig.ErrMissingRequiredImageTagName},
 		{name: "imageTagName is in an environment", hasEnvironmentConfig: true, environmentTagName: "some-env-tag"},
 		{name: "imageTagName is in a component, not in an environment", componentTagName: "some-component-tag", hasEnvironmentConfig: true},
 		{name: "imageTagName is in a component and in an environment", componentTagName: "some-component-tag", hasEnvironmentConfig: true, environmentTagName: "some-env-tag"},
@@ -191,13 +185,13 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 				RadixConfigMapName: prepareConfigMapName,
 			}
 
-			applyStep := steps.NewApplyConfigStep()
+			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 			err := applyStep.Run(context.Background(), &pipeline)
 			if ts.expectedError == nil {
 				s.NoError(err)
 			} else {
-				s.ErrorIs(err, steps.ErrMissingRequiredImageTagName)
+				s.ErrorIs(err, applyconfig.ErrMissingRequiredImageTagName)
 			}
 		})
 	}
@@ -226,7 +220,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSu
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
@@ -254,7 +248,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
@@ -281,10 +275,10 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	err := applyStep.Run(context.Background(), &pipeline)
-	s.ErrorIs(err, steps.ErrMissingRequiredImageTagName)
+	s.ErrorIs(err, applyconfig.ErrMissingRequiredImageTagName)
 	s.ErrorContains(err, "deployjob")
 	s.ErrorContains(err, "dev")
 }
@@ -312,7 +306,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
@@ -340,23 +334,9 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.NoError(applyStep.Run(context.Background(), &pipeline))
-}
-
-func (s *applyConfigTestSuite) Test_CreateRadixApplication_LimitMemoryIsTakenFromRequestsMemory() {
-	rr := utils.NewRegistrationBuilder().WithName("testapp").BuildRR()
-	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	configFileContent, err := os.ReadFile(sampleApp)
-	s.Require().NoError(err)
-	ra, err := steps.CreateRadixApplication(context.Background(), s.radixClient, &dnsalias.DNSConfig{}, string(configFileContent))
-	s.Require().NoError(err)
-	s.Equal("100Mi", ra.Spec.Components[0].Resources.Limits["memory"], "server1 invalid resource limits memory")
-	s.Equal("100Mi", ra.Spec.Components[1].Resources.Limits["memory"], "server2 invalid resource limits memory")
-	s.Empty(ra.Spec.Components[2].Resources.Limits["memory"], "server3 not expected resource limits memory")
-	s.Empty(ra.Spec.Components[3].Resources.Limits["memory"], "server4 not expected resource limits memory")
 }
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
@@ -434,7 +414,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 				pipeline.PipelineArguments.DeploymentName = "depl"
 			}
 
-			applyStep := steps.NewApplyConfigStep()
+			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 			err = applyStep.Run(context.Background(), &pipeline)
 			if len(ts.expectedError) > 0 {
@@ -526,11 +506,11 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 				RadixConfigMapName: prepareConfigMapName,
 			}
 
-			applyStep := steps.NewApplyConfigStep()
+			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 			err := applyStep.Run(context.Background(), &pipeline)
 			if test.expectError {
-				s.ErrorIs(err, steps.ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError)
+				s.ErrorIs(err, applyconfig.ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError)
 			} else {
 				s.NoError(err)
 			}

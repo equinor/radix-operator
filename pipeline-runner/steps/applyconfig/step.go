@@ -1,4 +1,4 @@
-package steps
+package applyconfig
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -21,7 +20,6 @@ import (
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -77,7 +75,7 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
-	ra, err := CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
+	ra, err := internal.CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
 	if err != nil {
 		return err
 	}
@@ -542,56 +540,6 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(ctx context.Context, na
 		return "", ""
 	}
 	return gitCommitHash, gitTags
-}
-
-// CreateRadixApplication Create RadixApplication from radixconfig.yaml content
-func CreateRadixApplication(ctx context.Context, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
-	ra := &radixv1.RadixApplication{}
-
-	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
-	// This package supports encoding and decoding of yaml for CRD struct types using the json tag.
-	// The gopkg.in/yaml.v3 package requires the yaml tag.
-	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
-		return nil, err
-	}
-	correctRadixApplication(ra)
-
-	// Validate RA
-	if validate.RAContainsOldPublic(ra) {
-		log.Warn().Msg("component.public is deprecated, please use component.publicPort instead")
-	}
-	if err := validate.CanRadixApplicationBeInserted(ctx, radixClient, ra, dnsConfig); err != nil {
-		log.Error().Msg("Radix config not valid")
-		return nil, err
-	}
-	return ra, nil
-}
-
-func correctRadixApplication(ra *radixv1.RadixApplication) {
-	if isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name); !isAppNameLowercase {
-		log.Warn().Err(err).Msg("%s Converting name to lowercase")
-		ra.Name = strings.ToLower(ra.Name)
-	}
-	for i := 0; i < len(ra.Spec.Components); i++ {
-		ra.Spec.Components[i].Resources = buildResource(&ra.Spec.Components[i])
-	}
-	for i := 0; i < len(ra.Spec.Jobs); i++ {
-		ra.Spec.Jobs[i].Resources = buildResource(&ra.Spec.Jobs[i])
-	}
-}
-
-func buildResource(component radixv1.RadixCommonComponent) radixv1.ResourceRequirements {
-	memoryReqName := corev1.ResourceMemory.String()
-	resources := component.GetResources()
-	delete(resources.Limits, memoryReqName)
-
-	if requestsMemory, ok := resources.Requests[memoryReqName]; ok {
-		if resources.Limits == nil {
-			resources.Limits = radixv1.ResourceList{}
-		}
-		resources.Limits[memoryReqName] = requestsMemory
-	}
-	return resources
 }
 
 func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {

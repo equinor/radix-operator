@@ -16,7 +16,7 @@ import (
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
-func setupTest(t *testing.T) (*radix.Clientset, *kubernetes.Clientset) {
+func setupTest() (*radix.Clientset, *kubernetes.Clientset) {
 	radixClient := radix.NewSimpleClientset()
 	kubeClient := kubernetes.NewSimpleClientset()
 	return radixClient, kubeClient
@@ -40,7 +40,7 @@ func TestDeploy_WaitActiveDeployment(t *testing.T) {
 	}
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(tt *testing.T) {
-			radixClient, kubeClient := setupTest(tt)
+			radixClient, kubeClient := setupTest()
 			require.NoError(t, createNamespace(kubeClient, namespace))
 
 			if ts.hasRadixDevelopment {

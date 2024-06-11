@@ -1,4 +1,4 @@
-package steps
+package applyconfig
 
 import "errors"
 

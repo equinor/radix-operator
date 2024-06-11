@@ -1,4 +1,4 @@
-package steps
+package build
 
 import (
 	"encoding/json"
@@ -27,13 +27,14 @@ import (
 )
 
 const (
-	buildSecretsMountPath           = "/build-secrets"
-	privateImageHubMountPath        = "/radix-private-image-hubs"
-	buildahRegistryAuthFile         = "/home/build/auth.json"
-	azureServicePrincipleContext    = "/radix-image-builder/.azure"
 	RadixImageBuilderHomeVolumeName = "radix-image-builder-home"
 	BuildKitRunVolumeName           = "build-kit-run"
 	BuildKitRootVolumeName          = "build-kit-root"
+
+	buildSecretsMountPath        = "/build-secrets"
+	privateImageHubMountPath     = "/radix-private-image-hubs"
+	buildahRegistryAuthFile      = "/home/build/auth.json"
+	azureServicePrincipleContext = "/radix-image-builder/.azure"
 )
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
