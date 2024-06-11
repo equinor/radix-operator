@@ -160,21 +160,18 @@ func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
 	}
 
 	if !pipelineInfo.IsUsingBuildKit() {
-		var hasNonDefaultRuntimeArchitecture bool
 		for _, buildComponents := range pipelineInfo.BuildComponentImages {
-			hasNonDefaultRuntimeArchitecture = slice.Any(buildComponents, func(c pipeline.BuildComponentImage) bool {
-				return operatorutils.GetArchitectureFromRuntime(c.Runtime) != defaults.DefaultNodeSelectorArchitecture
-			})
-			if hasNonDefaultRuntimeArchitecture {
-				break
+			if slice.Any(buildComponents, hasNonDefaultRuntimeArchitecture) {
+				return ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError
 			}
-		}
-		if hasNonDefaultRuntimeArchitecture {
-			return ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError
 		}
 	}
 
 	return nil
+}
+
+func hasNonDefaultRuntimeArchitecture(c pipeline.BuildComponentImage) bool {
+	return operatorutils.GetArchitectureFromRuntime(c.Runtime) != defaults.DefaultNodeSelectorArchitecture
 }
 
 func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
