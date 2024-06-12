@@ -11,7 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -109,7 +109,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 						},
 					},
 					RestartPolicy: "Never",
-					Affinity:      utils.GetAffinityForPipelineJob(nil),
+					Affinity:      utils.GetAffinityForPipelineJob(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},
@@ -119,7 +119,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	return &jobCfg, nil
 }
 
-func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
+func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
 	useImageBuilderCache := os.Getenv(defaults.RadixUseCacheEnvironmentVariable)
@@ -185,17 +185,17 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 	}
 
 	switch pipeline.Type {
-	case v1.BuildDeploy, v1.Build:
+	case radixv1.BuildDeploy, radixv1.Build:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
-	case v1.Promote:
+	case radixv1.Promote:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
-	case v1.Deploy:
+	case radixv1.Deploy:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Deploy.CommitID))
 		for componentName, imageTagName := range jobSpec.Deploy.ImageTagNames {
@@ -207,7 +207,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 	return args, nil
 }
 
-func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) map[string]string {
+func getPipelineJobLabels(appName, jobName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) map[string]string {
 	// Base labels for all types of pipeline
 	labels := radixlabels.Merge(
 		radixlabels.ForApplicationName(appName),
@@ -217,7 +217,7 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 	)
 
 	switch pipeline.Type {
-	case v1.BuildDeploy, v1.Build:
+	case radixv1.BuildDeploy, radixv1.Build:
 		labels = radixlabels.Merge(
 			labels,
 			radixlabels.ForCommitId(jobSpec.Build.CommitID),
@@ -236,28 +236,28 @@ func getPushImageTag(pushImage bool) string {
 	return "0"
 }
 
-func (job *Job) getJobConditionFromJobStatus(ctx context.Context, jobStatus batchv1.JobStatus) (v1.RadixJobCondition, error) {
+func (job *Job) getJobConditionFromJobStatus(ctx context.Context, jobStatus batchv1.JobStatus) (radixv1.RadixJobCondition, error) {
 	if jobStatus.Failed > 0 {
-		return v1.JobFailed, nil
+		return radixv1.JobFailed, nil
 	}
 	if jobStatus.Active > 0 {
-		return v1.JobRunning, nil
+		return radixv1.JobRunning, nil
 
 	}
 	if jobStatus.Succeeded > 0 {
 		jobResult, err := job.getRadixJobResult(ctx)
 		if err != nil {
-			return v1.JobSucceeded, err
+			return radixv1.JobSucceeded, err
 		}
-		if jobResult.Result == v1.RadixJobResultStoppedNoChanges || job.radixJob.Status.Condition == v1.JobStoppedNoChanges {
-			return v1.JobStoppedNoChanges, nil
+		if jobResult.Result == radixv1.RadixJobResultStoppedNoChanges || job.radixJob.Status.Condition == radixv1.JobStoppedNoChanges {
+			return radixv1.JobStoppedNoChanges, nil
 		}
-		return v1.JobSucceeded, nil
+		return radixv1.JobSucceeded, nil
 	}
-	return v1.JobWaiting, nil
+	return radixv1.JobWaiting, nil
 }
 
-func (job *Job) getRadixJobResult(ctx context.Context) (*v1.RadixJobResult, error) {
+func (job *Job) getRadixJobResult(ctx context.Context) (*radixv1.RadixJobResult, error) {
 	namespace := job.radixJob.GetNamespace()
 	jobName := job.radixJob.GetName()
 	configMaps, err := job.kubeutil.ListConfigMapsWithSelector(ctx, namespace, getRadixPipelineJobResultConfigMapSelector(jobName))
@@ -267,7 +267,7 @@ func (job *Job) getRadixJobResult(ctx context.Context) (*v1.RadixJobResult, erro
 	if len(configMaps) > 1 {
 		return nil, fmt.Errorf("unexpected multiple Radix pipeline result ConfigMaps for the job %s in %s", jobName, job.radixJob.GetNamespace())
 	}
-	radixJobResult := &v1.RadixJobResult{}
+	radixJobResult := &radixv1.RadixJobResult{}
 	if len(configMaps) == 0 {
 		return radixJobResult, nil
 	}

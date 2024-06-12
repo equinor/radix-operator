@@ -10,6 +10,7 @@ import (
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -73,7 +74,7 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 					},
 					Volumes:       getJobVolumes(),
 					RestartPolicy: "Never",
-					Affinity:      utils.GetAffinityForPipelineJob(nil),
+					Affinity:      utils.GetAffinityForPipelineJob(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},

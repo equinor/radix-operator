@@ -6,15 +6,15 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 type jobSchedulerComponent struct {
-	*v1.RadixDeployJobComponent
-	radixDeployment *v1.RadixDeployment
+	*radixv1.RadixDeployJobComponent
+	radixDeployment *radixv1.RadixDeployment
 }
 
-func newJobSchedulerComponent(jobComponent *v1.RadixDeployJobComponent, rd *v1.RadixDeployment) v1.RadixCommonDeployComponent {
+func newJobSchedulerComponent(jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
 	return &jobSchedulerComponent{
 		jobComponent,
 		rd,
@@ -28,12 +28,12 @@ func (js *jobSchedulerComponent) GetImage() string {
 	return radixJobSchedulerImageUrl
 }
 
-func (js *jobSchedulerComponent) GetPorts() []v1.ComponentPort {
+func (js *jobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
 	if js.RadixDeployJobComponent.SchedulerPort == nil {
 		return nil
 	}
 
-	return []v1.ComponentPort{
+	return []radixv1.ComponentPort{
 		{
 			Name: defaults.RadixJobSchedulerPortName,
 			Port: *js.RadixDeployJobComponent.SchedulerPort,
@@ -41,10 +41,10 @@ func (js *jobSchedulerComponent) GetPorts() []v1.ComponentPort {
 	}
 }
 
-func (js *jobSchedulerComponent) GetEnvironmentVariables() v1.EnvVarsMap {
+func (js *jobSchedulerComponent) GetEnvironmentVariables() radixv1.EnvVarsMap {
 	envVarsMap := js.EnvironmentVariables.DeepCopy()
 	if envVarsMap == nil {
-		envVarsMap = v1.EnvVarsMap{}
+		envVarsMap = radixv1.EnvVarsMap{}
 	}
 	envVarsMap[defaults.RadixDeploymentEnvironmentVariable] = js.radixDeployment.Name
 	envVarsMap[defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable] = os.Getenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable)
@@ -59,8 +59,8 @@ func (js *jobSchedulerComponent) GetMonitoring() bool {
 	return false
 }
 
-func (js *jobSchedulerComponent) GetResources() *v1.ResourceRequirements {
-	return &v1.ResourceRequirements{
+func (js *jobSchedulerComponent) GetResources() *radixv1.ResourceRequirements {
+	return &radixv1.ResourceRequirements{
 		Limits: map[string]string{
 			"memory": "500M",
 		},
@@ -79,17 +79,17 @@ func (js *jobSchedulerComponent) IsAlwaysPullImageOnDeploy() bool {
 	return true
 }
 
-func (js *jobSchedulerComponent) GetNode() *v1.RadixNode {
+func (js *jobSchedulerComponent) GetNode() *radixv1.RadixNode {
 	// Job configuration in radixconfig.yaml contains section "node", which supposed to configure scheduled jobs by RadixDeployment
 	// "node" section settings should not be applied to the JobScheduler component itself
 	return nil
 }
 
-func (js *jobSchedulerComponent) GetRuntime() *v1.Runtime {
-	return nil
+func (js *jobSchedulerComponent) GetRuntime() *radixv1.Runtime {
+	return &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}
 }
 
-func isDeployComponentJobSchedulerDeployment(deployComponent v1.RadixCommonDeployComponent) bool {
+func isDeployComponentJobSchedulerDeployment(deployComponent radixv1.RadixCommonDeployComponent) bool {
 	_, isJobScheduler := interface{}(deployComponent).(*jobSchedulerComponent)
 	return isJobScheduler
 }

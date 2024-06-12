@@ -13,7 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -45,7 +45,7 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobs(pipelineInf
 	return step.buildContainerImageBuildingJobsForACRTasks(rr, pipelineInfo, buildSecrets)
 }
 
-func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
+func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
 	var buildComponentImages []pipeline.BuildComponentImage
 	for _, envComponentImages := range pipelineInfo.BuildComponentImages {
 		buildComponentImages = append(buildComponentImages, envComponentImages...)
@@ -53,11 +53,11 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(
 
 	log.Debug().Msg("build a build-job")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-	job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, nil, buildComponentImages...)
+	job := buildContainerImageBuildingJob(rr, pipelineInfo, buildSecrets, hash, &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, buildComponentImages...)
 	return []*batchv1.Job{job}, nil
 }
 
-func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
+func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
 	var jobs []*batchv1.Job
 	for envName, buildComponentImages := range pipelineInfo.BuildComponentImages {
 		log.Debug().Msgf("build a build-kit jobs for the env %s", envName)
@@ -75,7 +75,7 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(
 	return jobs, nil
 }
 
-func buildContainerImageBuildingJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, jobRuntime *v1.Runtime, buildComponentImages ...pipeline.BuildComponentImage) *batchv1.Job {
+func buildContainerImageBuildingJob(rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, jobRuntime *radixv1.Runtime, buildComponentImages ...pipeline.BuildComponentImage) *batchv1.Job {
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
