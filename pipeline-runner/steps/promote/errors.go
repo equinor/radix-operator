@@ -12,7 +12,7 @@ func NonExistingFromEnvironment(environment string) error {
 	return fmt.Errorf("non existing from environment %s", environment)
 }
 
-// NonExistingToEnvironment From environment does not exist
+// NonExistingToEnvironment To environment does not exist
 func NonExistingToEnvironment(environment string) error {
 	return fmt.Errorf("non existing to environment %s", environment)
 }
