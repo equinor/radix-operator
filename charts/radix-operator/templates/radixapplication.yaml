@@ -737,7 +737,7 @@ spec:
                               architecture:
                                 default: amd64
                                 description: CPU architecture target for the component
-                                  or job. Defaults to arm64.
+                                  or job. Defaults to amd64.
                                 enum:
                                 - amd64
                                 - arm64
@@ -1487,7 +1487,7 @@ spec:
                         architecture:
                           default: amd64
                           description: CPU architecture target for the component or
-                            job. Defaults to arm64.
+                            job. Defaults to amd64.
                           enum:
                           - amd64
                           - arm64
@@ -2230,7 +2230,7 @@ spec:
                               architecture:
                                 default: amd64
                                 description: CPU architecture target for the component
-                                  or job. Defaults to arm64.
+                                  or job. Defaults to amd64.
                                 enum:
                                 - amd64
                                 - arm64
@@ -2771,7 +2771,7 @@ spec:
                         architecture:
                           default: amd64
                           description: CPU architecture target for the component or
-                            job. Defaults to arm64.
+                            job. Defaults to amd64.
                           enum:
                           - amd64
                           - arm64

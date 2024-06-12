@@ -713,7 +713,7 @@
                       "properties": {
                         "architecture": {
                           "default": "amd64",
-                          "description": "CPU architecture target for the component or job. Defaults to arm64.",
+                          "description": "CPU architecture target for the component or job. Defaults to amd64.",
                           "enum": [
                             "amd64",
                             "arm64"
@@ -1479,7 +1479,7 @@
                 "properties": {
                   "architecture": {
                     "default": "amd64",
-                    "description": "CPU architecture target for the component or job. Defaults to arm64.",
+                    "description": "CPU architecture target for the component or job. Defaults to amd64.",
                     "enum": [
                       "amd64",
                       "arm64"
@@ -2248,7 +2248,7 @@
                       "properties": {
                         "architecture": {
                           "default": "amd64",
-                          "description": "CPU architecture target for the component or job. Defaults to arm64.",
+                          "description": "CPU architecture target for the component or job. Defaults to amd64.",
                           "enum": [
                             "amd64",
                             "arm64"
@@ -2794,7 +2794,7 @@
                 "properties": {
                   "architecture": {
                     "default": "amd64",
-                    "description": "CPU architecture target for the component or job. Defaults to arm64.",
+                    "description": "CPU architecture target for the component or job. Defaults to amd64.",
                     "enum": [
                       "amd64",
                       "arm64"
