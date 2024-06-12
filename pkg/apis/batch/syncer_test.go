@@ -516,7 +516,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		}))
 		s.Equal(corev1.PullAlways, kubejob.Spec.Template.Spec.Containers[0].ImagePullPolicy)
 		s.Equal("default", kubejob.Spec.Template.Spec.ServiceAccountName)
-		s.Equal(utils.BoolPtr(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
+		s.Equal(pointers.Ptr(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
 		expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
 			{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
 			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
@@ -532,6 +532,60 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Require().NoError(err)
 		s.Len(services.Items, 0)
 	}
+}
+
+func (s *syncerTestSuite) Test_Batch_AffinityFromRuntime() {
+	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "any-image"
+	jobName, runtimeArch := "job1", "customarch"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: jobName},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:                 componentName,
+					Image:                imageName,
+					EnvironmentVariables: radixv1.EnvVarsMap{"VAR1": "any-val", "VAR2": "any-val"},
+					Secrets:              []string{"SECRET1", "SECRET2"},
+					Runtime: &radixv1.Runtime{
+						Architecture: radixv1.RuntimeArchitecture(runtimeArch),
+					},
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	sut := s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(allJobs.Items, 1)
+	kubejob := allJobs.Items[0]
+	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{runtimeArch}},
+	}}}}}}
+	s.Equal(expectedAffinity, kubejob.Spec.Template.Spec.Affinity, "affinity should use arch from runtime")
+	s.Len(kubejob.Spec.Template.Spec.Tolerations, 1)
+	expectedTolerations := []corev1.Toleration{{Key: kube.NodeTaintJobsKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}}
+	s.ElementsMatch(expectedTolerations, kubejob.Spec.Template.Spec.Tolerations)
 }
 
 func (s *syncerTestSuite) Test_JobNotCreatedForJobWithPhaseDone() {
@@ -745,7 +799,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 	expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName, "azure.workload.identity/use": "true"}
 	s.Equal(expectedPodLabels, jobs.Items[0].Spec.Template.Labels)
 	s.Equal(utils.GetComponentServiceAccountName(componentName), jobs.Items[0].Spec.Template.Spec.ServiceAccountName)
-	s.Equal(utils.BoolPtr(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
+	s.Equal(pointers.Ptr(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
 }
 
 func (s *syncerTestSuite) Test_JobWithPayload() {
@@ -1075,6 +1129,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 func (s *syncerTestSuite) Test_JobWithGpuNode() {
 	appName, batchName, jobComponentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
+	arch := "customarch"
 	batch := &radixv1.RadixBatch{
 		ObjectMeta: metav1.ObjectMeta{Name: batchName},
 		Spec: radixv1.RadixBatchSpec{
@@ -1096,6 +1151,9 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 				{
 					Name: jobComponentName,
 					Node: radixv1.RadixNode{Gpu: " gpu1, gpu2", GpuCount: "4"},
+					Runtime: &radixv1.Runtime{
+						Architecture: radixv1.RuntimeArchitecture(arch),
+					},
 				},
 			},
 		},
@@ -1111,31 +1169,23 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 	s.Require().Len(jobs.Items, 2)
 
 	job1 := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
-	job1NodeSelectorTerms := job1.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-	s.Require().Len(job1NodeSelectorTerms, 1)
-	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixJobNodeLabel,
-		Operator: corev1.NodeSelectorOpExists,
-		Values:   nil,
-	}, job1NodeSelectorTerms[0].MatchExpressions[0])
+	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{arch}},
+	}}}}}}
+	s.Equal(expectedAffinity, job1.Spec.Template.Spec.Affinity)
 
 	tolerations := job1.Spec.Template.Spec.Tolerations
 	s.Require().Len(tolerations, 1)
 	s.Equal(corev1.Toleration{Key: kube.NodeTaintJobsKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
 
 	job2 := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
-	job2NodeSelectorTerms := job2.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-	s.Require().Len(job2NodeSelectorTerms, 1)
-	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixGpuCountLabel,
-		Operator: corev1.NodeSelectorOpGt,
-		Values:   []string{"7"},
-	}, job2NodeSelectorTerms[0].MatchExpressions[0])
-	s.Equal(corev1.NodeSelectorRequirement{
-		Key:      kube.RadixGpuLabel,
-		Operator: corev1.NodeSelectorOpIn,
-		Values:   []string{"gpu3", "gpu4"},
-	}, job2NodeSelectorTerms[0].MatchExpressions[1])
+	expectedAffinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixGpuCountLabel, Operator: corev1.NodeSelectorOpGt, Values: []string{"7"}},
+		{Key: kube.RadixGpuLabel, Operator: corev1.NodeSelectorOpIn, Values: []string{"gpu3", "gpu4"}},
+	}}}}}}
+	s.Equal(expectedAffinity, job2.Spec.Template.Spec.Affinity, "job with gpu should ignore runtime architecture")
 	tolerations = job2.Spec.Template.Spec.Tolerations
 	s.Require().Len(tolerations, 1)
 	s.Equal(corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
@@ -1177,7 +1227,7 @@ func (s *syncerTestSuite) Test_StopJob() {
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 
-	batch.Spec.Jobs[0].Stop = utils.BoolPtr(true)
+	batch.Spec.Jobs[0].Stop = pointers.Ptr(true)
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ = s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
@@ -1418,7 +1468,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	s.Nil(batch.Status.Condition.CompletionTime)
 
 	// Set job3 to stopped => batch condition is Running
-	batch.Spec.Jobs[2].Stop = utils.BoolPtr(true)
+	batch.Spec.Jobs[2].Stop = pointers.Ptr(true)
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
@@ -1715,7 +1765,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	s.Nil(batch.Status.JobStatuses[0].EndTime)
 
 	// Set job status.conditions to failed => phase is Failed
-	batch.Spec.Jobs[0].Stop = utils.BoolPtr(true)
+	batch.Spec.Jobs[0].Stop = pointers.Ptr(true)
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})

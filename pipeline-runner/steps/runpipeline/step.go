@@ -1,4 +1,4 @@
-package steps
+package runpipeline
 
 import (
 	"context"

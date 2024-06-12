@@ -1,4 +1,4 @@
-package steps_test
+package promote_test
 
 import (
 	"context"
@@ -6,20 +6,47 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
+	commonslice "github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
+	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
-	"github.com/equinor/radix-operator/pkg/apis/test"
+	kubernetes "k8s.io/client-go/kubernetes/fake"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
+
+const (
+	anyAppName  = "any-app"
+	anyJobName  = "any-job-name"
+	anyImageTag = "anytag"
+	anyCommitID = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
+	anyGitTags  = "some tags go here"
+)
+
+func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils) {
+	// Setup
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
+	kedaClient := kedafake.NewSimpleClientset()
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
+	err := testUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	require.NoError(t, err)
+	kubeUtil, _ := kube.New(kubeclient, radixclient, kedaClient, secretproviderclient)
+
+	return kubeclient, kubeUtil, radixclient, testUtils
+}
 
 func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 	anyApp1 := "any-app-1"
@@ -97,7 +124,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 				WithName(nonExistingJobComponent)))
 	require.NoError(t, err)
 
-	test.CreateEnvNamespace(kubeclient, anyApp2, anyProdEnvironment)
+	commonTest.CreateEnvNamespace(kubeclient, anyApp2, anyProdEnvironment)
 
 	var testScenarios = []struct {
 		name            string
@@ -109,23 +136,23 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 		deploymentName  string
 		expectedError   error
 	}{
-		{"empty from environment", anyApp1, "", anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, steps.EmptyArgument("From environment")},
-		{"empty to environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, "", anyDeployment2, steps.EmptyArgument("To environment")},
-		{"empty image tag", anyApp1, anyDevEnvironment, "", anyJobName, anyProdEnvironment, anyDeployment2, steps.EmptyArgument("Image tag")},
-		{"empty job name", anyApp1, anyDevEnvironment, anyImageTag, "", anyProdEnvironment, anyDeployment2, steps.EmptyArgument("Job name")},
-		{"empty deployment name", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyProdEnvironment, "", steps.EmptyArgument("Deployment name")},
-		{"promote from non-existing environment", anyApp1, anyQAEnvironment, anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, steps.NonExistingFromEnvironment(anyQAEnvironment)},
-		{"promote to non-existing environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyQAEnvironment, anyDeployment2, steps.NonExistingToEnvironment(anyQAEnvironment)},
-		{"promote non-existing deployment", anyApp2, anyDevEnvironment, "nopqrst", anyJobName, anyProdEnvironment, "non-existing", steps.NonExistingDeployment("non-existing")},
-		{"promote deployment with non-existing component", anyApp4, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment4, steps.NonExistingComponentName(anyApp4, nonExistingComponent)},
-		{"promote deployment with non-existing job component", anyApp5, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment5, steps.NonExistingComponentName(anyApp5, nonExistingJobComponent)},
+		{"empty from environment", anyApp1, "", anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, promote.EmptyArgument("From environment")},
+		{"empty to environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, "", anyDeployment2, promote.EmptyArgument("To environment")},
+		{"empty image tag", anyApp1, anyDevEnvironment, "", anyJobName, anyProdEnvironment, anyDeployment2, promote.EmptyArgument("Image tag")},
+		{"empty job name", anyApp1, anyDevEnvironment, anyImageTag, "", anyProdEnvironment, anyDeployment2, promote.EmptyArgument("Job name")},
+		{"empty deployment name", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyProdEnvironment, "", promote.EmptyArgument("Deployment name")},
+		{"promote from non-existing environment", anyApp1, anyQAEnvironment, anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, promote.NonExistingFromEnvironment(anyQAEnvironment)},
+		{"promote to non-existing environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyQAEnvironment, anyDeployment2, promote.NonExistingToEnvironment(anyQAEnvironment)},
+		{"promote non-existing deployment", anyApp2, anyDevEnvironment, "nopqrst", anyJobName, anyProdEnvironment, "non-existing", promote.NonExistingDeployment("non-existing")},
+		{"promote deployment with non-existing component", anyApp4, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment4, promote.NonExistingComponentName(anyApp4, nonExistingComponent)},
+		{"promote deployment with non-existing job component", anyApp5, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment5, promote.NonExistingComponentName(anyApp5, nonExistingJobComponent)},
 	}
 
 	for _, scenario := range testScenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), scenario.appName, metav1.GetOptions{})
 
-			cli := steps.NewPromoteStep()
+			cli := promote.NewPromoteStep()
 			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
 
 			pipelineInfo := &model.PipelineInfo{
@@ -227,12 +254,12 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 							WithEnvironmentConfigs(
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyDevEnvironment).
-									WithReplicas(test.IntPtr(2)).
+									WithReplicas(commonTest.IntPtr(2)).
 									WithEnvironmentVariable("DB_HOST", "db-dev").
 									WithEnvironmentVariable("DB_PORT", "1234"),
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyProdEnvironment).
-									WithReplicas(test.IntPtr(4)).
+									WithReplicas(commonTest.IntPtr(4)).
 									WithEnvironmentVariable("DB_HOST", "db-prod").
 									WithEnvironmentVariable("DB_PORT", "5678").
 									WithEnvironmentVariable("DB_NAME", "my-db-prod").
@@ -279,12 +306,12 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create prod environment without any deployments
-	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+	commonTest.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
-	cli := steps.NewPromoteStep()
+	cli := promote.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -405,12 +432,12 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create prod environment without any deployments
-	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+	commonTest.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
-	cli := steps.NewPromoteStep()
+	cli := promote.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -482,7 +509,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 							WithAuthentication(
 								&v1.Authentication{
 									ClientCertificate: &v1.ClientCertificate{
-										PassCertificateToUpstream: utils.BoolPtr(true),
+										PassCertificateToUpstream: pointers.Ptr(true),
 									},
 								},
 							).
@@ -499,13 +526,13 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create environments
-	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
-	test.CreateEnvNamespace(kubeclient, anyApp, anyDevEnvironment)
+	commonTest.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+	commonTest.CreateEnvNamespace(kubeclient, anyApp, anyDevEnvironment)
 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
-	cli := steps.NewPromoteStep()
+	cli := promote.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -533,7 +560,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	x0 := &v1.Authentication{
 		ClientCertificate: &v1.ClientCertificate{
 			Verification:              &verification,
-			PassCertificateToUpstream: utils.BoolPtr(true),
+			PassCertificateToUpstream: pointers.Ptr(true),
 		},
 	}
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)
@@ -617,12 +644,12 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	require.NoError(t, err)
 
 	// Create prod environment without any deployments
-	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+	commonTest.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
 
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
-	cli := steps.NewPromoteStep()
+	cli := promote.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -684,7 +711,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
-	cli := steps.NewPromoteStep()
+	cli := promote.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -798,12 +825,12 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create prod environment without any deployments
-			test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+			commonTest.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
 
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
 			ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
-			cli := steps.NewPromoteStep()
+			cli := promote.NewPromoteStep()
 			cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 			pipelineInfo := &model.PipelineInfo{
@@ -865,7 +892,7 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), anyAppName, metav1.GetOptions{})
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyAppName)).Get(context.Background(), anyAppName, metav1.GetOptions{})
 
-	cli := steps.NewPromoteStep()
+	cli := promote.NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -895,4 +922,84 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 	assert.Equal(t, srcDeploymentName, promotedRD.GetAnnotations()[kube.RadixDeploymentPromotedFromDeploymentAnnotation])
 	assert.Equal(t, srcRadixConfigHash, promotedRD.GetAnnotations()[kube.RadixConfigHash])
 	assert.Equal(t, srcDeploymentCommitID, promotedRD.GetLabels()[kube.RadixCommitLabel])
+}
+
+func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
+	var (
+		appName         string = "anyapp"
+		comp1, comp2    string = "comp1", "comp2"
+		job1, job2      string = "job1", "job2"
+		envDev, envProd string = "dev", "prod"
+		rdSource        string = "rdsource"
+		schedulerPort   int32  = 9999
+	)
+
+	// Setup
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
+	rr := utils.NewRegistrationBuilder().WithName(appName)
+	ra := utils.NewRadixApplicationBuilder().WithRadixRegistration(rr).WithAppName(appName).
+		WithEnvironmentNoBranch(envDev).WithEnvironmentNoBranch(envProd).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithName(comp1).WithRuntime(&v1.Runtime{Architecture: "commonarch"}),
+			utils.NewApplicationComponentBuilder().WithName(comp2).WithRuntime(&v1.Runtime{Architecture: "commonarch"}).WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envProd).WithRuntime(&v1.Runtime{Architecture: "prodarch"})),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithName(job1).WithSchedulerPort(&schedulerPort).WithRuntime(&v1.Runtime{Architecture: "commonarch"}),
+			utils.NewApplicationJobComponentBuilder().WithName(job2).WithSchedulerPort(&schedulerPort).WithRuntime(&v1.Runtime{Architecture: "commonarch"}).WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envProd).WithRuntime(&v1.Runtime{Architecture: "prodarch"})),
+		)
+
+	_, err := commonTestUtils.ApplyApplication(ra)
+	require.NoError(t, err)
+	commonTest.CreateEnvNamespace(kubeclient, appName, envDev)
+	commonTest.CreateEnvNamespace(kubeclient, appName, envProd)
+
+	rd := utils.NewDeploymentBuilder().
+		WithDeploymentName(rdSource).
+		WithAppName(appName).
+		WithEnvironment(envDev).
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName(comp1).WithRuntime(nil),
+			utils.NewDeployComponentBuilder().WithName(comp2).WithRuntime(&v1.Runtime{Architecture: "comp2arch"}),
+		).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName(job1).WithRuntime(nil),
+			utils.NewDeployJobComponentBuilder().WithName(job2).WithRuntime(&v1.Runtime{Architecture: "job2arch"}),
+		)
+
+	_, err = commonTestUtils.ApplyDeployment(context.Background(), rd)
+	require.NoError(t, err)
+
+	cli := promote.NewPromoteStep()
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr.BuildRR())
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			DeploymentName:  rdSource,
+			FromEnvironment: envDev,
+			ToEnvironment:   envProd,
+			JobName:         "ajob",
+			ImageTag:        "atag",
+		},
+	}
+
+	err = cli.Run(context.Background(), pipelineInfo)
+	require.NoError(t, err)
+
+	rdListProd, err := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envProd)).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, rdListProd.Items, 1)
+	rdProd := rdListProd.Items[0]
+	comp1Prod, found := commonslice.FindFirst(rdProd.Spec.Components, func(c v1.RadixDeployComponent) bool { return c.Name == comp1 })
+	require.True(t, found)
+	comp2Prod, found := commonslice.FindFirst(rdProd.Spec.Components, func(c v1.RadixDeployComponent) bool { return c.Name == comp2 })
+	require.True(t, found)
+	job1Prod, found := commonslice.FindFirst(rdProd.Spec.Jobs, func(c v1.RadixDeployJobComponent) bool { return c.Name == job1 })
+	require.True(t, found)
+	job2Prod, found := commonslice.FindFirst(rdProd.Spec.Jobs, func(c v1.RadixDeployJobComponent) bool { return c.Name == job2 })
+	require.True(t, found)
+	assert.Nil(t, comp1Prod.Runtime, "%s should use Runtime from source RD", comp1Prod.Name)
+	assert.Equal(t, &v1.Runtime{Architecture: "comp2arch"}, comp2Prod.Runtime, "%s should use Runtime from source RD", comp2Prod.Name)
+	assert.Nil(t, job1Prod.Runtime, "%s should use Runtime from source RD", job1Prod.Name)
+	assert.Equal(t, &v1.Runtime{Architecture: "job2arch"}, job2Prod.Runtime, "%s should use Runtime from source RD", job2Prod.Name)
+
 }

@@ -24,6 +24,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithIdentity(*v1.Identity) RadixJobComponentEnvironmentConfigBuilder
 	WithNotifications(*v1.Notifications) RadixJobComponentEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixJobComponentEnvironmentConfigBuilder
+	WithRuntime(*v1.Runtime) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
@@ -46,6 +47,7 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	identity           *v1.Identity
 	notifications      *v1.Notifications
 	readOnlyFileSystem *bool
+	runtime            *v1.Runtime
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -138,10 +140,17 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithNotifications(notifica
 	ceb.notifications = notifications
 	return ceb
 }
+
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithReadOnlyFileSystem(readOnlyFileSystem *bool) RadixJobComponentEnvironmentConfigBuilder {
 	ceb.readOnlyFileSystem = readOnlyFileSystem
 	return ceb
 }
+
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithRuntime(runtime *v1.Runtime) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.runtime = runtime
+	return ceb
+}
+
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
 		Environment:        ceb.environment,
@@ -161,6 +170,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		Identity:           ceb.identity,
 		Notifications:      ceb.notifications,
 		ReadOnlyFileSystem: ceb.readOnlyFileSystem,
+		Runtime:            ceb.runtime,
 	}
 }
 

@@ -1,8 +1,8 @@
 package ingress
 
 import (
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -15,7 +15,7 @@ func GetOwnerReferenceOfIngress(ingress *networkingv1.Ingress) []metav1.OwnerRef
 			Kind:       k8s.KindIngress,
 			Name:       ingress.Name,
 			UID:        ingress.UID,
-			Controller: utils.BoolPtr(true),
+			Controller: pointers.Ptr(true),
 		},
 	}
 }

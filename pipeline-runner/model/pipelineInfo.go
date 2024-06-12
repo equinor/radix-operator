@@ -5,16 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -75,12 +71,7 @@ type PipelineArguments struct {
 	ComponentsToDeploy []string
 
 	RadixConfigFile string
-	// Security context
-	PodSecurityContext corev1.PodSecurityContext
-	// Security context for image builder pods
-	BuildKitPodSecurityContext corev1.PodSecurityContext
 
-	ContainerSecurityContext corev1.SecurityContext
 	// Images used for copying radix config/building
 	TektonPipeline string
 	// ImageBuilder Points to the image builder
@@ -120,22 +111,6 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
-
-	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
-		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
-	buildPodSecContext := securitycontext.Pod(
-		securitycontext.WithPodFSGroup(defaults.SecurityContextFsGroup),
-		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
-		securitycontext.WithPodRunAsNonRoot(conditions.BoolPtr(false)))
-	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
-		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-		securitycontext.WithContainerRunAsGroup(defaults.SecurityContextRunAsGroup),
-		securitycontext.WithContainerRunAsUser(defaults.SecurityContextRunAsUser),
-		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)))
-
-	pipelineArguments.ContainerSecurityContext = *containerSecContext
-	pipelineArguments.PodSecurityContext = *podSecContext
-	pipelineArguments.BuildKitPodSecurityContext = *buildPodSecContext
 
 	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
@@ -204,4 +179,8 @@ func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
 // IsPipelineType Check pipeline type
 func (info *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
 	return info.PipelineArguments.PipelineType == string(pipelineType)
+}
+
+func (info *PipelineInfo) IsUsingBuildKit() bool {
+	return info.RadixApplication.Spec.Build != nil && info.RadixApplication.Spec.Build.UseBuildKit != nil && *info.RadixApplication.Spec.Build.UseBuildKit
 }

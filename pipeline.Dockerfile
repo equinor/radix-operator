@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine3.19 as base
+FROM golang:1.22-alpine3.20 as base
 
 RUN apk update && \
     apk add ca-certificates curl git  && \

@@ -1,4 +1,4 @@
-package steps
+package preparepipeline
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
@@ -199,7 +200,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		},
 	}
 	sshURL := registration.Spec.CloneURL
-	initContainers := cli.getInitContainerCloningRepo(pipelineInfo, configBranch, sshURL)
+	initContainers := cli.getInitContainerCloningRepo(configBranch, sshURL)
 
 	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
@@ -212,9 +213,8 @@ func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
 	return ""
 }
 
-func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipelineInfo *model.PipelineInfo, configBranch, sshURL string) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName,
-		pipelineInfo.PipelineArguments.ContainerSecurityContext)
+func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(configBranch, sshURL string) []corev1.Container {
+	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName)
 }
 
 func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx context.Context, appName, sourceEnvName, sourceDeploymentName string) (string, string, error) {
@@ -223,7 +223,7 @@ func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx co
 	if err != nil {
 		return "", "", err
 	}
-	gitHash := getGitCommitHashFromDeployment(rd)
+	gitHash := internal.GetGitCommitHashFromDeployment(rd)
 	gitBranch := rd.Annotations[kube.RadixBranchAnnotation]
 	return gitHash, gitBranch, err
 }

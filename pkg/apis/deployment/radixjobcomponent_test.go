@@ -658,14 +658,14 @@ func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 		expectedReadOnlyFile *bool
 	}{
 		{"No configuration set", nil, nil, nil},
-		{"Env controls when readOnlyFileSystem is nil, set to true", nil, utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"Env controls when readOnlyFileSystem is nil, set to false", nil, utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"readOnlyFileSystem set to true, no env config", utils.BoolPtr(true), nil, utils.BoolPtr(true)},
-		{"Both readOnlyFileSystem and monitoringEnv set to true", utils.BoolPtr(true), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"Env overrides to false when both is set", utils.BoolPtr(true), utils.BoolPtr(false), utils.BoolPtr(false)},
-		{"readOnlyFileSystem set to false, no env config", utils.BoolPtr(false), nil, utils.BoolPtr(false)},
-		{"Env overrides to true when both is set", utils.BoolPtr(false), utils.BoolPtr(true), utils.BoolPtr(true)},
-		{"Both readOnlyFileSystem and monitoringEnv set to false", utils.BoolPtr(false), utils.BoolPtr(false), utils.BoolPtr(false)},
+		{"Env controls when readOnlyFileSystem is nil, set to true", nil, pointers.Ptr(true), pointers.Ptr(true)},
+		{"Env controls when readOnlyFileSystem is nil, set to false", nil, pointers.Ptr(false), pointers.Ptr(false)},
+		{"readOnlyFileSystem set to true, no env config", pointers.Ptr(true), nil, pointers.Ptr(true)},
+		{"Both readOnlyFileSystem and monitoringEnv set to true", pointers.Ptr(true), pointers.Ptr(true), pointers.Ptr(true)},
+		{"Env overrides to false when both is set", pointers.Ptr(true), pointers.Ptr(false), pointers.Ptr(false)},
+		{"readOnlyFileSystem set to false, no env config", pointers.Ptr(false), nil, pointers.Ptr(false)},
+		{"Env overrides to true when both is set", pointers.Ptr(false), pointers.Ptr(true), pointers.Ptr(true)},
+		{"Both readOnlyFileSystem and monitoringEnv set to false", pointers.Ptr(false), pointers.Ptr(false), pointers.Ptr(false)},
 	}
 
 	for _, ts := range testCases {
@@ -1045,6 +1045,72 @@ func Test_GetRadixJobComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
 				})
 				require.True(t, exists)
 				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent.VolumeMounts)
+			}
+		})
+	}
+}
+
+func Test_JobCompopnentBuilder_Runtime(t *testing.T) {
+	jobComponentBuilder := utils.NewApplicationJobComponentBuilder().
+		WithName("anyjob").
+		WithRuntime(&radixv1.Runtime{Architecture: "commonarch"}).
+		WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().
+			WithEnvironment("dev").
+			WithRuntime(&radixv1.Runtime{Architecture: "devarch"}))
+
+	ra := utils.ARadixApplication().
+		WithEnvironmentNoBranch("dev").
+		WithEnvironmentNoBranch("prod").
+		WithJobComponents(jobComponentBuilder).BuildRA()
+
+	tests := map[string]struct {
+		env             string
+		deployImages    pipeline.DeployComponentImages
+		expectedRuntime *radixv1.Runtime
+	}{
+		"dev:nil when deployImages is nil": {
+			env:             "dev",
+			deployImages:    nil,
+			expectedRuntime: nil,
+		},
+		"dev:nil when job not defined in deployImages": {
+			env:             "dev",
+			deployImages:    pipeline.DeployComponentImages{"otherjob": {Runtime: &radixv1.Runtime{Architecture: "otherjobarch"}}},
+			expectedRuntime: nil,
+		},
+		"dev:runtime from deployImage job when defined": {
+			env:             "dev",
+			deployImages:    pipeline.DeployComponentImages{"anyjob": {Runtime: &radixv1.Runtime{Architecture: "anjobarch"}}},
+			expectedRuntime: &radixv1.Runtime{Architecture: "anjobarch"},
+		},
+		"prod:nil when deployImages is nil": {
+			env:             "prod",
+			deployImages:    nil,
+			expectedRuntime: nil,
+		},
+		"prod:nil when job not defined in deployImages": {
+			env:             "prod",
+			deployImages:    pipeline.DeployComponentImages{"otherjob": {Runtime: &radixv1.Runtime{Architecture: "otherjobarch"}}},
+			expectedRuntime: nil,
+		},
+		"prod:runtime from deployImage job when defined": {
+			env:             "prod",
+			deployImages:    pipeline.DeployComponentImages{"anyjob": {Runtime: &radixv1.Runtime{Architecture: "anjobarch"}}},
+			expectedRuntime: &radixv1.Runtime{Architecture: "anjobarch"},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			deployJobComponents, err := NewJobComponentsBuilder(ra, test.env, test.deployImages, make(radixv1.EnvVarsMap), nil).JobComponents()
+			require.NoError(t, err)
+			require.Len(t, deployJobComponents, 1)
+			deployJobComponent := deployJobComponents[0]
+			actualRuntime := deployJobComponent.Runtime
+			if test.expectedRuntime == nil {
+				assert.Nil(t, actualRuntime)
+			} else {
+				assert.Equal(t, test.expectedRuntime, actualRuntime)
 			}
 		})
 	}

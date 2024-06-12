@@ -45,6 +45,16 @@ func ConstructForTargetEnvironment(config *radixv1.RadixApplication, activeRadix
 	return radixDeployment, nil
 }
 
+func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) string {
+	if gitCommitHash, ok := radixDeployment.Annotations[kube.RadixCommitAnnotation]; ok {
+		return gitCommitHash
+	}
+	if gitCommitHash, ok := radixDeployment.Labels[kube.RadixCommitLabel]; ok {
+		return gitCommitHash
+	}
+	return ""
+}
+
 func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []radixv1.RadixDeployComponent, jobs []radixv1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *radixv1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
