@@ -1783,7 +1783,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 
 func (s *syncerTestSuite) Test_BatchStatus() {
 	namespace, rdName := "any-ns", "any-rd"
-	jobStartTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local))
+	jobStartTime, jobCompletionTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local))
 	type expectedJobStatusProps struct {
 		phase radixv1.RadixBatchJobPhase
 	}
@@ -1791,8 +1791,8 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 		conditionType radixv1.RadixBatchConditionType
 	}
 	type updateJobStatus struct {
-		updateRadixBatchJobFunc func(job *radixv1.RadixBatchJob)
-		updateJobStatusFunc     func(status *batchv1.JobStatus)
+		updateRadixBatchJobFunc       func(job *radixv1.RadixBatchJob)
+		updateRadixBatchJobStatusFunc func(status *radixv1.RadixBatchJobStatus)
 	}
 	type scenario struct {
 		name                string
@@ -1802,30 +1802,52 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 		expectedJobStatuses map[string]expectedJobStatusProps
 		expectedBatchStatus expectedBatchStatusProps
 	}
-	startJobFunc := func(status *batchv1.JobStatus) {
+	startJobStatusFunc := func(status *batchv1.JobStatus) {
 		status.Active = 1
 		status.StartTime = &jobStartTime
 	}
+	succeededJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
+		status.Phase = radixv1.BatchJobPhaseSucceeded
+		status.EndTime = &jobCompletionTime
+	}
 	scenarios := []scenario{
 		{
-			name:     "all active",
+			name:     "all active - batch is active",
 			jobNames: []string{"j1", "j2"},
 			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobFunc,
-				"j2": startJobFunc,
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
 			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": updateJobStatus{
-					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {},
-					updateJobStatusFunc:     func(status *batchv1.JobStatus) {},
-				},
-			},
+			updateJobStatuses: map[string]updateJobStatus{},
 			expectedJobStatuses: map[string]expectedJobStatusProps{
 				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseActive},
 				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseActive},
 			},
 			expectedBatchStatus: expectedBatchStatusProps{
 				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "all completed - batch is completed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": updateJobStatus{
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+				"j2": updateJobStatus{
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeCompleted,
 			},
 		},
 	}
@@ -1889,33 +1911,50 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 			s.Require().NoError(err)
 
-			jobMap := slice.Reduce(batch.Spec.Jobs, make(map[string]radixv1.RadixBatchJob), func(acc map[string]radixv1.RadixBatchJob, job radixv1.RadixBatchJob) map[string]radixv1.RadixBatchJob {
-				acc[job.Name] = job
-				return acc
-			})
+			jobMap := getRadixBatchJobsMap(batch)
+			jobStatusMap := getRadixBatchJobStatusesMap(batch)
 			for jobName, update := range ts.updateJobStatuses {
 				job, ok := jobMap[jobName]
 				s.Require().True(ok, "Not found expected job %s", jobName)
-				update.updateRadixBatchJobFunc(&job)
-				s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(update.updateJobStatusFunc)
+				if update.updateRadixBatchJobFunc != nil {
+					update.updateRadixBatchJobFunc(job)
+				}
+				if update.updateRadixBatchJobStatusFunc != nil {
+					status, ok := jobStatusMap[jobName]
+					s.Require().True(ok, "Not found expected status for the job  %s", jobName)
+					update.updateRadixBatchJobStatusFunc(status)
+				}
 			}
 			sut = s.createSyncer(batch)
 			s.Require().NoError(sut.OnSync(context.Background()))
 			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 			s.Require().NoError(err)
-			jobStatusMap := slice.Reduce(batch.Status.JobStatuses, make(map[string]radixv1.RadixBatchJobStatus), func(acc map[string]radixv1.RadixBatchJobStatus, jobStatus radixv1.RadixBatchJobStatus) map[string]radixv1.RadixBatchJobStatus {
-				acc[jobStatus.Name] = jobStatus
-				return acc
-			})
+			jobStatusMap = getRadixBatchJobStatusesMap(batch)
 			s.Require().Len(jobStatusMap, len(ts.expectedJobStatuses), "expectedJobStatuses does not match jobStatusMap")
 			for _, jobStatus := range batch.Status.JobStatuses {
 				jobStatusProps, ok := ts.expectedJobStatuses[jobStatus.Name]
 				s.Require().True(ok, "Not found expected job status %s", jobStatus.Name)
-				s.Equal(jobStatusProps.phase, jobStatus.Phase)
+				s.Equal(jobStatusProps.phase, jobStatus.Phase, "unexpected job status phase")
 			}
 			s.Require().Equal(ts.expectedBatchStatus.conditionType, batch.Status.Condition.Type, "unexpected batch status condition type")
 		})
 	}
+}
+
+func getRadixBatchJobsMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJob {
+	batchJobsMap := make(map[string]*radixv1.RadixBatchJob)
+	for i := 0; i < len(batch.Spec.Jobs); i++ {
+		batchJobsMap[batch.Spec.Jobs[i].Name] = &batch.Spec.Jobs[i]
+	}
+	return batchJobsMap
+}
+
+func getRadixBatchJobStatusesMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJobStatus {
+	jobStatusMap := make(map[string]*radixv1.RadixBatchJobStatus)
+	for i := 0; i < len(batch.Status.JobStatuses); i++ {
+		jobStatusMap[batch.Status.JobStatuses[i].Name] = &batch.Status.JobStatuses[i]
+	}
+	return jobStatusMap
 }
 
 func (s *syncerTestSuite) updateKubeJobStatus(jobName, namespace string) func(updater func(status *batchv1.JobStatus)) {
