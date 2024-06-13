@@ -1810,6 +1810,10 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 		status.Phase = radixv1.BatchJobPhaseSucceeded
 		status.EndTime = &jobCompletionTime
 	}
+	failedJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
+		status.Phase = radixv1.BatchJobPhaseFailed
+		status.EndTime = &jobCompletionTime
+	}
 	scenarios := []scenario{
 		{
 			name:     "all active - batch is active",
@@ -1845,6 +1849,29 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 			expectedJobStatuses: map[string]expectedJobStatusProps{
 				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
 				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeCompleted,
+			},
+		},
+		{
+			name:     "all failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": updateJobStatus{
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+				"j2": updateJobStatus{
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseFailed},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseFailed},
 			},
 			expectedBatchStatus: expectedBatchStatusProps{
 				conditionType: radixv1.BatchConditionTypeCompleted,
