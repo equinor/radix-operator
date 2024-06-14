@@ -145,7 +145,7 @@ const (
 	BatchJobPhaseStopped RadixBatchJobPhase = "Stopped"
 )
 
-// +kubebuilder:validation:Enum=Waiting;Active;Completed
+// +kubebuilder:validation:Enum=Waiting;Active;Completed;Failed;Succeeded;Stopped
 type RadixBatchConditionType string
 
 const (
@@ -169,7 +169,7 @@ const (
 )
 
 // A label for the condition of a pod at the current time.
-// +kubebuilder:validation:Enum=Pending;Running;Succeeded;Failed
+// +kubebuilder:validation:Enum=Pending;Running;Succeeded;Failed;Stopped
 type RadixBatchJobPodPhase string
 
 // These are the valid statuses of job's pods.
