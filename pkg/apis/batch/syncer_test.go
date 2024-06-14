@@ -1816,6 +1816,19 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 	}
 	scenarios := []scenario{
 		{
+			name:               "all waiting - batch is active",
+			jobNames:           []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){},
+			updateJobStatuses:  map[string]updateJobStatus{},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseWaiting},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseWaiting},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeWaiting,
+			},
+		},
+		{
 			name:     "all active - batch is active",
 			jobNames: []string{"j1", "j2"},
 			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
@@ -1920,7 +1933,7 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 			s.Require().NoError(err)
 			// Initial phase is Waiting
-			s.Require().Len(batch.Status.JobStatuses, len(ts.initialJobStatuses))
+			s.Require().Len(batch.Status.JobStatuses, len(ts.jobNames))
 			for _, jobStatus := range batch.Status.JobStatuses {
 				s.Equal(radixv1.BatchJobPhaseWaiting, jobStatus.Phase)
 				s.Equal(&allJobs.Items[0].CreationTimestamp, jobStatus.CreationTime)
