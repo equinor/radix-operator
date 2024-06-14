@@ -1814,6 +1814,10 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 		status.Phase = radixv1.BatchJobPhaseFailed
 		status.EndTime = &jobCompletionTime
 	}
+	stoppedJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
+		status.Phase = radixv1.BatchJobPhaseStopped
+		status.EndTime = &jobCompletionTime
+	}
 	scenarios := []scenario{
 		{
 			name:               "all waiting - batch is waiting",
@@ -1963,6 +1967,175 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 			},
 			expectedBatchStatus: expectedBatchStatusProps{
 				conditionType: radixv1.BatchConditionTypeFailed,
+			},
+		},
+		{
+			name:     "one active, one failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j2": updateJobStatus{
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseActive},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeFailed,
+			},
+		},
+		{
+			name:     "one succeeded, one failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": updateJobStatus{
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+				"j2": updateJobStatus{
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeFailed,
+			},
+		},
+		{
+			name:     "one stopped, one failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": updateJobStatus{
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+				"j2": updateJobStatus{
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseStopped},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeFailed,
+			},
+		},
+		{
+			name:     "all stopped - batch is stopped",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": updateJobStatus{
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+				"j2": updateJobStatus{
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseStopped},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseStopped},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeStopped,
+			},
+		},
+		{
+			name:     "one waiting, one stopped - batch is stopped",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": updateJobStatus{
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseStopped},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseWaiting},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeStopped,
+			},
+		},
+		{
+			name:     "one active, one stopped - batch is stopped",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": updateJobStatus{
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseStopped},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseActive},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeStopped,
+			},
+		},
+		{
+			name:     "one succeeded, one stopped - batch is stopped",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": updateJobStatus{
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+				"j2": updateJobStatus{
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseStopped},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeStopped,
 			},
 		},
 	}
