@@ -158,7 +158,7 @@ const (
 	// Failed means that any job is in Failed phase.
 	BatchConditionTypeFailed RadixBatchConditionType = "Failed"
 
-	// Obsolete. Completed means that all jobs are in Succeeded, Failed or Stopped phase.
+	// Obsolete. Completed meant that all jobs are in Succeeded, Failed or Stopped phase. This is kept for backward compatibility with existing batches.
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"
 
 	// Succeeded means that all jobs are in Succeeded phase.
@@ -187,6 +187,8 @@ const (
 	// PodFailed means that all containers in the pod have terminated, and at least one container has
 	// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 	PodFailed RadixBatchJobPodPhase = "Failed"
+	// PodStopped means that it was deleted due too stopped job.
+	PodStopped RadixBatchJobPodPhase = "Stopped"
 )
 
 // RadixBatchCondition describes the state of the RadixBatch

@@ -251,17 +251,20 @@ func (s *syncer) getJobComponentContainerStatus(containerName string, pod corev1
 }
 
 func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJobStatus, podStatusMap map[string]*radixv1.RadixBatchJobPodStatus) *radixv1.RadixBatchJobPodStatus {
-	if podStatus, ok := podStatusMap[pod.GetName()]; ok {
-		return podStatus
-	}
-	jobStatus.RadixBatchJobPodStatuses = append(jobStatus.RadixBatchJobPodStatuses,
-		radixv1.RadixBatchJobPodStatus{
+	podStatus, ok := podStatusMap[pod.GetName()]
+	if !ok {
+		jobStatus.RadixBatchJobPodStatuses = append(jobStatus.RadixBatchJobPodStatuses, radixv1.RadixBatchJobPodStatus{
 			Name:         pod.GetName(),
 			Phase:        radixv1.RadixBatchJobPodPhase(pod.Status.Phase),
 			CreationTime: pointers.Ptr(pod.GetCreationTimestamp()),
 			PodIndex:     len(jobStatus.RadixBatchJobPodStatuses),
 		})
-	return &jobStatus.RadixBatchJobPodStatuses[len(jobStatus.RadixBatchJobPodStatuses)-1]
+		podStatus = &jobStatus.RadixBatchJobPodStatuses[len(jobStatus.RadixBatchJobPodStatuses)-1]
+	}
+	if jobStatus.Phase == radixv1.BatchJobPhaseStopped {
+		podStatus.Phase = radixv1.PodStopped
+	}
+	return podStatus
 }
 
 func (s *syncer) getJobPods(ctx context.Context, batchJobName string) []corev1.Pod {
