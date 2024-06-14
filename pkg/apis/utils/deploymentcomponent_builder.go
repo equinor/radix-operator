@@ -36,6 +36,7 @@ type DeployComponentBuilder interface {
 	WithAuthentication(*v1.Authentication) DeployComponentBuilder
 	WithIdentity(*v1.Identity) DeployComponentBuilder
 	WithReadOnlyFileSystem(*bool) DeployComponentBuilder
+	WithRuntime(*v1.Runtime) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -66,6 +67,7 @@ type deployComponentBuilder struct {
 	authentication     *v1.Authentication
 	identity           *v1.Identity
 	readOnlyFileSystem *bool
+	runtime            *v1.Runtime
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployComponentBuilder {
@@ -224,6 +226,11 @@ func (dcb *deployComponentBuilder) WithReadOnlyFileSystem(readOnlyFileSystem *bo
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithRuntime(runtime *v1.Runtime) DeployComponentBuilder {
+	dcb.runtime = runtime
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	return v1.RadixDeployComponent{
 		Image:                   dcb.image,
@@ -249,6 +256,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Authentication:          dcb.authentication,
 		Identity:                dcb.identity,
 		ReadOnlyFileSystem:      dcb.readOnlyFileSystem,
+		Runtime:                 dcb.runtime,
 	}
 }
 

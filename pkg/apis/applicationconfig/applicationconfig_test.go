@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -602,13 +603,13 @@ func Test_UseBuildKit(t *testing.T) {
 		},
 		{
 			appName:             "any-app2",
-			useBuildKit:         utils.BoolPtr(false),
-			expectedUseBuildKit: utils.BoolPtr(false),
+			useBuildKit:         pointers.Ptr(false),
+			expectedUseBuildKit: pointers.Ptr(false),
 		},
 		{
 			appName:             "any-app3",
-			useBuildKit:         utils.BoolPtr(true),
-			expectedUseBuildKit: utils.BoolPtr(true),
+			useBuildKit:         pointers.Ptr(true),
+			expectedUseBuildKit: pointers.Ptr(true),
 		},
 	}
 	tu, client, kubeUtil, radixClient := setupTest(t)

@@ -316,6 +316,10 @@ func validateComponents(app *radixv1.RadixApplication) error {
 			errs = append(errs, err)
 		}
 
+		if err := validateRuntime(component.Runtime); err != nil {
+			errs = append(errs, err)
+		}
+
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, component.Name)
@@ -342,6 +346,9 @@ func validateComponents(app *radixv1.RadixApplication) error {
 				errs = append(errs, err)
 			}
 
+			if err := validateRuntime(environment.Runtime); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 
@@ -391,6 +398,10 @@ func validateJobComponents(app *radixv1.RadixApplication) error {
 			errs = append(errs, err)
 		}
 
+		if err := validateRuntime(job.Runtime); err != nil {
+			errs = append(errs, err)
+		}
+
 		for _, environment := range job.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, job.Name)
@@ -409,6 +420,10 @@ func validateJobComponents(app *radixv1.RadixApplication) error {
 
 			err = validateIdentity(environment.Identity)
 			if err != nil {
+				errs = append(errs, err)
+			}
+
+			if err := validateRuntime(environment.Runtime); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -1542,6 +1557,18 @@ func validateExpectedAzureIdentity(azureIdentity radixv1.AzureIdentity) error {
 	if err := uuid.Validate(azureIdentity.ClientId); err != nil {
 		return InvalidUUIDErrorWithMessage(azureClientIdResourceName, azureIdentity.ClientId)
 	}
+	return nil
+}
+
+func validateRuntime(runtime *radixv1.Runtime) error {
+	if runtime == nil {
+		return nil
+	}
+
+	if !slices.Contains([]radixv1.RuntimeArchitecture{radixv1.RuntimeArchitectureAmd64, radixv1.RuntimeArchitectureArm64, ""}, runtime.Architecture) {
+		return ErrInvalidRuntimeArchitecture
+	}
+
 	return nil
 }
 

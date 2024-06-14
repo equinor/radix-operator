@@ -28,6 +28,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithIdentity(*v1.Identity) RadixApplicationJobComponentBuilder
 	WithNotifications(*v1.Notifications) RadixApplicationJobComponentBuilder
 	WithReadOnlyFileSystem(*bool) RadixApplicationJobComponentBuilder
+	WithRuntime(*v1.Runtime) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -55,6 +56,7 @@ type radixApplicationJobComponentBuilder struct {
 	readOnlyFileSystem *bool
 	monitoring         *bool
 	imageTagName       string
+	runtime            *v1.Runtime
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -189,10 +191,17 @@ func (rcb *radixApplicationJobComponentBuilder) WithNotifications(notifications 
 	rcb.notifications = notifications
 	return rcb
 }
+
 func (rcb *radixApplicationJobComponentBuilder) WithReadOnlyFileSystem(readOnlyFileSystem *bool) RadixApplicationJobComponentBuilder {
 	rcb.readOnlyFileSystem = readOnlyFileSystem
 	return rcb
 }
+
+func (rcb *radixApplicationJobComponentBuilder) WithRuntime(runtime *v1.Runtime) RadixApplicationJobComponentBuilder {
+	rcb.runtime = runtime
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -228,6 +237,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Monitoring:         rcb.monitoring,
 		ImageTagName:       rcb.imageTagName,
 		VolumeMounts:       rcb.volumes,
+		Runtime:            rcb.runtime,
 	}
 }
 

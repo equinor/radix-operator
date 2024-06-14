@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -71,7 +72,7 @@ func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 					&v1.Authentication{
 						ClientCertificate: &v1.ClientCertificate{
 							Verification:              &verificationOn,
-							PassCertificateToUpstream: utils.BoolPtr(true),
+							PassCertificateToUpstream: pointers.Ptr(true),
 						},
 					},
 				),
@@ -83,7 +84,7 @@ func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 					&v1.Authentication{
 						ClientCertificate: &v1.ClientCertificate{
 							Verification:              &verificationOff,
-							PassCertificateToUpstream: utils.BoolPtr(false),
+							PassCertificateToUpstream: pointers.Ptr(false),
 						},
 					},
 				),
@@ -94,7 +95,7 @@ func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 					&v1.Authentication{
 						ClientCertificate: &v1.ClientCertificate{
 							Verification:              &verificationOn,
-							PassCertificateToUpstream: utils.BoolPtr(true),
+							PassCertificateToUpstream: pointers.Ptr(true),
 						},
 					},
 				),

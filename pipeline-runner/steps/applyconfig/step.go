@@ -1,19 +1,18 @@
-package steps
+package applyconfig
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
-	"github.com/equinor/radix-common/utils"
+	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -21,8 +20,6 @@ import (
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -78,7 +75,7 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
-	ra, err := CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
+	ra, err := internal.CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
 	if err != nil {
 		return err
 	}
@@ -146,13 +143,35 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Co
 }
 
 func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
-		return ErrDeployOnlyPipelineDoesNotSupportBuild
+
+	if err := validateBuildComponents(pipelineInfo); err != nil {
+		return err
 	}
+
 	if err := validateDeployComponents(pipelineInfo); err != nil {
 		return err
 	}
 	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
+}
+
+func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.IsPipelineType(radixv1.Deploy) && len(pipelineInfo.BuildComponentImages) > 0 {
+		return ErrDeployOnlyPipelineDoesNotSupportBuild
+	}
+
+	if !pipelineInfo.IsUsingBuildKit() {
+		for _, buildComponents := range pipelineInfo.BuildComponentImages {
+			if slice.Any(buildComponents, hasNonDefaultRuntimeArchitecture) {
+				return ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError
+			}
+		}
+	}
+
+	return nil
+}
+
+func hasNonDefaultRuntimeArchitecture(c pipeline.BuildComponentImage) bool {
+	return operatorutils.GetArchitectureFromRuntime(c.Runtime) != defaults.DefaultNodeSelectorArchitecture
 }
 
 func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
@@ -177,7 +196,7 @@ func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
 			}
 		}
 	}
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }
 
 func getComponentMap(pipelineInfo *model.PipelineInfo) map[string]radixv1.RadixCommonComponent {
@@ -201,7 +220,7 @@ func printEnvironmentComponentImageSources(imageSourceMap environmentComponentIm
 			continue
 		}
 		for _, componentSource := range componentImageSources {
-			log.Info().Msgf("    - %s from %s", componentSource.ComponentName, getImageSourceDescription(componentSource.ImageSource))
+			log.Info().Msgf("    - %s (arch: %s) from %s", componentSource.ComponentName, operatorutils.GetArchitectureFromRuntime(componentSource.Runtime), getImageSourceDescription(componentSource.ImageSource))
 		}
 	}
 }
@@ -225,6 +244,7 @@ type (
 		ImageSource   containerImageSourceEnum
 		Image         string
 		Source        radixv1.ComponentSource
+		Runtime       *radixv1.Runtime
 	}
 
 	environmentComponentImageSourceMap map[string][]componentImageSource
@@ -267,18 +287,19 @@ func (cli *ApplyConfigStepImplementation) getComponentSources(appComponents []ra
 	componentSource := make([]componentImageSource, 0)
 	componentsEnabledInEnv := slice.FindAll(appComponents, func(rcc radixv1.RadixCommonComponent) bool { return rcc.GetEnabledForEnvironment(envName) })
 	for _, component := range componentsEnabledInEnv {
-		imageSource := componentImageSource{ComponentName: component.GetName()}
+		imageSource := componentImageSource{ComponentName: component.GetName(), Runtime: internal.GetRuntimeForEnvironment(component, envName)}
 		if image := component.GetImageForEnvironment(envName); len(image) > 0 {
 			imageSource.ImageSource = fromImagePath
 			imageSource.Image = image
 		} else {
 			currentlyDeployedComponent := getCurrentlyDeployedComponent(activeRadixDeployment, component.GetName())
-			if utils.IsNil(currentlyDeployedComponent) || mustBuildComponent(component) {
+			if commonutils.IsNil(currentlyDeployedComponent) || mustBuildComponent(component) {
 				imageSource.ImageSource = fromBuild
 				imageSource.Source = component.GetSourceForEnvironment(envName)
 			} else {
 				imageSource.ImageSource = fromDeployment
 				imageSource.Image = currentlyDeployedComponent.GetImage()
+				imageSource.Runtime = currentlyDeployedComponent.GetRuntime()
 			}
 		}
 		componentSource = append(componentSource, imageSource)
@@ -316,6 +337,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 				Dockerfile:    getDockerfileName(imageSource.Source.DockefileName),
 				ImageName:     imageName,
 				ImagePath:     imagePath,
+				Runtime:       imageSource.Runtime,
 			})
 			componentImageSourceMap[envName][imageSourceIndex].Image = imagePath
 		}
@@ -328,7 +350,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 func getLengthLimitedName(name string) string {
 	validatedName := strings.ToLower(name)
 	if len(validatedName) > 10 {
-		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(utils.RandString(4)))
+		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandString(4)))
 	}
 	return validatedName
 }
@@ -341,6 +363,7 @@ func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInf
 			deployComponentImage := pipeline.DeployComponentImage{
 				ImageTagName: pipelineInfo.PipelineArguments.ImageTagNames[cis.ComponentName],
 				Build:        cis.ImageSource == fromBuild,
+				Runtime:      cis.Runtime,
 			}
 			if cis.ImageSource == fromBuild {
 				if buildComponentImages, ok := pipelineInfo.BuildComponentImages[envName]; ok {
@@ -370,7 +393,7 @@ func isRadixConfigNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, ra *
 	if len(currentRdConfigHash) == 0 {
 		return true, nil
 	}
-	hashEqual, err := compareRadixApplicationHash(currentRdConfigHash, ra)
+	hashEqual, err := internal.CompareRadixApplicationHash(currentRdConfigHash, ra)
 	if !hashEqual && err == nil {
 		log.Info().Msgf("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
 	}
@@ -385,7 +408,7 @@ func isBuildSecretNewOrModifiedSinceDeployment(rd *radixv1.RadixDeployment, buil
 	if len(targetHash) == 0 {
 		return true, nil
 	}
-	hashEqual, err := compareBuildSecretHash(targetHash, buildSecret)
+	hashEqual, err := internal.CompareBuildSecretHash(targetHash, buildSecret)
 	if !hashEqual && err == nil {
 		log.Info().Msgf("Build secrets updated since last deployment to environment %s", rd.Spec.Environment)
 	}
@@ -420,7 +443,7 @@ func mustBuildComponentForEnvironment(environmentName string, prepareBuildContex
 
 	return func(comp radixv1.RadixCommonComponent) bool {
 		return slice.Any(envBuildContext.Components, func(s string) bool { return s == comp.GetName() }) ||
-			utils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
+			commonutils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
 	}, nil
 }
 
@@ -508,62 +531,12 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(ctx context.Context, na
 	}
 	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
 	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
-	err = stderrors.Join(commitErr, tagsErr)
+	err = errors.Join(commitErr, tagsErr)
 	if err != nil {
 		log.Error().Err(err).Msgf("could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
 		return "", ""
 	}
 	return gitCommitHash, gitTags
-}
-
-// CreateRadixApplication Create RadixApplication from radixconfig.yaml content
-func CreateRadixApplication(ctx context.Context, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
-	ra := &radixv1.RadixApplication{}
-
-	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
-	// This package supports encoding and decoding of yaml for CRD struct types using the json tag.
-	// The gopkg.in/yaml.v3 package requires the yaml tag.
-	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
-		return nil, err
-	}
-	correctRadixApplication(ra)
-
-	// Validate RA
-	if validate.RAContainsOldPublic(ra) {
-		log.Warn().Msg("component.public is deprecated, please use component.publicPort instead")
-	}
-	if err := validate.CanRadixApplicationBeInserted(ctx, radixClient, ra, dnsConfig); err != nil {
-		log.Error().Msg("Radix config not valid")
-		return nil, err
-	}
-	return ra, nil
-}
-
-func correctRadixApplication(ra *radixv1.RadixApplication) {
-	if isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name); !isAppNameLowercase {
-		log.Warn().Err(err).Msg("%s Converting name to lowercase")
-		ra.Name = strings.ToLower(ra.Name)
-	}
-	for i := 0; i < len(ra.Spec.Components); i++ {
-		ra.Spec.Components[i].Resources = buildResource(&ra.Spec.Components[i])
-	}
-	for i := 0; i < len(ra.Spec.Jobs); i++ {
-		ra.Spec.Jobs[i].Resources = buildResource(&ra.Spec.Jobs[i])
-	}
-}
-
-func buildResource(component radixv1.RadixCommonComponent) radixv1.ResourceRequirements {
-	memoryReqName := corev1.ResourceMemory.String()
-	resources := component.GetResources()
-	delete(resources.Limits, memoryReqName)
-
-	if requestsMemory, ok := resources.Requests[memoryReqName]; ok {
-		if resources.Limits == nil {
-			resources.Limits = radixv1.ResourceList{}
-		}
-		resources.Limits[memoryReqName] = requestsMemory
-	}
-	return resources
 }
 
 func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {
@@ -586,14 +559,14 @@ func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironm
 
 				component := ra.GetCommonComponentByName(componentName)
 				env := component.GetEnvironmentConfigByName(envName)
-				if len(component.GetImageTagName()) > 0 || (!utils.IsNil(env) && len(env.GetImageTagName()) > 0) {
+				if len(component.GetImageTagName()) > 0 || (!commonutils.IsNil(env) && len(env.GetImageTagName()) > 0) {
 					continue
 				}
 
-				errs = append(errs, errors.WithMessagef(ErrMissingRequiredImageTagName, "component %s in environment %s", componentName, envName))
+				errs = append(errs, fmt.Errorf("component %s in environment %s: %w", componentName, envName, ErrMissingRequiredImageTagName))
 			}
 		}
 	}
 
-	return stderrors.Join(errs...)
+	return errors.Join(errs...)
 }

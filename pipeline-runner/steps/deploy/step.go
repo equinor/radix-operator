@@ -1,14 +1,13 @@
-package steps
+package deploy
 
 import (
 	"context"
 	"fmt"
 
-	pipelineRunnerInternal "github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -19,13 +18,13 @@ import (
 // DeployStepImplementation Step to deploy RD into environment
 type DeployStepImplementation struct {
 	stepType               pipeline.StepType
-	namespaceWatcher       kube.NamespaceWatcher
-	radixDeploymentWatcher pipelineRunnerInternal.RadixDeploymentWatcher
+	namespaceWatcher       watcher.NamespaceWatcher
+	radixDeploymentWatcher watcher.RadixDeploymentWatcher
 	model.DefaultStepImplementation
 }
 
 // NewDeployStep Constructor
-func NewDeployStep(namespaceWatcher kube.NamespaceWatcher, radixDeploymentWatcher pipelineRunnerInternal.RadixDeploymentWatcher) model.Step {
+func NewDeployStep(namespaceWatcher watcher.NamespaceWatcher, radixDeploymentWatcher watcher.RadixDeploymentWatcher) model.Step {
 	return &DeployStepImplementation{
 		stepType:               pipeline.DeployStep,
 		namespaceWatcher:       namespaceWatcher,
@@ -82,12 +81,12 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
 
-	radixApplicationHash, err := createRadixApplicationHash(pipelineInfo.RadixApplication)
+	radixApplicationHash, err := internal.CreateRadixApplicationHash(pipelineInfo.RadixApplication)
 	if err != nil {
 		return err
 	}
 
-	buildSecretHash, err := createBuildSecretHash(pipelineInfo.BuildSecret)
+	buildSecretHash, err := internal.CreateBuildSecretHash(pipelineInfo.BuildSecret)
 	if err != nil {
 		return err
 	}

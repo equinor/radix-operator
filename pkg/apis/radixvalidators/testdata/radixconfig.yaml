@@ -29,6 +29,8 @@ spec:
       identity:
         azure:
           clientId: 11111111-2222-BBBB-cccc-555555555555
+      runtime:
+        architecture: arm64
       environmentConfig:
         - environment: prod
           replicas: 4
@@ -61,6 +63,8 @@ spec:
               name: blobvol
               container: blobcontainer
               path: /path/to/mount
+          runtime:
+            architecture: amd64
     - name: redis
       src: redis/
       ports:
@@ -69,6 +73,7 @@ spec:
       publicPort: ""
       variables:
         DB_NAME: "my-db"
+      runtime: {}
       environmentConfig:
         - environment: dev
           variables:
@@ -130,6 +135,8 @@ spec:
       identity:
         azure:
           clientId: 11111111-2222-3333-4444-555555555555
+      runtime:
+        architecture: arm64
       environmentConfig:
         - environment: dev
           variables:
@@ -149,9 +156,12 @@ spec:
               name: blobvol
               container: blobcontainer
               path: /path/to/mount
+          runtime:
+            architecture: amd64
     - name: job2
       src: job2/
       schedulerPort: 8888
+      runtime: {}
     - name: job3
       src: job3/
       schedulerPort: 8888

@@ -25,6 +25,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithImageTagName(string) RadixEnvironmentConfigBuilder
 	WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixEnvironmentConfigBuilder
+	WithRuntime(*v1.Runtime) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -46,6 +47,7 @@ type radixEnvironmentConfigBuilder struct {
 	imageTagName            string
 	horizontalScaling       *v1.RadixHorizontalScaling
 	readOnlyFileSystem      *bool
+	runtime                 *v1.Runtime
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder {
@@ -139,8 +141,14 @@ func (ceb *radixEnvironmentConfigBuilder) WithImageTagName(imageTagName string) 
 	ceb.imageTagName = imageTagName
 	return ceb
 }
+
 func (ceb *radixEnvironmentConfigBuilder) WithReadOnlyFileSystem(readOnlyFileSystem *bool) RadixEnvironmentConfigBuilder {
 	ceb.readOnlyFileSystem = readOnlyFileSystem
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithRuntime(runtime *v1.Runtime) RadixEnvironmentConfigBuilder {
+	ceb.runtime = runtime
 	return ceb
 }
 
@@ -164,6 +172,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		ImageTagName:            ceb.imageTagName,
 		HorizontalScaling:       ceb.horizontalScaling,
 		ReadOnlyFileSystem:      ceb.readOnlyFileSystem,
+		Runtime:                 ceb.runtime,
 	}
 }
 

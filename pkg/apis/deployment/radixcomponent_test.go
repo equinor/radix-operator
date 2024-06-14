@@ -1400,6 +1400,72 @@ func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
 	}
 }
 
+func Test_GetRadixComponentsForEnv_Runtime_AlwaysUseFromDeployComponentImages(t *testing.T) {
+	componentBuilder := utils.NewApplicationComponentBuilder().
+		WithName("anycomp").
+		WithRuntime(&radixv1.Runtime{Architecture: "commonarch"}).
+		WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().
+			WithEnvironment("dev").
+			WithRuntime(&radixv1.Runtime{Architecture: "devarch"}))
+
+	ra := utils.ARadixApplication().
+		WithEnvironmentNoBranch("dev").
+		WithEnvironmentNoBranch("prod").
+		WithComponents(componentBuilder).BuildRA()
+
+	tests := map[string]struct {
+		env             string
+		deployImages    pipeline.DeployComponentImages
+		expectedRuntime *radixv1.Runtime
+	}{
+		"dev:nil when deployImages is nil": {
+			env:             "dev",
+			deployImages:    nil,
+			expectedRuntime: nil,
+		},
+		"dev:nil when comp not defined in deployImages": {
+			env:             "dev",
+			deployImages:    pipeline.DeployComponentImages{"othercomp": {Runtime: &radixv1.Runtime{Architecture: "othercomparch"}}},
+			expectedRuntime: nil,
+		},
+		"dev:runtime from deployImage comp when defined": {
+			env:             "dev",
+			deployImages:    pipeline.DeployComponentImages{"anycomp": {Runtime: &radixv1.Runtime{Architecture: "anycomparch"}}},
+			expectedRuntime: &radixv1.Runtime{Architecture: "anycomparch"},
+		},
+		"prod:nil when deployImages is nil": {
+			env:             "prod",
+			deployImages:    nil,
+			expectedRuntime: nil,
+		},
+		"prod:nil when comp not defined in deployImages": {
+			env:             "prod",
+			deployImages:    pipeline.DeployComponentImages{"othercomp": {Runtime: &radixv1.Runtime{Architecture: "othercomparch"}}},
+			expectedRuntime: nil,
+		},
+		"prod:runtime from deployImage comp when defined": {
+			env:             "prod",
+			deployImages:    pipeline.DeployComponentImages{"anycomp": {Runtime: &radixv1.Runtime{Architecture: "anycomparch"}}},
+			expectedRuntime: &radixv1.Runtime{Architecture: "anycomparch"},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			deployComponents, err := GetRadixComponentsForEnv(ra, test.env, test.deployImages, make(radixv1.EnvVarsMap), nil)
+			require.NoError(t, err)
+			require.Len(t, deployComponents, 1)
+			deployComponent := deployComponents[0]
+			actualRuntime := deployComponent.Runtime
+			if test.expectedRuntime == nil {
+				assert.Nil(t, actualRuntime)
+			} else {
+				assert.Equal(t, test.expectedRuntime, actualRuntime)
+			}
+		})
+	}
+}
+
 func convertRadixDeployComponentToNameSet(deployComponents []radixv1.RadixDeployComponent) map[string]bool {
 	set := make(map[string]bool)
 	for _, deployComponent := range deployComponents {

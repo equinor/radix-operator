@@ -3,6 +3,7 @@ package deployment
 import (
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -32,27 +33,27 @@ func Test_ServiceAccountSpec(t *testing.T) {
 			BuildRD()
 
 		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
-		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Components[1])
-		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Components[1].Name), spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
-		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
-		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
-		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[1])
-		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Jobs[1].Name), spec.ServiceAccountName())
 	})
 
@@ -67,15 +68,15 @@ func Test_ServiceAccountSpec(t *testing.T) {
 			BuildRD()
 
 		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
-		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixAPIServiceAccountName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
-		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
-		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
 	})
@@ -91,15 +92,15 @@ func Test_ServiceAccountSpec(t *testing.T) {
 			BuildRD()
 
 		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
-		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
-		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
-		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
 	})

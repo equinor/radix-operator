@@ -117,6 +117,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Notifications:        notifications,
 		ReadOnlyFileSystem:   getRadixCommonComponentReadOnlyFileSystem(&radixJobComponent, environmentSpecificConfig),
 		VolumeMounts:         volumeMounts,
+		Runtime:              componentImage.Runtime,
 	}
 	return &deployJob, nil
 }

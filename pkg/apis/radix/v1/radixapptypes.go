@@ -456,6 +456,10 @@ type RadixComponent struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
+
+	// Runtime defines the target runtime requirements for the component
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -550,6 +554,10 @@ type RadixEnvironmentConfig struct {
 	// Controls if the filesystem shall be read-only.
 	// +optional
 	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
+	// Runtime defines environment specific target runtime requirements for the component
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -675,6 +683,10 @@ type RadixJobComponent struct {
 	// Controls if the filesystem shall be read-only.
 	// +optional
 	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
+	// Runtime defines target runtime requirements for the job
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -763,6 +775,10 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Controls if the filesystem shall be read-only.
 	// +optional
 	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
+	// Runtime defines environment specific target runtime requirements for the job
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -1366,6 +1382,22 @@ type ComponentSource struct {
 	DockefileName string
 }
 
+type RuntimeArchitecture string
+
+const (
+	RuntimeArchitectureAmd64 RuntimeArchitecture = "amd64"
+	RuntimeArchitectureArm64 RuntimeArchitecture = "arm64"
+)
+
+// Runtime defines the component or job's target runtime requirements
+type Runtime struct {
+	// CPU architecture target for the component or job. Defaults to amd64.
+	// +kubebuilder:validation:Enum=amd64;arm64
+	// +kubebuilder:default:=amd64
+	// +optional
+	Architecture RuntimeArchitecture `json:"architecture,omitempty"`
+}
+
 // RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
 	// GetName Gets component name
@@ -1418,6 +1450,8 @@ type RadixCommonComponent interface {
 	GetVolumeMounts() []RadixVolumeMount
 	// GetImageTagName Is a dynamic image tag for the component image
 	GetImageTagName() string
+	// GetRuntime Gets target runtime requirements
+	GetRuntime() *Runtime
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1486,6 +1520,10 @@ func (component *RadixComponent) GetResources() ResourceRequirements {
 
 func (component *RadixComponent) GetIdentity() *Identity {
 	return component.Identity
+}
+
+func (component *RadixComponent) GetRuntime() *Runtime {
+	return component.Runtime
 }
 
 func (component *RadixComponent) getEnabled() bool {
@@ -1611,6 +1649,10 @@ func (component *RadixJobComponent) GetResources() ResourceRequirements {
 
 func (component *RadixJobComponent) GetIdentity() *Identity {
 	return component.Identity
+}
+
+func (component *RadixJobComponent) GetRuntime() *Runtime {
+	return component.Runtime
 }
 
 // GetNotifications Get job component notifications

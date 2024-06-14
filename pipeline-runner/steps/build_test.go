@@ -12,8 +12,11 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/hash"
 	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/build"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/deploy"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -28,6 +31,7 @@ import (
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,10 +71,17 @@ func (s *buildTestSuite) SetupSubTest() {
 }
 
 func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
-	anyBranch := "master"
-	anyEnvironment := "dev"
-	anyComponentName := "app"
-	anyNoMappedBranch := "feature"
+	const (
+		anyAppName        = "any-app"
+		anyJobName        = "any-job-name"
+		anyImageTag       = "anytag"
+		anyCommitID       = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
+		anyGitTags        = "some tags go here"
+		anyBranch         = "master"
+		anyEnvironment    = "dev"
+		anyComponentName  = "app"
+		anyNoMappedBranch = "feature"
+	)
 
 	rr := utils.ARadixRegistration().
 		WithName(anyAppName).
@@ -86,7 +97,7 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
-	cli := steps.NewBuildStep(jobWaiter)
+	cli := build.NewBuildStep(jobWaiter)
 	cli.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	targetEnvs := application.GetTargetEnvironments(anyNoMappedBranch, ra)
@@ -144,13 +155,13 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		GitConfigMapName:   gitConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+	deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
@@ -168,7 +179,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
 		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
-		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
+		{Name: build.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
 		{Name: "tmp-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 		{Name: "var-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 	}
@@ -181,15 +192,15 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.Equal(expectedAffinity, job.Spec.Template.Spec.Affinity)
 
 	// Check init containers
-	s.Len(job.Spec.Template.Spec.InitContainers, 2)
-	s.ElementsMatch([]string{"internal-nslookup", "clone"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
+	s.ElementsMatch([]string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 	cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
-	s.Equal("alpine/git:user", cloneContainer.Image)
-	s.Equal([]string{"/bin/sh", "-c"}, cloneContainer.Command)
-	s.Equal([]string{fmt.Sprintf("git clone --recurse-submodules %s -b %s --verbose --progress /workspace", cloneURL, buildBranch)}, cloneContainer.Args)
+	s.Equal("alpine/git:2.45.1", cloneContainer.Image)
+	s.Equal([]string{"git", "clone", "--recurse-submodules", cloneURL, "-b", buildBranch, "--verbose", "--progress", git.Workspace}, cloneContainer.Command)
+	s.Empty(cloneContainer.Args)
+	// s.Equal([]string{fmt.Sprintf("git clone --recurse-submodules %s -b %s --verbose --progress /workspace", cloneURL, buildBranch)}, cloneContainer.Args)
 	expectedCloneVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
-		{Name: git.GitSSHKeyVolumeName, MountPath: "/home/git-user/.ssh", ReadOnly: true},
+		{Name: git.GitSSHKeyVolumeName, MountPath: "/.ssh", ReadOnly: true},
 	}
 	s.ElementsMatch(expectedCloneVolumeMounts, cloneContainer.VolumeMounts)
 	// Check containers
@@ -201,7 +212,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	expectedBuildVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/radix-image-builder", ReadOnly: false},
+		{Name: build.RadixImageBuilderHomeVolumeName, MountPath: "/home/radix-image-builder", ReadOnly: false},
 		{Name: "tmp-build-c1-dev", MountPath: "/tmp", ReadOnly: false},
 		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
 	}
@@ -285,13 +296,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+	deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
@@ -380,6 +391,138 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	s.ElementsMatch(expectedJobComponents, actualJobComponents)
 }
 
+func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_ExpectedRuntime() {
+	appName, envName, rjName, buildBranch, jobPort := "anyapp", "dev", "anyrj", "anybranch", pointers.Ptr[int32](9999)
+	prepareConfigMapName := "preparecm"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithBuildKit(pointers.Ptr(true)).
+		WithEnvironment(envName, buildBranch).
+		WithEnvironmentNoBranch("otherenv").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithName("comp1-build"),
+			utils.NewApplicationComponentBuilder().WithName("comp2-build").WithRuntime(&radixv1.Runtime{Architecture: ""}),
+			utils.NewApplicationComponentBuilder().WithName("comp3-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
+			utils.NewApplicationComponentBuilder().WithName("comp4-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+			utils.NewApplicationComponentBuilder().WithName("comp5-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
+			utils.NewApplicationComponentBuilder().WithName("comp6-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationComponentBuilder().WithName("comp7-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationComponentBuilder().WithName("comp1-deploy"),
+			utils.NewApplicationComponentBuilder().WithName("comp2-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: ""}),
+			utils.NewApplicationComponentBuilder().WithName("comp3-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
+			utils.NewApplicationComponentBuilder().WithName("comp4-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+			utils.NewApplicationComponentBuilder().WithName("comp5-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
+			utils.NewApplicationComponentBuilder().WithName("comp6-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationComponentBuilder().WithName("comp7-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithName("job1-build").WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job2-build").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job3-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job4-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job5-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
+			utils.NewApplicationJobComponentBuilder().WithName("job6-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationJobComponentBuilder().WithName("job7-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationJobComponentBuilder().WithName("job1-deploy").WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job2-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job3-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job4-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort),
+			utils.NewApplicationJobComponentBuilder().WithName("job5-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
+			utils.NewApplicationJobComponentBuilder().WithName("job6-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+			utils.NewApplicationJobComponentBuilder().WithName("job7-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(jobPort).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
+		).
+		BuildRA()
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	pipeline := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType: "build-deploy",
+			Branch:       buildBranch,
+			JobName:      rjName,
+			Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+		},
+		RadixConfigMapName: prepareConfigMapName,
+	}
+
+	applyStep := applyconfig.NewApplyConfigStep()
+	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
+	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
+	buildStep := build.NewBuildStep(jobWaiter)
+	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
+	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(deployStep.Run(context.Background(), &pipeline))
+
+	// Check RadixDeployment component and job images
+	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(rds.Items, 1)
+	rd := rds.Items[0]
+	type deployComponentSpec struct {
+		Name    string
+		Runtime *radixv1.Runtime
+	}
+	expectedDeployComponents := []deployComponentSpec{
+		{Name: "comp1-build", Runtime: nil},
+		{Name: "comp2-build", Runtime: nil},
+		{Name: "comp3-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "comp4-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp5-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp6-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "comp7-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp1-deploy", Runtime: nil},
+		{Name: "comp2-deploy", Runtime: nil},
+		{Name: "comp3-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "comp4-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp5-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "comp6-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "comp7-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+	}
+	actualDeployComponents := slice.Map(rd.Spec.Components, func(c radixv1.RadixDeployComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Runtime: c.Runtime}
+	})
+	s.ElementsMatch(expectedDeployComponents, actualDeployComponents)
+	expectedJobComponents := []deployComponentSpec{
+		{Name: "job1-build", Runtime: nil},
+		{Name: "job2-build", Runtime: nil},
+		{Name: "job3-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "job4-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job5-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job6-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "job7-build", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job1-deploy", Runtime: nil},
+		{Name: "job2-deploy", Runtime: nil},
+		{Name: "job3-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "job4-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job5-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{Name: "job6-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{Name: "job7-deploy", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+	}
+	actualJobComponents := slice.Map(rd.Spec.Jobs, func(c radixv1.RadixDeployJobComponent) deployComponentSpec {
+		return deployComponentSpec{Name: c.Name, Runtime: c.Runtime}
+	})
+	s.ElementsMatch(expectedJobComponents, actualJobComponents)
+}
+
 func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	appName, envName, rjName, buildBranch, jobPort := "anyapp", "dev", "anyrj", "anybranch", pointers.Ptr[int32](9999)
 	prepareConfigMapName := "preparecm"
@@ -428,13 +571,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+	deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
@@ -580,13 +723,13 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+	deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
@@ -1051,15 +1194,15 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			}
 			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, test.prepareBuildCtx))
 			pipeline := model.PipelineInfo{PipelineArguments: piplineArgs, RadixConfigMapName: prepareConfigMapName}
-			applyStep := steps.NewApplyConfigStep()
+			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 			jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 			if len(test.expectedJobContainers) > 0 {
 				jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 			}
-			buildStep := steps.NewBuildStep(jobWaiter)
+			buildStep := build.NewBuildStep(jobWaiter)
 			buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-			deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+			deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
 			deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 			// Run pipeline steps
@@ -1127,9 +1270,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_ImageTagNames() {
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+	deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
@@ -1185,9 +1328,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
@@ -1225,9 +1368,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_UseCache() {
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
@@ -1264,9 +1407,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithDockerfileName() {
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
@@ -1303,9 +1446,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithSourceFolder() {
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
@@ -1344,11 +1487,11 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+	deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
@@ -1409,9 +1552,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
@@ -1467,20 +1610,14 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace, ReadOnly: false},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-		{Name: steps.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
-		{Name: steps.BuildKitRootVolumeName, MountPath: "/root", ReadOnly: false},
+		{Name: build.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
+		{Name: build.BuildKitRootVolumeName, MountPath: "/root", ReadOnly: false},
 		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
-		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
+		{Name: build.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
 		{Name: "tmp-build-c1-dev", MountPath: "/tmp", ReadOnly: false},
 		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
 	}
 	s.ElementsMatch(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
-	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
-		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
-		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
-	}}}}}}
-	s.Equal(expectedAffinity, job.Spec.Template.Spec.Affinity)
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
@@ -1515,9 +1652,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
@@ -1586,9 +1723,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
@@ -1601,10 +1738,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
 		{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
-		{Name: steps.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
+		{Name: build.RadixImageBuilderHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
 		{Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}}},
-		{Name: steps.BuildKitRunVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
-		{Name: steps.BuildKitRootVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
+		{Name: build.BuildKitRunVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
+		{Name: build.BuildKitRootVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 		{Name: "tmp-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 		{Name: "var-build-c1-dev", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 	}
@@ -1614,10 +1751,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	expectedVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace, ReadOnly: false},
 		{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-		{Name: steps.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
-		{Name: steps.BuildKitRootVolumeName, MountPath: "/root", ReadOnly: false},
+		{Name: build.BuildKitRunVolumeName, MountPath: "/run", ReadOnly: false},
+		{Name: build.BuildKitRootVolumeName, MountPath: "/root", ReadOnly: false},
 		{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
-		{Name: steps.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
+		{Name: build.RadixImageBuilderHomeVolumeName, MountPath: "/home/build", ReadOnly: false},
 		{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true},
 		{Name: "tmp-build-c1-dev", MountPath: "/tmp", ReadOnly: false},
 		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
@@ -1645,6 +1782,78 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	)
 	expectedCommand := []string{"/bin/bash", "-c", expectedBuildCmd}
 	s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
+}
+
+func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_RuntimeAffinity() {
+	appName, rjName, comp1Name, comp2Name := "anyapp", "anyrj", "c1", "c2"
+	prepareConfigMapName := "preparecm"
+	gitConfigMapName, gitHash, gitTags := "gitcm", "githash", "gittags"
+	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithBuildKit(pointers.Ptr(true)).
+		WithEnvironment("dev", "main").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(comp1Name),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(comp2Name).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+		).
+		BuildRA()
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
+	pipeline := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType:         "build-deploy",
+			Branch:               "main",
+			JobName:              rjName,
+			BuildKitImageBuilder: "anybuildkitimage:tag",
+			ImageTag:             "anyimagetag",
+			ContainerRegistry:    "anyregistry",
+			AppContainerRegistry: "anyappregistry",
+			Clustertype:          "anyclustertype",
+			Clustername:          "anyclustername",
+			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+		},
+		RadixConfigMapName: prepareConfigMapName,
+		GitConfigMapName:   gitConfigMapName,
+	}
+	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
+	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(2)
+
+	applyStep := applyconfig.NewApplyConfigStep()
+	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	buildStep := build.NewBuildStep(jobWaiter)
+	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 2)
+
+	getJobByName := func(jobName string) (batchv1.Job, bool) {
+		return slice.FindFirst(jobs.Items, func(j batchv1.Job) bool {
+			return j.Labels[kube.RadixComponentLabel] == jobName
+		})
+	}
+
+	comp1job, ok := getJobByName(comp1Name)
+	s.True(ok)
+	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+	}}}}}}
+	s.Equal(expectedAffinity, comp1job.Spec.Template.Spec.Affinity)
+
+	comp2job, ok := getJobByName(comp2Name)
+	s.True(ok)
+	expectedAffinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
+		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
+		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
+	}}}}}}
+	s.Equal(expectedAffinity, comp2job.Spec.Template.Spec.Affinity)
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
@@ -1736,13 +1945,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 		RadixConfigMapName: prepareConfigMapName,
 	}
 
-	applyStep := steps.NewApplyConfigStep()
+	applyStep := applyconfig.NewApplyConfigStep()
 	applyStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
-	buildStep := steps.NewBuildStep(jobWaiter)
+	buildStep := build.NewBuildStep(jobWaiter)
 	buildStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	deployStep := steps.NewDeployStep(FakeNamespaceWatcher{}, FakeRadixDeploymentWatcher{})
+	deployStep := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
 	deployStep.Init(s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))

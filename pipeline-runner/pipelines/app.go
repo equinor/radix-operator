@@ -6,7 +6,12 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/build"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/deploy"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -112,12 +117,12 @@ func (cli *PipelineRunner) TearDown(ctx context.Context) {
 
 func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, steps.NewPreparePipelinesStep(nil))
-	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
-	stepImplementations = append(stepImplementations, steps.NewBuildStep(nil))
-	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep(nil))
-	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(cli.kubeclient), watcher.NewRadixDeploymentWatcher(cli.radixclient, time.Minute*5)))
-	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
+	stepImplementations = append(stepImplementations, preparepipeline.NewPreparePipelinesStep(nil))
+	stepImplementations = append(stepImplementations, applyconfig.NewApplyConfigStep())
+	stepImplementations = append(stepImplementations, build.NewBuildStep(nil))
+	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep(nil))
+	stepImplementations = append(stepImplementations, deploy.NewDeployStep(watcher.NewNamespaceWatcherImpl(cli.kubeclient), watcher.NewRadixDeploymentWatcher(cli.radixclient, time.Minute*5)))
+	stepImplementations = append(stepImplementations, promote.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
