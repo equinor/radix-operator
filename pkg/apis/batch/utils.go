@@ -34,7 +34,7 @@ func isBatchJobPhaseDone(phase radixv1.RadixBatchJobPhase) bool {
 }
 
 func isBatchDone(batch *radixv1.RadixBatch) bool {
-	if batch.Status.Condition.Type != radixv1.BatchConditionTypeCompleted {
+	if batch.Status.Condition.Type != radixv1.BatchConditionTypeSucceeded {
 		return false
 	}
 	return !slice.Any(batch.Spec.Jobs, func(batchJob radixv1.RadixBatchJob) bool {

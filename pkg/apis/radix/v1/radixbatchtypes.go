@@ -155,8 +155,17 @@ const (
 	// Active means that all jobs are in phase Active.
 	BatchConditionTypeActive RadixBatchConditionType = "Active"
 
-	// Completed means that all jobs are in Succeeded, Failed or Stopped phase.
+	// Failed means that any job is in Failed phase.
+	BatchConditionTypeFailed RadixBatchConditionType = "Failed"
+
+	// Obsolete. Completed means that all jobs are in Succeeded, Failed or Stopped phase.
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"
+
+	// Succeeded means that all jobs are in Succeeded phase.
+	BatchConditionTypeSucceeded RadixBatchConditionType = "Succeeded"
+
+	// Stopped means that any job is in Stopped phase.
+	BatchConditionTypeStopped RadixBatchConditionType = "Stopped"
 )
 
 // A label for the condition of a pod at the current time.

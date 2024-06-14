@@ -109,7 +109,7 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 	created, started, ended := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 3, 0, 0, 0, 0, time.Local))
 	expectedStatus := radixv1.RadixBatchStatus{
 		Condition: radixv1.RadixBatchCondition{
-			Type:           radixv1.BatchConditionTypeCompleted,
+			Type:           radixv1.BatchConditionTypeSucceeded,
 			Reason:         "any reson",
 			Message:        "any message",
 			ActiveTime:     &started,
@@ -200,7 +200,7 @@ func (s *syncerTestSuite) Test_ShouldRestoreStatusFromAnnotationWhenStatusEmpty(
 	created, started, ended := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 3, 0, 0, 0, 0, time.Local))
 	expectedStatus := radixv1.RadixBatchStatus{
 		Condition: radixv1.RadixBatchCondition{
-			Type:    radixv1.BatchConditionTypeCompleted,
+			Type:    radixv1.BatchConditionTypeSucceeded,
 			Reason:  "any reson",
 			Message: "any message",
 		},
@@ -256,7 +256,7 @@ func (s *syncerTestSuite) Test_ShouldNotRestoreStatusFromAnnotationWhenStatusNot
 	jobName, namespace := "any-job", "any-ns"
 	expectedStatus := radixv1.RadixBatchStatus{
 		Condition: radixv1.RadixBatchCondition{
-			Type:    radixv1.BatchConditionTypeCompleted,
+			Type:    radixv1.BatchConditionTypeSucceeded,
 			Reason:  "any reson",
 			Message: "any message",
 		},
@@ -275,7 +275,7 @@ func (s *syncerTestSuite) Test_ShouldNotRestoreStatusFromAnnotationWhenStatusNot
 }
 
 func (s *syncerTestSuite) Test_ShouldSkipReconcileResourcesWhenBatchConditionIsDone() {
-	doneConditions := []radixv1.RadixBatchConditionType{radixv1.BatchConditionTypeCompleted}
+	doneConditions := []radixv1.RadixBatchConditionType{radixv1.BatchConditionTypeSucceeded}
 
 	for i, conditionType := range doneConditions {
 		s.Run(string(conditionType), func() {
@@ -1365,7 +1365,7 @@ func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 			testName:                  "stop flag set to true for both jobs",
 			stopStatus:                map[string]bool{"job1": true, "job2": true},
 			expectedSyncErr:           nil,
-			expectedType:              radixv1.BatchConditionTypeCompleted,
+			expectedType:              radixv1.BatchConditionTypeStopped,
 			expectedReason:            "",
 			expectedMessage:           "",
 			expectedCompletionTimeSet: true,
@@ -1453,7 +1453,17 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	s.NotNil(batch.Status.Condition.ActiveTime)
 	s.Nil(batch.Status.Condition.CompletionTime)
 
-	// Set job2 condition to failed => batch condition is Running
+	// Set job3 to stopped => batch condition is Running
+	batch.Spec.Jobs[2].Stop = pointers.Ptr(true)
+	sut = s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.BatchConditionTypeStopped, batch.Status.Condition.Type)
+	s.NotNil(batch.Status.Condition.ActiveTime)
+	s.NotNil(batch.Status.Condition.CompletionTime)
+
+	// Set job2 condition to failed => batch condition is Failing
 	s.updateKubeJobStatus(getKubeJobName(batchName, job2Name), namespace)(func(status *batchv1.JobStatus) {
 		status.Failed = 1
 		status.Conditions = []batchv1.JobCondition{
@@ -1464,21 +1474,11 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
-	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
+	s.Equal(radixv1.BatchConditionTypeFailed, batch.Status.Condition.Type)
 	s.NotNil(batch.Status.Condition.ActiveTime)
-	s.Nil(batch.Status.Condition.CompletionTime)
+	s.NotNil(batch.Status.Condition.CompletionTime)
 
-	// Set job3 to stopped => batch condition is Running
-	batch.Spec.Jobs[2].Stop = pointers.Ptr(true)
-	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
-	s.NotNil(batch.Status.Condition.ActiveTime)
-	s.Nil(batch.Status.Condition.CompletionTime)
-
-	// Set job1 condition to failed => batch condition is Completed
+	// Set job1 condition to failed => batch condition is Failed
 	s.updateKubeJobStatus(getKubeJobName(batchName, job1Name), namespace)(func(status *batchv1.JobStatus) {
 		status.Active = 0
 		status.Succeeded = 1
@@ -1490,7 +1490,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	s.Require().NoError(sut.OnSync(context.Background()))
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Require().NoError(err)
-	s.Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
+	s.Equal(radixv1.BatchConditionTypeFailed, batch.Status.Condition.Type)
 	s.NotNil(batch.Status.Condition.ActiveTime)
 	s.NotNil(batch.Status.Condition.CompletionTime)
 }
@@ -1816,7 +1816,7 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 	}
 	scenarios := []scenario{
 		{
-			name:               "all waiting - batch is active",
+			name:               "all waiting - batch is waiting",
 			jobNames:           []string{"j1", "j2"},
 			initialJobStatuses: map[string]func(status *batchv1.JobStatus){},
 			updateJobStatuses:  map[string]updateJobStatus{},
@@ -1826,6 +1826,21 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 			},
 			expectedBatchStatus: expectedBatchStatusProps{
 				conditionType: radixv1.BatchConditionTypeWaiting,
+			},
+		},
+		{
+			name:     "one waiting, one active - batch is active",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseActive},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseWaiting},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
 			},
 		},
 		{
@@ -1845,7 +1860,48 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 			},
 		},
 		{
-			name:     "all completed - batch is completed",
+			name:     "one active, one succeeded - batch is active",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j2": updateJobStatus{
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseActive},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "one waiting, one active, one succeeded - batch is active",
+			jobNames: []string{"j1", "j2", "j3"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j2": startJobStatusFunc,
+				"j3": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j3": updateJobStatus{
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseWaiting},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseActive},
+				"j3": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "all completed - batch is succeeded",
 			jobNames: []string{"j1", "j2"},
 			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
 				"j1": startJobStatusFunc,
@@ -1864,7 +1920,7 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseSucceeded},
 			},
 			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeCompleted,
+				conditionType: radixv1.BatchConditionTypeSucceeded,
 			},
 		},
 		{
@@ -1887,7 +1943,26 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseFailed},
 			},
 			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeCompleted,
+				conditionType: radixv1.BatchConditionTypeFailed,
+			},
+		},
+		{
+			name:     "one waiting, one failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j2": updateJobStatus{
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": expectedJobStatusProps{phase: radixv1.BatchJobPhaseWaiting},
+				"j2": expectedJobStatusProps{phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeFailed,
 			},
 		},
 	}
