@@ -234,10 +234,10 @@ func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName strin
 	for _, pod := range s.getJobPods(ctx, batchJobName) {
 		podStatus := getOrCreatePodStatusForPod(&pod, jobStatus, podStatusMap)
 		if containerStatus, ok := s.getJobComponentContainerStatus(jobComponentName, pod); ok {
-			setPodStatusByPodLastContainerStatus(containerStatus, podStatus)
+			setPodStatusByPodLastContainerStatus(containerStatus, podStatus, jobStatus)
 			continue
 		}
-		setPodStatusByPodCondition(&pod, podStatus)
+		setPodStatusByPodCondition(&pod, podStatus, jobStatus)
 	}
 }
 
@@ -261,7 +261,7 @@ func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJo
 		})
 		podStatus = &jobStatus.RadixBatchJobPodStatuses[len(jobStatus.RadixBatchJobPodStatuses)-1]
 	}
-	if jobStatus.Phase == radixv1.BatchJobPhaseStopped {
+	if podStatePhaseShouldBeStopped(jobStatus, podStatus) {
 		podStatus.Phase = radixv1.PodStopped
 	}
 	return podStatus
@@ -276,7 +276,7 @@ func (s *syncer) getJobPods(ctx context.Context, batchJobName string) []corev1.P
 	return jobPods.Items
 }
 
-func setPodStatusByPodLastContainerStatus(containerStatus *corev1.ContainerStatus, podStatus *radixv1.RadixBatchJobPodStatus) {
+func setPodStatusByPodLastContainerStatus(containerStatus *corev1.ContainerStatus, podStatus *radixv1.RadixBatchJobPodStatus, jobStatus *radixv1.RadixBatchJobStatus) {
 	podStatus.RestartCount = containerStatus.RestartCount
 	podStatus.Image = containerStatus.Image
 	podStatus.ImageID = containerStatus.ImageID
@@ -306,6 +306,9 @@ func setPodStatusByPodLastContainerStatus(containerStatus *corev1.ContainerStatu
 		podStatus.EndTime = &containerStatus.State.Terminated.FinishedAt
 		podStatus.Message = extendMessage(podStatus)
 	}
+	if podStatePhaseShouldBeStopped(jobStatus, podStatus) {
+		podStatus.Phase = radixv1.PodStopped
+	}
 }
 
 func extendMessage(podStatus *radixv1.RadixBatchJobPodStatus) string {
@@ -322,7 +325,7 @@ func extendMessage(podStatus *radixv1.RadixBatchJobPodStatus) string {
 	return ""
 }
 
-func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJobPodStatus) {
+func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJobPodStatus, jobStatus *radixv1.RadixBatchJobStatus) {
 	if len(pod.Status.Conditions) == 0 {
 		return
 	}
@@ -336,6 +339,14 @@ func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJo
 	podStatus.Reason = conditions[0].Reason
 	podStatus.Message = conditions[0].Message
 	podStatus.Phase = radixv1.RadixBatchJobPodPhase(pod.Status.Phase)
+	if podStatePhaseShouldBeStopped(jobStatus, podStatus) {
+		podStatus.Phase = radixv1.PodStopped
+	}
+}
+
+func podStatePhaseShouldBeStopped(jobStatus *radixv1.RadixBatchJobStatus, podStatus *radixv1.RadixBatchJobPodStatus) bool {
+	return jobStatus.Phase == radixv1.BatchJobPhaseStopped &&
+		(podStatus.Phase == radixv1.PodPending || podStatus.Phase == radixv1.PodRunning)
 }
 
 func getPodStatusMap(status *radixv1.RadixBatchJobStatus) map[string]*radixv1.RadixBatchJobPodStatus {

@@ -33,13 +33,28 @@ func isBatchJobPhaseDone(phase radixv1.RadixBatchJobPhase) bool {
 		phase == radixv1.BatchJobPhaseStopped
 }
 
+func isBatchPhaseDone(phase radixv1.RadixBatchConditionType) bool {
+	return phase == radixv1.BatchConditionTypeFailed ||
+		phase == radixv1.BatchConditionTypeSucceeded ||
+		phase == radixv1.BatchConditionTypeStopped ||
+		phase == radixv1.BatchConditionTypeCompleted
+}
+
 func isBatchDone(batch *radixv1.RadixBatch) bool {
-	if batch.Status.Condition.Type != radixv1.BatchConditionTypeSucceeded {
-		return false
-	}
-	return !slice.Any(batch.Spec.Jobs, func(batchJob radixv1.RadixBatchJob) bool {
-		return len(batchJob.Restart) > 0
+	jobStatusesMap := slice.Reduce(batch.Status.JobStatuses, make(map[string]radixv1.RadixBatchJobStatus), func(acc map[string]radixv1.RadixBatchJobStatus, jobStatus radixv1.RadixBatchJobStatus) map[string]radixv1.RadixBatchJobStatus {
+		acc[jobStatus.Name] = jobStatus
+		return acc
 	})
+	for _, batchJob := range batch.Spec.Jobs {
+		jobStatus, ok := jobStatusesMap[batchJob.Name]
+		if !ok {
+			return false
+		}
+		if !isBatchJobPhaseDone(jobStatus.Phase) || needRestartJob(batchJob.Restart, jobStatus.Restart) {
+			return false
+		}
+	}
+	return isBatchPhaseDone(batch.Status.Condition.Type)
 }
 
 func isBatchJobDone(batch *radixv1.RadixBatch, batchJobName string) bool {
