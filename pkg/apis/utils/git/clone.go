@@ -64,7 +64,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 		},
 		{
 			Name:            cloneContainerName,
-			Image:           "alpine/git:2.45.1",
+			Image:           "alpine/git:2.45.2",
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         gitCloneCmd,
 			VolumeMounts: []corev1.VolumeMount{
