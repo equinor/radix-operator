@@ -29,18 +29,6 @@ func isJobStatusDone(jobStatus radixv1.RadixBatchJobStatus) bool {
 		jobStatus.Phase == radixv1.BatchJobPhaseStopped
 }
 
-func isJobStatusSucceeded(jobStatus radixv1.RadixBatchJobStatus) bool {
-	return jobStatus.Phase == radixv1.BatchJobPhaseSucceeded
-}
-
-func isJobStatusStopped(jobStatus radixv1.RadixBatchJobStatus) bool {
-	return jobStatus.Phase == radixv1.BatchJobPhaseStopped
-}
-
-func isJobStatusFailed(jobStatus radixv1.RadixBatchJobStatus) bool {
-	return jobStatus.Phase == radixv1.BatchJobPhaseFailed
-}
-
 func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 	jobStatuses, err := s.buildJobStatuses(ctx)
 	if err != nil {
@@ -51,12 +39,8 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 	switch {
 	case slice.All(jobStatuses, isJobStatusWaiting):
 		conditionType = radixv1.BatchConditionTypeWaiting
-	case slice.All(jobStatuses, isJobStatusSucceeded):
-		conditionType = radixv1.BatchConditionTypeSucceeded
-	case slice.Any(jobStatuses, isJobStatusFailed):
-		conditionType = radixv1.BatchConditionTypeFailed
-	case slice.Any(jobStatuses, isJobStatusStopped):
-		conditionType = radixv1.BatchConditionTypeStopped
+	case slice.All(jobStatuses, isJobStatusDone):
+		conditionType = radixv1.BatchConditionTypeCompleted
 	}
 
 	err = s.updateStatus(ctx, func(currStatus *radixv1.RadixBatchStatus) {
@@ -75,7 +59,7 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 				currStatus.Condition.ActiveTime = &now
 			}
 			currStatus.Condition.CompletionTime = nil
-		case radixv1.BatchConditionTypeSucceeded, radixv1.BatchConditionTypeFailed, radixv1.BatchConditionTypeStopped:
+		case radixv1.BatchConditionTypeCompleted:
 			now := metav1.Now()
 			if currStatus.Condition.ActiveTime == nil {
 				currStatus.Condition.ActiveTime = &now

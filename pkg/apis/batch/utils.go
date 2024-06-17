@@ -33,13 +33,6 @@ func isBatchJobPhaseDone(phase radixv1.RadixBatchJobPhase) bool {
 		phase == radixv1.BatchJobPhaseStopped
 }
 
-func isBatchPhaseDone(phase radixv1.RadixBatchConditionType) bool {
-	return phase == radixv1.BatchConditionTypeFailed ||
-		phase == radixv1.BatchConditionTypeSucceeded ||
-		phase == radixv1.BatchConditionTypeStopped ||
-		phase == radixv1.BatchConditionTypeCompleted
-}
-
 func isBatchDone(batch *radixv1.RadixBatch) bool {
 	jobStatusesMap := slice.Reduce(batch.Status.JobStatuses, make(map[string]radixv1.RadixBatchJobStatus), func(acc map[string]radixv1.RadixBatchJobStatus, jobStatus radixv1.RadixBatchJobStatus) map[string]radixv1.RadixBatchJobStatus {
 		acc[jobStatus.Name] = jobStatus
@@ -54,7 +47,7 @@ func isBatchDone(batch *radixv1.RadixBatch) bool {
 			return false
 		}
 	}
-	return isBatchPhaseDone(batch.Status.Condition.Type)
+	return batch.Status.Condition.Type == radixv1.BatchConditionTypeCompleted
 }
 
 func isBatchJobDone(batch *radixv1.RadixBatch, batchJobName string) bool {

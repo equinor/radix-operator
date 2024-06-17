@@ -206,9 +206,6 @@ spec:
                     - Waiting
                     - Active
                     - Completed
-                    - Failed
-                    - Succeeded
-                    - Stopped
                     type: string
                 required:
                 - type
