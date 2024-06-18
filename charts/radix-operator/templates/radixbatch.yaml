@@ -202,10 +202,6 @@ spec:
                     type: string
                   type:
                     description: Type of RadixBatch condition.
-                    enum:
-                    - Waiting
-                    - Active
-                    - Completed
                     type: string
                 required:
                 - type

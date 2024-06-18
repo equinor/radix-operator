@@ -2101,6 +2101,51 @@ spec:
                       format: int32
                       minimum: 0
                       type: integer
+                    batchStatusRules:
+                      description: BatchStatusRules Rules define how a batch status
+                        is set corresponding to batch job statuses
+                      items:
+                        description: BatchStatusRule Rule how to set a batch status
+                          by job statuses
+                        properties:
+                          batchStatus:
+                            description: BatchStatus The status of the batch corresponding
+                              to job statuses
+                            enum:
+                            - Waiting
+                            - Active
+                            - Completed
+                            - Failed
+                            - Succeeded
+                            - Stopped
+                            type: string
+                          condition:
+                            description: Condition of a rule
+                            enum:
+                            - All
+                            - Any
+                            type: string
+                          jobStatuses:
+                            description: JobStatuses Matching job statuses within
+                              the rule
+                            items:
+                              description: RadixBatchJobPhase represents the phase
+                                of the job
+                              enum:
+                              - Waiting
+                              - Active
+                              - Running
+                              - Succeeded
+                              - Failed
+                              - Stopped
+                              type: string
+                            type: array
+                        required:
+                        - batchStatus
+                        - condition
+                        - jobStatuses
+                        type: object
+                      type: array
                     dockerfileName:
                       description: |-
                         Name of the Dockerfile that builds the job.
@@ -2125,6 +2170,52 @@ spec:
                             format: int32
                             minimum: 0
                             type: integer
+                          batchStatusRules:
+                            description: BatchStatusRules Rules define how a batch
+                              status in an environment is set corresponding to batch
+                              job statuses
+                            items:
+                              description: BatchStatusRule Rule how to set a batch
+                                status by job statuses
+                              properties:
+                                batchStatus:
+                                  description: BatchStatus The status of the batch
+                                    corresponding to job statuses
+                                  enum:
+                                  - Waiting
+                                  - Active
+                                  - Completed
+                                  - Failed
+                                  - Succeeded
+                                  - Stopped
+                                  type: string
+                                condition:
+                                  description: Condition of a rule
+                                  enum:
+                                  - All
+                                  - Any
+                                  type: string
+                                jobStatuses:
+                                  description: JobStatuses Matching job statuses within
+                                    the rule
+                                  items:
+                                    description: RadixBatchJobPhase represents the
+                                      phase of the job
+                                    enum:
+                                    - Waiting
+                                    - Active
+                                    - Running
+                                    - Succeeded
+                                    - Failed
+                                    - Stopped
+                                    type: string
+                                  type: array
+                              required:
+                              - batchStatus
+                              - condition
+                              - jobStatuses
+                              type: object
+                            type: array
                           dockerfileName:
                             description: |-
                               Name of the Dockerfile that builds the component.

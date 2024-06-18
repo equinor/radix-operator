@@ -94,6 +94,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 	if err != nil {
 		errs = append(errs, err)
 	}
+	batchStatusRules := getBatchStatusRules(&radixJobComponent, environmentSpecificConfig)
 	if len(errs) > 0 {
 		return nil, stderrors.Join(errs...)
 	}
@@ -118,6 +119,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		ReadOnlyFileSystem:   getRadixCommonComponentReadOnlyFileSystem(&radixJobComponent, environmentSpecificConfig),
 		VolumeMounts:         volumeMounts,
 		Runtime:              componentImage.Runtime,
+		BatchStatusRules:     batchStatusRules,
 	}
 	return &deployJob, nil
 }
