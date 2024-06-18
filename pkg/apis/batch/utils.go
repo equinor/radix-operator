@@ -11,14 +11,6 @@ import (
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
 
-func isResourceLabeledWithBatchJobName(batchJobName string, resource metav1.Object) bool {
-	return kubelabels.SelectorFromSet(radixlabels.ForBatchJobName(batchJobName)).Matches(kubelabels.Set(resource.GetLabels()))
-}
-
-func isBatchJobStopRequested(batchJob *radixv1.RadixBatchJob) bool {
-	return batchJob.Stop != nil && *batchJob.Stop
-}
-
 func getKubeServiceName(batchName, batchJobName string) string {
 	return fmt.Sprintf("%s-%s", batchName, batchJobName)
 }
@@ -27,10 +19,16 @@ func getKubeJobName(batchName, batchJobName string) string {
 	return fmt.Sprintf("%s-%s", batchName, batchJobName)
 }
 
-func isBatchJobPhaseDone(phase radixv1.RadixBatchJobPhase) bool {
-	return phase == radixv1.BatchJobPhaseSucceeded ||
-		phase == radixv1.BatchJobPhaseFailed ||
-		phase == radixv1.BatchJobPhaseStopped
+func isResourceLabeledWithBatchJobName(batchJobName string, resource metav1.Object) bool {
+	return kubelabels.SelectorFromSet(radixlabels.ForBatchJobName(batchJobName)).Matches(kubelabels.Set(resource.GetLabels()))
+}
+
+func isBatchJobStopRequested(batchJob *radixv1.RadixBatchJob) bool {
+	return batchJob.Stop != nil && *batchJob.Stop
+}
+
+func isJobStatusWaiting(jobStatus radixv1.RadixBatchJobStatus) bool {
+	return jobStatus.Phase == radixv1.BatchJobPhaseWaiting
 }
 
 func isBatchDone(batch *radixv1.RadixBatch) bool {
@@ -43,17 +41,23 @@ func isBatchDone(batch *radixv1.RadixBatch) bool {
 		if !ok {
 			return false
 		}
-		if !isBatchJobPhaseDone(jobStatus.Phase) || needRestartJob(batchJob.Restart, jobStatus.Restart) {
+		if !isJobStatusDone(jobStatus) || needRestartJob(batchJob.Restart, jobStatus.Restart) {
 			return false
 		}
 	}
 	return batch.Status.Condition.Type == radixv1.BatchConditionTypeCompleted
 }
 
+func isJobStatusDone(jobStatus radixv1.RadixBatchJobStatus) bool {
+	return jobStatus.Phase == radixv1.BatchJobPhaseSucceeded ||
+		jobStatus.Phase == radixv1.BatchJobPhaseFailed ||
+		jobStatus.Phase == radixv1.BatchJobPhaseStopped
+}
+
 func isBatchJobDone(batch *radixv1.RadixBatch, batchJobName string) bool {
 	return slice.Any(batch.Status.JobStatuses,
 		func(jobStatus radixv1.RadixBatchJobStatus) bool {
-			return jobStatus.Name == batchJobName && isBatchJobPhaseDone(jobStatus.Phase)
+			return jobStatus.Name == batchJobName && isJobStatusDone(jobStatus)
 		})
 }
 

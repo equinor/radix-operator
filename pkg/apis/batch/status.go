@@ -19,16 +19,6 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func isJobStatusWaiting(jobStatus radixv1.RadixBatchJobStatus) bool {
-	return jobStatus.Phase == radixv1.BatchJobPhaseWaiting
-}
-
-func isJobStatusDone(jobStatus radixv1.RadixBatchJobStatus) bool {
-	return jobStatus.Phase == radixv1.BatchJobPhaseSucceeded ||
-		jobStatus.Phase == radixv1.BatchJobPhaseFailed ||
-		jobStatus.Phase == radixv1.BatchJobPhaseStopped
-}
-
 func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 	jobStatuses, err := s.buildJobStatuses(ctx)
 	if err != nil {
@@ -134,7 +124,7 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 	currentStatus := slice.FindAll(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
 		return jobStatus.Name == batchJob.Name
 	})
-	if len(currentStatus) > 0 && isBatchJobPhaseDone(currentStatus[0].Phase) {
+	if len(currentStatus) > 0 && isJobStatusDone(currentStatus[0]) {
 		return currentStatus[0]
 	}
 
