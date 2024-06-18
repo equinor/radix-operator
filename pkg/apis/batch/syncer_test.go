@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -306,7 +307,7 @@ func (s *syncerTestSuite) Test_ServiceCreated() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -356,7 +357,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedWhenPortsIsEmpty() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name := "job1"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -392,7 +393,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedWhenPortsIsEmpty() {
 func (s *syncerTestSuite) Test_ServiceNotCreatedForJobWithPhaseDone() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -443,7 +444,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "any-image"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -538,7 +539,7 @@ func (s *syncerTestSuite) Test_Batch_AffinityFromRuntime() {
 	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "any-image"
 	jobName, runtimeArch := "job1", "customarch"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -591,7 +592,7 @@ func (s *syncerTestSuite) Test_Batch_AffinityFromRuntime() {
 func (s *syncerTestSuite) Test_JobNotCreatedForJobWithPhaseDone() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -641,7 +642,7 @@ func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -683,7 +684,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -725,7 +726,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithoutJobComponentDefault()
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -766,7 +767,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -806,7 +807,7 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 	appName, batchName, componentName, namespace, rdName, payloadPath, secretName, secretKey := "any-app", "any-job", "compute", "any-ns", "any-rd", "/mnt/path", "any-payload-secret", "any-payload-key"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -885,7 +886,7 @@ func (s *syncerTestSuite) Test_ReadOnlyFileSystem() {
 	for name, test := range tests {
 		s.Run(name, func() {
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName},
+				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 				Spec: radixv1.RadixBatchSpec{
 					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -928,7 +929,7 @@ func (s *syncerTestSuite) Test_JobWithResources() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -983,7 +984,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1032,7 +1033,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1081,7 +1082,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-app-dev", "any-rd"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1131,7 +1132,7 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 	job1Name, job2Name := "job1", "job2"
 	arch := "customarch"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1195,7 +1196,7 @@ func (s *syncerTestSuite) Test_StopJob() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1239,7 +1240,7 @@ func (s *syncerTestSuite) Test_StopJob() {
 func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 	appName, batchName, componentName, namespace, rdName, missingComponentName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "incorrect-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1277,7 +1278,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
 	batchName, namespace, missingRdName, anyJobComponentName := "any-batch", "any-ns", "missing-rd", "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: missingRdName},
@@ -1302,7 +1303,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
 func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 	batchName, namespace, missingRdName, anyJobComponentName := "any-batch", "any-ns", "missing-rd", "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: missingRdName},
@@ -1402,7 +1403,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	batchName, namespace, rdName := "any-batch", "any-ns", "any-rd"
 	job1Name, job2Name, job3Name := "job1", "job2", "job3"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1452,7 +1453,17 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	s.NotNil(batch.Status.Condition.ActiveTime)
 	s.Nil(batch.Status.Condition.CompletionTime)
 
-	// Set job2 condition to failed => batch condition is Running
+	// Set job3 to stopped => batch condition is Running
+	batch.Spec.Jobs[2].Stop = pointers.Ptr(true)
+	sut = s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
+	s.NotNil(batch.Status.Condition.ActiveTime)
+	s.Nil(batch.Status.Condition.CompletionTime)
+
+	// Set job2 condition to failed => batch condition is Failing
 	s.updateKubeJobStatus(getKubeJobName(batchName, job2Name), namespace)(func(status *batchv1.JobStatus) {
 		status.Failed = 1
 		status.Conditions = []batchv1.JobCondition{
@@ -1467,17 +1478,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 	s.NotNil(batch.Status.Condition.ActiveTime)
 	s.Nil(batch.Status.Condition.CompletionTime)
 
-	// Set job3 to stopped => batch condition is Running
-	batch.Spec.Jobs[2].Stop = pointers.Ptr(true)
-	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
-	s.NotNil(batch.Status.Condition.ActiveTime)
-	s.Nil(batch.Status.Condition.CompletionTime)
-
-	// Set job1 condition to failed => batch condition is Completed
+	// Set job1 condition to failed => batch condition is Failed
 	s.updateKubeJobStatus(getKubeJobName(batchName, job1Name), namespace)(func(status *batchv1.JobStatus) {
 		status.Active = 0
 		status.Succeeded = 1
@@ -1499,7 +1500,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 	jobName := "myjob"
 	jobStartTime, jobCompletionTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local))
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1615,7 +1616,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
 	jobName := "myjob"
 	jobStartTime, jobFailedTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local))
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1703,7 +1704,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	jobName := "myjob"
 	jobStartTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local))
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1780,9 +1781,476 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
 	s.NotNil(batch.Status.JobStatuses[0].EndTime)
 }
 
+func (s *syncerTestSuite) Test_BatchStatus() {
+	namespace, rdName := "any-ns", "any-rd"
+	jobStartTime, jobCompletionTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local))
+	type expectedJobStatusProps struct {
+		phase radixv1.RadixBatchJobPhase
+	}
+	type expectedBatchStatusProps struct {
+		conditionType radixv1.RadixBatchConditionType
+	}
+	type updateJobStatus struct {
+		updateRadixBatchJobFunc       func(job *radixv1.RadixBatchJob)
+		updateRadixBatchJobStatusFunc func(status *radixv1.RadixBatchJobStatus)
+	}
+	type scenario struct {
+		name                string
+		initialJobStatuses  map[string]func(status *batchv1.JobStatus)
+		updateJobStatuses   map[string]updateJobStatus
+		jobNames            []string
+		expectedJobStatuses map[string]expectedJobStatusProps
+		expectedBatchStatus expectedBatchStatusProps
+	}
+	startJobStatusFunc := func(status *batchv1.JobStatus) {
+		status.Active = 1
+		status.StartTime = &jobStartTime
+	}
+	succeededJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
+		status.Phase = radixv1.BatchJobPhaseSucceeded
+		status.EndTime = &jobCompletionTime
+	}
+	failedJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
+		status.Phase = radixv1.BatchJobPhaseFailed
+		status.EndTime = &jobCompletionTime
+	}
+	stoppedJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
+		status.Phase = radixv1.BatchJobPhaseStopped
+		status.EndTime = &jobCompletionTime
+	}
+	scenarios := []scenario{
+		{
+			name:               "all waiting - batch is waiting",
+			jobNames:           []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){},
+			updateJobStatuses:  map[string]updateJobStatus{},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseWaiting},
+				"j2": {phase: radixv1.BatchJobPhaseWaiting},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeWaiting,
+			},
+		},
+		{
+			name:     "one waiting, one active - batch is active",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseActive},
+				"j2": {phase: radixv1.BatchJobPhaseWaiting},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "all active - batch is active",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseActive},
+				"j2": {phase: radixv1.BatchJobPhaseActive},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "one active, one succeeded - batch is active",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j2": {
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseActive},
+				"j2": {phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "one waiting, one active, one succeeded - batch is active",
+			jobNames: []string{"j1", "j2", "j3"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j2": startJobStatusFunc,
+				"j3": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j3": {
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseWaiting},
+				"j2": {phase: radixv1.BatchJobPhaseActive},
+				"j3": {phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "all completed - batch is succeeded",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": {
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+				"j2": {
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseSucceeded},
+				"j2": {phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeCompleted,
+			},
+		},
+		{
+			name:     "all failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": {
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+				"j2": {
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseFailed},
+				"j2": {phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeCompleted,
+			},
+		},
+		{
+			name:     "one waiting, one failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j2": {
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseWaiting},
+				"j2": {phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "one active, one failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j2": {
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseActive},
+				"j2": {phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "one succeeded, one failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": {
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+				"j2": {
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseSucceeded},
+				"j2": {phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeCompleted,
+			},
+		},
+		{
+			name:     "one stopped, one failed - batch is failed",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": {
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+				"j2": {
+					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseStopped},
+				"j2": {phase: radixv1.BatchJobPhaseFailed},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeCompleted,
+			},
+		},
+		{
+			name:     "all stopped - batch is stopped",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": {
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+				"j2": {
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseStopped},
+				"j2": {phase: radixv1.BatchJobPhaseStopped},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeCompleted,
+			},
+		},
+		{
+			name:     "one waiting, one stopped - batch is stopped",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": {
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseStopped},
+				"j2": {phase: radixv1.BatchJobPhaseWaiting},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "one active, one stopped - batch is stopped",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": {
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseStopped},
+				"j2": {phase: radixv1.BatchJobPhaseActive},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeActive,
+			},
+		},
+		{
+			name:     "one succeeded, one stopped - batch is stopped",
+			jobNames: []string{"j1", "j2"},
+			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
+				"j1": startJobStatusFunc,
+				"j2": startJobStatusFunc,
+			},
+			updateJobStatuses: map[string]updateJobStatus{
+				"j1": {
+					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
+						job.Stop = pointers.Ptr(true)
+					},
+					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+				},
+				"j2": {
+					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+				},
+			},
+			expectedJobStatuses: map[string]expectedJobStatusProps{
+				"j1": {phase: radixv1.BatchJobPhaseStopped},
+				"j2": {phase: radixv1.BatchJobPhaseSucceeded},
+			},
+			expectedBatchStatus: expectedBatchStatusProps{
+				conditionType: radixv1.BatchConditionTypeCompleted,
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: "any-app",
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name: "any-job",
+				},
+			},
+		},
+	}
+	_, err := s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	for _, ts := range scenarios {
+		s.T().Run(ts.name, func(t *testing.T) {
+			batchName := utils.RandString(10)
+			batch := &radixv1.RadixBatch{
+				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForBatchScheduleJobType()},
+				Spec: radixv1.RadixBatchSpec{
+					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+						Job:                  "any-job",
+					},
+					Jobs: slice.Reduce(ts.jobNames, make([]radixv1.RadixBatchJob, 0), func(acc []radixv1.RadixBatchJob, jobName string) []radixv1.RadixBatchJob {
+						return append(acc, radixv1.RadixBatchJob{Name: jobName})
+					}),
+				},
+			}
+			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			sut := s.createSyncer(batch)
+			s.Require().NoError(sut.OnSync(context.Background()))
+			allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{
+				LabelSelector: radixlabels.ForBatchName(batchName).String(),
+			})
+			s.Require().NoError(err)
+			s.Require().Len(allJobs.Items, len(ts.jobNames))
+
+			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+			s.Require().NoError(err)
+			// Initial phase is Waiting
+			s.Require().Len(batch.Status.JobStatuses, len(ts.jobNames))
+			for _, jobStatus := range batch.Status.JobStatuses {
+				s.Equal(radixv1.BatchJobPhaseWaiting, jobStatus.Phase)
+				s.Equal(&allJobs.Items[0].CreationTimestamp, jobStatus.CreationTime)
+				s.Empty(jobStatus.Reason)
+				s.Empty(jobStatus.Message)
+				s.Nil(jobStatus.StartTime)
+				s.Nil(jobStatus.EndTime)
+			}
+
+			for jobName, setStatusFunc := range ts.initialJobStatuses {
+				s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(setStatusFunc)
+			}
+			sut = s.createSyncer(batch)
+			s.Require().NoError(sut.OnSync(context.Background()))
+			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+			s.Require().NoError(err)
+
+			jobMap := getRadixBatchJobsMap(batch)
+			jobStatusMap := getRadixBatchJobStatusesMap(batch)
+			for jobName, update := range ts.updateJobStatuses {
+				job, ok := jobMap[jobName]
+				s.Require().True(ok, "Not found expected job %s", jobName)
+				if update.updateRadixBatchJobFunc != nil {
+					update.updateRadixBatchJobFunc(job)
+				}
+				if update.updateRadixBatchJobStatusFunc != nil {
+					status, ok := jobStatusMap[jobName]
+					s.Require().True(ok, "Not found expected status for the job  %s", jobName)
+					update.updateRadixBatchJobStatusFunc(status)
+				}
+			}
+			sut = s.createSyncer(batch)
+			s.Require().NoError(sut.OnSync(context.Background()))
+			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+			s.Require().NoError(err)
+			jobStatusMap = getRadixBatchJobStatusesMap(batch)
+			s.Require().Len(jobStatusMap, len(ts.expectedJobStatuses), "expectedJobStatuses does not match jobStatusMap")
+			for _, jobStatus := range batch.Status.JobStatuses {
+				jobStatusProps, ok := ts.expectedJobStatuses[jobStatus.Name]
+				s.Require().True(ok, "Not found expected job status %s", jobStatus.Name)
+				s.Equal(jobStatusProps.phase, jobStatus.Phase, "unexpected job status phase")
+			}
+			s.Require().Equal(ts.expectedBatchStatus.conditionType, batch.Status.Condition.Type, "unexpected batch status condition type")
+		})
+	}
+}
+
+func getRadixBatchJobsMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJob {
+	batchJobsMap := make(map[string]*radixv1.RadixBatchJob)
+	for i := 0; i < len(batch.Spec.Jobs); i++ {
+		batchJobsMap[batch.Spec.Jobs[i].Name] = &batch.Spec.Jobs[i]
+	}
+	return batchJobsMap
+}
+
+func getRadixBatchJobStatusesMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJobStatus {
+	jobStatusMap := make(map[string]*radixv1.RadixBatchJobStatus)
+	for i := 0; i < len(batch.Status.JobStatuses); i++ {
+		jobStatusMap[batch.Status.JobStatuses[i].Name] = &batch.Status.JobStatuses[i]
+	}
+	return jobStatusMap
+}
+
 func (s *syncerTestSuite) updateKubeJobStatus(jobName, namespace string) func(updater func(status *batchv1.JobStatus)) {
 	job, err := s.kubeClient.BatchV1().Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return func(updater func(status *batchv1.JobStatus)) {}
+		}
 		s.FailNow(err.Error())
 	}
 	return func(updater func(status *batchv1.JobStatus)) {

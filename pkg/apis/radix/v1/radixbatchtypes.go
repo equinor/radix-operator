@@ -160,7 +160,7 @@ const (
 )
 
 // A label for the condition of a pod at the current time.
-// +kubebuilder:validation:Enum=Pending;Running;Succeeded;Failed
+// +kubebuilder:validation:Enum=Pending;Running;Succeeded;Failed;Stopped
 type RadixBatchJobPodPhase string
 
 // These are the valid statuses of job's pods.
@@ -178,6 +178,8 @@ const (
 	// PodFailed means that all containers in the pod have terminated, and at least one container has
 	// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 	PodFailed RadixBatchJobPodPhase = "Failed"
+	// PodStopped means that it was deleted due too stopped job.
+	PodStopped RadixBatchJobPodPhase = "Stopped"
 )
 
 // RadixBatchCondition describes the state of the RadixBatch
