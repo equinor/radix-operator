@@ -7,7 +7,7 @@ toolchain go1.22.1
 require (
 	dario.cat/mergo v1.0.0
 	github.com/cert-manager/cert-manager v1.14.2
-	github.com/equinor/radix-common v1.7.1
+	github.com/equinor/radix-common v1.9.2
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/kedacore/keda/v2 v2.13.1
