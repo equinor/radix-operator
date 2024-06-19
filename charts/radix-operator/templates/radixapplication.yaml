@@ -2137,10 +2137,17 @@ spec:
                               - Stopped
                               type: string
                             type: array
+                          operator:
+                            description: Operator of a rule
+                            enum:
+                            - In
+                            - NotIn
+                            type: string
                         required:
                         - batchStatus
                         - condition
                         - jobStatuses
+                        - operator
                         type: object
                       type: array
                     dockerfileName:
@@ -2204,10 +2211,17 @@ spec:
                                     - Stopped
                                     type: string
                                   type: array
+                                operator:
+                                  description: Operator of a rule
+                                  enum:
+                                  - In
+                                  - NotIn
+                                  type: string
                               required:
                               - batchStatus
                               - condition
                               - jobStatuses
+                              - operator
                               type: object
                             type: array
                           dockerfileName:

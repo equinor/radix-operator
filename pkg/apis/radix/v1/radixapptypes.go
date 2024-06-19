@@ -1411,6 +1411,9 @@ type BatchStatusRule struct {
 	// Condition of a rule
 	// +kubebuilder:validation:Enum=All;Any
 	Condition Condition `json:"condition" yaml:"condition"`
+	// Operator of a rule
+	// +kubebuilder:validation:Enum=In;NotIn
+	Operator Operator `json:"operator" yaml:"operator"`
 	// JobStatuses Matching job statuses within the rule
 	JobStatuses []RadixBatchJobPhase `json:"jobStatuses" yaml:"jobStatuses"`
 	// BatchStatus The status of the batch corresponding to job statuses
@@ -1426,6 +1429,16 @@ const (
 	ConditionAll Condition = "All"
 	// ConditionAny Any operations match
 	ConditionAny Condition = "Any"
+)
+
+// Operator of a rule
+type Operator string
+
+const (
+	// OperatorIn Values are within the list
+	OperatorIn Condition = "In"
+	// OperatorNotIn Values are not within the list
+	OperatorNotIn Condition = "NotIn"
 )
 
 // RadixCommonComponent defines a common component interface for Radix components

@@ -2165,12 +2165,21 @@
                         "type": "string"
                       },
                       "type": "array"
+                    },
+                    "operator": {
+                      "description": "Operator of a rule",
+                      "enum": [
+                        "In",
+                        "NotIn"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
                     "batchStatus",
                     "condition",
-                    "jobStatuses"
+                    "jobStatuses",
+                    "operator"
                   ],
                   "type": "object"
                 },
@@ -2232,12 +2241,21 @@
                               "type": "string"
                             },
                             "type": "array"
+                          },
+                          "operator": {
+                            "description": "Operator of a rule",
+                            "enum": [
+                              "In",
+                              "NotIn"
+                            ],
+                            "type": "string"
                           }
                         },
                         "required": [
                           "batchStatus",
                           "condition",
-                          "jobStatuses"
+                          "jobStatuses",
+                          "operator"
                         ],
                         "type": "object"
                       },
