@@ -2138,10 +2138,7 @@
                       "enum": [
                         "Waiting",
                         "Active",
-                        "Completed",
-                        "Failed",
-                        "Succeeded",
-                        "Stopped"
+                        "Completed"
                       ],
                       "type": "string"
                     },
@@ -2208,10 +2205,7 @@
                             "enum": [
                               "Waiting",
                               "Active",
-                              "Completed",
-                              "Failed",
-                              "Succeeded",
-                              "Stopped"
+                              "Completed"
                             ],
                             "type": "string"
                           },

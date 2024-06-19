@@ -1414,7 +1414,7 @@ type BatchStatusRule struct {
 	// JobStatuses Matching job statuses within the rule
 	JobStatuses []RadixBatchJobPhase `json:"jobStatuses" yaml:"jobStatuses"`
 	// BatchStatus The status of the batch corresponding to job statuses
-	// +kubebuilder:validation:Enum=Waiting;Active;Completed;Failed;Succeeded;Stopped
+	// +kubebuilder:validation:Enum=Waiting;Active;Completed
 	BatchStatus RadixBatchConditionType `json:"batchStatus" yaml:"batchStatus"`
 }
 
