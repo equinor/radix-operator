@@ -1417,7 +1417,7 @@ type BatchStatusRule struct {
 	// JobStatuses Matching job statuses within the rule
 	JobStatuses []RadixBatchJobPhase `json:"jobStatuses" yaml:"jobStatuses"`
 	// BatchStatus The status of the batch corresponding to job statuses
-	BatchStatus RadixBatchCustomStatus `json:"batchStatus" yaml:"batchStatus"`
+	BatchStatus RadixBatchJobApiStatus `json:"batchStatus" yaml:"batchStatus"`
 }
 
 // Condition of a rule

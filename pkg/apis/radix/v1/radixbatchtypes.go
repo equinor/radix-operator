@@ -158,10 +158,10 @@ const (
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"
 )
 
-// RadixBatchCustomStatus Radix Batch status, delivered by API, optionally customizable by RadixBatch StatusRules
+// RadixBatchJobApiStatus Radix Batch status, delivered by API, optionally customizable by RadixBatch StatusRules
 // By default API BatchStatus is within RadixBatchConditionType values
 // +kubebuilder:validation:Enum=Running;Succeeded;Failed;Waiting;Stopping;Stopped;DeadlineExceeded;Active;Completed
-type RadixBatchCustomStatus string
+type RadixBatchJobApiStatus string
 
 const (
 	// Running Active
