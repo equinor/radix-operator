@@ -12,7 +12,7 @@ import (
 
 // RadixDeploymentWatcher Watcher to wait for namespace to be created
 type RadixDeploymentWatcher interface {
-	WaitForActive(namespace, deploymentName string) error
+	WaitForActive(ctx context.Context, namespace, deploymentName string) error
 }
 
 // radixDeploymentWatcher Implementation of watcher
@@ -30,10 +30,10 @@ func NewRadixDeploymentWatcher(radixClient radixclient.Interface, waitTimeout ti
 }
 
 // WaitForActive Waits for the radix deployment gets active
-func (watcher radixDeploymentWatcher) WaitForActive(namespace, deploymentName string) error {
-	log.Info().Msgf("Waiting for Radix deployment %s to activate", deploymentName)
-	if err := watcher.waitFor(func(context.Context) (bool, error) {
-		rd, err := watcher.radixClient.RadixV1().RadixDeployments(namespace).Get(context.Background(), deploymentName, metav1.GetOptions{})
+func (watcher radixDeploymentWatcher) WaitForActive(ctx context.Context, namespace, deploymentName string) error {
+	log.Ctx(ctx).Info().Msgf("Waiting for Radix deployment %s to activate", deploymentName)
+	if err := watcher.waitFor(ctx, func(context.Context) (bool, error) {
+		rd, err := watcher.radixClient.RadixV1().RadixDeployments(namespace).Get(ctx, deploymentName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -42,13 +42,13 @@ func (watcher radixDeploymentWatcher) WaitForActive(namespace, deploymentName st
 		return err
 	}
 
-	log.Info().Msgf("Radix deployment %s in namespace %s is active", deploymentName, namespace)
+	log.Ctx(ctx).Info().Msgf("Radix deployment %s in namespace %s is active", deploymentName, namespace)
 	return nil
 
 }
 
-func (watcher radixDeploymentWatcher) waitFor(condition wait.ConditionWithContextFunc) error {
-	timoutContext, cancel := context.WithTimeout(context.Background(), watcher.waitTimeout)
+func (watcher radixDeploymentWatcher) waitFor(ctx context.Context, condition wait.ConditionWithContextFunc) error {
+	timoutContext, cancel := context.WithTimeout(ctx, watcher.waitTimeout)
 	defer cancel()
 	return wait.PollUntilContextCancel(timoutContext, time.Second, true, condition)
 }

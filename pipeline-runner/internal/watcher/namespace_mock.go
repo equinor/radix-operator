@@ -16,6 +16,6 @@ func (watcher FakeNamespaceWatcher) WaitFor(_ context.Context, _ string) error {
 }
 
 // WaitFor Waits for radix deployment gets active
-func (watcher FakeRadixDeploymentWatcher) WaitForActive(_, _ string) error {
+func (watcher FakeRadixDeploymentWatcher) WaitForActive(_ context.Context, _, _ string) error {
 	return nil
 }

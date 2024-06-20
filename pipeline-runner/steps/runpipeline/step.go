@@ -41,10 +41,10 @@ func NewRunPipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.Step 
 	}
 }
 
-func (step *RunPipelinesStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = internalwait.NewJobCompletionWaiter(kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeclient)
 	}
 }
 
@@ -66,14 +66,14 @@ func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.PrepareBuildContext != nil && len(pipelineInfo.PrepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
-		log.Info().Msg("There is no configured sub-pipelines. Skip the step.")
+		log.Ctx(ctx).Info().Msg("There is no configured sub-pipelines. Skip the step.")
 		return nil
 	}
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 	appName := step.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	log.Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
+	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
 	job := step.getRunTektonPipelinesJobConfig(pipelineInfo)
 
@@ -87,7 +87,7 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 		job.OwnerReferences = ownerReference
 	}
 
-	log.Info().Msgf("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
+	log.Ctx(ctx).Info().Msgf("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
 	job, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return err

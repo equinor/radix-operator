@@ -62,7 +62,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		// The Environment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixEnvironment %s in work queue no longer exists", name)
+			log.Ctx(ctx).Info().Msgf("RadixEnvironment %s in work queue no longer exists", name)
 			return nil
 		}
 
@@ -70,7 +70,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	}
 
 	syncEnvironment := envConfig.DeepCopy()
-	log.Debug().Msgf("Sync environment %s", syncEnvironment.Name)
+	log.Ctx(ctx).Debug().Msgf("Sync environment %s", syncEnvironment.Name)
 
 	radixRegistration, err := t.kubeutil.GetRegistration(ctx, syncEnvironment.Spec.AppName)
 	if err != nil {
@@ -78,7 +78,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 			return err
 		}
 		// The Registration resource may no longer exist, but we proceed to clear resources
-		log.Debug().Msgf("RadixRegistration %s no longer exists", syncEnvironment.Spec.AppName)
+		log.Ctx(ctx).Debug().Msgf("RadixRegistration %s no longer exists", syncEnvironment.Spec.AppName)
 	}
 
 	// get RA error is ignored because nil is accepted

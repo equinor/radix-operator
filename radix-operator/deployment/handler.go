@@ -120,30 +120,31 @@ func NewHandler(kubeclient kubernetes.Interface,
 // Sync Is created on sync of resource
 func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	rd, err := t.kubeutil.GetRadixDeployment(ctx, namespace, name)
+	logger := log.Ctx(ctx)
 	if err != nil {
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixDeployment %s/%s in work queue no longer exists", namespace, name)
+			logger.Info().Msgf("RadixDeployment %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
 		return err
 	}
 	if deployment.IsRadixDeploymentInactive(rd) {
-		log.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
+		logger.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
 		return nil
 	}
 
 	syncRD := rd.DeepCopy()
-	log.Debug().Msgf("Sync deployment %s", syncRD.Name)
+	logger.Debug().Msgf("Sync deployment %s", syncRD.Name)
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Debug().Msgf("RadixRegistration %s no longer exists", syncRD.Spec.AppName)
+			logger.Debug().Msgf("RadixRegistration %s no longer exists", syncRD.Spec.AppName)
 			return nil
 		}
 

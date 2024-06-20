@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) {
+func updateComponentNode(ctx context.Context, component v1.RadixCommonComponent, node *v1.RadixNode) {
 	if len(node.Gpu) <= 0 {
 		node.Gpu = component.GetNode().Gpu
 	}
@@ -26,7 +27,7 @@ func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) 
 	}
 	if gpuCount, err := strconv.Atoi(nodeGpuCount); err != nil || gpuCount <= 0 {
 		// TODO: should the error be returned to caller?
-		log.Error().Err(err).Msgf("Invalid environment node GPU count: %s in component %s", nodeGpuCount, component.GetName())
+		log.Ctx(ctx).Error().Err(err).Msgf("Invalid environment node GPU count: %s in component %s", nodeGpuCount, component.GetName())
 		node.GpuCount = component.GetNode().GpuCount
 	}
 }
@@ -69,12 +70,12 @@ func getRadixCommonComponentResources(component v1.RadixCommonComponent, environ
 	return resources
 }
 
-func getRadixCommonComponentNode(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixNode {
+func getRadixCommonComponentNode(ctx context.Context, radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixNode {
 	var node v1.RadixNode
 	if !commonUtils.IsNil(environmentSpecificConfig) {
 		node = environmentSpecificConfig.GetNode()
 	}
-	updateComponentNode(radixComponent, &node)
+	updateComponentNode(ctx, radixComponent, &node)
 	return node
 }
 

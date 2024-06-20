@@ -62,7 +62,7 @@ func (kubeutil *Kube) PatchTriggerAuthentication(ctx context.Context, namespace 
 	}
 
 	if IsEmptyPatch(mergepatch) {
-		log.Debug().Msgf("No need to patch TriggerAuthentication: %s ", authName)
+		log.Ctx(ctx).Debug().Msgf("No need to patch TriggerAuthentication: %s ", authName)
 		return oldAuth, nil
 	}
 
@@ -70,7 +70,7 @@ func (kubeutil *Kube) PatchTriggerAuthentication(ctx context.Context, namespace 
 	if err != nil {
 		return nil, fmt.Errorf("failed to patch TriggerAuthentication object: %v", err)
 	}
-	log.Debug().Msgf("Patched TriggerAuthentication: %s in namespace %s", patchedAuth.Name, namespace)
+	log.Ctx(ctx).Debug().Msgf("Patched TriggerAuthentication: %s in namespace %s", patchedAuth.Name, namespace)
 
 	return patchedAuth, nil
 }
@@ -102,7 +102,7 @@ func (kubeutil *Kube) ListTriggerAuthenticationsWithSelector(ctx context.Context
 
 // DeleteTriggerAuthentication Deletes TriggerAuthentications
 func (kubeutil *Kube) DeleteTriggerAuthentication(ctx context.Context, triggerAuth ...*v1alpha1.TriggerAuthentication) error {
-	log.Debug().Msgf("delete %d TriggerAuthentication(s)", len(triggerAuth))
+	log.Ctx(ctx).Debug().Msgf("delete %d TriggerAuthentication(s)", len(triggerAuth))
 	for _, ing := range triggerAuth {
 		if err := kubeutil.kedaClient.KedaV1alpha1().TriggerAuthentications(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err

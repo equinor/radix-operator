@@ -183,11 +183,12 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 }
 
 func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+	logger := log.Ctx(ctx)
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 	dnsZone, err := envVarsSource.getDnsZone()
 	if err != nil {
 		// TODO: Should the error be returned to caller
-		log.Error().Err(err).Msg("Failed to get DNS zone")
+		logger.Error().Err(err).Msg("Failed to get DNS zone")
 		return envVarSet.Items()
 	}
 
@@ -196,12 +197,12 @@ func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, envVarsS
 		envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, clusterType)
 	} else {
 		// TODO: Should the error be returned to caller
-		log.Debug().Err(err).Msg("Failed to get cluster type")
+		logger.Debug().Err(err).Msg("Failed to get cluster type")
 	}
 	containerRegistry, err := envVarsSource.getContainerRegistry()
 	if err != nil {
 		// TODO: Should the error be returned to caller
-		log.Error().Err(err).Msg("Failed to get container registry")
+		logger.Error().Err(err).Msg("Failed to get container registry")
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, containerRegistry)
@@ -209,7 +210,7 @@ func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, envVarsS
 	clusterName, err := envVarsSource.getClusterName(ctx)
 	if err != nil {
 		// TODO: Should the error be returned to caller
-		log.Error().Err(err).Msg("Failed to get cluster name")
+		logger.Error().Err(err).Msg("Failed to get cluster name")
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.ClusternameEnvironmentVariable, clusterName)
@@ -238,7 +239,7 @@ func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, envVarsS
 	activeClusterEgressIps, err := envVarsSource.getClusterActiveEgressIps(ctx)
 	if err != nil {
 		// TODO: Should the error be returned to caller
-		log.Error().Err(err).Msg("Failed to get active egress IP addresses")
+		logger.Error().Err(err).Msg("Failed to get active egress IP addresses")
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, activeClusterEgressIps)
@@ -275,7 +276,7 @@ func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(ctx contex
 		return err
 	}
 
-	buildEnvVarsFromRadixConfig(deployComponent.GetEnvironmentVariables(), desiredEnvVarsConfigMap, envVarsMetadataMap)
+	buildEnvVarsFromRadixConfig(ctx, deployComponent.GetEnvironmentVariables(), desiredEnvVarsConfigMap, envVarsMetadataMap)
 
 	err = deploy.kubeutil.ApplyConfigMap(ctx, deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
 	if err != nil {
@@ -284,9 +285,9 @@ func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(ctx contex
 	return deploy.kubeutil.ApplyEnvVarsMetadataConfigMap(ctx, deploy.radixDeployment.Namespace, envVarsMetadataConfigMap, envVarsMetadataMap)
 }
 
-func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) {
+func buildEnvVarsFromRadixConfig(ctx context.Context, radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) {
 	if radixConfigEnvVars == nil {
-		log.Debug().Msg("No environment variables are set for this RadixDeployment in radixconfig")
+		log.Ctx(ctx).Debug().Msg("No environment variables are set for this RadixDeployment in radixconfig")
 		return
 	}
 
@@ -318,7 +319,7 @@ func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigM
 		// save radixconfig env-var value to metadata
 		envVarMetadata.RadixConfigValue = radixConfigEnvVarValue
 		envVarMetadataMap[envVarName] = envVarMetadata
-		log.Debug().Msgf("RadixConfig environment variable %s has been set or changed in Radix console", envVarName)
+		log.Ctx(ctx).Debug().Msgf("RadixConfig environment variable %s has been set or changed in Radix console", envVarName)
 	}
 	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
 	removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap, envVarMetadataMap)

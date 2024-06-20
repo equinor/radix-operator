@@ -72,7 +72,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	if err != nil {
 		// The Alert resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixAlert %s/%s in work queue no longer exists", namespace, name)
+			log.Ctx(ctx).Info().Msgf("RadixAlert %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
@@ -80,7 +80,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	}
 
 	syncRAL := alert.DeepCopy()
-	log.Debug().Msgf("Sync radix alert %s", syncRAL.Name)
+	log.Ctx(ctx).Debug().Msgf("Sync radix alert %s", syncRAL.Name)
 
 	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, syncRAL)
 	err = alertSyncer.OnSync(ctx)

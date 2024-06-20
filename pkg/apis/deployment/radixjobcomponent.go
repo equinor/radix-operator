@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	stderrors "errors"
 
 	"github.com/equinor/radix-common/utils/numbers"
@@ -12,7 +13,7 @@ import (
 
 // JobComponentsBuilder builds RD job components for a given environment
 type JobComponentsBuilder interface {
-	JobComponents() ([]v1.RadixDeployJobComponent, error)
+	JobComponents(ctx context.Context) ([]v1.RadixDeployJobComponent, error)
 }
 
 type jobComponentsBuilder struct {
@@ -34,7 +35,7 @@ func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImage
 	}
 }
 
-func (c *jobComponentsBuilder) JobComponents() ([]v1.RadixDeployJobComponent, error) {
+func (c *jobComponentsBuilder) JobComponents(ctx context.Context) ([]v1.RadixDeployJobComponent, error) {
 	var jobs []v1.RadixDeployJobComponent
 	preservingDeployJobComponentMap := slice.Reduce(c.preservingDeployJobComponents, make(map[string]v1.RadixDeployJobComponent), func(acc map[string]v1.RadixDeployJobComponent, jobComponent v1.RadixDeployJobComponent) map[string]v1.RadixDeployJobComponent {
 		acc[jobComponent.GetName()] = jobComponent
@@ -50,7 +51,7 @@ func (c *jobComponentsBuilder) JobComponents() ([]v1.RadixDeployJobComponent, er
 		if !radixJobComponent.GetEnabledForEnvironmentConfig(environmentSpecificConfig) {
 			continue
 		}
-		deployJob, err := c.buildJobComponent(radixJobComponent, environmentSpecificConfig, c.defaultEnvVars)
+		deployJob, err := c.buildJobComponent(ctx, radixJobComponent, environmentSpecificConfig, c.defaultEnvVars)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +74,7 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 	return nil
 }
 
-func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) (*v1.RadixDeployJobComponent, error) {
+func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) (*v1.RadixDeployJobComponent, error) {
 	componentName := radixJobComponent.Name
 	componentImage := c.componentImages[componentName]
 
@@ -109,7 +110,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Image:                image,
 		EnvironmentVariables: getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars),
 		Resources:            getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig),
-		Node:                 getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig),
+		Node:                 getRadixCommonComponentNode(ctx, &radixJobComponent, environmentSpecificConfig),
 		SecretRefs:           getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig),
 		BackoffLimit:         getRadixJobComponentBackoffLimit(radixJobComponent, environmentSpecificConfig),
 		TimeLimitSeconds:     getRadixJobComponentTimeLimitSeconds(radixJobComponent, environmentSpecificConfig),

@@ -73,7 +73,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 		BuildRA()
 
 	cli := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	targetEnvs := application.GetTargetEnvironments(anyNoMappedBranch, ra)
 
@@ -177,7 +177,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 
 	// Prometheus don´t contain any fake
 	cli := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	dnsConfig := dnsalias.DNSConfig{
 		DNSZone:               "dev.radix.equinor.com",
@@ -297,7 +297,7 @@ func TestDeploy_SetCommitID_whenSet(t *testing.T) {
 
 	// Prometheus don´t contain any fake
 	cli := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, watcher.FakeRadixDeploymentWatcher{})
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
 
@@ -357,7 +357,7 @@ func TestDeploy_WaitActiveDeployment(t *testing.T) {
 			ctrl := gomock.NewController(tt)
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(ctrl)
 			cli := deploy.NewDeployStep(watcher.FakeNamespaceWatcher{}, radixDeploymentWatcher)
-			cli.Init(kubeclient, radixClient, kubeUtil, &monitoring.Clientset{}, rr)
+			cli.Init(context.Background(), kubeclient, radixClient, kubeUtil, &monitoring.Clientset{}, rr)
 
 			applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixClient, rr, ra, nil)
 
@@ -373,7 +373,7 @@ func TestDeploy_WaitActiveDeployment(t *testing.T) {
 			pipelineInfo.SetApplicationConfig(applicationConfig)
 			namespace := utils.GetEnvironmentNamespace(anyAppName, envName)
 			radixDeploymentWatcher.EXPECT().
-				WaitForActive(namespace, radixDeploymentNameMatcher{envName: envName, imageTag: anyImageTag}).
+				WaitForActive(context.Background(), namespace, radixDeploymentNameMatcher{envName: envName, imageTag: anyImageTag}).
 				Return(ts.watcherError)
 			err := cli.Run(context.Background(), pipelineInfo)
 			if ts.watcherError == nil {

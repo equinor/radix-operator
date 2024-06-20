@@ -112,6 +112,6 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 		log.Fatal().Err(err).Msg("Failed to initialize CertManager client")
 	}
 
-	log.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
+	log.Ctx(ctx).Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
 	return client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, certClient
 }

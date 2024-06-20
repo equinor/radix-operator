@@ -30,18 +30,19 @@ func (kubeutil *Kube) CreateServiceAccount(ctx context.Context, namespace, name 
 // ApplyServiceAccount Creates or updates service account
 func (kubeutil *Kube) ApplyServiceAccount(ctx context.Context, serviceAccount *corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
 	oldServiceAccount, err := kubeutil.GetServiceAccount(ctx, serviceAccount.Namespace, serviceAccount.GetName())
+	logger := log.Ctx(ctx)
 	if err != nil && errors.IsNotFound(err) {
 		createdServiceAccount, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(serviceAccount.GetNamespace()).Create(ctx, serviceAccount, metav1.CreateOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ServiceAccount object: %w", err)
 		}
-		log.Debug().Msgf("Created ServiceAccount %s in namespace %s", createdServiceAccount.GetName(), createdServiceAccount.GetNamespace())
+		logger.Debug().Msgf("Created ServiceAccount %s in namespace %s", createdServiceAccount.GetName(), createdServiceAccount.GetNamespace())
 		return createdServiceAccount, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get ServiceAccount object: %w", err)
 	}
 
-	log.Debug().Msgf("ServiceAccount object %s already exists in namespace %s, updating the object now", serviceAccount.GetName(), serviceAccount.GetNamespace())
+	logger.Debug().Msgf("ServiceAccount object %s already exists in namespace %s, updating the object now", serviceAccount.GetName(), serviceAccount.GetNamespace())
 	oldServiceAccountJson, err := json.Marshal(oldServiceAccount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal old ServiceAccount object: %w", err)
@@ -68,10 +69,10 @@ func (kubeutil *Kube) ApplyServiceAccount(ctx context.Context, serviceAccount *c
 		if err != nil {
 			return nil, fmt.Errorf("failed to patch ServiceAccount object: %w", err)
 		}
-		log.Debug().Msgf("Patched ServiceAccount %s in namespace %s", patchedServiceAccount.GetName(), patchedServiceAccount.GetNamespace())
+		logger.Debug().Msgf("Patched ServiceAccount %s in namespace %s", patchedServiceAccount.GetName(), patchedServiceAccount.GetNamespace())
 		return patchedServiceAccount, nil
 	} else {
-		log.Debug().Msgf("No need to patch ServiceAccount %s ", serviceAccount.GetName())
+		logger.Debug().Msgf("No need to patch ServiceAccount %s ", serviceAccount.GetName())
 	}
 
 	return oldServiceAccount, nil

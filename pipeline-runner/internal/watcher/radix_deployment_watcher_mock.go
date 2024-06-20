@@ -5,6 +5,7 @@
 package watcher
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -34,15 +35,15 @@ func (m *MockRadixDeploymentWatcher) EXPECT() *MockRadixDeploymentWatcherMockRec
 }
 
 // WaitForActive mocks base method.
-func (m *MockRadixDeploymentWatcher) WaitForActive(namespace, deploymentName string) error {
+func (m *MockRadixDeploymentWatcher) WaitForActive(ctx context.Context, namespace, deploymentName string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WaitForActive", namespace, deploymentName)
+	ret := m.ctrl.Call(m, "WaitForActive", ctx, namespace, deploymentName)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WaitForActive indicates an expected call of WaitForActive.
-func (mr *MockRadixDeploymentWatcherMockRecorder) WaitForActive(namespace, deploymentName interface{}) *gomock.Call {
+func (mr *MockRadixDeploymentWatcherMockRecorder) WaitForActive(ctx, namespace, deploymentName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitForActive", reflect.TypeOf((*MockRadixDeploymentWatcher)(nil).WaitForActive), namespace, deploymentName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitForActive", reflect.TypeOf((*MockRadixDeploymentWatcher)(nil).WaitForActive), ctx, namespace, deploymentName)
 }

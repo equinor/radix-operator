@@ -35,7 +35,8 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
-	logger := log.With().Str("controller", controllerAgentName).Logger()
+	logger := log.Ctx(ctx).With().Str("controller", controllerAgentName).Logger()
+	ctx = logger.WithContext(ctx)
 	deploymentInformer := radixInformerFactory.Radix().V1().RadixDeployments()
 	serviceInformer := kubeInformerFactory.Core().V1().Services()
 	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
@@ -49,7 +50,6 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 		KubeInformerFactory:   kubeInformerFactory,
 		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:               handler,
-		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
 		Recorder:              recorder,
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,
@@ -156,7 +156,7 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 					if !deployment.IsRadixDeploymentInactive(&rd) {
 						obj := &rd
 						if _, err := controller.Enqueue(obj); err != nil {
-							logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
+							logger.Error().Str("rd", rd.Name).Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 						}
 					}
 				}

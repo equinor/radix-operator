@@ -8,7 +8,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -29,7 +29,6 @@ type Controller struct {
 	Informer              cache.SharedIndexInformer
 	KubeInformerFactory   kubeinformers.SharedInformerFactory
 	Handler               Handler
-	Log                   zerolog.Logger
 	WaitForChildrenToSync bool
 	Recorder              record.EventRecorder
 	LockKeyAndIdentifier  LockKeyAndIdentifierFunc
@@ -45,28 +44,30 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	}
 
 	// Start the informer factories to begin populating the informer caches
-	c.Log.Debug().Msgf("Starting %s", c.Name)
+	ctx = log.Ctx(ctx).With().Str("controller", c.Name).Logger().WithContext(ctx)
+	logger := log.Ctx(ctx)
+	logger.Debug().Msgf("Starting")
 
 	cacheSyncs := []cache.InformerSynced{
 		c.hasSynced,
 	}
 
-	c.Log.Debug().Msg("Start WaitForChildrenToSync")
+	logger.Debug().Msg("Start WaitForChildrenToSync")
 	if c.WaitForChildrenToSync {
 		cacheSyncs = append(cacheSyncs,
 			c.KubeInformerFactory.Core().V1().Namespaces().Informer().HasSynced,
 			c.KubeInformerFactory.Core().V1().Secrets().Informer().HasSynced,
 		)
 	}
-	c.Log.Debug().Msg("Completed WaitForChildrenToSync")
+	logger.Debug().Msg("Completed WaitForChildrenToSync")
 
 	// Wait for the caches to be synced before starting workers
-	c.Log.Info().Msg("Waiting for informer caches to sync")
+	logger.Info().Msg("Waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(ctx.Done(), cacheSyncs...); !ok {
-		return fmt.Errorf("failed to wait for caches to sync: %s", c.Name)
+		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
-	c.Log.Info().Msg("Starting workers")
+	logger.Info().Msg("Starting workers")
 
 	// Launch workers to process resources
 	c.run(ctx, threadiness)
@@ -78,11 +79,11 @@ func (c *Controller) run(ctx context.Context, threadiness int) {
 	errorGroup, ctx := errgroup.WithContext(ctx)
 	errorGroup.SetLimit(threadiness)
 	defer func() {
-		c.Log.Info().Msg("Waiting for workers to complete")
+		log.Ctx(ctx).Info().Msg("Waiting for workers to complete")
 		if err := errorGroup.Wait(); err != nil {
-			c.Log.Error().Err(err).Msg("errGroup returned error")
+			log.Ctx(ctx).Error().Err(err).Msg("errGroup returned error")
 		}
-		c.Log.Info().Msg("Workers completed")
+		log.Ctx(ctx).Info().Msg("Workers completed")
 	}()
 
 	locker := c.locker
@@ -94,7 +95,7 @@ func (c *Controller) run(ctx context.Context, threadiness int) {
 	}
 
 	if err := errorGroup.Wait(); err != nil {
-		c.Log.Error().Err(err).Msg("errGroup returned error")
+		log.Ctx(ctx).Error().Err(err).Msg("errGroup returned error")
 	}
 }
 
@@ -122,23 +123,23 @@ func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group
 		if err != nil {
 			c.WorkQueue.Forget(workItem)
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-			c.Log.Error().Err(err).Msg("Failed to get lock key and identifier")
+			log.Ctx(ctx).Error().Err(err).Msg("Failed to get lock key and identifier")
 			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
 			return nil
 		}
 
 		if !locker.TryGetLock(lockKey) {
-			c.Log.Debug().Msgf("Lock for %s was busy, requeuing %s", lockKey, identifier)
+			log.Ctx(ctx).Debug().Msgf("Lock for %s was busy, requeuing %s", lockKey, identifier)
 			// Use AddAfter instead of AddRateLimited. AddRateLimited can potentially cause a delay of 1000 seconds
 			c.WorkQueue.AddAfter(identifier, 100*time.Millisecond)
 			return nil
 		}
 		defer func() {
 			locker.ReleaseLock(lockKey)
-			c.Log.Debug().Msgf("Released lock for %s after processing %s", lockKey, identifier)
+			log.Ctx(ctx).Debug().Msgf("Released lock for %s after processing %s", lockKey, identifier)
 		}()
 
-		c.Log.Debug().Msgf("Acquired lock for %s, processing %s", lockKey, identifier)
+		log.Ctx(ctx).Debug().Msgf("Acquired lock for %s, processing %s", lockKey, identifier)
 		c.processWorkItem(workCtx, workItem, identifier)
 		return nil
 	})
@@ -158,12 +159,12 @@ func (c *Controller) processWorkItem(ctx context.Context, workItem interface{}, 
 
 		c.WorkQueue.Forget(workItem)
 		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-		c.Log.Info().Msgf("Successfully synced %s", workItemString)
+		log.Ctx(ctx).Info().Msgf("Successfully synced %s", workItemString)
 		return nil
 	}(workItem)
 
 	if err != nil {
-		c.Log.Error().Err(err).Msgf("Failed to sync %s, requeuing", workItemString)
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to sync %s, requeuing", workItemString)
 		metrics.OperatorError(c.HandlerOf, "process_next_work_item", "unhandled")
 	}
 }
@@ -177,8 +178,10 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}()
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	ctx = log.Ctx(ctx).With().Str("namespace", namespace).Str("name", name).Logger().WithContext(ctx)
+
 	if err != nil {
-		c.Log.Error().Err(err).Msgf("invalid resource key: %s", key)
+		log.Ctx(ctx).Error().Err(err).Msgf("invalid resource key: %s", key)
 		metrics.OperatorError(c.HandlerOf, "split_meta_namespace_key", "invalid_resource_key")
 		return nil
 	}
@@ -214,19 +217,19 @@ func (c *Controller) HandleObject(ctx context.Context, obj interface{}, ownerKin
 	if object, ok = obj.(metav1.Object); !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
-			c.Log.Error().Msg("Failed to cast object as type cache.DeletedFinalStateUnknown")
+			log.Ctx(ctx).Error().Msg("Failed to cast object as type cache.DeletedFinalStateUnknown")
 			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object")
 			return
 		}
 		object, ok = tombstone.Obj.(metav1.Object)
 		if !ok {
-			c.Log.Error().Msg("Failed to cast tombstone.Obj as type metav1.Object")
+			log.Ctx(ctx).Error().Msg("Failed to cast tombstone.Obj as type metav1.Object")
 			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object_tombstone")
 			return
 		}
-		c.Log.Info().Msgf("Recovered deleted object %s from tombstone", object.GetName())
+		log.Ctx(ctx).Info().Msgf("Recovered deleted object %s from tombstone", object.GetName())
 	}
-	c.Log.Info().Msgf("Processing object: %s", object.GetName())
+	log.Ctx(ctx).Info().Msgf("Processing object: %s", object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 		if ownerRef.Kind != ownerKind {
 			return
@@ -234,13 +237,13 @@ func (c *Controller) HandleObject(ctx context.Context, obj interface{}, ownerKin
 
 		obj, err := getOwnerFn(ctx, c.RadixClient, object.GetNamespace(), ownerRef.Name)
 		if err != nil {
-			c.Log.Debug().Msgf("Ignoring orphaned object %s of %s %s", object.GetSelfLink(), ownerKind, ownerRef.Name)
+			log.Ctx(ctx).Debug().Msgf("Ignoring orphaned object %s of %s %s", object.GetSelfLink(), ownerKind, ownerRef.Name)
 			return
 		}
 
 		requeued, err := c.Enqueue(obj)
 		if err != nil {
-			c.Log.Error().Err(err).Msg("Failed to enqueue object")
+			log.Ctx(ctx).Error().Err(err).Msg("Failed to enqueue object")
 		}
 		if err == nil && !requeued {
 			metrics.CustomResourceUpdated(c.HandlerOf)

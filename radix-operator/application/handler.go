@@ -55,7 +55,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		// The Application resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixApplication %s/%s in work queue no longer exists", namespace, name)
+			log.Ctx(ctx).Info().Msgf("RadixApplication %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
@@ -67,7 +67,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Debug().Msgf("RadixRegistration %s no longer exists", radixApplication.Name)
+			log.Ctx(ctx).Debug().Msgf("RadixRegistration %s no longer exists", radixApplication.Name)
 			return nil
 		}
 
@@ -75,7 +75,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	}
 
 	syncApplication := radixApplication.DeepCopy()
-	log.Debug().Msgf("Sync application %s", syncApplication.Name)
+	log.Ctx(ctx).Debug().Msgf("Sync application %s", syncApplication.Name)
 	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsConfig)
 	err = applicationConfig.OnSync(ctx)
 	if err != nil {
