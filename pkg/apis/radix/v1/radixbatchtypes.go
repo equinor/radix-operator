@@ -164,32 +164,32 @@ const (
 type RadixBatchJobApiStatus string
 
 const (
-	// Running Active
-	Running = "Running"
+	// RadixBatchJobApiStatusRunning Active
+	RadixBatchJobApiStatusRunning = "Running"
 
-	// Succeeded Job succeeded
-	Succeeded = "Succeeded"
+	// RadixBatchJobApiStatusSucceeded Job succeeded
+	RadixBatchJobApiStatusSucceeded = "Succeeded"
 
-	// Failed Job failed
-	Failed = "Failed"
+	// RadixBatchJobApiStatusFailed Job failed
+	RadixBatchJobApiStatusFailed = "Failed"
 
-	// Waiting Job pending
-	Waiting = "Waiting"
+	// RadixBatchJobApiStatusWaiting Job pending
+	RadixBatchJobApiStatusWaiting = "Waiting"
 
-	// Stopping job is stopping
-	Stopping = "Stopping"
+	// RadixBatchJobApiStatusStopping job is stopping
+	RadixBatchJobApiStatusStopping = "Stopping"
 
-	// Stopped job stopped
-	Stopped = "Stopped"
+	// RadixBatchJobApiStatusStopped job stopped
+	RadixBatchJobApiStatusStopped = "Stopped"
 
-	// DeadlineExceeded job exceeded maximum allowed attempts to run
-	DeadlineExceeded = "DeadlineExceeded"
+	// RadixBatchJobApiStatusDeadlineExceeded job exceeded maximum allowed attempts to run
+	RadixBatchJobApiStatusDeadlineExceeded = "DeadlineExceeded"
 
-	// Active job, one or more pods are not ready
-	Active = "Active"
+	// RadixBatchJobApiStatusActive job, one or more pods are not ready
+	RadixBatchJobApiStatusActive = "Active"
 
-	// Completed batch jobs are completed
-	Completed = "Completed"
+	// RadixBatchJobApiStatusCompleted batch jobs are completed
+	RadixBatchJobApiStatusCompleted = "Completed"
 )
 
 // A label for the condition of a pod at the current time.
