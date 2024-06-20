@@ -1435,9 +1435,9 @@ type Operator string
 
 const (
 	// OperatorIn Values are within the list
-	OperatorIn Condition = "In"
+	OperatorIn Operator = "In"
 	// OperatorNotIn Values are not within the list
-	OperatorNotIn Condition = "NotIn"
+	OperatorNotIn Operator = "NotIn"
 )
 
 // RadixCommonComponent defines a common component interface for Radix components
