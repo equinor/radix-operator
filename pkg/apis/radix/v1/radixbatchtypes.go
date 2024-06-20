@@ -145,6 +145,8 @@ const (
 	BatchJobPhaseStopped RadixBatchJobPhase = "Stopped"
 )
 
+// RadixBatchConditionType represents the status condition of a RadixBatch
+// +kubebuilder:validation:Enum=Waiting;Active;Completed
 type RadixBatchConditionType string
 
 const (
