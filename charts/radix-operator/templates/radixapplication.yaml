@@ -2112,7 +2112,13 @@ spec:
                             description: BatchStatus The status of the batch corresponding
                               to job statuses
                             enum:
+                            - Running
+                            - Succeeded
+                            - Failed
                             - Waiting
+                            - Stopping
+                            - Stopped
+                            - DeadlineExceeded
                             - Active
                             - Completed
                             type: string
@@ -2186,7 +2192,13 @@ spec:
                                   description: BatchStatus The status of the batch
                                     corresponding to job statuses
                                   enum:
+                                  - Running
+                                  - Succeeded
+                                  - Failed
                                   - Waiting
+                                  - Stopping
+                                  - Stopped
+                                  - DeadlineExceeded
                                   - Active
                                   - Completed
                                   type: string
