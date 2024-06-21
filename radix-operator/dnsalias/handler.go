@@ -90,14 +90,15 @@ func (h *handler) Sync(ctx context.Context, _, name string, eventRecorder record
 	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(ctx, name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixDNSAlias %s in work queue no longer exists", name)
+			log.Ctx(ctx).Info().Msgf("RadixDNSAlias %s in work queue no longer exists", name)
 			return nil
 		}
 		return err
 	}
+	ctx = log.Ctx(ctx).With().Str("app_name", radixDNSAlias.Spec.AppName).Logger().WithContext(ctx)
 
 	syncingAlias := radixDNSAlias.DeepCopy()
-	log.Debug().Msgf("Sync RadixDNSAlias %s", name)
+	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
 	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
 	err = syncer.OnSync(ctx)
 	if err != nil {

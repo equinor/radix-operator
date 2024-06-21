@@ -44,10 +44,10 @@ func NewPreparePipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.S
 	}
 }
 
-func (step *PreparePipelinesStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *radixv1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *radixv1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = internalwait.NewJobCompletionWaiter(kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeclient)
 	}
 }
 
@@ -72,7 +72,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 	commitID := pipelineInfo.PipelineArguments.CommitID
 	appName := cli.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	logPipelineInfo(pipelineInfo.Definition.Type, appName, branch, commitID)
+	logPipelineInfo(ctx, pipelineInfo.Definition.Type, appName, branch, commitID)
 
 	if pipelineInfo.IsPipelineType(radixv1.Promote) {
 		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := cli.getSourceDeploymentGitInfo(ctx, appName, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
@@ -94,7 +94,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		job.OwnerReferences = ownerReference
 	}
 
-	log.Info().Msgf("Apply job (%s) to copy radixconfig to configmap for app %s and prepare Tekton pipeline", job.Name, appName)
+	log.Ctx(ctx).Info().Msgf("Apply job (%s) to copy radixconfig to configmap for app %s and prepare Tekton pipeline", job.Name, appName)
 	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 	return cli.jobWaiter.Wait(job)
 }
 
-func logPipelineInfo(pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
+func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
 	stringBuilder := strings.Builder{}
 	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineType, appName))
 	if len(branch) > 0 {
@@ -112,7 +112,7 @@ func logPipelineInfo(pipelineType radixv1.RadixPipelineType, appName, branch, co
 	if len(branch) > 0 {
 		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", commitID))
 	}
-	log.Info().Msg(stringBuilder.String())
+	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
 
 func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {

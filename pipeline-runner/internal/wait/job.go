@@ -1,6 +1,7 @@
 package wait
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -23,9 +24,9 @@ type JobCompletionWaiter interface {
 	Wait(job *batchv1.Job) error
 }
 
-func NewJobCompletionWaiter(kubeClient kubernetes.Interface) JobCompletionWaiter {
+func NewJobCompletionWaiter(ctx context.Context, kubeClient kubernetes.Interface) JobCompletionWaiter {
 	return JobCompletionWaiterFunc(func(job *batchv1.Job) error {
-		return waitForCompletionOf(kubeClient, job)
+		return waitForCompletionOf(ctx, kubeClient, job)
 	})
 }
 
@@ -36,7 +37,7 @@ func (f JobCompletionWaiterFunc) Wait(job *batchv1.Job) error {
 }
 
 // WaitForCompletionOf Will wait for job to complete
-func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) error {
+func waitForCompletionOf(ctx context.Context, kubeClient kubernetes.Interface, job *batchv1.Job) error {
 	errChan := make(chan error)
 	stop := make(chan struct{})
 	defer close(stop)
@@ -60,7 +61,7 @@ func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) erro
 		DeleteFunc: func(old interface{}) {
 			currJob, converted := old.(*batchv1.Job)
 			if !converted {
-				log.Error().Msg("Job object cast failed during deleted event received.")
+				log.Ctx(ctx).Error().Msg("Job object cast failed during deleted event received.")
 				return
 			}
 			if currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
@@ -85,7 +86,7 @@ func waitForCompletionOf(kubeClient kubernetes.Interface, job *batchv1.Job) erro
 		DeleteFunc: func(old interface{}) {
 			pod, converted := old.(*corev1.Pod)
 			if !converted {
-				log.Error().Msg("Pod object cast failed during deleted event received.")
+				log.Ctx(ctx).Error().Msg("Pod object cast failed during deleted event received.")
 				return
 			}
 			if job.GetNamespace() == pod.GetNamespace() && pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() {

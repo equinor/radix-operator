@@ -25,7 +25,7 @@ func (kubeutil *Kube) SecretExists(ctx context.Context, namespace, secretName st
 	}
 	if err != nil {
 		// TODO: the error should be returned to and handled by caller
-		log.Error().Err(err).Msgf("Failed to get secret %s in namespace %s", secretName, namespace)
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to get secret %s in namespace %s", secretName, namespace)
 		return false
 	}
 	return true
@@ -47,7 +47,7 @@ func (kubeutil *Kube) ListSecretExistsForLabels(ctx context.Context, namespace s
 func (kubeutil *Kube) ApplySecret(ctx context.Context, namespace string, secret *corev1.Secret) (savedSecret *corev1.Secret, err error) {
 	secretName := secret.GetName()
 	// file deepcode ignore ClearTextLogging: logs name of secret only
-	log.Debug().Msgf("Applies secret %s in namespace %s", secretName, namespace)
+	log.Ctx(ctx).Debug().Msgf("Applies secret %s in namespace %s", secretName, namespace)
 
 	oldSecret, err := kubeutil.GetSecret(ctx, namespace, secretName)
 	if err != nil && errors.IsNotFound(err) {
@@ -55,7 +55,7 @@ func (kubeutil *Kube) ApplySecret(ctx context.Context, namespace string, secret 
 		if err != nil {
 			return nil, err
 		}
-		log.Info().Msgf("Created secret: %s in namespace %s", secret.GetName(), namespace)
+		log.Ctx(ctx).Info().Msgf("Created secret: %s in namespace %s", secret.GetName(), namespace)
 		return savedSecret, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get Secret object: %w", err)
@@ -90,12 +90,12 @@ func (kubeutil *Kube) ApplySecret(ctx context.Context, namespace string, secret 
 			return nil, fmt.Errorf("failed to update secret object: %w", err)
 		}
 
-		log.Info().Msgf("Updated secret: %s in namespace %s", patchedSecret.GetName(), namespace)
+		log.Ctx(ctx).Info().Msgf("Updated secret: %s in namespace %s", patchedSecret.GetName(), namespace)
 		return patchedSecret, nil
 
 	}
 
-	log.Debug().Msgf("No need to patch secret: %s ", secretName)
+	log.Ctx(ctx).Debug().Msgf("No need to patch secret: %s ", secretName)
 	return oldSecret, nil
 }
 
@@ -161,7 +161,7 @@ func (kubeutil *Kube) DeleteSecret(ctx context.Context, namespace, secretName st
 	if err != nil {
 		return err
 	}
-	log.Info().Msgf("Deleted secret: %s in namespace %s", secretName, namespace)
+	log.Ctx(ctx).Info().Msgf("Deleted secret: %s in namespace %s", secretName, namespace)
 	return nil
 }
 

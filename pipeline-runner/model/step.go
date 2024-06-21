@@ -13,7 +13,7 @@ import (
 
 // Step Generic interface for any Step implementation
 type Step interface {
-	Init(kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, *v1.RadixRegistration)
+	Init(context.Context, kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, *v1.RadixRegistration)
 
 	ImplementationForType() pipeline.StepType
 	ErrorMsg(error) string
@@ -42,7 +42,7 @@ type DefaultStepImplementation struct {
 }
 
 // Init Initialize step
-func (step *DefaultStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
+func (step *DefaultStepImplementation) Init(ctx context.Context, kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
 	step.rr = rr
 	step.kubeclient = kubeclient
 	step.radixclient = radixclient

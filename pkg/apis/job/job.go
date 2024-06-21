@@ -19,7 +19,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -28,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -40,7 +38,6 @@ type Job struct {
 	radixJob                  *v1.RadixJob
 	originalRadixJobCondition v1.RadixJobCondition
 	config                    *apiconfig.Config
-	logger                    zerolog.Logger
 }
 
 // NewJob Constructor
@@ -54,13 +51,15 @@ func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient ra
 		radixJob:                  radixJob,
 		originalRadixJobCondition: originalRadixJobStatus,
 		config:                    config,
-		logger:                    log.Logger.With().Str("resource_kind", v1.KindRadixJob).Str("resource_name", cache.MetaObjectToName(&radixJob.ObjectMeta).String()).Logger(),
 	}
 }
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (job *Job) OnSync(ctx context.Context) error {
+	ctx = log.Ctx(ctx).With().Str("resource_kind", v1.KindRadixJob).Logger().WithContext(ctx)
+	log.Ctx(ctx).Info().Msg("Syncing")
+
 	job.restoreStatus(ctx)
 
 	appName := job.radixJob.Spec.AppName
@@ -69,7 +68,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 		if !errors.IsNotFound(err) {
 			return err
 		}
-		job.logger.Debug().Msgf("for BuildDeploy failed to find RadixApplication by name %s", appName)
+		log.Ctx(ctx).Debug().Msgf("for BuildDeploy failed to find RadixApplication by name %s", appName)
 	}
 
 	if err := job.syncTargetEnvironments(ctx, ra); err != nil {
@@ -77,7 +76,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 	}
 
 	if IsRadixJobDone(job.radixJob) {
-		job.logger.Debug().Msgf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
+		log.Ctx(ctx).Debug().Msgf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
 
@@ -86,7 +85,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 		return err
 	}
 	if stopReconciliation {
-		job.logger.Info().Msgf("stop reconciliation, status updated triggering new sync")
+		log.Ctx(ctx).Info().Msgf("stop reconciliation, status updated triggering new sync")
 		return nil
 	}
 
@@ -115,7 +114,7 @@ func (job *Job) restoreStatus(ctx context.Context) {
 			var status v1.RadixJobStatus
 			err := json.Unmarshal([]byte(restoredStatus), &status)
 			if err != nil {
-				job.logger.Error().Err(err).Msg("Unable to get status from annotation")
+				log.Ctx(ctx).Error().Err(err).Msg("Unable to get status from annotation")
 				return
 			}
 			err = job.updateRadixJobStatusWithMetrics(ctx, job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
@@ -127,7 +126,7 @@ func (job *Job) restoreStatus(ctx context.Context) {
 				currStatus.Steps = status.Steps
 			})
 			if err != nil {
-				job.logger.Error().Err(err).Msg("Unable to restore status")
+				log.Ctx(ctx).Error().Err(err).Msg("Unable to restore status")
 				return
 			}
 		}
@@ -717,21 +716,21 @@ func (job *Job) garbageCollectConfigMaps(ctx context.Context) {
 	namespace := job.radixJob.GetNamespace()
 	radixJobConfigMaps, err := job.kubeutil.ListConfigMapsWithSelector(ctx, namespace, getRadixJobNameExistsSelector().String())
 	if err != nil {
-		job.logger.Warn().Err(err).Msgf("Failed to get ConfigMaps while garbage collecting config-maps in %s", namespace)
+		log.Ctx(ctx).Warn().Err(err).Msgf("Failed to get ConfigMaps while garbage collecting config-maps in %s", namespace)
 		return
 	}
 	radixJobNameSet, err := job.getRadixJobNameSet(ctx)
 	if err != nil {
-		job.logger.Warn().Err(err).Msg("Failed to get RadixJob name set")
+		log.Ctx(ctx).Warn().Err(err).Msg("Failed to get RadixJob name set")
 		return
 	}
 	for _, configMap := range radixJobConfigMaps {
 		jobName := configMap.GetLabels()[kube.RadixJobNameLabel]
 		if _, radixJobExists := radixJobNameSet[jobName]; !radixJobExists {
-			job.logger.Debug().Msgf("Delete ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
+			log.Ctx(ctx).Debug().Msgf("Delete ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 			err := job.kubeutil.DeleteConfigMap(ctx, configMap.GetNamespace(), configMap.GetName())
 			if err != nil {
-				job.logger.Warn().Err(err).Msgf("failed to delete ConfigMap %s while garbage collecting config-maps in %s", configMap.GetName(), namespace)
+				log.Ctx(ctx).Warn().Err(err).Msgf("failed to delete ConfigMap %s while garbage collecting config-maps in %s", configMap.GetName(), namespace)
 			}
 		}
 	}

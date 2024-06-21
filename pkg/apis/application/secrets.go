@@ -9,6 +9,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +19,7 @@ import (
 func (app *Application) applySecretsForPipelines(ctx context.Context) error {
 	radixRegistration := app.registration
 
-	app.logger.Debug().Msg("Apply secrets for pipelines")
+	log.Ctx(ctx).Debug().Msg("Apply secrets for pipelines")
 	buildNamespace := utils.GetAppNamespace(radixRegistration.Name)
 
 	err := app.applyGitDeployKeyToBuildNamespace(ctx, buildNamespace)
@@ -27,7 +28,7 @@ func (app *Application) applySecretsForPipelines(ctx context.Context) error {
 	}
 	err = app.applyServicePrincipalACRSecretToBuildNamespace(ctx, buildNamespace)
 	if err != nil {
-		app.logger.Warn().Msgf("Failed to apply service principle acr secrets (%s, %s) to namespace %s", defaults.AzureACRServicePrincipleSecretName, defaults.AzureACRServicePrincipleBuildahSecretName, buildNamespace)
+		log.Ctx(ctx).Warn().Msgf("Failed to apply service principle acr secrets (%s, %s) to namespace %s", defaults.AzureACRServicePrincipleSecretName, defaults.AzureACRServicePrincipleBuildahSecretName, buildNamespace)
 	}
 	return nil
 }

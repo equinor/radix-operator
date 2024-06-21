@@ -52,7 +52,7 @@ func TestDeploy_WaitActiveDeployment(t *testing.T) {
 			}
 
 			watcher := NewRadixDeploymentWatcher(radixClient, time.Millisecond*10)
-			err := watcher.WaitForActive(namespace, radixDeploymentName)
+			err := watcher.WaitForActive(context.Background(), namespace, radixDeploymentName)
 
 			if ts.watcherError == nil {
 				assert.NoError(tt, err)

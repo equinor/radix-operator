@@ -15,7 +15,8 @@ import (
 
 // ApplyNamespace Creates a new namespace, if not exists already
 func (kubeutil *Kube) ApplyNamespace(ctx context.Context, name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
-	log.Debug().Msgf("Create namespace: %s", name)
+	logger := log.Ctx(ctx)
+	logger.Debug().Msgf("Create namespace: %s", name)
 
 	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -27,7 +28,7 @@ func (kubeutil *Kube) ApplyNamespace(ctx context.Context, name string, labels ma
 
 	oldNamespace, err := kubeutil.getNamespace(ctx, name)
 	if err != nil && k8errs.IsNotFound(err) {
-		log.Debug().Msgf("namespace object %s doesn't exists, create the object", name)
+		logger.Debug().Msgf("namespace object %s doesn't exists, create the object", name)
 		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(ctx, &namespace, metav1.CreateOptions{})
 		return err
 	}
@@ -57,11 +58,11 @@ func (kubeutil *Kube) ApplyNamespace(ctx context.Context, name string, labels ma
 			return fmt.Errorf("failed to patch namespace object: %v", err)
 		}
 
-		log.Debug().Msgf("Patched namespace: %s ", patchedNamespace.Name)
+		logger.Debug().Msgf("Patched namespace: %s ", patchedNamespace.Name)
 		return nil
 	}
 
-	log.Debug().Msgf("No need to patch namespace: %s ", name)
+	logger.Debug().Msgf("No need to patch namespace: %s ", name)
 	return nil
 }
 

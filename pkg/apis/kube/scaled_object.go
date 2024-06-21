@@ -73,7 +73,7 @@ func (kubeutil *Kube) PatchScaledObject(ctx context.Context, namespace string, o
 	}
 
 	if IsEmptyPatch(mergepatch) {
-		log.Debug().Msgf("No need to patch ScaledObject: %s ", scalerName)
+		log.Ctx(ctx).Debug().Msgf("No need to patch ScaledObject: %s ", scalerName)
 		return oldScaledObject, nil
 	}
 
@@ -81,7 +81,7 @@ func (kubeutil *Kube) PatchScaledObject(ctx context.Context, namespace string, o
 	if err != nil {
 		return nil, fmt.Errorf("failed to patch ScaledObject object: %v", err)
 	}
-	log.Debug().Msgf("Patched ScaledObject: %s in namespace %s", patchedScaler.Name, namespace)
+	log.Ctx(ctx).Debug().Msgf("Patched ScaledObject: %s in namespace %s", patchedScaler.Name, namespace)
 
 	return patchedScaler, nil
 }
@@ -113,7 +113,7 @@ func (kubeutil *Kube) ListScaledObjectWithSelector(ctx context.Context, namespac
 
 // DeleteScaledObject Deletes ScaledObject
 func (kubeutil *Kube) DeleteScaledObject(ctx context.Context, scaledObjects ...*v1alpha1.ScaledObject) error {
-	log.Debug().Msgf("delete %d ScaledObject(s)", len(scaledObjects))
+	log.Ctx(ctx).Debug().Msgf("delete %d ScaledObject(s)", len(scaledObjects))
 	for _, ing := range scaledObjects {
 		if err := kubeutil.kedaClient.KedaV1alpha1().ScaledObjects(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err

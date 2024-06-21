@@ -17,6 +17,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,7 +58,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 		return nil, err
 	}
 	imageTag := fmt.Sprintf("%s/%s:%s", containerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
-	job.logger.Info().Msgf("Using image: %s", imageTag)
+	log.Ctx(ctx).Info().Msgf("Using image: %s", imageTag)
 
 	backOffLimit := int32(0)
 	appName := job.radixJob.Spec.AppName

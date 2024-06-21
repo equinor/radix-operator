@@ -292,7 +292,7 @@ func getComponentSecretRefsAzureKeyVaultVolumes(ctx context.Context, kubeutil *k
 					volume.VolumeSource.CSI.NodePublishSecretRef = &corev1.LocalObjectReference{Name: credsSecretName}
 				}
 			default:
-				log.Error().Msgf("Not supported provider %s in the secret provider class %s", provider, secretProviderClass.Name)
+				log.Ctx(ctx).Error().Msgf("Not supported provider %s in the secret provider class %s", provider, secretProviderClass.Name)
 				continue
 			}
 			volumes = append(volumes, volume)

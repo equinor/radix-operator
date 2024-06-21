@@ -30,7 +30,7 @@ func (kubeutil *Kube) ApplyService(ctx context.Context, namespace string, servic
 		return fmt.Errorf("failed to get service object: %v", err)
 	}
 
-	log.Debug().Msgf("Service object %s already exists in namespace %s, updating the object now", service.GetName(), namespace)
+	log.Ctx(ctx).Debug().Msgf("Service object %s already exists in namespace %s, updating the object now", service.GetName(), namespace)
 	newService := oldService.DeepCopy()
 	newService.Spec.Ports = service.Spec.Ports
 	newService.ObjectMeta.OwnerReferences = service.ObjectMeta.OwnerReferences
@@ -57,9 +57,9 @@ func (kubeutil *Kube) ApplyService(ctx context.Context, namespace string, servic
 		if err != nil {
 			return fmt.Errorf("failed to patch Service object: %v", err)
 		}
-		log.Debug().Msgf("Patched Service: %s in namespace %s", patchedService.Name, namespace)
+		log.Ctx(ctx).Debug().Msgf("Patched Service: %s in namespace %s", patchedService.Name, namespace)
 	} else {
-		log.Debug().Msgf("No need to patch service: %s ", service.GetName())
+		log.Ctx(ctx).Debug().Msgf("No need to patch service: %s ", service.GetName())
 	}
 
 	return nil

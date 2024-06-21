@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -13,7 +12,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +24,6 @@ type Application struct {
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
 	registration *v1.RadixRegistration
-	logger       zerolog.Logger
 }
 
 // NewApplication Constructor
@@ -41,27 +38,28 @@ func NewApplication(
 		radixclient:  radixclient,
 		kubeutil:     kubeutil,
 		registration: registration,
-		logger:       log.Logger.With().Str("resource_kind", v1.KindRadixRegistration).Str("resource_name", cache.MetaObjectToName(&registration.ObjectMeta).String()).Logger(),
 	}, nil
 }
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (app *Application) OnSync(ctx context.Context) error {
+	ctx = log.Ctx(ctx).With().Str("resource_kind", v1.KindRadixRegistration).Logger().WithContext(ctx)
+	log.Ctx(ctx).Info().Msg("Syncing")
 	radixRegistration := app.registration
 
 	err := app.createAppNamespace(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create app namespace: %w", err)
 	}
-	app.logger.Debug().Msg("App namespace created")
+	log.Ctx(ctx).Debug().Msg("App namespace created")
 
 	err = app.createLimitRangeOnAppNamespace(ctx, utils.GetAppNamespace(radixRegistration.Name))
 	if err != nil {
 		return fmt.Errorf("failed to create limit range on app namespace: %w", err)
 	}
 
-	app.logger.Debug().Msg("Limit range on app namespace created")
+	log.Ctx(ctx).Debug().Msg("Limit range on app namespace created")
 
 	err = app.applySecretsForPipelines(ctx) // create deploy key in app namespace
 	if err != nil {
@@ -72,7 +70,7 @@ func (app *Application) OnSync(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to grant access to git private key secret: %w", err)
 	}
-	app.logger.Debug().Msg("Applied secrets needed by pipelines")
+	log.Ctx(ctx).Debug().Msg("Applied secrets needed by pipelines")
 
 	err = app.applyRbacOnRadixTekton(ctx)
 	if err != nil {
@@ -83,20 +81,20 @@ func (app *Application) OnSync(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to apply pipeline permissions: %w", err)
 	}
-	app.logger.Debug().Msg("Applied access permissions needed by pipeline")
+	log.Ctx(ctx).Debug().Msg("Applied access permissions needed by pipeline")
 
 	err = app.applyRbacRadixRegistration(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to RadixRegistration: %w", err)
 	}
-	app.logger.Debug().Msg("Applied access permissions to RadixRegistration")
+	log.Ctx(ctx).Debug().Msg("Applied access permissions to RadixRegistration")
 
 	err = app.applyRbacAppNamespace(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to app namespace: %w", err)
 	}
 
-	app.logger.Debug().Msg("Applied access to app namespace. Set registration to be reconciled")
+	log.Ctx(ctx).Debug().Msg("Applied access to app namespace. Set registration to be reconciled")
 	err = app.updateRadixRegistrationStatus(ctx, radixRegistration, func(currStatus *v1.RadixRegistrationStatus) {
 		currStatus.Reconciled = metav1.NewTime(time.Now().UTC())
 	})

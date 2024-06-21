@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 		env:             "any",
 		componentImages: make(pipeline.DeployComponentImages),
 	}
-	jobs, err := cfg.JobComponents()
+	jobs, err := cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, "job1", jobs[0].Name)
@@ -64,7 +65,7 @@ func Test_GetRadixJobComponentsWithNode_BuildAllJobComponents(t *testing.T) {
 		env:             "any",
 		componentImages: make(pipeline.DeployComponentImages),
 	}
-	jobs, err := cfg.JobComponents()
+	jobs, err := cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, gpu, jobs[0].Node.Gpu)
@@ -100,7 +101,7 @@ func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 		componentImages: make(pipeline.DeployComponentImages),
 		defaultEnvVars:  envVarsMap,
 	}
-	jobComponents, err := cfg.JobComponents()
+	jobComponents, err := cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	jobComponent := jobComponents[0]
 	assert.Len(t, jobComponent.EnvironmentVariables, 5)
@@ -141,7 +142,7 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(pipeline.DeployComponentImages)}
-	jobComponents, err := cfg.JobComponents()
+	jobComponents, err := cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	job := jobComponents[0]
 	assert.True(t, job.Monitoring)
@@ -149,7 +150,7 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 	assert.Empty(t, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(pipeline.DeployComponentImages)}
-	jobComponents, err = cfg.JobComponents()
+	jobComponents, err = cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	job = jobComponents[0]
 	assert.False(t, job.Monitoring)
@@ -157,7 +158,7 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 	assert.Empty(t, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(pipeline.DeployComponentImages)}
-	jobComponents, err = cfg.JobComponents()
+	jobComponents, err = cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	job = jobComponents[1]
 	assert.True(t, job.Monitoring)
@@ -165,7 +166,7 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 	assert.Equal(t, monitoringConfig.Path, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(pipeline.DeployComponentImages)}
-	jobComponents, err = cfg.JobComponents()
+	jobComponents, err = cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	job = jobComponents[1]
 	assert.False(t, job.Monitoring)
@@ -209,7 +210,7 @@ func Test_GetRadixJobComponents_Identity(t *testing.T) {
 			}
 			ra := utils.ARadixApplication().WithJobComponents(jobComponent).BuildRA()
 			sut := jobComponentsBuilder{ra: ra, env: envName, componentImages: make(pipeline.DeployComponentImages)}
-			jobs, err := sut.JobComponents()
+			jobs, err := sut.JobComponents(context.Background())
 			require.NoError(t, err)
 			assert.Equal(t, scenario.expected, jobs[0].Identity)
 		})
@@ -238,7 +239,7 @@ func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env2", componentImages: componentImages}
-	jobs, err := cfg.JobComponents()
+	jobs, err := cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "img:release", jobs[0].Image)
 	assert.Equal(t, "job2:tag", jobs[1].Image)
@@ -274,7 +275,7 @@ func Test_GetRadixJobComponents_NodeName(t *testing.T) {
 	t.Run("override job gpu and gpu-count with environment gpu and gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env1"}
-		jobs, err := cfg.JobComponents()
+		jobs, err := cfg.JobComponents(context.Background())
 		require.NoError(t, err)
 		assert.Equal(t, envGpu1, jobs[0].Node.Gpu)
 		assert.Equal(t, envGpuCount1, jobs[0].Node.GpuCount)
@@ -282,7 +283,7 @@ func Test_GetRadixJobComponents_NodeName(t *testing.T) {
 	t.Run("override job gpu-count with environment gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env2"}
-		jobs, err := cfg.JobComponents()
+		jobs, err := cfg.JobComponents(context.Background())
 		require.NoError(t, err)
 		assert.Equal(t, compGpu, jobs[0].Node.Gpu)
 		assert.Equal(t, envGpuCount2, jobs[0].Node.GpuCount)
@@ -290,7 +291,7 @@ func Test_GetRadixJobComponents_NodeName(t *testing.T) {
 	t.Run("override job gpu with environment gpu", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env3"}
-		jobs, err := cfg.JobComponents()
+		jobs, err := cfg.JobComponents(context.Background())
 		require.NoError(t, err)
 		assert.Equal(t, envGpu3, jobs[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, jobs[0].Node.GpuCount)
@@ -298,7 +299,7 @@ func Test_GetRadixJobComponents_NodeName(t *testing.T) {
 	t.Run("do not override job gpu or gpu-count with environment gpu or gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env4"}
-		jobs, err := cfg.JobComponents()
+		jobs, err := cfg.JobComponents(context.Background())
 		require.NoError(t, err)
 		assert.Equal(t, compGpu, jobs[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, jobs[0].Node.GpuCount)
@@ -333,7 +334,7 @@ func Test_GetRadixJobComponents_Resources(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(pipeline.DeployComponentImages)}
-	jobs, err := cfg.JobComponents()
+	jobs, err := cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "1100Mi", jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "1150m", jobs[0].Resources.Requests["cpu"])
@@ -342,7 +343,7 @@ func Test_GetRadixJobComponents_Resources(t *testing.T) {
 	assert.Empty(t, jobs[1].Resources)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(pipeline.DeployComponentImages)}
-	jobs, err = cfg.JobComponents()
+	jobs, err = cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "100Mi", jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "150m", jobs[0].Resources.Requests["cpu"])
@@ -362,7 +363,7 @@ func Test_GetRadixJobComponents_Ports(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(pipeline.DeployComponentImages)}
-	jobs, err := cfg.JobComponents()
+	jobs, err := cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, jobs[0].Ports, 2)
 	portMap := make(map[string]radixv1.ComponentPort)
@@ -385,7 +386,7 @@ func Test_GetRadixJobComponents_Secrets(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(pipeline.DeployComponentImages)}
-	jobs, err := cfg.JobComponents()
+	jobs, err := cfg.JobComponents(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, jobs[0].Secrets, 2)
 	assert.ElementsMatch(t, []string{"SECRET1", "SECRET2"}, jobs[0].Secrets)
@@ -412,9 +413,9 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 
 	cfgEnv1 := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(pipeline.DeployComponentImages)}
 	cfgEnv2 := jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(pipeline.DeployComponentImages)}
-	env1Job, err := cfgEnv1.JobComponents()
+	env1Job, err := cfgEnv1.JobComponents(context.Background())
 	require.NoError(t, err)
-	env2Job, err := cfgEnv2.JobComponents()
+	env2Job, err := cfgEnv2.JobComponents(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, numbers.Int64Ptr(100), env1Job[0].TimeLimitSeconds)
 	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
@@ -453,13 +454,13 @@ func Test_GetRadixJobComponents_BackoffLimit(t *testing.T) {
 				BuildRA()
 
 			devBuilder := jobComponentsBuilder{ra: ra, env: devEnvName, componentImages: pipeline.DeployComponentImages{}}
-			devJobs, err := devBuilder.JobComponents()
+			devJobs, err := devBuilder.JobComponents(context.Background())
 			require.NoError(t, err, "devJobs build error")
 			require.Len(t, devJobs, 1, "devJobs length")
 			assert.Equal(t, scenario.expectedEnvDevBackoffLimit, devJobs[0].BackoffLimit, "devJobs backoffLimit")
 
 			prodBuilder := jobComponentsBuilder{ra: ra, env: prodEnvName, componentImages: pipeline.DeployComponentImages{}}
-			prodJobs, err := prodBuilder.JobComponents()
+			prodJobs, err := prodBuilder.JobComponents(context.Background())
 			require.NoError(t, err, "prodJobs build error")
 			require.Len(t, prodJobs, 1, "prodJobs length")
 			assert.Equal(t, scenario.expectedEnvProdBackoffLimit, prodJobs[0].BackoffLimit, "prodJobs bacoffLimit")
@@ -500,7 +501,7 @@ func Test_GetRadixJobComponents_Notifications(t *testing.T) {
 			}
 			ra := utils.ARadixApplication().WithJobComponents(jobComponent).BuildRA()
 			sut := jobComponentsBuilder{ra: ra, env: envName, componentImages: make(pipeline.DeployComponentImages)}
-			jobs, err := sut.JobComponents()
+			jobs, err := sut.JobComponents(context.Background())
 			require.NoError(t, err)
 			assert.Equal(t, scenario.expected, jobs[0].Notifications)
 		})
@@ -621,7 +622,7 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
 
-			deployJobComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents()
+			deployJobComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents(context.Background())
 			if err != nil && ts.expectedError == nil {
 				assert.Fail(t, fmt.Sprintf("unexpected error %v", err))
 				return
@@ -683,7 +684,7 @@ func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 
 			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
 
-			deployComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents()
+			deployComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents(context.Background())
 			assert.NoError(t, err)
 			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
 				return component.Name == "jobComponentName"
@@ -738,7 +739,7 @@ func Test_GetRadixJobComponentAndEnv_Monitoring(t *testing.T) {
 								WithMonitoring(pointers.Ptr(false)),
 						)).BuildRA()
 
-			deployComponents, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents()
+			deployComponents, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents(context.Background())
 			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
 				return component.Name == componentName
 			})
@@ -955,7 +956,7 @@ func Test_GetRadixJobComponents_VolumeMounts(t *testing.T) {
 								WithVolumeMounts(testCase.environmentVolumeMounts),
 						)).BuildRA()
 
-			deployComponents, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents()
+			deployComponents, _ := NewJobComponentsBuilder(ra, env, componentImages, envVarsMap, nil).JobComponents(context.Background())
 			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
 				return component.Name == componentName
 			})
@@ -1039,7 +1040,7 @@ func Test_GetRadixJobComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
 				WithJobComponents(componentBuilder).BuildRA()
 
 			for _, envName := range []string{env1, env2} {
-				deployComponents, _ := NewJobComponentsBuilder(ra, envName, componentImages, envVarsMap, nil).JobComponents()
+				deployComponents, _ := NewJobComponentsBuilder(ra, envName, componentImages, envVarsMap, nil).JobComponents(context.Background())
 				deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
 					return component.Name == componentName
 				})
@@ -1102,7 +1103,7 @@ func Test_JobCompopnentBuilder_Runtime(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			deployJobComponents, err := NewJobComponentsBuilder(ra, test.env, test.deployImages, make(radixv1.EnvVarsMap), nil).JobComponents()
+			deployJobComponents, err := NewJobComponentsBuilder(ra, test.env, test.deployImages, make(radixv1.EnvVarsMap), nil).JobComponents(context.Background())
 			require.NoError(t, err)
 			require.Len(t, deployJobComponents, 1)
 			deployJobComponent := deployJobComponents[0]

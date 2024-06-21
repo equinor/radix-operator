@@ -9,11 +9,9 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -30,7 +28,6 @@ type alertSyncer struct {
 	radixAlert           *radixv1.RadixAlert
 	slackMessageTemplate slackMessageTemplate
 	alertConfigs         AlertConfigs
-	logger               zerolog.Logger
 }
 
 // New creates a new alert syncer
@@ -48,13 +45,13 @@ func New(kubeclient kubernetes.Interface,
 		radixAlert:           radixAlert,
 		slackMessageTemplate: defaultSlackMessageTemplate,
 		alertConfigs:         defaultAlertConfigs,
-		logger:               log.Logger.With().Str("resource_kind", radixv1.KindRadixAlert).Str("resource_name", cache.MetaObjectToName(&radixAlert.ObjectMeta).String()).Logger(),
 	}
 }
 
 // OnSync compares the actual state with the desired, and attempts to reconcile the two
 func (syncer *alertSyncer) OnSync(ctx context.Context) error {
-	syncer.logger.Info().Msg("Syncing")
+	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixAlert).Logger().WithContext(ctx)
+	log.Ctx(ctx).Info().Msg("Syncing")
 
 	if err := syncer.syncAlert(ctx); err != nil {
 		return err
