@@ -87,21 +87,21 @@ func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		<-ctx.Done()
-		log.Info().Msg("Shutting down gracefully")
+		log.Ctx(ctx).Info().Msg("Shutting down gracefully")
 	}()
 
 	app, err := initializeApp(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize app")
 	}
-	log.Info().Msgf("Active cluster name: %v", app.opts.activeClusterNameEnvVar)
+	log.Ctx(ctx).Info().Msgf("Active cluster name: %v", app.opts.activeClusterNameEnvVar)
 
 	err = app.Run(ctx)
 	if err != nil {
 		log.Fatal().Msgf(err.Error())
 	}
 
-	log.Info().Msg("Finished.")
+	log.Ctx(ctx).Info().Msg("Finished.")
 }
 
 func initializeApp(ctx context.Context) (*App, error) {
@@ -406,9 +406,9 @@ func startMetricsServer(ctx context.Context) error {
 	http.Handle("/healthz", http.HandlerFunc(Healthz))
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal().Err(err).Msg("Failed to start metric server")
+			log.Ctx(ctx).Fatal().Err(err).Msg("Failed to start metric server")
 		}
-		log.Info().Msg("Metrics server closed")
+		log.Ctx(ctx).Info().Msg("Metrics server closed")
 	}()
 	<-ctx.Done()
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
