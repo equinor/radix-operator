@@ -26,7 +26,6 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -97,10 +96,8 @@ func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.Ra
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (deploy *Deployment) OnSync(ctx context.Context) error {
-	ctx = log.Ctx(ctx).With().
-		Str("resource_kind", v1.KindRadixDeployment).
-		Str("resource_name", cache.MetaObjectToName(&deploy.radixDeployment.ObjectMeta).String()).
-		Logger().WithContext(ctx)
+	ctx = log.Ctx(ctx).With().Str("resource_kind", v1.KindRadixDeployment).Logger().WithContext(ctx)
+	log.Ctx(ctx).Info().Msg("Syncing")
 
 	requeue := deploy.restoreStatus(ctx)
 

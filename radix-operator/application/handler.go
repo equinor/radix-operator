@@ -61,6 +61,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 		return err
 	}
+	ctx = log.Ctx(ctx).With().Str("app_name", name).Logger().WithContext(ctx)
 
 	radixRegistration, err := t.kubeutil.GetRegistration(ctx, radixApplication.Name)
 	if err != nil {

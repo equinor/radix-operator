@@ -80,7 +80,7 @@ func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 		return err
 	}
-
+	ctx = log.Ctx(ctx).With().Str("app_name", radixBatch.Labels[kube.RadixAppLabel]).Logger().WithContext(ctx)
 	syncBatch := radixBatch.DeepCopy()
 	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncBatch)
 	err = syncer.OnSync(ctx)

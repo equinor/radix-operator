@@ -120,17 +120,19 @@ func NewHandler(kubeclient kubernetes.Interface,
 // Sync Is created on sync of resource
 func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	rd, err := t.kubeutil.GetRadixDeployment(ctx, namespace, name)
-	logger := log.Ctx(ctx)
 	if err != nil {
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			logger.Info().Msgf("RadixDeployment %s/%s in work queue no longer exists", namespace, name)
+			log.Ctx(ctx).Info().Msgf("RadixDeployment %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
 		return err
 	}
+	logger := log.Ctx(ctx).With().Str("app_name", rd.Spec.AppName).Logger()
+	ctx = logger.WithContext(ctx)
+
 	if deployment.IsRadixDeploymentInactive(rd) {
 		logger.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
 		return nil

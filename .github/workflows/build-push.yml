@@ -27,7 +27,7 @@ jobs:
       - get-target-configs
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
         config: ${{ fromJson(needs.get-target-configs.outputs.target_configs) }}
         script: [build-push-operator.sh, build-push-pipeline.sh]
     steps:
@@ -36,12 +36,12 @@ jobs:
       run: |
         $GITHUB_WORKSPACE/.github/workflows/scripts/persist-env.sh ${{ matrix.config }}
 
-    - uses: azure/login@v1
+    - uses: azure/login@v2
       with:
         client-id: ${{ env.AZURE_CLIENT_ID }}
         tenant-id: ${{ env.AZURE_TENANT_ID }}
         subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-    
+
     - name: Build and push image
       run: |
         $GITHUB_WORKSPACE/.github/workflows/scripts/${{ matrix.script }}

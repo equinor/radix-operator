@@ -178,7 +178,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}()
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
-	ctx = log.Ctx(ctx).With().Str("namespace", namespace).Str("name", name).Logger().WithContext(ctx)
+	ctx = log.Ctx(ctx).With().Str("resource_namespace", namespace).Str("resource_name", name).Logger().WithContext(ctx)
 
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("invalid resource key: %s", key)

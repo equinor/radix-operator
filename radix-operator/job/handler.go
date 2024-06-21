@@ -61,6 +61,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 		return err
 	}
+	ctx = log.Ctx(ctx).With().Str("app_name", radixJob.Spec.AppName).Logger().WithContext(ctx)
 
 	syncJob := radixJob.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync job %s", syncJob.Name)

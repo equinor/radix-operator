@@ -62,6 +62,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 		return err
 	}
+	ctx = log.Ctx(ctx).With().Str("app_name", registration.Name).Logger().WithContext(ctx)
 
 	syncRegistration := registration.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync registration %s", syncRegistration.Name)

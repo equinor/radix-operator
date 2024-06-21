@@ -95,6 +95,7 @@ func (h *handler) Sync(ctx context.Context, _, name string, eventRecorder record
 		}
 		return err
 	}
+	ctx = log.Ctx(ctx).With().Str("app_name", radixDNSAlias.Spec.AppName).Logger().WithContext(ctx)
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)

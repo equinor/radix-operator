@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -28,6 +29,6 @@ func (app *Application) createAppNamespace(ctx context.Context) error {
 		return fmt.Errorf("failed to create namespace %s: %w", name, err)
 	}
 
-	app.logger.Info().Msgf("Created namespace %s", name)
+	log.Ctx(ctx).Info().Msgf("Created namespace %s", name)
 	return nil
 }

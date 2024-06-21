@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
+	"github.com/rs/zerolog/log"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,12 +48,12 @@ func (s *syncer) syncIngress(ctx context.Context, namespace string, radixDeployC
 	existingIngress, err := s.kubeUtil.GetIngress(ctx, namespace, ingressName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			s.logger.Debug().Msgf("not found Ingress %s in the namespace %s. Create new.", ingressName, namespace)
+			log.Ctx(ctx).Debug().Msgf("not found Ingress %s in the namespace %s. Create new.", ingressName, namespace)
 			return s.createIngress(ctx, s.radixDNSAlias, newIngress)
 		}
 		return nil, err
 	}
-	s.logger.Debug().Msgf("found Ingress %s in the namespace %s.", ingressName, namespace)
+	log.Ctx(ctx).Debug().Msgf("found Ingress %s in the namespace %s.", ingressName, namespace)
 	patchesIngress, err := s.applyIngress(ctx, namespace, existingIngress, newIngress)
 	if err != nil {
 		return nil, err
@@ -69,7 +70,7 @@ func (s *syncer) applyIngress(ctx context.Context, namespace string, existingIng
 }
 
 func (s *syncer) createIngress(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
-	s.logger.Debug().Msgf("create an ingress %s for the RadixDNSAlias", ing.GetName())
+	log.Ctx(ctx).Debug().Msgf("create an ingress %s for the RadixDNSAlias", ing.GetName())
 	return CreateRadixDNSAliasIngress(ctx, s.kubeClient, radixDNSAlias.Spec.AppName, radixDNSAlias.Spec.Environment, ing)
 }
 

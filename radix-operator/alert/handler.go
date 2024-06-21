@@ -79,6 +79,8 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		return err
 	}
 
+	ctx = log.Ctx(ctx).With().Str("app_name", alert.Labels[kube.RadixAppLabel]).Logger().WithContext(ctx)
+
 	syncRAL := alert.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync radix alert %s", syncRAL.Name)
 

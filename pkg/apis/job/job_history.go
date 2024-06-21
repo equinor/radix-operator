@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,7 +20,7 @@ type radixJobsForConditions map[v1.RadixJobCondition]radixJobsForBranches
 func (job *Job) maintainHistoryLimit(ctx context.Context) {
 	radixJobs, err := job.getAllRadixJobs(ctx)
 	if err != nil {
-		job.logger.Warn().Err(err).Msg("failed to get RadixJob in maintain job history")
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to get RadixJob in maintain job history")
 		return
 	}
 	if len(radixJobs) == 0 {
@@ -27,13 +28,13 @@ func (job *Job) maintainHistoryLimit(ctx context.Context) {
 	}
 	radixJobsWithRDs, err := job.getRadixJobsWithRadixDeployments(ctx)
 	if err != nil {
-		job.logger.Warn().Err(err).Msg("failed to get RadixJobs with RadixDeployments in maintain job history")
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to get RadixJobs with RadixDeployments in maintain job history")
 		return
 	}
 	deletingJobs, radixJobsForConditions := job.groupSortedRadixJobs(radixJobs, radixJobsWithRDs)
 	jobHistoryLimit := job.config.PipelineJobConfig.PipelineJobsHistoryLimit
-	job.logger.Info().Msgf("Delete history RadixJob for limit %d", jobHistoryLimit)
-	jobsByConditionAndBranch := job.getJobsToGarbageCollectByJobConditionAndBranch(radixJobsForConditions, jobHistoryLimit)
+	log.Ctx(ctx).Info().Msgf("Delete history RadixJob for limit %d", jobHistoryLimit)
+	jobsByConditionAndBranch := job.getJobsToGarbageCollectByJobConditionAndBranch(ctx, radixJobsForConditions, jobHistoryLimit)
 
 	deletingJobs = append(deletingJobs, jobsByConditionAndBranch...)
 	job.garbageCollectRadixJobs(ctx, deletingJobs)
@@ -41,17 +42,17 @@ func (job *Job) maintainHistoryLimit(ctx context.Context) {
 
 func (job *Job) garbageCollectRadixJobs(ctx context.Context, radixJobs []v1.RadixJob) {
 	if len(radixJobs) == 0 {
-		job.logger.Info().Msg("There is no RadixJobs to delete")
+		log.Ctx(ctx).Info().Msg("There is no RadixJobs to delete")
 		return
 	}
 	for _, rj := range radixJobs {
 		if strings.EqualFold(rj.GetName(), job.radixJob.GetName()) {
 			continue // do not remove current job
 		}
-		job.logger.Info().Msgf("Delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
+		log.Ctx(ctx).Info().Msgf("Delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
 		err := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Delete(ctx, rj.GetName(), metav1.DeleteOptions{})
 		if err != nil {
-			job.logger.Warn().Err(err).Msgf("Failed to delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
+			log.Ctx(ctx).Warn().Err(err).Msgf("Failed to delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
 		}
 	}
 }
@@ -143,7 +144,7 @@ func (job *Job) getAllRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
 	return radixJobList.Items, err
 }
 
-func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(jobsForConditions radixJobsForConditions, jobHistoryLimit int) []v1.RadixJob {
+func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(ctx context.Context, jobsForConditions radixJobsForConditions, jobHistoryLimit int) []v1.RadixJob {
 	var deletingJobs []v1.RadixJob
 	for jobCondition, jobsForBranches := range jobsForConditions {
 		switch jobCondition {
@@ -153,7 +154,7 @@ func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(jobsForConditions
 			for jobBranch, jobs := range jobsForBranches {
 				jobs := sortRadixJobsByCreatedDesc(jobs)
 				for i := jobHistoryLimit; i < len(jobs); i++ {
-					job.logger.Debug().Msgf("Collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
+					log.Ctx(ctx).Debug().Msgf("Collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
 					deletingJobs = append(deletingJobs, jobs[i])
 				}
 			}

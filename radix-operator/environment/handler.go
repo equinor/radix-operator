@@ -68,6 +68,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 		return err
 	}
+	ctx = log.Ctx(ctx).With().Str("app_name", envConfig.Spec.AppName).Logger().WithContext(ctx)
 
 	syncEnvironment := envConfig.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync environment %s", syncEnvironment.Name)
