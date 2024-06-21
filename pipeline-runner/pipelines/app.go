@@ -80,7 +80,7 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 	log.Ctx(ctx).Info().Msgf("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
 
 	for _, step := range cli.pipelineInfo.Steps {
-		logger := log.Ctx(ctx).With().Stringer("step", step.ImplementationForType()).Logger()
+		logger := log.Ctx(ctx)
 		ctx := logger.WithContext(ctx)
 
 		err := step.Run(ctx, cli.pipelineInfo)
