@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,18 +46,18 @@ func (app *Application) applyRbacRadixRegistration(ctx context.Context) error {
 
 	// Admin RBAC
 	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
-	adminClusterRole := app.buildRRClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
+	adminClusterRole := app.buildRRClusterRole(ctx, clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
 	appAdminSubjects, err := utils.GetAppAdminRbacSubjects(rr)
 	if err != nil {
 		return err
 	}
-	adminClusterRoleBinding := app.rrClusterRoleBinding(adminClusterRole, appAdminSubjects)
+	adminClusterRoleBinding := app.rrClusterRoleBinding(ctx, adminClusterRole, appAdminSubjects)
 
 	// Reader RBAC
 	clusterRoleReaderName := fmt.Sprintf("radix-platform-user-rr-reader-%s", appName)
-	readerClusterRole := app.buildRRClusterRole(clusterRoleReaderName, []string{"get", "list", "watch"})
+	readerClusterRole := app.buildRRClusterRole(ctx, clusterRoleReaderName, []string{"get", "list", "watch"})
 	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
-	readerClusterRoleBinding := app.rrClusterRoleBinding(readerClusterRole, appReaderSubjects)
+	readerClusterRoleBinding := app.rrClusterRoleBinding(ctx, readerClusterRole, appReaderSubjects)
 
 	// Apply roles and bindings
 	for _, clusterRole := range []*rbacv1.ClusterRole{adminClusterRole, readerClusterRole} {
@@ -121,14 +122,14 @@ func (app *Application) applyRbacOnRadixTekton(ctx context.Context) error {
 
 func (app *Application) givePipelineAccessToRR(ctx context.Context, serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
 	clusterRoleName := fmt.Sprintf("%s-%s", clusterRoleNamePrefix, app.registration.Name)
-	clusterRole := app.buildRRClusterRole(clusterRoleName, []string{"get"})
-	clusterRoleBinding := app.clusterRoleBinding(serviceAccount, clusterRole)
+	clusterRole := app.buildRRClusterRole(ctx, clusterRoleName, []string{"get"})
+	clusterRoleBinding := app.clusterRoleBinding(ctx, serviceAccount, clusterRole)
 	return app.applyClusterRoleAndBinding(ctx, clusterRole, clusterRoleBinding)
 }
 
 func (app *Application) giveAccessToRadixDNSAliases(ctx context.Context, serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
-	clusterRole := app.buildRadixDNSAliasClusterRole(clusterRoleNamePrefix)
-	clusterRoleBinding := app.clusterRoleBinding(serviceAccount, clusterRole)
+	clusterRole := app.buildRadixDNSAliasClusterRole(ctx, clusterRoleNamePrefix)
+	clusterRoleBinding := app.clusterRoleBinding(ctx, serviceAccount, clusterRole)
 	return app.applyClusterRoleAndBinding(ctx, clusterRole, clusterRoleBinding)
 }
 
@@ -141,20 +142,20 @@ func (app *Application) applyClusterRoleAndBinding(ctx context.Context, clusterR
 
 func (app *Application) givePipelineAccessToAppNamespace(ctx context.Context, serviceAccount *corev1.ServiceAccount) error {
 	namespace := utils.GetAppNamespace(app.registration.Name)
-	rolebinding := app.pipelineRoleBinding(serviceAccount)
+	rolebinding := app.pipelineRoleBinding(ctx, serviceAccount)
 	return app.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
 func (app *Application) giveRadixTektonAccessToAppNamespace(ctx context.Context, serviceAccount *corev1.ServiceAccount) error {
 	namespace := utils.GetAppNamespace(app.registration.Name)
-	roleBinding := app.radixTektonRoleBinding(serviceAccount)
+	roleBinding := app.radixTektonRoleBinding(ctx, serviceAccount)
 	return app.kubeutil.ApplyRoleBinding(ctx, namespace, roleBinding)
 }
 
-func (app *Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {
+func (app *Application) pipelineRoleBinding(ctx context.Context, serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	app.logger.Debug().Msgf("Create rolebinding config %s", defaults.PipelineAppRoleName)
+	log.Ctx(ctx).Debug().Msgf("Create rolebinding config %s", defaults.PipelineAppRoleName)
 
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -183,10 +184,10 @@ func (app *Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccoun
 	return rolebinding
 }
 
-func (app *Application) radixTektonRoleBinding(serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {
+func (app *Application) radixTektonRoleBinding(ctx context.Context, serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	app.logger.Debug().Msgf("Create rolebinding config %s", defaults.RadixTektonAppRoleName)
+	log.Ctx(ctx).Debug().Msgf("Create rolebinding config %s", defaults.RadixTektonAppRoleName)
 
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -215,11 +216,11 @@ func (app *Application) radixTektonRoleBinding(serviceAccount *corev1.ServiceAcc
 	return rolebinding
 }
 
-func (app *Application) clusterRoleBinding(serviceAccount *corev1.ServiceAccount, clusterRole *rbacv1.ClusterRole) *rbacv1.ClusterRoleBinding {
+func (app *Application) clusterRoleBinding(ctx context.Context, serviceAccount *corev1.ServiceAccount, clusterRole *rbacv1.ClusterRole) *rbacv1.ClusterRoleBinding {
 	appName := app.registration.Name
 	clusterRoleBindingName := clusterRole.Name
 	ownerReference := app.getOwnerReference()
-	app.logger.Debug().Msgf("Create clusterrolebinding config %s", clusterRoleBindingName)
+	log.Ctx(ctx).Debug().Msgf("Create clusterrolebinding config %s", clusterRoleBindingName)
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -249,11 +250,11 @@ func (app *Application) clusterRoleBinding(serviceAccount *corev1.ServiceAccount
 	return clusterRoleBinding
 }
 
-func (app *Application) rrClusterRoleBinding(clusterRole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+func (app *Application) rrClusterRoleBinding(ctx context.Context, clusterRole *rbacv1.ClusterRole, subjects []rbacv1.Subject) *rbacv1.ClusterRoleBinding {
 	registration := app.registration
 	appName := registration.Name
 	clusterRoleBindingName := clusterRole.Name
-	app.logger.Debug().Msgf("Create clusterrolebinding config %s", clusterRoleBindingName)
+	log.Ctx(ctx).Debug().Msgf("Create clusterrolebinding config %s", clusterRoleBindingName)
 	ownerReference := app.getOwnerReference()
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
@@ -276,7 +277,7 @@ func (app *Application) rrClusterRoleBinding(clusterRole *rbacv1.ClusterRole, su
 		Subjects: subjects,
 	}
 
-	app.logger.Debug().Msgf("Done - create clusterrolebinding config %s", clusterRoleBindingName)
+	log.Ctx(ctx).Debug().Msgf("Done - create clusterrolebinding config %s", clusterRoleBindingName)
 
 	return clusterRoleBinding
 }

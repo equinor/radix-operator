@@ -55,11 +55,11 @@ func (kubeutil *Kube) ListEnvironments(ctx context.Context) ([]*radixv1.RadixEnv
 
 // UpdateRadixEnvironment Updates changes of RadixEnvironment if any
 func (kubeutil *Kube) UpdateRadixEnvironment(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment) (*radixv1.RadixEnvironment, error) {
-	log.Debug().Msgf("Update RadixEnvironment %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
+	log.Ctx(ctx).Debug().Msgf("Update RadixEnvironment %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
 	updated, err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Update(ctx, radixEnvironment, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update RadixEnvironment object: %v", err)
 	}
-	log.Debug().Msgf("Updated RadixEnvironment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
+	log.Ctx(ctx).Debug().Msgf("Updated RadixEnvironment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
 	return updated, nil
 }

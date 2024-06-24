@@ -56,10 +56,10 @@ func (cli *DeployStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 // Deploy Handles deploy step of the pipeline
 func (cli *DeployStepImplementation) deploy(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	appName := cli.GetAppName()
-	log.Info().Msgf("Deploying app %s", appName)
+	log.Ctx(ctx).Info().Msgf("Deploying app %s", appName)
 
 	if len(pipelineInfo.TargetEnvironments) == 0 {
-		log.Info().Msgf("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		log.Ctx(ctx).Info().Msgf("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 		return nil
 	}
 
@@ -96,6 +96,7 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		return err
 	}
 	radixDeployment, err := internal.ConstructForTargetEnvironment(
+		ctx,
 		pipelineInfo.RadixApplication,
 		currentRd,
 		pipelineInfo.PipelineArguments.JobName,
@@ -119,15 +120,15 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 	}
 
 	radixDeploymentName := radixDeployment.GetName()
-	log.Info().Msgf("Apply Radix deployment %s to environment %s", radixDeploymentName, envName)
+	log.Ctx(ctx).Info().Msgf("Apply Radix deployment %s to environment %s", radixDeploymentName, envName)
 	if _, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.Background(), radixDeployment, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
 	}
 
-	if err := cli.radixDeploymentWatcher.WaitForActive(namespace, radixDeploymentName); err != nil {
-		log.Error().Err(err).Msgf("Failed to activate Radix deployment %s in environment %s. Deleting deployment", radixDeploymentName, envName)
+	if err := cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to activate Radix deployment %s in environment %s. Deleting deployment", radixDeploymentName, envName)
 		if err := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); err != nil {
-			log.Error().Err(err).Msgf("Failed to delete Radix deployment")
+			log.Ctx(ctx).Error().Err(err).Msgf("Failed to delete Radix deployment")
 		}
 		return err
 	}

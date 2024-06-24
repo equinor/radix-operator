@@ -74,13 +74,13 @@ func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		// The resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixBatch %s/%s in work queue no longer exists", namespace, name)
+			log.Ctx(ctx).Info().Msgf("RadixBatch %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
 		return err
 	}
-
+	ctx = log.Ctx(ctx).With().Str("app_name", radixBatch.Labels[kube.RadixAppLabel]).Logger().WithContext(ctx)
 	syncBatch := radixBatch.DeepCopy()
 	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncBatch)
 	err = syncer.OnSync(ctx)

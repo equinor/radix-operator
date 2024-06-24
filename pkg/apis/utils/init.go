@@ -51,6 +51,7 @@ func (zl ZerologWarningHandlerAdapter) HandleWarningHeader(_ int, _ string, text
 
 // GetKubernetesClient Gets clients to talk to the API
 func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
+	logger := log.Ctx(ctx)
 	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
@@ -58,7 +59,7 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to read InClusterConfig")
+			logger.Fatal().Err(err).Msg("Failed to read InClusterConfig")
 		}
 	}
 
@@ -75,43 +76,43 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 		return kubernetes.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize Kubernetes client")
+		logger.Fatal().Err(err).Msg("Failed to initialize Kubernetes client")
 	}
 
 	radixClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*radixclient.Clientset, error) {
 		return radixclient.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize Radix client")
+		logger.Fatal().Err(err).Msg("Failed to initialize Radix client")
 	}
 
 	kedaClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kedav2.Clientset, error) {
 		return kedav2.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize KEDA client")
+		logger.Fatal().Err(err).Msg("Failed to initialize KEDA client")
 	}
 
 	prometheusOperatorClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*monitoring.Clientset, error) {
 		return monitoring.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize Prometheus client")
+		logger.Fatal().Err(err).Msg("Failed to initialize Prometheus client")
 	}
 
 	secretProviderClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*secretProviderClient.Clientset, error) {
 		return secretProviderClient.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize SecretProvider client")
+		logger.Fatal().Err(err).Msg("Failed to initialize SecretProvider client")
 	}
 	certClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*certclient.Clientset, error) {
 		return certclient.NewForConfig(config)
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize CertManager client")
+		logger.Fatal().Err(err).Msg("Failed to initialize CertManager client")
 	}
 
-	log.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
+	logger.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
 	return client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, certClient
 }

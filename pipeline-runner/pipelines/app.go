@@ -59,11 +59,11 @@ func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfac
 func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.PipelineArguments) error {
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(ctx, cli.appName, metav1.GetOptions{})
 	if err != nil {
-		log.Error().Err(err).Msgf("Failed to get RR for app %s. Error: %v", cli.appName, err)
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to get RR for app %s. Error: %v", cli.appName, err)
 		return err
 	}
 
-	stepImplementations := cli.initStepImplementations(radixRegistration)
+	stepImplementations := cli.initStepImplementations(ctx, radixRegistration)
 	cli.pipelineInfo, err = model.InitPipeline(
 		cli.definition,
 		pipelineArgs,
@@ -77,17 +77,20 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 
 // Run runs through the steps in the defined pipeline
 func (cli *PipelineRunner) Run(ctx context.Context) error {
-	log.Info().Msgf("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
+	log.Ctx(ctx).Info().Msgf("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
 
 	for _, step := range cli.pipelineInfo.Steps {
+		logger := log.Ctx(ctx)
+		ctx := logger.WithContext(ctx)
+
 		err := step.Run(ctx, cli.pipelineInfo)
 		if err != nil {
-			log.Error().Msg(step.ErrorMsg(err))
+			logger.Error().Msg(step.ErrorMsg(err))
 			return err
 		}
-		log.Info().Msg(step.SucceededMsg())
+		logger.Info().Msg(step.SucceededMsg())
 		if cli.pipelineInfo.StopPipeline {
-			log.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
+			logger.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
 			break
 		}
 
@@ -104,18 +107,18 @@ func (cli *PipelineRunner) TearDown(ctx context.Context) {
 
 	err := cli.kubeUtil.DeleteConfigMap(ctx, namespace, cli.pipelineInfo.RadixConfigMapName)
 	if err != nil && !k8sErrors.IsNotFound(err) {
-		log.Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.RadixConfigMapName, namespace)
+		log.Ctx(ctx).Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.RadixConfigMapName, namespace)
 	}
 
 	if cli.pipelineInfo.IsPipelineType(v1.BuildDeploy) {
 		err = cli.kubeUtil.DeleteConfigMap(ctx, namespace, cli.pipelineInfo.GitConfigMapName)
 		if err != nil && !k8sErrors.IsNotFound(err) {
-			log.Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.GitConfigMapName, namespace)
+			log.Ctx(ctx).Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.GitConfigMapName, namespace)
 		}
 	}
 }
 
-func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistration) []model.Step {
+func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, preparepipeline.NewPreparePipelinesStep(nil))
 	stepImplementations = append(stepImplementations, applyconfig.NewApplyConfigStep())
@@ -126,7 +129,7 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(cli.kubeclient, cli.radixclient, cli.kubeUtil, cli.prometheusOperatorClient, registration)
+			Init(ctx, cli.kubeclient, cli.radixclient, cli.kubeUtil, cli.prometheusOperatorClient, registration)
 	}
 
 	return stepImplementations
@@ -154,7 +157,7 @@ func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 		},
 		Data: map[string]string{jobs.ResultContent: string(resultContent)},
 	}
-	log.Debug().Msgf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
+	log.Ctx(ctx).Debug().Msgf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 	_, err = cli.kubeUtil.CreateConfigMap(ctx, utils.GetAppNamespace(cli.appName), &configMap)
 	return err
 }

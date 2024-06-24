@@ -41,7 +41,6 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 		KubeInformerFactory:   kubeInformerFactory,
 		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:               handler,
-		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
 		Recorder:              recorder,
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,

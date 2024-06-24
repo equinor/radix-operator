@@ -124,26 +124,29 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixDeployment %s/%s in work queue no longer exists", namespace, name)
+			log.Ctx(ctx).Info().Msgf("RadixDeployment %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
 		return err
 	}
+	logger := log.Ctx(ctx).With().Str("app_name", rd.Spec.AppName).Logger()
+	ctx = logger.WithContext(ctx)
+
 	if deployment.IsRadixDeploymentInactive(rd) {
-		log.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
+		logger.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
 		return nil
 	}
 
 	syncRD := rd.DeepCopy()
-	log.Debug().Msgf("Sync deployment %s", syncRD.Name)
+	logger.Debug().Msgf("Sync deployment %s", syncRD.Name)
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Debug().Msgf("RadixRegistration %s no longer exists", syncRD.Spec.AppName)
+			logger.Debug().Msgf("RadixRegistration %s no longer exists", syncRD.Spec.AppName)
 			return nil
 		}
 

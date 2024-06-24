@@ -127,6 +127,9 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Cont
 // It compares the actual state with the desired, and attempts to
 // converge the two
 func (app *ApplicationConfig) OnSync(ctx context.Context) error {
+	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixApplication).Logger().WithContext(ctx)
+	log.Ctx(ctx).Info().Msg("Syncing")
+
 	if err := app.syncEnvironments(ctx); err != nil {
 		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}

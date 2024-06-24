@@ -78,16 +78,16 @@ func (kubeutil *Kube) ApplyConfigMap(ctx context.Context, namespace string, curr
 	}
 
 	if IsEmptyPatch(patchBytes) {
-		log.Debug().Msgf("No need to patch config-map: %s ", currentConfigMap.GetName())
+		log.Ctx(ctx).Debug().Msgf("No need to patch config-map: %s ", currentConfigMap.GetName())
 		return nil
 	}
 
-	log.Debug().Msgf("Patch: %s", string(patchBytes))
+	log.Ctx(ctx).Debug().Msgf("Patch: %s", string(patchBytes))
 	patchedConfigMap, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Patch(ctx, currentConfigMap.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to patch config-map object: %v", err)
 	}
-	log.Debug().Msgf("Patched config-map: %s in namespace %s", patchedConfigMap.Name, namespace)
+	log.Ctx(ctx).Debug().Msgf("Patched config-map: %s in namespace %s", patchedConfigMap.Name, namespace)
 	return err
 }
 

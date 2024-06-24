@@ -14,7 +14,6 @@ import (
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -73,7 +72,6 @@ func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ..
 		radixAlert:           alert,
 		slackMessageTemplate: slackMessageTemplate{},
 		alertConfigs:         AlertConfigs{},
-		logger:               zerolog.Nop(),
 	}
 
 	for _, f := range options {
@@ -99,7 +97,6 @@ func (s *alertTestSuite) Test_New() {
 	s.Equal(ral, sut.radixAlert)
 	s.Equal(defaultSlackMessageTemplate, sut.slackMessageTemplate)
 	s.Equal(defaultAlertConfigs, sut.alertConfigs)
-	s.NotNil(sut.logger)
 }
 
 func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
