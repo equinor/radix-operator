@@ -7,9 +7,9 @@ import (
 
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -23,7 +23,7 @@ import (
 
 // BuildStepImplementation Step to build docker image
 type BuildStepImplementation struct {
-	stepType pipeline.StepType
+	stepType steps.StepType
 	model.DefaultStepImplementation
 	jobWaiter internalwait.JobCompletionWaiter
 }
@@ -32,7 +32,7 @@ type BuildStepImplementation struct {
 // jobWaiter is optional and will be set by Init(...) function if nil.
 func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
 	step := &BuildStepImplementation{
-		stepType:  pipeline.BuildStep,
+		stepType:  steps.BuildStep,
 		jobWaiter: jobWaiter,
 	}
 
@@ -47,7 +47,7 @@ func (step *BuildStepImplementation) Init(ctx context.Context, kubeclient kubern
 }
 
 // ImplementationForType Override of default step method
-func (step *BuildStepImplementation) ImplementationForType() pipeline.StepType {
+func (step *BuildStepImplementation) ImplementationForType() steps.StepType {
 	return step.stepType
 }
 

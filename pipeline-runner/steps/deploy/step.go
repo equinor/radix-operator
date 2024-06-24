@@ -6,9 +6,9 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
@@ -17,7 +17,7 @@ import (
 
 // DeployStepImplementation Step to deploy RD into environment
 type DeployStepImplementation struct {
-	stepType               pipeline.StepType
+	stepType               steps.StepType
 	namespaceWatcher       watcher.NamespaceWatcher
 	radixDeploymentWatcher watcher.RadixDeploymentWatcher
 	model.DefaultStepImplementation
@@ -26,14 +26,14 @@ type DeployStepImplementation struct {
 // NewDeployStep Constructor
 func NewDeployStep(namespaceWatcher watcher.NamespaceWatcher, radixDeploymentWatcher watcher.RadixDeploymentWatcher) model.Step {
 	return &DeployStepImplementation{
-		stepType:               pipeline.DeployStep,
+		stepType:               steps.DeployStep,
 		namespaceWatcher:       namespaceWatcher,
 		radixDeploymentWatcher: radixDeploymentWatcher,
 	}
 }
 
 // ImplementationForType Override of default step method
-func (cli *DeployStepImplementation) ImplementationForType() pipeline.StepType {
+func (cli *DeployStepImplementation) ImplementationForType() steps.StepType {
 	return cli.stepType
 }
 

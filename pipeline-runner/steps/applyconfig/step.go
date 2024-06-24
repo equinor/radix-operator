@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -29,19 +30,19 @@ import (
 
 // ApplyConfigStepImplementation Step to apply RA
 type ApplyConfigStepImplementation struct {
-	stepType pipeline.StepType
+	stepType steps.StepType
 	model.DefaultStepImplementation
 }
 
 // NewApplyConfigStep Constructor
 func NewApplyConfigStep() model.Step {
 	return &ApplyConfigStepImplementation{
-		stepType: pipeline.ApplyConfigStep,
+		stepType: steps.ApplyConfigStep,
 	}
 }
 
 // ImplementationForType Override of default step method
-func (cli *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepType {
+func (cli *ApplyConfigStepImplementation) ImplementationForType() steps.StepType {
 	return cli.stepType
 }
 

@@ -10,10 +10,10 @@ import (
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -27,7 +27,7 @@ import (
 
 // RunPipelinesStepImplementation Step to run Tekton pipelines
 type RunPipelinesStepImplementation struct {
-	stepType pipeline.StepType
+	stepType steps.StepType
 	model.DefaultStepImplementation
 	jobWaiter internalwait.JobCompletionWaiter
 }
@@ -36,7 +36,7 @@ type RunPipelinesStepImplementation struct {
 // jobWaiter is optional and will be set by Init(...) function if nil.
 func NewRunPipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
 	return &RunPipelinesStepImplementation{
-		stepType:  pipeline.RunPipelinesStep,
+		stepType:  steps.RunPipelinesStep,
 		jobWaiter: jobWaiter,
 	}
 }
@@ -49,7 +49,7 @@ func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeclient
 }
 
 // ImplementationForType Override of default step method
-func (step *RunPipelinesStepImplementation) ImplementationForType() pipeline.StepType {
+func (step *RunPipelinesStepImplementation) ImplementationForType() steps.StepType {
 	return step.stepType
 }
 
