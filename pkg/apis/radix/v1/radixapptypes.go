@@ -687,6 +687,10 @@ type RadixJobComponent struct {
 	// Runtime defines target runtime requirements for the job
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
+
+	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
+	// +optional
+	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -779,6 +783,10 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Runtime defines environment specific target runtime requirements for the job
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
+
+	// BatchStatusRules Rules define how a batch status in an environment is set corresponding to batch job statuses
+	// +optional
+	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -1398,6 +1406,40 @@ type Runtime struct {
 	Architecture RuntimeArchitecture `json:"architecture,omitempty"`
 }
 
+// BatchStatusRule Rule how to set a batch status by job statuses
+type BatchStatusRule struct {
+	// Condition of a rule
+	// +kubebuilder:validation:Enum=All;Any
+	Condition Condition `json:"condition" yaml:"condition"`
+	// Operator of a rule
+	// +kubebuilder:validation:Enum=In;NotIn
+	Operator Operator `json:"operator" yaml:"operator"`
+	// JobStatuses Matching job statuses within the rule
+	JobStatuses []RadixBatchJobPhase `json:"jobStatuses" yaml:"jobStatuses"`
+	// BatchStatus The status of the batch corresponding to job statuses
+	BatchStatus RadixBatchJobApiStatus `json:"batchStatus" yaml:"batchStatus"`
+}
+
+// Condition of a rule
+type Condition string
+
+const (
+	// ConditionAll All operations match
+	ConditionAll Condition = "All"
+	// ConditionAny Any operations match
+	ConditionAny Condition = "Any"
+)
+
+// Operator of a rule
+type Operator string
+
+const (
+	// OperatorIn Values are within the list
+	OperatorIn Operator = "In"
+	// OperatorNotIn Values are not within the list
+	OperatorNotIn Operator = "NotIn"
+)
+
 // RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
 	// GetName Gets component name
@@ -1653,6 +1695,10 @@ func (component *RadixJobComponent) GetIdentity() *Identity {
 
 func (component *RadixJobComponent) GetRuntime() *Runtime {
 	return component.Runtime
+}
+
+func (component *RadixJobComponent) GetBatchStatusRules() []BatchStatusRule {
+	return component.BatchStatusRules
 }
 
 // GetNotifications Get job component notifications

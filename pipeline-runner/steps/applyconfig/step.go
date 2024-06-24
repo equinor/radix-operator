@@ -11,11 +11,13 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	application2 "github.com/equinor/radix-operator/pkg/apis/pipeline/application"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -29,19 +31,19 @@ import (
 
 // ApplyConfigStepImplementation Step to apply RA
 type ApplyConfigStepImplementation struct {
-	stepType pipeline.StepType
+	stepType steps.StepType
 	model.DefaultStepImplementation
 }
 
 // NewApplyConfigStep Constructor
 func NewApplyConfigStep() model.Step {
 	return &ApplyConfigStepImplementation{
-		stepType: pipeline.ApplyConfigStep,
+		stepType: steps.ApplyConfigStep,
 	}
 }
 
 // ImplementationForType Override of default step method
-func (cli *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepType {
+func (cli *ApplyConfigStepImplementation) ImplementationForType() steps.StepType {
 	return cli.stepType
 }
 
@@ -75,7 +77,7 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
-	ra, err := internal.CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
+	ra, err := application2.CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
 	if err != nil {
 		return err
 	}

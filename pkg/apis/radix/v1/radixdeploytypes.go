@@ -393,6 +393,9 @@ type RadixDeployJobComponent struct {
 	Notifications           *Notifications            `json:"notifications,omitempty"`
 	ReadOnlyFileSystem      *bool                     `json:"readOnlyFileSystem,omitempty"`
 	Runtime                 *Runtime                  `json:"runtime,omitempty"`
+	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
+	// +optional
+	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
 }
 
 type RadixComponentType string

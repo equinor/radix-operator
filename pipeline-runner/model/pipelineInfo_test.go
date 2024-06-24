@@ -4,18 +4,19 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	applyConfigStep           = &model.DefaultStepImplementation{StepType: pipeline.ApplyConfigStep, SuccessMessage: "config applied"}
-	buildStep                 = &model.DefaultStepImplementation{StepType: pipeline.BuildStep, SuccessMessage: "built"}
-	deployStep                = &model.DefaultStepImplementation{StepType: pipeline.DeployStep, SuccessMessage: "deployed"}
-	prepareTektonPipelineStep = &model.DefaultStepImplementation{StepType: pipeline.PreparePipelinesStep,
+	applyConfigStep           = &model.DefaultStepImplementation{StepType: steps.ApplyConfigStep, SuccessMessage: "config applied"}
+	buildStep                 = &model.DefaultStepImplementation{StepType: steps.BuildStep, SuccessMessage: "built"}
+	deployStep                = &model.DefaultStepImplementation{StepType: steps.DeployStep, SuccessMessage: "deployed"}
+	prepareTektonPipelineStep = &model.DefaultStepImplementation{StepType: steps.PreparePipelinesStep,
 		SuccessMessage: "pipelines prepared"}
-	runTektonPipelineStep = &model.DefaultStepImplementation{StepType: pipeline.RunPipelinesStep,
+	runTektonPipelineStep = &model.DefaultStepImplementation{StepType: steps.RunPipelinesStep,
 		SuccessMessage: "run pipelines completed"}
 )
 
