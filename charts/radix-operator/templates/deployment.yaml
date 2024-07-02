@@ -157,6 +157,12 @@ spec:
               value: {{ .Values.seccompProfile.fileNameOnNode }}
             - name: RADIX_BUILDAH_IMAGE_BUILDER
               value: {{ .Values.buildahImageBuilder }}
+            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE
+              value: {{ .Values.gitCloneNsLookupImage }}
+            - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
+              value: {{ .Values.gitCloneGitImage }}
+            - name: RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE
+              value: {{ .Values.gitCloneBashImage }}
             - name: RADIX_RESERVED_APP_DNS_ALIASES
               value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.reservedAppDNSAlias | quote }}
             - name: RADIX_RESERVED_DNS_ALIASES

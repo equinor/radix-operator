@@ -137,19 +137,22 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
-			Branch:            buildBranch,
-			JobName:           rjName,
-			ImageBuilder:      "builder:latest",
-			CommitID:          "commit1234",
-			ImageTag:          "imgtag",
-			PushImage:         false,
-			UseCache:          false,
-			ContainerRegistry: "registry",
-			Clustertype:       "clustertype",
-			RadixZone:         "radixzone",
-			Clustername:       "clustername",
-			SubscriptionId:    "subscriptionid",
+			PipelineType:          "build-deploy",
+			Branch:                buildBranch,
+			JobName:               rjName,
+			ImageBuilder:          "builder:latest",
+			CommitID:              "commit1234",
+			ImageTag:              "imgtag",
+			PushImage:             false,
+			UseCache:              false,
+			ContainerRegistry:     "registry",
+			Clustertype:           "clustertype",
+			RadixZone:             "radixzone",
+			Clustername:           "clustername",
+			SubscriptionId:        "subscriptionid",
+			GitCloneGitImage:      "anygitimage:latest",
+			GitCloneNsLookupImage: "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 		GitConfigMapName:   gitConfigMapName,
@@ -194,7 +197,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	// Check init containers
 	s.ElementsMatch([]string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 	cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
-	s.Equal("alpine/git:2.45.2", cloneContainer.Image)
+	s.Equal(pipeline.PipelineArguments.GitCloneGitImage, cloneContainer.Image)
 	s.Equal([]string{"git", "clone", "--recurse-submodules", cloneURL, "-b", buildBranch, "--verbose", "--progress", git.Workspace}, cloneContainer.Command)
 	s.Empty(cloneContainer.Args)
 	// s.Equal([]string{fmt.Sprintf("git clone --recurse-submodules %s -b %s --verbose --progress /workspace", cloneURL, buildBranch)}, cloneContainer.Args)
@@ -285,13 +288,16 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
-			Branch:            buildBranch,
-			JobName:           rjName,
-			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
+			PipelineType:          "build-deploy",
+			Branch:                buildBranch,
+			JobName:               rjName,
+			ImageTag:              "imgtag",
+			ContainerRegistry:     "registry",
+			Clustertype:           "clustertype",
+			Clustername:           "clustername",
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -452,10 +458,13 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_ExpectedRuntime() 
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType: "build-deploy",
-			Branch:       buildBranch,
-			JobName:      rjName,
-			Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			PipelineType:          "build-deploy",
+			Branch:                buildBranch,
+			JobName:               rjName,
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
+			Builder:               model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -560,13 +569,16 @@ func (s *buildTestSuite) Test_BuildJobSpec_MultipleComponents_IgnoreDisabled() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
-			Branch:            buildBranch,
-			JobName:           rjName,
-			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
+			PipelineType:          "build-deploy",
+			Branch:                buildBranch,
+			JobName:               rjName,
+			ImageTag:              "imgtag",
+			ContainerRegistry:     "registry",
+			Clustertype:           "clustertype",
+			Clustername:           "clustername",
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -712,13 +724,16 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, buildCtx))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
-			JobName:           rjName,
-			Branch:            buildBranch,
-			ImageTag:          "imgtag",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
-			ContainerRegistry: "registry",
+			PipelineType:          "build-deploy",
+			JobName:               rjName,
+			Branch:                buildBranch,
+			ImageTag:              "imgtag",
+			Clustertype:           "clustertype",
+			Clustername:           "clustername",
+			ContainerRegistry:     "registry",
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -831,13 +846,16 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 		return builder.BuildRD()
 	}
 	piplineArgs := model.PipelineArguments{
-		PipelineType:      "build-deploy",
-		Branch:            buildBranch,
-		JobName:           rjName,
-		ImageTag:          "imgtag",
-		ContainerRegistry: "registry",
-		Clustertype:       "clustertype",
-		Clustername:       "clustername",
+		PipelineType:          "build-deploy",
+		Branch:                buildBranch,
+		JobName:               rjName,
+		ImageTag:              "imgtag",
+		ContainerRegistry:     "registry",
+		Clustertype:           "clustertype",
+		Clustername:           "clustername",
+		GitCloneNsLookupImage: "any",
+		GitCloneGitImage:      "any",
+		GitCloneBashImage:     "any",
 	}
 	imageNameFunc := func(s string) string {
 		return fmt.Sprintf("%s/%s-%s:%s", piplineArgs.ContainerRegistry, appName, s, piplineArgs.ImageTag)
@@ -1319,9 +1337,12 @@ func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:    "main",
-			JobName:   rjName,
-			PushImage: true,
+			Branch:                "main",
+			JobName:               rjName,
+			PushImage:             true,
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1359,9 +1380,12 @@ func (s *buildTestSuite) Test_BuildJobSpec_UseCache() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:   "main",
-			JobName:  rjName,
-			UseCache: true,
+			Branch:                "main",
+			JobName:               rjName,
+			UseCache:              true,
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1399,8 +1423,11 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithDockerfileName() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			Branch:                "main",
+			JobName:               rjName,
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1438,8 +1465,11 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithSourceFolder() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			Branch:                "main",
+			JobName:               rjName,
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1479,8 +1509,11 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	s.Require().NoError(internaltest.CreateBuildSecret(s.kubeClient, appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:  "main",
-			JobName: rjName,
+			Branch:                "main",
+			JobName:               rjName,
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1535,16 +1568,19 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:         "build-deploy",
-			Branch:               "main",
-			JobName:              rjName,
-			BuildKitImageBuilder: "anybuildkitimage:tag",
-			ImageTag:             "anyimagetag",
-			ContainerRegistry:    "anyregistry",
-			AppContainerRegistry: "anyappregistry",
-			Clustertype:          "anyclustertype",
-			Clustername:          "anyclustername",
-			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			PipelineType:          "build-deploy",
+			Branch:                "main",
+			JobName:               rjName,
+			BuildKitImageBuilder:  "anybuildkitimage:tag",
+			ImageTag:              "anyimagetag",
+			ContainerRegistry:     "anyregistry",
+			AppContainerRegistry:  "anyappregistry",
+			Clustertype:           "anyclustertype",
+			Clustername:           "anyclustername",
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
+			Builder:               model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
 		},
 		RadixConfigMapName: prepareConfigMapName,
 		GitConfigMapName:   gitConfigMapName,
@@ -1636,16 +1672,19 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:               "main",
-			JobName:              rjName,
-			BuildKitImageBuilder: "anybuildkitimage:tag",
-			ImageTag:             "anyimagetag",
-			ContainerRegistry:    "anyregistry",
-			AppContainerRegistry: "anyappregistry",
-			Clustertype:          "anyclustertype",
-			Clustername:          "anyclustername",
-			PushImage:            true,
-			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			Branch:                "main",
+			JobName:               rjName,
+			BuildKitImageBuilder:  "anybuildkitimage:tag",
+			ImageTag:              "anyimagetag",
+			ContainerRegistry:     "anyregistry",
+			AppContainerRegistry:  "anyappregistry",
+			Clustertype:           "anyclustertype",
+			Clustername:           "anyclustername",
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
+			PushImage:             true,
+			Builder:               model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1709,14 +1748,17 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_WithBuildSecrets() {
 	s.Require().NoError(internaltest.CreateBuildSecret(s.kubeClient, appName, map[string][]byte{"SECRET1": nil, "SECRET2": nil}))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			Branch:               "main",
-			JobName:              rjName,
-			BuildKitImageBuilder: "anybuildkitimage:tag",
-			ImageTag:             "anyimagetag",
-			ContainerRegistry:    "anyregistry",
-			Clustertype:          "anyclustertype",
-			Clustername:          "anyclustername",
-			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			Branch:                "main",
+			JobName:               rjName,
+			BuildKitImageBuilder:  "anybuildkitimage:tag",
+			ImageTag:              "anyimagetag",
+			ContainerRegistry:     "anyregistry",
+			Clustertype:           "anyclustertype",
+			Clustername:           "anyclustername",
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
+			Builder:               model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}
@@ -1805,16 +1847,19 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_RuntimeAffinity() {
 	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:         "build-deploy",
-			Branch:               "main",
-			JobName:              rjName,
-			BuildKitImageBuilder: "anybuildkitimage:tag",
-			ImageTag:             "anyimagetag",
-			ContainerRegistry:    "anyregistry",
-			AppContainerRegistry: "anyappregistry",
-			Clustertype:          "anyclustertype",
-			Clustername:          "anyclustername",
-			Builder:              model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+			PipelineType:          "build-deploy",
+			Branch:                "main",
+			JobName:               rjName,
+			BuildKitImageBuilder:  "anybuildkitimage:tag",
+			ImageTag:              "anyimagetag",
+			ContainerRegistry:     "anyregistry",
+			AppContainerRegistry:  "anyappregistry",
+			Clustertype:           "anyclustertype",
+			Clustername:           "anyclustername",
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
+			Builder:               model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
 		},
 		RadixConfigMapName: prepareConfigMapName,
 		GitConfigMapName:   gitConfigMapName,
@@ -1934,13 +1979,16 @@ func (s *buildTestSuite) Test_BuildJobSpec_EnvConfigSrcAndImage() {
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
-			Branch:            buildBranch,
-			JobName:           rjName,
-			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
+			PipelineType:          "build-deploy",
+			Branch:                buildBranch,
+			JobName:               rjName,
+			ImageTag:              "imgtag",
+			ContainerRegistry:     "registry",
+			Clustertype:           "clustertype",
+			Clustername:           "clustername",
+			GitCloneNsLookupImage: "any",
+			GitCloneGitImage:      "any",
+			GitCloneBashImage:     "any",
 		},
 		RadixConfigMapName: prepareConfigMapName,
 	}

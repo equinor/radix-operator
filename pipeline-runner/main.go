@@ -127,6 +127,10 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringToStringVar(&pipelineArgs.DNSConfig.ReservedAppDNSAliases, defaults.RadixReservedAppDNSAliasesEnvironmentVariable, make(map[string]string), "The list of DNS aliases, reserved for Radix platform Radix application")
 	cmd.Flags().StringSliceVar(&pipelineArgs.DNSConfig.ReservedDNSAliases, defaults.RadixReservedDNSAliasesEnvironmentVariable, make([]string, 0), "The list of DNS aliases, reserved for Radix platform services")
 	cmd.Flags().StringSliceVar(&pipelineArgs.ComponentsToDeploy, defaults.RadixComponentsToDeployVariable, make([]string, 0), "The list of components to deploy (optional)")
+	// Git clone init container images
+	cmd.Flags().StringVar(&pipelineArgs.GitCloneNsLookupImage, defaults.RadixGitCloneNsLookupImageEnvironmentVariable, "alpine:latest", "Container image with nslookup used by git clone init containers")
+	cmd.Flags().StringVar(&pipelineArgs.GitCloneGitImage, defaults.RadixGitCloneGitImageEnvironmentVariable, "alpine/git:latest", "Container image with git used by git clone init containers")
+	cmd.Flags().StringVar(&pipelineArgs.GitCloneBashImage, defaults.RadixGitCloneBashImageEnvironmentVariable, "bash:latest", "Container image with bash used by git clone init containers")
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {

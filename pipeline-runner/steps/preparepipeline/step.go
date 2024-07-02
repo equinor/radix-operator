@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
+	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
 	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -82,7 +83,10 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		pipelineInfo.SourceDeploymentGitCommitHash = sourceDeploymentGitCommitHash
 		pipelineInfo.SourceDeploymentGitBranch = sourceDeploymentGitBranch
 	}
-	job := cli.getPreparePipelinesJobConfig(pipelineInfo)
+	job, err := cli.getPreparePipelinesJobConfig(pipelineInfo)
+	if err != nil {
+		return err
+	}
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
@@ -95,7 +99,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 	}
 
 	log.Ctx(ctx).Info().Msgf("Apply job (%s) to copy radixconfig to configmap for app %s and prepare Tekton pipeline", job.Name, appName)
-	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
+	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -115,7 +119,7 @@ func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
 
-func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
+func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) (*batchv1.Job, error) {
 	appName := cli.GetAppName()
 	registration := cli.GetRegistration()
 	configBranch := applicationconfig.GetConfigBranch(registration)
@@ -199,10 +203,12 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Value: strings.Join(pipelineInfo.PipelineArguments.DNSConfig.ReservedDNSAliases, ","),
 		},
 	}
-	sshURL := registration.Spec.CloneURL
-	initContainers := cli.getInitContainerCloningRepo(configBranch, sshURL)
+	initContainers, err := git.CloneInitContainersWithContainerName(registration.Spec.CloneURL, configBranch, git.CloneConfigContainerName, internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments))
+	if err != nil {
+		return nil, err
+	}
 
-	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
+	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars), nil
 
 }
 
@@ -211,10 +217,6 @@ func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
 		return pipelineInfo.PipelineArguments.CommitID
 	}
 	return ""
-}
-
-func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(configBranch, sshURL string) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName)
 }
 
 func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx context.Context, appName, sourceEnvName, sourceDeploymentName string) (string, string, error) {
