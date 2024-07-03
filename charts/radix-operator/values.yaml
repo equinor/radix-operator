@@ -19,6 +19,12 @@ imageBuilder: radix-image-builder:master-latest
 buildahImageBuilder: xx
 jobScheduler: radix-job-scheduler:main-latest
 radixTekton: radix-tekton:main-latest
+
+# Images used by git clone init containers in pipeline
+gitCloneNsLookupImage: "" # Image containing nslookup, e.g. "alpine:3.20". Defaults to "alpine:latest" if not set
+gitCloneGitImage: "" # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
+gitCloneBashImage: "" # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
+
 useImageBuilderCache: 0
 reservedAppDNSAlias:
   api: radix-api

@@ -99,6 +99,7 @@ func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pip
 
 	g := errgroup.Group{}
 	for _, job := range jobs {
+		job := job
 		g.Go(func() error {
 			logger := log.Ctx(ctx).With().Str("job", job.Name).Logger()
 			job.OwnerReferences = ownerReference
