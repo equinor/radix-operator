@@ -19,6 +19,12 @@ imageBuilder: radix-image-builder:master-latest
 buildahImageBuilder: xx
 jobScheduler: radix-job-scheduler:main-latest
 radixTekton: radix-tekton:main-latest
+
+# Images used by git clone init containers in pipeline
+gitCloneNsLookupImage: "" # Image containing nslookup, e.g. "alpine:3.20". Defaults to "alpine:latest" if not set
+gitCloneGitImage: "" # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
+gitCloneBashImage: "" # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
+
 useImageBuilderCache: 0
 reservedAppDNSAlias:
   api: radix-api
@@ -161,16 +167,18 @@ oauthProxyDefaultIssuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5
 oauthProxyImage: quay.io/oauth2-proxy/oauth2-proxy:v7.2.0
 
 seccompProfile:
-  configMapName: "seccomp-allow-buildah"
-  daemonSetName: copy-seccomp-profile
   fileNameOnNode: allow-buildah.json
-  resources:
-    limits:
-      cpu: 10m
-      memory: 10Mi
-    requests:
-      cpu: 10m
-      memory: 10Mi
+  installer:
+    image: docker.io/alpine:3.20
+    configMapName: "seccomp-allow-buildah"
+    daemonSetName: copy-seccomp-profile
+    resources:
+      limits:
+        cpu: 10m
+        memory: 10Mi
+      requests:
+        cpu: 10m
+        memory: 10Mi
 
 # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
 podSecurityStandard:

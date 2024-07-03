@@ -185,6 +185,17 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 	}
 
+	// Pass git clone init container images
+	if v := os.Getenv(defaults.RadixGitCloneNsLookupImageEnvironmentVariable); len(v) > 0 {
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneNsLookupImageEnvironmentVariable, v))
+	}
+	if v := os.Getenv(defaults.RadixGitCloneGitImageEnvironmentVariable); len(v) > 0 {
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneGitImageEnvironmentVariable, v))
+	}
+	if v := os.Getenv(defaults.RadixGitCloneBashImageEnvironmentVariable); len(v) > 0 {
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneBashImageEnvironmentVariable, v))
+	}
+
 	switch pipeline.Type {
 	case radixv1.BuildDeploy, radixv1.Build:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))

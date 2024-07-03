@@ -10,6 +10,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
+	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -54,7 +55,10 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(
 
 	log.Ctx(ctx).Debug().Msg("build a build-job")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-	job := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, buildComponentImages...)
+	job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, buildComponentImages...)
+	if err != nil {
+		return nil, err
+	}
 	return []*batchv1.Job{job}, nil
 }
 
@@ -66,7 +70,10 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(
 			log.Ctx(ctx).Debug().Msgf("build a job for the image %s", componentImage.ImageName)
 			hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
 
-			job := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, componentImage.Runtime, componentImage)
+			job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, componentImage.Runtime, componentImage)
+			if err != nil {
+				return nil, err
+			}
 
 			job.ObjectMeta.Labels[kube.RadixEnvLabel] = envName
 			job.ObjectMeta.Labels[kube.RadixComponentLabel] = componentImage.ComponentName
@@ -76,12 +83,15 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(
 	return jobs, nil
 }
 
-func buildContainerImageBuildingJob(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, jobRuntime *radixv1.Runtime, buildComponentImages ...pipeline.BuildComponentImage) *batchv1.Job {
+func buildContainerImageBuildingJob(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, jobRuntime *radixv1.Runtime, buildComponentImages ...pipeline.BuildComponentImage) (*batchv1.Job, error) {
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pipelineJobName := pipelineInfo.PipelineArguments.JobName
-	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch)
+	initContainers, err := git.CloneInitContainers(rr.Spec.CloneURL, branch, internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments))
+	if err != nil {
+		return nil, err
+	}
 	buildContainers := createContainerImageBuildingContainers(appName, pipelineInfo, buildComponentImages, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -132,7 +142,7 @@ func buildContainerImageBuildingJob(ctx context.Context, rr *radixv1.RadixRegist
 			},
 		},
 	}
-	return job
+	return job, nil
 }
 
 func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []corev1.EnvVar, isUsingBuildKit bool, containers []corev1.Container) []corev1.Volume {
