@@ -55,15 +55,16 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		// The Job resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixJob %s/%s in work queue no longer exists", namespace, name)
+			log.Ctx(ctx).Info().Msgf("RadixJob %s/%s in work queue no longer exists", namespace, name)
 			return nil
 		}
 
 		return err
 	}
+	ctx = log.Ctx(ctx).With().Str("app_name", radixJob.Spec.AppName).Logger().WithContext(ctx)
 
 	syncJob := radixJob.DeepCopy()
-	log.Debug().Msgf("Sync job %s", syncJob.Name)
+	log.Ctx(ctx).Debug().Msgf("Sync job %s", syncJob.Name)
 
 	job := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob, t.config)
 	err = job.OnSync(ctx)

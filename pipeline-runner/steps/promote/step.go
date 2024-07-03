@@ -57,7 +57,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 		return err
 	}
 
-	log.Info().Msgf("Promoting %s for application %s from %s to %s", pipelineInfo.PipelineArguments.DeploymentName, cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
+	log.Ctx(ctx).Info().Msgf("Promoting %s for application %s from %s to %s", pipelineInfo.PipelineArguments.DeploymentName, cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
 	err = areArgumentsValid(pipelineInfo.PipelineArguments)
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(radixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
+	err = mergeWithRadixApplication(ctx, radixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
 	if err != nil {
 		return err
 	}
@@ -141,23 +141,23 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 	return nil
 }
 
-func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
+func mergeWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
 	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
-	if err := mergeComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
+	if err := mergeComponentsWithRadixApplication(ctx, radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
 		return err
 	}
 
-	if err := mergeJobComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
+	if err := mergeJobComponentsWithRadixApplication(ctx, radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
+func mergeJobComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
 	newEnvJobs, err := deployment.
 		NewJobComponentsBuilder(radixConfig, environment, componentImages, defaultEnvVars, nil).
-		JobComponents()
+		JobComponents(ctx)
 	if err != nil {
 		return err
 	}
@@ -181,8 +181,8 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 	return nil
 }
 
-func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, componentImages, defaultEnvVars, nil)
+func mergeComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(ctx, radixConfig, environment, componentImages, defaultEnvVars, nil)
 	if err != nil {
 		return err
 	}

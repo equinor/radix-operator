@@ -21,7 +21,7 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 		if err != nil {
 			return fmt.Errorf("failed to create Deployment object: %v", err)
 		}
-		log.Debug().Msgf("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
+		log.Ctx(ctx).Debug().Msgf("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
 		return nil
 	}
 
@@ -30,15 +30,15 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 		return err
 	}
 	if IsEmptyPatch(patchBytes) {
-		log.Debug().Msgf("No need to patch deployment: %s ", currentDeployment.GetName())
+		log.Ctx(ctx).Debug().Msgf("No need to patch deployment: %s ", currentDeployment.GetName())
 		return nil
 	}
-	log.Debug().Msgf("Patch: %s", string(patchBytes))
+	log.Ctx(ctx).Debug().Msgf("Patch: %s", string(patchBytes))
 	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(ctx, currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to patch deployment object: %v", err)
 	}
-	log.Debug().Msgf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
+	log.Ctx(ctx).Debug().Msgf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	return nil
 }
 

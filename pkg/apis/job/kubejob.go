@@ -17,6 +17,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,7 +58,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 		return nil, err
 	}
 	imageTag := fmt.Sprintf("%s/%s:%s", containerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
-	job.logger.Info().Msgf("Using image: %s", imageTag)
+	log.Ctx(ctx).Info().Msgf("Using image: %s", imageTag)
 
 	backOffLimit := int32(0)
 	appName := job.radixJob.Spec.AppName
@@ -182,6 +183,17 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, maps.ToString(job.config.DNSConfig.ReservedAppDNSAliases)),
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, strings.Join(job.config.DNSConfig.ReservedDNSAliases, ",")),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
+	}
+
+	// Pass git clone init container images
+	if v := os.Getenv(defaults.RadixGitCloneNsLookupImageEnvironmentVariable); len(v) > 0 {
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneNsLookupImageEnvironmentVariable, v))
+	}
+	if v := os.Getenv(defaults.RadixGitCloneGitImageEnvironmentVariable); len(v) > 0 {
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneGitImageEnvironmentVariable, v))
+	}
+	if v := os.Getenv(defaults.RadixGitCloneBashImageEnvironmentVariable); len(v) > 0 {
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneBashImageEnvironmentVariable, v))
 	}
 
 	switch pipeline.Type {

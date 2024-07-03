@@ -66,14 +66,14 @@ func (kubeutil *Kube) PatchIngress(ctx context.Context, namespace string, oldIng
 	}
 
 	if IsEmptyPatch(patchBytes) {
-		log.Debug().Msgf("No need to patch ingress: %s ", ingressName)
+		log.Ctx(ctx).Debug().Msgf("No need to patch ingress: %s ", ingressName)
 		return oldIngress, nil
 	}
 	patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(ctx, ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to patch Ingress object: %v", err)
 	}
-	log.Debug().Msgf("Patched Ingress: %s in namespace %s", patchedIngress.Name, namespace)
+	log.Ctx(ctx).Debug().Msgf("Patched Ingress: %s in namespace %s", patchedIngress.Name, namespace)
 
 	return patchedIngress, nil
 }
@@ -105,7 +105,7 @@ func (kubeutil *Kube) ListIngressesWithSelector(ctx context.Context, namespace s
 
 // DeleteIngresses Deletes ingresses
 func (kubeutil *Kube) DeleteIngresses(ctx context.Context, ingresses ...networkingv1.Ingress) error {
-	log.Debug().Msgf("delete %d Ingress(es)", len(ingresses))
+	log.Ctx(ctx).Debug().Msgf("delete %d Ingress(es)", len(ingresses))
 	for _, ing := range ingresses {
 		if err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err

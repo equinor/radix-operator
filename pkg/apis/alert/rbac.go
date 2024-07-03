@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -14,7 +15,7 @@ import (
 func (syncer *alertSyncer) configureRbac(ctx context.Context) error {
 	rr, found := syncer.tryGetRadixRegistration(ctx)
 	if !found {
-		syncer.logger.Debug().Msg("radixregistration not found")
+		log.Ctx(ctx).Debug().Msg("radixregistration not found")
 		return syncer.garbageCollectAccessToAlertConfigSecret(ctx)
 	}
 

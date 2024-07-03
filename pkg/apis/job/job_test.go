@@ -3,12 +3,12 @@ package job
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
@@ -44,6 +44,9 @@ type RadixJobTestSuiteBase struct {
 		builderImage   string
 		buildahImage   string
 		buildahSecComp string
+		nslookupImage  string
+		gitImage       string
+		bashImage      string
 		radixZone      string
 		clusterType    string
 		registry       string
@@ -60,6 +63,9 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		builderImage   string
 		buildahImage   string
 		buildahSecComp string
+		nslookupImage  string
+		gitImage       string
+		bashImage      string
 		radixZone      string
 		clusterType    string
 		registry       string
@@ -72,6 +78,9 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		builderImage:   "builder:any",
 		buildahImage:   "buildah:any",
 		buildahSecComp: "anyseccomp",
+		nslookupImage:  "nslookup:any",
+		gitImage:       "git:any",
+		bashImage:      "bash:any",
 		radixZone:      "anyzone",
 		clusterType:    "anyclustertype",
 		registry:       "anyregistry",
@@ -82,10 +91,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 
 func (s *RadixJobTestSuiteBase) SetupTest() {
 	s.setupTest()
-}
-
-func (s *RadixJobTestSuiteBase) TearDownTest() {
-	s.teardownTest()
 }
 
 func (s *RadixJobTestSuiteBase) setupTest() {
@@ -108,16 +113,9 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.T().Setenv(defaults.RadixImageBuilderEnvironmentVariable, s.config.builderImage)
 	s.T().Setenv(defaults.RadixBuildahImageBuilderEnvironmentVariable, s.config.buildahImage)
 	s.T().Setenv(defaults.SeccompProfileFileNameEnvironmentVariable, s.config.buildahSecComp)
-}
-
-func (s *RadixJobTestSuiteBase) teardownTest() {
-	// Cleanup setup
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
+	s.T().Setenv(defaults.RadixGitCloneNsLookupImageEnvironmentVariable, s.config.nslookupImage)
+	s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, s.config.gitImage)
+	s.T().Setenv(defaults.RadixGitCloneBashImageEnvironmentVariable, s.config.bashImage)
 }
 
 func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, config *config.Config) (*radixv1.RadixJob, error) {
@@ -229,6 +227,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana",
 				"--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
+				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE=%s", s.config.nslookupImage),
+				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=%s", s.config.gitImage),
+				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=%s", s.config.bashImage),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
@@ -261,6 +262,57 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		Containers:         expectedContainers,
 	}
 	s.Equal(expectedPodSpec, podTemplate.Spec)
+}
+
+func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {
+	var (
+		appName     = "anyapp"
+		jobName     = "anyjobname"
+		nsLookupArg = fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE=%s", s.config.nslookupImage)
+		gitArg      = fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=%s", s.config.gitImage)
+		bashArg     = fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=%s", s.config.bashImage)
+		config      = getConfigWithPipelineJobsHistoryLimit(3)
+	)
+	tests := map[string]struct {
+		unsetNsLookup bool
+		unsetGit      bool
+		unsetBash     bool
+		expectedArgs  []string
+	}{
+		"all set":        {false, false, false, []string{nsLookupArg, gitArg, bashArg}},
+		"nslookup unset": {true, false, false, []string{gitArg, bashArg}},
+		"git unset":      {false, true, false, []string{nsLookupArg, bashArg}},
+		"bash unset":     {false, false, true, []string{nsLookupArg, gitArg}},
+	}
+
+	for name, test := range tests {
+		s.Run(name, func() {
+			s.setupTest()
+
+			if test.unsetNsLookup {
+				s.T().Setenv(defaults.RadixGitCloneNsLookupImageEnvironmentVariable, "")
+			}
+			if test.unsetGit {
+				s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, "")
+			}
+			if test.unsetBash {
+				s.T().Setenv(defaults.RadixGitCloneBashImageEnvironmentVariable, "")
+			}
+
+			_, err := s.applyJobWithSync(utils.NewJobBuilder().
+				WithJobName(jobName).
+				WithAppName(appName).
+				WithPipelineType(radixv1.BuildDeploy), config)
+			s.Require().NoError(err)
+			jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+			s.Require().Len(jobs.Items, 1)
+			s.Require().Len(jobs.Items[0].Spec.Template.Spec.Containers, 1)
+			actualArgs := slice.FindAll(jobs.Items[0].Spec.Template.Spec.Containers[0].Args, func(arg string) bool {
+				return strings.HasPrefix(arg, "--RADIX_PIPELINE_GIT_CLONE")
+			})
+			s.Subset(actualArgs, test.expectedArgs)
+		})
+	}
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreatedWithTektonImageTag() {
@@ -688,7 +740,6 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 
 	for _, scenario := range scenarios {
 		s.T().Run(scenario.name, func(t *testing.T) {
-			defer s.teardownTest()
 			s.setupTest()
 			config := getConfigWithPipelineJobsHistoryLimit(scenario.jobsHistoryLimit)
 			testTime := time.Now().Add(time.Hour * -100)
@@ -817,7 +868,6 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 
 	for _, scenario := range scenarios {
 		s.Run(scenario.name, func() {
-			defer s.teardownTest()
 			s.setupTest()
 			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
@@ -1106,7 +1156,6 @@ func (s *RadixJobTestSuite) Test_MultipleJobsForSameEnv() {
 
 	for _, scenario := range scenarios {
 		s.Run(scenario.name, func() {
-			defer s.teardownTest()
 			s.setupTest()
 			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)

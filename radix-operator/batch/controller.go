@@ -42,7 +42,6 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 		KubeInformerFactory:   kubeInformerFactory,
 		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:               handler,
-		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
 		Recorder:              recorder,
 		LockKeyAndIdentifier:  common.NamespacePartitionKey,
@@ -73,7 +72,7 @@ func NewController(ctx context.Context, client kubernetes.Interface,
 			// Also check if other event handlers have the same noop code
 			radixBatch, converted := obj.(*radixv1.RadixBatch)
 			if !converted {
-				log.Error().Msg("RadixBatch object cast failed during deleted event.")
+				log.Ctx(ctx).Error().Msg("RadixBatch object cast failed during deleted event.")
 				return
 			}
 			key, err := cache.MetaNamespaceKeyFunc(radixBatch)

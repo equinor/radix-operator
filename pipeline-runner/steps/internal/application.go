@@ -23,22 +23,22 @@ func CreateRadixApplication(ctx context.Context, radixClient radixclient.Interfa
 	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
 	}
-	correctRadixApplication(ra)
+	correctRadixApplication(ctx, ra)
 
 	// Validate RA
 	if validate.RAContainsOldPublic(ra) {
-		log.Warn().Msg("component.public is deprecated, please use component.publicPort instead")
+		log.Ctx(ctx).Warn().Msg("component.public is deprecated, please use component.publicPort instead")
 	}
 	if err := validate.CanRadixApplicationBeInserted(ctx, radixClient, ra, dnsConfig); err != nil {
-		log.Error().Msg("Radix config not valid")
+		log.Ctx(ctx).Error().Msg("Radix config not valid")
 		return nil, err
 	}
 	return ra, nil
 }
 
-func correctRadixApplication(ra *radixv1.RadixApplication) {
+func correctRadixApplication(ctx context.Context, ra *radixv1.RadixApplication) {
 	if isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name); !isAppNameLowercase {
-		log.Warn().Err(err).Msg("%s Converting name to lowercase")
+		log.Ctx(ctx).Warn().Err(err).Msg("%s Converting name to lowercase")
 		ra.Name = strings.ToLower(ra.Name)
 	}
 	for i := 0; i < len(ra.Spec.Components); i++ {

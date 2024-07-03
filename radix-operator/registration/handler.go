@@ -56,15 +56,16 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Info().Msgf("RadixRegistration %s in work queue no longer exists", name)
+			log.Ctx(ctx).Info().Msgf("RadixRegistration %s in work queue no longer exists", name)
 			return nil
 		}
 
 		return err
 	}
+	ctx = log.Ctx(ctx).With().Str("app_name", registration.Name).Logger().WithContext(ctx)
 
 	syncRegistration := registration.DeepCopy()
-	log.Debug().Msgf("Sync registration %s", syncRegistration.Name)
+	log.Ctx(ctx).Debug().Msgf("Sync registration %s", syncRegistration.Name)
 	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync(ctx)
 	if err != nil {

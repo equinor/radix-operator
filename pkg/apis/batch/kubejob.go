@@ -82,8 +82,7 @@ func (s *syncer) handleJobToRestart(ctx context.Context, batchJob *radixv1.Radix
 	})
 
 	jobRestartTimestamp, jobStatusRestartTimestamp := s.getJobRestartTimestamps(batchJob, jobStatusIdx)
-	needRestartJob := len(jobRestartTimestamp) > 0 && jobRestartTimestamp != jobStatusRestartTimestamp
-	if !needRestartJob {
+	if !needRestartJob(jobRestartTimestamp, jobStatusRestartTimestamp) {
 		return false, nil
 	}
 
@@ -103,6 +102,10 @@ func (s *syncer) handleJobToRestart(ctx context.Context, batchJob *radixv1.Radix
 	}
 	s.radixBatch.Status.JobStatuses = append(s.radixBatch.Status.JobStatuses, jobStatus)
 	return true, nil
+}
+
+func needRestartJob(jobRestartTimestamp string, jobStatusRestartTimestamp string) bool {
+	return len(jobRestartTimestamp) > 0 && jobRestartTimestamp != jobStatusRestartTimestamp
 }
 
 func (s *syncer) getJobRestartTimestamps(batchJob *radixv1.RadixBatchJob, jobStatusIdx int) (string, string) {
@@ -180,7 +183,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					RestartPolicy:                corev1.RestartPolicyNever,
 					ImagePullSecrets:             rd.Spec.ImagePullSecrets,
-					Affinity:                     operatorUtils.GetAffinityForBatchJob(jobComponent, node),
+					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, jobComponent, node),
 					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node),
 					ActiveDeadlineSeconds:        timeLimitSeconds,
 					ServiceAccountName:           serviceAccountSpec.ServiceAccountName(),

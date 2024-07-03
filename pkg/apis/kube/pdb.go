@@ -74,6 +74,6 @@ func (kubeutil *Kube) UpdatePodDisruptionBudget(ctx context.Context, namespace s
 		return nil
 	}
 
-	log.Debug().Msgf("No need to patch PDB: %s ", pdbName)
+	log.Ctx(ctx).Debug().Msgf("No need to patch PDB: %s ", pdbName)
 	return nil
 }

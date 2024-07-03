@@ -51,7 +51,7 @@ func (kubeutil *Kube) GetSecretProviderClass(ctx context.Context, namespace stri
 
 // CreateSecretProviderClass Creates secret provider class to namespace
 func (kubeutil *Kube) CreateSecretProviderClass(ctx context.Context, namespace string, secretProviderClass *secretsstorev1.SecretProviderClass) (savedSecret *secretsstorev1.SecretProviderClass, err error) {
-	log.Debug().Msgf("Create secret provider class %s in namespace %s", secretProviderClass.GetName(), namespace)
+	log.Ctx(ctx).Debug().Msgf("Create secret provider class %s in namespace %s", secretProviderClass.GetName(), namespace)
 	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Create(ctx, secretProviderClass, metav1.CreateOptions{})
 }
 

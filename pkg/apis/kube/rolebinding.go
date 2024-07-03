@@ -124,7 +124,8 @@ func getRoleBindingForSubjects(roleName, kind string, subjects []rbacv1.Subject,
 
 // ApplyRoleBinding Creates or updates role
 func (kubeutil *Kube) ApplyRoleBinding(ctx context.Context, namespace string, role *rbacv1.RoleBinding) error {
-	log.Debug().Msgf("Apply role binding %s", role.Name)
+	logger := log.Ctx(ctx)
+	logger.Debug().Msgf("Apply role binding %s", role.Name)
 	oldRoleBinding, err := kubeutil.GetRoleBinding(ctx, namespace, role.GetName())
 	if err != nil && errors.IsNotFound(err) {
 		createdRoleBinding, err := kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Create(ctx, role, metav1.CreateOptions{})
@@ -132,14 +133,14 @@ func (kubeutil *Kube) ApplyRoleBinding(ctx context.Context, namespace string, ro
 			return fmt.Errorf("failed to create role binding object: %v", err)
 		}
 
-		log.Debug().Msgf("Created role binding: %s in namespace %s", createdRoleBinding.Name, namespace)
+		logger.Debug().Msgf("Created role binding: %s in namespace %s", createdRoleBinding.Name, namespace)
 		return nil
 
 	} else if err != nil {
 		return fmt.Errorf("failed to get role binding object: %v", err)
 	}
 
-	log.Debug().Msgf("Role binding object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
+	logger.Debug().Msgf("Role binding object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
 
 	newRoleBinding := oldRoleBinding.DeepCopy()
 	newRoleBinding.ObjectMeta.OwnerReferences = role.ObjectMeta.OwnerReferences
@@ -166,9 +167,9 @@ func (kubeutil *Kube) ApplyRoleBinding(ctx context.Context, namespace string, ro
 		if err != nil {
 			return fmt.Errorf("failed to patch role binding object: %v", err)
 		}
-		log.Debug().Msgf("Patched role binding: %s in namespace %s", patchedRoleBinding.Name, namespace)
+		logger.Debug().Msgf("Patched role binding: %s in namespace %s", patchedRoleBinding.Name, namespace)
 	} else {
-		log.Debug().Msgf("No need to patch role binding: %s ", role.GetName())
+		logger.Debug().Msgf("No need to patch role binding: %s ", role.GetName())
 	}
 
 	return nil
@@ -176,7 +177,8 @@ func (kubeutil *Kube) ApplyRoleBinding(ctx context.Context, namespace string, ro
 
 // ApplyClusterRoleBinding Creates or updates cluster-role-binding
 func (kubeutil *Kube) ApplyClusterRoleBinding(ctx context.Context, clusterrolebinding *rbacv1.ClusterRoleBinding) error {
-	log.Debug().Msgf("Apply clusterrolebinding %s", clusterrolebinding.Name)
+	logger := log.Ctx(ctx)
+	logger.Debug().Msgf("Apply clusterrolebinding %s", clusterrolebinding.Name)
 	oldClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Get(ctx, clusterrolebinding.Name, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Create(ctx, clusterrolebinding, metav1.CreateOptions{})
@@ -184,14 +186,14 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(ctx context.Context, clusterrolebi
 			return fmt.Errorf("failed to create cluster role binding object: %v", err)
 		}
 
-		log.Debug().Msgf("Created cluster role binding: %s", createdClusterRoleBinding.Name)
+		logger.Debug().Msgf("Created cluster role binding: %s", createdClusterRoleBinding.Name)
 		return nil
 
 	} else if err != nil {
 		return fmt.Errorf("failed to get cluster role binding object: %v", err)
 	}
 
-	log.Debug().Msgf("Role binding object %s already exists, updating the object now", clusterrolebinding.GetName())
+	logger.Debug().Msgf("Role binding object %s already exists, updating the object now", clusterrolebinding.GetName())
 
 	newClusterRoleBinding := oldClusterRoleBinding.DeepCopy()
 	newClusterRoleBinding.ObjectMeta.OwnerReferences = clusterrolebinding.OwnerReferences
@@ -218,9 +220,9 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(ctx context.Context, clusterrolebi
 		if err != nil {
 			return fmt.Errorf("failed to patch cluster role binding object: %v", err)
 		}
-		log.Debug().Msgf("Patched cluster role binding: %s ", patchedClusterRoleBinding.Name)
+		logger.Debug().Msgf("Patched cluster role binding: %s ", patchedClusterRoleBinding.Name)
 	} else {
-		log.Debug().Msgf("No need to patch cluster role binding: %s ", clusterrolebinding.GetName())
+		logger.Debug().Msgf("No need to patch cluster role binding: %s ", clusterrolebinding.GetName())
 	}
 
 	return nil

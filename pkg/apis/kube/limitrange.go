@@ -16,7 +16,8 @@ import (
 
 // ApplyLimitRange Applies limit range to namespace
 func (kubeutil *Kube) ApplyLimitRange(ctx context.Context, namespace string, limitRange *corev1.LimitRange) error {
-	log.Debug().Msgf("Apply limit range %s", limitRange.Name)
+	logger := log.Ctx(ctx)
+	logger.Debug().Msgf("Apply limit range %s", limitRange.Name)
 
 	oldLimitRange, err := kubeutil.getLimitRange(ctx, namespace, limitRange.GetName())
 	if err != nil && errors.IsNotFound(err) {
@@ -25,13 +26,13 @@ func (kubeutil *Kube) ApplyLimitRange(ctx context.Context, namespace string, lim
 			return fmt.Errorf("failed to create LimitRange object: %v", err)
 		}
 
-		log.Debug().Msgf("Created LimitRange: %s in namespace %s", createdLimitRange.Name, namespace)
+		logger.Debug().Msgf("Created LimitRange: %s in namespace %s", createdLimitRange.Name, namespace)
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to get limit range object: %v", err)
 	}
 
-	log.Debug().Msgf("LimitRange object %s already exists in namespace %s, updating the object now", limitRange.GetName(), namespace)
+	logger.Debug().Msgf("LimitRange object %s already exists in namespace %s, updating the object now", limitRange.GetName(), namespace)
 
 	newLimitRange := oldLimitRange.DeepCopy()
 	newLimitRange.ObjectMeta.OwnerReferences = limitRange.ObjectMeta.OwnerReferences
@@ -57,9 +58,9 @@ func (kubeutil *Kube) ApplyLimitRange(ctx context.Context, namespace string, lim
 		if err != nil {
 			return fmt.Errorf("failed to patch limitRange object: %v", err)
 		}
-		log.Debug().Msgf("Patched limitRange: %s in namespace %s", patchedLimitRange.Name, namespace)
+		logger.Debug().Msgf("Patched limitRange: %s in namespace %s", patchedLimitRange.Name, namespace)
 	} else {
-		log.Debug().Msgf("No need to patch limitRange: %s ", limitRange.GetName())
+		logger.Debug().Msgf("No need to patch limitRange: %s ", limitRange.GetName())
 	}
 
 	return nil

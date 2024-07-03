@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"slices"
 	"strconv"
 
@@ -14,18 +15,18 @@ import (
 )
 
 // GetAffinityForDeployComponent  Gets component pod specific affinity
-func GetAffinityForDeployComponent(component radixv1.RadixCommonDeployComponent, appName string, componentName string) *corev1.Affinity {
+func GetAffinityForDeployComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent, appName string, componentName string) *corev1.Affinity {
 	return &corev1.Affinity{
 		PodAntiAffinity: getPodAntiAffinity(appName, componentName),
-		NodeAffinity:    getNodeAffinityForDeployComponent(component),
+		NodeAffinity:    getNodeAffinityForDeployComponent(ctx, component),
 	}
 
 }
 
 // GetAffinityForBatchJob  Gets batch job pod specific affinity
-func GetAffinityForBatchJob(job *radixv1.RadixDeployJobComponent, node *radixv1.RadixNode) *corev1.Affinity {
+func GetAffinityForBatchJob(ctx context.Context, job *radixv1.RadixDeployJobComponent, node *radixv1.RadixNode) *corev1.Affinity {
 	return &corev1.Affinity{
-		NodeAffinity: getNodeAffinityForBatchJob(job, node),
+		NodeAffinity: getNodeAffinityForBatchJob(ctx, job, node),
 	}
 }
 
@@ -64,8 +65,8 @@ func GetAffinityForJobAPIAuxComponent() *corev1.Affinity {
 	}
 }
 
-func getNodeAffinityForDeployComponent(component radixv1.RadixCommonDeployComponent) *corev1.NodeAffinity {
-	if affinity := getNodeAffinityForGPUNode(component.GetNode()); affinity != nil {
+func getNodeAffinityForDeployComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) *corev1.NodeAffinity {
+	if affinity := getNodeAffinityForGPUNode(ctx, component.GetNode()); affinity != nil {
 		return affinity
 	}
 	return &corev1.NodeAffinity{
@@ -79,8 +80,8 @@ func getNodeAffinityForDeployComponent(component radixv1.RadixCommonDeployCompon
 	}
 }
 
-func getNodeAffinityForBatchJob(job *radixv1.RadixDeployJobComponent, node *radixv1.RadixNode) *corev1.NodeAffinity {
-	if affinity := getNodeAffinityForGPUNode(node); affinity != nil {
+func getNodeAffinityForBatchJob(ctx context.Context, job *radixv1.RadixDeployJobComponent, node *radixv1.RadixNode) *corev1.NodeAffinity {
+	if affinity := getNodeAffinityForGPUNode(ctx, node); affinity != nil {
 		return affinity
 	}
 	return &corev1.NodeAffinity{
@@ -140,13 +141,13 @@ func getPodAffinityTerm(appName string, componentName string) corev1.PodAffinity
 	}
 }
 
-func getNodeAffinityForGPUNode(radixNode *radixv1.RadixNode) *corev1.NodeAffinity {
+func getNodeAffinityForGPUNode(ctx context.Context, radixNode *radixv1.RadixNode) *corev1.NodeAffinity {
 	if !UseGPUNode(radixNode) {
 		return nil
 	}
 	nodeSelectorTerm := &corev1.NodeSelectorTerm{}
 	if err := addNodeSelectorRequirementForGpuCount(radixNode.GpuCount, nodeSelectorTerm); err != nil {
-		log.Error().Err(err).Msg("Failed to add node selector requirement for GPU count")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to add node selector requirement for GPU count")
 		// TODO: should the error be returned to caller
 		return nil
 	}

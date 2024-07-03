@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -19,7 +20,7 @@ func (app *Application) createLimitRangeOnAppNamespace(ctx context.Context, name
 	if defaultMemoryLimit == nil ||
 		defaultCPURequest == nil ||
 		defaultMemoryRequest == nil {
-		app.logger.Warn().Msgf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
+		log.Ctx(ctx).Warn().Msgf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
 		return nil
 	}
 

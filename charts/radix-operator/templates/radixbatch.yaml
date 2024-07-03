@@ -300,6 +300,7 @@ spec:
                             - Running
                             - Succeeded
                             - Failed
+                            - Stopped
                             type: string
                           podIndex:
                             description: The index of the pod in the re-starts

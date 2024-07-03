@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 // Syncer of  RadixBatch
@@ -40,10 +39,8 @@ type syncer struct {
 
 // OnSync Syncs RadixBatches
 func (s *syncer) OnSync(ctx context.Context) error {
-	ctx = log.Ctx(ctx).With().
-		Str("resource_kind", radixv1.KindRadixBatch).
-		Str("resource_name", cache.MetaObjectToName(&s.radixBatch.ObjectMeta).String()).
-		Logger().WithContext(ctx)
+	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixBatch).Logger().WithContext(ctx)
+	log.Ctx(ctx).Info().Msg("Syncing")
 
 	if err := s.restoreStatus(ctx); err != nil {
 		return err

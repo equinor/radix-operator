@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -49,7 +50,7 @@ func (list alertConfigList) Any(anyFunc func(c AlertConfig) bool) bool {
 
 func (syncer *alertSyncer) createOrUpdateAlertManagerConfig(ctx context.Context) error {
 	ns := syncer.radixAlert.Namespace
-	amc, err := syncer.getAlertManagerConfig()
+	amc, err := syncer.getAlertManagerConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -65,7 +66,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 				return fmt.Errorf("failed to create AlertManagerConfig object: %v", err)
 			}
 
-			syncer.logger.Debug().Msgf("Created AlertManagerConfig: %s in namespace %s", created.Name, namespace)
+			log.Ctx(ctx).Debug().Msgf("Created AlertManagerConfig: %s in namespace %s", created.Name, namespace)
 			return nil
 		}
 		return err
@@ -100,7 +101,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 			return fmt.Errorf("failed to update AlertManagerConfig object: %v", err)
 		}
 
-		syncer.logger.Debug().Msgf("Updated AlertManagerConfig: %s ", updatedConfig.Name)
+		log.Ctx(ctx).Debug().Msgf("Updated AlertManagerConfig: %s ", updatedConfig.Name)
 		return nil
 
 	}
@@ -108,9 +109,9 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 	return nil
 }
 
-func (syncer *alertSyncer) getAlertManagerConfig() (*v1alpha1.AlertmanagerConfig, error) {
+func (syncer *alertSyncer) getAlertManagerConfig(ctx context.Context) (*v1alpha1.AlertmanagerConfig, error) {
 	receivers := syncer.getAlertmanagerConfigReceivers()
-	routes := syncer.getAlertmanagerConfigRoutes()
+	routes := syncer.getAlertmanagerConfigRoutes(ctx)
 
 	routeJSON := []apiextensionsv1.JSON{}
 	for _, route := range routes {
@@ -206,22 +207,22 @@ func (syncer *alertSyncer) getMappedAlertConfigsForReceiverName(receiverName str
 	return mappedAlertConfigs
 }
 
-func (syncer *alertSyncer) getAlertmanagerConfigRoutes() []v1alpha1.Route {
+func (syncer *alertSyncer) getAlertmanagerConfigRoutes(ctx context.Context) []v1alpha1.Route {
 	var routes []v1alpha1.Route
 
 	for _, alert := range syncer.radixAlert.Spec.Alerts {
 		alertConfig, found := syncer.alertConfigs[alert.Alert]
 		if !found {
-			syncer.logger.Debug().Msgf("skipping unknown alert %s in RadixAlert %s", alert.Alert, syncer.radixAlert.Name)
+			log.Ctx(ctx).Debug().Msgf("skipping unknown alert %s in RadixAlert %s", alert.Alert, syncer.radixAlert.Name)
 			continue
 		}
 		receiver, found := syncer.radixAlert.Spec.Receivers[alert.Receiver]
 		if !found {
-			syncer.logger.Debug().Msgf("skipping alert %s in RadixAlert %s with unknown recevier %s", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
+			log.Ctx(ctx).Debug().Msgf("skipping alert %s in RadixAlert %s with unknown recevier %s", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
 			continue
 		}
 		if !receiver.IsEnabled() {
-			syncer.logger.Debug().Msgf("skipping alert %s in RadixAlert %s because receiver %s is disabled", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
+			log.Ctx(ctx).Debug().Msgf("skipping alert %s in RadixAlert %s because receiver %s is disabled", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
 			continue
 		}
 		routes = append(routes, v1alpha1.Route{

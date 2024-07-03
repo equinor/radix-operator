@@ -33,13 +33,13 @@ func NewNamespaceWatcherImpl(client kubernetes.Interface) NamespaceWatcherImpl {
 
 // WaitFor Waits for namespace to appear
 func (watcher NamespaceWatcherImpl) WaitFor(ctx context.Context, namespace string) error {
-	log.Info().Msgf("Waiting for namespace %s", namespace)
+	log.Ctx(ctx).Info().Msgf("Waiting for namespace %s", namespace)
 	err := waitForNamespace(ctx, watcher.client, namespace)
 	if err != nil {
 		return err
 	}
 
-	log.Info().Msgf("Namespace %s exists and is active", namespace)
+	log.Ctx(ctx).Info().Msgf("Namespace %s exists and is active", namespace)
 	return nil
 
 }

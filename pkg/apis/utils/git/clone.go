@@ -1,6 +1,7 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"path"
 
@@ -33,19 +34,44 @@ const (
 	waitForGithubToRespond = "n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
 )
 
+type CloneConfig struct {
+	NSlookupImage string
+	GitImage      string
+	BashImage     string
+}
+
+func (c CloneConfig) Validate() error {
+	var errs []error
+
+	if len(c.NSlookupImage) == 0 {
+		errs = append(errs, errors.New("field NSlookupImage not set"))
+	}
+	if len(c.GitImage) == 0 {
+		errs = append(errs, errors.New("field GitImage not set"))
+	}
+	if len(c.BashImage) == 0 {
+		errs = append(errs, errors.New("field BashImage not set"))
+	}
+
+	return errors.Join(errs...)
+}
+
 // CloneInitContainers The sidecars for cloning repo
-func CloneInitContainers(sshURL, branch string) []corev1.Container {
-	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName)
+func CloneInitContainers(sshURL, branch string, config CloneConfig) ([]corev1.Container, error) {
+	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, config)
 }
 
 // CloneInitContainersWithContainerName The sidecars for cloning repo
-func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string) []corev1.Container {
+func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig) ([]corev1.Container, error) {
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid clone configuration: %w", err)
+	}
 	gitCloneCmd := []string{"git", "clone", "--recurse-submodules", sshURL, "-b", branch, "--verbose", "--progress", Workspace}
 	containers := []corev1.Container{
 		{
 			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),
-			Image:           "alpine",
-			ImagePullPolicy: corev1.PullAlways,
+			Image:           config.NSlookupImage,
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			Args:            []string{waitForGithubToRespond},
 			Command:         []string{"/bin/sh", "-c"},
 			Resources: corev1.ResourceRequirements{
@@ -64,7 +90,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 		},
 		{
 			Name:            cloneContainerName,
-			Image:           "alpine/git:2.45.2",
+			Image:           config.GitImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         gitCloneCmd,
 			VolumeMounts: []corev1.VolumeMount{
@@ -88,8 +114,8 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 		},
 		{
 			Name:            fmt.Sprintf("%schmod", InternalContainerPrefix),
-			Image:           "bash",
-			ImagePullPolicy: corev1.PullAlways,
+			Image:           config.BashImage,
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/usr/local/bin/bash", "-O", "dotglob", "-c"},
 			Args:            []string{fmt.Sprintf("chmod -R g+rw %s", path.Join(Workspace, "*"))},
 			VolumeMounts: []corev1.VolumeMount{
@@ -114,5 +140,5 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 		},
 	}
 
-	return containers
+	return containers, nil
 }
