@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -152,7 +151,7 @@ func getStepStepImplementationsFromType(pipelineType *pipeline.Definition, allSt
 	return stepImplementations, nil
 }
 
-func getStepImplementationForStepType(stepType steps.StepType, allStepImplementations []Step) Step {
+func getStepImplementationForStepType(stepType pipeline.StepType, allStepImplementations []Step) Step {
 	for _, stepImplementation := range allStepImplementations {
 		implementsType := stepImplementation.ImplementationForType()
 

@@ -3,45 +3,44 @@ package pipeline
 import (
 	"fmt"
 
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 // Definition Holds pipeline definition
 type Definition struct {
 	Type  v1.RadixPipelineType
-	Steps []steps.StepType
+	Steps []StepType
 }
 
 // GetSupportedPipelines Lists supported pipelines
 func GetSupportedPipelines() []Definition {
 	return []Definition{
-		{v1.BuildDeploy, []steps.StepType{
-			steps.PreparePipelinesStep,
-			steps.ApplyConfigStep,
-			steps.BuildStep,
-			steps.RunPipelinesStep,
-			steps.DeployStep,
+		{v1.BuildDeploy, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep,
+			BuildStep,
+			RunPipelinesStep,
+			DeployStep,
 		}},
-		{v1.Build, []steps.StepType{
-			steps.PreparePipelinesStep,
-			steps.ApplyConfigStep,
-			steps.BuildStep,
-			steps.RunPipelinesStep,
+		{v1.Build, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep,
+			BuildStep,
+			RunPipelinesStep,
 		}},
-		{v1.Promote, []steps.StepType{
-			steps.PreparePipelinesStep,
-			steps.ApplyConfigStep,
-			steps.RunPipelinesStep,
-			steps.PromoteStep}},
-		{v1.Deploy, []steps.StepType{
-			steps.PreparePipelinesStep,
-			steps.ApplyConfigStep,
-			steps.RunPipelinesStep,
-			steps.DeployStep}},
-		{v1.ApplyConfig, []steps.StepType{
-			steps.PreparePipelinesStep,
-			steps.ApplyConfigStep}},
+		{v1.Promote, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep,
+			RunPipelinesStep,
+			PromoteStep}},
+		{v1.Deploy, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep,
+			RunPipelinesStep,
+			DeployStep}},
+		{v1.ApplyConfig, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep}},
 	}
 }
 

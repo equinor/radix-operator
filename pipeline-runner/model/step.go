@@ -3,8 +3,8 @@ package model
 import (
 	"context"
 
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -15,7 +15,7 @@ import (
 type Step interface {
 	Init(context.Context, kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, *v1.RadixRegistration)
 
-	ImplementationForType() steps.StepType
+	ImplementationForType() pipeline.StepType
 	ErrorMsg(error) string
 	SucceededMsg() string
 	Run(context.Context, *PipelineInfo) error
@@ -30,7 +30,7 @@ type Step interface {
 
 // DefaultStepImplementation Struct to hold the data common to all step implementations
 type DefaultStepImplementation struct {
-	StepType                 steps.StepType
+	StepType                 pipeline.StepType
 	kubeclient               kubernetes.Interface
 	radixclient              radixclient.Interface
 	kubeutil                 *kube.Kube
@@ -51,7 +51,7 @@ func (step *DefaultStepImplementation) Init(ctx context.Context, kubeclient kube
 }
 
 // ImplementationForType Default implementation
-func (step *DefaultStepImplementation) ImplementationForType() steps.StepType {
+func (step *DefaultStepImplementation) ImplementationForType() pipeline.StepType {
 	return step.StepType
 }
 

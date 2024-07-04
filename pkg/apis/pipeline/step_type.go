@@ -1,4 +1,4 @@
-package steps
+package pipeline
 
 // StepType Enumeration of the different steps a pipeline could contain
 type StepType string

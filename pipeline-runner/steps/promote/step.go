@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/rs/zerolog/log"
 
@@ -22,19 +21,19 @@ import (
 // PromoteStepImplementation Step to promote deployment to another environment,
 // or inside environment
 type PromoteStepImplementation struct {
-	stepType steps.StepType
+	stepType pipeline.StepType
 	model.DefaultStepImplementation
 }
 
 // NewPromoteStep Constructor
 func NewPromoteStep() model.Step {
 	return &PromoteStepImplementation{
-		stepType: steps.PromoteStep,
+		stepType: pipeline.PromoteStep,
 	}
 }
 
 // ImplementationForType Override of default step method
-func (cli *PromoteStepImplementation) ImplementationForType() steps.StepType {
+func (cli *PromoteStepImplementation) ImplementationForType() pipeline.StepType {
 	return cli.stepType
 }
 
