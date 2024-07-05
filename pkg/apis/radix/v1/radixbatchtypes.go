@@ -162,7 +162,7 @@ const (
 
 // RadixBatchJobApiStatus Radix Batch status, delivered by API, optionally it is set by RadixBatch StatusRules
 // By default API BatchStatus is within RadixBatchConditionType values
-// +kubebuilder:validation:Enum=Running;Succeeded;Failed;Waiting;Stopping;Stopped;DeadlineExceeded;Active;Completed
+// +kubebuilder:validation:Enum=Running;Succeeded;Failed;Waiting;Stopping;Stopped;Active;Completed
 type RadixBatchJobApiStatus string
 
 const (
@@ -183,9 +183,6 @@ const (
 
 	// RadixBatchJobApiStatusStopped job stopped
 	RadixBatchJobApiStatusStopped = "Stopped"
-
-	// RadixBatchJobApiStatusDeadlineExceeded job exceeded maximum allowed attempts to run
-	RadixBatchJobApiStatusDeadlineExceeded = "DeadlineExceeded"
 
 	// RadixBatchJobApiStatusActive job, one or more pods are not ready
 	RadixBatchJobApiStatusActive = "Active"

@@ -2142,7 +2142,6 @@
                         "Waiting",
                         "Stopping",
                         "Stopped",
-                        "DeadlineExceeded",
                         "Active",
                         "Completed"
                       ],
@@ -2224,7 +2223,6 @@
                               "Waiting",
                               "Stopping",
                               "Stopped",
-                              "DeadlineExceeded",
                               "Active",
                               "Completed"
                             ],

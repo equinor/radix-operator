@@ -2118,7 +2118,6 @@ spec:
                             - Waiting
                             - Stopping
                             - Stopped
-                            - DeadlineExceeded
                             - Active
                             - Completed
                             type: string
@@ -2198,7 +2197,6 @@ spec:
                                   - Waiting
                                   - Stopping
                                   - Stopped
-                                  - DeadlineExceeded
                                   - Active
                                   - Completed
                                   type: string
