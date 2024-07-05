@@ -145,6 +145,7 @@ const (
 	BatchJobPhaseStopped RadixBatchJobPhase = "Stopped"
 )
 
+// RadixBatchConditionType represents the status condition of a RadixBatch
 // +kubebuilder:validation:Enum=Waiting;Active;Completed
 type RadixBatchConditionType string
 
@@ -157,6 +158,37 @@ const (
 
 	// Completed means that all jobs are in Succeeded, Failed or Stopped phase.
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"
+)
+
+// RadixBatchJobApiStatus Radix Batch status, delivered by API, optionally it is set by RadixBatch StatusRules
+// By default API BatchStatus is within RadixBatchConditionType values
+// +kubebuilder:validation:Enum=Running;Succeeded;Failed;Waiting;Stopping;Stopped;Active;Completed
+type RadixBatchJobApiStatus string
+
+const (
+	// RadixBatchJobApiStatusRunning Active
+	RadixBatchJobApiStatusRunning = "Running"
+
+	// RadixBatchJobApiStatusSucceeded Job succeeded
+	RadixBatchJobApiStatusSucceeded = "Succeeded"
+
+	// RadixBatchJobApiStatusFailed Job failed
+	RadixBatchJobApiStatusFailed = "Failed"
+
+	// RadixBatchJobApiStatusWaiting Job pending
+	RadixBatchJobApiStatusWaiting = "Waiting"
+
+	// RadixBatchJobApiStatusStopping job is stopping
+	RadixBatchJobApiStatusStopping = "Stopping"
+
+	// RadixBatchJobApiStatusStopped job stopped
+	RadixBatchJobApiStatusStopped = "Stopped"
+
+	// RadixBatchJobApiStatusActive job, one or more pods are not ready
+	RadixBatchJobApiStatusActive = "Active"
+
+	// RadixBatchJobApiStatusCompleted batch jobs are completed
+	RadixBatchJobApiStatusCompleted = "Completed"
 )
 
 // A label for the condition of a pod at the current time.
@@ -178,7 +210,7 @@ const (
 	// PodFailed means that all containers in the pod have terminated, and at least one container has
 	// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
 	PodFailed RadixBatchJobPodPhase = "Failed"
-	// PodStopped means that it was deleted due too stopped job.
+	// PodStopped means that it was deleted due to stopped job.
 	PodStopped RadixBatchJobPodPhase = "Stopped"
 )
 

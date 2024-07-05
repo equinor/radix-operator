@@ -170,6 +170,14 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 	return finalVolumeMounts, nil
 }
 
+func getBatchStatusRules(radixJobComponent *radixv1.RadixJobComponent, environmentSpecificConfig *radixv1.RadixJobComponentEnvironmentConfig) []radixv1.BatchStatusRule {
+	batchStatusRules := radixJobComponent.GetBatchStatusRules()
+	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.BatchStatusRules == nil {
+		return batchStatusRules
+	}
+	return environmentSpecificConfig.BatchStatusRules
+}
+
 func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *radixv1.RadixComponent, environmentSpecificConfig *radixv1.RadixEnvironmentConfig) bool {
 	if environmentSpecificConfig != nil {
 		return coalesceBool(environmentSpecificConfig.AlwaysPullImageOnDeploy, radixComponent.AlwaysPullImageOnDeploy, false)
