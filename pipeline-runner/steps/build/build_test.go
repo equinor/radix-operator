@@ -189,7 +189,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
 		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
 		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
 	}}}}}}
 	s.Equal(expectedAffinity, job.Spec.Template.Spec.Affinity)
 
