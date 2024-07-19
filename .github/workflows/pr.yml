@@ -1,0 +1,92 @@
+name: radix-operator-pr
+on:
+  pull_request:
+    branches:
+    - master
+jobs:
+  name: pull-request-check
+  runs-on: ubuntu-latest
+  steps:
+  - uses: actions/checkout@v4
+  - name: Set up Docker Buildx
+    uses: docker/setup-buildx-action@v3
+  - name: Build radix-operator
+    uses: docker/build-push-action@v5
+    with:
+      context: .
+      file: ./operator.Dockerfile
+      push: false
+      platforms: |
+        linux/amd64
+        linux/arm64
+  - name: Build pipeline-runner
+    uses: docker/build-push-action@v5
+    with:
+      context: .
+      file: ./pipeline.Dockerfile
+      push: false
+      platforms: |
+        linux/amd64
+        linux/arm64
+
+  radix-operator-test:
+    name: Pipeline-runner unit tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: './radix-operator/go.mod'
+    - name: Install dependencies
+      run: |
+        cd ./radix-operator
+        go mod download
+    - name: Run Tests
+      run: |
+        cd ./radix-operator
+        go test -cover `go list ./...`
+
+  pipeline-runner-test:
+    name: Pipeline-runner unit tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: './pipeline-runner/go.mod'
+    - name: Install dependencies
+      run: |
+        cd ./pipeline-runner
+        go mod download
+    - name: Run Tests
+      run: |
+        cd ./pipeline-runner
+        go test -cover `go list ./...`
+
+  radix-operator-lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: './radix-operator/go.mod'
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: v1.58.2
+        working-directory: './radix-operator'
+
+  verify-code-generation:
+    name: Verify Code Generation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: './radix-operator/go.mod'
+      - name: Verify Code Generation
+        run: |
+          make verify-generate
