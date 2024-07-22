@@ -149,14 +149,6 @@ jobs:
       with:
         images: ${{ steps.build-image-names.outputs.radix-operator-image-name }}
 
-    - name: test
-      if: matrix.target.ref == github.ref
-      id: test123
-      run: |
-        echo "full ${{ steps.build-image-names.outputs.image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
-        echo "image ${{ steps.build-image-names.outputs.image-name }}:"
-        echo "tag ${{ steps.build-tags.outputs.radix-operator-tag }}"
-
     - name: Build and push radix-operator docker image
       if: matrix.target.ref == github.ref
       uses: docker/build-push-action@v5
@@ -166,7 +158,7 @@ jobs:
         platforms: |
           linux/amd64
           linux/arm64
-        tags: "${{ steps.build-image-names.outputs.image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
+        tags: "${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
         labels: ${{ steps.radix-operator-meta.outputs.labels }}
 
     - name: Build and push pipeline-runner docker image
@@ -178,7 +170,7 @@ jobs:
         platforms: |
           linux/amd64
           linux/arm64
-        tags: "${{ steps.build-image-names.outputs.image-name }}:${{ steps.build-tags.outputs.pipeline-runner-tag }}"
+        tags: "${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.pipeline-runner-tag }}"
         labels: ${{ steps.pipeline-runner-meta.outputs.labels }}
 
     - name: Revoke GitHub IP on ACR
