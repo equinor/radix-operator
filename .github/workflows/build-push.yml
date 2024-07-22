@@ -5,6 +5,7 @@ on:
     - master
     - release
   workflow_dispatch:
+
 permissions:
   id-token: write
   contents: read
