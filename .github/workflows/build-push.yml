@@ -151,7 +151,7 @@ jobs:
 
     - name: test
       if: matrix.target.ref == github.ref
-      id: build-image-names
+      id: test123
       run: |
         echo "full ${{ steps.build-image-names.outputs.image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
         echo "image ${{ steps.build-image-names.outputs.image-name }}:"
