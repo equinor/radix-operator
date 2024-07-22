@@ -4,7 +4,6 @@ on:
     branches:
     - master
     - release
-    - set-arm-platform
   workflow_dispatch:
 permissions:
   id-token: write
@@ -22,12 +21,6 @@ jobs:
           acr-name: "radixdev"
           client-id: "2bfe6984-f5e3-4d09-a0b2-4dd96de3f21e"
           subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
-#
-#        - name: "set-arm-platform"
-#          ref: "refs/heads/set-arm-platform"
-#          acr-name: "radixdev"
-#          client-id: "2bfe6984-f5e3-4d09-a0b2-4dd96de3f21e"
-#          subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
 
         - name: "playground"
           ref: "refs/heads/release"
@@ -154,10 +147,11 @@ jobs:
       with:
         context: .
         push: true
+        file: ./operator.Dockerfile
         platforms: |
           linux/amd64
           linux/arm64
-        tags: "${{ steps.build-image-names.outputs.image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
+        tags: "${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
         labels: ${{ steps.radix-operator-meta.outputs.labels }}
 
     - name: Build and push pipeline-runner docker image
@@ -166,10 +160,11 @@ jobs:
       with:
         context: .
         push: true
+        file: ./pipeline.Dockerfile
         platforms: |
           linux/amd64
           linux/arm64
-        tags: "${{ steps.build-image-names.outputs.image-name }}:${{ steps.build-tags.outputs.pipeline-runner-tag }}"
+        tags: "${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.pipeline-runner-tag }}"
         labels: ${{ steps.pipeline-runner-meta.outputs.labels }}
 
     - name: Revoke GitHub IP on ACR
