@@ -3,7 +3,6 @@ on:
   pull_request:
     branches:
     - master
-    - set-arm-platform-to-pipeline
 
 jobs:
   build:
