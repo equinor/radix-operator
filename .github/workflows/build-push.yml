@@ -149,6 +149,14 @@ jobs:
       with:
         images: ${{ steps.build-image-names.outputs.radix-operator-image-name }}
 
+    - name: test
+      if: matrix.target.ref == github.ref
+      id: build-image-names
+      run: |
+        echo "full ${{ steps.build-image-names.outputs.image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
+        echo "image ${{ steps.build-image-names.outputs.image-name }}:"
+        echo "tag ${{ steps.build-tags.outputs.radix-operator-tag }}"
+
     - name: Build and push radix-operator docker image
       if: matrix.target.ref == github.ref
       uses: docker/build-push-action@v5
