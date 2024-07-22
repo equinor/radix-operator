@@ -4,6 +4,7 @@ on:
     branches:
     - master
     - fix-workflow
+
 jobs:
   build:
     name: pull-request-check
