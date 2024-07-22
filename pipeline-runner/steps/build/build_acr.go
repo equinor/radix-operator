@@ -55,7 +55,7 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(
 
 	log.Ctx(ctx).Debug().Msg("build a build-job")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-	job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, buildComponentImages...)
+	job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, buildComponentImages...)
 	if err != nil {
 		return nil, err
 	}
