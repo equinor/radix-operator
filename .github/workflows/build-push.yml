@@ -1,47 +1,175 @@
-name: radix-operator-build
+name: Build & push
 on:
   push:
     branches:
-      - master
-      - release
+    - master
+    - release
+  workflow_dispatch:
 permissions:
   id-token: write
-jobs:
-  get-target-configs:
-    name: Get target configs for branch
-    outputs:
-      target_configs: ${{ steps.get-target-configs.outputs.target_configs }}
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Get target configs
-        id: get-target-configs
-        run: |
-          configs=$(ls $GITHUB_WORKSPACE/.github/workflows/config/${GITHUB_REF_NAME} | jq -Rsc '. / "\n" - [""]')
-          echo "target_configs=${configs}" >> $GITHUB_OUTPUT
+  contents: read
 
-  build-deploy-pipeline-and-operator:
-    name: " "
+jobs:
+  build-deploy:
     runs-on: ubuntu-20.04
-    needs:
-      - get-target-configs
     strategy:
       fail-fast: false
       matrix:
-        config: ${{ fromJson(needs.get-target-configs.outputs.target_configs) }}
-        script: [build-push-operator.sh, build-push-pipeline.sh]
+        target:
+        - name: "dev"
+          ref: "refs/heads/master"
+          acr-name: "radixdev"
+          client-id: "2bfe6984-f5e3-4d09-a0b2-4dd96de3f21e"
+          subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
+
+        - name: "playground"
+          ref: "refs/heads/release"
+          acr-name: "radixplayground"
+          client-id: "7c000a42-1edb-4491-a241-4ac77bf7dd6d"
+          subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
+
+        - name: "platform"
+          ref: "refs/heads/release"
+          acr-name: "radixprod"
+          client-id: "044f760d-aabb-4d29-a879-e774f16e3bcc"
+          subscription-id: "ded7ca41-37c8-4085-862f-b11d21ab341a"
+
+        - name: "c2"
+          ref: "refs/heads/release"
+          acr-name: "radixc2prod"
+          client-id: "581bb747-7b9f-4e80-a843-249eafb0a5fa"
+          subscription-id: "ded7ca41-37c8-4085-862f-b11d21ab341a"
+
     steps:
     - uses: actions/checkout@v4
-    - name: Persist environment from ${{ matrix.config }} across steps
-      run: |
-        $GITHUB_WORKSPACE/.github/workflows/scripts/persist-env.sh ${{ matrix.config }}
+      if: matrix.target.ref == github.ref
 
     - uses: azure/login@v2
+      if: matrix.target.ref == github.ref
       with:
-        client-id: ${{ env.AZURE_CLIENT_ID }}
-        tenant-id: ${{ env.AZURE_TENANT_ID }}
-        subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+        client-id: ${{matrix.target.client-id}}
+        tenant-id: "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
+        subscription-id: ${{matrix.target.subscription-id}}
 
-    - name: Build and push image
+    - name: Get GitHub Public IP
+      if: matrix.target.ref == github.ref
+      id: github_public_ip
+      run: echo "ipv4=$(curl 'https://ifconfig.me/ip')" >> $GITHUB_OUTPUT
+
+    - name: Add GitHub IP to ACR
+      if: matrix.target.ref == github.ref
+      id: update_firewall
+      run: az acr network-rule add
+        --name ${{matrix.target.acr-name}}
+        --subscription ${{matrix.target.subscription-id}}
+        --ip-address ${{ steps.github_public_ip.outputs.ipv4 }}
+
+    - name: Wait for 2 minutes while the network rule to take effect
+      if: matrix.target.ref == github.ref
       run: |
-        $GITHUB_WORKSPACE/.github/workflows/scripts/${{ matrix.script }}
+        sleep 120
+
+    - name: Wait for Specific IP in ACR Network Rules
+      if: matrix.target.ref == github.ref
+      run: |
+        MAX_ATTEMPTS=10
+        ATTEMPT=0
+        TARGET_IP="${{ steps.github_public_ip.outputs.ipv4 }}"
+        echo "Waiting for IP $TARGET_IP to be allowed in ACR network rules..."
+        while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+          NETWORK_RULES=$(az acr network-rule list --name ${{matrix.target.acr-name}} --subscription ${{ matrix.target.subscription-id }}   --query "ipRules[]|[?contains(ipAddressOrRange, '$TARGET_IP')]"  --output tsv)
+          if [ -n "$NETWORK_RULES" ]; then
+            echo "IP $TARGET_IP is allowed."
+            break
+          fi
+          echo "Attempt $((ATTEMPT+1)) of $MAX_ATTEMPTS. Retrying in 10 seconds..."
+          ATTEMPT=$((ATTEMPT+1))
+          sleep 10
+        done
+        if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+          echo "IP $TARGET_IP was not allowed after $MAX_ATTEMPTS attempts. Exiting."
+          exit 1
+        fi
+
+    - name: Get ACR Login Server
+      if: matrix.target.ref == github.ref
+      id: get-acr-login-server
+      run: |
+        echo "login_server=$(az acr show --name ${{ matrix.target.acr-name }} --query loginServer --output tsv)" >> $GITHUB_OUTPUT
+
+    - name: Get ACR Access Token
+      if: matrix.target.ref == github.ref
+      id: get-acr-token
+      run: |
+        echo "Getting ACR access token"
+        access_token=$(az acr login --name ${{ matrix.target.acr-name }} --expose-token --output tsv --query accessToken)
+        echo "::add-mask::$access_token"
+        echo "access_token=$access_token" >> $GITHUB_OUTPUT
+
+    - name: Log in to ACR
+      if: matrix.target.ref == github.ref
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ steps.get-acr-login-server.outputs.login_server }}
+        username: "00000000-0000-0000-0000-000000000000"
+        password: ${{ steps.get-acr-token.outputs.access_token }}
+
+    - name: Set up Docker Buildx
+      if: matrix.target.ref == github.ref
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build image names
+      if: matrix.target.ref == github.ref
+      id: build-image-names
+      run: |
+        echo "radix-operator-image-name=${{ matrix.target.acr-name }}.azurecr.io/radix-operator" >> $GITHUB_OUTPUT
+        echo "pipeline-runner-image-name=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline" >> $GITHUB_OUTPUT
+
+    - name: Build image tags
+      if: matrix.target.ref == github.ref
+      id: build-tags
+      run: |
+        sha=${GITHUB_SHA::8}
+        ts=$(date +%s)
+        echo "radix-operator-tag=${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
+        echo "pipeline-runner-tag=${GITHUB_REF_NAME}-latest" >> $GITHUB_OUTPUT
+
+    - name: Extract labels from metadata for Docker
+      if: matrix.target.ref == github.ref
+      id: radix-operator-meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ steps.build-image-names.outputs.radix-operator-image-name }}
+
+    - name: Build and push radix-operator docker image
+      if: matrix.target.ref == github.ref
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        file: ./operator.Dockerfile
+        platforms: |
+          linux/amd64
+          linux/arm64
+        tags: "${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
+        labels: ${{ steps.radix-operator-meta.outputs.labels }}
+
+    - name: Build and push pipeline-runner docker image
+      if: matrix.target.ref == github.ref
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        file: ./pipeline.Dockerfile
+        platforms: |
+          linux/amd64
+          linux/arm64
+        tags: "${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.pipeline-runner-tag }}"
+        labels: ${{ steps.pipeline-runner-meta.outputs.labels }}
+
+    - name: Revoke GitHub IP on ACR
+      if: ${{ matrix.target.ref == github.ref && steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
+      run: az acr network-rule remove
+        --name ${{matrix.target.acr-name}}
+        --subscription ${{matrix.target.subscription-id}}
+        --ip-address ${{ steps.github_public_ip.outputs.ipv4 }}
