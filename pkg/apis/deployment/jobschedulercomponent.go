@@ -86,7 +86,7 @@ func (js *jobSchedulerComponent) GetNode() *radixv1.RadixNode {
 }
 
 func (js *jobSchedulerComponent) GetRuntime() *radixv1.Runtime {
-	return &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}
+	return &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}
 }
 
 func isDeployComponentJobSchedulerDeployment(deployComponent radixv1.RadixCommonDeployComponent) bool {
