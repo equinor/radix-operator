@@ -4,7 +4,6 @@ on:
     branches:
     - master
     - release
-    - run-job-scheduler-on-arm
   workflow_dispatch:
 permissions:
   id-token: write
@@ -20,12 +19,6 @@ jobs:
         target:
         - name: "dev"
           ref: "refs/heads/master"
-          acr-name: "radixdev"
-          client-id: "2bfe6984-f5e3-4d09-a0b2-4dd96de3f21e"
-          subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
-
-        - name: "run-job-scheduler-on-arm"
-          ref: "refs/heads/run-job-scheduler-on-arm"
           acr-name: "radixdev"
           client-id: "2bfe6984-f5e3-4d09-a0b2-4dd96de3f21e"
           subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"

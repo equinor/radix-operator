@@ -3,11 +3,6 @@ on:
   pull_request:
     branches:
     - master
-  push:
-    branches:
-    - run-job-scheduler-on-arm
-
-
 jobs:
   build:
     name: pull-request-check
