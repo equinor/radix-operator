@@ -3,11 +3,17 @@ on:
   pull_request:
     branches:
     - master
+  push:
+    branches:
+    - run-job-scheduler-on-arm
 
 jobs:
   build:
     name: pull-request-check
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [arm64]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Docker Buildx

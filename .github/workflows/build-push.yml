@@ -4,6 +4,7 @@ on:
     branches:
     - master
     - release
+    - run-job-scheduler-on-arm
   workflow_dispatch:
 permissions:
   id-token: write
@@ -15,9 +16,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        arch: [arm64]
         target:
         - name: "dev"
           ref: "refs/heads/master"
+          acr-name: "radixdev"
+          client-id: "2bfe6984-f5e3-4d09-a0b2-4dd96de3f21e"
+          subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
+
+        - name: "run-job-scheduler-on-arm"
+          ref: "refs/heads/run-job-scheduler-on-arm"
           acr-name: "radixdev"
           client-id: "2bfe6984-f5e3-4d09-a0b2-4dd96de3f21e"
           subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
@@ -133,6 +141,8 @@ jobs:
         ts=$(date +%s)
         echo "radix-operator-tag=${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
         echo "pipeline-runner-tag=${GITHUB_REF_NAME}-latest" >> $GITHUB_OUTPUT
+        echo "cache-radix-operator-tag=cache-radix-operator-${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+        echo "cache-pipeline-runner-tag=cache-pipeline-runner-${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
 
     - name: Extract labels from metadata for Docker
       if: matrix.target.ref == github.ref
@@ -153,6 +163,8 @@ jobs:
           linux/arm64
         tags: "${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
         labels: ${{ steps.radix-operator-meta.outputs.labels }}
+        cache-from: "type=registry,ref=${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.cache-radix-operator-tag }}"
+        cache-to: "type=registry,ref=${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.cache-radix-operator-tag }},mode=max"
 
     - name: Build and push pipeline-runner docker image
       if: matrix.target.ref == github.ref
@@ -166,6 +178,8 @@ jobs:
           linux/arm64
         tags: "${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.pipeline-runner-tag }}"
         labels: ${{ steps.pipeline-runner-meta.outputs.labels }}
+        cache-from: "type=registry,ref=${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.cache-pipeline-runner-tag }}"
+        cache-to: "type=registry,ref=${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.cache-pipeline-runner-tag }},mode=max"
 
     - name: Revoke GitHub IP on ACR
       if: ${{ matrix.target.ref == github.ref && steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
