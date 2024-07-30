@@ -32,19 +32,19 @@ type Handler struct {
 	kubeutil    *kube.Kube
 	hasSynced   common.HasSynced
 	config      *apiconfig.Config
+	jobHistory  job.History
 }
 
 // NewHandler Constructor
-func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced) Handler {
-
+func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced) Handler {
 	handler := Handler{
 		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		kubeutil:    kubeutil,
+		radixclient: radixClient,
+		kubeutil:    kubeUtil,
 		hasSynced:   hasSynced,
 		config:      config,
+		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit),
 	}
-
 	return handler
 }
 
@@ -73,6 +73,8 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		// Put back on queue
 		return err
 	}
+
+	t.jobHistory.Cleanup(ctx, radixJob.Spec.AppName, radixJob.Name)
 
 	t.hasSynced(true)
 	eventRecorder.Event(syncJob, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)

@@ -28,7 +28,7 @@ const (
 // NewController creates a new controller that handles RadixJobs
 func NewController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
-	jobInformer := radixInformerFactory.Radix().V1().RadixJobs()
+	radixJobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
@@ -37,7 +37,7 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 		HandlerOf:             crType,
 		KubeClient:            client,
 		RadixClient:           radixClient,
-		Informer:              jobInformer.Informer(),
+		Informer:              radixJobInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
 		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:               handler,
@@ -47,7 +47,7 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 	}
 
 	logger.Info().Msg("Setting up event handlers")
-	if _, err := jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
 			if job.IsRadixJobDone(radixJob) {

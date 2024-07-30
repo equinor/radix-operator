@@ -4,67 +4,111 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
-type radixJobsWithRadixDeployments map[string]v1.RadixDeployment
-type radixJobsForBranches map[string][]v1.RadixJob
-type radixJobsForConditions map[v1.RadixJobCondition]radixJobsForBranches
-
-func (job *Job) maintainHistoryLimit(ctx context.Context) {
-	radixJobs, err := job.getAllRadixJobs(ctx)
-	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("failed to get RadixJob in maintain job history")
-		return
-	}
-	if len(radixJobs) == 0 {
-		return
-	}
-	radixJobsWithRDs, err := job.getRadixJobsWithRadixDeployments(ctx)
-	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("failed to get RadixJobs with RadixDeployments in maintain job history")
-		return
-	}
-	deletingJobs, radixJobsForConditions := job.groupSortedRadixJobs(radixJobs, radixJobsWithRDs)
-	jobHistoryLimit := job.config.PipelineJobConfig.PipelineJobsHistoryLimit
-	log.Ctx(ctx).Info().Msgf("Delete history RadixJob for limit %d", jobHistoryLimit)
-	jobsByConditionAndBranch := job.getJobsToGarbageCollectByJobConditionAndBranch(ctx, radixJobsForConditions, jobHistoryLimit)
-
-	deletingJobs = append(deletingJobs, jobsByConditionAndBranch...)
-	job.garbageCollectRadixJobs(ctx, deletingJobs)
+// History Interface for job History
+type History interface {
+	// Cleanup the pipeline job history
+	Cleanup(ctx context.Context, appName, radixJobName string)
 }
 
-func (job *Job) garbageCollectRadixJobs(ctx context.Context, radixJobs []v1.RadixJob) {
+type history struct {
+	namespacesRequestsToCleanup sync.Map
+	namespacesCleanupInProgress sync.Map
+	radixClient                 radixclient.Interface
+	historyLimit                int
+	kubeUtil                    *kube.Kube
+}
+
+// NewHistory Constructor for job History
+func NewHistory(radixClient radixclient.Interface, kubeUtil *kube.Kube, historyLimit int) History {
+	return &history{
+		radixClient:  radixClient,
+		historyLimit: historyLimit,
+		kubeUtil:     kubeUtil,
+	}
+}
+
+// Cleanup the pipeline job history
+func (h *history) Cleanup(ctx context.Context, appName, radixJobName string) {
+	namespace := utils.GetAppNamespace(appName)
+	if _, ok := h.namespacesRequestsToCleanup.LoadOrStore(namespace, struct{}{}); ok {
+		return // a request to clean up history in this namespace already exists
+	}
+	if _, ok := h.namespacesCleanupInProgress.LoadOrStore(namespace, struct{}{}); ok {
+		return // clean up history in this namespace is already in progress
+	}
+	go func() {
+		defer h.namespacesCleanupInProgress.Delete(namespace)
+		for {
+			if _, ok := h.namespacesRequestsToCleanup.LoadAndDelete(namespace); !ok {
+				return // if there were no more requests to clean up history in this namespace - exit
+			}
+			h.garbageCollectRadixJobs(ctx, appName, radixJobName)
+			h.garbageCollectConfigMaps(ctx, namespace)
+		}
+	}()
+}
+
+type radixJobsWithRadixDeployments map[string]radixv1.RadixDeployment
+type radixJobsForBranches map[string][]radixv1.RadixJob
+type radixJobsForConditionsMap map[radixv1.RadixJobCondition]radixJobsForBranches
+
+func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string, activeRadixJobName string) {
+	namespace := utils.GetAppNamespace(appName)
+	radixJobs, err := h.getAllRadixJobs(ctx, namespace)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to get RadixJob in cleanup job history")
+		return
+	}
 	if len(radixJobs) == 0 {
+		return
+	}
+	radixJobsWithRDs, err := h.getRadixJobsWithRadixDeployments(ctx, appName, namespace)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to get RadixJobs with RadixDeployments in cleanup job history")
+		return
+	}
+	deletingJobs, radixJobsForConditions := groupSortedRadixJobs(radixJobs, radixJobsWithRDs)
+	log.Ctx(ctx).Info().Msgf("Delete history RadixJob for limit %d", h.historyLimit)
+	jobsByConditionAndBranch := h.getJobsToGarbageCollectByJobConditionAndBranch(ctx, radixJobsForConditions)
+
+	deletingJobs = append(deletingJobs, jobsByConditionAndBranch...)
+	if len(deletingJobs) == 0 {
 		log.Ctx(ctx).Info().Msg("There is no RadixJobs to delete")
 		return
 	}
-	for _, rj := range radixJobs {
-		if strings.EqualFold(rj.GetName(), job.radixJob.GetName()) {
-			continue // do not remove current job
+	for _, radixJob := range deletingJobs {
+		if strings.EqualFold(radixJob.GetName(), activeRadixJobName) {
+			continue // do not remove active RadixJob
 		}
-		log.Ctx(ctx).Info().Msgf("Delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
-		err := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Delete(ctx, rj.GetName(), metav1.DeleteOptions{})
-		if err != nil {
-			log.Ctx(ctx).Warn().Err(err).Msgf("Failed to delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
+		log.Ctx(ctx).Info().Msgf("Delete RadixJob %s from %s", radixJob.GetName(), namespace)
+		if err := h.radixClient.RadixV1().RadixJobs(namespace).Delete(ctx, radixJob.GetName(), metav1.DeleteOptions{}); err != nil {
+			log.Ctx(ctx).Warn().Err(err).Msgf("Failed to delete RadixJob %s from %s", radixJob.GetName(), namespace)
 		}
 	}
 }
 
-func (job *Job) groupSortedRadixJobs(radixJobs []v1.RadixJob, radixJobsWithRDs radixJobsWithRadixDeployments) ([]v1.RadixJob, radixJobsForConditions) {
-	var deletingJobs []v1.RadixJob
-	radixJobsForConditions := make(radixJobsForConditions)
-	for _, rj := range radixJobs {
-		rj := rj
+func groupSortedRadixJobs(radixJobs []radixv1.RadixJob, radixJobsWithRDs radixJobsWithRadixDeployments) ([]radixv1.RadixJob, radixJobsForConditionsMap) {
+	var deletingJobs []radixv1.RadixJob
+	radixJobsForConditions := make(radixJobsForConditionsMap)
+	for _, radixJob := range radixJobs {
+		rj := radixJob
 		jobCondition := rj.Status.Condition
 		switch {
-		case jobCondition == v1.JobSucceeded && rj.Spec.PipeLineType != v1.Build:
+		case jobCondition == radixv1.JobSucceeded && rj.Spec.PipeLineType != radixv1.Build:
 			if _, ok := radixJobsWithRDs[rj.GetName()]; !ok {
 				deletingJobs = append(deletingJobs, rj)
 			}
@@ -79,7 +123,7 @@ func (job *Job) groupSortedRadixJobs(radixJobs []v1.RadixJob, radixJobsWithRDs r
 	return sortRadixJobsByCreatedDesc(deletingJobs), sortRadixJobGroupsByCreatedDesc(radixJobsForConditions)
 }
 
-func sortRadixJobGroupsByCreatedDesc(radixJobsForConditions radixJobsForConditions) radixJobsForConditions {
+func sortRadixJobGroupsByCreatedDesc(radixJobsForConditions radixJobsForConditionsMap) radixJobsForConditionsMap {
 	for jobCondition, jobsForBranches := range radixJobsForConditions {
 		for jobBranch, jobs := range jobsForBranches {
 			radixJobsForConditions[jobCondition][jobBranch] = sortRadixJobsByCreatedDesc(jobs)
@@ -88,12 +132,8 @@ func sortRadixJobGroupsByCreatedDesc(radixJobsForConditions radixJobsForConditio
 	return radixJobsForConditions
 }
 
-func (job *Job) getRadixJobsWithRadixDeployments(ctx context.Context) (radixJobsWithRadixDeployments, error) {
-	appName, err := job.getAppName()
-	if err != nil {
-		return nil, err
-	}
-	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.Namespace).Get(ctx, appName, metav1.GetOptions{})
+func (h *history) getRadixJobsWithRadixDeployments(ctx context.Context, appName, namespace string) (radixJobsWithRadixDeployments, error) {
+	ra, err := h.radixClient.RadixV1().RadixApplications(namespace).Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
 		// RadixApplication may not exist if this is the first job for a new application
 		if k8errors.IsNotFound(err) {
@@ -104,7 +144,7 @@ func (job *Job) getRadixJobsWithRadixDeployments(ctx context.Context) (radixJobs
 	rdRadixJobs := make(radixJobsWithRadixDeployments)
 	for _, env := range ra.Spec.Environments {
 		envNamespace := utils.GetEnvironmentNamespace(appName, env.Name)
-		envRdList, err := job.radixclient.RadixV1().RadixDeployments(envNamespace).List(ctx, metav1.ListOptions{})
+		envRdList, err := h.radixClient.RadixV1().RadixDeployments(envNamespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get RadixDeployments from the environment %s. Error: %w", env.Name, err)
 		}
@@ -118,15 +158,7 @@ func (job *Job) getRadixJobsWithRadixDeployments(ctx context.Context) (radixJobs
 	return rdRadixJobs, nil
 }
 
-func (job *Job) getAppName() (string, error) {
-	appName, ok := job.radixJob.GetLabels()[kube.RadixAppLabel]
-	if !ok || len(appName) == 0 {
-		return "", fmt.Errorf("missing label %s in the RadixJob", kube.RadixAppLabel)
-	}
-	return appName, nil
-}
-
-func getRadixJobBranch(rj v1.RadixJob) string {
+func getRadixJobBranch(rj radixv1.RadixJob) string {
 	if branch, ok := rj.GetAnnotations()[kube.RadixBranchAnnotation]; ok && len(branch) > 0 {
 		return branch
 	}
@@ -136,30 +168,69 @@ func getRadixJobBranch(rj v1.RadixJob) string {
 	return ""
 }
 
-func (job *Job) getAllRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
-	radixJobList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{})
+func (h *history) getAllRadixJobs(ctx context.Context, namespace string) ([]radixv1.RadixJob, error) {
+	radixJobList, err := h.radixClient.RadixV1().RadixJobs(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return radixJobList.Items, err
 }
 
-func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(ctx context.Context, jobsForConditions radixJobsForConditions, jobHistoryLimit int) []v1.RadixJob {
-	var deletingJobs []v1.RadixJob
+func (h *history) getJobsToGarbageCollectByJobConditionAndBranch(ctx context.Context, jobsForConditions radixJobsForConditionsMap) []radixv1.RadixJob {
+	var deletingJobs []radixv1.RadixJob
 	for jobCondition, jobsForBranches := range jobsForConditions {
 		switch jobCondition {
-		case v1.JobRunning, v1.JobQueued, v1.JobWaiting, "": // Jobs with this condition should never be garbage collected
+		case radixv1.JobRunning, radixv1.JobQueued, radixv1.JobWaiting, "": // Jobs with this condition should never be garbage collected
 			continue
 		default:
 			for jobBranch, jobs := range jobsForBranches {
 				jobs := sortRadixJobsByCreatedDesc(jobs)
-				for i := jobHistoryLimit; i < len(jobs); i++ {
+				for i := h.historyLimit; i < len(jobs); i++ {
 					log.Ctx(ctx).Debug().Msgf("Collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
 					deletingJobs = append(deletingJobs, jobs[i])
 				}
 			}
 		}
-
 	}
 	return deletingJobs
+}
+
+func (h *history) garbageCollectConfigMaps(ctx context.Context, namespace string) {
+	radixJobConfigMaps, err := h.kubeUtil.ListConfigMapsWithSelector(ctx, namespace, getRadixJobNameExistsSelector().String())
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msgf("Failed to get ConfigMaps while garbage collecting config-maps in %s", namespace)
+		return
+	}
+	radixJobNameSet, err := h.getRadixJobNameSet(ctx, namespace)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msgf("Failed to get RadixJobs while garbage collecting config-maps in %s", namespace)
+		return
+	}
+	for _, configMap := range radixJobConfigMaps {
+		jobName := configMap.GetLabels()[kube.RadixJobNameLabel]
+		configMapName := configMap.GetName()
+		if _, radixJobExists := radixJobNameSet[jobName]; !radixJobExists {
+			log.Ctx(ctx).Debug().Msgf("Delete ConfigMap %s in %s", configMapName, namespace)
+			err := h.kubeUtil.DeleteConfigMap(ctx, namespace, configMapName)
+			if err != nil {
+				log.Ctx(ctx).Warn().Err(err).Msgf("Failed to delete ConfigMap %s while garbage collecting config-maps in %s", configMapName, namespace)
+			}
+		}
+	}
+}
+
+func (h *history) getRadixJobNameSet(ctx context.Context, namespace string) (map[string]struct{}, error) {
+	radixJobs, err := h.getAllRadixJobs(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+	return slice.Reduce(radixJobs, make(map[string]struct{}), func(acc map[string]struct{}, radixJob radixv1.RadixJob) map[string]struct{} {
+		acc[radixJob.GetName()] = struct{}{}
+		return acc
+	}), nil
+}
+
+func getRadixJobNameExistsSelector() labels.Selector {
+	requirement, _ := labels.NewRequirement(kube.RadixJobNameLabel, selection.Exists, []string{})
+	return labels.NewSelector().Add(*requirement)
 }

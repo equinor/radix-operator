@@ -24,8 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 )
@@ -100,10 +98,6 @@ func (job *Job) OnSync(ctx context.Context) error {
 			return err
 		}
 	}
-
-	job.maintainHistoryLimit(ctx)
-	job.garbageCollectConfigMaps(ctx)
-
 	return nil
 }
 
@@ -710,45 +704,4 @@ func (job *Job) updateRadixJobStatus(ctx context.Context, rj *v1.RadixJob, chang
 		return err
 	})
 	return err
-}
-
-func (job *Job) garbageCollectConfigMaps(ctx context.Context) {
-	namespace := job.radixJob.GetNamespace()
-	radixJobConfigMaps, err := job.kubeutil.ListConfigMapsWithSelector(ctx, namespace, getRadixJobNameExistsSelector().String())
-	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msgf("Failed to get ConfigMaps while garbage collecting config-maps in %s", namespace)
-		return
-	}
-	radixJobNameSet, err := job.getRadixJobNameSet(ctx)
-	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("Failed to get RadixJob name set")
-		return
-	}
-	for _, configMap := range radixJobConfigMaps {
-		jobName := configMap.GetLabels()[kube.RadixJobNameLabel]
-		if _, radixJobExists := radixJobNameSet[jobName]; !radixJobExists {
-			log.Ctx(ctx).Debug().Msgf("Delete ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
-			err := job.kubeutil.DeleteConfigMap(ctx, configMap.GetNamespace(), configMap.GetName())
-			if err != nil {
-				log.Ctx(ctx).Warn().Err(err).Msgf("failed to delete ConfigMap %s while garbage collecting config-maps in %s", configMap.GetName(), namespace)
-			}
-		}
-	}
-}
-
-func (job *Job) getRadixJobNameSet(ctx context.Context) (map[string]bool, error) {
-	radixJobs, err := job.getAllRadixJobs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list RadixJobs: %w", err)
-	}
-	radixJobNameSet := make(map[string]bool)
-	for _, radixJob := range radixJobs {
-		radixJobNameSet[radixJob.GetName()] = true
-	}
-	return radixJobNameSet, nil
-}
-
-func getRadixJobNameExistsSelector() labels.Selector {
-	requirement, _ := labels.NewRequirement(kube.RadixJobNameLabel, selection.Exists, []string{})
-	return labels.NewSelector().Add(*requirement)
 }
