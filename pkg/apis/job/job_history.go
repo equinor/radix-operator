@@ -199,16 +199,14 @@ func (h *history) getAllRadixJobs(ctx context.Context, namespace string) ([]radi
 func (h *history) getJobsToGarbageCollectByJobConditionAndBranch(ctx context.Context, jobsForConditions radixJobsForConditionsMap) []radixv1.RadixJob {
 	var deletingJobs []radixv1.RadixJob
 	for jobCondition, jobsForBranches := range jobsForConditions {
-		switch jobCondition {
-		case radixv1.JobRunning, radixv1.JobQueued, radixv1.JobWaiting, "": // Jobs with this condition should never be garbage collected
+		if !jobIsCompleted(jobCondition) {
 			continue
-		default:
-			for jobBranch, jobs := range jobsForBranches {
-				jobs := sortRadixJobsByCreatedDesc(jobs)
-				for i := h.historyLimit; i < len(jobs); i++ {
-					log.Ctx(ctx).Debug().Msgf("Collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
-					deletingJobs = append(deletingJobs, jobs[i])
-				}
+		}
+		for jobBranch, jobsForBranch := range jobsForBranches {
+			jobs := sortRadixJobsByCreatedDesc(jobsForBranch)
+			for i := h.historyLimit - 1; i < len(jobs); i++ {
+				log.Ctx(ctx).Debug().Msgf("Collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
+				deletingJobs = append(deletingJobs, jobs[i])
 			}
 		}
 	}

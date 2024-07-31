@@ -62,6 +62,7 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 		job15 = "any-job15"
 		job16 = "any-job16"
 		job17 = "any-job17"
+		job18 = "any-job18"
 	)
 	type appRadixJob struct {
 		appName string
@@ -142,6 +143,33 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			},
 		},
 		{
+			name:         "None deleted below or equal history limit",
+			historyLimit: 2,
+			initTest: func(radixClient radixclient.Interface) {
+				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, false)
+				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobFailed, false)
+				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobSucceeded, false)
+				s.createRadixJob(radixClient, app1, job4, now.Add(3*time.Minute), radixv1.JobWaiting, false)
+				s.createRadixJob(radixClient, app1, job5, now.Add(4*time.Minute), radixv1.JobQueued, false)
+				s.createRadixJob(radixClient, app1, job6, now.Add(5*time.Minute), radixv1.JobStopped, false)
+				s.createRadixJob(radixClient, app1, job7, now.Add(6*time.Minute), radixv1.JobRunning, false)          // below limit
+				s.createRadixJob(radixClient, app1, job8, now.Add(6*time.Minute), radixv1.JobStoppedNoChanges, false) // over limit - delete this
+
+				s.createRadixJob(radixClient, app1, job9, now.Add(7*time.Minute), radixv1.JobSucceeded, false)
+				s.createRadixJob(radixClient, app1, job10, now.Add(8*time.Minute), radixv1.JobFailed, false)
+				s.createRadixJob(radixClient, app1, job11, now.Add(9*time.Minute), radixv1.JobSucceeded, false)
+				s.createRadixJob(radixClient, app1, job12, now.Add(10*time.Minute), radixv1.JobWaiting, false)
+				s.createRadixJob(radixClient, app1, job13, now.Add(11*time.Minute), radixv1.JobQueued, false)
+				s.createRadixJob(radixClient, app1, job14, now.Add(12*time.Minute), radixv1.JobStopped, false)
+				s.createRadixJob(radixClient, app1, job15, now.Add(13*time.Minute), radixv1.JobStoppedNoChanges, false) // equals limit
+				s.createRadixJob(radixClient, app1, job16, now.Add(14*time.Minute), radixv1.JobStoppedNoChanges, false) // below limit
+				s.createRadixJob(radixClient, app1, job17, now.Add(15*time.Minute), radixv1.JobRunning, false)
+			},
+			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job17},
+			expectedRadixJobs: appRadixJobsMap{
+				app1: []string{job1, job2, job3, job4, job5, job6, job7, job9, job10, job11, job12, job13, job14, job15, job16, job17}},
+		},
+		{
 			name:         "Deleted only completed jobs per status",
 			historyLimit: 1,
 			initTest: func(radixClient radixclient.Interface) {
@@ -161,8 +189,8 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 				s.createRadixJob(radixClient, app1, job13, now.Add(11*time.Minute), radixv1.JobQueued, false)
 				s.createRadixJob(radixClient, app1, job14, now.Add(12*time.Minute), radixv1.JobStopped, false)
 				s.createRadixJob(radixClient, app1, job15, now.Add(13*time.Minute), radixv1.JobRunning, false)
-				s.createRadixJob(radixClient, app1, job16, now.Add(13*time.Minute), radixv1.JobStoppedNoChanges, false)
-				s.createRadixJob(radixClient, app1, job17, now.Add(14*time.Minute), radixv1.JobRunning, false)
+				s.createRadixJob(radixClient, app1, job16, now.Add(14*time.Minute), radixv1.JobStoppedNoChanges, false)
+				s.createRadixJob(radixClient, app1, job17, now.Add(15*time.Minute), radixv1.JobRunning, false)
 			},
 			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job17},
 			expectedRadixJobs: appRadixJobsMap{
@@ -186,7 +214,7 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			case <-done:
 				actualRadixJobList, err := s.radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
 				s.NoError(err)
-				s.Len(actualRadixJobList.Items, expectedJobCount, "RadixJob count")
+				s.Equal(expectedJobCount, len(actualRadixJobList.Items), "RadixJob count")
 				for _, radixJob := range actualRadixJobList.Items {
 					appJobs, ok := ts.expectedRadixJobs[radixJob.Spec.AppName]
 					s.True(ok, "missing RadixJobs for the app %s", radixJob.Spec.AppName)
