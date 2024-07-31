@@ -106,9 +106,9 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			name:         "One job deleted when count is more then limit",
 			historyLimit: 2,
 			initTest: func(radixClient radixclient.Interface) {
-				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, false)
+				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, true)
 				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobSucceeded, true)
-				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobRunning, false)
+				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobRunning, true)
 			},
 			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job3},
 			expectedRadixJobs: appRadixJobsMap{
@@ -120,7 +120,7 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			initTest: func(radixClient radixclient.Interface) {
 				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, true)
 				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobSucceeded, true)
-				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobRunning, false)
+				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobRunning, true)
 			},
 			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job3},
 			expectedRadixJobs: appRadixJobsMap{
@@ -130,11 +130,11 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			name:         "Deleted jobs only for specific app",
 			historyLimit: 2,
 			initTest: func(radixClient radixclient.Interface) {
-				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, false)
+				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, true)
 				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobSucceeded, true)
 				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobRunning, true)
-				s.createRadixJob(radixClient, app2, job1, now, radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app2, job2, now.Add(time.Minute), radixv1.JobSucceeded, false)
+				s.createRadixJob(radixClient, app2, job1, now, radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app2, job2, now.Add(time.Minute), radixv1.JobSucceeded, true)
 			},
 			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job3},
 			expectedRadixJobs: appRadixJobsMap{
@@ -146,24 +146,24 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			name:         "None deleted below or equal history limit",
 			historyLimit: 2,
 			initTest: func(radixClient radixclient.Interface) {
-				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobFailed, false)
-				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app1, job4, now.Add(3*time.Minute), radixv1.JobWaiting, false)
-				s.createRadixJob(radixClient, app1, job5, now.Add(4*time.Minute), radixv1.JobQueued, false)
-				s.createRadixJob(radixClient, app1, job6, now.Add(5*time.Minute), radixv1.JobStopped, false)
-				s.createRadixJob(radixClient, app1, job7, now.Add(6*time.Minute), radixv1.JobRunning, false)          // below limit
-				s.createRadixJob(radixClient, app1, job8, now.Add(6*time.Minute), radixv1.JobStoppedNoChanges, false) // over limit - delete this
+				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobFailed, true)
+				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app1, job4, now.Add(3*time.Minute), radixv1.JobWaiting, true)
+				s.createRadixJob(radixClient, app1, job5, now.Add(4*time.Minute), radixv1.JobQueued, true)
+				s.createRadixJob(radixClient, app1, job6, now.Add(5*time.Minute), radixv1.JobStopped, true)
+				s.createRadixJob(radixClient, app1, job7, now.Add(6*time.Minute), radixv1.JobRunning, true)          // below limit
+				s.createRadixJob(radixClient, app1, job8, now.Add(6*time.Minute), radixv1.JobStoppedNoChanges, true) // over limit - delete this
 
-				s.createRadixJob(radixClient, app1, job9, now.Add(7*time.Minute), radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app1, job10, now.Add(8*time.Minute), radixv1.JobFailed, false)
-				s.createRadixJob(radixClient, app1, job11, now.Add(9*time.Minute), radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app1, job12, now.Add(10*time.Minute), radixv1.JobWaiting, false)
-				s.createRadixJob(radixClient, app1, job13, now.Add(11*time.Minute), radixv1.JobQueued, false)
-				s.createRadixJob(radixClient, app1, job14, now.Add(12*time.Minute), radixv1.JobStopped, false)
-				s.createRadixJob(radixClient, app1, job15, now.Add(13*time.Minute), radixv1.JobStoppedNoChanges, false) // equals limit
-				s.createRadixJob(radixClient, app1, job16, now.Add(14*time.Minute), radixv1.JobStoppedNoChanges, false) // below limit
-				s.createRadixJob(radixClient, app1, job17, now.Add(15*time.Minute), radixv1.JobRunning, false)
+				s.createRadixJob(radixClient, app1, job9, now.Add(7*time.Minute), radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app1, job10, now.Add(8*time.Minute), radixv1.JobFailed, true)
+				s.createRadixJob(radixClient, app1, job11, now.Add(9*time.Minute), radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app1, job12, now.Add(10*time.Minute), radixv1.JobWaiting, true)
+				s.createRadixJob(radixClient, app1, job13, now.Add(11*time.Minute), radixv1.JobQueued, true)
+				s.createRadixJob(radixClient, app1, job14, now.Add(12*time.Minute), radixv1.JobStopped, true)
+				s.createRadixJob(radixClient, app1, job15, now.Add(13*time.Minute), radixv1.JobStoppedNoChanges, true) // equals limit
+				s.createRadixJob(radixClient, app1, job16, now.Add(14*time.Minute), radixv1.JobStoppedNoChanges, true) // below limit
+				s.createRadixJob(radixClient, app1, job17, now.Add(15*time.Minute), radixv1.JobRunning, true)
 			},
 			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job17},
 			expectedRadixJobs: appRadixJobsMap{
@@ -173,24 +173,24 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			name:         "Deleted only completed jobs per status",
 			historyLimit: 1,
 			initTest: func(radixClient radixclient.Interface) {
-				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobFailed, false)
-				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app1, job4, now.Add(3*time.Minute), radixv1.JobWaiting, false)
-				s.createRadixJob(radixClient, app1, job5, now.Add(4*time.Minute), radixv1.JobQueued, false)
-				s.createRadixJob(radixClient, app1, job6, now.Add(5*time.Minute), radixv1.JobStopped, false)
-				s.createRadixJob(radixClient, app1, job7, now.Add(6*time.Minute), radixv1.JobRunning, false)
-				s.createRadixJob(radixClient, app1, job8, now.Add(6*time.Minute), radixv1.JobStoppedNoChanges, false)
+				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobFailed, true)
+				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app1, job4, now.Add(3*time.Minute), radixv1.JobWaiting, true)
+				s.createRadixJob(radixClient, app1, job5, now.Add(4*time.Minute), radixv1.JobQueued, true)
+				s.createRadixJob(radixClient, app1, job6, now.Add(5*time.Minute), radixv1.JobStopped, true)
+				s.createRadixJob(radixClient, app1, job7, now.Add(6*time.Minute), radixv1.JobRunning, true)
+				s.createRadixJob(radixClient, app1, job8, now.Add(6*time.Minute), radixv1.JobStoppedNoChanges, true)
 
-				s.createRadixJob(radixClient, app1, job9, now.Add(7*time.Minute), radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app1, job10, now.Add(8*time.Minute), radixv1.JobFailed, false)
-				s.createRadixJob(radixClient, app1, job11, now.Add(9*time.Minute), radixv1.JobSucceeded, false)
-				s.createRadixJob(radixClient, app1, job12, now.Add(10*time.Minute), radixv1.JobWaiting, false)
-				s.createRadixJob(radixClient, app1, job13, now.Add(11*time.Minute), radixv1.JobQueued, false)
-				s.createRadixJob(radixClient, app1, job14, now.Add(12*time.Minute), radixv1.JobStopped, false)
-				s.createRadixJob(radixClient, app1, job15, now.Add(13*time.Minute), radixv1.JobRunning, false)
-				s.createRadixJob(radixClient, app1, job16, now.Add(14*time.Minute), radixv1.JobStoppedNoChanges, false)
-				s.createRadixJob(radixClient, app1, job17, now.Add(15*time.Minute), radixv1.JobRunning, false)
+				s.createRadixJob(radixClient, app1, job9, now.Add(7*time.Minute), radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app1, job10, now.Add(8*time.Minute), radixv1.JobFailed, true)
+				s.createRadixJob(radixClient, app1, job11, now.Add(9*time.Minute), radixv1.JobSucceeded, true)
+				s.createRadixJob(radixClient, app1, job12, now.Add(10*time.Minute), radixv1.JobWaiting, true)
+				s.createRadixJob(radixClient, app1, job13, now.Add(11*time.Minute), radixv1.JobQueued, true)
+				s.createRadixJob(radixClient, app1, job14, now.Add(12*time.Minute), radixv1.JobStopped, true)
+				s.createRadixJob(radixClient, app1, job15, now.Add(13*time.Minute), radixv1.JobRunning, true)
+				s.createRadixJob(radixClient, app1, job16, now.Add(14*time.Minute), radixv1.JobStoppedNoChanges, true)
+				s.createRadixJob(radixClient, app1, job17, now.Add(15*time.Minute), radixv1.JobRunning, true)
 			},
 			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job17},
 			expectedRadixJobs: appRadixJobsMap{
