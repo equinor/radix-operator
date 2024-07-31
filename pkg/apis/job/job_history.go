@@ -30,14 +30,29 @@ type history struct {
 	radixClient                 radixclient.Interface
 	historyLimit                int
 	kubeUtil                    *kube.Kube
+	done                        chan struct{}
 }
 
+type historyOption func(history *history)
+
 // NewHistory Constructor for job History
-func NewHistory(radixClient radixclient.Interface, kubeUtil *kube.Kube, historyLimit int) History {
-	return &history{
+func NewHistory(radixClient radixclient.Interface, kubeUtil *kube.Kube, historyLimit int, opts ...historyOption) History {
+	h := &history{
 		radixClient:  radixClient,
 		historyLimit: historyLimit,
 		kubeUtil:     kubeUtil,
+		done:         make(chan struct{}),
+	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
+}
+
+// WithDoneChannel Option to set done channel
+func WithDoneChannel(done chan struct{}) historyOption {
+	return func(h *history) {
+		h.done = done
 	}
 }
 
@@ -54,6 +69,7 @@ func (h *history) Cleanup(ctx context.Context, appName, radixJobName string) {
 		defer h.namespacesCleanupInProgress.Delete(namespace)
 		for {
 			if _, ok := h.namespacesRequestsToCleanup.LoadAndDelete(namespace); !ok {
+				h.done <- struct{}{}
 				return // if there were no more requests to clean up history in this namespace - exit
 			}
 			h.garbageCollectRadixJobs(ctx, appName, radixJobName)
