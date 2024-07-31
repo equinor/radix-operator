@@ -124,7 +124,7 @@ func groupSortedRadixJobs(radixJobs []radixv1.RadixJob, radixJobsWithRDs radixJo
 		rj := radixJob
 		jobCondition := rj.Status.Condition
 		switch {
-		case jobCondition == radixv1.JobSucceeded && rj.Spec.PipeLineType != radixv1.Build:
+		case jobIsCompleted(jobCondition):
 			if _, ok := radixJobsWithRDs[rj.GetName()]; !ok {
 				deletingJobs = append(deletingJobs, rj)
 			}
@@ -137,6 +137,10 @@ func groupSortedRadixJobs(radixJobs []radixv1.RadixJob, radixJobsWithRDs radixJo
 		}
 	}
 	return sortRadixJobsByCreatedDesc(deletingJobs), sortRadixJobGroupsByCreatedDesc(radixJobsForConditions)
+}
+
+func jobIsCompleted(jobCondition radixv1.RadixJobCondition) bool {
+	return jobCondition == radixv1.JobSucceeded || jobCondition == radixv1.JobFailed || jobCondition == radixv1.JobStopped || jobCondition == radixv1.JobStoppedNoChanges
 }
 
 func sortRadixJobGroupsByCreatedDesc(radixJobsForConditions radixJobsForConditionsMap) radixJobsForConditionsMap {
