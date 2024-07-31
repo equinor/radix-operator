@@ -43,8 +43,10 @@ type handler struct {
 	jobHistory  job.History
 }
 
+type handlerOpts func(*handler)
+
 // NewHandler Constructor
-func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced) Handler {
+func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced, opts ...handlerOpts) Handler {
 	handler := handler{
 		kubeclient:  kubeclient,
 		radixclient: radixClient,
@@ -52,6 +54,9 @@ func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClien
 		hasSynced:   hasSynced,
 		config:      config,
 		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit),
+	}
+	for _, opt := range opts {
+		opt(&handler)
 	}
 	return &handler
 }
