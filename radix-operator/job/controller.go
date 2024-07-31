@@ -26,7 +26,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixJobs
-func NewController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
+func NewController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	radixJobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
@@ -61,6 +61,7 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
+			handler.CleanupJobHistory(ctx, radixJob)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)

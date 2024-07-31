@@ -6,6 +6,7 @@ import (
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/rs/zerolog/log"
@@ -25,8 +26,15 @@ const (
 	MessageResourceSynced = "Radix Job synced successfully"
 )
 
-// Handler Instance variables
-type Handler struct {
+// Handler Common handler interface
+type Handler interface {
+	// Sync Is created on sync of resource
+	Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error
+	// CleanupJobHistory Cleanup the pipeline job history
+	CleanupJobHistory(ctx context.Context, radixJob *v1.RadixJob)
+}
+
+type handler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
@@ -37,7 +45,7 @@ type Handler struct {
 
 // NewHandler Constructor
 func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced) Handler {
-	handler := Handler{
+	handler := handler{
 		kubeclient:  kubeclient,
 		radixclient: radixClient,
 		kubeutil:    kubeUtil,
@@ -45,11 +53,11 @@ func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClien
 		config:      config,
 		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit),
 	}
-	return handler
+	return &handler
 }
 
 // Sync Is created on sync of resource
-func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		// The Job resource may no longer exist, in which case we stop
@@ -74,9 +82,12 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 		return err
 	}
 
-	t.jobHistory.Cleanup(ctx, radixJob.Spec.AppName, radixJob.Name)
-
 	t.hasSynced(true)
 	eventRecorder.Event(syncJob, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
+}
+
+// CleanupJobHistory Cleanup the pipeline job history
+func (t *handler) CleanupJobHistory(ctx context.Context, radixJob *v1.RadixJob) {
+	t.jobHistory.Cleanup(ctx, radixJob.Spec.AppName, radixJob.Name)
 }
