@@ -135,7 +135,7 @@ func getRadixJobCandidatesForDeletion(radixJobs []radixv1.RadixJob, radixJobsWit
 			continue // keep not completed jobs
 		}
 		rj := radixJob
-		if jobCondition == radixv1.JobSucceeded && rj.Spec.PipeLineType != radixv1.Build {
+		if jobCondition == radixv1.JobSucceeded && rj.Spec.PipeLineType != radixv1.Build && rj.Spec.PipeLineType != radixv1.ApplyConfig {
 			if _, ok := radixJobsWithRDs[rj.GetName()]; !ok {
 				deletingJobs = append(deletingJobs, rj) // delete all completed job, which does not have a RadixDeployment, excluding build-only jobs
 				continue
