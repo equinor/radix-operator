@@ -188,6 +188,26 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			expectedRadixJobs: appRadixJobsMap{
 				app1: []string{job3, job4, job6, job8, job9, job10, job11, job12, job13, job14, job15}},
 		},
+		{
+			name:         "Deleted succeeded jobs without deployment within limit",
+			historyLimit: 2,
+			initTest: func(radixClient radixclient.Interface) {
+				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, true, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobSucceeded, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobQueued, true, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job4, now.Add(3*time.Minute), radixv1.JobQueued, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job5, now.Add(4*time.Minute), radixv1.JobRunning, true, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job6, now.Add(5*time.Minute), radixv1.JobRunning, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job7, now.Add(6*time.Minute), radixv1.JobFailed, true, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job8, now.Add(7*time.Minute), radixv1.JobFailed, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job9, now.Add(8*time.Minute), radixv1.JobWaiting, true, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job10, now.Add(9*time.Minute), radixv1.JobWaiting, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job11, now.Add(10*time.Minute), radixv1.JobRunning, false, radixv1.BuildDeploy, env1, envBranch1)
+			},
+			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job11},
+			expectedRadixJobs: appRadixJobsMap{
+				app1: []string{job1, job3, job4, job5, job6, job7, job8, job9, job10, job11}},
+		},
 	}
 
 	for _, ts := range scenarios {
@@ -209,9 +229,9 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 				s.NoError(err)
 				s.Equal(expectedJobCount, len(actualRadixJobList.Items), "RadixJob count")
 				for _, radixJob := range actualRadixJobList.Items {
-					appJobs, ok := ts.expectedRadixJobs[radixJob.Spec.AppName]
+					expectedAppJobs, ok := ts.expectedRadixJobs[radixJob.Spec.AppName]
 					s.True(ok, "missing RadixJobs for the app %s", radixJob.Spec.AppName)
-					s.Contains(appJobs, radixJob.Name, "missing RadixJob %s for the app %s", radixJob.Name, radixJob.Spec.AppName)
+					s.Contains(expectedAppJobs, radixJob.Name, "unexpected RadixJob %s for the app %s", radixJob.Name, radixJob.Spec.AppName)
 				}
 			case <-time.After(10 * time.Second):
 				s.Fail("Timed out")
