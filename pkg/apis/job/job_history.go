@@ -26,7 +26,6 @@ type History interface {
 
 type history struct {
 	namespacesRequestsToCleanup sync.Map
-	namespacesCleanupInProgress sync.Map
 	radixClient                 radixclient.Interface
 	historyLimit                int
 	kubeUtil                    *kube.Kube
@@ -62,19 +61,13 @@ func (h *history) Cleanup(ctx context.Context, appName, radixJobName string) {
 	if _, ok := h.namespacesRequestsToCleanup.LoadOrStore(namespace, struct{}{}); ok {
 		return // a request to clean up history in this namespace already exists
 	}
-	if _, ok := h.namespacesCleanupInProgress.LoadOrStore(namespace, struct{}{}); ok {
-		return // clean up history in this namespace is already in progress
-	}
 	go func() {
-		defer h.namespacesCleanupInProgress.Delete(namespace)
-		for {
-			if _, ok := h.namespacesRequestsToCleanup.LoadAndDelete(namespace); !ok {
-				h.done <- struct{}{}
-				return // if there were no more requests to clean up history in this namespace - exit
-			}
-			h.garbageCollectRadixJobs(ctx, appName, radixJobName)
-			h.garbageCollectConfigMaps(ctx, namespace)
-		}
+		defer func() {
+			h.namespacesRequestsToCleanup.Delete(namespace)
+			h.done <- struct{}{}
+		}()
+		h.garbageCollectRadixJobs(ctx, appName, radixJobName)
+		h.garbageCollectConfigMaps(ctx, namespace)
 	}()
 }
 
@@ -84,6 +77,15 @@ type radixJobsForConditionsMap map[radixv1.RadixJobCondition]radixJobsForBranche
 
 func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string, activeRadixJobName string) {
 	namespace := utils.GetAppNamespace(appName)
+	ra, err := h.radixClient.RadixV1().RadixApplications(namespace).Get(ctx, appName, metav1.GetOptions{})
+	if err != nil {
+		// RadixApplication may not exist if this is the first job for a new application
+		if k8errors.IsNotFound(err) {
+			return // no need to delete anything
+		}
+		log.Ctx(ctx).Error().Err(err).Msg("failed to get RadixApplication in cleanup job history")
+		return
+	}
 	radixJobs, err := h.getAllRadixJobs(ctx, namespace)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("failed to get RadixJob in cleanup job history")
@@ -92,24 +94,27 @@ func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string, a
 	if len(radixJobs) == 0 {
 		return
 	}
-	radixJobsWithRDs, err := h.getRadixJobsWithRadixDeployments(ctx, appName, namespace)
+	radixJobsWithRDs, err := h.getRadixJobsMapToRadixDeployments(ctx, appName, ra)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("failed to get RadixJobs with RadixDeployments in cleanup job history")
 		return
 	}
-	deletingJobs, radixJobsForConditions := groupSortedRadixJobs(radixJobs, radixJobsWithRDs)
-	log.Ctx(ctx).Info().Msgf("Delete history RadixJob for limit %d", h.historyLimit)
-	jobsByConditionAndBranch := h.getJobsToGarbageCollectByJobConditionAndBranch(ctx, radixJobsForConditions)
 
-	deletingJobs = append(deletingJobs, jobsByConditionAndBranch...)
-	if len(deletingJobs) == 0 {
+	log.Ctx(ctx).Info().Msgf("Delete history RadixJob for limit %d", h.historyLimit)
+
+	completedRadixJobsWithoutRDs, radixJobsForConditionsAndEnvs := getRadixJobCandidatesForDeletion(radixJobs, radixJobsWithRDs, ra, activeRadixJobName)
+	if len(completedRadixJobsWithoutRDs) > 0 {
+		log.Ctx(ctx).Info().Msg("Delete %d completed RadixJobs without RadixDeployment")
+	}
+
+	deletingRadixJobsByConditionsAndEnvs := h.getRadixJobsToGarbageCollectByJobConditionsAndEnvs(ctx, radixJobsForConditionsAndEnvs)
+
+	deletingRadixJobs := append(completedRadixJobsWithoutRDs, deletingRadixJobsByConditionsAndEnvs...)
+	if len(deletingRadixJobs) == 0 {
 		log.Ctx(ctx).Info().Msg("There is no RadixJobs to delete")
 		return
 	}
-	for _, radixJob := range deletingJobs {
-		if strings.EqualFold(radixJob.GetName(), activeRadixJobName) {
-			continue // do not remove active RadixJob
-		}
+	for _, radixJob := range deletingRadixJobs {
 		log.Ctx(ctx).Info().Msgf("Delete RadixJob %s from %s", radixJob.GetName(), namespace)
 		if err := h.radixClient.RadixV1().RadixJobs(namespace).Delete(ctx, radixJob.GetName(), metav1.DeleteOptions{}); err != nil {
 			log.Ctx(ctx).Warn().Err(err).Msgf("Failed to delete RadixJob %s from %s", radixJob.GetName(), namespace)
@@ -117,50 +122,50 @@ func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string, a
 	}
 }
 
-func groupSortedRadixJobs(radixJobs []radixv1.RadixJob, radixJobsWithRDs radixJobsWithRadixDeployments) ([]radixv1.RadixJob, radixJobsForConditionsMap) {
+func getRadixJobCandidatesForDeletion(radixJobs []radixv1.RadixJob, radixJobsWithRDs radixJobsWithRadixDeployments, ra *radixv1.RadixApplication, activeRadixJobName string) ([]radixv1.RadixJob, radixJobsForConditionsMap) {
+	branchToEnvsMap := getBranchesToEnvsMap(ra)
 	var deletingJobs []radixv1.RadixJob
-	radixJobsForConditions := make(radixJobsForConditionsMap)
+	radixJobsForConditionsAndEnvs := make(radixJobsForConditionsMap)
 	for _, radixJob := range radixJobs {
+		if strings.EqualFold(radixJob.GetName(), activeRadixJobName) {
+			continue // do not remove active RadixJob
+		}
+		jobCondition := radixJob.Status.Condition
+		if !jobIsCompleted(jobCondition) {
+			continue // keep not completed jobs
+		}
 		rj := radixJob
-		jobCondition := rj.Status.Condition
-		switch {
-		case jobIsCompleted(jobCondition):
+		if jobCondition == radixv1.JobSucceeded && rj.Spec.PipeLineType != radixv1.Build {
 			if _, ok := radixJobsWithRDs[rj.GetName()]; !ok {
-				deletingJobs = append(deletingJobs, rj)
+				deletingJobs = append(deletingJobs, rj) // delete all completed job, which does not have a RadixDeployment, excluding build-only jobs
+				continue
 			}
-		default:
-			if radixJobsForConditions[jobCondition] == nil {
-				radixJobsForConditions[jobCondition] = make(radixJobsForBranches)
-			}
-			jobBranch := getRadixJobBranch(rj)
-			radixJobsForConditions[jobCondition][jobBranch] = append(radixJobsForConditions[jobCondition][jobBranch], rj)
+		}
+		if radixJobsForConditionsAndEnvs[jobCondition] == nil {
+			radixJobsForConditionsAndEnvs[jobCondition] = make(radixJobsForBranches)
+		}
+		radixJobTargetEnvs := getRadixJobEnvs(rj, branchToEnvsMap)
+		for _, targetEnv := range radixJobTargetEnvs {
+			radixJobsForConditionsAndEnvs[jobCondition][targetEnv] = append(radixJobsForConditionsAndEnvs[jobCondition][targetEnv], rj)
 		}
 	}
-	return sortRadixJobsByCreatedDesc(deletingJobs), sortRadixJobGroupsByCreatedDesc(radixJobsForConditions)
+	return deletingJobs, radixJobsForConditionsAndEnvs
+}
+
+func getBranchesToEnvsMap(ra *radixv1.RadixApplication) map[string][]string {
+	return slice.Reduce(ra.Spec.Environments, make(map[string][]string), func(acc map[string][]string, env radixv1.Environment) map[string][]string {
+		if len(env.Build.From) > 0 {
+			acc[env.Build.From] = append(acc[env.Build.From], env.Name)
+		}
+		return acc
+	})
 }
 
 func jobIsCompleted(jobCondition radixv1.RadixJobCondition) bool {
 	return jobCondition == radixv1.JobSucceeded || jobCondition == radixv1.JobFailed || jobCondition == radixv1.JobStopped || jobCondition == radixv1.JobStoppedNoChanges
 }
 
-func sortRadixJobGroupsByCreatedDesc(radixJobsForConditions radixJobsForConditionsMap) radixJobsForConditionsMap {
-	for jobCondition, jobsForBranches := range radixJobsForConditions {
-		for jobBranch, jobs := range jobsForBranches {
-			radixJobsForConditions[jobCondition][jobBranch] = sortRadixJobsByCreatedDesc(jobs)
-		}
-	}
-	return radixJobsForConditions
-}
-
-func (h *history) getRadixJobsWithRadixDeployments(ctx context.Context, appName, namespace string) (radixJobsWithRadixDeployments, error) {
-	ra, err := h.radixClient.RadixV1().RadixApplications(namespace).Get(ctx, appName, metav1.GetOptions{})
-	if err != nil {
-		// RadixApplication may not exist if this is the first job for a new application
-		if k8errors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
+func (h *history) getRadixJobsMapToRadixDeployments(ctx context.Context, appName string, ra *radixv1.RadixApplication) (radixJobsWithRadixDeployments, error) {
 	rdRadixJobs := make(radixJobsWithRadixDeployments)
 	for _, env := range ra.Spec.Environments {
 		envNamespace := utils.GetEnvironmentNamespace(appName, env.Name)
@@ -178,14 +183,16 @@ func (h *history) getRadixJobsWithRadixDeployments(ctx context.Context, appName,
 	return rdRadixJobs, nil
 }
 
-func getRadixJobBranch(rj radixv1.RadixJob) string {
-	if branch, ok := rj.GetAnnotations()[kube.RadixBranchAnnotation]; ok && len(branch) > 0 {
-		return branch
+func getRadixJobEnvs(rj radixv1.RadixJob, envsMap map[string][]string) []string {
+	switch rj.Spec.PipeLineType {
+	case radixv1.BuildDeploy:
+		return envsMap[rj.Spec.Build.Branch]
+	case radixv1.Deploy:
+		return []string{rj.Spec.Deploy.ToEnvironment}
+	case radixv1.Promote:
+		return []string{rj.Spec.Promote.ToEnvironment}
 	}
-	if branch, ok := rj.GetLabels()[kube.RadixBuildLabel]; ok && len(branch) > 0 {
-		return branch
-	}
-	return ""
+	return nil
 }
 
 func (h *history) getAllRadixJobs(ctx context.Context, namespace string) ([]radixv1.RadixJob, error) {
@@ -196,16 +203,13 @@ func (h *history) getAllRadixJobs(ctx context.Context, namespace string) ([]radi
 	return radixJobList.Items, err
 }
 
-func (h *history) getJobsToGarbageCollectByJobConditionAndBranch(ctx context.Context, jobsForConditions radixJobsForConditionsMap) []radixv1.RadixJob {
+func (h *history) getRadixJobsToGarbageCollectByJobConditionsAndEnvs(ctx context.Context, jobsForConditions radixJobsForConditionsMap) []radixv1.RadixJob {
 	var deletingJobs []radixv1.RadixJob
-	for jobCondition, jobsForBranches := range jobsForConditions {
-		if !jobIsCompleted(jobCondition) {
-			continue
-		}
-		for jobBranch, jobsForBranch := range jobsForBranches {
-			jobs := sortRadixJobsByCreatedDesc(jobsForBranch)
-			for i := h.historyLimit - 1; i < len(jobs); i++ {
-				log.Ctx(ctx).Debug().Msgf("Collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
+	for jobCondition, jobsForEnvs := range jobsForConditions {
+		for env, jobsForEnv := range jobsForEnvs {
+			jobs := sortRadixJobsByCreatedDesc(jobsForEnv)
+			for i := h.historyLimit; i < len(jobs); i++ {
+				log.Ctx(ctx).Debug().Msgf("Collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), env, jobCondition)
 				deletingJobs = append(deletingJobs, jobs[i])
 			}
 		}
