@@ -102,14 +102,14 @@ func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string, a
 
 	log.Ctx(ctx).Info().Msgf("Delete history RadixJob for limit %d", h.historyLimit)
 
-	completedRadixJobsWithoutRDs, radixJobsForConditionsAndEnvs := getRadixJobCandidatesForDeletion(radixJobs, radixJobsWithRDs, ra, activeRadixJobName)
-	if len(completedRadixJobsWithoutRDs) > 0 {
-		log.Ctx(ctx).Info().Msg("Delete %d completed RadixJobs without RadixDeployment")
+	succeededRadixJobsWithoutRDs, radixJobsForConditionsAndEnvs := getRadixJobCandidatesForDeletion(radixJobs, radixJobsWithRDs, ra, activeRadixJobName)
+	if len(succeededRadixJobsWithoutRDs) > 0 {
+		log.Ctx(ctx).Info().Msgf("Delete %d succeeded RadixJobs without RadixDeployment", len(succeededRadixJobsWithoutRDs))
 	}
 
 	deletingRadixJobsByConditionsAndEnvs := h.getRadixJobsToGarbageCollectByJobConditionsAndEnvs(ctx, radixJobsForConditionsAndEnvs)
 
-	deletingRadixJobs := append(completedRadixJobsWithoutRDs, deletingRadixJobsByConditionsAndEnvs...)
+	deletingRadixJobs := append(succeededRadixJobsWithoutRDs, deletingRadixJobsByConditionsAndEnvs...)
 	if len(deletingRadixJobs) == 0 {
 		log.Ctx(ctx).Info().Msg("There is no RadixJobs to delete")
 		return

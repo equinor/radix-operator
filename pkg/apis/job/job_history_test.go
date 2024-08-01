@@ -62,6 +62,12 @@ const (
 	job16      = "any-job16"
 	job17      = "any-job17"
 	job18      = "any-job18"
+	job19      = "any-job19"
+	job20      = "any-job20"
+	job21      = "any-job21"
+	job22      = "any-job22"
+	job23      = "any-job23"
+	job24      = "any-job24"
 	env1       = "dev1"
 	env2       = "dev2"
 	env3       = "dev3"
@@ -189,24 +195,23 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 				app1: []string{job3, job4, job6, job8, job9, job10, job11, job12, job13, job14, job15}},
 		},
 		{
-			name:         "Deleted succeeded jobs without deployment within limit",
+			name:         "Deleted succeeded jobs without deployment within limit for build-deploy",
 			historyLimit: 2,
 			initTest: func(radixClient radixclient.Interface) {
 				s.createRadixJob(radixClient, app1, job1, now, radixv1.JobSucceeded, true, radixv1.BuildDeploy, env1, envBranch1)
 				s.createRadixJob(radixClient, app1, job2, now.Add(time.Minute), radixv1.JobSucceeded, false, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job3, now.Add(2*time.Minute), radixv1.JobQueued, true, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job4, now.Add(3*time.Minute), radixv1.JobQueued, false, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job5, now.Add(4*time.Minute), radixv1.JobRunning, true, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job6, now.Add(5*time.Minute), radixv1.JobRunning, false, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job7, now.Add(6*time.Minute), radixv1.JobFailed, true, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job8, now.Add(7*time.Minute), radixv1.JobFailed, false, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job9, now.Add(8*time.Minute), radixv1.JobWaiting, true, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job10, now.Add(9*time.Minute), radixv1.JobWaiting, false, radixv1.BuildDeploy, env1, envBranch1)
-				s.createRadixJob(radixClient, app1, job11, now.Add(10*time.Minute), radixv1.JobRunning, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job3, now.Add(3*time.Minute), radixv1.JobQueued, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job4, now.Add(4*time.Minute), radixv1.JobRunning, true, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job5, now.Add(5*time.Minute), radixv1.JobRunning, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job6, now.Add(6*time.Minute), radixv1.JobStopped, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job7, now.Add(7*time.Minute), radixv1.JobFailed, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job8, now.Add(8*time.Minute), radixv1.JobStoppedNoChanges, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job9, now.Add(9*time.Minute), radixv1.JobWaiting, false, radixv1.BuildDeploy, env1, envBranch1)
+				s.createRadixJob(radixClient, app1, job10, now.Add(10*time.Minute), radixv1.JobRunning, false, radixv1.BuildDeploy, env1, envBranch1)
 			},
-			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job11},
+			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job10},
 			expectedRadixJobs: appRadixJobsMap{
-				app1: []string{job1, job3, job4, job5, job6, job7, job8, job9, job10, job11}},
+				app1: []string{job1, job3, job4, job5, job6, job7, job8, job9, job10}},
 		},
 	}
 
