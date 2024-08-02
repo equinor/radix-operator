@@ -192,7 +192,7 @@ func getRadixJobEnvs(rj radixv1.RadixJob, envsMap map[string][]string) []string 
 	case radixv1.Promote:
 		return []string{rj.Spec.Promote.ToEnvironment}
 	}
-	return nil
+	return []string{""}
 }
 
 func (h *history) getAllRadixJobs(ctx context.Context, namespace string) ([]radixv1.RadixJob, error) {
