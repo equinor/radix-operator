@@ -1,30 +1,21 @@
-FROM golang:1.22-alpine3.20 as base
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.22.5-alpine3.20 AS builder
+ARG TARGETARCH
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=${TARGETARCH}
 
-RUN apk update && \
-    apk add ca-certificates curl git  && \
-    apk add --no-cache gcc musl-dev
+WORKDIR /src
 
-WORKDIR /go/src/github.com/equinor/radix-operator/
-
-# Install project dependencies
-COPY go.mod go.sum ./
+COPY ./go.mod ./go.sum ./
 RUN go mod download
-
-# Copy project code
 COPY ./pipeline-runner ./pipeline-runner
 COPY ./pkg ./pkg
+WORKDIR /src/pipeline-runner
+RUN go build -ldflags="-s -w" -o /build/pipeline-runner
 
-# Build
-FROM base as builder
-WORKDIR /go/src/github.com/equinor/radix-operator/pipeline-runner/
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/pipeline-runner
-RUN adduser -D -g '' radix-pipeline
-
-# Run operator
-FROM scratch
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /go/src/github.com/equinor/radix-operator/pipeline-runner/rootfs/pipeline-runner /usr/local/bin/pipeline-runner
-
-USER radix-pipeline
-ENTRYPOINT ["/usr/local/bin/pipeline-runner"]
+# Final stage, ref https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md for distroless
+FROM gcr.io/distroless/static
+WORKDIR /app
+COPY --from=builder /build/pipeline-runner .
+USER 1000
+ENTRYPOINT ["/app/pipeline-runner"]
