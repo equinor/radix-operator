@@ -3,6 +3,7 @@ package config
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/equinor/radix-common/utils/maps"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
@@ -11,12 +12,24 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
-// Gets pipeline job history limit per each list, grouped by pipeline branch and job status
+// Gets pipeline job history limit per each list, grouped by pipeline environment and job status
 func getPipelineJobsHistoryLimit() int {
 	return getIntFromEnvVar(defaults.PipelineJobsHistoryLimitEnvironmentVariable, 0)
+}
+
+// Gets pipeline job history period limit per each list, grouped by pipeline environment and job status
+func getPipelineJobsHistoryPeriodLimit() time.Duration {
+	periodStr := viper.GetString(defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable)
+	duration, err := time.ParseDuration(periodStr)
+	if err != nil {
+		log.Error().Msgf("Failed to parse pipeline job history period limit from %s, set default 30 days period", defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable)
+		duration = time.Hour * 24 * 30
+	}
+	return duration
 }
 
 // Gets radix deployment history limit per application environment
@@ -57,6 +70,7 @@ func NewConfig() *apiconfig.Config {
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
+			PipelineJobsHistoryPeriodLimit:        getPipelineJobsHistoryPeriodLimit(),
 			DeploymentsHistoryLimitPerEnvironment: getDeploymentsHistoryLimitPerEnvironment(),
 			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),

@@ -53,7 +53,7 @@ func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClien
 		kubeutil:    kubeUtil,
 		hasSynced:   hasSynced,
 		config:      config,
-		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit),
+		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit, config.PipelineJobConfig.PipelineJobsHistoryPeriodLimit),
 	}
 	for _, opt := range opts {
 		opt(&handler)
