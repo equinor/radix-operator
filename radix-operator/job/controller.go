@@ -61,7 +61,9 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
-			handler.CleanupJobHistory(ctx, radixJob)
+			if radixJobInformer.Informer().HasSynced() {
+				handler.CleanupJobHistory(ctx, radixJob)
+			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)
