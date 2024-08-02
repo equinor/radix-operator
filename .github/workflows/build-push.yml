@@ -15,7 +15,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [arm64]
         target:
         - name: "dev"
           ref: "refs/heads/master"
