@@ -37,8 +37,9 @@ func (m *MockHistory) EXPECT() *MockHistoryMockRecorder {
 // Cleanup mocks base method.
 func (m *MockHistory) Cleanup(ctx context.Context, appName, radixJobName string) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Cleanup", ctx, appName, radixJobName)
-	return nil
+	ret := m.ctrl.Call(m, "Cleanup", ctx, appName, radixJobName)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Cleanup indicates an expected call of Cleanup.
