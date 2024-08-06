@@ -17,11 +17,10 @@ import (
 )
 
 const (
-	minPipelineJobsHistoryLimit = 3
-	minDeploymentsHistoryLimit  = 3
+	minPipelineJobsHistoryLimit       = 3
+	minDeploymentsHistoryLimit        = 3
+	minPipelineJobsHistoryPeriodLimit = time.Hour * 24
 )
-
-var minPipelineJobsHistoryPeriodLimit = time.Hour * 24
 
 // Gets pipeline job history limit per each list, grouped by pipeline environment and job status
 func getPipelineJobsHistoryLimit() int {
@@ -37,7 +36,7 @@ func getPipelineJobsHistoryLimit() int {
 func getPipelineJobsHistoryPeriodLimit() time.Duration {
 	period := viper.GetString(defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable)
 	duration, err := time.ParseDuration(period)
-	if err != nil || duration < time.Hour*24 {
+	if err != nil || duration < minPipelineJobsHistoryPeriodLimit {
 		log.Error().Msgf("Invalid or too short pipeline job history period limit %s, set minimum period %s", duration.String(), minPipelineJobsHistoryPeriodLimit.String())
 		return minPipelineJobsHistoryPeriodLimit
 	}
