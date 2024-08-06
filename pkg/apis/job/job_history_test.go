@@ -372,7 +372,7 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 				app1: []string{job1, job2, job3, job4, job5, job6, job7, job8}},
 		},
 		{
-			name:               "Delete all jobs without RadixDeployment older them historyPeriodLimit",
+			name:               "Delete all completed jobs without RadixDeployment older them historyPeriodLimit",
 			historyLimit:       100,
 			historyPeriodLimit: time.Hour,
 			initTest: func(radixClient radixclient.Interface) {
@@ -412,7 +412,7 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			},
 			syncAddingRadixJob: appRadixJob{appName: app1, jobName: job5},
 			expectedRadixJobs: appRadixJobsMap{
-				app1: []string{job1, job2, job3, job4, job5}},
+				app1: []string{job1, job2, job3, job4, "some-job-95", "some-job-96", "some-job-97", "some-job-98", "some-job-99", "some-job-100", "some-job-101", "some-job-102", "some-job-103", "some-job-104", "some-job-105", "some-job-106", job5}},
 		},
 	}
 

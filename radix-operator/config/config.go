@@ -18,15 +18,20 @@ import (
 
 // Gets pipeline job history limit per each list, grouped by pipeline environment and job status
 func getPipelineJobsHistoryLimit() int {
-	return getIntFromEnvVar(defaults.PipelineJobsHistoryLimitEnvironmentVariable, 0)
+	historyLimit := getIntFromEnvVar(defaults.PipelineJobsHistoryLimitEnvironmentVariable, 0)
+	if historyLimit < 3 {
+		log.Error().Msgf("Invalid or too small pipeline job history limit %d, set default 10", historyLimit)
+		historyLimit = 10
+	}
+	return historyLimit
 }
 
 // Gets pipeline job history period limit per each list, grouped by pipeline environment and job status
 func getPipelineJobsHistoryPeriodLimit() time.Duration {
-	periodStr := viper.GetString(defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable)
-	duration, err := time.ParseDuration(periodStr)
-	if err != nil {
-		log.Error().Msgf("Failed to parse pipeline job history period limit from %s, set default 30 days period", defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable)
+	period := viper.GetString(defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable)
+	duration, err := time.ParseDuration(period)
+	if err != nil || duration < time.Hour*24 {
+		log.Error().Msgf("Invalid or too short pipeline job history period limit %s, set default 30 days period", duration.String())
 		duration = time.Hour * 24 * 30
 	}
 	return duration
@@ -34,7 +39,12 @@ func getPipelineJobsHistoryPeriodLimit() time.Duration {
 
 // Gets radix deployment history limit per application environment
 func getDeploymentsHistoryLimitPerEnvironment() int {
-	return getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
+	historyLimit := getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
+	if historyLimit < 3 {
+		log.Error().Msgf("Invalid or too small RadixDeployment history limit %d, set default 10", historyLimit)
+		historyLimit = 10
+	}
+	return historyLimit
 }
 
 func getDNSZone() string {
