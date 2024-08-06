@@ -16,12 +16,19 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	minPipelineJobsHistoryLimit = 3
+	minDeploymentsHistoryLimit  = 3
+)
+
+var minPipelineJobsHistoryPeriodLimit = time.Hour * 24
+
 // Gets pipeline job history limit per each list, grouped by pipeline environment and job status
 func getPipelineJobsHistoryLimit() int {
 	historyLimit := getIntFromEnvVar(defaults.PipelineJobsHistoryLimitEnvironmentVariable, 0)
-	if historyLimit < 3 {
-		log.Error().Msgf("Invalid or too small pipeline job history limit %d, set default 10", historyLimit)
-		historyLimit = 10
+	if historyLimit < minPipelineJobsHistoryLimit {
+		log.Error().Msgf("Invalid or too small pipeline job history limit %d, set default %d", historyLimit, minPipelineJobsHistoryLimit)
+		return minPipelineJobsHistoryLimit
 	}
 	return historyLimit
 }
@@ -31,8 +38,8 @@ func getPipelineJobsHistoryPeriodLimit() time.Duration {
 	period := viper.GetString(defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable)
 	duration, err := time.ParseDuration(period)
 	if err != nil || duration < time.Hour*24 {
-		log.Error().Msgf("Invalid or too short pipeline job history period limit %s, set default 30 days period", duration.String())
-		duration = time.Hour * 24 * 30
+		log.Error().Msgf("Invalid or too short pipeline job history period limit %s, set minimum period %s", duration.String(), minPipelineJobsHistoryPeriodLimit.String())
+		return minPipelineJobsHistoryPeriodLimit
 	}
 	return duration
 }
@@ -40,9 +47,9 @@ func getPipelineJobsHistoryPeriodLimit() time.Duration {
 // Gets radix deployment history limit per application environment
 func getDeploymentsHistoryLimitPerEnvironment() int {
 	historyLimit := getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
-	if historyLimit < 3 {
-		log.Error().Msgf("Invalid or too small RadixDeployment history limit %d, set default 10", historyLimit)
-		historyLimit = 10
+	if historyLimit < minDeploymentsHistoryLimit {
+		log.Error().Msgf("Invalid or too small RadixDeployment history limit %d, set minimum %d", historyLimit, minDeploymentsHistoryLimit)
+		return minDeploymentsHistoryLimit
 	}
 	return historyLimit
 }
