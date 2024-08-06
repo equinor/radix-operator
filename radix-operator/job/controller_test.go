@@ -14,9 +14,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -71,38 +70,18 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	defer stop()
 	defer close(synced)
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
-	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
+	hasSynced := func(syncedOk bool) { synced <- syncedOk }
+	ctrl := gomock.NewController(s.T())
+	mockHistory := NewMockHistory(ctrl)
+	withHistoryOption := func(h *handler) { h.jobHistory = mockHistory }
+	jobHandler := s.createHandler(hasSynced, withHistoryOption)
 
-	cfg := &config.Config{
-		DNSConfig: &dnsalias.DNSConfig{
-			DNSZone:               "dev.radix.equinor.com",
-			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
-			ReservedDNSAliases:    []string{"grafana"},
-		},
-		PipelineJobConfig: &pipelinejob.Config{
-			PipelineJobsHistoryLimit:          3,
-			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
-			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
-		},
-	}
-
-	jobHandler := NewHandler(
-		s.kubeUtil.KubeClient(),
-		s.kubeUtil,
-		s.kubeUtil.RadixClient(),
-		cfg,
-		func(syncedOk bool) {
-			synced <- syncedOk
-		},
-	)
 	go func() {
-		err := startJobController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler)
+		err := s.startJobController(ctx, jobHandler)
 		s.Require().NoError(err)
 	}()
 
-	// Test
+	mockHistory.EXPECT().Cleanup(gomock.Any(), anyAppName).Times(1)
 
 	// Create job should sync
 	rj, _ := s.tu.ApplyJob(
@@ -143,13 +122,39 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	s.True(op)
 }
 
-func startJobController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler) error {
+func (s *jobTestSuite) createHandler(hasSynced func(syncedOk bool), opts ...handlerOpts) Handler {
+	return NewHandler(
+		s.kubeUtil.KubeClient(),
+		s.kubeUtil,
+		s.kubeUtil.RadixClient(),
+		createConfig(),
+		hasSynced,
+		opts...,
+	)
+}
 
+func createConfig() *config.Config {
+	return &config.Config{
+		DNSConfig: &dnsalias.DNSConfig{
+			DNSZone:               "dev.radix.equinor.com",
+			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
+			ReservedDNSAliases:    []string{"grafana"},
+		},
+		PipelineJobConfig: &pipelinejob.Config{
+			PipelineJobsHistoryLimit:          3,
+			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
+			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
+			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+		},
+	}
+}
+
+func (s *jobTestSuite) startJobController(ctx context.Context, handler Handler) error {
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
+	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
 	eventRecorder := &record.FakeRecorder{}
-
 	const waitForChildrenToSync = false
-	controller := NewController(ctx, client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
-
+	controller := NewController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
 	return controller.Run(ctx, 4)

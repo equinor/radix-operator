@@ -3,6 +3,7 @@ package config
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/equinor/radix-common/utils/maps"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
@@ -11,17 +12,45 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
-// Gets pipeline job history limit per each list, grouped by pipeline branch and job status
+const (
+	minPipelineJobsHistoryLimit       = 3
+	minDeploymentsHistoryLimit        = 3
+	minPipelineJobsHistoryPeriodLimit = time.Hour * 24
+)
+
+// Gets pipeline job history limit per each list, grouped by pipeline environment and job status
 func getPipelineJobsHistoryLimit() int {
-	return getIntFromEnvVar(defaults.PipelineJobsHistoryLimitEnvironmentVariable, 0)
+	historyLimit := getIntFromEnvVar(defaults.PipelineJobsHistoryLimitEnvironmentVariable, 0)
+	if historyLimit < minPipelineJobsHistoryLimit {
+		log.Error().Msgf("Invalid or too small pipeline job history limit %d, set default %d", historyLimit, minPipelineJobsHistoryLimit)
+		return minPipelineJobsHistoryLimit
+	}
+	return historyLimit
+}
+
+// Gets pipeline job history period limit per each list, grouped by pipeline environment and job status
+func getPipelineJobsHistoryPeriodLimit() time.Duration {
+	period := viper.GetString(defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable)
+	duration, err := time.ParseDuration(period)
+	if err != nil || duration < minPipelineJobsHistoryPeriodLimit {
+		log.Error().Msgf("Invalid or too short pipeline job history period limit %s, set minimum period %s", duration.String(), minPipelineJobsHistoryPeriodLimit.String())
+		return minPipelineJobsHistoryPeriodLimit
+	}
+	return duration
 }
 
 // Gets radix deployment history limit per application environment
 func getDeploymentsHistoryLimitPerEnvironment() int {
-	return getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
+	historyLimit := getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
+	if historyLimit < minDeploymentsHistoryLimit {
+		log.Error().Msgf("Invalid or too small RadixDeployment history limit %d, set minimum %d", historyLimit, minDeploymentsHistoryLimit)
+		return minDeploymentsHistoryLimit
+	}
+	return historyLimit
 }
 
 func getDNSZone() string {
@@ -57,6 +86,7 @@ func NewConfig() *apiconfig.Config {
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
+			PipelineJobsHistoryPeriodLimit:        getPipelineJobsHistoryPeriodLimit(),
 			DeploymentsHistoryLimitPerEnvironment: getDeploymentsHistoryLimitPerEnvironment(),
 			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
