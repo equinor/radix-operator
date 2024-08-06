@@ -81,7 +81,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 		s.Require().NoError(err)
 	}()
 
-	mockHistory.EXPECT().Cleanup(ctx, anyAppName, gomock.Any()).Times(1)
+	mockHistory.EXPECT().Cleanup(gomock.Any(), anyAppName, "job1").Times(1)
 
 	// Create job should sync
 	rj, _ := s.tu.ApplyJob(

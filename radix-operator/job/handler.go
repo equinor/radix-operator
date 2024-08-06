@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"time"
 
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
@@ -28,8 +29,7 @@ const (
 
 // Handler Common handler interface
 type Handler interface {
-	// Sync Is created on sync of resource
-	Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error
+	common.Handler
 	// CleanupJobHistory Cleanup the pipeline job history
 	CleanupJobHistory(ctx context.Context, radixJob *v1.RadixJob)
 }
@@ -94,5 +94,11 @@ func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 // CleanupJobHistory Cleanup the pipeline job history
 func (t *handler) CleanupJobHistory(ctx context.Context, radixJob *v1.RadixJob) {
-	t.jobHistory.Cleanup(ctx, radixJob.Spec.AppName, radixJob.Name)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Minute*5)
+	go func() {
+		defer cancel()
+		if err := t.jobHistory.Cleanup(ctxWithTimeout, radixJob.Spec.AppName, radixJob.Name); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("Failed to cleanup job history")
+		}
+	}()
 }

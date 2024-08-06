@@ -421,35 +421,31 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			s.T().Logf("Running test: %s", ts.name)
 			s.setupTest()
 			ts.initTest(s.radixClient)
-			done := make(chan struct{})
-			job.NewHistory(s.radixClient, s.kubeUtils, ts.historyLimit, ts.historyPeriodLimit, job.WithDoneChannel(done)).
+
+			err := job.NewHistory(s.radixClient, s.kubeUtils, ts.historyLimit, ts.historyPeriodLimit).
 				Cleanup(context.Background(), ts.syncAddingRadixJob.appName, ts.syncAddingRadixJob.jobName)
+			s.Require().NoError(err)
 
 			expectedJobCount := 0
 			for _, jobsMap := range ts.expectedRadixJobs {
 				expectedJobCount += len(jobsMap)
 			}
-			select {
-			case <-done:
-				actualRadixJobList, err := s.radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
-				s.NoError(err)
-				actualRadixJobCount := len(actualRadixJobList.Items)
-				s.Equal(expectedJobCount, actualRadixJobCount, "RadixJob count")
-				for _, radixJob := range actualRadixJobList.Items {
-					expectedAppJobs, ok := ts.expectedRadixJobs[radixJob.Spec.AppName]
-					s.True(ok, "missing RadixJobs for the app %s", radixJob.Spec.AppName)
-					jobNameIndex := slice.FindIndex(expectedAppJobs, func(jobName string) bool { return radixJob.Name == jobName })
-					if s.True(jobNameIndex >= 0, "unexpected RadixJob %s for the app %s", radixJob.Name, radixJob.Spec.AppName) {
-						ts.expectedRadixJobs[radixJob.Spec.AppName] = append(expectedAppJobs[:jobNameIndex], expectedAppJobs[jobNameIndex+1:]...)
-					}
+			actualRadixJobList, err := s.radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
+			s.NoError(err)
+			actualRadixJobCount := len(actualRadixJobList.Items)
+			s.Equal(expectedJobCount, actualRadixJobCount, "RadixJob count")
+			for _, radixJob := range actualRadixJobList.Items {
+				expectedAppJobs, ok := ts.expectedRadixJobs[radixJob.Spec.AppName]
+				s.True(ok, "missing RadixJobs for the app %s", radixJob.Spec.AppName)
+				jobNameIndex := slice.FindIndex(expectedAppJobs, func(jobName string) bool { return radixJob.Name == jobName })
+				if s.True(jobNameIndex >= 0, "unexpected RadixJob %s for the app %s", radixJob.Name, radixJob.Spec.AppName) {
+					ts.expectedRadixJobs[radixJob.Spec.AppName] = append(expectedAppJobs[:jobNameIndex], expectedAppJobs[jobNameIndex+1:]...)
 				}
-				for appName, radixJobNames := range ts.expectedRadixJobs {
-					for _, radixJobName := range radixJobNames {
-						s.Failf("missing RadixJob", "missing RadixJob %s for the app %s", radixJobName, appName)
-					}
+			}
+			for appName, radixJobNames := range ts.expectedRadixJobs {
+				for _, radixJobName := range radixJobNames {
+					s.Failf("missing RadixJob", "missing RadixJob %s for the app %s", radixJobName, appName)
 				}
-			case <-time.After(1 * time.Minute):
-				s.Fail("Test is timed out")
 			}
 		})
 	}
