@@ -8,7 +8,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "github.com/golang/mock/gomock"
 	record "k8s.io/client-go/tools/record"
 )
@@ -37,9 +36,9 @@ func (m *MockHandler) EXPECT() *MockHandlerMockRecorder {
 }
 
 // CleanupJobHistory mocks base method.
-func (m *MockHandler) CleanupJobHistory(ctx context.Context, radixJob *v1.RadixJob) {
+func (m *MockHandler) CleanupJobHistory(ctx context.Context, appName string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CleanupJobHistory", ctx, radixJob)
+	m.ctrl.Call(m, "CleanupJobHistory", ctx, appName)
 }
 
 // CleanupJobHistory indicates an expected call of CleanupJobHistory.

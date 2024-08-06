@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -22,8 +21,8 @@ import (
 
 // History Interface for job History
 type History interface {
-	// Cleanup the pipeline job history
-	Cleanup(ctx context.Context, appName, radixJobName string) error
+	// Cleanup the pipeline job history for the Radix application
+	Cleanup(ctx context.Context, appName string) error
 }
 
 type history struct {
@@ -45,13 +44,13 @@ func NewHistory(radixClient radixclient.Interface, kubeUtil *kube.Kube, historyL
 }
 
 // Cleanup the pipeline job history
-func (h *history) Cleanup(ctx context.Context, appName, radixJobName string) error {
+func (h *history) Cleanup(ctx context.Context, appName string) error {
 	namespace := utils.GetAppNamespace(appName)
 	if _, ok := h.namespacesRequestsToCleanup.LoadOrStore(namespace, struct{}{}); ok {
 		return nil // a request to clean up history in this namespace already exists
 	}
 	defer h.namespacesRequestsToCleanup.Delete(namespace)
-	if err := h.garbageCollectRadixJobs(ctx, appName, radixJobName); err != nil {
+	if err := h.garbageCollectRadixJobs(ctx, appName); err != nil {
 		return err
 	}
 	return h.garbageCollectConfigMaps(ctx, namespace)
@@ -62,15 +61,13 @@ type radixJobsForBranches map[string][]radixv1.RadixJob
 type radixJobsForConditionsMap map[radixv1.RadixJobCondition]radixJobsForBranches
 type radixJobsNamesMap map[string]struct{}
 
-func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string, activeRadixJobName string) error {
+func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string) error {
 	namespace := utils.GetAppNamespace(appName)
 	radixJobs, err := h.getAllRadixJobs(ctx, namespace)
 	if err != nil {
 		return err
 	}
-	if len(radixJobs) == 0 || slice.Any(radixJobs, func(rj radixv1.RadixJob) bool {
-		return rj.GetName() == activeRadixJobName && jobIsCompleted(rj.Status.Condition)
-	}) {
+	if len(radixJobs) == 0 {
 		return nil // no need to delete anything or the active job is already completed
 	}
 	ra, err := h.radixClient.RadixV1().RadixApplications(namespace).Get(ctx, appName, metav1.GetOptions{})
@@ -88,7 +85,7 @@ func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string, a
 
 	log.Ctx(ctx).Info().Msgf("Delete history RadixJob for limit %d", h.historyLimit)
 
-	radixJobsToBeExplicitlyDeleted, radixJobsForConditionsAndEnvs, radixJobsNamesWithExistingRadixDeployments := h.getRadixJobCandidatesForDeletion(radixJobs, radixJobsWithRDs, ra, activeRadixJobName)
+	radixJobsToBeExplicitlyDeleted, radixJobsForConditionsAndEnvs, radixJobsNamesWithExistingRadixDeployments := h.getRadixJobCandidatesForDeletion(radixJobs, radixJobsWithRDs, ra)
 	if len(radixJobsToBeExplicitlyDeleted) > 0 {
 		log.Ctx(ctx).Info().Msgf("Delete %d RadixJobs without considering history rules", len(radixJobsToBeExplicitlyDeleted))
 	}
@@ -115,15 +112,12 @@ func (h *history) garbageCollectRadixJobs(ctx context.Context, appName string, a
 	return errors.Join(errs...)
 }
 
-func (h *history) getRadixJobCandidatesForDeletion(radixJobs []radixv1.RadixJob, radixJobsWithRDs radixJobsWithRadixDeployments, ra *radixv1.RadixApplication, activeRadixJobName string) ([]radixv1.RadixJob, radixJobsForConditionsMap, radixJobsNamesMap) {
+func (h *history) getRadixJobCandidatesForDeletion(radixJobs []radixv1.RadixJob, radixJobsWithRDs radixJobsWithRadixDeployments, ra *radixv1.RadixApplication) ([]radixv1.RadixJob, radixJobsForConditionsMap, radixJobsNamesMap) {
 	branchToEnvsMap := getBranchesToEnvsMap(ra)
 	var radixJobsToBeExplicitlyDeleted []radixv1.RadixJob
 	radixJobsForConditionsAndEnvs := make(radixJobsForConditionsMap)
 	radixJobsNamesWithExistingRadixDeployments := make(radixJobsNamesMap)
 	for _, radixJob := range radixJobs {
-		if strings.EqualFold(radixJob.GetName(), activeRadixJobName) {
-			continue // do not remove active RadixJob
-		}
 		jobCondition := radixJob.Status.Condition
 		rj := radixJob
 		if _, rdExists := radixJobsWithRDs[rj.GetName()]; rdExists {
@@ -133,7 +127,7 @@ func (h *history) getRadixJobCandidatesForDeletion(radixJobs []radixv1.RadixJob,
 				radixJobsToBeExplicitlyDeleted = append(radixJobsToBeExplicitlyDeleted, rj) // delete all completed job, which does not have a RadixDeployment, excluding build-only jobs
 				continue
 			}
-			if rj.Status.Created.Time.Before(time.Now().Add(-h.historyPeriodLimit)) {
+			if rj.Status.Created != nil && rj.Status.Created.Time.Before(time.Now().Add(-h.historyPeriodLimit)) {
 				radixJobsToBeExplicitlyDeleted = append(radixJobsToBeExplicitlyDeleted, rj) // delete all job, which is older than the history period limit
 				continue
 			}

@@ -423,7 +423,7 @@ func (s *RadixJobHistoryTestSuite) TestJobHistory_Cleanup() {
 			ts.initTest(s.radixClient)
 
 			err := job.NewHistory(s.radixClient, s.kubeUtils, ts.historyLimit, ts.historyPeriodLimit).
-				Cleanup(context.Background(), ts.syncAddingRadixJob.appName, ts.syncAddingRadixJob.jobName)
+				Cleanup(context.Background(), ts.syncAddingRadixJob.appName)
 			s.Require().NoError(err)
 
 			expectedJobCount := 0

@@ -7,7 +7,6 @@ import (
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/rs/zerolog/log"
@@ -30,8 +29,8 @@ const (
 // Handler Common handler interface
 type Handler interface {
 	common.Handler
-	// CleanupJobHistory Cleanup the pipeline job history
-	CleanupJobHistory(ctx context.Context, radixJob *v1.RadixJob)
+	// CleanupJobHistory Cleanup the pipeline job history for the Radix application
+	CleanupJobHistory(ctx context.Context, appName string)
 }
 
 type handler struct {
@@ -93,12 +92,12 @@ func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 }
 
 // CleanupJobHistory Cleanup the pipeline job history
-func (t *handler) CleanupJobHistory(ctx context.Context, radixJob *v1.RadixJob) {
+func (t *handler) CleanupJobHistory(ctx context.Context, appName string) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Minute*5)
 	go func() {
 		defer cancel()
-		if err := t.jobHistory.Cleanup(ctxWithTimeout, radixJob.Spec.AppName, radixJob.Name); err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("Failed to cleanup job history")
+		if err := t.jobHistory.Cleanup(ctxWithTimeout, appName); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msgf("Failed to cleanup job historyfor the Radix application %s", appName)
 		}
 	}()
 }

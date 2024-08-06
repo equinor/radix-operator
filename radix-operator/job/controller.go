@@ -62,7 +62,7 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 			}
 			metrics.CustomResourceAdded(crType)
 			if radixJobInformer.Informer().HasSynced() {
-				handler.CleanupJobHistory(ctx, radixJob)
+				handler.CleanupJobHistory(ctx, radixJob.Spec.AppName)
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
