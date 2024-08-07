@@ -346,7 +346,7 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		ctx,
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
-		&handler, a.kubeInformerFactory, a.radixInformerFactory, true, a.eventRecorder)
+		handler, a.kubeInformerFactory, a.radixInformerFactory, true, a.eventRecorder)
 }
 
 func (a *App) createAlertController(ctx context.Context) *common.Controller {

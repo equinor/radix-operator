@@ -7,9 +7,6 @@ jobs:
   build:
     name: pull-request-check
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [arm64]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Docker Buildx
@@ -36,9 +33,6 @@ jobs:
   radix-operator-test:
     name: Pipeline-runner unit tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [arm64]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
@@ -56,9 +50,6 @@ jobs:
   pipeline-runner-test:
     name: Pipeline-runner unit tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [arm64]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
@@ -76,9 +67,6 @@ jobs:
   radix-operator-lint:
     name: Lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [arm64]
     steps:
     - uses: actions/checkout@v4
       with:
@@ -95,9 +83,6 @@ jobs:
   verify-code-generation:
     name: Verify Code Generation
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [arm64]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5

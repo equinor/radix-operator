@@ -1,30 +1,24 @@
-FROM golang:1.22-alpine3.20 as base
-ENV GO111MODULE=on
-RUN apk update && \
-    apk add git ca-certificates curl && \
-    apk add --no-cache gcc musl-dev
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.22.5-alpine3.20 AS builder
+ARG TARGETARCH
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=${TARGETARCH}
 
-WORKDIR /go/src/github.com/equinor/radix-operator/
+WORKDIR /src
 
-# Install project dependencies
-COPY go.mod go.sum ./
+COPY ./go.mod ./go.sum ./
 RUN go mod download
-# Copy project code
 COPY ./radix-operator ./radix-operator
 COPY ./pkg ./pkg
+WORKDIR /src/radix-operator
+RUN go build -ldflags="-s -w" -o /build/radix-operator
 
-FROM base as builder
-# Build
-WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator
-RUN addgroup -S -g 1000 radix-operator
-RUN adduser -S -u 1000 -G radix-operator radix-operator
+# Final stage, ref https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md for distroless
+FROM gcr.io/distroless/static
+WORKDIR /app
+COPY --from=builder /build/radix-operator .
+USER 1000
+ENTRYPOINT ["/app/radix-operator"]
 
-# Run operator
-FROM scratch
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /go/src/github.com/equinor/radix-operator/radix-operator/rootfs/radix-operator /usr/local/bin/radix-operator
 
-USER radix-operator
-ENTRYPOINT ["/usr/local/bin/radix-operator"]
+

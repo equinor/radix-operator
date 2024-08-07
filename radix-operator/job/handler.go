@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"time"
 
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
@@ -25,31 +26,42 @@ const (
 	MessageResourceSynced = "Radix Job synced successfully"
 )
 
-// Handler Instance variables
-type Handler struct {
+// Handler Common handler interface
+type Handler interface {
+	common.Handler
+	// CleanupJobHistory Cleanup the pipeline job history for the Radix application
+	CleanupJobHistory(ctx context.Context, appName string)
+}
+
+type handler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	hasSynced   common.HasSynced
 	config      *apiconfig.Config
+	jobHistory  job.History
 }
 
-// NewHandler Constructor
-func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced) Handler {
+type handlerOpts func(*handler)
 
-	handler := Handler{
+// NewHandler Constructor
+func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced, opts ...handlerOpts) Handler {
+	handler := handler{
 		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		kubeutil:    kubeutil,
+		radixclient: radixClient,
+		kubeutil:    kubeUtil,
 		hasSynced:   hasSynced,
 		config:      config,
+		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit, config.PipelineJobConfig.PipelineJobsHistoryPeriodLimit),
 	}
-
-	return handler
+	for _, opt := range opts {
+		opt(&handler)
+	}
+	return &handler
 }
 
 // Sync Is created on sync of resource
-func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		// The Job resource may no longer exist, in which case we stop
@@ -77,4 +89,15 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	t.hasSynced(true)
 	eventRecorder.Event(syncJob, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
+}
+
+// CleanupJobHistory Cleanup the pipeline job history
+func (t *handler) CleanupJobHistory(ctx context.Context, appName string) {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Minute*5)
+	go func() {
+		defer cancel()
+		if err := t.jobHistory.Cleanup(ctxWithTimeout, appName); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msgf("Failed to cleanup job historyfor the Radix application %s", appName)
+		}
+	}()
 }
