@@ -66,7 +66,6 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			parts := strings.Split(obj.(string), "/")
 			return parts[0], obj.(string), nil
@@ -111,7 +110,6 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			parts := strings.Split(obj.(string), "/")
 			return parts[0], obj.(string), nil
@@ -156,7 +154,6 @@ func (s *commonControllerTestSuite) Test_ForgetWhenLockKeyAndIdentifierError() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "", "", errors.New("any error")
 		},
@@ -197,7 +194,6 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
@@ -236,7 +232,6 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
@@ -275,7 +270,6 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
@@ -313,7 +307,6 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShuttingDownTrue() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
@@ -353,7 +346,6 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			parts := strings.Split(obj.(string), "/")
 			return parts[0], obj.(string), nil
@@ -396,7 +388,6 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		Informer:    s.KubeInformerFactory.Core().V1().ConfigMaps().Informer(),
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			parts := strings.Split(obj.(string), "/")
 			return parts[0], obj.(string), nil

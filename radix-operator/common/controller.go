@@ -27,7 +27,6 @@ type Controller struct {
 	KubeClient           kubernetes.Interface
 	RadixClient          radixclient.Interface
 	WorkQueue            workqueue.RateLimitingInterface
-	Informer             cache.SharedIndexInformer
 	KubeInformerFactory  kubeinformers.SharedInformerFactory
 	RadixInformerFactory informers.SharedInformerFactory
 	Handler              Handler
