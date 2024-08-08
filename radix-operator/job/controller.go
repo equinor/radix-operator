@@ -52,7 +52,7 @@ func NewController(ctx context.Context,
 	}
 
 	logger.Info().Msg("Setting up event handlers")
-	if s, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
 			if job.IsRadixJobDone(radixJob) {
@@ -98,8 +98,6 @@ func NewController(ctx context.Context,
 		},
 	}); err != nil {
 		panic(err)
-	} else {
-		s.HasSynced()
 	}
 
 	if _, err := kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
