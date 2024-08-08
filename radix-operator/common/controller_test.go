@@ -70,8 +70,10 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 			parts := strings.Split(obj.(string), "/")
 			return parts[0], obj.(string), nil
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(stopCh)
@@ -114,8 +116,10 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 			parts := strings.Split(obj.(string), "/")
 			return parts[0], obj.(string), nil
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(stopCh)
@@ -157,8 +161,10 @@ func (s *commonControllerTestSuite) Test_ForgetWhenLockKeyAndIdentifierError() {
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "", "", errors.New("any error")
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(stopCh)
@@ -197,8 +203,10 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(stopCh)
@@ -235,8 +243,10 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(stopCh)
@@ -273,8 +283,10 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(stopCh)
@@ -310,8 +322,10 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShuttingDownTrue() {
 		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(stopCh)
@@ -350,8 +364,10 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 			parts := strings.Split(obj.(string), "/")
 			return parts[0], obj.(string), nil
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(stopCh)
@@ -392,8 +408,10 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 			parts := strings.Split(obj.(string), "/")
 			return parts[0], obj.(string), nil
 		},
-		WorkQueue: queue,
-		locker:    locker,
+		WorkQueue:            queue,
+		locker:               locker,
+		KubeInformerFactory:  s.KubeInformerFactory,
+		RadixInformerFactory: s.RadixInformerFactory,
 	}
 
 	s.KubeInformerFactory.Start(ctx.Done())

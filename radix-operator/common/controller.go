@@ -49,9 +49,9 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	logger.Debug().Msgf("Starting")
 
 	// Wait for the caches to be synced before starting workers
-	logger.Info().Msg("Waiting for Kube informer caches to sync")
+	logger.Info().Msg("Waiting for Kube objects caches to sync")
 	c.KubeInformerFactory.WaitForCacheSync(ctx.Done())
-	logger.Info().Msg("Waiting for Radix informer caches to sync")
+	logger.Info().Msg("Waiting for Radix objects caches to sync")
 	c.RadixInformerFactory.WaitForCacheSync(ctx.Done())
 	logger.Info().Msg("Completed syncing informer caches")
 
