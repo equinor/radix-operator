@@ -8,6 +8,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,18 +22,17 @@ import (
 
 // Controller Instance variables
 type Controller struct {
-	Name                  string
-	HandlerOf             string
-	KubeClient            kubernetes.Interface
-	RadixClient           radixclient.Interface
-	WorkQueue             workqueue.RateLimitingInterface
-	Informer              cache.SharedIndexInformer
-	KubeInformerFactory   kubeinformers.SharedInformerFactory
-	Handler               Handler
-	WaitForChildrenToSync bool
-	Recorder              record.EventRecorder
-	LockKeyAndIdentifier  LockKeyAndIdentifierFunc
-	locker                resourceLocker
+	Name                 string
+	HandlerOf            string
+	KubeClient           kubernetes.Interface
+	RadixClient          radixclient.Interface
+	WorkQueue            workqueue.RateLimitingInterface
+	KubeInformerFactory  kubeinformers.SharedInformerFactory
+	RadixInformerFactory informers.SharedInformerFactory
+	Handler              Handler
+	Recorder             record.EventRecorder
+	LockKeyAndIdentifier LockKeyAndIdentifierFunc
+	locker               resourceLocker
 }
 
 // Run starts the shared informer, which will be stopped when stopCh is closed.
@@ -48,24 +48,12 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	logger := log.Ctx(ctx)
 	logger.Debug().Msgf("Starting")
 
-	cacheSyncs := []cache.InformerSynced{
-		c.hasSynced,
-	}
-
-	logger.Debug().Msg("Start WaitForChildrenToSync")
-	if c.WaitForChildrenToSync {
-		cacheSyncs = append(cacheSyncs,
-			c.KubeInformerFactory.Core().V1().Namespaces().Informer().HasSynced,
-			c.KubeInformerFactory.Core().V1().Secrets().Informer().HasSynced,
-		)
-	}
-	logger.Debug().Msg("Completed WaitForChildrenToSync")
-
 	// Wait for the caches to be synced before starting workers
-	logger.Info().Msg("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(ctx.Done(), cacheSyncs...); !ok {
-		return fmt.Errorf("failed to wait for caches to sync")
-	}
+	logger.Info().Msg("Waiting for Kube objects caches to sync")
+	c.KubeInformerFactory.WaitForCacheSync(ctx.Done())
+	logger.Info().Msg("Waiting for Radix objects caches to sync")
+	c.RadixInformerFactory.WaitForCacheSync(ctx.Done())
+	logger.Info().Msg("Completed syncing informer caches")
 
 	logger.Info().Msg("Starting workers")
 
@@ -251,8 +239,4 @@ func (c *Controller) HandleObject(ctx context.Context, obj interface{}, ownerKin
 
 		return
 	}
-}
-
-func (c *Controller) hasSynced() bool {
-	return c.Informer.HasSynced()
 }
