@@ -137,7 +137,6 @@ func startRegistrationController(ctx context.Context, client kubernetes.Interfac
 
 	eventRecorder := &record.FakeRecorder{}
 
-	const waitForChildrenToSync = false
 	controller := NewController(ctx, client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, eventRecorder)
 
 	kubeInformerFactory.Start(ctx.Done())

@@ -231,7 +231,13 @@ func (a *App) createRegistrationController(ctx context.Context) *common.Controll
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
-	return registration.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), &handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return registration.NewController(ctx,
+		a.kubeUtil.KubeClient(),
+		a.kubeUtil.RadixClient(),
+		&handler,
+		a.kubeInformerFactory,
+		a.radixInformerFactory,
+		a.eventRecorder)
 }
 
 func (a *App) createApplicationController(ctx context.Context) *common.Controller {
@@ -243,7 +249,13 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
-	return application.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), &handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return application.NewController(ctx,
+		a.kubeUtil.KubeClient(),
+		a.kubeUtil.RadixClient(),
+		&handler,
+		a.kubeInformerFactory,
+		a.radixInformerFactory,
+		a.eventRecorder)
 }
 
 func (a *App) createEnvironmentController(ctx context.Context) *common.Controller {
@@ -254,11 +266,16 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
-	return environment.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), &handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return environment.NewController(ctx,
+		a.kubeUtil.KubeClient(),
+		a.kubeUtil.RadixClient(),
+		&handler,
+		a.kubeInformerFactory,
+		a.radixInformerFactory,
+		a.eventRecorder)
 }
 
 func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller {
-
 	handler := dnsalias.NewHandler(
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
@@ -280,7 +297,6 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 }
 
 func (a *App) createDeploymentController(ctx context.Context) *common.Controller {
-
 	oauth2DockerImage := os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable)
 	if oauth2DockerImage == "" {
 		panic(fmt.Errorf("failed to read OAuth2 Docker image from environment variable %s", defaults.RadixOAuthProxyImageEnvironmentVariable))
@@ -298,7 +314,13 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
 	)
 
-	return deployment.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return deployment.NewController(ctx,
+		a.kubeUtil.KubeClient(),
+		a.kubeUtil.RadixClient(),
+		handler,
+		a.kubeInformerFactory,
+		a.radixInformerFactory,
+		a.eventRecorder)
 }
 
 func (a *App) createJobController(ctx context.Context) *common.Controller {
@@ -330,7 +352,12 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil.RadixClient(),
 	)
 
-	return batch.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return batch.NewController(ctx,
+		a.kubeUtil.KubeClient(),
+		a.kubeUtil.RadixClient(),
+		handler, a.kubeInformerFactory,
+		a.radixInformerFactory,
+		a.eventRecorder)
 }
 
 func loadIngressConfigFromMap(ctx context.Context, kubeutil *kube.Kube) (ingress.IngressConfiguration, error) {
@@ -340,8 +367,7 @@ func loadIngressConfigFromMap(ctx context.Context, kubeutil *kube.Kube) (ingress
 		return ingressConfig, err
 	}
 
-	err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &ingressConfig)
-	if err != nil {
+	if err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &ingressConfig); err != nil {
 		return ingressConfig, err
 	}
 	return ingressConfig, nil
