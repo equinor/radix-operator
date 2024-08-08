@@ -33,23 +33,22 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface,
 	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
-	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	radixDNSAliasInformer := radixInformerFactory.Radix().V1().RadixDNSAliases()
 
 	controller := &common.Controller{
-		Name:                  controllerAgentName,
-		HandlerOf:             radixv1.KindRadixDNSAlias,
-		KubeClient:            kubeClient,
-		RadixClient:           radixClient,
-		Informer:              radixDNSAliasInformer.Informer(),
-		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, radixv1.KindRadixDNSAlias),
-		Handler:               handler,
-		WaitForChildrenToSync: waitForChildrenToSync,
-		Recorder:              recorder,
-		LockKeyAndIdentifier:  common.NamePartitionKey,
+		Name:                 controllerAgentName,
+		HandlerOf:            radixv1.KindRadixDNSAlias,
+		KubeClient:           kubeClient,
+		RadixClient:          radixClient,
+		Informer:             radixDNSAliasInformer.Informer(),
+		KubeInformerFactory:  kubeInformerFactory,
+		RadixInformerFactory: radixInformerFactory,
+		WorkQueue:            common.NewRateLimitedWorkQueue(ctx, radixv1.KindRadixDNSAlias),
+		Handler:              handler,
+		Recorder:             recorder,
+		LockKeyAndIdentifier: common.NamePartitionKey,
 	}
 
 	logger.Info().Msg("Setting up event handlers")

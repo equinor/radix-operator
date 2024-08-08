@@ -166,13 +166,7 @@ func startDeploymentController(ctx context.Context, client kubernetes.Interface,
 	eventRecorder := &record.FakeRecorder{}
 
 	const waitForChildrenToSync = false
-	controller := NewController(
-		ctx,
-		client, radixClient, handler,
-		kubeInformerFactory,
-		radixInformerFactory,
-		waitForChildrenToSync,
-		eventRecorder)
+	controller := NewController(ctx, client, radixClient, handler, kubeInformerFactory, radixInformerFactory, eventRecorder)
 
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
