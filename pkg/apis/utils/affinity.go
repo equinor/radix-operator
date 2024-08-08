@@ -57,7 +57,7 @@ func GetAffinityForJobAPIAuxComponent() *corev1.Affinity {
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 				NodeSelectorTerms: []corev1.NodeSelectorTerm{
 					{
-						MatchExpressions: getNodeSelectorRequirementsForRuntimeEnvironment(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+						MatchExpressions: getNodeSelectorRequirementsForRuntimeEnvironment(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 					},
 				},
 			},

@@ -631,7 +631,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				expectedAuxAffinity := &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
 						{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-						{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
+						{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureAmd64)}},
 					}}}}},
 				}
 				for _, deployment := range jobAuxDeployments {
@@ -682,7 +682,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 					expectedAffinity := &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
 							{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureAmd64)}},
 						}}}}},
 						PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
 							{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{appName}},
@@ -2977,7 +2977,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		expectedAffinity := &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
 				{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-				{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
+				{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureAmd64)}},
 			}}}}},
 			PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
 				{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{anyAppName}},
@@ -3278,7 +3278,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 		expectedAffinity := &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
 				{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-				{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
+				{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureAmd64)}},
 			}}}}},
 			PodAntiAffinity: &corev1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: corev1.PodAffinityTerm{TopologyKey: corev1.LabelHostname, LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
 				{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{anyAppName}},
@@ -4563,7 +4563,7 @@ func getDefaultComponentAffinityBuilder(componentName string, appName string) *c
 }
 
 func getDefaultJobComponentAffinityBuilder(appName string, jobComponentName string) *corev1.Affinity {
-	return &corev1.Affinity{NodeAffinity: getLinuxArm64NodeAffinity(), PodAntiAffinity: getComponentPodAntiAffinity(appName, jobComponentName)}
+	return &corev1.Affinity{NodeAffinity: getLinuxAmd64NodeAffinity(), PodAntiAffinity: getComponentPodAntiAffinity(appName, jobComponentName)}
 }
 
 func getComponentPodAntiAffinity(anyAppName string, componentName string) *corev1.PodAntiAffinity {
@@ -4571,13 +4571,6 @@ func getComponentPodAntiAffinity(anyAppName string, componentName string) *corev
 		{Key: kube.RadixAppLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{anyAppName}},
 		{Key: kube.RadixComponentLabel, Operator: metav1.LabelSelectorOpIn, Values: []string{componentName}},
 	}}}}}}
-}
-
-func getLinuxArm64NodeAffinity() *corev1.NodeAffinity {
-	return &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
-		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
-	}}}}}
 }
 
 func getLinuxAmd64NodeAffinity() *corev1.NodeAffinity {
