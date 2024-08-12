@@ -26,28 +26,28 @@ const (
 )
 
 // NewController creates a new controller that handles RadixApplications
-func NewController(ctx context.Context, client kubernetes.Interface,
-	radixClient radixclient.Interface, handler common.Handler,
+func NewController(ctx context.Context,
+	kubeClient kubernetes.Interface,
+	radixClient radixclient.Interface,
+	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
-	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
 	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 
 	controller := &common.Controller{
-		Name:                  controllerAgentName,
-		HandlerOf:             crType,
-		KubeClient:            client,
-		RadixClient:           radixClient,
-		Informer:              applicationInformer.Informer(),
-		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
-		Handler:               handler,
-		WaitForChildrenToSync: waitForChildrenToSync,
-		Recorder:              recorder,
-		LockKeyAndIdentifier:  common.NamespacePartitionKey,
+		Name:                 controllerAgentName,
+		HandlerOf:            crType,
+		KubeClient:           kubeClient,
+		RadixClient:          radixClient,
+		KubeInformerFactory:  kubeInformerFactory,
+		RadixInformerFactory: radixInformerFactory,
+		WorkQueue:            common.NewRateLimitedWorkQueue(ctx, crType),
+		Handler:              handler,
+		Recorder:             recorder,
+		LockKeyAndIdentifier: common.NamespacePartitionKey,
 	}
 
 	logger.Info().Msg("Setting up event handlers")
