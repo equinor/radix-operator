@@ -153,8 +153,7 @@ func (s *jobTestSuite) startJobController(ctx context.Context, handler Handler) 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
 	eventRecorder := &record.FakeRecorder{}
-	const waitForChildrenToSync = false
-	controller := NewController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
+	controller := NewController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), handler, kubeInformerFactory, radixInformerFactory, eventRecorder)
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
 	return controller.Run(ctx, 4)

@@ -23,28 +23,28 @@ const (
 )
 
 // NewController creates a new controller that handles RadixBatches
-func NewController(ctx context.Context, client kubernetes.Interface,
-	radixClient radixclient.Interface, handler common.Handler,
+func NewController(ctx context.Context,
+	kubeClient kubernetes.Interface,
+	radixClient radixclient.Interface,
+	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
-	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	batchInformer := radixInformerFactory.Radix().V1().RadixBatches()
 	jobInformer := kubeInformerFactory.Batch().V1().Jobs()
 
 	controller := &common.Controller{
-		Name:                  controllerAgentName,
-		HandlerOf:             crType,
-		KubeClient:            client,
-		RadixClient:           radixClient,
-		Informer:              batchInformer.Informer(),
-		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
-		Handler:               handler,
-		WaitForChildrenToSync: waitForChildrenToSync,
-		Recorder:              recorder,
-		LockKeyAndIdentifier:  common.NamespacePartitionKey,
+		Name:                 controllerAgentName,
+		HandlerOf:            crType,
+		KubeClient:           kubeClient,
+		RadixClient:          radixClient,
+		KubeInformerFactory:  kubeInformerFactory,
+		RadixInformerFactory: radixInformerFactory,
+		WorkQueue:            common.NewRateLimitedWorkQueue(ctx, crType),
+		Handler:              handler,
+		Recorder:             recorder,
+		LockKeyAndIdentifier: common.NamespacePartitionKey,
 	}
 
 	logger.Info().Msg("Setting up event handlers")

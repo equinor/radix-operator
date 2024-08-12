@@ -26,24 +26,29 @@ const (
 )
 
 // NewController creates a new controller that handles RadixJobs
-func NewController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
+func NewController(ctx context.Context,
+	client kubernetes.Interface,
+	radixClient radixclient.Interface,
+	handler Handler,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	radixInformerFactory informers.SharedInformerFactory,
+	recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	radixJobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	controller := &common.Controller{
-		Name:                  controllerAgentName,
-		HandlerOf:             crType,
-		KubeClient:            client,
-		RadixClient:           radixClient,
-		Informer:              radixJobInformer.Informer(),
-		KubeInformerFactory:   kubeInformerFactory,
-		WorkQueue:             common.NewRateLimitedWorkQueue(ctx, crType),
-		Handler:               handler,
-		WaitForChildrenToSync: waitForChildrenToSync,
-		Recorder:              recorder,
-		LockKeyAndIdentifier:  common.NamespacePartitionKey,
+		Name:                 controllerAgentName,
+		HandlerOf:            crType,
+		KubeClient:           client,
+		RadixClient:          radixClient,
+		KubeInformerFactory:  kubeInformerFactory,
+		RadixInformerFactory: radixInformerFactory,
+		WorkQueue:            common.NewRateLimitedWorkQueue(ctx, crType),
+		Handler:              handler,
+		Recorder:             recorder,
+		LockKeyAndIdentifier: common.NamespacePartitionKey,
 	}
 
 	logger.Info().Msg("Setting up event handlers")
