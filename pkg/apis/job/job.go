@@ -142,12 +142,12 @@ func (job *Job) syncStatuses(ctx context.Context, ra *v1.RadixApplication) (stop
 		return true, nil
 	}
 
-	allRadixJobs, err := job.getRadixJobs(ctx)
+	appRadixJobs, err := job.getRadixJobs(ctx)
 	if err != nil {
 		err = fmt.Errorf("failed to get all RadixJobs: %v", err)
 		return false, err
 	}
-	if job.isOtherJobRunningOnBranchOrEnvironment(ra, allRadixJobs) {
+	if job.isOtherJobRunningOnBranchOrEnvironment(ra, appRadixJobs) {
 		err = job.queueJob(ctx)
 		if err != nil {
 			return false, err
@@ -164,13 +164,13 @@ func (job *Job) syncStatuses(ctx context.Context, ra *v1.RadixApplication) (stop
 	return
 }
 
-func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, allRadixJobs []v1.RadixJob) bool {
+func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, appRadixJobs []v1.RadixJob) bool {
 	isJobActive := func(rj *v1.RadixJob) bool {
 		return rj.Status.Condition == v1.JobWaiting || rj.Status.Condition == v1.JobRunning
 	}
 
 	jobTargetEnvironments := job.getTargetEnvironments(ra)
-	for _, rj := range allRadixJobs {
+	for _, rj := range appRadixJobs {
 		if rj.GetName() == job.radixJob.GetName() || !isJobActive(&rj) {
 			continue
 		}
@@ -361,32 +361,27 @@ func (job *Job) getStoppedSteps(ctx context.Context, isRunning bool) (*[]v1.Radi
 }
 
 func (job *Job) deleteStepJobs(ctx context.Context) error {
-	jobs, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{
+	jobList, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s, %s!=%s", kube.RadixJobNameLabel, job.radixJob.Name, kube.RadixJobTypeLabel, kube.RadixJobTypeJob),
 	})
 
 	if err != nil {
 		return err
 	}
-
-	if len(jobs.Items) > 0 {
-		for _, kubernetesJob := range jobs.Items {
-			if kubernetesJob.Status.CompletionTime != nil {
-				continue
-			}
-
-			err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(ctx, kubernetesJob.Name, metav1.DeleteOptions{})
-			if err != nil && !errors.IsNotFound(err) {
-				return err
-			}
-
-			err = deleteJobPodIfExistsAndNotCompleted(ctx, job.kubeclient, job.radixJob.Namespace, kubernetesJob.Name)
-			if err != nil {
-				return err
-			}
+	if len(jobList.Items) == 0 {
+		return nil
+	}
+	for _, kubernetesJob := range jobList.Items {
+		if kubernetesJob.Status.CompletionTime != nil {
+			continue
+		}
+		if err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(ctx, kubernetesJob.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+		if err = deleteJobPodIfExistsAndNotCompleted(ctx, job.kubeclient, job.radixJob.Namespace, kubernetesJob.Name); err != nil {
+			return err
 		}
 	}
-
 	return nil
 }
 
@@ -431,7 +426,7 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 	if pipelinePod == nil || len(pipelinePod.Status.ContainerStatuses) == 0 {
 		return nil, nil
 	}
-	return job.getJobStepsBuildPipeline(pipelinePod, pipelineJobsPods, pipelineJobs)
+	return job.getJobStepsBuildPipeline(pipelineJobs, pipelineJobsPods, pipelinePod)
 }
 
 func (job *Job) getPipelineJobsPods(ctx context.Context) ([]corev1.Pod, error) {
@@ -444,7 +439,7 @@ func (job *Job) getPipelineJobsPods(ctx context.Context) ([]corev1.Pod, error) {
 	return podList.Items, nil
 }
 
-func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelinePods []corev1.Pod, pipelineJobs []batchv1.Job) ([]v1.RadixJobStep, error) {
+func (job *Job) getJobStepsBuildPipeline(pipelineJobs []batchv1.Job, pipelinePods []corev1.Pod, pipelinePod *corev1.Pod) ([]v1.RadixJobStep, error) {
 	var steps []v1.RadixJobStep
 	foundPrepareStepNames := make(map[string]bool)
 
@@ -601,7 +596,6 @@ func getContainerStatusByName(name string, containerStatuses []corev1.ContainerS
 			return &containerStatus
 		}
 	}
-
 	return nil
 }
 
@@ -714,4 +708,23 @@ func (job *Job) getRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
 		return nil, err
 	}
 	return radixJobList.Items, err
+}
+
+func deleteJobPodIfExistsAndNotCompleted(ctx context.Context, client kubernetes.Interface, namespace, jobName string) error {
+	pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labels.Set{"job-name": jobName}.String()})
+	if err != nil {
+		return err
+	}
+	if pods == nil || len(pods.Items) == 0 || pods.Items[0].Status.Phase == corev1.PodSucceeded || pods.Items[0].Status.Phase == corev1.PodFailed {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	err = client.CoreV1().Pods(namespace).Delete(ctx, pods.Items[0].Name, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	return nil
+
 }

@@ -397,7 +397,7 @@ func (s *RadixJobStepTestSuite) appendJobPodInitContainerStatus(pod *corev1.Pod,
 }
 
 func (s *RadixJobStepTestSuite) getBuildDeployJob(jobName, appName string) utils.JobBuilder {
-	jb := utils.NewJobBuilder().
+	return utils.NewJobBuilder().
 		WithJobName(jobName).
 		WithAppName(appName).
 		WithPipelineType(v1.BuildDeploy).
@@ -405,8 +405,6 @@ func (s *RadixJobStepTestSuite) getBuildDeployJob(jobName, appName string) utils
 			utils.NewJobStatusBuilder().
 				WithCondition(v1.JobRunning),
 		)
-
-	return jb
 }
 
 func (s *RadixJobStepTestSuite) getWaitingContainerStatus(containerName string) corev1.ContainerStatus {
@@ -414,10 +412,8 @@ func (s *RadixJobStepTestSuite) getWaitingContainerStatus(containerName string) 
 }
 
 func (s *RadixJobStepTestSuite) getContainerStatus(containerName string, state corev1.ContainerState) corev1.ContainerStatus {
-	status := corev1.ContainerStatus{
+	return corev1.ContainerStatus{
 		Name:  containerName,
 		State: state,
 	}
-
-	return status
 }
