@@ -340,7 +340,7 @@ func (job *Job) getStoppedSteps(ctx context.Context, isRunning bool) (*[]v1.Radi
 		return nil, err
 	}
 
-	err = deleteJobPodIfExistsAndNotCompleted(ctx, job.kubeclient, job.radixJob.Namespace, job.radixJob.Name)
+	err = job.deleteJobPodIfExistsAndNotCompleted(ctx, job.radixJob.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +378,7 @@ func (job *Job) deleteStepJobs(ctx context.Context) error {
 		if err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(ctx, kubernetesJob.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
-		if err = deleteJobPodIfExistsAndNotCompleted(ctx, job.kubeclient, job.radixJob.Namespace, kubernetesJob.Name); err != nil {
+		if err = job.deleteJobPodIfExistsAndNotCompleted(ctx, kubernetesJob.Name); err != nil {
 			return err
 		}
 	}
@@ -431,7 +431,7 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 
 func (job *Job) getPipelineJobsPods(ctx context.Context) ([]corev1.Pod, error) {
 	podList, err := job.kubeclient.CoreV1().Pods(job.radixJob.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: labels.Set{kube.RadixJobNameLabel: job.radixJob.Name}.String(),
+		LabelSelector: job.getRadixJobNameLabelSelector(),
 	})
 	if err != nil {
 		return nil, err
@@ -553,12 +553,10 @@ func getComponentImagesForContainer(name string, componentImages pipeline.BuildC
 }
 
 func (job *Job) getPipelinePod(pods []corev1.Pod) *corev1.Pod {
-	jobPods := slice.FindAll(pods, func(pod corev1.Pod) bool { return pod.GetLabels()[jobNameLabel] == job.radixJob.Name })
-	if len(jobPods) == 0 {
-		// pipeline pod not found
-		return nil
+	if jobPod, ok := slice.FindFirst(pods, func(pod corev1.Pod) bool { return pod.GetLabels()[jobNameLabel] == job.radixJob.Name }); ok {
+		return &jobPod
 	}
-	return &jobPods[0]
+	return nil
 }
 
 func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
@@ -573,18 +571,16 @@ func (job *Job) getCloneConfigApplyConfigAndPreparePipelineStep(pipelineJobs []b
 		return nil, nil
 	}
 
-	jobPods := slice.FindAll(pipelinePods, func(pod corev1.Pod) bool { return pod.GetLabels()[jobNameLabel] == preparePipelineStepJobs[0].Name })
-
-	if len(jobPods) != 1 {
+	jobPod, jobPodExists := slice.FindFirst(pipelinePods, func(pod corev1.Pod) bool { return pod.GetLabels()[jobNameLabel] == preparePipelineStepJobs[0].Name })
+	if !jobPodExists {
 		return nil, nil
 	}
-	jobPod := jobPods[0]
 
 	cloneContainerStatus := getContainerStatusByName(git.CloneConfigContainerName, jobPod.Status.InitContainerStatuses)
 	if cloneContainerStatus == nil {
 		return nil, nil
 	}
-	cloneConfigContainerStep := getJobStepWithNoComponents(jobPods[0].GetName(), cloneContainerStatus)
+	cloneConfigContainerStep := getJobStepWithNoComponents(jobPod.GetName(), cloneContainerStatus)
 	applyConfigAndPreparePipelineContainerJobStep := getJobStepWithNoComponents(jobPod.GetName(), &jobPod.Status.ContainerStatuses[0])
 
 	return &cloneConfigContainerStep, &applyConfigAndPreparePipelineContainerJobStep
@@ -646,9 +642,7 @@ func getJobStepWithContainerName(podName, containerName string, containerStatus 
 func (job *Job) getJobEnvironments(ctx context.Context) ([]string, error) {
 	deploymentsLinkedToJob, err := job.radixclient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(
 		ctx,
-		metav1.ListOptions{
-			LabelSelector: labels.Set{"radix-job-name": job.radixJob.Name}.String(),
-		})
+		metav1.ListOptions{LabelSelector: job.getRadixJobNameLabelSelector()})
 	if err != nil {
 		return nil, err
 	}
@@ -694,12 +688,16 @@ func (job *Job) updateRadixJobStatus(ctx context.Context, rj *v1.RadixJob, chang
 
 func (job *Job) getPipelineJobs(ctx context.Context) ([]batchv1.Job, error) {
 	jobList, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: labels.Set{kube.RadixJobNameLabel: job.radixJob.Name}.String(),
+		LabelSelector: job.getRadixJobNameLabelSelector(),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return jobList.Items, nil
+}
+
+func (job *Job) getRadixJobNameLabelSelector() string {
+	return labels.Set{kube.RadixJobNameLabel: job.radixJob.Name}.String()
 }
 
 func (job *Job) getRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
@@ -710,8 +708,8 @@ func (job *Job) getRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
 	return radixJobList.Items, err
 }
 
-func deleteJobPodIfExistsAndNotCompleted(ctx context.Context, client kubernetes.Interface, namespace, jobName string) error {
-	pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labels.Set{"job-name": jobName}.String()})
+func (job *Job) deleteJobPodIfExistsAndNotCompleted(ctx context.Context, jobName string) error {
+	pods, err := job.kubeclient.CoreV1().Pods(job.radixJob.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labels.Set{jobNameLabel: jobName}.String()})
 	if err != nil {
 		return err
 	}
@@ -721,7 +719,7 @@ func deleteJobPodIfExistsAndNotCompleted(ctx context.Context, client kubernetes.
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	err = client.CoreV1().Pods(namespace).Delete(ctx, pods.Items[0].Name, metav1.DeleteOptions{})
+	err = job.kubeclient.CoreV1().Pods(job.radixJob.Namespace).Delete(ctx, pods.Items[0].Name, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
