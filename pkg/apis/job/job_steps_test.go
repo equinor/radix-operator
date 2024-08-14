@@ -31,7 +31,7 @@ type setStatusOfJobTestScenarioExpected struct {
 
 type setStatusOfJobTestScenario struct {
 	name       string
-	radixjob   *v1.RadixJob
+	radixJob   *v1.RadixJob
 	jobs       []*batchv1.Job
 	pods       []*corev1.Pod
 	configMaps []*corev1.ConfigMap
@@ -82,7 +82,7 @@ func (s *RadixJobStepTestSuite) TestIt() {
 			expected: v1.RadixJobStep{Condition: v1.JobFailed, Started: &startedAt, Ended: &finishedAt},
 		},
 		{
-			name:          "test podName, containerName and componenets set",
+			name:          "test podName, containerName and components set",
 			podName:       "a_pod",
 			containerName: "a_container",
 			components:    []string{"comp1", "comp2"},
@@ -100,7 +100,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_NoPipelineJob() {
 	scenario := setStatusOfJobTestScenario{
 
 		name:     "missing pipeline job",
-		radixjob: s.getBuildDeployJob("job-1", "app-1").BuildRJ(),
+		radixJob: s.getBuildDeployJob("job-1", "app-1").BuildRJ(),
 	}
 
 	s.testSetStatusOfJobTestScenario(&scenario)
@@ -109,7 +109,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_NoPipelineJob() {
 func (s *RadixJobStepTestSuite) Test_StatusSteps_NoPipelinePod() {
 	scenario := setStatusOfJobTestScenario{
 		name:     "missing pipeline pod",
-		radixjob: s.getBuildDeployJob("job-2", "app-2").BuildRJ(),
+		radixJob: s.getBuildDeployJob("job-2", "app-2").BuildRJ(),
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-2", "app-2", ""),
 		},
@@ -121,13 +121,13 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_NoPipelinePod() {
 func (s *RadixJobStepTestSuite) Test_StatusSteps_NoEmptyCloneSteps() {
 	scenario := setStatusOfJobTestScenario{
 		name:     "no empty steps when clone config has not been created",
-		radixjob: s.getBuildDeployJob("job-3", "app-3").BuildRJ(),
+		radixJob: s.getBuildDeployJob("job-3", "app-3").BuildRJ(),
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-3", "app-3", ""),
 		},
 		pods: []*corev1.Pod{
 			s.appendJobPodContainerStatus(
-				s.getJobPod("pipeline-pod-3", "job-3", utils.GetAppNamespace("app-3")),
+				s.getJobPod("pipeline-pod-3", "job-3", "job-3", utils.GetAppNamespace("app-3")),
 				s.getWaitingContainerStatus("radix-pipeline")),
 		},
 		expected: setStatusOfJobTestScenarioExpected{
@@ -141,7 +141,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_NoEmptyCloneSteps() {
 func (s *RadixJobStepTestSuite) Test_StatusSteps_CorrectCloneStepsSequence() {
 	scenario := setStatusOfJobTestScenario{
 		name:     "clone and apply config steps added before pipeline step",
-		radixjob: s.getBuildDeployJob("job-4", "app-4").BuildRJ(),
+		radixJob: s.getBuildDeployJob("job-4", "app-4").BuildRJ(),
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-4", "app-4", "a_tag"),
 			s.getPreparePipelineJob("prepare-pipeline-4", "job-4", "app-4", "a_tag"),
@@ -149,15 +149,15 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_CorrectCloneStepsSequence() {
 		},
 		pods: []*corev1.Pod{
 			s.appendJobPodContainerStatus(
-				s.getJobPod("pipeline-pod-4", "job-4", utils.GetAppNamespace("app-4")),
+				s.getJobPod("pipeline-pod-4", "job-4", "job-4", utils.GetAppNamespace("app-4")),
 				s.getWaitingContainerStatus("radix-pipeline")),
 			s.appendJobPodInitContainerStatus(
 				s.appendJobPodContainerStatus(
-					s.getJobPod("prepare-pipeline-pod-4", "prepare-pipeline-4", utils.GetAppNamespace("app-4")),
+					s.getJobPod("prepare-pipeline-pod-4", "job-4", "prepare-pipeline-4", utils.GetAppNamespace("app-4")),
 					s.getWaitingContainerStatus("prepare-pipeline")),
 				s.getWaitingContainerStatus("clone-config")),
 			s.appendJobPodContainerStatus(
-				s.getJobPod("run-pipeline-pod-4", "run-pipeline-job-4", utils.GetAppNamespace("app-4")),
+				s.getJobPod("run-pipeline-pod-4", "job-4", "run-pipeline-job-4", utils.GetAppNamespace("app-4")),
 				s.getWaitingContainerStatus("run-pipeline")),
 		},
 		expected: setStatusOfJobTestScenarioExpected{
@@ -176,7 +176,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_CorrectCloneStepsSequence() {
 func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 	scenario := setStatusOfJobTestScenario{
 		name:     "pipeline with build steps",
-		radixjob: s.getBuildDeployJob("job-5", "app-5").BuildRJ(),
+		radixJob: s.getBuildDeployJob("job-5", "app-5").BuildRJ(),
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-5", "app-5", "a_tag"),
 			s.getPreparePipelineJob("prepare-pipeline-5", "job-5", "app-5", "a_tag"),
@@ -190,20 +190,20 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 		},
 		pods: []*corev1.Pod{
 			s.appendJobPodContainerStatus(
-				s.getJobPod("pipeline-pod-5", "job-5", utils.GetAppNamespace("app-5")),
+				s.getJobPod("pipeline-pod-5", "job-5", "job-5", utils.GetAppNamespace("app-5")),
 				s.getWaitingContainerStatus("radix-pipeline")),
 			s.appendJobPodInitContainerStatus(
 				s.appendJobPodContainerStatus(
-					s.getJobPod("prepare-pipeline-pod-5", "prepare-pipeline-5", utils.GetAppNamespace("app-5")),
+					s.getJobPod("prepare-pipeline-pod-5", "job-5", "prepare-pipeline-5", utils.GetAppNamespace("app-5")),
 					s.getWaitingContainerStatus("prepare-pipeline")),
 				s.getWaitingContainerStatus("clone-config")),
 			s.appendJobPodContainerStatus(
-				s.getJobPod("build-pod-5", "build-job-5", utils.GetAppNamespace("app-5")),
+				s.getJobPod("build-pod-5", "job-5", "build-job-5", utils.GetAppNamespace("app-5")),
 				s.getWaitingContainerStatus("build-app"),
 				s.getWaitingContainerStatus("build-multi"),
 			),
 			s.appendJobPodContainerStatus(
-				s.getJobPod("run-pipeline-pod-5", "run-pipeline-5", utils.GetAppNamespace("app-5")),
+				s.getJobPod("run-pipeline-pod-5", "job-5", "run-pipeline-5", utils.GetAppNamespace("app-5")),
 				s.getWaitingContainerStatus("run-pipeline")),
 		},
 		expected: setStatusOfJobTestScenarioExpected{
@@ -224,7 +224,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 	scenario := setStatusOfJobTestScenario{
 		name:     "steps with init containers",
-		radixjob: s.getBuildDeployJob("job-1", "app-1").BuildRJ(),
+		radixJob: s.getBuildDeployJob("job-1", "app-1").BuildRJ(),
 		jobs: []*batchv1.Job{
 			s.getPipelineJob("job-1", "app-1", "a_tag"),
 			s.getPreparePipelineJob("prepare-pipeline-1", "job-1", "app-1", "a_tag"),
@@ -233,21 +233,21 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 		},
 		pods: []*corev1.Pod{
 			s.appendJobPodContainerStatus(
-				s.getJobPod("pipeline-pod-1", "job-1", utils.GetAppNamespace("app-1")),
+				s.getJobPod("pipeline-pod-1", "job-1", "job-1", utils.GetAppNamespace("app-1")),
 				s.getWaitingContainerStatus("radix-pipeline")),
 			s.appendJobPodInitContainerStatus(
 				s.appendJobPodContainerStatus(
-					s.getJobPod("prepare-pipeline-pod-1", "prepare-pipeline-1", utils.GetAppNamespace("app-1")),
+					s.getJobPod("prepare-pipeline-pod-1", "job-1", "prepare-pipeline-1", utils.GetAppNamespace("app-1")),
 					s.getWaitingContainerStatus("prepare-pipeline")),
 				s.getWaitingContainerStatus("clone-config")),
 			s.appendJobPodInitContainerStatus(
-				s.getJobPod("build-pod-1", "build-job-1", utils.GetAppNamespace("app-1")),
+				s.getJobPod("build-pod-1", "job-1", "build-job-1", utils.GetAppNamespace("app-1")),
 				s.getWaitingContainerStatus("build-init1"),
 				s.getWaitingContainerStatus("build-init2"),
 				s.getWaitingContainerStatus("internal-build-init"),
 			),
 			s.appendJobPodContainerStatus(
-				s.getJobPod("run-pipeline-pod-1", "run-pipeline-1", utils.GetAppNamespace("app-1")),
+				s.getJobPod("run-pipeline-pod-1", "job-1", "run-pipeline-1", utils.GetAppNamespace("app-1")),
 				s.getWaitingContainerStatus("run-pipeline")),
 		},
 		expected: setStatusOfJobTestScenarioExpected{
@@ -269,11 +269,11 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 	err := s.initScenario(scenario)
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixjob, nil)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixJob, nil)
 	err = job.setStatusOfJob(context.Background())
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
-	actualRj, err := s.radixClient.RadixV1().RadixJobs(scenario.radixjob.Namespace).Get(context.Background(), scenario.radixjob.Name, metav1.GetOptions{})
+	actualRj, err := s.radixClient.RadixV1().RadixJobs(scenario.radixJob.Namespace).Get(context.Background(), scenario.radixJob.Name, metav1.GetOptions{})
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	assert.Equal(s.T(), scenario.expected.returnsError, err != nil, scenario.name)
@@ -281,8 +281,8 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 }
 
 func (s *RadixJobStepTestSuite) initScenario(scenario *setStatusOfJobTestScenario) error {
-	if scenario.radixjob != nil {
-		if _, err := s.radixClient.RadixV1().RadixJobs(scenario.radixjob.Namespace).Create(context.Background(), scenario.radixjob, metav1.CreateOptions{}); err != nil {
+	if scenario.radixJob != nil {
+		if _, err := s.radixClient.RadixV1().RadixJobs(scenario.radixJob.Namespace).Create(context.Background(), scenario.radixJob, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	}
@@ -374,12 +374,12 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTa
 	}
 }
 
-func (s *RadixJobStepTestSuite) getJobPod(podName, jobName, namespace string) *corev1.Pod {
+func (s *RadixJobStepTestSuite) getJobPod(podName, radixJobName, jobName, namespace string) *corev1.Pod {
 	pod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: namespace,
-			Labels:    map[string]string{"job-name": jobName},
+			Labels:    map[string]string{kube.RadixJobNameLabel: radixJobName, jobNameLabel: jobName},
 		},
 	}
 
@@ -397,7 +397,7 @@ func (s *RadixJobStepTestSuite) appendJobPodInitContainerStatus(pod *corev1.Pod,
 }
 
 func (s *RadixJobStepTestSuite) getBuildDeployJob(jobName, appName string) utils.JobBuilder {
-	jb := utils.NewJobBuilder().
+	return utils.NewJobBuilder().
 		WithJobName(jobName).
 		WithAppName(appName).
 		WithPipelineType(v1.BuildDeploy).
@@ -405,8 +405,6 @@ func (s *RadixJobStepTestSuite) getBuildDeployJob(jobName, appName string) utils
 			utils.NewJobStatusBuilder().
 				WithCondition(v1.JobRunning),
 		)
-
-	return jb
 }
 
 func (s *RadixJobStepTestSuite) getWaitingContainerStatus(containerName string) corev1.ContainerStatus {
@@ -414,10 +412,8 @@ func (s *RadixJobStepTestSuite) getWaitingContainerStatus(containerName string) 
 }
 
 func (s *RadixJobStepTestSuite) getContainerStatus(containerName string, state corev1.ContainerState) corev1.ContainerStatus {
-	status := corev1.ContainerStatus{
+	return corev1.ContainerStatus{
 		Name:  containerName,
 		State: state,
 	}
-
-	return status
 }
