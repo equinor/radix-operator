@@ -45,11 +45,7 @@ func (job *Job) createPipelineJob(ctx context.Context) error {
 	}
 
 	_, err = job.kubeclient.BatchV1().Jobs(namespace).Create(ctx, jobConfig, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) {

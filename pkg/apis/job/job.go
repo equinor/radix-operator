@@ -58,7 +58,12 @@ func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient ra
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (job *Job) OnSync(ctx context.Context) error {
-	ctx = log.Ctx(ctx).With().Str("resource_kind", v1.KindRadixJob).Logger().WithContext(ctx)
+	ctx = log.Ctx(ctx).
+		With().
+		Str("resource_kind", v1.KindRadixJob).
+		Str("resource_namespace", job.radixJob.GetNamespace()).
+		Str("resource_name", job.radixJob.GetName()).
+		Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 
 	job.restoreStatus(ctx)
@@ -92,12 +97,11 @@ func (job *Job) OnSync(ctx context.Context) error {
 
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(ctx, job.radixJob.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		err = job.createPipelineJob(ctx)
-		if err != nil {
+		if err = job.createPipelineJob(ctx); err != nil {
 			return err
 		}
-		err = job.setStatusOfJob(ctx)
-		if err != nil {
+		log.Ctx(ctx).Debug().Msg("RadixJob created")
+		if err = job.setStatusOfJob(ctx); err != nil {
 			return err
 		}
 	}
@@ -258,14 +262,17 @@ func IsRadixJobDone(rj *v1.RadixJob) bool {
 }
 
 func (job *Job) setStatusOfJob(ctx context.Context) error {
+	log.Ctx(ctx).Debug().Msg("Set RadixJob status")
 	pipelineJobs, err := job.getPipelineJobs(ctx)
 	if err != nil {
 		return err
 	}
 	pipelineJob, pipelineJobExists := slice.FindFirst(pipelineJobs, func(j batchv1.Job) bool { return j.GetName() == job.radixJob.Name })
 	if !pipelineJobExists {
-		return nil // No kubernetes job created yet, so nothing to sync
+		log.Ctx(ctx).Debug().Msg("Pipeline job does not yet exist, nothing to sync")
+		return nil
 	}
+	log.Ctx(ctx).Debug().Msg("Get RadixJob steps")
 	steps, err := job.getJobSteps(ctx, pipelineJobs)
 	if err != nil {
 		return err
@@ -424,6 +431,7 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 	}
 	pipelinePod := job.getPipelinePod(pipelineJobsPods)
 	if pipelinePod == nil || len(pipelinePod.Status.ContainerStatuses) == 0 {
+		log.Ctx(ctx).Debug().Msg("Pipeline job pod or its container statuses do not yet exist, skip orchestrating step")
 		return nil, nil
 	}
 	return job.getJobStepsBuildPipeline(pipelineJobs, pipelineJobsPods, pipelinePod)
@@ -468,14 +476,14 @@ func (job *Job) getJobStepsBuildPipeline(pipelineJobs []batchv1.Job, pipelinePod
 			continue
 		}
 
-		jobStepPods := slice.FindAll(pipelinePods, func(pod corev1.Pod) bool {
-			return pod.GetLabels()[jobNameLabel] == jobStep.Name
+		pod, podExists := slice.FindFirst(pipelinePods, func(jobPod corev1.Pod) bool {
+			return jobPod.GetLabels()[jobNameLabel] == jobStep.Name
 		})
-		if len(jobStepPods) == 0 {
+		if !podExists {
+			log.Ctx(ctx).Debug().Msgf("Skip the RadixJob step %s - job pod does not exist", jobStep.Name)
 			continue
 		}
 
-		pod := jobStepPods[0]
 		componentImages := make(pipeline.BuildComponentImages)
 		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
 			return nil, err
@@ -498,10 +506,16 @@ func (job *Job) getJobStepsBuildPipeline(pipelineJobs []batchv1.Job, pipelinePod
 			steps = append(steps, step)
 		}
 
-		for _, containerStatus := range pod.Status.ContainerStatuses {
-			components := getComponentImagesForContainer(containerStatus.Name, componentImages)
+		log.Ctx(ctx).Debug().Msgf("Add %d steps for the job %s", len(pod.Spec.Containers), jobStep.Name)
+		containerStatusesMap := slice.Reduce(pod.Status.ContainerStatuses, make(map[string]*corev1.ContainerStatus), func(acc map[string]*corev1.ContainerStatus, containerStatus corev1.ContainerStatus) map[string]*corev1.ContainerStatus {
+			acc[containerStatus.Name] = &containerStatus
+			return acc
+		})
+		for _, container := range pod.Spec.Containers {
+			containerStatus := containerStatusesMap[container.Name]
+			components := getComponentImagesForContainer(container.Name, componentImages)
 			components = append(components, getComponentsForContainer(containerStatus.Name, buildComponents)...)
-			step := getJobStep(pod.GetName(), &containerStatus, components)
+			step := getJobStep(pod.GetName(), containerStatus, components)
 			if _, ok := foundPrepareStepNames[step.Name]; ok {
 				continue
 			}
@@ -668,6 +682,7 @@ func (job *Job) updateRadixJobStatusWithMetrics(ctx context.Context, savingRadix
 func (job *Job) updateRadixJobStatus(ctx context.Context, rj *v1.RadixJob, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
 	rjInterface := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace())
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		log.Ctx(ctx).Debug().Msg("UpdateRadixJobStatus")
 		currentJob, err := rjInterface.Get(ctx, rj.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
