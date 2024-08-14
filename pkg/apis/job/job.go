@@ -514,8 +514,8 @@ func (job *Job) getJobStepsBuildPipeline(pipelineJobs []batchv1.Job, pipelinePod
 		for _, container := range pod.Spec.Containers {
 			containerStatus := containerStatusesMap[container.Name]
 			components := getComponentImagesForContainer(container.Name, componentImages)
-			components = append(components, getComponentsForContainer(containerStatus.Name, buildComponents)...)
-			step := getJobStep(pod.GetName(), containerStatus, components)
+			components = append(components, getComponentsForContainer(container.Name, buildComponents)...)
+			step := getJobStep(pod.GetName(), container.Name, containerStatus, components)
 			if _, ok := foundPrepareStepNames[step.Name]; ok {
 				continue
 			}
@@ -544,10 +544,10 @@ func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj int
 	return nil
 }
 
-func getComponentsForContainer(name string, componentImages []pipeline.BuildComponentImage) []string {
+func getComponentsForContainer(containerName string, componentImages []pipeline.BuildComponentImage) []string {
 	components := make([]string, 0)
 	for _, componentImage := range componentImages {
-		if strings.EqualFold(componentImage.ContainerName, name) {
+		if strings.EqualFold(componentImage.ContainerName, containerName) {
 			components = append(components, componentImage.ComponentName)
 		}
 	}
@@ -574,7 +574,14 @@ func (job *Job) getPipelinePod(pods []corev1.Pod) *corev1.Pod {
 }
 
 func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
-	return getJobStep(pipelinePod.GetName(), &pipelinePod.Status.ContainerStatuses[0], nil)
+	return getJobStep(pipelinePod.GetName(), pipelinePod.Spec.Containers[0].Name, getFirstContainerStatus(pipelinePod), nil)
+}
+
+func getFirstContainerStatus(pipelinePod *corev1.Pod) *corev1.ContainerStatus {
+	if len(pipelinePod.Status.ContainerStatuses) > 0 {
+		return &pipelinePod.Status.ContainerStatuses[0]
+	}
+	return nil
 }
 
 func (job *Job) getCloneConfigApplyConfigAndPreparePipelineStep(pipelineJobs []batchv1.Job, pipelinePods []corev1.Pod) (*v1.RadixJobStep, *v1.RadixJobStep) {
@@ -613,8 +620,8 @@ func getJobStepWithNoComponents(podName string, containerStatus *corev1.Containe
 	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, nil)
 }
 
-func getJobStep(podName string, containerStatus *corev1.ContainerStatus, components []string) v1.RadixJobStep {
-	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, components)
+func getJobStep(podName string, containerName string, containerStatus *corev1.ContainerStatus, components []string) v1.RadixJobStep {
+	return getJobStepWithContainerName(podName, containerName, containerStatus, components)
 }
 
 func getJobStepWithContainerName(podName, containerName string, containerStatus *corev1.ContainerStatus, components []string) v1.RadixJobStep {
