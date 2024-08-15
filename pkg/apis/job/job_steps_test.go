@@ -126,7 +126,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_NoEmptyCloneSteps() {
 			s.getPipelineJob("job-3", "app-3", ""),
 		},
 		pods: []*corev1.Pod{
-			s.appendJobPodContainerStatus(
+			s.appendJobPodContainerWithStatus(
 				s.getJobPod("pipeline-pod-3", "job-3", "job-3", utils.GetAppNamespace("app-3")),
 				s.getWaitingContainerStatus("radix-pipeline")),
 		},
@@ -148,15 +148,15 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_CorrectCloneStepsSequence() {
 			s.getRunPipelineJob("run-pipeline-job-4", "job-4", "app-4", "a_tag"),
 		},
 		pods: []*corev1.Pod{
-			s.appendJobPodContainerStatus(
+			s.appendJobPodContainerWithStatus(
 				s.getJobPod("pipeline-pod-4", "job-4", "job-4", utils.GetAppNamespace("app-4")),
 				s.getWaitingContainerStatus("radix-pipeline")),
 			s.appendJobPodInitContainerStatus(
-				s.appendJobPodContainerStatus(
+				s.appendJobPodContainerWithStatus(
 					s.getJobPod("prepare-pipeline-pod-4", "job-4", "prepare-pipeline-4", utils.GetAppNamespace("app-4")),
 					s.getWaitingContainerStatus("prepare-pipeline")),
 				s.getWaitingContainerStatus("clone-config")),
-			s.appendJobPodContainerStatus(
+			s.appendJobPodContainerWithStatus(
 				s.getJobPod("run-pipeline-pod-4", "job-4", "run-pipeline-job-4", utils.GetAppNamespace("app-4")),
 				s.getWaitingContainerStatus("run-pipeline")),
 		},
@@ -189,20 +189,20 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 			s.getRunPipelineJob("run-pipeline-5", "job-5", "app-5", "a_tag"),
 		},
 		pods: []*corev1.Pod{
-			s.appendJobPodContainerStatus(
+			s.appendJobPodContainerWithStatus(
 				s.getJobPod("pipeline-pod-5", "job-5", "job-5", utils.GetAppNamespace("app-5")),
 				s.getWaitingContainerStatus("radix-pipeline")),
 			s.appendJobPodInitContainerStatus(
-				s.appendJobPodContainerStatus(
+				s.appendJobPodContainerWithStatus(
 					s.getJobPod("prepare-pipeline-pod-5", "job-5", "prepare-pipeline-5", utils.GetAppNamespace("app-5")),
 					s.getWaitingContainerStatus("prepare-pipeline")),
 				s.getWaitingContainerStatus("clone-config")),
-			s.appendJobPodContainerStatus(
+			s.appendJobPodContainerWithStatus(
 				s.getJobPod("build-pod-5", "job-5", "build-job-5", utils.GetAppNamespace("app-5")),
 				s.getWaitingContainerStatus("build-app"),
 				s.getWaitingContainerStatus("build-multi"),
 			),
-			s.appendJobPodContainerStatus(
+			s.appendJobPodContainerWithStatus(
 				s.getJobPod("run-pipeline-pod-5", "job-5", "run-pipeline-5", utils.GetAppNamespace("app-5")),
 				s.getWaitingContainerStatus("run-pipeline")),
 		},
@@ -232,11 +232,11 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 			s.getRunPipelineJob("run-pipeline-1", "job-1", "app-1", "a_tag"),
 		},
 		pods: []*corev1.Pod{
-			s.appendJobPodContainerStatus(
+			s.appendJobPodContainerWithStatus(
 				s.getJobPod("pipeline-pod-1", "job-1", "job-1", utils.GetAppNamespace("app-1")),
 				s.getWaitingContainerStatus("radix-pipeline")),
 			s.appendJobPodInitContainerStatus(
-				s.appendJobPodContainerStatus(
+				s.appendJobPodContainerWithStatus(
 					s.getJobPod("prepare-pipeline-pod-1", "job-1", "prepare-pipeline-1", utils.GetAppNamespace("app-1")),
 					s.getWaitingContainerStatus("prepare-pipeline")),
 				s.getWaitingContainerStatus("clone-config")),
@@ -246,7 +246,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 				s.getWaitingContainerStatus("build-init2"),
 				s.getWaitingContainerStatus("internal-build-init"),
 			),
-			s.appendJobPodContainerStatus(
+			s.appendJobPodContainerWithStatus(
 				s.getJobPod("run-pipeline-pod-1", "job-1", "run-pipeline-1", utils.GetAppNamespace("app-1")),
 				s.getWaitingContainerStatus("run-pipeline")),
 		},
@@ -375,19 +375,20 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTa
 }
 
 func (s *RadixJobStepTestSuite) getJobPod(podName, radixJobName, jobName, namespace string) *corev1.Pod {
-	pod := corev1.Pod{
+	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: namespace,
 			Labels:    map[string]string{kube.RadixJobNameLabel: radixJobName, jobNameLabel: jobName},
 		},
 	}
-
-	return &pod
 }
 
-func (s *RadixJobStepTestSuite) appendJobPodContainerStatus(pod *corev1.Pod, containerStatus ...corev1.ContainerStatus) *corev1.Pod {
-	pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, containerStatus...)
+func (s *RadixJobStepTestSuite) appendJobPodContainerWithStatus(pod *corev1.Pod, containerStatuses ...corev1.ContainerStatus) *corev1.Pod {
+	for _, containerStatus := range containerStatuses {
+		pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{Name: containerStatus.Name})
+	}
+	pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, containerStatuses...)
 	return pod
 }
 
