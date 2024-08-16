@@ -36,12 +36,10 @@ func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec(ctx context.Con
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			log.Ctx(ctx).Debug().Msgf("ConfigMap object %s in namespace %s belongs to deleted component %s, garbage collecting the configmap", cm.Name, namespace, componentName)
-			err = deploy.kubeutil.DeleteConfigMap(ctx, namespace, cm.Name)
+			if err = deploy.kubeutil.DeleteConfigMap(ctx, namespace, cm.Name); err != nil {
+				errs = append(errs, err)
+			}
 		}
-		if err != nil {
-			errs = append(errs, err)
-		}
-
 	}
 	return errors.Join(errs...)
 }

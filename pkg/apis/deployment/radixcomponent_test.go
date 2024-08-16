@@ -18,16 +18,6 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 )
 
-const (
-	appName       = "app"
-	componentName = "comp"
-	// containerRegistry = "radixdev.azurecr.io"
-	env = "dev"
-
-	anyImage     = componentName
-	anyImagePath = anyImage
-)
-
 type scenarioDef struct {
 	name     string
 	comp     interface{}
@@ -187,6 +177,9 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 //nolint:staticcheck
 func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	// New publicPort does not exist, old public does not exist
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
 	ra := utils.ARadixApplication().
 		WithComponents(
 			utils.NewApplicationComponentBuilder().
@@ -258,6 +251,9 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -305,6 +301,7 @@ func TestGetRadixComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAliases(t *testing.T) {
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -335,6 +332,7 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 }
 
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *testing.T) {
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -394,6 +392,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 }
 
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *testing.T) {
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -458,6 +457,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 }
 
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEnvConfig(t *testing.T) {
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -510,7 +510,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEn
 
 func TestGetRadixComponentsForEnv_Monitoring(t *testing.T) {
 	envs := [2]string{"prod", "dev"}
-
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -569,6 +569,7 @@ func TestGetRadixComponentsForEnv_Monitoring(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -616,6 +617,7 @@ func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 }
 
 func Test_GetRadixComponents_NodeName(t *testing.T) {
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -674,6 +676,7 @@ func Test_GetRadixComponents_NodeName(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledComponents(t *testing.T) {
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -742,6 +745,7 @@ func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledComponents(t *testing.T)
 }
 
 func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledJobComponents(t *testing.T) {
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -995,6 +999,9 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 }
 
 func Test_GetRadixComponents_Monitoring(t *testing.T) {
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -1042,6 +1049,9 @@ func Test_GetRadixComponents_Monitoring(t *testing.T) {
 }
 
 func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -1108,6 +1118,8 @@ func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
 }
 
 func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
+	componentName := "comp"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -1163,6 +1175,9 @@ func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
 }
 
 func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -1317,6 +1332,8 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 }
 
 func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
+	componentName := "comp"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
