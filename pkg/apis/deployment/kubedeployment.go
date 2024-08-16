@@ -316,7 +316,7 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 }
 
 func isComponentStopped(deployComponent v1.RadixCommonDeployComponent) bool {
-	if replicas := deployComponent.GetReplicas(); replicas != nil {
+	if replicas := deployComponent.GetReplicasOverride(); replicas != nil {
 		return *replicas == 0
 	}
 
@@ -340,6 +340,10 @@ func getDesiredComponentReplicas(deployComponent v1.RadixCommonDeployComponent) 
 		if hs.MaxReplicas < componentReplicas {
 			componentReplicas = hs.MaxReplicas
 		}
+	}
+
+	if override := deployComponent.GetReplicasOverride(); override != nil {
+		componentReplicas = int32(*override)
 	}
 
 	return pointers.Ptr(componentReplicas)

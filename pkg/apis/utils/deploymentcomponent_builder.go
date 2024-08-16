@@ -19,6 +19,7 @@ type DeployComponentBuilder interface {
 	WithMonitoringConfig(v1.MonitoringConfig) DeployComponentBuilder
 	WithAlwaysPullImageOnDeploy(bool) DeployComponentBuilder
 	WithReplicas(*int) DeployComponentBuilder
+	WithReplicasOverride(*int) DeployComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithVolumeMounts(...v1.RadixVolumeMount) DeployComponentBuilder
@@ -52,6 +53,7 @@ type deployComponentBuilder struct {
 	monitoring              bool
 	monitoringConfig        v1.MonitoringConfig
 	replicas                *int
+	replicasOverride        *int
 	alwaysPullImageOnDeploy bool
 	ingressConfiguration    []string
 	secrets                 []string
@@ -171,6 +173,10 @@ func (dcb *deployComponentBuilder) WithReplicas(replicas *int) DeployComponentBu
 	dcb.replicas = replicas
 	return dcb
 }
+func (dcb *deployComponentBuilder) WithReplicasOverride(replicas *int) DeployComponentBuilder {
+	dcb.replicasOverride = replicas
+	return dcb
+}
 
 func (dcb *deployComponentBuilder) WithEnvironmentVariable(name string, value string) DeployComponentBuilder {
 	if dcb.environmentVariables == nil {
@@ -241,6 +247,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Monitoring:              dcb.monitoring,
 		MonitoringConfig:        dcb.monitoringConfig,
 		Replicas:                dcb.replicas,
+		ReplicasOverride:        dcb.replicasOverride,
 		Secrets:                 dcb.secrets,
 		SecretRefs:              dcb.secretRefs,
 		IngressConfiguration:    dcb.ingressConfiguration,

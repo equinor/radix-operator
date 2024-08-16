@@ -47,6 +47,8 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 			deployComponent.Replicas = environmentSpecificConfig.Replicas
 		}
 
+		// TODO: Check if previous deployment have replica overrides
+
 		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
 		if err != nil {
 			return nil, err

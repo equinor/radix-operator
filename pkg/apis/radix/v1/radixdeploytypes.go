@@ -101,10 +101,11 @@ type RadixDeployExternalDNS struct {
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
-	Name     string          `json:"name"`
-	Image    string          `json:"image"`
-	Ports    []ComponentPort `json:"ports"`
-	Replicas *int            `json:"replicas"`
+	Name             string          `json:"name"`
+	Image            string          `json:"image"`
+	Ports            []ComponentPort `json:"ports"`
+	Replicas         *int            `json:"replicas"`
+	ReplicasOverride *int            `json:"replicasOverride"`
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public               bool                     `json:"public"`
 	PublicPort           string                   `json:"publicPort,omitempty"`
@@ -179,6 +180,9 @@ func (deployComponent *RadixDeployComponent) IsAlwaysPullImageOnDeploy() bool {
 
 func (deployComponent *RadixDeployComponent) GetReplicas() *int {
 	return deployComponent.Replicas
+}
+func (deployComponent *RadixDeployComponent) GetReplicasOverride() *int {
+	return deployComponent.ReplicasOverride
 }
 
 func (deployComponent *RadixDeployComponent) GetHorizontalScaling() *RadixHorizontalScaling {
@@ -297,6 +301,9 @@ func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() b
 func (deployJobComponent *RadixDeployJobComponent) GetReplicas() *int {
 	replicas := 1
 	return &replicas
+}
+func (deployJobComponent *RadixDeployJobComponent) GetReplicasOverride() *int {
+	return nil
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetHorizontalScaling() *RadixHorizontalScaling {
@@ -421,6 +428,7 @@ type RadixCommonDeployComponent interface {
 	GetVolumeMounts() []RadixVolumeMount
 	IsAlwaysPullImageOnDeploy() bool
 	GetReplicas() *int
+	GetReplicasOverride() *int
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetPublicPort() string
 	IsPublic() bool

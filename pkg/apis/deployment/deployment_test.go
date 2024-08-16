@@ -1769,7 +1769,7 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(pointers.Ptr(4)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(pointers.Ptr(6)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(pointers.Ptr(11)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
-			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 			utils.NewDeployComponentBuilder().WithName("comp7").WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 		))
 	require.NoError(t, err)
@@ -1875,7 +1875,11 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().
+				WithName("comp1").
+				WithReplicas(pointers.Ptr(1)).
+				WithReplicasOverride(pointers.Ptr(0)).
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1894,7 +1898,51 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 
 	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
 	assert.Equal(t, int32(2), *comp1.Spec.Replicas)
+}
 
+func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+	// Initial sync creating deployments should use replicas from spec
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+		))
+	require.NoError(t, err)
+
+	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
+
+	// Resync existing RD with replicas override to 5 should set deployment replicas to 5
+	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(5)),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(5), *comp1.Spec.Replicas)
+
+	// Resync existing RD with replicas set back to original value (start) should use replicas from spec
+	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
 }
 
 func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {

@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
@@ -108,19 +107,20 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(1)).
+				WithReplicasOverride(pointers.Ptr(0)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).WithAzureServiceBusTrigger("test", "abcd", "queue", "", "", nil, nil).Build())))
 	require.NoError(t, err)
 
@@ -145,19 +145,20 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(1)).
+				WithReplicasOverride(pointers.Ptr(0)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1))))
+				WithReplicas(pointers.Ptr(1))))
 	require.NoError(t, err)
 
 	t.Run("validate scaled objects after reconfiguration", func(t *testing.T) {
