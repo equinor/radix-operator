@@ -34,7 +34,7 @@ func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec(ctx context.Con
 			return fmt.Errorf("could not determine component name from labels in config map %s", cm.Name)
 		}
 
-		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			log.Ctx(ctx).Debug().Msgf("ConfigMap object %s in namespace %s belongs to deleted component %s, garbage collecting the configmap", cm.Name, namespace, componentName)
 			err = deploy.kubeutil.DeleteConfigMap(ctx, namespace, cm.Name)
 		}
