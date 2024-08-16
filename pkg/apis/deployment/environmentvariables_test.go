@@ -173,7 +173,7 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 		assert.NotNil(t, envVarsConfigMap)
 		assert.NotNil(t, envVarsConfigMap.Data)
 		assert.Len(t, envVarsConfigMap.Data, 3)
-		assert.Equal(t, "new-val1", envVarsConfigMap.Data["VAR1"])
+		assert.Equal(t, "val1", envVarsConfigMap.Data["VAR1"])
 		assert.Equal(t, "val2", envVarsConfigMap.Data["VAR2"])
 		assert.Equal(t, "val3", envVarsConfigMap.Data["VAR3"])
 		assert.Equal(t, "", envVarsConfigMap.Data["OUTDATED_VAR1"])
