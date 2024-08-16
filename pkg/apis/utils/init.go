@@ -7,6 +7,7 @@ import (
 	"time"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
+	httputils "github.com/equinor/radix-operator/pkg/apis/utils/http"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -63,7 +64,7 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 	}
 	config.WarningHandler = rest.NoWarnings{}
 	config.Wrap(prometheusMetrics)
-	config.Wrap(logRequests)
+	config.Wrap(httputils.LogRequests)
 
 	for _, o := range configOptions {
 		o(config)
@@ -116,24 +117,4 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 
 func prometheusMetrics(rt http.RoundTripper) http.RoundTripper {
 	return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
-}
-
-type RoundTripperFunc func(*http.Request) (*http.Response, error)
-
-func (fn RoundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
-}
-
-func logRequests(t http.RoundTripper) http.RoundTripper {
-	return RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
-		logger := log.Ctx(r.Context()).With().
-			Str("method", r.Method).
-			Str("path", r.URL.Path).
-			Logger()
-		start := time.Now()
-		resp, err := t.RoundTrip(r)
-		elapsedMs := time.Since(start).Milliseconds()
-		logger.Trace().Err(err).Int64("elapsed_ms", elapsedMs).Int("status", resp.StatusCode).Msg(http.StatusText(resp.StatusCode))
-		return resp, err
-	})
 }
