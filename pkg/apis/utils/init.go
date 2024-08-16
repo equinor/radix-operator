@@ -55,18 +55,15 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Failed to read InClusterConfig")
 		}
 	}
-
 	config.WarningHandler = rest.NoWarnings{}
-	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
-		return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
-	}
+	config.Wrap(prometheusMetrics)
+	config.Wrap(logRequests)
 
 	for _, o := range configOptions {
 		o(config)
@@ -115,4 +112,28 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 
 	logger.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
 	return client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, certClient
+}
+
+func prometheusMetrics(rt http.RoundTripper) http.RoundTripper {
+	return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
+}
+
+type RoundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn RoundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+func logRequests(t http.RoundTripper) http.RoundTripper {
+	return RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		logger := log.Ctx(r.Context()).With().
+			Str("method", r.Method).
+			Str("path", r.URL.Path).
+			Logger()
+		start := time.Now()
+		resp, err := t.RoundTrip(r)
+		elapsedMs := time.Since(start).Milliseconds()
+		logger.Trace().Err(err).Int64("elapsed_ms", elapsedMs).Int("status", resp.StatusCode).Msg(http.StatusText(resp.StatusCode))
+		return resp, err
+	})
 }
