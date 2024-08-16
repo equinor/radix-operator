@@ -159,14 +159,14 @@ func (c *Controller) processWorkItem(ctx context.Context, workItem interface{}, 
 
 func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	start := time.Now()
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	ctx = log.Ctx(ctx).With().Str("resource_namespace", namespace).Str("resource_name", name).Logger().WithContext(ctx)
 
 	defer func() {
 		duration := time.Since(start)
 		metrics.AddDurationOfReconciliation(c.HandlerOf, duration)
+		log.Ctx(ctx).Debug().Dur("elapsed_ms", duration).Msg("Reconciliation duration")
 	}()
-
-	namespace, name, err := cache.SplitMetaNamespaceKey(key)
-	ctx = log.Ctx(ctx).With().Str("resource_namespace", namespace).Str("resource_name", name).Logger().WithContext(ctx)
 
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("invalid resource key: %s", key)
