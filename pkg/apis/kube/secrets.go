@@ -63,8 +63,8 @@ func (kubeutil *Kube) UpdateSecret(ctx context.Context, original, modified *core
 	return updated, err
 }
 
-// Deprecated: ApplySecret is not safe to use because it does not use the resourceVersion of the supplied secret when updating.
-// Use UpdateSecret or CreateSecret instead
+// Deprecated: ApplySecret is not safe to use because it does not use the resourceVersion of the supplied secret when updating. Use UpdateSecret or CreateSecret instead.
+// ApplySecret Creates or updates secret to namespace
 func (kubeutil *Kube) ApplySecret(ctx context.Context, namespace string, secret *corev1.Secret) (savedSecret *corev1.Secret, err error) {
 	secretName := secret.GetName()
 	// file deepcode ignore ClearTextLogging: logs name of secret only

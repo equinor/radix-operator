@@ -62,7 +62,7 @@ func (app *ApplicationConfig) initializeBuildSecret(ctx context.Context, namespa
 	}
 
 	secret := getBuildSecretForData(app.config.Name, namespace, name, data)
-	_, err := app.kubeutil.ApplySecret(ctx, namespace, secret)
+	_, err := app.kubeutil.ApplySecret(ctx, namespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (app *ApplicationConfig) updateBuildSecret(ctx context.Context, namespace, 
 		secret = getBuildSecretForData(app.config.Name, namespace, name, secret.Data)
 	}
 
-	_, err = app.kubeutil.ApplySecret(ctx, namespace, secret)
+	_, err = app.kubeutil.ApplySecret(ctx, namespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	if err != nil {
 		return err
 	}

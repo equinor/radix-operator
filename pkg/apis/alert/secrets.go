@@ -31,7 +31,7 @@ func (syncer *alertSyncer) createOrUpdateSecret(ctx context.Context) error {
 
 	syncer.setSecretCommonProps(secret)
 
-	_, err = syncer.kubeUtil.ApplySecret(ctx, ns, secret)
+	_, err = syncer.kubeUtil.ApplySecret(ctx, ns, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	return err
 }
 

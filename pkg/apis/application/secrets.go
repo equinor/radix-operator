@@ -167,7 +167,7 @@ func (app *Application) applyServicePrincipalACRSecretToBuildNamespace(ctx conte
 	}
 
 	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild, tokenSecretForAppRegistry} {
-		_, err = app.kubeutil.ApplySecret(ctx, buildNamespace, secret)
+		_, err = app.kubeutil.ApplySecret(ctx, buildNamespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 		if err != nil {
 			return err
 		}
