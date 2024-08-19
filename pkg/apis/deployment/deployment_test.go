@@ -55,10 +55,10 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-const testClusterName = "AnyClusterName"
-const dnsZone = "dev.radix.equinor.com"
-const anyContainerRegistry = "any.container.registry"
-const testEgressIps = "0.0.0.0"
+const (
+	testClusterName = "AnyClusterName"
+	testEgressIps   = "0.0.0.0"
+)
 
 var testConfig = config.Config{
 	DeploymentSyncer: deployment.SyncerConfig{
@@ -254,8 +254,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 				assert.Equal(t, 13, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
-				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.PublicEndpointEnvironmentVariable, componentNameApp, deployments))
@@ -644,8 +644,8 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
 				assert.Equal(t, 14, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, "a_value", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", jobName, deployments))
-				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixAppEnvironmentVariable, jobName, deployments))
@@ -1296,6 +1296,8 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
+	appName := "app"
+	comp1, comp2, job1, job2 := "comp1", "comp2", "job1", "job2"
 	anyEnvironment := "test"
 	namespace := utils.GetEnvironmentNamespace(appName, anyEnvironment)
 
@@ -1303,32 +1305,32 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(anyEnvironment).
-		WithJobComponents().
 		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("somecomponentname").
-				WithEnvironmentVariables(nil).
-				WithSecrets(nil),
-			utils.NewDeployComponentBuilder().
-				WithName(componentName).
-				WithEnvironmentVariables(nil).
-				WithSecrets(nil)),
+			utils.NewDeployComponentBuilder().WithName(comp1),
+			utils.NewDeployComponentBuilder().WithName(comp2),
+		).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName(job1),
+			utils.NewDeployJobComponentBuilder().WithName(job2),
+		),
 	)
 	require.NoError(t, err)
 
+	cmNameMapper := func(cm *corev1.ConfigMap) string { return cm.Name }
+	componentsEnvNames := func(names ...string) []string {
+		return slice.Map(names, func(n string) string { return kube.GetEnvVarsConfigMapName(n) })
+	}
+	componentsEnvMetaNames := func(names ...string) []string {
+		return slice.Map(names, func(n string) string { return kube.GetEnvVarsMetadataConfigMapName(n) })
+	}
+
 	// check that config maps with env vars and env vars metadata were created
-	envVarCm, err := kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsConfigMapName(componentName))
-	assert.NoError(t, err)
-	envVarMetadataCm, err := kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsMetadataConfigMapName(componentName))
-	assert.NoError(t, err)
-	assert.NotNil(t, envVarCm)
-	assert.NotNil(t, envVarMetadataCm)
 	envVarCms, err := kubeUtil.ListEnvVarsConfigMaps(context.Background(), namespace)
 	assert.NoError(t, err)
-	assert.Len(t, envVarCms, 2)
+	assert.ElementsMatch(t, componentsEnvNames(comp1, comp2, job1, job2), slice.Map(envVarCms, cmNameMapper))
 	envVarMetadataCms, err := kubeUtil.ListEnvVarsMetadataConfigMaps(context.Background(), namespace)
 	assert.NoError(t, err)
-	assert.Len(t, envVarMetadataCms, 2)
+	assert.ElementsMatch(t, componentsEnvMetaNames(comp1, comp2, job1, job2), slice.Map(envVarMetadataCms, cmNameMapper))
 
 	// delete 2nd component
 	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -1336,26 +1338,136 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 		WithEnvironment(anyEnvironment).
 		WithJobComponents().
 		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("somecomponentname").
-				WithEnvironmentVariables(nil).
-				WithSecrets(nil)),
+			utils.NewDeployComponentBuilder().WithName(comp1),
+		).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName(job1),
+		),
 	)
 	require.NoError(t, err)
 
-	// check that config maps were garbage collected for the component we just deleted
-	envVarCm, err = kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsConfigMapName(componentName))
-	assert.Error(t, err)
-	envVarMetadataCm, err = kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsMetadataConfigMapName(componentName))
-	assert.Error(t, err)
-	assert.Nil(t, envVarCm)
-	assert.Nil(t, envVarMetadataCm)
+	// check that config maps were garbage collected for the component and job we just deleted
 	envVarCms, err = kubeUtil.ListEnvVarsConfigMaps(context.Background(), namespace)
 	assert.NoError(t, err)
-	assert.Len(t, envVarCms, 1)
+	assert.ElementsMatch(t, componentsEnvNames(comp1, job1), slice.Map(envVarCms, cmNameMapper))
 	envVarMetadataCms, err = kubeUtil.ListEnvVarsMetadataConfigMaps(context.Background(), namespace)
 	assert.NoError(t, err)
-	assert.Len(t, envVarMetadataCms, 1)
+	assert.ElementsMatch(t, componentsEnvMetaNames(comp1, job1), slice.Map(envVarMetadataCms, cmNameMapper))
+}
+
+func TestConfigMap_RetainDataBetweenSync(t *testing.T) {
+	// Setup
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+	appName := "app"
+	comp, job1, job2 := "comp", "job1", "job2"
+	anyEnvironment := "test"
+	namespace := utils.GetEnvironmentNamespace(appName, anyEnvironment)
+
+	// Initial apply of RadixDeployment
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(comp).
+				WithEnvironmentVariables(map[string]string{"COMPVAR1": "comp_original1", "COMPVAR2": "comp_original2"}),
+		).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(job1).
+				WithEnvironmentVariables(map[string]string{"JOB1VAR1": "job1_original1", "JOB1VAR2": "job1_original2"}),
+			utils.NewDeployJobComponentBuilder().
+				WithName(job2).
+				WithEnvironmentVariables(map[string]string{"JOB2VAR1": "job2_original1", "JOB2VAR2": "job2_original2"}),
+		),
+	)
+	require.NoError(t, err)
+
+	// Check initial state of configmaps
+	// comp configmaps
+	varCm, _, varMeta, err := kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, comp)
+	require.NoError(t, err)
+	expectedData := map[string]string{"COMPVAR1": "comp_original1", "COMPVAR2": "comp_original2"}
+	assert.Equal(t, expectedData, varCm.Data)
+	assert.Empty(t, varMeta)
+	// job1 configmaps
+	varCm, _, varMeta, err = kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, job1)
+	require.NoError(t, err)
+	expectedData = map[string]string{"JOB1VAR1": "job1_original1", "JOB1VAR2": "job1_original2"}
+	assert.Equal(t, expectedData, varCm.Data)
+	assert.Empty(t, varMeta)
+	// job2 configmaps
+	varCm, _, varMeta, err = kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, job2)
+	require.NoError(t, err)
+	expectedData = map[string]string{"JOB2VAR1": "job2_original1", "JOB2VAR2": "job2_original2"}
+	assert.Equal(t, expectedData, varCm.Data)
+	assert.Empty(t, varMeta)
+
+	// Update variables and metadata configmaps, the way radix-api will do a change from a user
+	updateVariable := func(compName, varName, newVal, configValue string) error {
+		varCm, varMetaCm, varMeta, err := kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, compName)
+		if err != nil {
+			return err
+		}
+		updatedVarCm := varCm.DeepCopy()
+		updatedVarCm.Data[varName] = newVal
+		varMeta[varName] = kube.EnvVarMetadata{RadixConfigValue: configValue}
+		err = kubeUtil.ApplyConfigMap(context.Background(), namespace, varCm, updatedVarCm)
+		if err != nil {
+			return err
+		}
+		return kubeUtil.ApplyEnvVarsMetadataConfigMap(context.Background(), namespace, varMetaCm, varMeta)
+	}
+	// Change comp configmaps
+	err = updateVariable(comp, "COMPVAR1", "comp_new1", "comp_original1")
+	require.NoError(t, err)
+	// Change job1 configmaps
+	err = updateVariable(job1, "JOB1VAR1", "job1_new1", "job1_original1")
+	require.NoError(t, err)
+	// Change job2 configmaps
+	err = updateVariable(job2, "JOB2VAR1", "job2_new1", "job2_original1")
+	require.NoError(t, err)
+
+	// Apply update of RadixDeployment - job2 is moved from jobs to components
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(comp).
+				WithEnvironmentVariables(map[string]string{"COMPVAR1": "comp_original1", "COMPVAR2": "comp_original2"}),
+			utils.NewDeployComponentBuilder().
+				WithName(job2).
+				WithEnvironmentVariables(map[string]string{"JOB2VAR1": "job2_original1", "JOB2VAR2": "job2_original2"}),
+		).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(job1).
+				WithEnvironmentVariables(map[string]string{"JOB1VAR1": "job1_original1", "JOB1VAR2": "job1_original2"}),
+		),
+	)
+	require.NoError(t, err)
+
+	// // Check state of configmaps is kept between syncs
+	// // comp configmaps
+	varCm, _, varMeta, err = kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, comp)
+	require.NoError(t, err)
+	expectedData = map[string]string{"COMPVAR1": "comp_new1", "COMPVAR2": "comp_original2"}
+	assert.Equal(t, expectedData, varCm.Data)
+	assert.Equal(t, map[string]kube.EnvVarMetadata{"COMPVAR1": {RadixConfigValue: "comp_original1"}}, varMeta)
+	// job1 configmaps
+	varCm, _, varMeta, err = kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, job1)
+	require.NoError(t, err)
+	expectedData = map[string]string{"JOB1VAR1": "job1_new1", "JOB1VAR2": "job1_original2"}
+	assert.Equal(t, expectedData, varCm.Data)
+	assert.Equal(t, map[string]kube.EnvVarMetadata{"JOB1VAR1": {RadixConfigValue: "job1_original1"}}, varMeta)
+	// job2 configmaps
+	varCm, _, varMeta, err = kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, job2)
+	require.NoError(t, err)
+	expectedData = map[string]string{"JOB2VAR1": "job2_new1", "JOB2VAR2": "job2_original2"}
+	assert.Equal(t, expectedData, varCm.Data)
+	assert.Equal(t, map[string]kube.EnvVarMetadata{"JOB2VAR1": {RadixConfigValue: "job2_original1"}}, varMeta)
 }
 
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
@@ -1396,8 +1508,8 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, anyContainerRegistry, getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv, nil))
-		assert.Equal(t, dnsZone, getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))
+		assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv, nil))
+		assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, testClusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, "app", getEnvVariableByName(defaults.RadixAppEnvironmentVariable, templateSpecEnv, cm))
@@ -3846,6 +3958,7 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
+	appName := "app"
 	anyEnvironment := "test"
 	namespace := utils.GetEnvironmentNamespace(appName, anyEnvironment)
 
