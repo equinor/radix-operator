@@ -14,6 +14,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	knownHostsSecretKey = "known_hosts"
+)
+
 // ApplySecretsForPipelines creates secrets needed by pipeline to run
 func (app *Application) applySecretsForPipelines(ctx context.Context) error {
 	log.Ctx(ctx).Debug().Msg("Apply secrets for pipelines")
@@ -114,7 +118,7 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 	desired.ObjectMeta.Labels = labels.ForApplicationName(app.registration.Name) // Required when restoring with Velero. We only restore secrets with the "radix-app" label
 	desired.Data = map[string][]byte{
 		defaults.GitPrivateKeySecretKey: privateKey,
-		"known_hosts":                   knownHostsSecret.Data["known_hosts"],
+		knownHostsSecretKey:             knownHostsSecret.Data[knownHostsSecretKey],
 	}
 
 	return original, desired, derivedPublicKey, nil
