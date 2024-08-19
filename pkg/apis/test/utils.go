@@ -184,8 +184,6 @@ func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.De
 	}
 
 	envNamespace := rd.Namespace
-
-	tu.applyRadixDeploymentEnvVarsConfigMaps(ctx, rd)
 	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
@@ -416,30 +414,6 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 // IntPtr Helper function to get the pointer of an int
 func IntPtr(i int) *int {
 	return &i
-}
-
-func (tu *Utils) applyRadixDeploymentEnvVarsConfigMaps(ctx context.Context, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
-	envVarConfigMapsMap := map[string]*corev1.ConfigMap{}
-	for _, deployComponent := range rd.Spec.Components {
-		envVarConfigMapsMap[deployComponent.GetName()] = tu.ensurePopulatedEnvVarsConfigMaps(ctx, rd, &deployComponent)
-	}
-	for _, deployJoyComponent := range rd.Spec.Jobs {
-		envVarConfigMapsMap[deployJoyComponent.GetName()] = tu.ensurePopulatedEnvVarsConfigMaps(ctx, rd, &deployJoyComponent)
-	}
-	return envVarConfigMapsMap
-}
-
-func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(ctx context.Context, rd *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent) *corev1.ConfigMap {
-	initialEnvVarsConfigMap, _, _ := tu.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, rd.GetNamespace(), rd.Spec.AppName, deployComponent.GetName())
-	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
-	for envVarName, envVarValue := range deployComponent.GetEnvironmentVariables() {
-		if utils.IsRadixEnvVar(envVarName) {
-			continue
-		}
-		desiredConfigMap.Data[envVarName] = envVarValue
-	}
-	_ = tu.kubeUtil.ApplyConfigMap(ctx, rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
-	return desiredConfigMap
 }
 
 // GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType
