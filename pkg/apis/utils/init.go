@@ -7,6 +7,7 @@ import (
 	"time"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
+	httputils "github.com/equinor/radix-operator/pkg/apis/utils/http"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -55,18 +56,15 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Failed to read InClusterConfig")
 		}
 	}
-
 	config.WarningHandler = rest.NoWarnings{}
-	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
-		return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
-	}
+	config.Wrap(prometheusMetrics)
+	config.Wrap(httputils.LogRequests)
 
 	for _, o := range configOptions {
 		o(config)
@@ -115,4 +113,8 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 
 	logger.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
 	return client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, certClient
+}
+
+func prometheusMetrics(rt http.RoundTripper) http.RoundTripper {
+	return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
 }
