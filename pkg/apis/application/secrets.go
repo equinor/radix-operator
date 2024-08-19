@@ -29,14 +29,48 @@ func (app *Application) applySecretsForPipelines(ctx context.Context) error {
 	return nil
 }
 
-func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx context.Context) (current, desired *corev1.Secret, derivedPublicKey string, err error) {
+func (app *Application) applyGitDeployKeyToBuildNamespace(ctx context.Context) error {
+	originalSecret, desiredSecret, derivedPublicKey, err := app.getCurrentAndDesiredGitPrivateDeployKeySecret(ctx)
+	if err != nil {
+		return err
+	}
+
+	originalCm, desiredCm, err := app.getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx, derivedPublicKey)
+	if err != nil {
+		return err
+	}
+
+	if originalSecret != nil {
+		if _, err := app.kubeutil.UpdateSecret(ctx, originalSecret, desiredSecret); err != nil {
+			return err
+		}
+	} else {
+		if _, err := app.kubeutil.CreateSecret(ctx, desiredSecret.Namespace, desiredSecret); err != nil {
+			return err
+		}
+	}
+
+	if originalCm != nil {
+		if _, err = app.kubeutil.UpdateConfigMap(ctx, originalCm, desiredCm); err != nil {
+			return err
+		}
+	} else {
+		if _, err := app.kubeutil.CreateConfigMap(ctx, desiredCm.Namespace, desiredCm); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx context.Context) (original, desired *corev1.Secret, derivedPublicKey string, err error) {
 	namespace := utils.GetAppNamespace(app.registration.Name)
-	currentInternal, err := app.kubeutil.GetSecret(ctx, namespace, defaults.GitPrivateKeySecretName)
+	originalInternal, err := app.kubeutil.GetSecret(ctx, namespace, defaults.GitPrivateKeySecretName)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, nil, "", err
 		}
-		current = nil
+		original = nil
 		desired = &corev1.Secret{
 			Type: "Opaque",
 			ObjectMeta: metav1.ObjectMeta{
@@ -45,8 +79,8 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 			},
 		}
 	} else {
-		desired = currentInternal.DeepCopy()
-		current = currentInternal
+		desired = originalInternal.DeepCopy()
+		original = originalInternal
 	}
 
 	knownHostsSecret, err := app.kubeutil.GetSecret(ctx, corev1.NamespaceDefault, "radix-known-hosts-git")
@@ -58,8 +92,8 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 		privateKey []byte
 	)
 	switch {
-	case current != nil && secretHasGitPrivateDeployKey(current):
-		privateKey = current.Data[defaults.GitPrivateKeySecretKey]
+	case original != nil && secretHasGitPrivateDeployKey(original):
+		privateKey = original.Data[defaults.GitPrivateKeySecretKey]
 		keypair, err := utils.DeriveDeployKeyFromPrivateKey(string(privateKey))
 		if err != nil {
 			return nil, nil, "", fmt.Errorf("failed to parse deploy key from existing secret: %w", err)
@@ -83,12 +117,12 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 		"known_hosts":                   knownHostsSecret.Data["known_hosts"],
 	}
 
-	return current, desired, derivedPublicKey, nil
+	return original, desired, derivedPublicKey, nil
 }
 
-func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx context.Context, publicKey string) (current, desired *corev1.ConfigMap, err error) {
+func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx context.Context, publicKey string) (original, desired *corev1.ConfigMap, err error) {
 	namespace := utils.GetAppNamespace(app.registration.Name)
-	currentInternal, err := app.kubeutil.GetConfigMap(ctx, namespace, defaults.GitPublicKeyConfigMapName)
+	originalInternal, err := app.kubeutil.GetConfigMap(ctx, namespace, defaults.GitPublicKeyConfigMapName)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, nil, err
@@ -100,119 +134,16 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 			},
 		}
 	} else {
-		desired = currentInternal.DeepCopy()
-		current = currentInternal
+		desired = originalInternal.DeepCopy()
+		original = originalInternal
 	}
 
 	desired.Data = map[string]string{
 		defaults.GitPublicKeyConfigMapKey: publicKey,
 	}
 
-	return current, desired, nil
+	return original, desired, nil
 }
-
-func (app *Application) applyGitDeployKeyToBuildNamespace(ctx context.Context) error {
-	currentSecret, desiredSecret, derivedPublicKey, err := app.getCurrentAndDesiredGitPrivateDeployKeySecret(ctx)
-	if err != nil {
-		return err
-	}
-
-	currentCm, desiredCm, err := app.getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx, derivedPublicKey)
-	if err != nil {
-		return err
-	}
-
-	if currentSecret != nil {
-		if _, err := app.kubeutil.UpdateSecret(ctx, currentSecret, *desiredSecret); err != nil {
-			return err
-		}
-	} else {
-		if _, err := app.kubeutil.CreateSecret(ctx, *desiredSecret); err != nil {
-			return err
-		}
-	}
-
-	if currentCm != nil {
-		if err := app.kubeutil.ApplyConfigMap(ctx, desiredCm.Namespace, currentCm, desiredCm); err != nil {
-			return err
-		}
-	} else {
-		if _, err := app.kubeutil.CreateConfigMap(ctx, desiredCm.Namespace, desiredCm); err != nil {
-			return err
-		}
-	}
-
-	return nil
-	// radixRegistration := app.registration
-	// secret, err := app.kubeutil.GetSecret(ctx, namespace, defaults.GitPrivateKeySecretName)
-	// if err != nil {
-	// 	if !k8serrors.IsNotFound(err) {
-	// 		return err
-	// 	}
-	// }
-
-	// deployKey := &utils.DeployKey{}
-
-	// privateKeyExists := secretHasGitPrivateDeployKey(secret) // checking if private key exists
-	// if privateKeyExists {
-	// 	deployKey, err = deriveKeyPairFromSecret(secret) // if private key exists, retrieve public key from secret
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// } else {
-	// 	// if private key secret does not exist, check if RR has private key
-	// 	deployKeyString := radixRegistration.Spec.DeployKey
-	// 	if deployKeyString == "" {
-	// 		// if RR does not have private key, generate new key pair
-	// 		deployKey, err = utils.GenerateDeployKey()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	} else {
-	// 		// if RR has private key, retrieve both public and private key from RR
-	// 		deployKey.PublicKey = radixRegistration.Spec.DeployKeyPublic
-	// 		deployKey.PrivateKey = radixRegistration.Spec.DeployKey
-	// 	}
-	// }
-
-	// // create corresponding secret with private key
-	// secret, err = app.createNewGitDeployKey(ctx, namespace, deployKey.PrivateKey, radixRegistration)
-	// if err != nil {
-	// 	return err
-	// }
-	// _, err = app.kubeutil.ApplySecret(ctx, namespace, secret)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// newCm := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey)
-	// _, err = app.kubeutil.CreateConfigMap(ctx, namespace, newCm)
-	// if err != nil {
-	// 	if k8serrors.IsAlreadyExists(err) {
-	// 		existingCm, err := app.kubeutil.GetConfigMap(ctx, namespace, defaults.GitPublicKeyConfigMapName)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		err = app.kubeutil.ApplyConfigMap(ctx, namespace, existingCm, newCm)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	} else {
-	// 		return err
-	// 	}
-	// }
-
-	// return nil
-}
-
-// func deriveKeyPairFromSecret(secret *corev1.Secret) (*utils.DeployKey, error) {
-// 	privateKey := string(secret.Data[defaults.GitPrivateKeySecretKey])
-// 	deployKey, err := utils.DeriveDeployKeyFromPrivateKey(privateKey)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return deployKey, nil
-// }
 
 func (app *Application) applyServicePrincipalACRSecretToBuildNamespace(ctx context.Context) error {
 	buildNamespace := utils.GetAppNamespace(app.registration.Name)
@@ -240,28 +171,6 @@ func (app *Application) applyServicePrincipalACRSecretToBuildNamespace(ctx conte
 
 	return nil
 }
-
-// func (app *Application) createNewGitDeployKey(ctx context.Context, namespace, deployKey string, registration *v1.RadixRegistration) (*corev1.Secret, error) {
-// 	knownHostsSecret, err := app.kubeutil.GetSecret(ctx, corev1.NamespaceDefault, "radix-known-hosts-git")
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to get known hosts secret: %w", err)
-// 	}
-
-// 	secret := corev1.Secret{
-// 		Type: "Opaque",
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:      defaults.GitPrivateKeySecretName,
-// 			Namespace: namespace,
-// 			// Required when restoring with Velero. We only restore secrets with the "radix-app" label
-// 			Labels: labels.ForApplicationName(registration.GetName()),
-// 		},
-// 		Data: map[string][]byte{
-// 			defaults.GitPrivateKeySecretKey: []byte(deployKey),
-// 			"known_hosts":                   knownHostsSecret.Data["known_hosts"],
-// 		},
-// 	}
-// 	return &secret, nil
-// }
 
 func (app *Application) createNewServicePrincipalACRSecret(ctx context.Context, namespace, secretName string) (*corev1.Secret, error) {
 	servicePrincipalSecret, err := app.kubeutil.GetSecret(ctx, corev1.NamespaceDefault, secretName)
@@ -291,14 +200,3 @@ func secretHasGitPrivateDeployKey(secret *corev1.Secret) bool {
 	}
 	return len(strings.TrimSpace(string(secret.Data[defaults.GitPrivateKeySecretKey]))) > 0
 }
-
-// func (app *Application) createGitPublicKeyConfigMap(namespace string, key string) *corev1.ConfigMap {
-// 	// Create a configmap with the public key
-// 	cm := &corev1.ConfigMap{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:      defaults.GitPublicKeyConfigMapName,
-// 			Namespace: namespace,
-// 		}, Data: map[string]string{defaults.GitPublicKeyConfigMapKey: key}}
-
-// 	return cm
-// }

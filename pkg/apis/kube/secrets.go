@@ -44,23 +44,23 @@ func (kubeutil *Kube) ListSecretExistsForLabels(ctx context.Context, namespace s
 	return list.Items, nil
 }
 
-func (kubeutil *Kube) CreateSecret(ctx context.Context, secret corev1.Secret) (corev1.Secret, error) {
-	created, err := kubeutil.kubeClient.CoreV1().Secrets(secret.Namespace).Create(ctx, &secret, metav1.CreateOptions{})
+func (kubeutil *Kube) CreateSecret(ctx context.Context, namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
+	created, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	log.Ctx(ctx).Info().Msgf("Created secret %s/%s", created.Namespace, created.Name)
-	return *created, err
+	return created, err
 }
 
 // UpdateSecret updates the `modified` secret.
 // If `original` is set, the two secrets are compared, and the secret is only updated if they are not equal.
-func (kubeutil *Kube) UpdateSecret(ctx context.Context, original *corev1.Secret, modified corev1.Secret) (corev1.Secret, error) {
-	if original != nil && reflect.DeepEqual(original, &modified) {
+func (kubeutil *Kube) UpdateSecret(ctx context.Context, original, modified *corev1.Secret) (*corev1.Secret, error) {
+	if original != nil && reflect.DeepEqual(original, modified) {
 		log.Ctx(ctx).Debug().Msgf("No need to update secret %s/%s", modified.Namespace, modified.Name)
 		return modified, nil
 	}
 
-	updated, err := kubeutil.kubeClient.CoreV1().Secrets(modified.Namespace).Update(ctx, &modified, metav1.UpdateOptions{})
+	updated, err := kubeutil.kubeClient.CoreV1().Secrets(modified.Namespace).Update(ctx, modified, metav1.UpdateOptions{})
 	log.Ctx(ctx).Info().Msgf("Updated secret %s/%s", updated.Namespace, updated.Name)
-	return *updated, err
+	return updated, err
 }
 
 // Deprecated: ApplySecret is not safe to use because it does not use the resourceVersion of the supplied secret when updating.
