@@ -31,7 +31,7 @@ func (deploy *Deployment) createSecretRefs(ctx context.Context, namespace string
 		}
 		if credsSecret != nil && !isOwnerReference(credsSecret.ObjectMeta, secretProviderClass.ObjectMeta) {
 			credsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
-			_, err = deploy.kubeutil.ApplySecret(ctx, namespace, credsSecret)
+			_, err = deploy.kubeutil.ApplySecret(ctx, namespace, credsSecret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 			if err != nil {
 				return nil, err
 			}
@@ -89,7 +89,7 @@ func (deploy *Deployment) getOrCreateAzureKeyVaultCredsSecret(ctx context.Contex
 	if err != nil {
 		if errors.IsNotFound(err) {
 			secret = buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName)
-			return deploy.kubeutil.ApplySecret(ctx, namespace, secret)
+			return deploy.kubeutil.ApplySecret(ctx, namespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 		}
 		return nil, err
 	}
