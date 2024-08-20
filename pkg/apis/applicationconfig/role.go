@@ -13,7 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-func (app *ApplicationConfig) grantAccessToBuildSecrets(ctx context.Context, namespace string) error {
+func (app *ApplicationConfig) grantAccessToBuildSecrets(ctx context.Context) error {
+	namespace := utils.GetAppNamespace(app.config.Name)
 	err := app.grantPipelineAccessToSecret(ctx, namespace, defaults.BuildSecretsName)
 	if err != nil {
 		return err
@@ -93,7 +94,8 @@ func (app *ApplicationConfig) garbageCollectAccessToBuildSecretsForRole(ctx cont
 
 	return nil
 }
-func garbageCollectAccessToBuildSecrets(ctx context.Context, app *ApplicationConfig) error {
+
+func (app *ApplicationConfig) garbageCollectAccessToBuildSecrets(ctx context.Context) error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 	for _, roleName := range []string{
 		getPipelineRoleNameToSecret(defaults.BuildSecretsName),
