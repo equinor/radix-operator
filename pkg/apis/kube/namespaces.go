@@ -11,6 +11,8 @@ import (
 	k8errs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	kubelabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
@@ -88,7 +90,7 @@ func (kubeutil *Kube) getNamespace(ctx context.Context, name string) (*corev1.Na
 }
 
 // ListNamespacesWithSelector List namespaces with selector
-func (kubeutil *Kube) ListNamespacesWithSelector(ctx context.Context, namespace, labelSelectorString string) ([]*corev1.Namespace, error) {
+func (kubeutil *Kube) ListNamespacesWithSelector(ctx context.Context, labelSelectorString string) ([]*corev1.Namespace, error) {
 	if kubeutil.NamespaceLister != nil {
 		selector, err := labels.Parse(labelSelectorString)
 		if err != nil {
@@ -104,4 +106,31 @@ func (kubeutil *Kube) ListNamespacesWithSelector(ctx context.Context, namespace,
 
 	return slice.PointersOf(list.Items).([]*corev1.Namespace), nil
 
+}
+
+// GetEnvNamespacesForApp Get all env namespaces for an application
+func (kubeutil *Kube) GetEnvNamespacesForApp(ctx context.Context, appName string) ([]*corev1.Namespace, error) {
+	return kubeutil.ListNamespacesWithSelector(ctx, envNamespacesLabelForApp(appName).String())
+}
+
+func envNamespacesLabelForApp(appName string) kubelabels.Selector {
+	return labels.NewSelector().
+		Add(*requirementRadixAppNameLabel(appName)).
+		Add(*requirementNotRadixAppNamespaceLabel())
+}
+
+func requirementRadixAppNameLabel(appName string) *labels.Requirement {
+	requirement, err := kubelabels.NewRequirement(RadixAppLabel, selection.Equals, []string{appName})
+	if err != nil {
+		panic(err)
+	}
+	return requirement
+}
+
+func requirementNotRadixAppNamespaceLabel() *labels.Requirement {
+	requirement, err := kubelabels.NewRequirement(RadixEnvLabel, selection.NotEquals, []string{"app"})
+	if err != nil {
+		panic(err)
+	}
+	return requirement
 }

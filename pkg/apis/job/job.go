@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 )
@@ -280,16 +279,16 @@ func (job *Job) setStatusOfJob(ctx context.Context) error {
 		return err
 	}
 	log.Ctx(ctx).Debug().Msgf("Got %d RadixJob steps", len(steps))
-	environments, err := job.getJobEnvironments(ctx)
-	if err != nil {
-		return err
-	}
 	jobStatusCondition, err := job.getJobConditionFromJobStatus(ctx, pipelineJob.Status)
 	if err != nil {
 		return err
 	}
 
-	err = job.updateRadixJobStatusWithMetrics(ctx, job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
+	environments, err := job.getJobEnvironments(ctx)
+	if err != nil {
+		return err
+	}
+	if err = job.updateRadixJobStatusWithMetrics(ctx, job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
 		log.Ctx(ctx).Debug().Msgf("Update RadixJob status with %d steps and the condition %s", len(steps), jobStatusCondition)
 		currStatus.Steps = steps
 		currStatus.Condition = jobStatusCondition
@@ -301,13 +300,11 @@ func (job *Job) setStatusOfJob(ctx context.Context) error {
 		if len(environments) > 0 {
 			currStatus.TargetEnvs = environments
 		}
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	if isJobConditionDone(jobStatusCondition) {
-		err = job.setNextJobToRunning(ctx)
-		if err != nil {
+		if err = job.setNextJobToRunning(ctx); err != nil {
 			return err
 		}
 	}
@@ -680,33 +677,17 @@ func getJobStep(podName, containerName string, containerStatus *corev1.Container
 }
 
 func (job *Job) getJobEnvironments(ctx context.Context) ([]string, error) {
-	job.kubeutil.ListNamespacesWithSelector(ctx)
-	deploymentsLinkedToJob, err := job.radixclient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(
-		ctx,
-		metav1.ListOptions{LabelSelector: job.getRadixJobNameLabelSelector()})
+	radixDeployments, err := job.kubeutil.GetRadixDeploymentsForApp(ctx, job.radixJob.Spec.AppName, job.getRadixJobNameLabelSelector())
 	if err != nil {
 		return nil, err
 	}
-
-	var environments []string
-	for _, deployment := range deploymentsLinkedToJob.Items {
-		environments = append(environments, deployment.Spec.Environment)
-	}
-
-	return environments, nil
-}
-
-func (job *Job) envNamespacesLabel() kubelabels.Selector {
-	return kubelabels.SelectorFromSet(Merge(ForJobScheduleJobType(), ForComponentName(componentName))).
-		Add(*requirementRadixBatchNameLabelExists())
-}
-
-func requirementRadixBatchNameLabelExists() *kubelabels.Requirement {
-	requirement, err := kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
-	if err != nil {
-		panic(err)
-	}
-	return requirement
+	environmentsMap := slice.Reduce(radixDeployments, make(map[string]struct{}), func(acc map[string]struct{}, rd v1.RadixDeployment) map[string]struct{} {
+		if rd.GetLabels()[kube.RadixJobNameLabel] == job.radixJob.Name {
+			acc[rd.Spec.Environment] = struct{}{}
+		}
+		return acc
+	})
+	return maps.GetKeysFromMap(environmentsMap), nil
 }
 
 func (job *Job) updateRadixJobStatusWithMetrics(ctx context.Context, savingRadixJob *v1.RadixJob, originalRadixJobCondition v1.RadixJobCondition, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {

@@ -63,3 +63,21 @@ func (kubeutil *Kube) GetActiveDeployment(ctx context.Context, namespace string)
 	}
 	return nil, nil
 }
+
+// GetRadixDeploymentsForApp Get all Radix deployments for an application
+func (kubeutil *Kube) GetRadixDeploymentsForApp(ctx context.Context, appName string, labelSelector string) ([]v1.RadixDeployment, error) {
+	envNamespaces, err := kubeutil.GetEnvNamespacesForApp(ctx, appName)
+	if err != nil {
+		return nil, err
+	}
+	var radixDeployments []v1.RadixDeployment
+	for _, namespace := range envNamespaces {
+		radixDeploymentList, err := kubeutil.RadixClient().RadixV1().RadixDeployments(namespace.GetName()).List(ctx,
+			metav1.ListOptions{LabelSelector: labelSelector})
+		if err != nil {
+			return nil, err
+		}
+		radixDeployments = append(radixDeployments, radixDeploymentList.Items...)
+	}
+	return radixDeployments, nil
+}
