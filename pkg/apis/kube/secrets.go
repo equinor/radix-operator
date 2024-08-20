@@ -46,6 +46,9 @@ func (kubeutil *Kube) ListSecretExistsForLabels(ctx context.Context, namespace s
 
 func (kubeutil *Kube) CreateSecret(ctx context.Context, namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
 	created, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
 	log.Ctx(ctx).Info().Msgf("Created secret %s/%s", created.Namespace, created.Name)
 	return created, err
 }
@@ -59,6 +62,9 @@ func (kubeutil *Kube) UpdateSecret(ctx context.Context, original, modified *core
 	}
 
 	updated, err := kubeutil.kubeClient.CoreV1().Secrets(modified.Namespace).Update(ctx, modified, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
 	log.Ctx(ctx).Info().Msgf("Updated secret %s/%s", updated.Namespace, updated.Name)
 	return updated, err
 }
