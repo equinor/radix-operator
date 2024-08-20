@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8errs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
@@ -83,4 +85,23 @@ func (kubeutil *Kube) getNamespace(ctx context.Context, name string) (*corev1.Na
 	}
 
 	return namespace, nil
+}
+
+// ListNamespacesWithSelector List namespaces with selector
+func (kubeutil *Kube) ListNamespacesWithSelector(ctx context.Context, namespace, labelSelectorString string) ([]*corev1.Namespace, error) {
+	if kubeutil.NamespaceLister != nil {
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
+		}
+		return kubeutil.NamespaceLister.List(selector)
+	}
+
+	list, err := kubeutil.kubeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{LabelSelector: labelSelectorString})
+	if err != nil {
+		return nil, err
+	}
+
+	return slice.PointersOf(list.Items).([]*corev1.Namespace), nil
+
 }

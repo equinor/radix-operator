@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 )
@@ -679,6 +680,7 @@ func getJobStep(podName, containerName string, containerStatus *corev1.Container
 }
 
 func (job *Job) getJobEnvironments(ctx context.Context) ([]string, error) {
+	job.kubeutil.ListNamespacesWithSelector(ctx)
 	deploymentsLinkedToJob, err := job.radixclient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(
 		ctx,
 		metav1.ListOptions{LabelSelector: job.getRadixJobNameLabelSelector()})
@@ -692,6 +694,19 @@ func (job *Job) getJobEnvironments(ctx context.Context) ([]string, error) {
 	}
 
 	return environments, nil
+}
+
+func (job *Job) envNamespacesLabel() kubelabels.Selector {
+	return kubelabels.SelectorFromSet(Merge(ForJobScheduleJobType(), ForComponentName(componentName))).
+		Add(*requirementRadixBatchNameLabelExists())
+}
+
+func requirementRadixBatchNameLabelExists() *kubelabels.Requirement {
+	requirement, err := kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
+	if err != nil {
+		panic(err)
+	}
+	return requirement
 }
 
 func (job *Job) updateRadixJobStatusWithMetrics(ctx context.Context, savingRadixJob *v1.RadixJob, originalRadixJobCondition v1.RadixJobCondition, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
