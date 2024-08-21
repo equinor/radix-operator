@@ -9,4 +9,7 @@ const (
 
 	// AzureACRTokenPasswordAppRegistrySecretName name of the secret containing Cache ACR authentication information, consumed by buildah
 	AzureACRTokenPasswordAppRegistrySecretName = "radix-app-registry"
+
+	GitPrivateKeySecretName = "git-ssh-keys"
+	GitPrivateKeySecretKey  = "id_rsa"
 )

@@ -107,7 +107,7 @@ func ApplyPrivateImageHubSecret(ctx context.Context, kubeutil *kube.Kube, ns, ap
 		secret.Data[corev1.DockerConfigJsonKey] = secretValue
 	}
 
-	_, err := kubeutil.ApplySecret(ctx, ns, &secret)
+	_, err := kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	if err != nil {
 		return fmt.Errorf("failed to create private image hub secrets in namespace %s: %w", ns, err)
 	}

@@ -468,7 +468,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, co
 		}
 	}
 
-	_, err = o.kubeutil.ApplySecret(ctx, o.rd.Namespace, secret)
+	_, err = o.kubeutil.ApplySecret(ctx, o.rd.Namespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	return err
 }
 

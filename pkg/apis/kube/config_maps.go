@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/rs/zerolog/log"
@@ -14,13 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
-
-// CreateConfigMap Create config map
-func (kubeutil *Kube) CreateConfigMap(ctx context.Context, namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx,
-		configMap,
-		metav1.CreateOptions{})
-}
 
 // GetConfigMap Gets config map by name
 func (kubeutil *Kube) GetConfigMap(ctx context.Context, namespace, name string) (*corev1.ConfigMap, error) {
@@ -42,15 +36,30 @@ func (kubeutil *Kube) ListEnvVarsMetadataConfigMaps(ctx context.Context, namespa
 	return kubeutil.ListConfigMapsWithSelector(ctx, namespace, getEnvVarsMetadataConfigMapSelector().String())
 }
 
-// UpdateConfigMap Update config-maps
-func (kubeutil *Kube) UpdateConfigMap(ctx context.Context, namespace string, configMaps ...*corev1.ConfigMap) error {
-	for _, configMap := range configMaps {
-		_, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Update(ctx, configMap, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
+// CreateConfigMap Create config map
+func (kubeutil *Kube) CreateConfigMap(ctx context.Context, namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	created, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, configMap, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	log.Ctx(ctx).Info().Msgf("Created config map %s/%s", created.Namespace, created.Name)
+	return created, err
+}
+
+// UpdateConfigMap updates the `modified` configmap.
+// If `original` is set, the two configmaps are compared, and the secret is only updated if they are not equal.
+func (kubeutil *Kube) UpdateConfigMap(ctx context.Context, original, modified *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	if original != nil && reflect.DeepEqual(original, modified) {
+		log.Ctx(ctx).Debug().Msgf("No need to update configmap %s/%s", modified.Namespace, modified.Name)
+		return modified, nil
+	}
+
+	updated, err := kubeutil.kubeClient.CoreV1().ConfigMaps(modified.Namespace).Update(ctx, modified, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	log.Ctx(ctx).Info().Msgf("Updated configmap %s/%s", updated.Namespace, updated.Name)
+	return updated, err
 }
 
 // DeleteConfigMap Deletes config-maps

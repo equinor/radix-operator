@@ -273,7 +273,7 @@ func (deploy *Deployment) createOrUpdateComponentSecret(ctx context.Context, ns,
 		return err
 	}
 
-	_, err = deploy.kubeutil.ApplySecret(ctx, ns, &secret)
+	_, err = deploy.kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func (deploy *Deployment) createClientCertificateSecret(ctx context.Context, ns,
 	data["ca.crt"] = defaultValue
 	secret.Data = data
 
-	_, err := deploy.kubeutil.ApplySecret(ctx, ns, &secret)
+	_, err := deploy.kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	return err
 }
 
@@ -345,7 +345,7 @@ func (deploy *Deployment) removeOrphanedSecrets(ctx context.Context, ns, secretN
 	}
 
 	if orphanRemoved {
-		_, err = deploy.kubeutil.ApplySecret(ctx, ns, secret)
+		_, err = deploy.kubeutil.ApplySecret(ctx, ns, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 		if err != nil {
 			return err
 		}
