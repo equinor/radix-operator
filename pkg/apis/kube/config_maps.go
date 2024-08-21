@@ -39,6 +39,9 @@ func (kubeutil *Kube) ListEnvVarsMetadataConfigMaps(ctx context.Context, namespa
 // CreateConfigMap Create config map
 func (kubeutil *Kube) CreateConfigMap(ctx context.Context, namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
 	created, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, configMap, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
 	log.Ctx(ctx).Info().Msgf("Created config map %s/%s", created.Namespace, created.Name)
 	return created, err
 }
@@ -52,6 +55,9 @@ func (kubeutil *Kube) UpdateConfigMap(ctx context.Context, original, modified *c
 	}
 
 	updated, err := kubeutil.kubeClient.CoreV1().ConfigMaps(modified.Namespace).Update(ctx, modified, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
 	log.Ctx(ctx).Info().Msgf("Updated configmap %s/%s", updated.Namespace, updated.Name)
 	return updated, err
 }

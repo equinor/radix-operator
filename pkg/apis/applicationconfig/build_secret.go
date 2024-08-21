@@ -2,99 +2,99 @@ package applicationconfig
 
 import (
 	"context"
+	"fmt"
+	"slices"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (app *ApplicationConfig) syncBuildSecrets(ctx context.Context) error {
-	appNamespace := utils.GetAppNamespace(app.config.Name)
-	isSecretExist := app.kubeutil.SecretExists(ctx, appNamespace, defaults.BuildSecretsName)
-
-	if app.config.Spec.Build == nil {
-		if isSecretExist {
-			// Delete build secret
-			err := app.kubeutil.DeleteSecret(ctx, appNamespace, defaults.BuildSecretsName)
-			if err != nil {
-				return err
-			}
+	if app.config.Spec.Build == nil || len(app.config.Spec.Build.Secrets) == 0 {
+		if err := app.garbageCollectBuildSecrets(ctx); err != nil {
+			return fmt.Errorf("failed to garbage collect build secret: %w", err)
 		}
-		err := garbageCollectAccessToBuildSecrets(ctx, app)
-		if err != nil {
-			return err
+
+		if err := app.garbageCollectAccessToBuildSecrets(ctx); err != nil {
+			return fmt.Errorf("failed to garbage collect access to build secret: %w", err)
 		}
 	} else {
-		buildSecrets := app.config.Spec.Build.Secrets
-		if !isSecretExist {
-			// Create build secret
-			err := app.initializeBuildSecret(ctx, appNamespace, defaults.BuildSecretsName, buildSecrets)
-			if err != nil {
-				return err
+		currentSecret, desiredSecret, err := app.getCurrentAndDesiredBuildSecret(ctx)
+		if err != nil {
+			return fmt.Errorf("failed get current and desired build secret: %w", err)
+		}
+
+		if currentSecret != nil {
+			if _, err := app.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
+				return fmt.Errorf("failed to update build secret: %w", err)
 			}
 		} else {
-			// Update build secret if there is any change
-			err := app.updateBuildSecret(ctx, appNamespace, defaults.BuildSecretsName, buildSecrets)
-			if err != nil {
-				return err
+			if _, err := app.kubeutil.CreateSecret(ctx, desiredSecret.Namespace, desiredSecret); err != nil {
+				return fmt.Errorf("failed to create build secret: %w", err)
 			}
 		}
 
-		// Grant access to build secret (RBAC)
-		err := app.grantAccessToBuildSecrets(ctx, appNamespace)
-		if err != nil {
-			return err
+		if err := app.grantAccessToBuildSecrets(ctx); err != nil {
+			return fmt.Errorf("failed to grant access to build secret: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (app *ApplicationConfig) initializeBuildSecret(ctx context.Context, namespace, name string, buildSecrets []string) error {
-	data := make(map[string][]byte)
-	defaultValue := []byte(defaults.BuildSecretDefaultData)
-
-	for _, buildSecret := range buildSecrets {
-		data[buildSecret] = defaultValue
-	}
-
-	secret := getBuildSecretForData(app.config.Name, namespace, name, data)
-	_, err := app.kubeutil.ApplySecret(ctx, namespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
+func (app *ApplicationConfig) getCurrentAndDesiredBuildSecret(ctx context.Context) (current, desired *corev1.Secret, err error) {
+	ns := utils.GetAppNamespace(app.config.Name)
+	currentInternal, err := app.kubeutil.GetSecret(ctx, ns, defaults.BuildSecretsName)
 	if err != nil {
-		return err
+		if !k8serrors.IsNotFound(err) {
+			return nil, nil, err
+		}
+		desired = &corev1.Secret{
+			Type: corev1.SecretTypeOpaque,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.BuildSecretsName,
+				Namespace: ns,
+			},
+		}
+	} else {
+		desired = currentInternal.DeepCopy()
+		current = currentInternal
 	}
-	return nil
+
+	desired.Labels = map[string]string{
+		kube.RadixAppLabel: app.config.Name,
+	}
+
+	setBuildSecretData(desired, app.config.Spec.Build.Secrets)
+
+	return current, desired, nil
 }
 
-func (app *ApplicationConfig) updateBuildSecret(ctx context.Context, namespace, name string, buildSecrets []string) error {
-	secret, err := app.kubeutil.GetSecret(ctx, namespace, name)
+func (app *ApplicationConfig) garbageCollectBuildSecrets(ctx context.Context) error {
+	secret, err := app.kubeutil.GetSecret(ctx, utils.GetAppNamespace(app.config.Name), defaults.BuildSecretsName)
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
-
-	orphanRemoved := removeOrphanedSecrets(secret, buildSecrets)
-	secretAppended := appendSecrets(secret, buildSecrets)
-	if !orphanRemoved && !secretAppended {
-		// Secret definition may have changed, but not data
-		secret = getBuildSecretForData(app.config.Name, namespace, name, secret.Data)
-	}
-
-	_, err = app.kubeutil.ApplySecret(ctx, namespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return app.kubeutil.DeleteSecret(ctx, secret.Namespace, secret.Name)
 }
 
-func removeOrphanedSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
+func setBuildSecretData(buildSecret *corev1.Secret, buildSecretKeys []string) {
+	removeOrphanedBuildSecretKeys(buildSecret, buildSecretKeys)
+	appendMissingBuildSecretKeys(buildSecret, buildSecretKeys)
+}
+
+func removeOrphanedBuildSecretKeys(buildSecret *corev1.Secret, buildSecretKeys []string) bool {
 	orphanRemoved := false
-	for secretName := range buildSecrets.Data {
-		if !commonUtils.ContainsString(secrets, secretName) {
-			delete(buildSecrets.Data, secretName)
+	for secretName := range buildSecret.Data {
+		if !slices.Contains(buildSecretKeys, secretName) {
+			delete(buildSecret.Data, secretName)
 			orphanRemoved = true
 		}
 	}
@@ -102,7 +102,7 @@ func removeOrphanedSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
 	return orphanRemoved
 }
 
-func appendSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
+func appendMissingBuildSecretKeys(buildSecrets *corev1.Secret, buildSecretKeys []string) bool {
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
 	if buildSecrets.Data == nil {
@@ -111,7 +111,7 @@ func appendSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
 	}
 
 	secretAppended := false
-	for _, secretName := range secrets {
+	for _, secretName := range buildSecretKeys {
 		if _, ok := buildSecrets.Data[secretName]; !ok {
 			buildSecrets.Data[secretName] = defaultValue
 			secretAppended = true
@@ -119,18 +119,4 @@ func appendSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
 	}
 
 	return secretAppended
-}
-
-func getBuildSecretForData(appName, namespace, name string, data map[string][]byte) *corev1.Secret {
-	return &corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-		},
-		Data: data,
-	}
 }
