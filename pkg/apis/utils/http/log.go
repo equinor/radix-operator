@@ -18,11 +18,14 @@ func LogRequests(t http.RoundTripper) http.RoundTripper {
 		start := time.Now()
 		resp, err := t.RoundTrip(r)
 		ev = ev.Int64("elapsed_ms", time.Since(start).Milliseconds())
+		var msg string
 		if err == nil {
-			ev.Int("status", resp.StatusCode).Msg(http.StatusText(resp.StatusCode))
+			msg = http.StatusText(resp.StatusCode)
+			ev = ev.Int("status", resp.StatusCode)
 		} else {
-			ev.Err(err).Send()
+			ev = ev.Err(err)
 		}
+		ev.Msg(msg)
 		return resp, err
 	})
 }
