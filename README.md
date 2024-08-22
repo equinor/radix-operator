@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/equinor/radix-operator/workflows/radix-operator-build/badge.svg)](https://github.com/equinor/radix-operator/actions?query=workflow%3Aradix-operator-build) 
+![Build Status](https://github.com/equinor/radix-operator/workflows/radix-operator-build/badge.svg)  [![SCM Compliance](https://scm-compliance-api.radix.equinor.com/repos/equinor/radix-operator/badge)](https://developer.equinor.com/governance/scm-policy/)
   
 # radix-operator
 
