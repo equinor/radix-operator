@@ -15,7 +15,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -37,22 +37,26 @@ func (deploy *Deployment) syncExternalDnsResources(ctx context.Context) error {
 	for _, externalDns := range externalDnsList {
 		if externalDns.UseCertificateAutomation {
 			if err := deploy.createOrUpdateExternalDnsCertificate(ctx, externalDns); err != nil {
-				return err
+				return fmt.Errorf("failed to apply certificate for %s: %w", externalDns.FQDN, err)
 			}
 		} else {
 			if err := deploy.garbageCollectExternalDnsCertificate(ctx, externalDns); err != nil {
-				return err
+				return fmt.Errorf("failed to garbage collect certificate for %s: %w", externalDns.FQDN, err)
 			}
 
 			secretName := utils.GetExternalDnsTlsSecretName(externalDns)
-			if err := deploy.createOrUpdateExternalDnsTlsSecret(ctx, externalDns, secretName); err != nil {
-				return err
+			if err := deploy.applyExternalDnsTlsSecret(ctx, externalDns, secretName); err != nil {
+				return fmt.Errorf("failed to tls secret for %s: %w", externalDns.FQDN, err)
 			}
 			secretNames = append(secretNames, secretName)
 		}
 	}
 
-	return deploy.grantAccessToExternalDnsSecrets(ctx, secretNames)
+	if err := deploy.grantAccessToExternalDnsSecrets(ctx, secretNames); err != nil {
+		return fmt.Errorf("failed to grant access to tls secrets: %w", err)
+	}
+
+	return nil
 }
 
 func (deploy *Deployment) garbageCollectExternalDnsResourcesNoLongerInSpec(ctx context.Context) error {
@@ -212,30 +216,48 @@ func (deploy *Deployment) applyCertificate(ctx context.Context, cert *cmv1.Certi
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS, secretName string) error {
-	ns := deploy.radixDeployment.Namespace
-	secret := v1.Secret{
-		Type: v1.SecretTypeTLS,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   secretName,
-			Labels: radixlabels.ForExternalDNSTLSSecret(deploy.registration.Name, externalDns),
-		},
-		Data: tlsSecretDefaultData(),
-	}
-
-	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
-	if err == nil {
-		secret.Data = existingSecret.Data
-	} else if !k8serrors.IsNotFound(err) {
-		return err
-	}
-
-	_, err = deploy.kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
+func (deploy *Deployment) applyExternalDnsTlsSecret(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS, secretName string) error {
+	currentSecret, desiredSecret, err := deploy.getCurrentAndDesiredDnsTlsSecret(ctx, externalDns, secretName)
 	if err != nil {
 		return err
 	}
 
+	if currentSecret != nil {
+		if _, err := deploy.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
+			return err
+		}
+	} else {
+		if _, err := deploy.kubeutil.CreateSecret(ctx, desiredSecret.Namespace, desiredSecret); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func (deploy *Deployment) getCurrentAndDesiredDnsTlsSecret(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS, secretName string) (current, desired *corev1.Secret, err error) {
+	ns := deploy.radixDeployment.Namespace
+	currentInternal, err := deploy.kubeutil.GetSecret(ctx, ns, secretName)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return nil, nil, err
+		}
+		desired = &corev1.Secret{
+			Type: corev1.SecretTypeTLS,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: ns,
+			},
+			Data: tlsSecretDefaultData(),
+		}
+	} else {
+		desired = currentInternal.DeepCopy()
+		current = currentInternal
+	}
+
+	desired.Labels = radixlabels.ForExternalDNSTLSSecret(deploy.registration.Name, externalDns)
+
+	return current, desired, nil
 }
 
 func (deploy *Deployment) getExternalDnsFromAllComponents() []radixv1.RadixDeployExternalDNS {
