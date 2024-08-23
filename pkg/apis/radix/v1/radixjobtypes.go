@@ -93,6 +93,11 @@ type RadixBuildSpec struct {
 	//
 	// required: false
 	PushImage bool `json:"pushImage" yaml:"pushImage"`
+
+	// OverrideUseBuildCache override default or configured build cache option
+	//
+	// required: false
+	OverrideUseBuildCache *bool `json:"overrideUseBuildCache,omitempty" yaml:"overrideUseBuildCache,omitempty"`
 }
 
 // RadixPromoteSpec is the spec for a promote job

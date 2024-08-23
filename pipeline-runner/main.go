@@ -21,6 +21,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var overrideUseBuildCache model.BoolPtr
+
 // Requirements to run, pipeline must have:
 // - access to create Jobs in "app" namespace it runs under
 // - access to create RD in all namespaces
@@ -119,6 +121,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, "500M", "Image builder resource requests memory")
 	var useCache string
 	cmd.Flags().StringVar(&useCache, defaults.RadixUseCacheEnvironmentVariable, "0", "Use cache")
+	cmd.Flags().Var(&overrideUseBuildCache, defaults.RadixOverrideUseBuildCacheVariable, "Optional. Overrides configured or default useBuildCache option. It is applicable when the useBuildKit option is set as true.")
 	var pushImage string
 	cmd.Flags().StringVar(&pushImage, defaults.RadixPushImageEnvironmentVariable, "0", "Push docker image to a repository")
 	var debug string
@@ -145,6 +148,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
 	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(v1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
 	pipelineArgs.UseCache, _ = strconv.ParseBool(useCache)
+	pipelineArgs.OverrideUseBuildCache = overrideUseBuildCache.Get()
 	pipelineArgs.Debug, _ = strconv.ParseBool(debug)
 	if len(pipelineArgs.ImageTagNames) > 0 {
 		log.Info().Msg("Image tag names provided:")
