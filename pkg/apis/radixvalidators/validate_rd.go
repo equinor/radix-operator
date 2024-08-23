@@ -72,9 +72,11 @@ func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {
 			errs = append(errs, err)
 		}
 
-		// TODO: Validate manuall override replicas?
-
 		if err := validateReplica(component.Replicas); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err := validateReplica(component.ReplicasOverride); err != nil {
 			errs = append(errs, err)
 		}
 
