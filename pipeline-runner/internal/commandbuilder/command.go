@@ -44,6 +44,9 @@ func NewCommand(formattedCmd string, a ...any) *Command {
 }
 
 func (c *Command) AddArg(arg string) *Command {
+	if arg == "" {
+		return c
+	}
 	c.args = append(c.args, arg)
 	return c
 }
