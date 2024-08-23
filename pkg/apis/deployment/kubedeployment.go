@@ -27,8 +27,8 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 		return err
 	}
 
-	// If component is stopped or HorizontalScaling is nil then delete hpa if exists before updating deployment
-	if isComponentStopped(deployComponent) || deployComponent.GetHorizontalScaling() == nil {
+	// If component jas manual override or HorizontalScaling is nil then delete hpa if exists before updating deployment
+	if deployComponent.GetReplicasOverride() != nil || deployComponent.GetHorizontalScaling() == nil {
 		err = deploy.deleteScaledObjectIfExists(ctx, deployComponent.GetName())
 		if err != nil {
 			return err
@@ -161,7 +161,10 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context,
 	// When HPA is enabled for a component, the HPA controller will scale the Deployment up/down by changing Replicas
 	// We must keep this value as long as replicas >= 0.
 	// Current replicas will be 0 if the component was previously stopped (replicas set explicitly to 0)
-	if hs := deployComponent.GetHorizontalScaling(); hs != nil && !isComponentStopped(deployComponent) {
+	// Do not override replicas if override is set
+	hs := deployComponent.GetHorizontalScaling()
+	override := deployComponent.GetReplicasOverride()
+	if hs != nil && override == nil {
 		if replicas := currentDeployment.Spec.Replicas; replicas != nil && *replicas > 0 {
 			desiredDeployment.Spec.Replicas = currentDeployment.Spec.Replicas
 		}

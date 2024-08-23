@@ -24,6 +24,11 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 	componentName := deployComponent.GetName()
 	horizontalScaling := deployComponent.GetHorizontalScaling().NormalizeConfig()
 
+	if deployComponent.GetReplicasOverride() != nil {
+		log.Ctx(ctx).Debug().Msgf("Skip creating ScaledObject %s in namespace %s: manuall override is set", componentName, namespace)
+		return nil
+	}
+
 	// Check if scaler config exists
 	if horizontalScaling == nil {
 		log.Ctx(ctx).Debug().Msgf("Skip creating ScaledObject %s in namespace %s: no HorizontalScaling config exists", componentName, namespace)
