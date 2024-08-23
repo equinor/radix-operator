@@ -1467,6 +1467,11 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		*out = new(int)
 		**out = **in
 	}
+	if in.ReplicasOverride != nil {
+		in, out := &in.ReplicasOverride, &out.ReplicasOverride
+		*out = new(int)
+		**out = **in
+	}
 	if in.EnvironmentVariables != nil {
 		in, out := &in.EnvironmentVariables, &out.EnvironmentVariables
 		*out = make(EnvVarsMap, len(*in))

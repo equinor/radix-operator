@@ -17,7 +17,7 @@ var (
 	booleanPointerTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
-func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
+func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	var deployComponents []radixv1.RadixDeployComponent
 	preservingDeployComponentMap := slice.Reduce(preservingDeployComponents, make(map[string]radixv1.RadixDeployComponent), func(acc map[string]radixv1.RadixDeployComponent, component radixv1.RadixDeployComponent) map[string]radixv1.RadixDeployComponent {
@@ -47,7 +47,11 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 			deployComponent.Replicas = environmentSpecificConfig.Replicas
 		}
 
-		// TODO: Check if previous deployment have replica overrides
+		if currentRadixDeployment != nil {
+			if currentComponent := currentRadixDeployment.GetComponentByName(componentName); currentComponent != nil {
+				deployComponent.ReplicasOverride = currentComponent.GetReplicasOverride()
+			}
+		}
 
 		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
 		if err != nil {

@@ -322,8 +322,7 @@ func Test_GetRadixComponentsForEnv_AzureKeyVault(t *testing.T) {
 				)
 			}
 			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
-			sut := GetRadixComponentsForEnv
-			components, err := sut(context.Background(), ra, envName, make(pipeline.DeployComponentImages), make(v1.EnvVarsMap), nil)
+			components, err := GetRadixComponentsForEnv(context.Background(), ra, nil, envName, make(pipeline.DeployComponentImages), make(v1.EnvVarsMap), nil)
 			require.NoError(t, err)
 			azureKeyVaults := components[0].SecretRefs.AzureKeyVaults
 			assert.EqualValues(t, sortAzureKeyVaults(scenario.expected), sortAzureKeyVaults(azureKeyVaults))
@@ -371,8 +370,7 @@ func Test_GetRadixComponentsForEnv_AzureKeyVaultUseIAzureIdentity(t *testing.T) 
 				)
 			}
 			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
-			sut := GetRadixComponentsForEnv
-			components, err := sut(context.Background(), ra, envName, make(pipeline.DeployComponentImages), make(v1.EnvVarsMap), nil)
+			components, err := GetRadixComponentsForEnv(context.Background(), ra, nil, envName, make(pipeline.DeployComponentImages), make(v1.EnvVarsMap), nil)
 			require.NoError(t, err)
 			azureKeyVaults := components[0].SecretRefs.AzureKeyVaults
 			if len(azureKeyVaults) == 0 {
