@@ -606,6 +606,7 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, de
 	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
 	desiredJobAuxDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForJobAPIAuxComponent()
+
 	// Copy volumes and volume mounts from desired deployment to job aux deployment
 	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
 	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts

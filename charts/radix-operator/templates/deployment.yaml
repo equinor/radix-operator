@@ -174,7 +174,9 @@ spec:
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
               value: {{ .Values.ingress.certificate.automation.duration }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE
-              value: {{ .Values.ingress.certificate.automation.renewBefore }}              
+              value: {{ .Values.ingress.certificate.automation.renewBefore }}  
+            - name: RADIXOPERATOR_CONTAINER_REGISTRY_DEFAULT_AUTH_SECRET
+              value: {{ .Values.containerRegistryDefaultAuthSecret }}            
           livenessProbe:
             httpGet:
               path: /healthz
