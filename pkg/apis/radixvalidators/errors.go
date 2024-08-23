@@ -510,7 +510,7 @@ func secretRefEnvVarNameConflictsWithEnvironmentVariableWithMessage(componentNam
 }
 
 func NotValidCidrErrorWithMessage(s string) error {
-	return errors.WithMessagef(ErrNotValidCidr, s)
+	return errors.WithMessage(ErrNotValidCidr, s)
 }
 
 func NotValidIPv4CidrErrorWithMessage(ipMask string) error {

@@ -375,7 +375,7 @@ func validateJobComponents(app *radixv1.RadixApplication) error {
 			errs = append(errs, err)
 		}
 
-		if job.Ports != nil && len(job.Ports) > 0 {
+		if len(job.Ports) > 0 {
 			errList := validatePorts(job.Name, job.Ports)
 			if len(errList) > 0 {
 				errs = append(errs, errList...)
