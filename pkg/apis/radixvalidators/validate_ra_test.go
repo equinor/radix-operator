@@ -1579,7 +1579,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	_, client := validRASetup()
 	for name, test := range testScenarios {
 		t.Run(name, func(t *testing.T) {
-			if test.updateRA == nil || len(test.updateRA) == 0 {
+			if len(test.updateRA) == 0 {
 				assert.FailNow(t, "missing updateRA functions for %s", name)
 				return
 			}

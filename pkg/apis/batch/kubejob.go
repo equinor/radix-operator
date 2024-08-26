@@ -67,7 +67,7 @@ func (s *syncer) validatePayloadSecretReference(ctx context.Context, batchJob *r
 	if !radixlabels.GetRadixBatchDescendantsSelector(jobComponent.GetName()).Matches(labels.Set(payloadSecret.GetLabels())) {
 		return fmt.Errorf("secret %s, referenced in the job %s of the batch %s is not valid payload secret", batchJob.PayloadSecretRef.Name, batchJob.Name, s.radixBatch.GetName())
 	}
-	if payloadSecret.Data == nil || len(payloadSecret.Data) == 0 {
+	if len(payloadSecret.Data) == 0 {
 		return fmt.Errorf("payload secret %s, in the job %s of the batch %s is empty", batchJob.PayloadSecretRef.Name, batchJob.Name, s.radixBatch.GetName())
 	}
 	if _, ok := payloadSecret.Data[batchJob.PayloadSecretRef.Key]; !ok {
