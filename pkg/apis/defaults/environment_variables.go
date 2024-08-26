@@ -223,5 +223,5 @@ const (
 	RadixGitCloneBashImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE"
 
 	// RadixGitCloneGitImageEnvironmentVariable Name of the secret containing default container registry credentials for building with buildah and pulling external images for components and jobs
-	RadixContainerRegistryDefaultAuthEnvironmentVariable = "RADIXOPERATOR_CONTAINER_REGISTRY_DEFAULT_AUTH_SECRET"
+	RadixContainerRegistryDefaultAuthEnvironmentVariable = "RADIX_CONTAINER_REGISTRY_DEFAULT_AUTH_SECRET"
 )

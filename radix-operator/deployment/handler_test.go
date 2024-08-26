@@ -35,6 +35,7 @@ type handlerSuite struct {
 	kubeUtil             *kube.Kube
 	eventRecorder        *record.FakeRecorder
 	kedaClient           *kedafake.Clientset
+	config               *config.Config
 }
 
 func Test_HandlerSuite(t *testing.T) {
@@ -49,16 +50,18 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.certClient = certfake.NewSimpleClientset()
+	s.config = &config.Config{LogLevel: "some_non_default_value"} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
 	s.eventRecorder = &record.FakeRecorder{}
 }
 
 func (s *handlerSuite) Test_NewHandler_DefaultValues() {
-	h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.promClient, s.certClient, &config.Config{})
-	s.Equal(s.kubeClient, h.kubeclient)
-	s.Equal(s.kubeUtil, h.kubeutil)
-	s.Equal(s.radixClient, h.radixclient)
-	s.Equal(s.promClient, h.prometheusperatorclient)
-	s.Equal(s.certClient, h.certClient)
+	h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.promClient, s.certClient, s.config)
+	s.Same(s.kubeClient, h.kubeclient)
+	s.Same(s.kubeUtil, h.kubeutil)
+	s.Same(s.radixClient, h.radixclient)
+	s.Same(s.promClient, h.prometheusperatorclient)
+	s.Same(s.certClient, h.certClient)
+	s.Same(s.config, h.config)
 	s.NotNil(h.hasSynced)
 }
 
@@ -158,13 +161,12 @@ func (s *handlerSuite) Test_Sync() {
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
 			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
 		}
-		expectedConfig := &config.Config{}
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.certClient, rr, activeRd, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources), expectedConfig).
+			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.certClient, rr, activeRd, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources), s.config).
 			Return(syncer).
 			Times(1)
-		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, kedaClient: s.kedaClient, prometheusperatorclient: s.promClient, certClient: s.certClient, deploymentSyncerFactory: factory, oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }, config: expectedConfig}
+		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, kedaClient: s.kedaClient, prometheusperatorclient: s.promClient, certClient: s.certClient, deploymentSyncerFactory: factory, oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }, config: s.config}
 		err := h.Sync(context.Background(), namespace, activeRdName, s.eventRecorder)
 		s.NoError(err)
 		s.True(callbackExecuted)
