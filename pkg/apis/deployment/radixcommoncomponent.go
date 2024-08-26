@@ -97,7 +97,7 @@ func getImagePath(componentName string, componentImage pipeline.DeployComponentI
 }
 
 func errorMissingExpectedDynamicImageTagName(componentName string) error {
-	return fmt.Errorf(fmt.Sprintf("component %s is missing an expected dynamic imageTagName for its image", componentName))
+	return fmt.Errorf("component %s is missing an expected dynamic imageTagName for its image", componentName)
 }
 
 func getImageTagName(componentImage pipeline.DeployComponentImage, componentImageTagName string, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {

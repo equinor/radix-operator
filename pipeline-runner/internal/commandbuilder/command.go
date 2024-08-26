@@ -42,6 +42,15 @@ func NewCommand(formattedCmd string, a ...any) *Command {
 
 	return &c
 }
+
+func (c *Command) AddArg(arg string) *Command {
+	if arg == "" {
+		return c
+	}
+	c.args = append(c.args, arg)
+	return c
+}
+
 func (c *Command) AddArgf(format string, a ...any) *Command {
 	if format == "" {
 		return c

@@ -1306,7 +1306,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			for _, azureKeyVault := range scenario.azureKeyVaults {
 				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
 				if err != nil {
-					t.Logf(err.Error())
+					t.Log(err.Error())
 				} else {
 					t.Logf("created secret provider class %s", spc.Name)
 				}
@@ -1354,7 +1354,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			for _, azureKeyVault := range scenario.azureKeyVaults {
 				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
 				if err != nil {
-					t.Logf(err.Error())
+					t.Log(err.Error())
 				} else {
 					t.Logf("created secret provider class %s", spc.Name)
 				}
