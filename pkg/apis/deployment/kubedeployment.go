@@ -27,7 +27,7 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 		return err
 	}
 
-	// If component jas manual override or HorizontalScaling is nil then delete hpa if exists before updating deployment
+	// If component has manual override or HorizontalScaling is nil then delete hpa if exists before updating deployment
 	if deployComponent.GetReplicasOverride() != nil || deployComponent.GetHorizontalScaling() == nil {
 		err = deploy.deleteScaledObjectIfExists(ctx, deployComponent.GetName())
 		if err != nil {
