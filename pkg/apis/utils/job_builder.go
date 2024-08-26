@@ -28,29 +28,31 @@ type JobBuilder interface {
 	WithEmptyStatus() JobBuilder
 	WithStatus(JobStatusBuilder) JobBuilder
 	WithCreated(time.Time) JobBuilder
+	WithOverrideUseBuildCache(value *bool) JobBuilder
 	GetApplicationBuilder() ApplicationBuilder
 	BuildRJ() *v1.RadixJob
 }
 
 // JobBuilderStruct Holds instance variables
 type JobBuilderStruct struct {
-	applicationBuilder ApplicationBuilder
-	appName            string
-	jobName            string
-	pipeline           v1.RadixPipelineType
-	restoredStatus     string
-	emptyStatus        bool
-	status             v1.RadixJobStatus
-	branch             string
-	deploymentName     string
-	commitID           string
-	imageTag           string
-	created            time.Time
-	pipelineImageTag   string
-	pushImage          bool
-	tektonImageTag     string
-	toEnvironment      string
-	fromEnvironment    string
+	applicationBuilder    ApplicationBuilder
+	appName               string
+	jobName               string
+	pipeline              v1.RadixPipelineType
+	restoredStatus        string
+	emptyStatus           bool
+	status                v1.RadixJobStatus
+	branch                string
+	deploymentName        string
+	commitID              string
+	imageTag              string
+	created               time.Time
+	pipelineImageTag      string
+	pushImage             bool
+	tektonImageTag        string
+	toEnvironment         string
+	fromEnvironment       string
+	overrideUseBuildCache *bool
 }
 
 // WithRadixApplication Links to RA builder
@@ -159,6 +161,12 @@ func (jb *JobBuilderStruct) WithCreated(created time.Time) JobBuilder {
 	return jb
 }
 
+// WithOverrideUseBuildCache Sets an optional overrideUseBuildCache
+func (jb *JobBuilderStruct) WithOverrideUseBuildCache(value *bool) JobBuilder {
+	jb.overrideUseBuildCache = value
+	return jb
+}
+
 // GetApplicationBuilder Obtains the builder for the corresponding RA, if exists (used for testing)
 func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 	if jb.applicationBuilder != nil {
@@ -193,10 +201,11 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			PipelineImage: jb.pipelineImageTag,
 			TektonImage:   jb.tektonImageTag,
 			Build: v1.RadixBuildSpec{
-				Branch:    jb.branch,
-				ImageTag:  jb.imageTag,
-				CommitID:  jb.commitID,
-				PushImage: jb.pushImage,
+				Branch:                jb.branch,
+				ImageTag:              jb.imageTag,
+				CommitID:              jb.commitID,
+				PushImage:             jb.pushImage,
+				OverrideUseBuildCache: jb.overrideUseBuildCache,
 			},
 			Promote: v1.RadixPromoteSpec{
 				DeploymentName: jb.deploymentName,
@@ -220,7 +229,7 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 	return radixJob
 }
 
-// NewJobBuilder Constructor for radixjob builder
+// NewJobBuilder Constructor for RadixJob builder
 func NewJobBuilder() JobBuilder {
 	return &JobBuilderStruct{
 		created: time.Now(),
@@ -306,7 +315,7 @@ func (jsb *jobStatusBuilder) Build() v1.RadixJobStatus {
 		jobSteps = append(jobSteps, step.Build())
 	}
 
-	// Need to trim away milliseconds, as reading job status from annotation wont hold them
+	// Need to trim away milliseconds, as reading job status from annotation won't hold them
 	started := jsb.started.Truncate(1 * time.Second)
 	ended := jsb.ended.Truncate(1 * time.Second)
 	targetEnvs := []string{"test"}
@@ -422,7 +431,7 @@ func (sb *jobStepBuilder) WithComponents(components ...string) JobStepBuilder {
 }
 
 func (sb *jobStepBuilder) Build() v1.RadixJobStep {
-	// Need to trim away milliseconds, as reading job status from annotation wont hold them
+	// Need to trim away milliseconds, as reading job status from annotation won't hold them
 	started := sb.started.Truncate(1 * time.Second)
 	ended := sb.ended.Truncate(1 * time.Second)
 
