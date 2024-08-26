@@ -1047,6 +1047,70 @@ func Test_GetRadixComponents_Monitoring(t *testing.T) {
 	}
 }
 
+func Test_GetRadixComponents_ReplicasOverride(t *testing.T) {
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	testCases := map[string]struct {
+		replicas                 *int
+		expectedReplicas         *int
+		replicasOverride         *int
+		expectedReplicasOverride *int
+	}{
+		"nil":           {nil, nil, nil, nil},
+		"regular":       {pointers.Ptr(1), pointers.Ptr(1), nil, nil},
+		"override":      {pointers.Ptr(1), pointers.Ptr(1), pointers.Ptr(2), pointers.Ptr(2)},
+		"only_override": {nil, nil, pointers.Ptr(3), pointers.Ptr(3)},
+	}
+
+	for description, testCase := range testCases {
+		t.Run(description, func(t *testing.T) {
+			raBuilder := utils.ARadixApplication().
+				WithComponents(
+					utils.NewApplicationComponentBuilder().
+						WithName(componentName).
+						WithEnvironmentConfigs(
+							utils.AnEnvironmentConfig().
+								WithEnvironment(env).
+								WithReplicas(testCase.replicas),
+						))
+			ra := raBuilder.BuildRA()
+
+			activeRd := utils.NewDeploymentBuilder().
+				WithRadixApplication(raBuilder).
+				WithEnvironment("dev").
+				WithComponents(
+					utils.NewDeployComponentBuilder().WithName("comp").WithReplicasOverride(testCase.replicasOverride),
+				).
+				BuildRD()
+
+			deployComponents, err := GetRadixComponentsForEnv(context.Background(), ra, activeRd, env, componentImages, envVarsMap, nil)
+			require.NoError(t, err)
+			require.Len(t, deployComponents, 1)
+
+			if testCase.expectedReplicas == nil {
+				assert.Nil(t, deployComponents[0].Replicas)
+			} else {
+				require.NotNil(t, deployComponents[0].Replicas)
+				assert.Equal(t, *testCase.expectedReplicas, *deployComponents[0].Replicas)
+			}
+
+			if testCase.expectedReplicasOverride == nil {
+				assert.Nil(t, deployComponents[0].ReplicasOverride)
+			} else {
+				require.NotNil(t, deployComponents[0].ReplicasOverride)
+				assert.Equal(t, *testCase.expectedReplicasOverride, *deployComponents[0].ReplicasOverride)
+			}
+		})
+	}
+}
+
 func Test_GetRadixComponents_HorizontalScaling(t *testing.T) {
 	componentName := "comp"
 	env := "dev"
