@@ -1,12 +1,12 @@
-package registry
+package containerregistry
 
 import corev1 "k8s.io/api/core/v1"
 
-type RegistryConfig struct {
+type Config struct {
 	DefaultAuthSecret string
 }
 
-func (c RegistryConfig) ImagePullSecretsFromDefaultAuth() []corev1.LocalObjectReference {
+func (c Config) ImagePullSecretsFromDefaultAuth() []corev1.LocalObjectReference {
 	if len(c.DefaultAuthSecret) == 0 {
 		return nil
 	}

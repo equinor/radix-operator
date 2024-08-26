@@ -8,10 +8,10 @@ import (
 	"github.com/equinor/radix-common/utils/maps"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
+	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
-	"github.com/equinor/radix-operator/pkg/apis/config/registry"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
@@ -103,7 +103,7 @@ func NewConfig() *apiconfig.Config {
 			KubernetesAPIPort:      viper.GetInt32(defaults.KubernetesApiPortEnvironmentVariable),
 			DeploymentHistoryLimit: viper.GetInt(defaults.DeploymentsHistoryLimitEnvironmentVariable),
 		},
-		RegistryConfig: registry.RegistryConfig{
+		ContainerRegistryConfig: containerregistry.Config{
 			DefaultAuthSecret: viper.GetString(defaults.RadixContainerRegistryDefaultAuthEnvironmentVariable),
 		},
 	}

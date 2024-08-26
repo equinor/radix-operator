@@ -19,8 +19,8 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
+	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/config/registry"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -4470,7 +4470,7 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 			require.NoError(t, err)
 
 			cfg := &config.Config{
-				RegistryConfig: registry.RegistryConfig{DefaultAuthSecret: test.defaultRegistryAuthSecret},
+				ContainerRegistryConfig: containerregistry.Config{DefaultAuthSecret: test.defaultRegistryAuthSecret},
 			}
 
 			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, nil, cfg)
@@ -4484,7 +4484,6 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 			assert.ElementsMatch(t, test.expectedImagePullSecrets, jobDeployment.Spec.Template.Spec.ImagePullSecrets, "job component")
 		})
 	}
-
 }
 
 func parseQuantity(value string) resource.Quantity {

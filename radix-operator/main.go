@@ -350,6 +350,7 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.config,
 	)
 
 	return batch.NewController(ctx,
