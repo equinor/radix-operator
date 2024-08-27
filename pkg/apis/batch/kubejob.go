@@ -182,7 +182,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					Volumes:                      volumes,
 					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					RestartPolicy:                corev1.RestartPolicyNever,
-					ImagePullSecrets:             s.getDeploymentPodImagePullSecrets(rd),
+					ImagePullSecrets:             s.getJobPodImagePullSecrets(rd),
 					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, jobComponent, node),
 					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node),
 					ActiveDeadlineSeconds:        timeLimitSeconds,
@@ -197,7 +197,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	return job, nil
 }
 
-func (s *syncer) getDeploymentPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1.LocalObjectReference {
+func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1.LocalObjectReference {
 	imagePullSecrets := rd.Spec.ImagePullSecrets
 	if s.config != nil {
 		imagePullSecrets = append(imagePullSecrets, s.config.ContainerRegistryConfig.ImagePullSecretsFromDefaultAuth()...)
