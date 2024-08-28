@@ -1544,6 +1544,7 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 		assert.Equal(t, "master", deployments.Items[0].Annotations[kube.RadixBranchAnnotation])
+		assert.Equal(t, "0", deployments.Items[0].Annotations[kube.RadixDeploymentObservedGeneration])
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["radix-commit"])
 	})
 }
