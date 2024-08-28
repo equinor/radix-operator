@@ -2,6 +2,7 @@ package annotations
 
 import (
 	"fmt"
+	"strconv"
 
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -26,6 +27,9 @@ func ForRadixBranch(branch string) map[string]string {
 // ForRadixDeploymentName returns annotations describing a Radix deployment name
 func ForRadixDeploymentName(deploymentName string) map[string]string {
 	return map[string]string{kube.RadixDeploymentNameAnnotation: deploymentName}
+}
+func ForKubernetesDeploymentObservedGeneration(observedGeneration int64) map[string]string {
+	return map[string]string{kube.RadixDeploymentObservedGeneration: strconv.Itoa(int(observedGeneration))}
 }
 
 // ForServiceAccountWithRadixIdentity returns annotations for configuring a ServiceAccount with external identities,

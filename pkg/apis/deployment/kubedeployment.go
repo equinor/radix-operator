@@ -234,7 +234,10 @@ func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixComm
 
 func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 	branch, _ := deploy.getRadixBranchAndCommitId()
-	return radixannotations.ForRadixBranch(branch)
+	return radixannotations.Merge(
+		radixannotations.ForRadixBranch(branch),
+		radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment.ObjectMeta.Generation),
+	)
 }
 
 func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
