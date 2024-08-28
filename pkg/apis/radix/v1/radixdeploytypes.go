@@ -26,6 +26,7 @@ func (rd *RadixDeployment) GetComponentByName(name string) *RadixDeployComponent
 		if strings.EqualFold(component.Name, name) {
 			return &component
 		}
+
 	}
 	return nil
 }
