@@ -36,6 +36,10 @@ type RadixBatchSpec struct {
 	// Reference to the RadixDeployment containing the job component spec.
 	RadixDeploymentJobRef RadixDeploymentJobComponentSelector `json:"radixDeploymentJobRef"`
 
+	// Defines a user defined ID of the batch.
+	// +optional
+	BatchId string `json:"batchId,omitempty"`
+
 	// List of batch jobs to run.
 	// +listType:=map
 	// +listMapKey:=name
@@ -238,6 +242,10 @@ type RadixBatchCondition struct {
 
 // RadixBatchStatus represents the current state of a RadixBatch
 type RadixBatchStatus struct {
+	// Defines a user defined ID of the batch.
+	// +optional
+	BatchId string `json:"batchId,omitempty"`
+
 	// Status for each job defined in spec.jobs
 	// +optional
 	JobStatuses []RadixBatchJobStatus `json:"jobStatuses,omitempty"`
