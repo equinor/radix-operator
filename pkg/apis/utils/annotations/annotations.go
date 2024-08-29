@@ -28,8 +28,12 @@ func ForRadixBranch(branch string) map[string]string {
 func ForRadixDeploymentName(deploymentName string) map[string]string {
 	return map[string]string{kube.RadixDeploymentNameAnnotation: deploymentName}
 }
-func ForKubernetesDeploymentObservedGeneration(observedGeneration int64) map[string]string {
-	return map[string]string{kube.RadixDeploymentObservedGeneration: strconv.Itoa(int(observedGeneration))}
+func ForKubernetesDeploymentObservedGeneration(rd *radixv1.RadixDeployment) map[string]string {
+	if rd == nil {
+		return map[string]string{}
+	}
+
+	return map[string]string{kube.RadixDeploymentObservedGeneration: strconv.Itoa(int(rd.ObjectMeta.Generation))}
 }
 
 // ForServiceAccountWithRadixIdentity returns annotations for configuring a ServiceAccount with external identities,

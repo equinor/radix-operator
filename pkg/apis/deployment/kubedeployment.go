@@ -124,7 +124,7 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 			Name:            jobAuxDeploymentName,
 			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)},
 			Labels:          make(map[string]string),
-			Annotations:     make(map[string]string),
+			Annotations:     radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointers.Ptr[int32](1),
@@ -236,7 +236,7 @@ func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 	branch, _ := deploy.getRadixBranchAndCommitId()
 	return radixannotations.Merge(
 		radixannotations.ForRadixBranch(branch),
-		radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment.ObjectMeta.Generation),
+		radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment),
 	)
 }
 

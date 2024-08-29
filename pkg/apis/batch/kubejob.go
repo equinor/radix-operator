@@ -169,6 +169,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 			Name:            kubeJobName,
 			Labels:          jobLabels,
 			OwnerReferences: ownerReference(s.radixBatch),
+			Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(rd),
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: backoffLimit,
