@@ -206,6 +206,14 @@ func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCo
 	return annotations
 }
 
+func (deploy *Deployment) getDeploymentPodImagePullSecrets() []corev1.LocalObjectReference {
+	imagePullSecrets := deploy.radixDeployment.Spec.ImagePullSecrets
+	if deploy.config != nil {
+		imagePullSecrets = append(imagePullSecrets, deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...)
+	}
+	return imagePullSecrets
+}
+
 func (deploy *Deployment) getDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	commitID := getDeployComponentCommitId(deployComponent)
 	return radixlabels.Merge(
@@ -256,7 +264,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
 
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
-	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
+	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.getDeploymentPodImagePullSecrets()
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 
 	spec := NewServiceAccountSpec(deploy.radixDeployment, deployComponent)

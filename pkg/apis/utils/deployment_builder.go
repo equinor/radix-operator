@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -33,6 +34,7 @@ type DeploymentBuilder interface {
 	WithJobComponent(DeployJobComponentBuilder) DeploymentBuilder
 	WithJobComponents(...DeployJobComponentBuilder) DeploymentBuilder
 	WithAnnotations(map[string]string) DeploymentBuilder
+	WithImagePullSecrets([]corev1.LocalObjectReference) DeploymentBuilder
 	GetApplicationBuilder() ApplicationBuilder
 	BuildRD() *v1.RadixDeployment
 }
@@ -55,6 +57,7 @@ type DeploymentBuilderStruct struct {
 	UID                types.UID
 	components         []DeployComponentBuilder
 	jobComponents      []DeployJobComponentBuilder
+	imagePullSecrets   []corev1.LocalObjectReference
 }
 
 func (db *DeploymentBuilderStruct) WithAnnotations(annotations map[string]string) DeploymentBuilder {
@@ -211,6 +214,11 @@ func (db *DeploymentBuilderStruct) WithJobComponents(components ...DeployJobComp
 	return db
 }
 
+func (db *DeploymentBuilderStruct) WithImagePullSecrets(imagePullSecrets []corev1.LocalObjectReference) DeploymentBuilder {
+	db.imagePullSecrets = imagePullSecrets
+	return db
+}
+
 // GetApplicationBuilder Obtains the builder for the corresponding RA, if exists (used for testing)
 func (db *DeploymentBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 	if db.applicationBuilder != nil {
@@ -258,10 +266,11 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 			UID:               db.UID,
 		},
 		Spec: v1.RadixDeploymentSpec{
-			AppName:     db.AppName,
-			Components:  components,
-			Jobs:        jobComponents,
-			Environment: db.Environment,
+			AppName:          db.AppName,
+			Components:       components,
+			Jobs:             jobComponents,
+			Environment:      db.Environment,
+			ImagePullSecrets: db.imagePullSecrets,
 		},
 		Status: status,
 	}
