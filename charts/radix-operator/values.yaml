@@ -166,7 +166,7 @@ logLevel: "INFO"
 logPretty: false
 oauthProxyDefaultIssuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
 oauthProxyImage: quay.io/oauth2-proxy/oauth2-proxy:v7.2.0
-containerRegistryDefaultAuthSecret: "" # Name of the secret containing default container registry credentials for pulling images when building with buildah and pulling external images for components and jobs
+externalRegistryDefaultAuthSecret: "" # Name of the secret containing default container registry credentials for pulling images when building with buildah and pulling external images for components and jobs
 
 seccompProfile:
   fileNameOnNode: allow-buildah.json

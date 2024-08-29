@@ -209,7 +209,7 @@ func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCo
 func (deploy *Deployment) getDeploymentPodImagePullSecrets() []corev1.LocalObjectReference {
 	imagePullSecrets := deploy.radixDeployment.Spec.ImagePullSecrets
 	if deploy.config != nil {
-		imagePullSecrets = append(imagePullSecrets, deploy.config.ContainerRegistryConfig.ImagePullSecretsFromDefaultAuth()...)
+		imagePullSecrets = append(imagePullSecrets, deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...)
 	}
 	return imagePullSecrets
 }

@@ -9,11 +9,11 @@ import (
 )
 
 func Test_ImagePullSecretsFromDefaultAuth(t *testing.T) {
-	cfg := containerregistry.Config{DefaultAuthSecret: ""}
-	assert.Len(t, cfg.ImagePullSecretsFromDefaultAuth(), 0)
+	cfg := containerregistry.Config{ExternalRegistryAuthSecret: ""}
+	assert.Len(t, cfg.ImagePullSecretsFromExternalRegistryAuth(), 0)
 
 	secretName := "a-secret"
-	cfg = containerregistry.Config{DefaultAuthSecret: secretName}
+	cfg = containerregistry.Config{ExternalRegistryAuthSecret: secretName}
 	expected := []corev1.LocalObjectReference{{Name: secretName}}
-	assert.ElementsMatch(t, expected, cfg.ImagePullSecretsFromDefaultAuth())
+	assert.ElementsMatch(t, expected, cfg.ImagePullSecretsFromExternalRegistryAuth())
 }

@@ -4470,7 +4470,7 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 			require.NoError(t, err)
 
 			cfg := &config.Config{
-				ContainerRegistryConfig: containerregistry.Config{DefaultAuthSecret: test.defaultRegistryAuthSecret},
+				ContainerRegistryConfig: containerregistry.Config{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret},
 			}
 
 			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, nil, cfg)

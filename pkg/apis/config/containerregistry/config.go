@@ -3,13 +3,14 @@ package containerregistry
 import corev1 "k8s.io/api/core/v1"
 
 type Config struct {
-	DefaultAuthSecret string
+	// Name of the secret container docker authentication for external registries
+	ExternalRegistryAuthSecret string
 }
 
-func (c Config) ImagePullSecretsFromDefaultAuth() []corev1.LocalObjectReference {
-	if len(c.DefaultAuthSecret) == 0 {
+func (c Config) ImagePullSecretsFromExternalRegistryAuth() []corev1.LocalObjectReference {
+	if len(c.ExternalRegistryAuthSecret) == 0 {
 		return nil
 	}
 
-	return []corev1.LocalObjectReference{{Name: c.DefaultAuthSecret}}
+	return []corev1.LocalObjectReference{{Name: c.ExternalRegistryAuthSecret}}
 }

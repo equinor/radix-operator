@@ -104,7 +104,7 @@ func NewConfig() *apiconfig.Config {
 			DeploymentHistoryLimit: viper.GetInt(defaults.DeploymentsHistoryLimitEnvironmentVariable),
 		},
 		ContainerRegistryConfig: containerregistry.Config{
-			DefaultAuthSecret: viper.GetString(defaults.RadixContainerRegistryDefaultAuthEnvironmentVariable),
+			ExternalRegistryAuthSecret: viper.GetString(defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable),
 		},
 	}
 }
