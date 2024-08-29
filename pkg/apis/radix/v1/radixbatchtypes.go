@@ -242,10 +242,6 @@ type RadixBatchCondition struct {
 
 // RadixBatchStatus represents the current state of a RadixBatch
 type RadixBatchStatus struct {
-	// Defines a user defined ID of the batch.
-	// +optional
-	BatchId string `json:"batchId,omitempty"`
-
 	// Status for each job defined in spec.jobs
 	// +optional
 	JobStatuses []RadixBatchJobStatus `json:"jobStatuses,omitempty"`
