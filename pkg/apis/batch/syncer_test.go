@@ -2299,10 +2299,6 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 	}
 }
 
-type expectedBatchStatusProps struct {
-	conditionType radixv1.RadixBatchConditionType
-}
-
 func getRadixBatchJobsMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJob {
 	batchJobsMap := make(map[string]*radixv1.RadixBatchJob)
 	for i := 0; i < len(batch.Spec.Jobs); i++ {
