@@ -26,7 +26,7 @@ type Controller struct {
 	HandlerOf            string
 	KubeClient           kubernetes.Interface
 	RadixClient          radixclient.Interface
-	WorkQueue            workqueue.RateLimitingInterface
+	WorkQueue            workqueue.TypedRateLimitingInterface[string]
 	KubeInformerFactory  kubeinformers.SharedInformerFactory
 	RadixInformerFactory informers.SharedInformerFactory
 	Handler              Handler
@@ -103,7 +103,7 @@ func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group
 			c.WorkQueue.Done(workItem)
 		}()
 
-		if workItem == nil || fmt.Sprint(workItem) == "" {
+		if workItem == "" {
 			return nil
 		}
 
@@ -128,17 +128,17 @@ func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group
 		}()
 
 		log.Ctx(ctx).Debug().Msgf("Acquired lock for %s, processing %s", lockKey, identifier)
-		c.processWorkItem(workCtx, workItem, identifier)
+		c.processWorkItem(workCtx, workItem)
 		return nil
 	})
 
 	return true
 }
 
-func (c *Controller) processWorkItem(ctx context.Context, workItem interface{}, workItemString string) {
-	err := func(workItem interface{}) error {
-		if err := c.syncHandler(ctx, workItemString); err != nil {
-			c.WorkQueue.AddRateLimited(workItemString)
+func (c *Controller) processWorkItem(ctx context.Context, workItem string) {
+	err := func(workItem string) error {
+		if err := c.syncHandler(ctx, workItem); err != nil {
+			c.WorkQueue.AddRateLimited(workItem)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
@@ -147,12 +147,12 @@ func (c *Controller) processWorkItem(ctx context.Context, workItem interface{}, 
 
 		c.WorkQueue.Forget(workItem)
 		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-		log.Ctx(ctx).Info().Msgf("Successfully synced %s", workItemString)
+		log.Ctx(ctx).Info().Msgf("Successfully synced %s", workItem)
 		return nil
 	}(workItem)
 
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("Failed to sync %s, requeuing", workItemString)
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to sync %s, requeuing", workItem)
 		metrics.OperatorError(c.HandlerOf, "process_next_work_item", "unhandled")
 	}
 }

@@ -71,16 +71,13 @@ func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 		WithName(appName)
 
 	// check public key cm does not exist
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	_, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.Error(t, err)
-	assert.Nil(t, cm)
 	// check secret does not exist
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	_, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.Error(t, err)
-	assert.Nil(t, secret)
 
 	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
 	assert.NoError(t, err)
 
 	// check public key cm exists, and has key
@@ -91,7 +88,6 @@ func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 
 	// check secret exists, and has private key
 	secret, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
 	assert.NoError(t, err)
 	privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
 	assert.NotNil(t, privateKey)
@@ -111,15 +107,14 @@ func TestOnSync_PublicKeyCmDoesNotExist_KeyIsCopiedFromRR(t *testing.T) {
 		WithPrivateKey(somePrivateKey)
 
 	// check public key cm does not exist
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	_, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.Error(t, err)
-	assert.Nil(t, cm)
 
 	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
 	assert.NoError(t, err)
 
 	// check public key cm exists, and has same public key as RR
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cm)
 	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
@@ -146,15 +141,14 @@ func TestOnSync_PublicKeyInCmIsEmpty_KeyIsCopiedFromRR(t *testing.T) {
 		WithPrivateKey(somePrivateKey)
 
 	// check public key cm does not exist
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	_, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.Error(t, err)
-	assert.Nil(t, cm)
 
 	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
 	assert.NoError(t, err)
 
 	// delete data in public key cm
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	cm.Data = map[string]string{}
 	_, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Update(context.Background(), cm, metav1.UpdateOptions{})

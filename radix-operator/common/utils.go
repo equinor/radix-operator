@@ -85,8 +85,8 @@ func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterf
 	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 }
 
-func NewRateLimitedWorkQueue(ctx context.Context, name string) workqueue.RateLimitingInterface {
-	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: name})
+func NewRateLimitedWorkQueue(ctx context.Context, name string) workqueue.TypedRateLimitingInterface[string] {
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[string](), workqueue.TypedRateLimitingQueueConfig[string]{Name: name})
 	go func() {
 		<-ctx.Done()
 		queue.ShutDown()

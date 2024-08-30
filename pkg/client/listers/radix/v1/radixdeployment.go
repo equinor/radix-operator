@@ -27,8 +27,8 @@ package v1
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -45,25 +45,17 @@ type RadixDeploymentLister interface {
 
 // radixDeploymentLister implements the RadixDeploymentLister interface.
 type radixDeploymentLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1.RadixDeployment]
 }
 
 // NewRadixDeploymentLister returns a new RadixDeploymentLister.
 func NewRadixDeploymentLister(indexer cache.Indexer) RadixDeploymentLister {
-	return &radixDeploymentLister{indexer: indexer}
-}
-
-// List lists all RadixDeployments in the indexer.
-func (s *radixDeploymentLister) List(selector labels.Selector) (ret []*v1.RadixDeployment, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixDeployment))
-	})
-	return ret, err
+	return &radixDeploymentLister{listers.New[*v1.RadixDeployment](indexer, v1.Resource("radixdeployment"))}
 }
 
 // RadixDeployments returns an object that can list and get RadixDeployments.
 func (s *radixDeploymentLister) RadixDeployments(namespace string) RadixDeploymentNamespaceLister {
-	return radixDeploymentNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return radixDeploymentNamespaceLister{listers.NewNamespaced[*v1.RadixDeployment](s.ResourceIndexer, namespace)}
 }
 
 // RadixDeploymentNamespaceLister helps list and get RadixDeployments.
@@ -81,26 +73,5 @@ type RadixDeploymentNamespaceLister interface {
 // radixDeploymentNamespaceLister implements the RadixDeploymentNamespaceLister
 // interface.
 type radixDeploymentNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all RadixDeployments in the indexer for a given namespace.
-func (s radixDeploymentNamespaceLister) List(selector labels.Selector) (ret []*v1.RadixDeployment, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixDeployment))
-	})
-	return ret, err
-}
-
-// Get retrieves the RadixDeployment from the indexer for a given namespace and name.
-func (s radixDeploymentNamespaceLister) Get(name string) (*v1.RadixDeployment, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("radixdeployment"), name)
-	}
-	return obj.(*v1.RadixDeployment), nil
+	listers.ResourceIndexer[*v1.RadixDeployment]
 }

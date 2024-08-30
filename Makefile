@@ -166,11 +166,11 @@ HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
 .PHONY: bootstrap
 bootstrap: vendor
 ifndef HAS_GOLANGCI_LINT
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.55.2
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.60.3
 endif
 ifndef HAS_MOCKGEN
 	go install github.com/golang/mock/mockgen@v1.6.0
 endif
 ifndef HAS_CONTROLLER_GEN
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.2
 endif

@@ -27,14 +27,13 @@ package v1
 
 import (
 	"context"
-	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // RadixJobsGetter has a method to return a RadixJobInterface.
@@ -47,6 +46,7 @@ type RadixJobsGetter interface {
 type RadixJobInterface interface {
 	Create(ctx context.Context, radixJob *v1.RadixJob, opts metav1.CreateOptions) (*v1.RadixJob, error)
 	Update(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (*v1.RadixJob, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 	UpdateStatus(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (*v1.RadixJob, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
@@ -59,144 +59,18 @@ type RadixJobInterface interface {
 
 // radixJobs implements RadixJobInterface
 type radixJobs struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*v1.RadixJob, *v1.RadixJobList]
 }
 
 // newRadixJobs returns a RadixJobs
 func newRadixJobs(c *RadixV1Client, namespace string) *radixJobs {
 	return &radixJobs{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*v1.RadixJob, *v1.RadixJobList](
+			"radixjobs",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *v1.RadixJob { return &v1.RadixJob{} },
+			func() *v1.RadixJobList { return &v1.RadixJobList{} }),
 	}
-}
-
-// Get takes name of the radixJob, and returns the corresponding radixJob object, and an error if there is any.
-func (c *radixJobs) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixJob, err error) {
-	result = &v1.RadixJob{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("radixjobs").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of RadixJobs that match those selectors.
-func (c *radixJobs) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixJobList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1.RadixJobList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("radixjobs").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested radixJobs.
-func (c *radixJobs) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("radixjobs").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a radixJob and creates it.  Returns the server's representation of the radixJob, and an error, if there is any.
-func (c *radixJobs) Create(ctx context.Context, radixJob *v1.RadixJob, opts metav1.CreateOptions) (result *v1.RadixJob, err error) {
-	result = &v1.RadixJob{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("radixjobs").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(radixJob).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a radixJob and updates it. Returns the server's representation of the radixJob, and an error, if there is any.
-func (c *radixJobs) Update(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (result *v1.RadixJob, err error) {
-	result = &v1.RadixJob{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("radixjobs").
-		Name(radixJob.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(radixJob).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *radixJobs) UpdateStatus(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (result *v1.RadixJob, err error) {
-	result = &v1.RadixJob{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("radixjobs").
-		Name(radixJob.Name).
-		SubResource("status").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(radixJob).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the radixJob and deletes it. Returns an error if one occurs.
-func (c *radixJobs) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("radixjobs").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *radixJobs) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("radixjobs").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched radixJob.
-func (c *radixJobs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixJob, err error) {
-	result = &v1.RadixJob{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("radixjobs").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }

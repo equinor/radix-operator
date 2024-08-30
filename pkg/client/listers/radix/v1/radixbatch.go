@@ -27,8 +27,8 @@ package v1
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -45,25 +45,17 @@ type RadixBatchLister interface {
 
 // radixBatchLister implements the RadixBatchLister interface.
 type radixBatchLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1.RadixBatch]
 }
 
 // NewRadixBatchLister returns a new RadixBatchLister.
 func NewRadixBatchLister(indexer cache.Indexer) RadixBatchLister {
-	return &radixBatchLister{indexer: indexer}
-}
-
-// List lists all RadixBatches in the indexer.
-func (s *radixBatchLister) List(selector labels.Selector) (ret []*v1.RadixBatch, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixBatch))
-	})
-	return ret, err
+	return &radixBatchLister{listers.New[*v1.RadixBatch](indexer, v1.Resource("radixbatch"))}
 }
 
 // RadixBatches returns an object that can list and get RadixBatches.
 func (s *radixBatchLister) RadixBatches(namespace string) RadixBatchNamespaceLister {
-	return radixBatchNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return radixBatchNamespaceLister{listers.NewNamespaced[*v1.RadixBatch](s.ResourceIndexer, namespace)}
 }
 
 // RadixBatchNamespaceLister helps list and get RadixBatches.
@@ -81,26 +73,5 @@ type RadixBatchNamespaceLister interface {
 // radixBatchNamespaceLister implements the RadixBatchNamespaceLister
 // interface.
 type radixBatchNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all RadixBatches in the indexer for a given namespace.
-func (s radixBatchNamespaceLister) List(selector labels.Selector) (ret []*v1.RadixBatch, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixBatch))
-	})
-	return ret, err
-}
-
-// Get retrieves the RadixBatch from the indexer for a given namespace and name.
-func (s radixBatchNamespaceLister) Get(name string) (*v1.RadixBatch, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("radixbatch"), name)
-	}
-	return obj.(*v1.RadixBatch), nil
+	listers.ResourceIndexer[*v1.RadixBatch]
 }

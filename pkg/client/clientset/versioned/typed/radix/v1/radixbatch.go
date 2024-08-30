@@ -27,14 +27,13 @@ package v1
 
 import (
 	"context"
-	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // RadixBatchesGetter has a method to return a RadixBatchInterface.
@@ -47,6 +46,7 @@ type RadixBatchesGetter interface {
 type RadixBatchInterface interface {
 	Create(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.CreateOptions) (*v1.RadixBatch, error)
 	Update(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (*v1.RadixBatch, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 	UpdateStatus(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (*v1.RadixBatch, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
@@ -59,144 +59,18 @@ type RadixBatchInterface interface {
 
 // radixBatches implements RadixBatchInterface
 type radixBatches struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*v1.RadixBatch, *v1.RadixBatchList]
 }
 
 // newRadixBatches returns a RadixBatches
 func newRadixBatches(c *RadixV1Client, namespace string) *radixBatches {
 	return &radixBatches{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*v1.RadixBatch, *v1.RadixBatchList](
+			"radixbatches",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *v1.RadixBatch { return &v1.RadixBatch{} },
+			func() *v1.RadixBatchList { return &v1.RadixBatchList{} }),
 	}
-}
-
-// Get takes name of the radixBatch, and returns the corresponding radixBatch object, and an error if there is any.
-func (c *radixBatches) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixBatch, err error) {
-	result = &v1.RadixBatch{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("radixbatches").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of RadixBatches that match those selectors.
-func (c *radixBatches) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixBatchList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1.RadixBatchList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("radixbatches").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested radixBatches.
-func (c *radixBatches) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("radixbatches").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a radixBatch and creates it.  Returns the server's representation of the radixBatch, and an error, if there is any.
-func (c *radixBatches) Create(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.CreateOptions) (result *v1.RadixBatch, err error) {
-	result = &v1.RadixBatch{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("radixbatches").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(radixBatch).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a radixBatch and updates it. Returns the server's representation of the radixBatch, and an error, if there is any.
-func (c *radixBatches) Update(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (result *v1.RadixBatch, err error) {
-	result = &v1.RadixBatch{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("radixbatches").
-		Name(radixBatch.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(radixBatch).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *radixBatches) UpdateStatus(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (result *v1.RadixBatch, err error) {
-	result = &v1.RadixBatch{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("radixbatches").
-		Name(radixBatch.Name).
-		SubResource("status").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(radixBatch).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the radixBatch and deletes it. Returns an error if one occurs.
-func (c *radixBatches) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("radixbatches").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *radixBatches) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("radixbatches").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched radixBatch.
-func (c *radixBatches) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixBatch, err error) {
-	result = &v1.RadixBatch{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("radixbatches").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }

@@ -47,20 +47,22 @@ var radixenvironmentsKind = v1.SchemeGroupVersion.WithKind("RadixEnvironment")
 
 // Get takes name of the radixEnvironment, and returns the corresponding radixEnvironment object, and an error if there is any.
 func (c *FakeRadixEnvironments) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixEnvironment, err error) {
+	emptyResult := &v1.RadixEnvironment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(radixenvironmentsResource, name), &v1.RadixEnvironment{})
+		Invokes(testing.NewRootGetActionWithOptions(radixenvironmentsResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixEnvironment), err
 }
 
 // List takes label and field selectors, and returns the list of RadixEnvironments that match those selectors.
 func (c *FakeRadixEnvironments) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixEnvironmentList, err error) {
+	emptyResult := &v1.RadixEnvironmentList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(radixenvironmentsResource, radixenvironmentsKind, opts), &v1.RadixEnvironmentList{})
+		Invokes(testing.NewRootListActionWithOptions(radixenvironmentsResource, radixenvironmentsKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -79,36 +81,39 @@ func (c *FakeRadixEnvironments) List(ctx context.Context, opts metav1.ListOption
 // Watch returns a watch.Interface that watches the requested radixEnvironments.
 func (c *FakeRadixEnvironments) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(radixenvironmentsResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(radixenvironmentsResource, opts))
 }
 
 // Create takes the representation of a radixEnvironment and creates it.  Returns the server's representation of the radixEnvironment, and an error, if there is any.
 func (c *FakeRadixEnvironments) Create(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.CreateOptions) (result *v1.RadixEnvironment, err error) {
+	emptyResult := &v1.RadixEnvironment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(radixenvironmentsResource, radixEnvironment), &v1.RadixEnvironment{})
+		Invokes(testing.NewRootCreateActionWithOptions(radixenvironmentsResource, radixEnvironment, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixEnvironment), err
 }
 
 // Update takes the representation of a radixEnvironment and updates it. Returns the server's representation of the radixEnvironment, and an error, if there is any.
 func (c *FakeRadixEnvironments) Update(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (result *v1.RadixEnvironment, err error) {
+	emptyResult := &v1.RadixEnvironment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(radixenvironmentsResource, radixEnvironment), &v1.RadixEnvironment{})
+		Invokes(testing.NewRootUpdateActionWithOptions(radixenvironmentsResource, radixEnvironment, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixEnvironment), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixEnvironments) UpdateStatus(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (*v1.RadixEnvironment, error) {
+func (c *FakeRadixEnvironments) UpdateStatus(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (result *v1.RadixEnvironment, err error) {
+	emptyResult := &v1.RadixEnvironment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(radixenvironmentsResource, "status", radixEnvironment), &v1.RadixEnvironment{})
+		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(radixenvironmentsResource, "status", radixEnvironment, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixEnvironment), err
 }
@@ -122,7 +127,7 @@ func (c *FakeRadixEnvironments) Delete(ctx context.Context, name string, opts me
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeRadixEnvironments) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(radixenvironmentsResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(radixenvironmentsResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.RadixEnvironmentList{})
 	return err
@@ -130,10 +135,11 @@ func (c *FakeRadixEnvironments) DeleteCollection(ctx context.Context, opts metav
 
 // Patch applies the patch and returns the patched radixEnvironment.
 func (c *FakeRadixEnvironments) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixEnvironment, err error) {
+	emptyResult := &v1.RadixEnvironment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(radixenvironmentsResource, name, pt, data, subresources...), &v1.RadixEnvironment{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(radixenvironmentsResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixEnvironment), err
 }

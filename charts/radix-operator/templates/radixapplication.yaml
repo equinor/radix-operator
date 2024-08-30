@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.15.0
+    controller-gen.kubebuilder.io/version: v0.16.2
   name: radixapplications.radix.equinor.com
 spec:
   group: radix.equinor.com
@@ -1081,13 +1081,11 @@ spec:
                                   type: string
                                 requestsStorage:
                                   description: |-
-                                    TODO: describe
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                                     Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 skuName:
                                   description: |-
-                                    TODO: describe
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                                     Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
@@ -1828,13 +1826,11 @@ spec:
                             type: string
                           requestsStorage:
                             description: |-
-                              TODO: describe
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                               Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           skuName:
                             description: |-
-                              TODO: describe
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                               Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
@@ -2689,13 +2685,11 @@ spec:
                                   type: string
                                 requestsStorage:
                                   description: |-
-                                    TODO: describe
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                                     Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 skuName:
                                   description: |-
-                                    TODO: describe
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                                     Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
@@ -3235,13 +3229,11 @@ spec:
                             type: string
                           requestsStorage:
                             description: |-
-                              TODO: describe
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                               Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           skuName:
                             description: |-
-                              TODO: describe
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                               Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
