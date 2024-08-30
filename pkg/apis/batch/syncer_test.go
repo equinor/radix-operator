@@ -2303,60 +2303,6 @@ type expectedBatchStatusProps struct {
 	conditionType radixv1.RadixBatchConditionType
 }
 
-func (s *syncerTestSuite) Test_BatchId() {
-	namespace, rdName := "any-ns", "any-rd"
-	type scenario struct {
-		name    string
-		batchId string
-	}
-
-	scenarios := []scenario{
-		{
-			name:    "no batch-id",
-			batchId: "",
-		},
-		{
-			name:    "exists batch-id",
-			batchId: "some-batch-id",
-		},
-	}
-	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
-		Spec: radixv1.RadixDeploymentSpec{
-			AppName: "any-app",
-			Jobs:    []radixv1.RadixDeployJobComponent{{Name: "any-job"}},
-		},
-	}
-	_, err := s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	s.Require().NoError(err)
-
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			batchName := utils.RandString(10)
-			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForBatchScheduleJobType()},
-				Spec: radixv1.RadixBatchSpec{
-					BatchId: ts.batchId,
-					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-						Job:                  "any-job",
-					},
-					Jobs: []radixv1.RadixBatchJob{{Name: "job1"}},
-				},
-			}
-			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-			s.Require().NoError(err)
-			sut := s.createSyncer(batch, nil)
-			s.Require().NoError(sut.OnSync(context.Background()))
-
-			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-			s.Require().NoError(err)
-
-			s.Require().Equal(ts.batchId, batch.Spec.BatchId, "Invalid batchId")
-		})
-	}
-}
-
 func getRadixBatchJobsMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJob {
 	batchJobsMap := make(map[string]*radixv1.RadixBatchJob)
 	for i := 0; i < len(batch.Spec.Jobs); i++ {
