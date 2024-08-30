@@ -36,6 +36,10 @@ type RadixBatchSpec struct {
 	// Reference to the RadixDeployment containing the job component spec.
 	RadixDeploymentJobRef RadixDeploymentJobComponentSelector `json:"radixDeploymentJobRef"`
 
+	// Defines a user defined ID of the batch.
+	// +optional
+	BatchId string `json:"batchId,omitempty"`
+
 	// List of batch jobs to run.
 	// +listType:=map
 	// +listMapKey:=name
