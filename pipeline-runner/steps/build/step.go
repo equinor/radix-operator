@@ -91,7 +91,7 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 	return step.createACRBuildJobs(ctx, pipelineInfo, jobs, namespace)
 }
 
-func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []*batchv1.Job, namespace string) error {
+func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []batchv1.Job, namespace string) error {
 	ownerReference, err := step.getJobOwnerReferences(ctx, pipelineInfo, namespace)
 	if err != nil {
 		return err
@@ -99,18 +99,17 @@ func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pip
 
 	g := errgroup.Group{}
 	for _, job := range jobs {
-		job := job
 		g.Go(func() error {
 			logger := log.Ctx(ctx).With().Str("job", job.Name).Logger()
 			job.OwnerReferences = ownerReference
-			jobDescription := step.getJobDescription(job)
+			jobDescription := step.getJobDescription(&job)
 			logger.Info().Msgf("Apply %s", jobDescription)
-			job, err = step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
+			createdJob, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.Background(), &job, metav1.CreateOptions{})
 			if err != nil {
 				logger.Error().Err(err).Msgf("failed %s", jobDescription)
 				return err
 			}
-			return step.jobWaiter.Wait(job)
+			return step.jobWaiter.Wait(createdJob)
 		})
 	}
 	return g.Wait()

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,38 +40,43 @@ const (
 	azureServicePrincipleContext = "/radix-image-builder/.azure"
 )
 
-func (step *BuildStepImplementation) buildContainerImageBuildingJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
+func (step *BuildStepImplementation) buildContainerImageBuildingJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]batchv1.Job, error) {
 	rr := step.GetRegistration()
 	if pipelineInfo.IsUsingBuildKit() {
 		return step.buildContainerImageBuildingJobsForBuildKit(ctx, rr, pipelineInfo, buildSecrets)
 	}
+
+	// imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
+	// return build.
+	// 	GetConstructor(pipelineInfo.IsUsingBuildKit(), pipelineInfo.PipelineArguments, imagesToBuild).
+	// 	ConstructJobs(), nil
 	return step.buildContainerImageBuildingJobsForACRTasks(ctx, rr, pipelineInfo, buildSecrets)
 }
 
-func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
+func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]batchv1.Job, error) {
 	var buildComponentImages []pipeline.BuildComponentImage
 	for _, envComponentImages := range pipelineInfo.BuildComponentImages {
 		buildComponentImages = append(buildComponentImages, envComponentImages...)
 	}
 
 	log.Ctx(ctx).Debug().Msg("build a build-job")
-	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-	job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, buildComponentImages...)
+	// hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
+	job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, strconv.Itoa(0), &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, buildComponentImages...)
 	if err != nil {
 		return nil, err
 	}
-	return []*batchv1.Job{job}, nil
+	return []batchv1.Job{job}, nil
 }
 
-func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]*batchv1.Job, error) {
-	var jobs []*batchv1.Job
+func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]batchv1.Job, error) {
+	var jobs []batchv1.Job
 	for envName, buildComponentImages := range pipelineInfo.BuildComponentImages {
 		log.Ctx(ctx).Debug().Msgf("build a build-kit jobs for the env %s", envName)
-		for _, componentImage := range buildComponentImages {
+		for i, componentImage := range buildComponentImages {
 			log.Ctx(ctx).Debug().Msgf("build a job for the image %s", componentImage.ImageName)
-			hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
+			// hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
 
-			job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, componentImage.Runtime, componentImage)
+			job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, strconv.Itoa(i), componentImage.Runtime, componentImage)
 			if err != nil {
 				return nil, err
 			}
@@ -83,14 +89,14 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(
 	return jobs, nil
 }
 
-func buildContainerImageBuildingJob(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, jobRuntime *radixv1.Runtime, buildComponentImages ...pipeline.BuildComponentImage) (*batchv1.Job, error) {
+func buildContainerImageBuildingJob(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar, hash string, jobRuntime *radixv1.Runtime, buildComponentImages ...pipeline.BuildComponentImage) (batchv1.Job, error) {
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pipelineJobName := pipelineInfo.PipelineArguments.JobName
 	initContainers, err := git.CloneInitContainers(rr.Spec.CloneURL, branch, internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments))
 	if err != nil {
-		return nil, err
+		return batchv1.Job{}, err
 	}
 	buildContainers := createContainerImageBuildingContainers(appName, pipelineInfo, buildComponentImages, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
@@ -108,12 +114,11 @@ func buildContainerImageBuildingJob(ctx context.Context, rr *radixv1.RadixRegist
 
 	buildJobName := fmt.Sprintf("radix-builder-%s-%s-%s", timestamp, imageTag, hash)
 	log.Ctx(ctx).Debug().Msgf("build a job %s", buildJobName)
-	job := &batchv1.Job{
+	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: buildJobName,
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  pipelineJobName,
-				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s-%s", appName, imageTag, hash),
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
@@ -160,22 +165,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 			},
 		},
 		{
-			Name: defaults.AzureACRServicePrincipleSecretName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: defaults.AzureACRServicePrincipleSecretName,
-				},
-			},
-		},
-		{
-			Name: defaults.PrivateImageHubSecretName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: defaults.PrivateImageHubSecretName,
-				},
-			},
-		},
-		{
+			// An emptyDir volume for mounting a writable home directory for the build job
 			Name: RadixImageBuilderHomeVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
@@ -186,8 +176,8 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 	}
 
 	for _, container := range containers {
-		volumes = append(volumes, []corev1.Volume{
-			{
+		volumes = append(volumes,
+			corev1.Volume{
 				Name: getTmpVolumeNameForContainer(container.Name),
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{
@@ -195,7 +185,7 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 					},
 				},
 			},
-			{
+			corev1.Volume{
 				Name: getVarVolumeNameForContainer(container.Name),
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{
@@ -203,41 +193,59 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 					},
 				},
 			},
-		}...)
-	}
-
-	if len(buildSecrets) > 0 {
-		volumes = append(volumes,
-			corev1.Volume{
-				Name: defaults.BuildSecretsName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: defaults.BuildSecretsName,
-					},
-				},
-			})
+		)
 	}
 
 	if isUsingBuildKit {
 		volumes = append(volumes,
-			[]corev1.Volume{
-				{
-					Name: BuildKitRunVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{
-							SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
-						},
+			corev1.Volume{
+				Name: defaults.PrivateImageHubSecretName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: defaults.PrivateImageHubSecretName,
 					},
 				},
-				{
-					Name: BuildKitRootVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{
-							SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
-						},
+			},
+			corev1.Volume{
+				Name: BuildKitRunVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{
+						SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
 					},
 				},
-			}...)
+			},
+			corev1.Volume{
+				Name: BuildKitRootVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{
+						SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
+					},
+				},
+			},
+		)
+
+		if len(buildSecrets) > 0 {
+			volumes = append(volumes,
+				corev1.Volume{
+					Name: defaults.BuildSecretsName,
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: defaults.BuildSecretsName,
+						},
+					},
+				})
+		}
+	} else {
+		volumes = append(volumes,
+			corev1.Volume{
+				Name: defaults.AzureACRServicePrincipleSecretName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: defaults.AzureACRServicePrincipleSecretName,
+					},
+				},
+			},
+		)
 	}
 
 	return volumes
@@ -459,63 +467,67 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUs
 			Name:      git.BuildContextVolumeName,
 			MountPath: git.Workspace,
 		},
-		{
-			Name:      defaults.AzureACRServicePrincipleSecretName,
-			MountPath: azureServicePrincipleContext,
-			ReadOnly:  true,
-		},
 	}
 
 	if isUsingBuildKit {
-		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
-			{
+		volumeMounts = append(volumeMounts,
+			corev1.VolumeMount{
 				Name:      BuildKitRunVolumeName, // buildah creates folder container overlays and secrets there
 				MountPath: "/run",
 				ReadOnly:  false,
 			},
-			{
+			corev1.VolumeMount{
 				Name:      BuildKitRootVolumeName, // buildah home folder
 				MountPath: "/root",
 				ReadOnly:  false,
 			},
-			{
+			corev1.VolumeMount{
 				Name:      defaults.PrivateImageHubSecretName,
 				MountPath: privateImageHubMountPath,
 				ReadOnly:  true,
 			},
-			{
+			corev1.VolumeMount{
 				Name:      RadixImageBuilderHomeVolumeName, // the file /radix-private-image-hubs/.dockerconfigjson is copied to auth.json file in the user home folder
 				MountPath: "/home/build",
 				ReadOnly:  false,
 			},
-		}...)
+		)
+
+		if len(buildSecrets) > 0 {
+			volumeMounts = append(volumeMounts,
+				corev1.VolumeMount{
+					Name:      defaults.BuildSecretsName,
+					MountPath: buildSecretsMountPath,
+					ReadOnly:  true,
+				})
+		}
 	} else {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      RadixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
-			MountPath: "/home/radix-image-builder",
-			ReadOnly:  false,
-		})
+		volumeMounts = append(volumeMounts,
+			corev1.VolumeMount{
+				Name:      RadixImageBuilderHomeVolumeName, // .azure folder is created in the user home folder
+				MountPath: "/home/radix-image-builder",
+				ReadOnly:  false,
+			},
+			corev1.VolumeMount{
+				Name:      defaults.AzureACRServicePrincipleSecretName,
+				MountPath: azureServicePrincipleContext,
+				ReadOnly:  true,
+			},
+		)
 	}
-	volumeMounts = append(volumeMounts, []corev1.VolumeMount{
-		{
+	volumeMounts = append(volumeMounts,
+		corev1.VolumeMount{
 			Name:      getTmpVolumeNameForContainer(containerName), // image-builder creates a script there
 			MountPath: "/tmp",
 			ReadOnly:  false,
 		},
-		{
+		corev1.VolumeMount{
 			Name:      getVarVolumeNameForContainer(containerName), // image-builder creates files there
 			MountPath: "/var",
 			ReadOnly:  false,
 		},
-	}...)
-	if len(buildSecrets) > 0 {
-		volumeMounts = append(volumeMounts,
-			corev1.VolumeMount{
-				Name:      defaults.BuildSecretsName,
-				MountPath: buildSecretsMountPath,
-				ReadOnly:  true,
-			})
-	}
+	)
+
 	return volumeMounts
 }
 
