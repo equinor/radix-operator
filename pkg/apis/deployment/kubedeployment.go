@@ -128,7 +128,7 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointers.Ptr[int32](1),
-			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobAuxObject(jobName)},
+			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeAuxJobSleep)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
@@ -192,9 +192,8 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
-		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
-		radixlabels.ForIsJobAuxObject(),
+		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeAuxJobSleep),
 	)
 }
 
@@ -226,9 +225,7 @@ func getDeployComponentCommitId(deployComponent v1.RadixCommonDeployComponent) s
 func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
-		radixlabels.ForComponentName(deployComponent.GetName()),
-		radixlabels.ForComponentType(deployComponent.GetType()),
-		radixlabels.ForIsJobAuxObject(),
+		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeAuxJobSleep),
 	)
 }
 

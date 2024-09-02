@@ -777,28 +777,18 @@ func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service 
 }
 
 func getDeploymentsForRadixComponents(deployments []appsv1.Deployment) []appsv1.Deployment {
-	var result []appsv1.Deployment
-	for _, depl := range deployments {
-		if _, ok := depl.Labels[kube.RadixComponentLabel]; ok {
-			if _, ok := depl.Labels[kube.RadixPodIsJobAuxObjectLabel]; ok {
-				continue
-			}
-			result = append(result, depl)
-		}
-	}
-	return result
+
+	selector := radixlabels.IsComponentSelector()
+	return slice.FindAll(deployments, func(depl appsv1.Deployment) bool {
+		return selector.Matches(labels.Set(depl.GetLabels()))
+	})
 }
 
 func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Deployment {
-	var result []appsv1.Deployment
-	for _, depl := range deployments {
-		if _, ok := depl.Labels[kube.RadixComponentLabel]; ok {
-			if _, ok := depl.Labels[kube.RadixPodIsJobAuxObjectLabel]; ok {
-				result = append(result, depl)
-			}
-		}
-	}
-	return result
+	selector := radixlabels.IsJobAuxObjectSelector(kube.RadixJobTypeAuxJobSleep)
+	return slice.FindAll(deployments, func(depl appsv1.Deployment) bool {
+		return selector.Matches(labels.Set(depl.GetLabels()))
+	})
 }
 
 func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecificIngresses(t *testing.T) {
@@ -3852,7 +3842,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName).String()})
+	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeAuxJobSleep).String()})
 	require.Len(t, deploymentList.Items, 1)
 	deployment := deploymentList.Items[0]
 	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")

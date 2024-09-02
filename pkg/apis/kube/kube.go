@@ -54,7 +54,8 @@ const (
 	RadixCommitLabel                    = "radix-commit"
 	RadixImageTagLabel                  = "radix-image-tag"
 	RadixJobTypeLabel                   = "radix-job-type"
-	RadixJobTypeJob                     = "job" // Outer job
+	RadixJobTypeJob                     = "job"       // Outer job
+	RadixJobTypeAuxJobSleep             = "job-sleep" // Outer job
 	RadixJobTypeBuild                   = "build"
 	RadixJobTypeCloneConfig             = "clone-config"
 	RadixJobTypePreparePipelines        = "prepare-pipelines"
