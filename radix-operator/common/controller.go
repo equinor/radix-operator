@@ -40,7 +40,7 @@ func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	defer utilruntime.HandleCrash()
 
 	if c.LockKeyAndIdentifier == nil {
-		return errors.New("LockKeyandIdentifier must be set")
+		return errors.New("LockKeyAndIdentifier must be set")
 	}
 
 	// Start the informer factories to begin populating the informer caches
@@ -192,7 +192,7 @@ func (c *Controller) Enqueue(obj interface{}) (requeued bool, err error) {
 		return requeued, err
 	}
 
-	requeued = (c.WorkQueue.NumRequeues(key) > 0)
+	requeued = c.WorkQueue.NumRequeues(key) > 0
 	c.WorkQueue.AddRateLimited(key)
 	return requeued, nil
 }

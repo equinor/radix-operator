@@ -81,13 +81,13 @@ func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 	assert.NoError(t, err)
 
 	// check public key cm exists, and has key
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
 	assert.NotNil(t, publicKey)
 
 	// check secret exists, and has private key
-	secret, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
 	assert.NotNil(t, privateKey)
