@@ -78,7 +78,7 @@ func Test_GetEnvironmentVariables(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Len(t, envVars, 3)
-		envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+		envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, componentName)
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
 		assert.NotNil(t, envVarsConfigMap.Data)
@@ -111,7 +111,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, len(envVars) > 3)
-	envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+	envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, componentName)
 	assert.NoError(t, err)
 	assert.NotNil(t, envVarsConfigMap)
 	assert.NotNil(t, envVarsConfigMap.Data)
@@ -131,7 +131,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
-	namespace := utils.GetEnvironmentNamespace(appName, env)
+	namespace := utils.GetEnvironmentNamespace(appName, envName)
 	componentName := "any-component"
 	testEnv := setupTestEnv(t)
 	defer TeardownTest()
@@ -168,12 +168,12 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Len(t, envVars, 3)
-		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, componentName)
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
 		assert.NotNil(t, envVarsConfigMap.Data)
 		assert.Len(t, envVarsConfigMap.Data, 3)
-		assert.Equal(t, "new-val1", envVarsConfigMap.Data["VAR1"])
+		assert.Equal(t, "val1", envVarsConfigMap.Data["VAR1"])
 		assert.Equal(t, "val2", envVarsConfigMap.Data["VAR2"])
 		assert.Equal(t, "val3", envVarsConfigMap.Data["VAR3"])
 		assert.Equal(t, "", envVarsConfigMap.Data["OUTDATED_VAR1"])
@@ -293,7 +293,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Len(t, envVars, len(testCase.expectedEnvVars)+len(testCase.expectedSecrets)+len(testCase.expectedSecretRefsEnvVars))
-			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, componentName)
 			assert.NoError(t, err)
 			assert.NotNil(t, envVarsConfigMap)
 			assert.NotNil(t, envVarsConfigMapMetadata)
@@ -363,7 +363,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Len(t, envVars, len(testCase.expectedEnvVars)+len(testCase.expectedSecrets)+len(testCase.expectedSecretRefsEnvVars))
-			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, env), appName, jobName)
+			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, jobName)
 			assert.NoError(t, err)
 			assert.NotNil(t, envVarsConfigMap)
 			assert.NotNil(t, envVarsConfigMapMetadata)

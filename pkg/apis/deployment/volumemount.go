@@ -489,7 +489,7 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(ctx context.Context,
 
 	blobfusecredsSecret.Data = data
 
-	_, err := deploy.kubeutil.ApplySecret(ctx, namespace, &blobfusecredsSecret)
+	_, err := deploy.kubeutil.ApplySecret(ctx, namespace, &blobfusecredsSecret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	if err != nil {
 		return err
 	}
@@ -517,7 +517,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(ctx context.
 
 	secret.Data = data
 
-	_, err := deploy.kubeutil.ApplySecret(ctx, namespace, &secret)
+	_, err := deploy.kubeutil.ApplySecret(ctx, namespace, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
 	if err != nil {
 		return err
 	}

@@ -1191,6 +1191,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 }
 
 func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources() {
+	appName := "app"
 	namespace := "some-namespace"
 	environment := "some-env"
 	componentName1, componentNameLong := "component1", "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit"
@@ -1305,7 +1306,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			for _, azureKeyVault := range scenario.azureKeyVaults {
 				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
 				if err != nil {
-					t.Logf(err.Error())
+					t.Log(err.Error())
 				} else {
 					t.Logf("created secret provider class %s", spc.Name)
 				}
@@ -1353,7 +1354,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			for _, azureKeyVault := range scenario.azureKeyVaults {
 				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
 				if err != nil {
-					t.Logf(err.Error())
+					t.Log(err.Error())
 				} else {
 					t.Logf("created secret provider class %s", spc.Name)
 				}
@@ -1582,6 +1583,7 @@ func buildRd(appName string, environment string, componentName string, radixVolu
 }
 
 func createPvc(namespace, componentName string, mountType v1.MountType, modify func(*corev1.PersistentVolumeClaim)) corev1.PersistentVolumeClaim {
+	appName := "app"
 	pvc := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      utils.RandString(10), // Set in test scenario

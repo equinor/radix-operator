@@ -61,6 +61,10 @@ func (s *buildTestSuite) SetupTest() {
 }
 
 func (s *buildTestSuite) SetupSubTest() {
+	s.setupTest()
+}
+
+func (s *buildTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
@@ -75,7 +79,6 @@ func (s *buildTestSuite) Test_BranchIsNotMapped_ShouldSkip() {
 		anyJobName        = "any-job-name"
 		anyImageTag       = "anytag"
 		anyCommitID       = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
-		anyGitTags        = "some tags go here"
 		anyBranch         = "master"
 		anyEnvironment    = "dev"
 		anyComponentName  = "app"
@@ -1653,6 +1656,150 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 		{Name: "var-build-c1-dev", MountPath: "/var", ReadOnly: false},
 	}
 	s.ElementsMatch(job.Spec.Template.Spec.Containers[0].VolumeMounts, expectedVolumeMounts)
+}
+
+func (s *buildTestSuite) Test_BuildJobSpec_OverrideUseBuildCacheInBuildKit() {
+	appName, rjName, compName, sourceFolder, dockerFile, envName := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile", "dev"
+	prepareConfigMapName := "preparecm"
+	gitConfigMapName, gitHash, gitTags := "gitcm", "githash", "gittags"
+	type scenario struct {
+		name                     string
+		configUseBuildCache      *bool
+		jobOverrideUseBuildCache *bool
+		expectedUseBuildCache    bool
+	}
+	scenarios := []scenario{
+		{
+			name:                  "configured UseBuildCache true, not overridden",
+			configUseBuildCache:   pointers.Ptr(true),
+			expectedUseBuildCache: true,
+		},
+		{
+			name:                  "configured UseBuildCache false, not overridden",
+			configUseBuildCache:   pointers.Ptr(false),
+			expectedUseBuildCache: false,
+		},
+		{
+			name:                     "configured UseBuildCache true, overridden with false",
+			configUseBuildCache:      pointers.Ptr(true),
+			jobOverrideUseBuildCache: pointers.Ptr(false),
+			expectedUseBuildCache:    false,
+		},
+		{
+			name:                     "configured UseBuildCache false, overridden with true",
+			configUseBuildCache:      pointers.Ptr(false),
+			jobOverrideUseBuildCache: pointers.Ptr(true),
+			expectedUseBuildCache:    true,
+		},
+		{
+			name:                     "not configured UseBuildCache true, overridden with false",
+			jobOverrideUseBuildCache: pointers.Ptr(false),
+			expectedUseBuildCache:    false,
+		},
+		{
+			name:                     "not configured UseBuildCache false, overridden with true",
+			jobOverrideUseBuildCache: pointers.Ptr(true),
+			expectedUseBuildCache:    true,
+		},
+	}
+	for _, ts := range scenarios {
+		s.T().Run(ts.name, func(t *testing.T) {
+			s.setupTest()
+			rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).WithOverrideUseBuildCache(ts.jobOverrideUseBuildCache).BuildRJ()
+			_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+			ra := utils.NewRadixApplicationBuilder().
+				WithAppName(appName).
+				WithBuildKit(pointers.Ptr(true)).WithBuildCache(ts.configUseBuildCache).
+				WithEnvironment("dev", "main").
+				WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName).WithDockerfileName(dockerFile).WithSourceFolder(sourceFolder)).
+				BuildRA()
+			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil), "CreatePreparePipelineConfigMapResponse")
+			s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags), "CreateGitInfoConfigMapResponse")
+			pipeline := model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					PipelineType:          "build-deploy",
+					Branch:                "main",
+					JobName:               rjName,
+					BuildKitImageBuilder:  "anybuildkitimage:tag",
+					ImageTag:              "anyimagetag",
+					ContainerRegistry:     "anyregistry",
+					AppContainerRegistry:  "anyappregistry",
+					Clustertype:           "anyclustertype",
+					Clustername:           "anyclustername",
+					GitCloneNsLookupImage: "any",
+					GitCloneGitImage:      "any",
+					GitCloneBashImage:     "any",
+					Builder:               model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+					OverrideUseBuildCache: ts.jobOverrideUseBuildCache,
+				},
+				RadixConfigMapName: prepareConfigMapName,
+				GitConfigMapName:   gitConfigMapName,
+			}
+			jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
+			jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
+
+			applyStep := applyconfig.NewApplyConfigStep()
+			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+			buildStep := NewBuildStep(jobWaiter)
+			buildStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+			s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
+			s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
+			jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+			s.Require().Len(jobs.Items, 1)
+			job := jobs.Items[0]
+			s.Require().Len(job.Spec.Template.Spec.Containers, 1)
+			s.Equal(pipeline.PipelineArguments.BuildKitImageBuilder, job.Spec.Template.Spec.Containers[0].Image)
+			expectedCommandElements := []string{
+				"mkdir /var/tmp && cp /radix-private-image-hubs/.dockerconfigjson /home/build/auth.json && ",
+				fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s && ", pipeline.PipelineArguments.ContainerRegistry),
+			}
+			if ts.expectedUseBuildCache {
+				expectedCommandElements = append(expectedCommandElements, fmt.Sprintf("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s && ", pipeline.PipelineArguments.AppContainerRegistry))
+			}
+			expectedCommandElements = append(expectedCommandElements, []string{
+				"/usr/bin/buildah build --storage-driver=overlay --isolation=chroot --jobs 0 --ulimit nofile=4096:4096 ",
+				fmt.Sprintf("--file %s%s ", "/workspace/path2/", dockerFile),
+				"--build-arg RADIX_GIT_COMMIT_HASH=\"${RADIX_GIT_COMMIT_HASH}\" ",
+				"--build-arg RADIX_GIT_TAGS=\"${RADIX_GIT_TAGS}\" ",
+				"--build-arg BRANCH=\"${BRANCH}\" ",
+				"--build-arg TARGET_ENVIRONMENTS=\"${TARGET_ENVIRONMENTS}\" ",
+			}...)
+			if ts.expectedUseBuildCache {
+				expectedCommandElements = append(expectedCommandElements, "--layers ")
+				expectedCommandElements = append(expectedCommandElements, fmt.Sprintf("--cache-to=%s/%s/cache ", pipeline.PipelineArguments.AppContainerRegistry, appName))
+				expectedCommandElements = append(expectedCommandElements, fmt.Sprintf("--cache-from=%s/%s/cache ", pipeline.PipelineArguments.AppContainerRegistry, appName))
+			}
+			expectedCommandElements = append(expectedCommandElements, "/workspace/path2/")
+			expectedCommand := []string{"/bin/bash", "-c", strings.Join(expectedCommandElements, "")}
+			s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
+			expectedEnv := []corev1.EnvVar{
+				{Name: "DOCKER_FILE_NAME", Value: dockerFile},
+				{Name: "DOCKER_REGISTRY", Value: pipeline.PipelineArguments.ContainerRegistry},
+				{Name: "IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.ImageTag)},
+				{Name: "CONTEXT", Value: "/workspace/path2/"},
+				{Name: "PUSH", Value: ""},
+				{Name: "AZURE_CREDENTIALS", Value: "/radix-image-builder/.azure/sp_credentials.json"},
+				{Name: "SUBSCRIPTION_ID", Value: pipeline.PipelineArguments.SubscriptionId},
+				{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
+				{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
+				{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s-%s", appName, envName, compName)},
+				{Name: "CACHE", Value: "--no-cache"},
+				{Name: "RADIX_ZONE", Value: pipeline.PipelineArguments.RadixZone},
+				{Name: "BRANCH", Value: pipeline.PipelineArguments.Branch},
+				{Name: "TARGET_ENVIRONMENTS", Value: "dev"},
+				{Name: "RADIX_GIT_COMMIT_HASH", Value: gitHash},
+				{Name: "RADIX_GIT_TAGS", Value: gitTags},
+				{Name: "BUILDAH_USERNAME", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "username", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName}}}},
+				{Name: "BUILDAH_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "password", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName}}}},
+				{Name: "BUILDAH_CACHE_USERNAME", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "username", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName}}}},
+				{Name: "BUILDAH_CACHE_PASSWORD", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: "password", LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName}}}},
+				{Name: "REGISTRY_AUTH_FILE", Value: "/home/build/auth.json"},
+			}
+			s.ElementsMatch(expectedEnv, job.Spec.Template.Spec.Containers[0].Env)
+		})
+	}
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit_PushImage() {

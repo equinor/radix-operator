@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-common/utils"
@@ -43,6 +44,32 @@ func (kubeutil *Kube) ListSecretExistsForLabels(ctx context.Context, namespace s
 	return list.Items, nil
 }
 
+func (kubeutil *Kube) CreateSecret(ctx context.Context, namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
+	created, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	log.Ctx(ctx).Info().Msgf("Created secret %s/%s", created.Namespace, created.Name)
+	return created, err
+}
+
+// UpdateSecret updates the `modified` secret.
+// If `original` is set, the two secrets are compared, and the secret is only updated if they are not equal.
+func (kubeutil *Kube) UpdateSecret(ctx context.Context, original, modified *corev1.Secret) (*corev1.Secret, error) {
+	if original != nil && reflect.DeepEqual(original, modified) {
+		log.Ctx(ctx).Debug().Msgf("No need to update secret %s/%s", modified.Namespace, modified.Name)
+		return modified, nil
+	}
+
+	updated, err := kubeutil.kubeClient.CoreV1().Secrets(modified.Namespace).Update(ctx, modified, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	log.Ctx(ctx).Info().Msgf("Updated secret %s/%s", updated.Namespace, updated.Name)
+	return updated, err
+}
+
+// Deprecated: ApplySecret is not safe to use because it does not use the resourceVersion of the supplied secret when updating. Use UpdateSecret or CreateSecret instead.
 // ApplySecret Creates or updates secret to namespace
 func (kubeutil *Kube) ApplySecret(ctx context.Context, namespace string, secret *corev1.Secret) (savedSecret *corev1.Secret, err error) {
 	secretName := secret.GetName()

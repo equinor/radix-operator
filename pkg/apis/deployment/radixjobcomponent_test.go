@@ -698,6 +698,9 @@ func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 }
 
 func Test_GetRadixJobComponentAndEnv_Monitoring(t *testing.T) {
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -750,6 +753,9 @@ func Test_GetRadixJobComponentAndEnv_Monitoring(t *testing.T) {
 }
 
 func Test_GetRadixJobComponents_VolumeMounts(t *testing.T) {
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)
@@ -967,6 +973,8 @@ func Test_GetRadixJobComponents_VolumeMounts(t *testing.T) {
 }
 
 func Test_GetRadixJobComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
+	componentName := "comp"
+	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
 	envVarsMap := make(radixv1.EnvVarsMap)

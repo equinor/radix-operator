@@ -67,7 +67,7 @@ func (s *syncer) validatePayloadSecretReference(ctx context.Context, batchJob *r
 	if !radixlabels.GetRadixBatchDescendantsSelector(jobComponent.GetName()).Matches(labels.Set(payloadSecret.GetLabels())) {
 		return fmt.Errorf("secret %s, referenced in the job %s of the batch %s is not valid payload secret", batchJob.PayloadSecretRef.Name, batchJob.Name, s.radixBatch.GetName())
 	}
-	if payloadSecret.Data == nil || len(payloadSecret.Data) == 0 {
+	if len(payloadSecret.Data) == 0 {
 		return fmt.Errorf("payload secret %s, in the job %s of the batch %s is empty", batchJob.PayloadSecretRef.Name, batchJob.Name, s.radixBatch.GetName())
 	}
 	if _, ok := payloadSecret.Data[batchJob.PayloadSecretRef.Key]; !ok {
@@ -182,7 +182,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					Volumes:                      volumes,
 					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					RestartPolicy:                corev1.RestartPolicyNever,
-					ImagePullSecrets:             rd.Spec.ImagePullSecrets,
+					ImagePullSecrets:             s.getJobPodImagePullSecrets(rd),
 					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, jobComponent, node),
 					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node),
 					ActiveDeadlineSeconds:        timeLimitSeconds,
@@ -195,6 +195,14 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	}
 
 	return job, nil
+}
+
+func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1.LocalObjectReference {
+	imagePullSecrets := rd.Spec.ImagePullSecrets
+	if s.config != nil {
+		imagePullSecrets = append(imagePullSecrets, s.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...)
+	}
+	return imagePullSecrets
 }
 
 func (s *syncer) getVolumes(ctx context.Context, namespace, environment string, batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, radixDeploymentName string) ([]corev1.Volume, error) {

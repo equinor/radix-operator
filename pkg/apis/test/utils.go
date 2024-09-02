@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
@@ -69,7 +70,7 @@ func (tu *Utils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder
 
 	_, err := tu.radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
+		if kubeerrors.IsAlreadyExists(err) {
 			return tu.ApplyRegistrationUpdate(registrationBuilder)
 		}
 		return rr, err
@@ -109,7 +110,7 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 	appNamespace := CreateAppNamespace(tu.client, ra.GetName())
 	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.Background(), ra, metav1.CreateOptions{})
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
+		if kubeerrors.IsAlreadyExists(err) {
 			return tu.ApplyApplicationUpdate(applicationBuilder)
 		}
 
@@ -148,7 +149,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 	} else {
 		rr, err = tu.radixclient.RadixV1().RadixRegistrations().Get(context.Background(), ra.GetName(), metav1.GetOptions{})
 	}
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kubeerrors.IsNotFound(err) {
 		return ra, err
 	}
 
@@ -183,8 +184,6 @@ func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.De
 	}
 
 	envNamespace := rd.Namespace
-
-	tu.applyRadixDeploymentEnvVarsConfigMaps(ctx, rd)
 	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
@@ -257,7 +256,7 @@ func (tu *Utils) ApplyEnvironment(environmentBuilder utils.EnvironmentBuilder) (
 
 	newRe, err := tu.radixclient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
+		if kubeerrors.IsAlreadyExists(err) {
 			return tu.ApplyEnvironmentUpdate(environmentBuilder)
 		}
 		return nil, err
@@ -306,7 +305,8 @@ func SetRequiredEnvironmentVariables() {
 func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) error {
 	SetRequiredEnvironmentVariables()
 
-	if _, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+	var errs []error
+	_, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.Secret{
 			Type: "Opaque",
@@ -318,11 +318,10 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 				"known_hosts": []byte("abcd"),
 			},
 		},
-		metav1.CreateOptions{}); err != nil {
-		return err
-	}
+		metav1.CreateOptions{})
+	errs = append(errs, err)
 
-	_, err := tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+	_, err = tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -336,7 +335,51 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 			},
 		},
 		metav1.CreateOptions{})
-	return err
+	errs = append(errs, err)
+
+	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+		context.Background(),
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.AzureACRServicePrincipleSecretName,
+				Namespace: corev1.NamespaceDefault,
+			},
+			StringData: map[string]string{
+				"sp_credentials.json": "{}",
+			},
+		},
+		metav1.CreateOptions{})
+	errs = append(errs, err)
+
+	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+		context.Background(),
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.AzureACRServicePrincipleBuildahSecretName,
+				Namespace: corev1.NamespaceDefault,
+			},
+			StringData: map[string]string{
+				"sp_credentials.json": "{}",
+			},
+		},
+		metav1.CreateOptions{})
+	errs = append(errs, err)
+
+	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+		context.Background(),
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.AzureACRTokenPasswordAppRegistrySecretName,
+				Namespace: corev1.NamespaceDefault,
+			},
+			StringData: map[string]string{
+				"sp_credentials.json": "{}",
+			},
+		},
+		metav1.CreateOptions{})
+	errs = append(errs, err)
+
+	return errors.Join(errs...)
 }
 
 // CreateAppNamespace Helper method to creat app namespace
@@ -371,30 +414,6 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 // IntPtr Helper function to get the pointer of an int
 func IntPtr(i int) *int {
 	return &i
-}
-
-func (tu *Utils) applyRadixDeploymentEnvVarsConfigMaps(ctx context.Context, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
-	envVarConfigMapsMap := map[string]*corev1.ConfigMap{}
-	for _, deployComponent := range rd.Spec.Components {
-		envVarConfigMapsMap[deployComponent.GetName()] = tu.ensurePopulatedEnvVarsConfigMaps(ctx, rd, &deployComponent)
-	}
-	for _, deployJoyComponent := range rd.Spec.Jobs {
-		envVarConfigMapsMap[deployJoyComponent.GetName()] = tu.ensurePopulatedEnvVarsConfigMaps(ctx, rd, &deployJoyComponent)
-	}
-	return envVarConfigMapsMap
-}
-
-func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(ctx context.Context, rd *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent) *corev1.ConfigMap {
-	initialEnvVarsConfigMap, _, _ := tu.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, rd.GetNamespace(), rd.Spec.AppName, deployComponent.GetName())
-	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
-	for envVarName, envVarValue := range deployComponent.GetEnvironmentVariables() {
-		if utils.IsRadixEnvVar(envVarName) {
-			continue
-		}
-		desiredConfigMap.Data[envVarName] = envVarValue
-	}
-	_ = tu.kubeUtil.ApplyConfigMap(ctx, rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
-	return desiredConfigMap
 }
 
 // GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType

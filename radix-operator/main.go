@@ -98,7 +98,7 @@ func main() {
 
 	err = app.Run(ctx)
 	if err != nil {
-		log.Fatal().Msgf(err.Error())
+		log.Fatal().Msg(err.Error())
 	}
 
 	log.Ctx(ctx).Info().Msg("Finished.")
@@ -350,6 +350,7 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.config,
 	)
 
 	return batch.NewController(ctx,

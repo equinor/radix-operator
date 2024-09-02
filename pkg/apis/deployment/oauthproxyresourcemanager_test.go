@@ -55,7 +55,6 @@ func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
 
 func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
-	s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
@@ -143,12 +142,12 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
+	appName := "anyapp"
 	type scenarioDef struct{ rd *v1.RadixDeployment }
 	scenarios := []scenarioDef{
 		{rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName("nooauth").WithPublicPort("http")).BuildRD()},
 		{rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName("nooauth").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}})).BuildRD()},
 	}
-	appName := "anyapp"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 
 	for _, scenario := range scenarios {

@@ -51,6 +51,9 @@ spec:
           spec:
             description: RadixBatchSpec is the specification of batch jobs.
             properties:
+              batchId:
+                description: Defines a user defined ID of the batch.
+                type: string
               jobs:
                 description: List of batch jobs to run.
                 items:

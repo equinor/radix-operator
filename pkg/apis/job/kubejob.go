@@ -45,11 +45,7 @@ func (job *Job) createPipelineJob(ctx context.Context) error {
 	}
 
 	_, err = job.kubeclient.BatchV1().Jobs(namespace).Create(ctx, jobConfig, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) {
@@ -203,6 +199,9 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
+		if jobSpec.Build.OverrideUseBuildCache != nil {
+			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixOverrideUseBuildCacheVariable, *jobSpec.Build.OverrideUseBuildCache))
+		}
 	case radixv1.Promote:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))

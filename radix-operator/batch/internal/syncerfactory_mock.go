@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	batch "github.com/equinor/radix-operator/pkg/apis/batch"
+	config "github.com/equinor/radix-operator/pkg/apis/config"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -39,15 +40,15 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, radixBatch *v1.RadixBatch) batch.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, radixBatch *v1.RadixBatch, config *config.Config) batch.Syncer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateSyncer", kubeclient, kubeutil, radixclient, radixBatch)
+	ret := m.ctrl.Call(m, "CreateSyncer", kubeclient, kubeutil, radixclient, radixBatch, config)
 	ret0, _ := ret[0].(batch.Syncer)
 	return ret0
 }
 
 // CreateSyncer indicates an expected call of CreateSyncer.
-func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeclient, kubeutil, radixclient, radixBatch interface{}) *gomock.Call {
+func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeclient, kubeutil, radixclient, radixBatch, config interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), kubeclient, kubeutil, radixclient, radixBatch)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), kubeclient, kubeutil, radixclient, radixBatch, config)
 }

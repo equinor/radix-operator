@@ -313,6 +313,9 @@ func getContainerCommand(pipelineInfo *model.PipelineInfo, containerRegistry str
 	}
 	cacheImagePath := utils.GetImageCachePath(pipelineInfo.PipelineArguments.AppContainerRegistry, pipelineInfo.RadixApplication.Name)
 	useBuildCache := pipelineInfo.RadixApplication.Spec.Build.UseBuildCache == nil || *pipelineInfo.RadixApplication.Spec.Build.UseBuildCache
+	if pipelineInfo.PipelineArguments.OverrideUseBuildCache != nil {
+		useBuildCache = *pipelineInfo.PipelineArguments.OverrideUseBuildCache
+	}
 	cacheContainerRegistry := pipelineInfo.PipelineArguments.AppContainerRegistry // Store application cache in the App Registry
 	return getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage, clusterTypeImage, clusterNameImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pipelineInfo.PipelineArguments.PushImage)
 }
@@ -540,7 +543,7 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString string,
 		AddArgf("--isolation=chroot").
 		AddArgf("--jobs 0").
 		AddArgf("--ulimit nofile=4096:4096").
-		AddArgf(secretArgsString).
+		AddArg(secretArgsString).
 		AddArgf("--file %s%s", context, componentImage.Dockerfile).
 		AddArgf(`--build-arg RADIX_GIT_COMMIT_HASH="${RADIX_GIT_COMMIT_HASH}"`).
 		AddArgf(`--build-arg RADIX_GIT_TAGS="${RADIX_GIT_TAGS}"`).
@@ -562,7 +565,7 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString string,
 			AddArgf("--tag %s", clusterNameImageTag)
 	}
 
-	buildah.AddArgf(context)
+	buildah.AddArg(context)
 
 	if pushImage {
 		commandList.
