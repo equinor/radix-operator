@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 )
 
 type mockResourceLocker struct {
@@ -58,16 +57,6 @@ func TestCommonControllerTestSuite(t *testing.T) {
 	suite.Run(t, new(commonControllerTestSuite))
 }
 
-func newTestRateLimitedWorkQueue(ctx context.Context, name string) workqueue.TypedRateLimitingInterface[string] {
-	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
-	go func() {
-		<-ctx.Done()
-		queue.ShutDown()
-	}()
-
-	return queue
-}
-
 func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
@@ -82,7 +71,7 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 			parts := strings.Split(identifier, "/")
 			return parts[0], identifier, nil
 		},
-		WorkQueue:            newTestRateLimitedWorkQueue(context.Background(), "test"),
+		WorkQueue:            queue,
 		locker:               locker,
 		KubeInformerFactory:  s.KubeInformerFactory,
 		RadixInformerFactory: s.RadixInformerFactory,
