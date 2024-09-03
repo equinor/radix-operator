@@ -66,7 +66,10 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 	selector := labels.Set(desiredJobAuxDeployment.Spec.Selector.MatchLabels).AsSelector()
 	if currentJobAuxDeployment != nil && !selector.Matches(labels.Set(currentJobAuxDeployment.Spec.Template.Labels)) {
 		log.Ctx(ctx).Info().Msgf("Deleting outdated deployment (label selector does not match) %s", currentJobAuxDeployment.GetName())
-		deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment.Name)
+		err = deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment.Name)
+		if err != nil {
+			return err
+		}
 
 		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
 		if err != nil {
