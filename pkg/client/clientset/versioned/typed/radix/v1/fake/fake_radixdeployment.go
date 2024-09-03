@@ -48,22 +48,24 @@ var radixdeploymentsKind = v1.SchemeGroupVersion.WithKind("RadixDeployment")
 
 // Get takes name of the radixDeployment, and returns the corresponding radixDeployment object, and an error if there is any.
 func (c *FakeRadixDeployments) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixDeployment, err error) {
+	emptyResult := &v1.RadixDeployment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(radixdeploymentsResource, c.ns, name), &v1.RadixDeployment{})
+		Invokes(testing.NewGetActionWithOptions(radixdeploymentsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixDeployment), err
 }
 
 // List takes label and field selectors, and returns the list of RadixDeployments that match those selectors.
 func (c *FakeRadixDeployments) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixDeploymentList, err error) {
+	emptyResult := &v1.RadixDeploymentList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(radixdeploymentsResource, radixdeploymentsKind, c.ns, opts), &v1.RadixDeploymentList{})
+		Invokes(testing.NewListActionWithOptions(radixdeploymentsResource, radixdeploymentsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -82,40 +84,43 @@ func (c *FakeRadixDeployments) List(ctx context.Context, opts metav1.ListOptions
 // Watch returns a watch.Interface that watches the requested radixDeployments.
 func (c *FakeRadixDeployments) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(radixdeploymentsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(radixdeploymentsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a radixDeployment and creates it.  Returns the server's representation of the radixDeployment, and an error, if there is any.
 func (c *FakeRadixDeployments) Create(ctx context.Context, radixDeployment *v1.RadixDeployment, opts metav1.CreateOptions) (result *v1.RadixDeployment, err error) {
+	emptyResult := &v1.RadixDeployment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(radixdeploymentsResource, c.ns, radixDeployment), &v1.RadixDeployment{})
+		Invokes(testing.NewCreateActionWithOptions(radixdeploymentsResource, c.ns, radixDeployment, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixDeployment), err
 }
 
 // Update takes the representation of a radixDeployment and updates it. Returns the server's representation of the radixDeployment, and an error, if there is any.
 func (c *FakeRadixDeployments) Update(ctx context.Context, radixDeployment *v1.RadixDeployment, opts metav1.UpdateOptions) (result *v1.RadixDeployment, err error) {
+	emptyResult := &v1.RadixDeployment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(radixdeploymentsResource, c.ns, radixDeployment), &v1.RadixDeployment{})
+		Invokes(testing.NewUpdateActionWithOptions(radixdeploymentsResource, c.ns, radixDeployment, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixDeployment), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixDeployments) UpdateStatus(ctx context.Context, radixDeployment *v1.RadixDeployment, opts metav1.UpdateOptions) (*v1.RadixDeployment, error) {
+func (c *FakeRadixDeployments) UpdateStatus(ctx context.Context, radixDeployment *v1.RadixDeployment, opts metav1.UpdateOptions) (result *v1.RadixDeployment, err error) {
+	emptyResult := &v1.RadixDeployment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(radixdeploymentsResource, "status", c.ns, radixDeployment), &v1.RadixDeployment{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(radixdeploymentsResource, "status", c.ns, radixDeployment, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixDeployment), err
 }
@@ -130,7 +135,7 @@ func (c *FakeRadixDeployments) Delete(ctx context.Context, name string, opts met
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeRadixDeployments) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(radixdeploymentsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(radixdeploymentsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.RadixDeploymentList{})
 	return err
@@ -138,11 +143,12 @@ func (c *FakeRadixDeployments) DeleteCollection(ctx context.Context, opts metav1
 
 // Patch applies the patch and returns the patched radixDeployment.
 func (c *FakeRadixDeployments) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixDeployment, err error) {
+	emptyResult := &v1.RadixDeployment{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(radixdeploymentsResource, c.ns, name, pt, data, subresources...), &v1.RadixDeployment{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(radixdeploymentsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixDeployment), err
 }

@@ -48,22 +48,24 @@ var radixbatchesKind = v1.SchemeGroupVersion.WithKind("RadixBatch")
 
 // Get takes name of the radixBatch, and returns the corresponding radixBatch object, and an error if there is any.
 func (c *FakeRadixBatches) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixBatch, err error) {
+	emptyResult := &v1.RadixBatch{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(radixbatchesResource, c.ns, name), &v1.RadixBatch{})
+		Invokes(testing.NewGetActionWithOptions(radixbatchesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixBatch), err
 }
 
 // List takes label and field selectors, and returns the list of RadixBatches that match those selectors.
 func (c *FakeRadixBatches) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixBatchList, err error) {
+	emptyResult := &v1.RadixBatchList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(radixbatchesResource, radixbatchesKind, c.ns, opts), &v1.RadixBatchList{})
+		Invokes(testing.NewListActionWithOptions(radixbatchesResource, radixbatchesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -82,40 +84,43 @@ func (c *FakeRadixBatches) List(ctx context.Context, opts metav1.ListOptions) (r
 // Watch returns a watch.Interface that watches the requested radixBatches.
 func (c *FakeRadixBatches) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(radixbatchesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(radixbatchesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a radixBatch and creates it.  Returns the server's representation of the radixBatch, and an error, if there is any.
 func (c *FakeRadixBatches) Create(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.CreateOptions) (result *v1.RadixBatch, err error) {
+	emptyResult := &v1.RadixBatch{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(radixbatchesResource, c.ns, radixBatch), &v1.RadixBatch{})
+		Invokes(testing.NewCreateActionWithOptions(radixbatchesResource, c.ns, radixBatch, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixBatch), err
 }
 
 // Update takes the representation of a radixBatch and updates it. Returns the server's representation of the radixBatch, and an error, if there is any.
 func (c *FakeRadixBatches) Update(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (result *v1.RadixBatch, err error) {
+	emptyResult := &v1.RadixBatch{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(radixbatchesResource, c.ns, radixBatch), &v1.RadixBatch{})
+		Invokes(testing.NewUpdateActionWithOptions(radixbatchesResource, c.ns, radixBatch, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixBatch), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixBatches) UpdateStatus(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (*v1.RadixBatch, error) {
+func (c *FakeRadixBatches) UpdateStatus(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (result *v1.RadixBatch, err error) {
+	emptyResult := &v1.RadixBatch{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(radixbatchesResource, "status", c.ns, radixBatch), &v1.RadixBatch{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(radixbatchesResource, "status", c.ns, radixBatch, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixBatch), err
 }
@@ -130,7 +135,7 @@ func (c *FakeRadixBatches) Delete(ctx context.Context, name string, opts metav1.
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeRadixBatches) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(radixbatchesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(radixbatchesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.RadixBatchList{})
 	return err
@@ -138,11 +143,12 @@ func (c *FakeRadixBatches) DeleteCollection(ctx context.Context, opts metav1.Del
 
 // Patch applies the patch and returns the patched radixBatch.
 func (c *FakeRadixBatches) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixBatch, err error) {
+	emptyResult := &v1.RadixBatch{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(radixbatchesResource, c.ns, name, pt, data, subresources...), &v1.RadixBatch{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(radixbatchesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixBatch), err
 }

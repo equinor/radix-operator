@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -36,35 +35,20 @@ func (r *defaultResourceLocker) ReleaseLock(key string) {
 }
 
 // LockKeyAndIdentifierFunc is a function which is either NamespacePartitionKey or NamePartitionKey
-type LockKeyAndIdentifierFunc func(obj interface{}) (lockKey string, identifier string, err error)
-
-func getStringFromObj(obj interface{}) (string, error) {
-	var key string
-	var ok bool
-	if key, ok = obj.(string); !ok {
-		return "", fmt.Errorf("expected string in workqueue but got %#v", obj)
-	}
-	return key, nil
-}
+type LockKeyAndIdentifierFunc func(obj string) (lockKey string, identifier string, err error)
 
 // NamespacePartitionKey returns a string which serves as a "locking key" for parallel processing of RadixApplications,
 // RadixAlerts, RadixDeployments and RadixJobs
-func NamespacePartitionKey(obj interface{}) (lockKey string, identifier string, err error) {
-	identifier, err = getStringFromObj(obj)
-	if err != nil {
-		return
-	}
+func NamespacePartitionKey(obj string) (lockKey string, identifier string, err error) {
+	identifier = obj
 	lockKey, _, err = cache.SplitMetaNamespaceKey(identifier)
 	return
 }
 
 // NamePartitionKey returns a string which serves as a "locking key" for parallel processing of RadixEnvironments and
 // RadixRegistrations
-func NamePartitionKey(obj interface{}) (lockKey string, identifier string, err error) {
-	identifier, err = getStringFromObj(obj)
-	if err != nil {
-		return
-	}
+func NamePartitionKey(obj string) (lockKey string, identifier string, err error) {
+	identifier = obj
 	_, lockKey, err = cache.SplitMetaNamespaceKey(identifier)
 	return
 }
@@ -85,8 +69,8 @@ func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterf
 	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 }
 
-func NewRateLimitedWorkQueue(ctx context.Context, name string) workqueue.RateLimitingInterface {
-	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: name})
+func NewRateLimitedWorkQueue(ctx context.Context, name string) workqueue.TypedRateLimitingInterface[string] {
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[string](), workqueue.TypedRateLimitingQueueConfig[string]{Name: name})
 	go func() {
 		<-ctx.Done()
 		queue.ShutDown()
