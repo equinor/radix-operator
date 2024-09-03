@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/pkg/apis/batch"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/batch/internal"
@@ -45,18 +46,21 @@ type handler struct {
 	radixclient   radixclient.Interface
 	kubeutil      *kube.Kube
 	syncerFactory internal.SyncerFactory
+	config        *config.Config
 }
 
 func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
+	config *config.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	h := &handler{
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
+		config:      config,
 	}
 
 	configureDefaultSyncerFactory(h)
@@ -82,7 +86,7 @@ func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	}
 	ctx = log.Ctx(ctx).With().Str("app_name", radixBatch.Labels[kube.RadixAppLabel]).Logger().WithContext(ctx)
 	syncBatch := radixBatch.DeepCopy()
-	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncBatch)
+	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncBatch, h.config)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		eventRecorder.Event(syncBatch, corev1.EventTypeWarning, SyncFailed, err.Error())

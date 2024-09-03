@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -21,12 +22,13 @@ type Syncer interface {
 }
 
 // NewSyncer Constructor os RadixBatches Syncer
-func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixBatch *radixv1.RadixBatch) Syncer {
+func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixBatch *radixv1.RadixBatch, config *config.Config) Syncer {
 	return &syncer{
 		kubeClient:  kubeclient,
 		kubeUtil:    kubeUtil,
 		radixClient: radixClient,
 		radixBatch:  radixBatch,
+		config:      config,
 	}
 }
 
@@ -35,6 +37,7 @@ type syncer struct {
 	kubeUtil    *kube.Kube
 	radixClient radixclient.Interface
 	radixBatch  *radixv1.RadixBatch
+	config      *config.Config
 }
 
 // OnSync Syncs RadixBatches

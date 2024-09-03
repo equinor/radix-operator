@@ -216,11 +216,12 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t
 	rdNameDev := rds.Items[0].Name
 
 	t.Run("validate deployment exist in only the namespace of the modified branch", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.Background(), rdNameDev, metav1.GetOptions{})
+		rdDev, err := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.Background(), rdNameDev, metav1.GetOptions{})
+		assert.NoError(t, err)
 		assert.NotNil(t, rdDev)
 
-		rdProd, _ := radixclient.RadixV1().RadixDeployments("any-app-prod").Get(context.Background(), rdNameDev, metav1.GetOptions{})
-		assert.Nil(t, rdProd)
+		_, err = radixclient.RadixV1().RadixDeployments("any-app-prod").Get(context.Background(), rdNameDev, metav1.GetOptions{})
+		assert.Error(t, err)
 	})
 
 	t.Run("validate deployment environment variables", func(t *testing.T) {

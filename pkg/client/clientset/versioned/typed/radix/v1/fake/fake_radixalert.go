@@ -48,22 +48,24 @@ var radixalertsKind = v1.SchemeGroupVersion.WithKind("RadixAlert")
 
 // Get takes name of the radixAlert, and returns the corresponding radixAlert object, and an error if there is any.
 func (c *FakeRadixAlerts) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixAlert, err error) {
+	emptyResult := &v1.RadixAlert{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(radixalertsResource, c.ns, name), &v1.RadixAlert{})
+		Invokes(testing.NewGetActionWithOptions(radixalertsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixAlert), err
 }
 
 // List takes label and field selectors, and returns the list of RadixAlerts that match those selectors.
 func (c *FakeRadixAlerts) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixAlertList, err error) {
+	emptyResult := &v1.RadixAlertList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(radixalertsResource, radixalertsKind, c.ns, opts), &v1.RadixAlertList{})
+		Invokes(testing.NewListActionWithOptions(radixalertsResource, radixalertsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -82,40 +84,43 @@ func (c *FakeRadixAlerts) List(ctx context.Context, opts metav1.ListOptions) (re
 // Watch returns a watch.Interface that watches the requested radixAlerts.
 func (c *FakeRadixAlerts) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(radixalertsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(radixalertsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a radixAlert and creates it.  Returns the server's representation of the radixAlert, and an error, if there is any.
 func (c *FakeRadixAlerts) Create(ctx context.Context, radixAlert *v1.RadixAlert, opts metav1.CreateOptions) (result *v1.RadixAlert, err error) {
+	emptyResult := &v1.RadixAlert{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(radixalertsResource, c.ns, radixAlert), &v1.RadixAlert{})
+		Invokes(testing.NewCreateActionWithOptions(radixalertsResource, c.ns, radixAlert, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixAlert), err
 }
 
 // Update takes the representation of a radixAlert and updates it. Returns the server's representation of the radixAlert, and an error, if there is any.
 func (c *FakeRadixAlerts) Update(ctx context.Context, radixAlert *v1.RadixAlert, opts metav1.UpdateOptions) (result *v1.RadixAlert, err error) {
+	emptyResult := &v1.RadixAlert{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(radixalertsResource, c.ns, radixAlert), &v1.RadixAlert{})
+		Invokes(testing.NewUpdateActionWithOptions(radixalertsResource, c.ns, radixAlert, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixAlert), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixAlerts) UpdateStatus(ctx context.Context, radixAlert *v1.RadixAlert, opts metav1.UpdateOptions) (*v1.RadixAlert, error) {
+func (c *FakeRadixAlerts) UpdateStatus(ctx context.Context, radixAlert *v1.RadixAlert, opts metav1.UpdateOptions) (result *v1.RadixAlert, err error) {
+	emptyResult := &v1.RadixAlert{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(radixalertsResource, "status", c.ns, radixAlert), &v1.RadixAlert{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(radixalertsResource, "status", c.ns, radixAlert, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixAlert), err
 }
@@ -130,7 +135,7 @@ func (c *FakeRadixAlerts) Delete(ctx context.Context, name string, opts metav1.D
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeRadixAlerts) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(radixalertsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(radixalertsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.RadixAlertList{})
 	return err
@@ -138,11 +143,12 @@ func (c *FakeRadixAlerts) DeleteCollection(ctx context.Context, opts metav1.Dele
 
 // Patch applies the patch and returns the patched radixAlert.
 func (c *FakeRadixAlerts) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixAlert, err error) {
+	emptyResult := &v1.RadixAlert{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(radixalertsResource, c.ns, name, pt, data, subresources...), &v1.RadixAlert{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(radixalertsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixAlert), err
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/batch"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -56,8 +57,8 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixScheduleJobNotFound() {
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, WithSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, &config.Config{}, WithSyncerFactory(s.syncerFactory))
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
 	err := sut.Sync(context.Background(), "any-ns", "any-job", s.eventRecorder)
 	s.Nil(err)
@@ -68,9 +69,10 @@ func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerError() {
 	job := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: jobName}}
 	job, _ = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 	expectedError := fmt.Errorf("error")
+	cfg := &config.Config{}
 
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, WithSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateSyncer(s.kubeClient, s.kubeUtil, s.radixClient, job).Return(s.syncer).Times(1)
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, cfg, WithSyncerFactory(s.syncerFactory))
+	s.syncerFactory.EXPECT().CreateSyncer(s.kubeClient, s.kubeUtil, s.radixClient, job, cfg).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 	actualError := sut.Sync(context.Background(), namespace, jobName, s.eventRecorder)
 	s.Equal(expectedError, actualError)
@@ -80,9 +82,10 @@ func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerNoError() {
 	jobName, namespace := "any-job", "ns"
 	job := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: jobName}}
 	job, _ = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
+	cfg := &config.Config{}
 
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, WithSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateSyncer(s.kubeClient, s.kubeUtil, s.radixClient, job).Return(s.syncer).Times(1)
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, cfg, WithSyncerFactory(s.syncerFactory))
+	s.syncerFactory.EXPECT().CreateSyncer(s.kubeClient, s.kubeUtil, s.radixClient, job, cfg).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 	err := sut.Sync(context.Background(), namespace, jobName, s.eventRecorder)
 	s.Nil(err)

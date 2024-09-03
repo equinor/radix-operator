@@ -27,8 +27,8 @@ package v1
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -45,25 +45,17 @@ type RadixJobLister interface {
 
 // radixJobLister implements the RadixJobLister interface.
 type radixJobLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1.RadixJob]
 }
 
 // NewRadixJobLister returns a new RadixJobLister.
 func NewRadixJobLister(indexer cache.Indexer) RadixJobLister {
-	return &radixJobLister{indexer: indexer}
-}
-
-// List lists all RadixJobs in the indexer.
-func (s *radixJobLister) List(selector labels.Selector) (ret []*v1.RadixJob, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixJob))
-	})
-	return ret, err
+	return &radixJobLister{listers.New[*v1.RadixJob](indexer, v1.Resource("radixjob"))}
 }
 
 // RadixJobs returns an object that can list and get RadixJobs.
 func (s *radixJobLister) RadixJobs(namespace string) RadixJobNamespaceLister {
-	return radixJobNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return radixJobNamespaceLister{listers.NewNamespaced[*v1.RadixJob](s.ResourceIndexer, namespace)}
 }
 
 // RadixJobNamespaceLister helps list and get RadixJobs.
@@ -81,26 +73,5 @@ type RadixJobNamespaceLister interface {
 // radixJobNamespaceLister implements the RadixJobNamespaceLister
 // interface.
 type radixJobNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all RadixJobs in the indexer for a given namespace.
-func (s radixJobNamespaceLister) List(selector labels.Selector) (ret []*v1.RadixJob, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixJob))
-	})
-	return ret, err
-}
-
-// Get retrieves the RadixJob from the indexer for a given namespace and name.
-func (s radixJobNamespaceLister) Get(name string) (*v1.RadixJob, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("radixjob"), name)
-	}
-	return obj.(*v1.RadixJob), nil
+	listers.ResourceIndexer[*v1.RadixJob]
 }

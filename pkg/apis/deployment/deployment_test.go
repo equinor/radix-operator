@@ -19,6 +19,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
+	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -4462,6 +4463,66 @@ func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {
 	assert.Equal(t, "app3.example.com", certs.Items[0].Name)
 	secrets, _ = kubeclient.CoreV1().Secrets(ns).List(context.Background(), metav1.ListOptions{})
 	require.ElementsMatch(t, []string{"app1.example.com", "app3.example.com"}, getSecretNames(secrets))
+}
+
+func Test_Deployment_ImagePullSecrets(t *testing.T) {
+	tests := map[string]struct {
+		rdImagePullSecrets        []corev1.LocalObjectReference
+		defaultRegistryAuthSecret string
+		expectedImagePullSecrets  []corev1.LocalObjectReference
+	}{
+		"none defined => empty": {
+			rdImagePullSecrets:        nil,
+			defaultRegistryAuthSecret: "",
+			expectedImagePullSecrets:  nil,
+		},
+		"rd defined": {
+			rdImagePullSecrets:        []corev1.LocalObjectReference{{Name: "secret1"}, {Name: "secret2"}},
+			defaultRegistryAuthSecret: "",
+			expectedImagePullSecrets:  []corev1.LocalObjectReference{{Name: "secret1"}, {Name: "secret2"}},
+		},
+		"default defined": {
+			rdImagePullSecrets:        nil,
+			defaultRegistryAuthSecret: "default-auth",
+			expectedImagePullSecrets:  []corev1.LocalObjectReference{{Name: "default-auth"}},
+		},
+		"both defined": {
+			rdImagePullSecrets:        []corev1.LocalObjectReference{{Name: "secret1"}, {Name: "secret2"}},
+			defaultRegistryAuthSecret: "default-auth",
+			expectedImagePullSecrets:  []corev1.LocalObjectReference{{Name: "secret1"}, {Name: "secret2"}, {Name: "default-auth"}},
+		},
+	}
+
+	for testName, test := range tests {
+		t.Run(testName, func(t *testing.T) {
+			_, kubeclient, kubeUtil, radixclient, _, promClient, _, certClient := SetupTest(t)
+			defer TeardownTest()
+
+			rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+			rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithImagePullSecrets(test.rdImagePullSecrets).
+				WithComponents(utils.NewDeployComponentBuilder().WithName("comp")).
+				WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job")).
+				BuildRD()
+			_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			require.NoError(t, err)
+			_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
+			require.NoError(t, err)
+
+			cfg := &config.Config{
+				ContainerRegistryConfig: containerregistry.Config{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret},
+			}
+
+			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, nil, cfg)
+			err = syncer.OnSync(context.Background())
+			require.NoError(t, err)
+			compDeployment, err := kubeclient.AppsV1().Deployments("app-dev").Get(context.Background(), "comp", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.ElementsMatch(t, test.expectedImagePullSecrets, compDeployment.Spec.Template.Spec.ImagePullSecrets, "comp deployment")
+			jobDeployment, err := kubeclient.AppsV1().Deployments("app-dev").Get(context.Background(), "job", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.ElementsMatch(t, test.expectedImagePullSecrets, jobDeployment.Spec.Template.Spec.ImagePullSecrets, "job component")
+		})
+	}
 }
 
 func parseQuantity(value string) resource.Quantity {
