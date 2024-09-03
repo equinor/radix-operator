@@ -603,6 +603,7 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, de
 		return nil, nil, err
 	}
 	desiredJobAuxDeployment.ObjectMeta.Labels = deploy.getJobAuxDeploymentLabels(deployComponent)
+	desiredJobAuxDeployment.Spec.Selector.MatchLabels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
 	desiredJobAuxDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForJobAPIAuxComponent()

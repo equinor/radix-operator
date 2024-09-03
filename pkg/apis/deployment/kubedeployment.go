@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -60,6 +61,19 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 	if err != nil {
 		return err
 	}
+
+	// If selector doesnt match pod labels, recreate deployment
+	selector := labels.Set(desiredJobAuxDeployment.Spec.Selector.MatchLabels).AsSelector()
+	if currentJobAuxDeployment != nil && !selector.Matches(labels.Set(currentJobAuxDeployment.Spec.Template.Labels)) {
+		log.Ctx(ctx).Info().Msgf("Deleting outdated deployment (label selector does not match) %s", currentJobAuxDeployment.GetName())
+		deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment.Name)
+
+		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
+		if err != nil {
+			return err
+		}
+	}
+
 	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
 
