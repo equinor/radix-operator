@@ -7,7 +7,6 @@ import (
 	"slices"
 
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -80,11 +79,11 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(
 	var jobs []batchv1.Job
 	for envName, buildComponentImages := range pipelineInfo.BuildComponentImages {
 		log.Ctx(ctx).Debug().Msgf("build a build-kit jobs for the env %s", envName)
-		for i, componentImage := range buildComponentImages {
+		for _, componentImage := range buildComponentImages {
 			log.Ctx(ctx).Debug().Msgf("build a job for the image %s", componentImage.ImageName)
-			// hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
+			hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", pipelineInfo.PipelineArguments.JobName, envName, componentImage.ComponentName)))
 
-			job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, strconv.Itoa(i), componentImage.Runtime, componentImage)
+			job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, hash, componentImage.Runtime, componentImage)
 			if err != nil {
 				return nil, err
 			}
