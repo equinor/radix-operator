@@ -139,6 +139,7 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, gitHash, gitTags))
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
+			AppName:               appName,
 			PipelineType:          "build-deploy",
 			Branch:                buildBranch,
 			JobName:               rjName,
@@ -231,7 +232,6 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: "SUBSCRIPTION_ID", Value: pipeline.PipelineArguments.SubscriptionId},
 		{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
 		{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
-		{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s-%s", appName, envName, compName)},
 		{Name: "CACHE", Value: "--no-cache"},
 		{Name: "RADIX_ZONE", Value: pipeline.PipelineArguments.RadixZone},
 		{Name: "BRANCH", Value: pipeline.PipelineArguments.Branch},
@@ -1546,7 +1546,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
-	appName, rjName, compName, sourceFolder, dockerFile, envName := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile", "dev"
+	appName, rjName, compName, sourceFolder, dockerFile := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile"
 	prepareConfigMapName := "preparecm"
 	gitConfigMapName, gitHash, gitTags := "gitcm", "githash", "gittags"
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
@@ -1615,18 +1615,6 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	expectedCommand := []string{"/bin/bash", "-c", expectedBuildCmd}
 	s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
 	expectedEnv := []corev1.EnvVar{
-		{Name: "DOCKER_FILE_NAME", Value: dockerFile},
-		{Name: "DOCKER_REGISTRY", Value: pipeline.PipelineArguments.ContainerRegistry},
-		{Name: "IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.ImageTag)},
-		{Name: "CONTEXT", Value: "/workspace/path2/"},
-		{Name: "PUSH", Value: ""},
-		{Name: "AZURE_CREDENTIALS", Value: "/radix-image-builder/.azure/sp_credentials.json"},
-		{Name: "SUBSCRIPTION_ID", Value: pipeline.PipelineArguments.SubscriptionId},
-		{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
-		{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
-		{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s-%s", appName, envName, compName)},
-		{Name: "CACHE", Value: "--no-cache"},
-		{Name: "RADIX_ZONE", Value: pipeline.PipelineArguments.RadixZone},
 		{Name: "BRANCH", Value: pipeline.PipelineArguments.Branch},
 		{Name: "TARGET_ENVIRONMENTS", Value: "dev"},
 		{Name: "RADIX_GIT_COMMIT_HASH", Value: gitHash},
@@ -1662,7 +1650,7 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 }
 
 func (s *buildTestSuite) Test_BuildJobSpec_OverrideUseBuildCacheInBuildKit() {
-	appName, rjName, compName, sourceFolder, dockerFile, envName := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile", "dev"
+	appName, rjName, compName, sourceFolder, dockerFile := "anyapp", "anyrj", "c1", "../path1/./../../path2", "anydockerfile"
 	prepareConfigMapName := "preparecm"
 	gitConfigMapName, gitHash, gitTags := "gitcm", "githash", "gittags"
 	type scenario struct {
@@ -1778,18 +1766,6 @@ func (s *buildTestSuite) Test_BuildJobSpec_OverrideUseBuildCacheInBuildKit() {
 			expectedCommand := []string{"/bin/bash", "-c", strings.Join(expectedCommandElements, "")}
 			s.Equal(expectedCommand, job.Spec.Template.Spec.Containers[0].Command)
 			expectedEnv := []corev1.EnvVar{
-				{Name: "DOCKER_FILE_NAME", Value: dockerFile},
-				{Name: "DOCKER_REGISTRY", Value: pipeline.PipelineArguments.ContainerRegistry},
-				{Name: "IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.ImageTag)},
-				{Name: "CONTEXT", Value: "/workspace/path2/"},
-				{Name: "PUSH", Value: ""},
-				{Name: "AZURE_CREDENTIALS", Value: "/radix-image-builder/.azure/sp_credentials.json"},
-				{Name: "SUBSCRIPTION_ID", Value: pipeline.PipelineArguments.SubscriptionId},
-				{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
-				{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
-				{Name: "REPOSITORY_NAME", Value: fmt.Sprintf("%s-%s-%s", appName, envName, compName)},
-				{Name: "CACHE", Value: "--no-cache"},
-				{Name: "RADIX_ZONE", Value: pipeline.PipelineArguments.RadixZone},
 				{Name: "BRANCH", Value: pipeline.PipelineArguments.Branch},
 				{Name: "TARGET_ENVIRONMENTS", Value: "dev"},
 				{Name: "RADIX_GIT_COMMIT_HASH", Value: gitHash},

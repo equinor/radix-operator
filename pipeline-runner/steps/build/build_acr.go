@@ -271,7 +271,7 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 		// For extra meta information about an image
 		clusterTypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterType, imageTag))
 		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
-		envVars := getContainerEnvVars(appName, pipelineInfo, componentImage, buildSecrets, clusterTypeImage, clusterNameImage)
+		envVars := getContainerEnvVars(pipelineInfo, componentImage, buildSecrets, clusterTypeImage, clusterNameImage)
 		command := getContainerCommand(pipelineInfo, containerRegistry, secretMountsArgsString, componentImage, clusterTypeImage, clusterNameImage)
 		resources := getContainerResources(pipelineInfo)
 
@@ -290,10 +290,12 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 	return containers
 }
 
-func getContainerEnvVars(appName string, pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar, clusterTypeImage string, clusterNameImage string) []corev1.EnvVar {
-	envVars := getStandardEnvVars(appName, pipelineInfo, componentImage, clusterTypeImage, clusterNameImage)
+func getContainerEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar, clusterTypeImage string, clusterNameImage string) []corev1.EnvVar {
+	envVars := getStandardEnvVars(pipelineInfo, componentImage)
 	if pipelineInfo.IsUsingBuildKit() {
 		envVars = append(envVars, getBuildKitEnvVars()...)
+	} else {
+		envVars = append(envVars, getAcrTaskEnvVars(pipelineInfo, componentImage, clusterTypeImage, clusterNameImage)...)
 	}
 	envVars = append(envVars, buildSecrets...)
 	return envVars
@@ -367,31 +369,35 @@ func getBuildKitEnvVars() []corev1.EnvVar {
 			},
 		},
 		{
+			// Ready by buildah to located default docker auth file, ref https://github.com/containers/buildah/blob/main/docs/buildah-login.1.md#options
 			Name:  "REGISTRY_AUTH_FILE",
 			Value: buildahRegistryAuthFile,
 		},
 	}
 }
 
-func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage, clusterTypeImage string, clusterNameImage string) []corev1.EnvVar {
-	var push string
+func getAcrTaskEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage, clusterTypeImage, clusterNameImage string) []corev1.EnvVar {
+	var (
+		push     string
+		useCache string
+	)
 	if pipelineInfo.PipelineArguments.PushImage {
 		push = "--push"
 	}
-	var useCache string
 	if !pipelineInfo.PipelineArguments.UseCache {
 		useCache = "--no-cache"
 	}
-	containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.ImageName)
-	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
-	branch := pipelineInfo.PipelineArguments.Branch
-	targetEnvs := componentImage.EnvName
-	if len(targetEnvs) == 0 {
-		targetEnvs = strings.Join(pipelineInfo.TargetEnvironments, ",")
-	}
-	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
-	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
-	envVars := []corev1.EnvVar{
+	firstPartContainerRegistry := strings.Split(pipelineInfo.PipelineArguments.ContainerRegistry, ".")[0]
+
+	envvars := []corev1.EnvVar{
+		{
+			Name:  "AZURE_CREDENTIALS",
+			Value: path.Join(azureServicePrincipleContext, "sp_credentials.json"),
+		},
+		{
+			Name:  "SUBSCRIPTION_ID",
+			Value: pipelineInfo.PipelineArguments.SubscriptionId,
+		},
 		{
 			Name:  "DOCKER_FILE_NAME",
 			Value: componentImage.Dockerfile,
@@ -405,22 +411,6 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 			Value: componentImage.ImagePath,
 		},
 		{
-			Name:  "CONTEXT",
-			Value: componentImage.Context,
-		},
-		{
-			Name:  "PUSH",
-			Value: push,
-		},
-		{
-			Name:  "AZURE_CREDENTIALS",
-			Value: path.Join(azureServicePrincipleContext, "sp_credentials.json"),
-		},
-		{
-			Name:  "SUBSCRIPTION_ID",
-			Value: subscriptionId,
-		},
-		{
 			Name:  "CLUSTERTYPE_IMAGE",
 			Value: clusterTypeImage,
 		},
@@ -429,8 +419,12 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 			Value: clusterNameImage,
 		},
 		{
-			Name:  "REPOSITORY_NAME",
-			Value: containerImageRepositoryName,
+			Name:  "CONTEXT",
+			Value: componentImage.Context,
+		},
+		{
+			Name:  "PUSH",
+			Value: push,
 		},
 		{
 			Name:  "CACHE",
@@ -440,7 +434,19 @@ func getStandardEnvVars(appName string, pipelineInfo *model.PipelineInfo, compon
 			Name:  defaults.RadixZoneEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.RadixZone,
 		},
-		// Extra meta information
+	}
+
+	return envvars
+}
+
+func getStandardEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage) []corev1.EnvVar {
+	branch := pipelineInfo.PipelineArguments.Branch
+	targetEnvs := componentImage.EnvName
+	if len(targetEnvs) == 0 {
+		targetEnvs = strings.Join(pipelineInfo.TargetEnvironments, ",")
+	}
+
+	envVars := []corev1.EnvVar{
 		{
 			Name:  defaults.RadixBranchEnvironmentVariable,
 			Value: branch,
