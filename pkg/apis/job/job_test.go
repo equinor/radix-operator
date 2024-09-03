@@ -234,7 +234,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--BRANCH=%s", branch),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
 				"--PUSH_IMAGE=1",
-				"--USE_CACHE=",
 			},
 			SecurityContext: &corev1.SecurityContext{
 				Privileged:               pointers.Ptr(false),

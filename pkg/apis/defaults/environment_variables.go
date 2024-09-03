@@ -132,9 +132,6 @@ const (
 	// RadixPushImageEnvironmentVariable Push an image for the built component to an ACR
 	RadixPushImageEnvironmentVariable = "PUSH_IMAGE"
 
-	// RadixUseCacheEnvironmentVariable Use cache for the built component
-	RadixUseCacheEnvironmentVariable = "USE_CACHE"
-
 	// RadixOverrideUseBuildCacheVariable override default or configured build cache option
 	RadixOverrideUseBuildCacheVariable = "OVERRIDE_USE_BUILD_CACHE"
 

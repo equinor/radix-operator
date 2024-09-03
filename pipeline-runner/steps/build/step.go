@@ -78,7 +78,11 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 
 	log.Ctx(ctx).Info().Msgf("Building app %s for branch %s and commit %s", step.GetAppName(), branch, commitID)
 
-	namespace := utils.GetAppNamespace(step.GetAppName())
+	if err := validateBuildSecrets(pipelineInfo); err != nil {
+		return err
+	}
+
+	// TODO: Remove this when refacoring is done
 	buildSecrets, err := getBuildSecretsAsVariables(pipelineInfo)
 	if err != nil {
 		return err
@@ -88,6 +92,8 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 	if err != nil {
 		return err
 	}
+
+	namespace := utils.GetAppNamespace(step.GetAppName())
 	return step.createACRBuildJobs(ctx, pipelineInfo, jobs, namespace)
 }
 

@@ -22,12 +22,7 @@ func getBuildSecretsAsVariables(pipelineInfo *model.PipelineInfo) ([]corev1.EnvV
 
 	var environmentVariables []corev1.EnvVar
 	for _, secretName := range pipelineInfo.RadixApplication.Spec.Build.Secrets {
-		if _, ok := pipelineInfo.BuildSecret.Data[secretName]; !ok {
-			return nil, fmt.Errorf("build secret %s has not been set", secretName)
-		}
-
-		secretValue := string(pipelineInfo.BuildSecret.Data[secretName])
-		if strings.EqualFold(secretValue, defaults.BuildSecretDefaultData) {
+		if secretValue, ok := pipelineInfo.BuildSecret.Data[secretName]; !ok || strings.EqualFold(string(secretValue), defaults.BuildSecretDefaultData) {
 			return nil, fmt.Errorf("build secret %s has not been set", secretName)
 		}
 
@@ -50,4 +45,23 @@ func getBuildSecretsAsVariables(pipelineInfo *model.PipelineInfo) ([]corev1.EnvV
 	}
 
 	return environmentVariables, nil
+}
+
+// Will ensure that all build secrets are mounted from build-secrets secret with BUILD_SECRET_ prefix
+func validateBuildSecrets(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.RadixApplication.Spec.Build == nil || len(pipelineInfo.RadixApplication.Spec.Build.Secrets) == 0 {
+		return nil
+	}
+
+	if pipelineInfo.BuildSecret == nil {
+		return errors.New("build secrets has not been set")
+	}
+
+	for _, secretName := range pipelineInfo.RadixApplication.Spec.Build.Secrets {
+		if secretValue, ok := pipelineInfo.BuildSecret.Data[secretName]; !ok || strings.EqualFold(string(secretValue), defaults.BuildSecretDefaultData) {
+			return fmt.Errorf("build secret %s has not been set", secretName)
+		}
+	}
+
+	return nil
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
+
 	"path"
 	"strconv"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -23,6 +26,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/maps"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -46,27 +50,31 @@ func (step *BuildStepImplementation) buildContainerImageBuildingJobs(ctx context
 		return step.buildContainerImageBuildingJobsForBuildKit(ctx, rr, pipelineInfo, buildSecrets)
 	}
 
-	// imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
-	// return build.
-	// 	GetConstructor(pipelineInfo.IsUsingBuildKit(), pipelineInfo.PipelineArguments, imagesToBuild).
-	// 	ConstructJobs(), nil
-	return step.buildContainerImageBuildingJobsForACRTasks(ctx, rr, pipelineInfo, buildSecrets)
+	var secrets []string
+	if pipelineInfo.RadixApplication.Spec.Build != nil {
+		secrets = pipelineInfo.RadixApplication.Spec.Build.Secrets
+	}
+	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
+	return build.
+		GetConstructor(pipelineInfo.IsUsingBuildKit(), pipelineInfo.PipelineArguments, rr.Spec.CloneURL, pipelineInfo.GitCommitHash, pipelineInfo.GitTags, imagesToBuild, secrets).
+		ConstructJobs()
+	// return step.buildContainerImageBuildingJobsForACRTasks(ctx, rr, pipelineInfo, buildSecrets)
 }
 
-func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]batchv1.Job, error) {
-	var buildComponentImages []pipeline.BuildComponentImage
-	for _, envComponentImages := range pipelineInfo.BuildComponentImages {
-		buildComponentImages = append(buildComponentImages, envComponentImages...)
-	}
+// func (step *BuildStepImplementation) buildContainerImageBuildingJobsForACRTasks(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]batchv1.Job, error) {
+// 	var buildComponentImages []pipeline.BuildComponentImage
+// 	for _, envComponentImages := range pipelineInfo.BuildComponentImages {
+// 		buildComponentImages = append(buildComponentImages, envComponentImages...)
+// 	}
 
-	log.Ctx(ctx).Debug().Msg("build a build-job")
-	// hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-	job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, strconv.Itoa(0), &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, buildComponentImages...)
-	if err != nil {
-		return nil, err
-	}
-	return []batchv1.Job{job}, nil
-}
+// 	log.Ctx(ctx).Debug().Msg("build a build-job")
+// 	// hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
+// 	job, err := buildContainerImageBuildingJob(ctx, rr, pipelineInfo, buildSecrets, strconv.Itoa(0), &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, buildComponentImages...)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return []batchv1.Job{job}, nil
+// }
 
 func (step *BuildStepImplementation) buildContainerImageBuildingJobsForBuildKit(ctx context.Context, rr *radixv1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) ([]batchv1.Job, error) {
 	var jobs []batchv1.Job
@@ -94,11 +102,12 @@ func buildContainerImageBuildingJob(ctx context.Context, rr *radixv1.RadixRegist
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pipelineJobName := pipelineInfo.PipelineArguments.JobName
-	initContainers, err := git.CloneInitContainers(rr.Spec.CloneURL, branch, internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments))
-	if err != nil {
+	cloneCfg := internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments)
+	if err := cloneCfg.Validate(); err != nil {
 		return batchv1.Job{}, err
 	}
-	buildContainers := createContainerImageBuildingContainers(appName, pipelineInfo, buildComponentImages, buildSecrets)
+	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, cloneCfg)
+	buildContainers := createContainerImageBuildingContainers(pipelineInfo, buildComponentImages, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 	componentImagesAnnotation, _ := json.Marshal(buildComponentImages)
@@ -251,11 +260,8 @@ func getContainerImageBuildingJobVolumes(defaultMode *int32, buildSecrets []core
 	return volumes
 }
 
-func createContainerImageBuildingContainers(appName string, pipelineInfo *model.PipelineInfo, buildComponentImages []pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar) []corev1.Container {
+func createContainerImageBuildingContainers(pipelineInfo *model.PipelineInfo, buildComponentImages []pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar) []corev1.Container {
 	var containers []corev1.Container
-	imageTag := pipelineInfo.PipelineArguments.ImageTag
-	clusterType := pipelineInfo.PipelineArguments.Clustertype
-	clusterName := pipelineInfo.PipelineArguments.Clustername
 	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
 
 	imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageBuilder)
@@ -268,11 +274,8 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 	}
 
 	for _, componentImage := range buildComponentImages {
-		// For extra meta information about an image
-		clusterTypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterType, imageTag))
-		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
-		envVars := getContainerEnvVars(pipelineInfo, componentImage, buildSecrets, clusterTypeImage, clusterNameImage)
-		command := getContainerCommand(pipelineInfo, containerRegistry, secretMountsArgsString, componentImage, clusterTypeImage, clusterNameImage)
+		envVars := getContainerEnvVars(pipelineInfo, componentImage, buildSecrets)
+		command := getContainerCommand(pipelineInfo, containerRegistry, secretMountsArgsString, componentImage)
 		resources := getContainerResources(pipelineInfo)
 
 		container := corev1.Container{
@@ -290,12 +293,12 @@ func createContainerImageBuildingContainers(appName string, pipelineInfo *model.
 	return containers
 }
 
-func getContainerEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar, clusterTypeImage string, clusterNameImage string) []corev1.EnvVar {
+func getContainerEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage, buildSecrets []corev1.EnvVar) []corev1.EnvVar {
 	envVars := getStandardEnvVars(pipelineInfo, componentImage)
 	if pipelineInfo.IsUsingBuildKit() {
 		envVars = append(envVars, getBuildKitEnvVars()...)
 	} else {
-		envVars = append(envVars, getAcrTaskEnvVars(pipelineInfo, componentImage, clusterTypeImage, clusterNameImage)...)
+		envVars = append(envVars, getAcrTaskEnvVars(pipelineInfo, componentImage)...)
 	}
 	envVars = append(envVars, buildSecrets...)
 	return envVars
@@ -317,7 +320,7 @@ func getContainerResources(pipelineInfo *model.PipelineInfo) corev1.ResourceRequ
 	return resources
 }
 
-func getContainerCommand(pipelineInfo *model.PipelineInfo, containerRegistry string, secretMountsArgsString string, componentImage pipeline.BuildComponentImage, clusterTypeImage, clusterNameImage string) []string {
+func getContainerCommand(pipelineInfo *model.PipelineInfo, containerRegistry string, secretMountsArgsString string, componentImage pipeline.BuildComponentImage) []string {
 	if !pipelineInfo.IsUsingBuildKit() {
 		return nil
 	}
@@ -327,7 +330,7 @@ func getContainerCommand(pipelineInfo *model.PipelineInfo, containerRegistry str
 		useBuildCache = *pipelineInfo.PipelineArguments.OverrideUseBuildCache
 	}
 	cacheContainerRegistry := pipelineInfo.PipelineArguments.AppContainerRegistry // Store application cache in the App Registry
-	return getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage, clusterTypeImage, clusterNameImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pipelineInfo.PipelineArguments.PushImage)
+	return getBuildahContainerCommand(containerRegistry, secretMountsArgsString, componentImage, cacheContainerRegistry, cacheImagePath, useBuildCache, pipelineInfo.PipelineArguments.PushImage)
 }
 
 func getBuildKitEnvVars() []corev1.EnvVar {
@@ -376,16 +379,10 @@ func getBuildKitEnvVars() []corev1.EnvVar {
 	}
 }
 
-func getAcrTaskEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage, clusterTypeImage, clusterNameImage string) []corev1.EnvVar {
-	var (
-		push     string
-		useCache string
-	)
+func getAcrTaskEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage) []corev1.EnvVar {
+	var push string
 	if pipelineInfo.PipelineArguments.PushImage {
 		push = "--push"
-	}
-	if !pipelineInfo.PipelineArguments.UseCache {
-		useCache = "--no-cache"
 	}
 	firstPartContainerRegistry := strings.Split(pipelineInfo.PipelineArguments.ContainerRegistry, ".")[0]
 
@@ -412,11 +409,11 @@ func getAcrTaskEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline
 		},
 		{
 			Name:  "CLUSTERTYPE_IMAGE",
-			Value: clusterTypeImage,
+			Value: componentImage.ClusterTypeImagePath,
 		},
 		{
 			Name:  "CLUSTERNAME_IMAGE",
-			Value: clusterNameImage,
+			Value: componentImage.ClusterNameImagePath,
 		},
 		{
 			Name:  "CONTEXT",
@@ -425,10 +422,6 @@ func getAcrTaskEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline
 		{
 			Name:  "PUSH",
 			Value: push,
-		},
-		{
-			Name:  "CACHE",
-			Value: useCache,
 		},
 		{
 			Name:  defaults.RadixZoneEnvironmentVariable,
@@ -440,20 +433,14 @@ func getAcrTaskEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline
 }
 
 func getStandardEnvVars(pipelineInfo *model.PipelineInfo, componentImage pipeline.BuildComponentImage) []corev1.EnvVar {
-	branch := pipelineInfo.PipelineArguments.Branch
-	targetEnvs := componentImage.EnvName
-	if len(targetEnvs) == 0 {
-		targetEnvs = strings.Join(pipelineInfo.TargetEnvironments, ",")
-	}
-
 	envVars := []corev1.EnvVar{
 		{
 			Name:  defaults.RadixBranchEnvironmentVariable,
-			Value: branch,
+			Value: pipelineInfo.PipelineArguments.Branch,
 		},
 		{
 			Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
-			Value: targetEnvs,
+			Value: componentImage.EnvName,
 		},
 		{
 			Name:  defaults.RadixCommitHashEnvironmentVariable,
@@ -472,6 +459,16 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUs
 		{
 			Name:      git.BuildContextVolumeName,
 			MountPath: git.Workspace,
+		},
+		{
+			Name:      getTmpVolumeNameForContainer(containerName), // image-builder creates a script there
+			MountPath: "/tmp",
+			ReadOnly:  false,
+		},
+		{
+			Name:      getVarVolumeNameForContainer(containerName), // image-builder creates files there
+			MountPath: "/var",
+			ReadOnly:  false,
 		},
 	}
 
@@ -521,18 +518,6 @@ func getContainerImageBuildingJobVolumeMounts(buildSecrets []corev1.EnvVar, isUs
 			},
 		)
 	}
-	volumeMounts = append(volumeMounts,
-		corev1.VolumeMount{
-			Name:      getTmpVolumeNameForContainer(containerName), // image-builder creates a script there
-			MountPath: "/tmp",
-			ReadOnly:  false,
-		},
-		corev1.VolumeMount{
-			Name:      getVarVolumeNameForContainer(containerName), // image-builder creates files there
-			MountPath: "/var",
-			ReadOnly:  false,
-		},
-	)
 
 	return volumeMounts
 }
@@ -545,7 +530,7 @@ func getVarVolumeNameForContainer(containerName string) string {
 	return fmt.Sprintf("var-%s", containerName)
 }
 
-func getBuildahContainerCommand(containerImageRegistry, secretArgsString string, componentImage pipeline.BuildComponentImage, clusterTypeImageTag, clusterNameImageTag, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool) []string {
+func getBuildahContainerCommand(containerImageRegistry, secretArgsString string, componentImage pipeline.BuildComponentImage, cacheContainerImageRegistry, cacheImagePath string, useBuildCache, pushImage bool) []string {
 	commandList := commandbuilder.NewCommandList()
 	commandList.AddStrCmd("mkdir /var/tmp && cp %s %s", path.Join(privateImageHubMountPath, ".dockerconfigjson"), buildahRegistryAuthFile)
 	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", containerImageRegistry)
@@ -575,7 +560,7 @@ func getBuildahContainerCommand(containerImageRegistry, secretArgsString string,
 			AddArgf("--cache-from=%s", cacheImagePath)
 	}
 
-	imageTag := componentImage.ImagePath
+	imageTag, clusterTypeImageTag, clusterNameImageTag := componentImage.ImagePath, componentImage.ClusterTypeImagePath, componentImage.ClusterNameImagePath
 	if pushImage {
 		buildah.
 			AddArgf("--tag %s", imageTag).

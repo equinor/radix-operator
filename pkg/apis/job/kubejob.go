@@ -119,7 +119,6 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
-	useImageBuilderCache := os.Getenv(defaults.RadixUseCacheEnvironmentVariable)
 
 	clusterName, err := job.kubeutil.GetClusterName(ctx)
 	if err != nil {
@@ -198,7 +197,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
 		if jobSpec.Build.OverrideUseBuildCache != nil {
 			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixOverrideUseBuildCacheVariable, *jobSpec.Build.OverrideUseBuildCache))
 		}

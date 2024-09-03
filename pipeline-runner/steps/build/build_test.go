@@ -147,7 +147,6 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 			CommitID:              "commit1234",
 			ImageTag:              "imgtag",
 			PushImage:             false,
-			UseCache:              false,
 			ContainerRegistry:     "registry",
 			Clustertype:           "clustertype",
 			RadixZone:             "radixzone",
@@ -232,7 +231,6 @@ func (s *buildTestSuite) Test_BuildDeploy_JobSpecAndDeploymentConsistent() {
 		{Name: "SUBSCRIPTION_ID", Value: pipeline.PipelineArguments.SubscriptionId},
 		{Name: "CLUSTERTYPE_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustertype, pipeline.PipelineArguments.ImageTag)},
 		{Name: "CLUSTERNAME_IMAGE", Value: fmt.Sprintf("%s/%s-%s-%s:%s-%s", pipeline.PipelineArguments.ContainerRegistry, appName, envName, compName, pipeline.PipelineArguments.Clustername, pipeline.PipelineArguments.ImageTag)},
-		{Name: "CACHE", Value: "--no-cache"},
 		{Name: "RADIX_ZONE", Value: pipeline.PipelineArguments.RadixZone},
 		{Name: "BRANCH", Value: pipeline.PipelineArguments.Branch},
 		{Name: "TARGET_ENVIRONMENTS", Value: "dev"},
@@ -1362,49 +1360,6 @@ func (s *buildTestSuite) Test_BuildJobSpec_PushImage() {
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
 	expectedEnv := []corev1.EnvVar{
 		{Name: "PUSH", Value: "--push"},
-	}
-	s.Subset(job.Spec.Template.Spec.Containers[0].Env, expectedEnv)
-}
-
-func (s *buildTestSuite) Test_BuildJobSpec_UseCache() {
-	appName, rjName, compName := "anyapp", "anyrj", "c1"
-	prepareConfigMapName := "preparecm"
-	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
-	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
-	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
-	ra := utils.NewRadixApplicationBuilder().
-		WithAppName(appName).
-		WithEnvironment("dev", "main").
-		WithComponent(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName(compName)).
-		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
-	pipeline := model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			Branch:                "main",
-			JobName:               rjName,
-			UseCache:              true,
-			GitCloneNsLookupImage: "any",
-			GitCloneGitImage:      "any",
-			GitCloneBashImage:     "any",
-		},
-		RadixConfigMapName: prepareConfigMapName,
-	}
-	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
-	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
-
-	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	buildStep := NewBuildStep(jobWaiter)
-	buildStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
-	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
-	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
-	s.Require().Len(jobs.Items, 1)
-	job := jobs.Items[0]
-	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
-	expectedEnv := []corev1.EnvVar{
-		{Name: "CACHE", Value: ""},
 	}
 	s.Subset(job.Spec.Template.Spec.Containers[0].Env, expectedEnv)
 }

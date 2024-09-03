@@ -63,7 +63,6 @@ type PipelineArguments struct {
 	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID string
 	ImageTag string
-	UseCache bool
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
 	PushImage             bool
