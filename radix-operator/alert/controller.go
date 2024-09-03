@@ -96,7 +96,7 @@ func NewController(ctx context.Context,
 				return
 			}
 
-			// If neither admin or reader AD groups change, this
+			// If neither admin nor reader AD groups change, this
 			// does not affect the alert
 			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
 				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) {
@@ -104,11 +104,11 @@ func NewController(ctx context.Context,
 			}
 
 			// Enqueue all RadixAlerts with radix-app label matching name of RR
-			radixalerts, err := radixClient.RadixV1().RadixAlerts(corev1.NamespaceAll).List(ctx, v1.ListOptions{
+			radixAlertList, err := radixClient.RadixV1().RadixAlerts(corev1.NamespaceAll).List(ctx, v1.ListOptions{
 				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
 			})
 			if err == nil {
-				for _, radixalert := range radixalerts.Items {
+				for _, radixalert := range radixAlertList.Items {
 					if _, err := controller.Enqueue(&radixalert); err != nil {
 						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 					}

@@ -27,8 +27,8 @@ package v1
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -45,25 +45,17 @@ type RadixAlertLister interface {
 
 // radixAlertLister implements the RadixAlertLister interface.
 type radixAlertLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1.RadixAlert]
 }
 
 // NewRadixAlertLister returns a new RadixAlertLister.
 func NewRadixAlertLister(indexer cache.Indexer) RadixAlertLister {
-	return &radixAlertLister{indexer: indexer}
-}
-
-// List lists all RadixAlerts in the indexer.
-func (s *radixAlertLister) List(selector labels.Selector) (ret []*v1.RadixAlert, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixAlert))
-	})
-	return ret, err
+	return &radixAlertLister{listers.New[*v1.RadixAlert](indexer, v1.Resource("radixalert"))}
 }
 
 // RadixAlerts returns an object that can list and get RadixAlerts.
 func (s *radixAlertLister) RadixAlerts(namespace string) RadixAlertNamespaceLister {
-	return radixAlertNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return radixAlertNamespaceLister{listers.NewNamespaced[*v1.RadixAlert](s.ResourceIndexer, namespace)}
 }
 
 // RadixAlertNamespaceLister helps list and get RadixAlerts.
@@ -81,26 +73,5 @@ type RadixAlertNamespaceLister interface {
 // radixAlertNamespaceLister implements the RadixAlertNamespaceLister
 // interface.
 type radixAlertNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all RadixAlerts in the indexer for a given namespace.
-func (s radixAlertNamespaceLister) List(selector labels.Selector) (ret []*v1.RadixAlert, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixAlert))
-	})
-	return ret, err
-}
-
-// Get retrieves the RadixAlert from the indexer for a given namespace and name.
-func (s radixAlertNamespaceLister) Get(name string) (*v1.RadixAlert, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("radixalert"), name)
-	}
-	return obj.(*v1.RadixAlert), nil
+	listers.ResourceIndexer[*v1.RadixAlert]
 }

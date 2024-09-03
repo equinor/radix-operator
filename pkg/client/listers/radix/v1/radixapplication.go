@@ -27,8 +27,8 @@ package v1
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -45,25 +45,17 @@ type RadixApplicationLister interface {
 
 // radixApplicationLister implements the RadixApplicationLister interface.
 type radixApplicationLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1.RadixApplication]
 }
 
 // NewRadixApplicationLister returns a new RadixApplicationLister.
 func NewRadixApplicationLister(indexer cache.Indexer) RadixApplicationLister {
-	return &radixApplicationLister{indexer: indexer}
-}
-
-// List lists all RadixApplications in the indexer.
-func (s *radixApplicationLister) List(selector labels.Selector) (ret []*v1.RadixApplication, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixApplication))
-	})
-	return ret, err
+	return &radixApplicationLister{listers.New[*v1.RadixApplication](indexer, v1.Resource("radixapplication"))}
 }
 
 // RadixApplications returns an object that can list and get RadixApplications.
 func (s *radixApplicationLister) RadixApplications(namespace string) RadixApplicationNamespaceLister {
-	return radixApplicationNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return radixApplicationNamespaceLister{listers.NewNamespaced[*v1.RadixApplication](s.ResourceIndexer, namespace)}
 }
 
 // RadixApplicationNamespaceLister helps list and get RadixApplications.
@@ -81,26 +73,5 @@ type RadixApplicationNamespaceLister interface {
 // radixApplicationNamespaceLister implements the RadixApplicationNamespaceLister
 // interface.
 type radixApplicationNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all RadixApplications in the indexer for a given namespace.
-func (s radixApplicationNamespaceLister) List(selector labels.Selector) (ret []*v1.RadixApplication, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.RadixApplication))
-	})
-	return ret, err
-}
-
-// Get retrieves the RadixApplication from the indexer for a given namespace and name.
-func (s radixApplicationNamespaceLister) Get(name string) (*v1.RadixApplication, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("radixapplication"), name)
-	}
-	return obj.(*v1.RadixApplication), nil
+	listers.ResourceIndexer[*v1.RadixApplication]
 }

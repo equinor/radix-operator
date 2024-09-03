@@ -27,14 +27,13 @@ package v1
 
 import (
 	"context"
-	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // RadixApplicationsGetter has a method to return a RadixApplicationInterface.
@@ -58,128 +57,18 @@ type RadixApplicationInterface interface {
 
 // radixApplications implements RadixApplicationInterface
 type radixApplications struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*v1.RadixApplication, *v1.RadixApplicationList]
 }
 
 // newRadixApplications returns a RadixApplications
 func newRadixApplications(c *RadixV1Client, namespace string) *radixApplications {
 	return &radixApplications{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*v1.RadixApplication, *v1.RadixApplicationList](
+			"radixapplications",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *v1.RadixApplication { return &v1.RadixApplication{} },
+			func() *v1.RadixApplicationList { return &v1.RadixApplicationList{} }),
 	}
-}
-
-// Get takes name of the radixApplication, and returns the corresponding radixApplication object, and an error if there is any.
-func (c *radixApplications) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixApplication, err error) {
-	result = &v1.RadixApplication{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("radixapplications").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of RadixApplications that match those selectors.
-func (c *radixApplications) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixApplicationList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1.RadixApplicationList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("radixapplications").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested radixApplications.
-func (c *radixApplications) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("radixapplications").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a radixApplication and creates it.  Returns the server's representation of the radixApplication, and an error, if there is any.
-func (c *radixApplications) Create(ctx context.Context, radixApplication *v1.RadixApplication, opts metav1.CreateOptions) (result *v1.RadixApplication, err error) {
-	result = &v1.RadixApplication{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("radixapplications").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(radixApplication).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a radixApplication and updates it. Returns the server's representation of the radixApplication, and an error, if there is any.
-func (c *radixApplications) Update(ctx context.Context, radixApplication *v1.RadixApplication, opts metav1.UpdateOptions) (result *v1.RadixApplication, err error) {
-	result = &v1.RadixApplication{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("radixapplications").
-		Name(radixApplication.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(radixApplication).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the radixApplication and deletes it. Returns an error if one occurs.
-func (c *radixApplications) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("radixapplications").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *radixApplications) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("radixapplications").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched radixApplication.
-func (c *radixApplications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixApplication, err error) {
-	result = &v1.RadixApplication{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("radixapplications").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }
