@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
+	internalbuild "github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -103,7 +103,7 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 		secrets = pipelineInfo.RadixApplication.Spec.Build.Secrets
 	}
 	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
-	return build.
+	return internalbuild.
 		GetConstructor(
 			pipelineInfo.IsUsingBuildKit(),
 			pipelineInfo.IsUsingBuildCache(),
