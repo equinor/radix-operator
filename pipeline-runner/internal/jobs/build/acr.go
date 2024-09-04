@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -22,6 +23,7 @@ import (
 const (
 	azureServicePrincipleContext = "/radix-image-builder/.azure"
 	acrHomeVolumeName            = "radix-image-builder-home"
+	acrHomePath                  = "/home/radix-image-builder"
 )
 
 type acrConstructor struct {
@@ -57,7 +59,8 @@ func (c *acrConstructor) ConstructJobs() ([]batchv1.Job, error) {
 }
 
 func (c *acrConstructor) getJobName() string {
-	return getJobName(time.Now(), c.pipelineArgs.ImageTag, "0")
+	hash := strings.ToLower(utils.RandStringStrSeed(5, c.pipelineArgs.JobName))
+	return getJobName(time.Now(), c.pipelineArgs.ImageTag, hash)
 }
 
 func (c *acrConstructor) getJobLabels() map[string]string {
@@ -100,24 +103,24 @@ func (c *acrConstructor) getPodContainers() []corev1.Container {
 }
 
 func (c *acrConstructor) getPodContainer(componentImage pipeline.BuildComponentImage) corev1.Container {
-	securityContext := securitycontext.Container(
-		securitycontext.WithContainerDropAllCapabilities(),
-		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-		securitycontext.WithContainerRunAsUser(1000),
-		securitycontext.WithContainerRunAsGroup(1000),
-		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
-	)
-	resources := corev1.ResourceRequirements{}
-
 	return corev1.Container{
 		Name:            componentImage.ContainerName,
 		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.ImageBuilder),
 		ImagePullPolicy: corev1.PullAlways,
 		Env:             c.getPodContainerEnvVars(componentImage),
 		VolumeMounts:    c.getPodContainerVolumeMounts(componentImage),
-		SecurityContext: securityContext,
-		Resources:       resources,
+		SecurityContext: c.getPodContainerSecurityContext(),
 	}
+}
+
+func (*acrConstructor) getPodContainerSecurityContext() *corev1.SecurityContext {
+	return securitycontext.Container(
+		securitycontext.WithContainerDropAllCapabilities(),
+		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithContainerRunAsUser(1000),
+		securitycontext.WithContainerRunAsGroup(1000),
+		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+	)
 }
 
 func (c *acrConstructor) getPodVolumes() []corev1.Volume {
@@ -154,9 +157,10 @@ func (c *acrConstructor) getPodContainerVolumeMounts(componentImage pipeline.Bui
 			MountPath: azureServicePrincipleContext,
 			ReadOnly:  true,
 		},
+		// .azure folder is created in the user home folder
 		corev1.VolumeMount{
-			Name:      acrHomeVolumeName, // .azure folder is created in the user home folder
-			MountPath: "/home/radix-image-builder",
+			Name:      acrHomeVolumeName,
+			MountPath: acrHomePath,
 			ReadOnly:  false,
 		},
 	)

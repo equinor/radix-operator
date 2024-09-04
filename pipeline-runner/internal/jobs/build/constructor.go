@@ -10,9 +10,17 @@ type Constructor interface {
 	ConstructJobs() ([]batchv1.Job, error)
 }
 
-func GetConstructor(useBuildKit bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) Constructor {
+func GetConstructor(useBuildKit, useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) Constructor {
 	if useBuildKit {
-		return &buildahConstructor{}
+		return &buildahConstructor{
+			pipelineArgs:    pipelineArgs,
+			componentImages: componentImages,
+			cloneURL:        cloneURL,
+			gitCommitHash:   gitCommitHash,
+			gitTags:         gitTags,
+			buildSecrets:    buildSecrets,
+			useBuildCache:   useBuildCache,
+		}
 	}
 	return &acrConstructor{
 		pipelineArgs:    pipelineArgs,

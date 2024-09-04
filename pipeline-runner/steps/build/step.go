@@ -2,11 +2,15 @@ package build
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -15,6 +19,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,26 +83,40 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 
 	log.Ctx(ctx).Info().Msgf("Building app %s for branch %s and commit %s", step.GetAppName(), branch, commitID)
 
-	if err := validateBuildSecrets(pipelineInfo); err != nil {
+	if err := step.validateBuildSecrets(pipelineInfo); err != nil {
 		return err
 	}
 
-	// TODO: Remove this when refacoring is done
-	buildSecrets, err := getBuildSecretsAsVariables(pipelineInfo)
-	if err != nil {
-		return err
-	}
-
-	jobs, err := step.buildContainerImageBuildingJobs(ctx, pipelineInfo, buildSecrets)
+	jobs, err := step.getBuildJobs(pipelineInfo)
 	if err != nil {
 		return err
 	}
 
 	namespace := utils.GetAppNamespace(step.GetAppName())
-	return step.createACRBuildJobs(ctx, pipelineInfo, jobs, namespace)
+	return step.applyBuildJobs(ctx, pipelineInfo, jobs, namespace)
 }
 
-func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []batchv1.Job, namespace string) error {
+func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineInfo) ([]batchv1.Job, error) {
+	rr := step.GetRegistration()
+	var secrets []string
+	if pipelineInfo.RadixApplication.Spec.Build != nil {
+		secrets = pipelineInfo.RadixApplication.Spec.Build.Secrets
+	}
+	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
+	return build.
+		GetConstructor(
+			pipelineInfo.IsUsingBuildKit(),
+			pipelineInfo.IsUsingBuildCache(),
+			pipelineInfo.PipelineArguments,
+			rr.Spec.CloneURL,
+			pipelineInfo.GitCommitHash,
+			pipelineInfo.GitTags,
+			imagesToBuild,
+			secrets).
+		ConstructJobs()
+}
+
+func (step *BuildStepImplementation) applyBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []batchv1.Job, namespace string) error {
 	ownerReference, err := step.getJobOwnerReferences(ctx, pipelineInfo, namespace)
 	if err != nil {
 		return err
@@ -145,4 +164,22 @@ func (step *BuildStepImplementation) getJobDescription(job *batchv1.Job) string 
 		builder.WriteString(fmt.Sprintf(" in the environment %s", envName))
 	}
 	return builder.String()
+}
+
+func (*BuildStepImplementation) validateBuildSecrets(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.RadixApplication.Spec.Build == nil || len(pipelineInfo.RadixApplication.Spec.Build.Secrets) == 0 {
+		return nil
+	}
+
+	if pipelineInfo.BuildSecret == nil {
+		return errors.New("build secrets has not been set")
+	}
+
+	for _, secretName := range pipelineInfo.RadixApplication.Spec.Build.Secrets {
+		if secretValue, ok := pipelineInfo.BuildSecret.Data[secretName]; !ok || strings.EqualFold(string(secretValue), defaults.BuildSecretDefaultData) {
+			return fmt.Errorf("build secret %s has not been set", secretName)
+		}
+	}
+
+	return nil
 }

@@ -195,3 +195,16 @@ func (info *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType)
 func (info *PipelineInfo) IsUsingBuildKit() bool {
 	return info.RadixApplication.Spec.Build != nil && info.RadixApplication.Spec.Build.UseBuildKit != nil && *info.RadixApplication.Spec.Build.UseBuildKit
 }
+
+func (info *PipelineInfo) IsUsingBuildCache() bool {
+	if !info.IsUsingBuildKit() {
+		return false
+	}
+
+	useBuildCache := info.RadixApplication.Spec.Build == nil || info.RadixApplication.Spec.Build.UseBuildCache == nil || *info.RadixApplication.Spec.Build.UseBuildCache
+	if info.PipelineArguments.OverrideUseBuildCache != nil {
+		useBuildCache = *info.PipelineArguments.OverrideUseBuildCache
+	}
+
+	return useBuildCache
+}
