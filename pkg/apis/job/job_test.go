@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -42,7 +43,7 @@ type RadixJobTestSuiteBase struct {
 		egressIps      string
 		tektonImage    string
 		builderImage   string
-		buildahImage   string
+		buildkitImage  string
 		buildahSecComp string
 		nslookupImage  string
 		gitImage       string
@@ -61,7 +62,7 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		egressIps      string
 		tektonImage    string
 		builderImage   string
-		buildahImage   string
+		buildkitImage  string
 		buildahSecComp string
 		nslookupImage  string
 		gitImage       string
@@ -76,7 +77,7 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		egressIps:      "0.0.0.0",
 		tektonImage:    "tekton:any",
 		builderImage:   "builder:any",
-		buildahImage:   "buildah:any",
+		buildkitImage:  "buildkit:any",
 		buildahSecComp: "anyseccomp",
 		nslookupImage:  "nslookup:any",
 		gitImage:       "git:any",
@@ -111,7 +112,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.T().Setenv(defaults.AppContainerRegistryEnvironmentVariable, s.config.appRegistry)
 	s.T().Setenv(defaults.RadixTektonPipelineImageEnvironmentVariable, s.config.tektonImage)
 	s.T().Setenv(defaults.RadixImageBuilderEnvironmentVariable, s.config.builderImage)
-	s.T().Setenv(defaults.RadixBuildahImageBuilderEnvironmentVariable, s.config.buildahImage)
+	s.T().Setenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable, s.config.buildkitImage)
 	s.T().Setenv(defaults.SeccompProfileFileNameEnvironmentVariable, s.config.buildahSecComp)
 	s.T().Setenv(defaults.RadixGitCloneNsLookupImageEnvironmentVariable, s.config.nslookupImage)
 	s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, s.config.gitImage)
@@ -214,9 +215,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY=1000Mi",
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU=100m",
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY=2000Mi",
+				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 				fmt.Sprintf("--RADIX_TEKTON_IMAGE=%s", s.config.tektonImage),
 				fmt.Sprintf("--RADIX_IMAGE_BUILDER=%s", s.config.builderImage),
-				fmt.Sprintf("--RADIX_BUILDAH_IMAGE_BUILDER=%s", s.config.buildahImage),
+				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
 				fmt.Sprintf("--RADIX_ZONE=%s", s.config.radixZone),
@@ -1390,5 +1392,9 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
 			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
-		}}
+		},
+		ContainerRegistryConfig: containerregistry.Config{
+			ExternalRegistryAuthSecret: "an-external-registry-secret",
+		},
+	}
 }

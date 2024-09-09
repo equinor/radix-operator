@@ -75,9 +75,9 @@ type PipelineArguments struct {
 
 	// Images used for copying radix config/building
 	TektonPipeline string
-	// ImageBuilder Points to the image builder
+	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
-	// BuildKitImageBuilder Points to the BuildKit compliant image builder
+	// BuildKitImageBuilder Points to the BuildKit compliant image builder (repository and tag only)
 	BuildKitImageBuilder string
 	// GitCloneNsLookupImage defines image containing nslookup.
 	// Used as option to the CloneInitContainers function.
@@ -111,6 +111,8 @@ type PipelineArguments struct {
 	AppName       string
 	Builder       Builder
 	DNSConfig     *dnsaliasconfig.DNSConfig
+
+	ExternalContainerRegistryDefaultAuthSecret string
 }
 
 // InitPipeline Initialize pipeline with step implementations

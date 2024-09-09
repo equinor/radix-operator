@@ -195,8 +195,12 @@ const (
 	// SeccompProfileFileNameEnvironmentVariable Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory
 	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
 
+	// Deprecated: Radix no longer uses the buildah image directly. Use RadixBuildKitImageBuilderEnvironmentVariable
 	// RadixBuildahImageBuilderEnvironmentVariable The container image used for running the buildah engine
 	RadixBuildahImageBuilderEnvironmentVariable = "RADIX_BUILDAH_IMAGE_BUILDER"
+
+	// RadixBuildKitImageBuilderEnvironmentVariable Repository and tag for the buildkit image builder
+	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER"
 
 	// RadixReservedAppDNSAliasesEnvironmentVariable The list of DNS aliases, reserved for Radix platform Radix application
 	RadixReservedAppDNSAliasesEnvironmentVariable = "RADIX_RESERVED_APP_DNS_ALIASES"

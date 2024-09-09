@@ -16,7 +16,8 @@ kubeClientRateLimitQPS: 5
 
 configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
-buildahImageBuilder: xx
+buildKitImageBuilder: radix-buildkit-builder:main-latest # TODO: Configure in radix-flux
+buildahImageBuilder: xx # TODO: Deprecated, remove
 jobScheduler: radix-job-scheduler:main-latest
 radixTekton: radix-tekton:main-latest
 

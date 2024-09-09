@@ -161,11 +161,12 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.String()),
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.String()),
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.String()),
+		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, radixTektonImage),
 		fmt.Sprintf("--%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
-		fmt.Sprintf("--%s=%s", defaults.RadixBuildahImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixBuildahImageBuilderEnvironmentVariable)),
+		fmt.Sprintf("--%s=%s", defaults.RadixBuildKitImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable)),
 		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),
 
 		// Used for tagging source of image

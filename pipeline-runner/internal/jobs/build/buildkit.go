@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pipeline-runner/internal/commandbuilder"
 	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -21,17 +20,18 @@ import (
 )
 
 const (
-	buildKitRunVolumeName         = "build-kit-run"
-	buildKitRootVolumeName        = "build-kit-root"
-	buildKitHomeVolumeName        = "radix-image-builder-home"
-	buildKitHomePath              = "/home/build"
-	buildKitBuildSecretsPath      = "/build-secrets"
-	privateImageHubDockerAuthPath = "/radix-private-image-hubs"
+	buildKitRunVolumeName           = "build-kit-run"
+	buildKitRootVolumeName          = "build-kit-root"
+	buildKitHomeVolumeName          = "radix-image-builder-home"
+	buildKitHomePath                = "/home/build"
+	buildKitBuildSecretsPath        = "/build-secrets"
+	privateImageHubDockerAuthPath   = "/radix-private-image-hubs"
+	defaultExternalRegistruAuthPath = "/radix-default-external-registry-auth"
 )
 
-var (
-	buildKitRegistryAuthFile = path.Join(buildKitHomePath, "auth.json")
-)
+// var (
+// 	buildKitRegistryAuthFile = path.Join(buildKitHomePath, "auth.json")
+// )
 
 type buildahConstructor struct {
 	pipelineArgs    model.PipelineArguments
@@ -130,9 +130,9 @@ func (c *buildahConstructor) getPodInitContainers() ([]corev1.Container, error) 
 func (c *buildahConstructor) getPodContainers(componentImage pipeline.BuildComponentImage) []corev1.Container {
 	container := corev1.Container{
 		Name:            componentImage.ContainerName,
-		Image:           c.pipelineArgs.BuildKitImageBuilder,
+		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.BuildKitImageBuilder),
 		ImagePullPolicy: corev1.PullAlways,
-		Command:         c.getPodContainerCommand(componentImage), // TODO
+		Args:            c.getPodContainerArgs(componentImage),
 		Env:             c.getPodContainerEnvVars(componentImage),
 		VolumeMounts:    c.getPodContainerVolumeMounts(componentImage),
 		SecurityContext: c.getPodContainerSecurityContext(),
@@ -142,64 +142,111 @@ func (c *buildahConstructor) getPodContainers(componentImage pipeline.BuildCompo
 	return []corev1.Container{container}
 }
 
-func (c *buildahConstructor) getPodContainerCommand(componentImage pipeline.BuildComponentImage) []string {
-	commandList := commandbuilder.NewCommandList()
-	commandList.AddStrCmd("mkdir /var/tmp && cp %s %s", path.Join(privateImageHubDockerAuthPath, ".dockerconfigjson"), buildKitRegistryAuthFile)
-	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", c.pipelineArgs.ContainerRegistry)
-	if c.useBuildCache {
-		commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s", c.pipelineArgs.AppContainerRegistry)
+func (c *buildahConstructor) getPodContainerArgs(componentImage pipeline.BuildComponentImage) []string {
+	args := []string{
+		"--registry", c.pipelineArgs.ContainerRegistry,
+		"--registry-username", "$(BUILDAH_USERNAME)",
+		"--registry-password", "$(BUILDAH_PASSWORD)",
+		"--cache-registry", c.pipelineArgs.AppContainerRegistry,
+		"--cache-registry-username", "$(BUILDAH_CACHE_USERNAME)",
+		"--cache-registry-password", "$(BUILDAH_CACHE_PASSWORD)",
+		"--cache-repository", utils.GetImageCachePath(c.pipelineArgs.AppContainerRegistry, c.pipelineArgs.AppName),
+		"--tag", componentImage.ImagePath,
+		"--cluster-type-tag", componentImage.ClusterTypeImagePath,
+		"--cluster-name-tag", componentImage.ClusterNameImagePath,
+		"--secrets-path", buildKitBuildSecretsPath,
+		"--dockerfile", componentImage.Dockerfile,
+		"--context", componentImage.Context,
+		"--branch", c.pipelineArgs.Branch,
+		"--git-commit-hash", c.gitCommitHash,
+		"--git-tags", c.gitTags,
+		"--target-environments", componentImage.EnvName,
 	}
-	buildah := commandbuilder.NewCommand("/usr/bin/buildah build")
-	commandList.AddCmd(buildah)
-
-	context := componentImage.Context
-	buildah.
-		AddArgf("--storage-driver=overlay").
-		AddArgf("--isolation=chroot").
-		AddArgf("--jobs 0").
-		AddArgf("--ulimit nofile=4096:4096").
-		AddArg(c.getSecretArgs()).
-		AddArgf("--file %s%s", context, componentImage.Dockerfile).
-		AddArgf(`--build-arg RADIX_GIT_COMMIT_HASH="${RADIX_GIT_COMMIT_HASH}"`).
-		AddArgf(`--build-arg RADIX_GIT_TAGS="${RADIX_GIT_TAGS}"`).
-		AddArgf(`--build-arg BRANCH="${BRANCH}"`).
-		AddArgf(`--build-arg TARGET_ENVIRONMENTS="${TARGET_ENVIRONMENTS}"`)
 
 	if c.useBuildCache {
-		cacheImagePath := utils.GetImageCachePath(c.pipelineArgs.AppContainerRegistry, c.pipelineArgs.AppName)
-		buildah.
-			AddArgf("--layers").
-			AddArgf("--cache-to=%s", cacheImagePath).
-			AddArgf("--cache-from=%s", cacheImagePath)
+		args = append(args, "--use-cache")
 	}
-
-	imageTag, clusterTypeImageTag, clusterNameImageTag := componentImage.ImagePath, componentImage.ClusterTypeImagePath, componentImage.ClusterNameImagePath
-	if c.pipelineArgs.PushImage {
-		buildah.
-			AddArgf("--tag %s", imageTag).
-			AddArgf("--tag %s", clusterTypeImageTag).
-			AddArgf("--tag %s", clusterNameImageTag)
-	}
-
-	buildah.AddArg(context)
 
 	if c.pipelineArgs.PushImage {
-		commandList.
-			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", imageTag).
-			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", clusterTypeImageTag).
-			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", clusterNameImageTag)
+		args = append(args, "--push")
 	}
 
-	return []string{"/bin/bash", "-c", commandList.String()}
-}
-
-func (c *buildahConstructor) getSecretArgs() string {
-	var secretArgs []string
 	for _, secret := range c.buildSecrets {
-		secretArgs = append(secretArgs, fmt.Sprintf("--secret id=%s,src=%s/%s", secret, buildKitBuildSecretsPath, secret))
+		args = append(args, "--secret", secret)
 	}
-	return strings.Join(secretArgs, " ")
+
+	// The order of auth-files matters when multiple are defined:
+	// When multiple files contains credentials for the same registry (e.g. docker.io), credentials from the last file is used
+	var authFiles []string
+	if len(c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret) > 0 {
+		authFiles = append(authFiles, path.Join(defaultExternalRegistruAuthPath, corev1.DockerConfigJsonKey))
+	}
+	authFiles = append(authFiles, path.Join(privateImageHubDockerAuthPath, corev1.DockerConfigJsonKey))
+	for _, authFile := range authFiles {
+		args = append(args, "--auth-file", authFile)
+	}
+
+	return args
 }
+
+// func (c *buildahConstructor) getPodContainerCommand(componentImage pipeline.BuildComponentImage) []string {
+// 	commandList := commandbuilder.NewCommandList()
+// 	commandList.AddStrCmd("mkdir /var/tmp && cp %s %s", path.Join(privateImageHubDockerAuthPath, ".dockerconfigjson"), buildKitRegistryAuthFile)
+// 	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", c.pipelineArgs.ContainerRegistry)
+// 	if c.useBuildCache {
+// 		commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_CACHE_USERNAME} --password ${BUILDAH_CACHE_PASSWORD} %s", c.pipelineArgs.AppContainerRegistry)
+// 	}
+// 	buildah := commandbuilder.NewCommand("/usr/bin/buildah build")
+// 	commandList.AddCmd(buildah)
+
+// 	context := componentImage.Context
+// 	buildah.
+// 		AddArgf("--storage-driver=overlay").
+// 		AddArgf("--isolation=chroot").
+// 		AddArgf("--jobs 0").
+// 		AddArgf("--ulimit nofile=4096:4096").
+// 		AddArg(c.getSecretArgs()).
+// 		AddArgf("--file %s%s", context, componentImage.Dockerfile).
+// 		AddArgf(`--build-arg RADIX_GIT_COMMIT_HASH="${RADIX_GIT_COMMIT_HASH}"`).
+// 		AddArgf(`--build-arg RADIX_GIT_TAGS="${RADIX_GIT_TAGS}"`).
+// 		AddArgf(`--build-arg BRANCH="${BRANCH}"`).
+// 		AddArgf(`--build-arg TARGET_ENVIRONMENTS="${TARGET_ENVIRONMENTS}"`)
+
+// 	if c.useBuildCache {
+// 		cacheImagePath := utils.GetImageCachePath(c.pipelineArgs.AppContainerRegistry, c.pipelineArgs.AppName)
+// 		buildah.
+// 			AddArgf("--layers").
+// 			AddArgf("--cache-to=%s", cacheImagePath).
+// 			AddArgf("--cache-from=%s", cacheImagePath)
+// 	}
+
+// 	imageTag, clusterTypeImageTag, clusterNameImageTag := componentImage.ImagePath, componentImage.ClusterTypeImagePath, componentImage.ClusterNameImagePath
+// 	if c.pipelineArgs.PushImage {
+// 		buildah.
+// 			AddArgf("--tag %s", imageTag).
+// 			AddArgf("--tag %s", clusterTypeImageTag).
+// 			AddArgf("--tag %s", clusterNameImageTag)
+// 	}
+
+// 	buildah.AddArg(context)
+
+// 	if c.pipelineArgs.PushImage {
+// 		commandList.
+// 			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", imageTag).
+// 			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", clusterTypeImageTag).
+// 			AddStrCmd("/usr/bin/buildah push --storage-driver=overlay %s", clusterNameImageTag)
+// 	}
+
+// 	return []string{"/bin/bash", "-c", commandList.String()}
+// }
+
+// func (c *buildahConstructor) getSecretArgs() string {
+// 	var secretArgs []string
+// 	for _, secret := range c.buildSecrets {
+// 		secretArgs = append(secretArgs, fmt.Sprintf("--secret id=%s,src=%s/%s", secret, buildKitBuildSecretsPath, secret))
+// 	}
+// 	return strings.Join(secretArgs, " ")
+// }
 
 func (c *buildahConstructor) getPodContainerResources() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{
@@ -266,11 +313,11 @@ func (c *buildahConstructor) getPodContainerEnvVars(componentImage pipeline.Buil
 				},
 			},
 		},
-		corev1.EnvVar{
-			// Ready by buildah to located default docker auth file, ref https://github.com/containers/buildah/blob/main/docs/buildah-login.1.md#options
-			Name:  "REGISTRY_AUTH_FILE",
-			Value: buildKitRegistryAuthFile,
-		},
+		// corev1.EnvVar{
+		// 	// Ready by buildah to located default docker auth file, ref https://github.com/containers/buildah/blob/main/docs/buildah-login.1.md#options
+		// 	Name:  "REGISTRY_AUTH_FILE",
+		// 	Value: buildKitRegistryAuthFile,
+		// },
 	)
 
 	return envVars
@@ -286,7 +333,7 @@ func (c *buildahConstructor) getPodContainerVolumeMounts(componentImage pipeline
 			ReadOnly:  false,
 		},
 		corev1.VolumeMount{
-			Name:      buildKitRootVolumeName, // buildah home folder
+			Name:      buildKitRootVolumeName, // Required by buildah
 			MountPath: "/root",
 			ReadOnly:  false,
 		},
@@ -296,11 +343,21 @@ func (c *buildahConstructor) getPodContainerVolumeMounts(componentImage pipeline
 			ReadOnly:  true,
 		},
 		corev1.VolumeMount{
-			Name:      buildKitHomeVolumeName, // the file /radix-private-image-hubs/.dockerconfigjson is copied to auth.json file in the user home folder
-			MountPath: buildKitHomePath,
+			Name:      buildKitHomeVolumeName,
+			MountPath: buildKitHomePath, // Writable directory where buildah's auth.json file is stored
 			ReadOnly:  false,
 		},
 	)
+
+	if len(c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret) > 0 {
+		volumeMounts = append(volumeMounts,
+			corev1.VolumeMount{
+				Name:      c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret,
+				MountPath: defaultExternalRegistruAuthPath,
+				ReadOnly:  true,
+			},
+		)
+	}
 
 	if len(c.buildSecrets) > 0 {
 		volumeMounts = append(volumeMounts,
@@ -352,6 +409,19 @@ func (c *buildahConstructor) getPodVolumes(componentImage pipeline.BuildComponen
 			},
 		},
 	)
+
+	if len(c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret) > 0 {
+		volumes = append(volumes,
+			corev1.Volume{
+				Name: c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret,
+					},
+				},
+			},
+		)
+	}
 
 	if len(c.buildSecrets) > 0 {
 		volumes = append(volumes,
