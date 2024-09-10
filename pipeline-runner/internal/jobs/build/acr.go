@@ -26,7 +26,40 @@ const (
 	acrHomePath                  = "/home/radix-image-builder"
 )
 
-type acrConstructor struct {
+type ACR struct{}
+
+func (c *ACR) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) ([]batchv1.Job, error) {
+	var kubeJob kubeJobBuilder
+	acr := &acrJob{
+		pipelineArgs:    pipelineArgs,
+		componentImages: componentImages,
+		cloneURL:        cloneURL,
+		gitCommitHash:   gitCommitHash,
+		gitTags:         gitTags,
+		buildSecrets:    buildSecrets,
+	}
+
+	initContainers, err := acr.GetPodInitContainers()
+	if err != nil {
+		return nil, err
+	}
+
+	kubeJob.SetName(acr.GetJobName())
+	kubeJob.SetLabels(acr.GetJobLabels())
+	kubeJob.SetAnnotations(acr.GetJobAnnotations())
+	kubeJob.SetPodLabels(acr.getPodLabels())
+	kubeJob.SetPodAnnotations(acr.GetPodAnnotations())
+	kubeJob.SetPodTolerations(acr.GetPodTolerations())
+	kubeJob.SetPodAffinity(acr.GetPodAffinity())
+	kubeJob.SetPodSecurityContext(acr.GetPodSecurityContext())
+	kubeJob.SetPodVolumes(acr.GetPodVolumes())
+	kubeJob.SetPodInitContainers(initContainers)
+	kubeJob.SetPodContainers(acr.GetPodContainers())
+
+	return []batchv1.Job{kubeJob.GetJob()}, nil
+}
+
+type acrJob struct {
 	pipelineArgs    model.PipelineArguments
 	componentImages []pipeline.BuildComponentImage
 	cloneURL        string
@@ -35,74 +68,51 @@ type acrConstructor struct {
 	buildSecrets    []string
 }
 
-func (c *acrConstructor) ConstructJobs() ([]batchv1.Job, error) {
-	var builder jobBuilder
-
-	initContainers, err := c.getPodInitContainers()
-	if err != nil {
-		return nil, err
-	}
-
-	builder.SetName(c.getJobName())
-	builder.SetLabels(c.getJobLabels())
-	builder.SetAnnotations(c.getJobAnnotations())
-	builder.SetPodLabels(c.getPodLabels())
-	builder.SetPodAnnotations(c.getPodAnnotations())
-	builder.SetPodTolerations(c.getPodTolerations())
-	builder.SetPodAffinity(c.getPodAffinity())
-	builder.SetPodSecurityContext(c.getPodSecurityContext())
-	builder.SetPodVolumes(c.getPodVolumes())
-	builder.SetPodInitContainers(initContainers)
-	builder.SetPodContainers(c.getPodContainers())
-
-	return []batchv1.Job{builder.GetJob()}, nil
-}
-
-func (c *acrConstructor) getJobName() string {
+func (c *acrJob) GetJobName() string {
 	hash := strings.ToLower(utils.RandStringStrSeed(5, c.pipelineArgs.JobName))
 	return getJobName(time.Now(), c.pipelineArgs.ImageTag, hash)
 }
 
-func (c *acrConstructor) getJobLabels() map[string]string {
+func (c *acrJob) GetJobLabels() map[string]string {
 	return getDefaultJobLabels(c.pipelineArgs.AppName, c.pipelineArgs.JobName, c.pipelineArgs.ImageTag)
 }
 
-func (c *acrConstructor) getJobAnnotations() map[string]string {
+func (c *acrJob) GetJobAnnotations() map[string]string {
 	return getDefaultJobAnnotations(c.pipelineArgs.Branch, c.componentImages...)
 }
 
-func (c *acrConstructor) getPodLabels() map[string]string {
+func (c *acrJob) getPodLabels() map[string]string {
 	return getDefaultPodLabels(c.pipelineArgs.JobName)
 }
 
-func (c *acrConstructor) getPodAnnotations() map[string]string {
+func (c *acrJob) GetPodAnnotations() map[string]string {
 	return getDefaultPodAnnotations()
 }
 
-func (c *acrConstructor) getPodTolerations() []corev1.Toleration {
+func (c *acrJob) GetPodTolerations() []corev1.Toleration {
 	return getDefaultPodTolerations()
 }
 
-func (c *acrConstructor) getPodAffinity() *corev1.Affinity {
+func (c *acrJob) GetPodAffinity() *corev1.Affinity {
 	return getDefaultPodAffinity(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64})
 }
 
-func (*acrConstructor) getPodSecurityContext() *corev1.PodSecurityContext {
+func (*acrJob) GetPodSecurityContext() *corev1.PodSecurityContext {
 	return securitycontext.Pod(
 		securitycontext.WithPodFSGroup(1000),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 }
 
-func (c *acrConstructor) getPodInitContainers() ([]corev1.Container, error) {
+func (c *acrJob) GetPodInitContainers() ([]corev1.Container, error) {
 	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
 	return getDefaultPodInitContainers(c.cloneURL, c.pipelineArgs.Branch, cloneCfg)
 }
 
-func (c *acrConstructor) getPodContainers() []corev1.Container {
+func (c *acrJob) GetPodContainers() []corev1.Container {
 	return slice.Map(c.componentImages, c.getPodContainer)
 }
 
-func (c *acrConstructor) getPodContainer(componentImage pipeline.BuildComponentImage) corev1.Container {
+func (c *acrJob) getPodContainer(componentImage pipeline.BuildComponentImage) corev1.Container {
 	return corev1.Container{
 		Name:            componentImage.ContainerName,
 		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.ImageBuilder),
@@ -113,7 +123,7 @@ func (c *acrConstructor) getPodContainer(componentImage pipeline.BuildComponentI
 	}
 }
 
-func (*acrConstructor) getPodContainerSecurityContext() *corev1.SecurityContext {
+func (*acrJob) getPodContainerSecurityContext() *corev1.SecurityContext {
 	return securitycontext.Container(
 		securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
@@ -123,7 +133,7 @@ func (*acrConstructor) getPodContainerSecurityContext() *corev1.SecurityContext 
 	)
 }
 
-func (c *acrConstructor) getPodVolumes() []corev1.Volume {
+func (c *acrJob) GetPodVolumes() []corev1.Volume {
 	volumes := getDefaultPodVolumes(c.componentImages)
 
 	volumes = append(volumes,
@@ -148,7 +158,7 @@ func (c *acrConstructor) getPodVolumes() []corev1.Volume {
 	return volumes
 }
 
-func (c *acrConstructor) getPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {
+func (c *acrJob) getPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {
 	volumeMounts := getDefaultPodContainerVolumeMounts(componentImage)
 
 	volumeMounts = append(volumeMounts,
@@ -168,7 +178,7 @@ func (c *acrConstructor) getPodContainerVolumeMounts(componentImage pipeline.Bui
 	return volumeMounts
 }
 
-func (c *acrConstructor) getPodContainerEnvVars(componentImage pipeline.BuildComponentImage) []corev1.EnvVar {
+func (c *acrJob) getPodContainerEnvVars(componentImage pipeline.BuildComponentImage) []corev1.EnvVar {
 	envVars := getDefaultPodContainerEnvVars(componentImage, c.pipelineArgs.Branch, c.gitCommitHash, c.gitTags)
 	envVars = append(envVars, c.getPodContainerBuildSecretEnvVars()...)
 
@@ -223,7 +233,7 @@ func (c *acrConstructor) getPodContainerEnvVars(componentImage pipeline.BuildCom
 	return envVars
 }
 
-func (c *acrConstructor) getPodContainerBuildSecretEnvVars() []corev1.EnvVar {
+func (c *acrJob) getPodContainerBuildSecretEnvVars() []corev1.EnvVar {
 	return slice.Map(c.buildSecrets, func(secret string) corev1.EnvVar {
 		return corev1.EnvVar{
 			Name: defaults.BuildSecretPrefix + secret,

@@ -26,19 +26,43 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+type BuildJobFactory func(useBuildKit bool) internalbuild.Interface
+
 // BuildStepImplementation Step to build docker image
 type BuildStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	jobWaiter internalwait.JobCompletionWaiter
+	jobWaiter       internalwait.JobCompletionWaiter
+	buildJobFactory BuildJobFactory
+}
+
+type Option func(step *BuildStepImplementation)
+
+func WithBuildJobFactory(factory BuildJobFactory) Option {
+	return func(step *BuildStepImplementation) {
+		step.buildJobFactory = factory
+	}
+}
+
+func defaultBuildJobFactory(useBuildKit bool) internalbuild.Interface {
+	if useBuildKit {
+		return &internalbuild.BuildKit{}
+	}
+
+	return &internalbuild.ACR{}
 }
 
 // NewBuildStep Constructor.
 // jobWaiter is optional and will be set by Init(...) function if nil.
-func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
+func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter, options ...Option) model.Step {
 	step := &BuildStepImplementation{
-		stepType:  pipeline.BuildStep,
-		jobWaiter: jobWaiter,
+		stepType:        pipeline.BuildStep,
+		jobWaiter:       jobWaiter,
+		buildJobFactory: defaultBuildJobFactory,
+	}
+
+	for _, o := range options {
+		o(step)
 	}
 
 	return step
@@ -103,17 +127,16 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 		secrets = pipelineInfo.RadixApplication.Spec.Build.Secrets
 	}
 	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
-	return internalbuild.
-		GetConstructor(
-			pipelineInfo.IsUsingBuildKit(),
+	return step.buildJobFactory(pipelineInfo.IsUsingBuildKit()).
+		GetJobs(
 			pipelineInfo.IsUsingBuildCache(),
 			pipelineInfo.PipelineArguments,
 			rr.Spec.CloneURL,
 			pipelineInfo.GitCommitHash,
 			pipelineInfo.GitTags,
 			imagesToBuild,
-			secrets).
-		ConstructJobs()
+			secrets,
+		)
 }
 
 func (step *BuildStepImplementation) applyBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []batchv1.Job, namespace string) error {

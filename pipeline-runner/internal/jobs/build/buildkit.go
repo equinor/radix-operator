@@ -29,25 +29,13 @@ const (
 	defaultExternalRegistruAuthPath = "/radix-default-external-registry-auth"
 )
 
-// var (
-// 	buildKitRegistryAuthFile = path.Join(buildKitHomePath, "auth.json")
-// )
+type BuildKit struct{}
 
-type buildahConstructor struct {
-	pipelineArgs    model.PipelineArguments
-	componentImages []pipeline.BuildComponentImage
-	cloneURL        string
-	gitCommitHash   string
-	gitTags         string
-	buildSecrets    []string
-	useBuildCache   bool
-}
-
-func (c *buildahConstructor) ConstructJobs() ([]batchv1.Job, error) {
+func (c *BuildKit) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) ([]batchv1.Job, error) {
 	var jobs []batchv1.Job
 
-	for _, componentImage := range c.componentImages {
-		job, err := c.constructJob(componentImage)
+	for _, componentImage := range componentImages {
+		job, err := c.constructJob(componentImage, useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets)
 		if err != nil {
 			return nil, err
 		}
@@ -57,84 +45,102 @@ func (c *buildahConstructor) ConstructJobs() ([]batchv1.Job, error) {
 	return jobs, nil
 }
 
-func (c *buildahConstructor) constructJob(componentImage pipeline.BuildComponentImage) (batchv1.Job, error) {
-	var builder jobBuilder
-
-	initContainers, err := c.getPodInitContainers()
+func (c *BuildKit) constructJob(componentImage pipeline.BuildComponentImage, useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) (batchv1.Job, error) {
+	var kubeJob kubeJobBuilder
+	buildkit := &buildKitJob{
+		pipelineArgs:   pipelineArgs,
+		componentImage: componentImage,
+		cloneURL:       cloneURL,
+		gitCommitHash:  gitCommitHash,
+		gitTags:        gitTags,
+		buildSecrets:   buildSecrets,
+		useBuildCache:  useBuildCache,
+	}
+	initContainers, err := buildkit.GetPodInitContainers()
 	if err != nil {
 		return batchv1.Job{}, err
 	}
 
-	builder.SetName(c.getJobName(componentImage))
-	builder.SetLabels(c.getJobLabels(componentImage))
-	builder.SetAnnotations(c.getJobAnnotations(componentImage))
-	builder.SetPodLabels(c.getPodLabels())
-	builder.SetPodAnnotations(c.getPodAnnotations(componentImage))
-	builder.SetPodTolerations(c.getPodTolerations())
-	builder.SetPodAffinity(c.getPodAffinity(componentImage))
-	builder.SetPodSecurityContext(c.getPodSecurityContext())
-	builder.SetPodVolumes(c.getPodVolumes(componentImage))
-	builder.SetPodInitContainers(initContainers)
-	builder.SetPodContainers(c.getPodContainers(componentImage))
+	kubeJob.SetName(buildkit.GetJobName())
+	kubeJob.SetLabels(buildkit.GetJobLabels())
+	kubeJob.SetAnnotations(buildkit.GetJobAnnotations())
+	kubeJob.SetPodLabels(buildkit.GetPodLabels())
+	kubeJob.SetPodAnnotations(buildkit.GetPodAnnotations())
+	kubeJob.SetPodTolerations(buildkit.GetPodTolerations())
+	kubeJob.SetPodAffinity(buildkit.GetPodAffinity())
+	kubeJob.SetPodSecurityContext(buildkit.GetPodSecurityContext())
+	kubeJob.SetPodVolumes(buildkit.GetPodVolumes())
+	kubeJob.SetPodInitContainers(initContainers)
+	kubeJob.SetPodContainers(buildkit.GetPodContainers())
 
-	return builder.GetJob(), nil
+	return kubeJob.GetJob(), nil
 }
 
-func (c *buildahConstructor) getJobName(componentImage pipeline.BuildComponentImage) string {
-	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", c.pipelineArgs.JobName, componentImage.EnvName, componentImage.ComponentName)))
+type buildKitJob struct {
+	pipelineArgs   model.PipelineArguments
+	componentImage pipeline.BuildComponentImage
+	cloneURL       string
+	gitCommitHash  string
+	gitTags        string
+	buildSecrets   []string
+	useBuildCache  bool
+}
+
+func (c *buildKitJob) GetJobName() string {
+	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", c.pipelineArgs.JobName, c.componentImage.EnvName, c.componentImage.ComponentName)))
 	return getJobName(time.Now(), c.pipelineArgs.ImageTag, hash)
 }
 
-func (c *buildahConstructor) getJobLabels(componentImage pipeline.BuildComponentImage) map[string]string {
+func (c *buildKitJob) GetJobLabels() map[string]string {
 	return labels.Merge(
 		getDefaultJobLabels(c.pipelineArgs.AppName, c.pipelineArgs.JobName, c.pipelineArgs.ImageTag),
-		labels.ForEnvironmentName(componentImage.EnvName),
-		labels.ForComponentName(componentImage.ComponentName),
+		labels.ForEnvironmentName(c.componentImage.EnvName),
+		labels.ForComponentName(c.componentImage.ComponentName),
 	)
 }
 
-func (c *buildahConstructor) getJobAnnotations(componentImage pipeline.BuildComponentImage) map[string]string {
-	return getDefaultJobAnnotations(c.pipelineArgs.Branch, componentImage)
+func (c *buildKitJob) GetJobAnnotations() map[string]string {
+	return getDefaultJobAnnotations(c.pipelineArgs.Branch, c.componentImage)
 }
 
-func (c *buildahConstructor) getPodLabels() map[string]string {
+func (c *buildKitJob) GetPodLabels() map[string]string {
 	return getDefaultPodLabels(c.pipelineArgs.JobName)
 }
 
-func (c *buildahConstructor) getPodAnnotations(componentImage pipeline.BuildComponentImage) map[string]string {
+func (c *buildKitJob) GetPodAnnotations() map[string]string {
 	annotations := getDefaultPodAnnotations()
-	annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", componentImage.ContainerName)] = "unconfined"
+	annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", c.componentImage.ContainerName)] = "unconfined"
 	return annotations
 }
 
-func (c *buildahConstructor) getPodTolerations() []corev1.Toleration {
+func (c *buildKitJob) GetPodTolerations() []corev1.Toleration {
 	return getDefaultPodTolerations()
 }
 
-func (c *buildahConstructor) getPodAffinity(componentImage pipeline.BuildComponentImage) *corev1.Affinity {
-	return getDefaultPodAffinity(componentImage.Runtime)
+func (c *buildKitJob) GetPodAffinity() *corev1.Affinity {
+	return getDefaultPodAffinity(c.componentImage.Runtime)
 }
 
-func (*buildahConstructor) getPodSecurityContext() *corev1.PodSecurityContext {
+func (*buildKitJob) GetPodSecurityContext() *corev1.PodSecurityContext {
 	return securitycontext.Pod(
 		securitycontext.WithPodFSGroup(1000),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
 		securitycontext.WithPodRunAsNonRoot(pointers.Ptr(false)))
 }
 
-func (c *buildahConstructor) getPodInitContainers() ([]corev1.Container, error) {
+func (c *buildKitJob) GetPodInitContainers() ([]corev1.Container, error) {
 	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
 	return getDefaultPodInitContainers(c.cloneURL, c.pipelineArgs.Branch, cloneCfg)
 }
 
-func (c *buildahConstructor) getPodContainers(componentImage pipeline.BuildComponentImage) []corev1.Container {
+func (c *buildKitJob) GetPodContainers() []corev1.Container {
 	container := corev1.Container{
-		Name:            componentImage.ContainerName,
+		Name:            c.componentImage.ContainerName,
 		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.BuildKitImageBuilder),
 		ImagePullPolicy: corev1.PullAlways,
-		Args:            c.getPodContainerArgs(componentImage),
-		Env:             c.getPodContainerEnvVars(componentImage),
-		VolumeMounts:    c.getPodContainerVolumeMounts(componentImage),
+		Args:            c.getPodContainerArgs(),
+		Env:             c.getPodContainerEnvVars(),
+		VolumeMounts:    c.getPodContainerVolumeMounts(),
 		SecurityContext: c.getPodContainerSecurityContext(),
 		Resources:       c.getPodContainerResources(),
 	}
@@ -142,7 +148,7 @@ func (c *buildahConstructor) getPodContainers(componentImage pipeline.BuildCompo
 	return []corev1.Container{container}
 }
 
-func (c *buildahConstructor) getPodContainerArgs(componentImage pipeline.BuildComponentImage) []string {
+func (c *buildKitJob) getPodContainerArgs() []string {
 	args := []string{
 		"--registry", c.pipelineArgs.ContainerRegistry,
 		"--registry-username", "$(BUILDAH_USERNAME)",
@@ -151,16 +157,16 @@ func (c *buildahConstructor) getPodContainerArgs(componentImage pipeline.BuildCo
 		"--cache-registry-username", "$(BUILDAH_CACHE_USERNAME)",
 		"--cache-registry-password", "$(BUILDAH_CACHE_PASSWORD)",
 		"--cache-repository", utils.GetImageCachePath(c.pipelineArgs.AppContainerRegistry, c.pipelineArgs.AppName),
-		"--tag", componentImage.ImagePath,
-		"--cluster-type-tag", componentImage.ClusterTypeImagePath,
-		"--cluster-name-tag", componentImage.ClusterNameImagePath,
+		"--tag", c.componentImage.ImagePath,
+		"--cluster-type-tag", c.componentImage.ClusterTypeImagePath,
+		"--cluster-name-tag", c.componentImage.ClusterNameImagePath,
 		"--secrets-path", buildKitBuildSecretsPath,
-		"--dockerfile", componentImage.Dockerfile,
-		"--context", componentImage.Context,
+		"--dockerfile", c.componentImage.Dockerfile,
+		"--context", c.componentImage.Context,
 		"--branch", c.pipelineArgs.Branch,
 		"--git-commit-hash", c.gitCommitHash,
 		"--git-tags", c.gitTags,
-		"--target-environments", componentImage.EnvName,
+		"--target-environments", c.componentImage.EnvName,
 	}
 
 	if c.useBuildCache {
@@ -189,7 +195,7 @@ func (c *buildahConstructor) getPodContainerArgs(componentImage pipeline.BuildCo
 	return args
 }
 
-// func (c *buildahConstructor) getPodContainerCommand(componentImage pipeline.BuildComponentImage) []string {
+// func (c *buildkitJob) getPodContainerCommand() []string {
 // 	commandList := commandbuilder.NewCommandList()
 // 	commandList.AddStrCmd("mkdir /var/tmp && cp %s %s", path.Join(privateImageHubDockerAuthPath, ".dockerconfigjson"), buildKitRegistryAuthFile)
 // 	commandList.AddStrCmd("/usr/bin/buildah login --username ${BUILDAH_USERNAME} --password ${BUILDAH_PASSWORD} %s", c.pipelineArgs.ContainerRegistry)
@@ -248,7 +254,7 @@ func (c *buildahConstructor) getPodContainerArgs(componentImage pipeline.BuildCo
 // 	return strings.Join(secretArgs, " ")
 // }
 
-func (c *buildahConstructor) getPodContainerResources() corev1.ResourceRequirements {
+func (c *buildKitJob) getPodContainerResources() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{
 		Requests: map[corev1.ResourceName]resource.Quantity{
 			corev1.ResourceCPU:    resource.MustParse(c.pipelineArgs.Builder.ResourcesRequestsCPU),
@@ -260,7 +266,7 @@ func (c *buildahConstructor) getPodContainerResources() corev1.ResourceRequireme
 	}
 }
 
-func (*buildahConstructor) getPodContainerSecurityContext() *corev1.SecurityContext {
+func (*buildKitJob) getPodContainerSecurityContext() *corev1.SecurityContext {
 	return securitycontext.Container(
 		securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
@@ -273,8 +279,8 @@ func (*buildahConstructor) getPodContainerSecurityContext() *corev1.SecurityCont
 	)
 }
 
-func (c *buildahConstructor) getPodContainerEnvVars(componentImage pipeline.BuildComponentImage) []corev1.EnvVar {
-	envVars := getDefaultPodContainerEnvVars(componentImage, c.pipelineArgs.Branch, c.gitCommitHash, c.gitTags)
+func (c *buildKitJob) getPodContainerEnvVars() []corev1.EnvVar {
+	envVars := getDefaultPodContainerEnvVars(c.componentImage, c.pipelineArgs.Branch, c.gitCommitHash, c.gitTags)
 
 	envVars = append(envVars,
 		corev1.EnvVar{
@@ -323,8 +329,8 @@ func (c *buildahConstructor) getPodContainerEnvVars(componentImage pipeline.Buil
 	return envVars
 }
 
-func (c *buildahConstructor) getPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {
-	volumeMounts := getDefaultPodContainerVolumeMounts(componentImage)
+func (c *buildKitJob) getPodContainerVolumeMounts() []corev1.VolumeMount {
+	volumeMounts := getDefaultPodContainerVolumeMounts(c.componentImage)
 
 	volumeMounts = append(volumeMounts,
 		corev1.VolumeMount{
@@ -372,8 +378,8 @@ func (c *buildahConstructor) getPodContainerVolumeMounts(componentImage pipeline
 	return volumeMounts
 }
 
-func (c *buildahConstructor) getPodVolumes(componentImage pipeline.BuildComponentImage) []corev1.Volume {
-	volumes := getDefaultPodVolumes([]pipeline.BuildComponentImage{componentImage})
+func (c *buildKitJob) GetPodVolumes() []corev1.Volume {
+	volumes := getDefaultPodVolumes([]pipeline.BuildComponentImage{c.componentImage})
 
 	volumes = append(volumes,
 		corev1.Volume{
