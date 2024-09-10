@@ -28,6 +28,8 @@ func ForRadixBranch(branch string) map[string]string {
 func ForRadixDeploymentName(deploymentName string) map[string]string {
 	return map[string]string{kube.RadixDeploymentNameAnnotation: deploymentName}
 }
+
+// ForKubernetesDeploymentObservedGeneration returns annotations describing which RadixDeployment version was used while syncing
 func ForKubernetesDeploymentObservedGeneration(rd *radixv1.RadixDeployment) map[string]string {
 	if rd == nil {
 		return map[string]string{}

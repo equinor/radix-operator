@@ -22,7 +22,6 @@ import (
 func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
-	horizontalScaling := deployComponent.GetHorizontalScaling().NormalizeConfig()
 
 	if deployComponent.GetReplicasOverride() != nil {
 		log.Ctx(ctx).Debug().Msgf("Skip creating ScaledObject %s in namespace %s: manuall override is set", componentName, namespace)
@@ -30,6 +29,7 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 	}
 
 	// Check if scaler config exists
+	horizontalScaling := deployComponent.GetHorizontalScaling().NormalizeConfig()
 	if horizontalScaling == nil {
 		log.Ctx(ctx).Debug().Msgf("Skip creating ScaledObject %s in namespace %s: no HorizontalScaling config exists", componentName, namespace)
 		return nil
@@ -39,8 +39,6 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 		return nil
 	}
 
-	scaler := deploy.getScalerConfig(componentName, horizontalScaling)
-
 	auths := deploy.getTriggerAuths(componentName, horizontalScaling)
 	for _, auth := range auths {
 		if err := deploy.kubeutil.ApplyTriggerAuthentication(ctx, namespace, auth); err != nil {
@@ -48,6 +46,7 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 		}
 	}
 
+	scaler := deploy.getScalerConfig(componentName, horizontalScaling)
 	return deploy.kubeutil.ApplyScaledObject(ctx, namespace, scaler)
 }
 

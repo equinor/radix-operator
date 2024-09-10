@@ -106,7 +106,7 @@ type RadixDeployComponent struct {
 	Image            string          `json:"image"`
 	Ports            []ComponentPort `json:"ports"`
 	Replicas         *int            `json:"replicas"`
-	ReplicasOverride *int            `json:"replicasOverride"`
+	ReplicasOverride *int            `json:"replicasOverride,omitempty"`
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public               bool                     `json:"public"`
 	PublicPort           string                   `json:"publicPort,omitempty"`

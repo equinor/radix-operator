@@ -28,8 +28,9 @@ const (
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
 	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
-	RadixDeploymentObservedGeneration                = "radix.equinor.com/radix-deployment-observed-generation"
-	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
+	// RadixDeploymentObservedGeneration Used to verify kubernetes deployements are synced with active radix deployment, must contain the active RadixDeployments synced Generation
+	RadixDeploymentObservedGeneration = "radix.equinor.com/radix-deployment-observed-generation"
+	// RestoredStatusAnnotation See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
 )
 
@@ -54,8 +55,8 @@ const (
 	RadixCommitLabel                    = "radix-commit"
 	RadixImageTagLabel                  = "radix-image-tag"
 	RadixJobTypeLabel                   = "radix-job-type"
-	RadixJobTypeJob                     = "job"       // Outer job
-	RadixJobTypeAuxJobSleep             = "job-sleep" // Outer job
+	RadixJobTypeJob                     = "job"                   // Outer job
+	RadixJobTypeManagerAux              = "job-manager-auxiliary" // Outer job
 	RadixJobTypeBuild                   = "build"
 	RadixJobTypeCloneConfig             = "clone-config"
 	RadixJobTypePreparePipelines        = "prepare-pipelines"

@@ -45,7 +45,7 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec(ctx context.
 }
 
 func (deploy *Deployment) garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec(ctx context.Context) error {
-	jobAuxDeployments, err := deploy.kubeutil.ListDeploymentsWithSelector(ctx, deploy.radixDeployment.GetNamespace(), labels.IsJobAuxObjectSelector(kube.RadixJobTypeAuxJobSleep).String())
+	jobAuxDeployments, err := deploy.kubeutil.ListDeploymentsWithSelector(ctx, deploy.radixDeployment.GetNamespace(), labels.IsJobAuxObjectSelector(kube.RadixJobTypeManagerAux).String())
 	if err != nil {
 		return err
 	}

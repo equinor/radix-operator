@@ -145,7 +145,7 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointers.Ptr[int32](1),
-			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeAuxJobSleep)},
+			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
@@ -210,7 +210,7 @@ func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixC
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
-		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeAuxJobSleep),
+		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
 	)
 }
 
@@ -250,7 +250,7 @@ func getDeployComponentCommitId(deployComponent v1.RadixCommonDeployComponent) s
 func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
-		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeAuxJobSleep),
+		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
 	)
 }
 
@@ -271,7 +271,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.ObjectMeta.Annotations = deploy.getDeploymentAnnotations()
 
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
-	desiredDeployment.Spec.Replicas = getDesiredComponentReplicas(deployComponent)
+	desiredDeployment.Spec.Replicas = pointers.Ptr(getDeployComponentReplicas(deployComponent))
 	desiredDeployment.Spec.RevisionHistoryLimit = getRevisionHistoryLimit(deployComponent)
 
 	deploymentStrategy, err := getDeploymentStrategy()
@@ -344,18 +344,15 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 }
 
 func isComponentStopped(deployComponent v1.RadixCommonDeployComponent) bool {
-	if replicas := deployComponent.GetReplicasOverride(); replicas != nil {
-		return *replicas == 0
-	}
-
-	return false
+	replicas := deployComponent.GetReplicasOverride()
+	return replicas != nil && *replicas == 0
 }
 
-func getDesiredComponentReplicas(deployComponent v1.RadixCommonDeployComponent) *int32 {
-	if isComponentStopped(deployComponent) {
-		return pointers.Ptr[int32](0)
+func getDeployComponentReplicas(deployComponent v1.RadixCommonDeployComponent) int32 {
+	if override := deployComponent.GetReplicasOverride(); override != nil {
+		return int32(*override)
 	}
-
+	// TODO: Clean up types
 	componentReplicas := int32(DefaultReplicas)
 	if replicas := deployComponent.GetReplicas(); replicas != nil {
 		componentReplicas = int32(*replicas)
@@ -370,11 +367,7 @@ func getDesiredComponentReplicas(deployComponent v1.RadixCommonDeployComponent) 
 		}
 	}
 
-	if override := deployComponent.GetReplicasOverride(); override != nil {
-		componentReplicas = int32(*override)
-	}
-
-	return pointers.Ptr(componentReplicas)
+	return componentReplicas
 }
 
 func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int32 {

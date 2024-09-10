@@ -786,7 +786,7 @@ func getDeploymentsForRadixComponents(deployments []appsv1.Deployment) []appsv1.
 }
 
 func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Deployment {
-	selector := radixlabels.IsJobAuxObjectSelector(kube.RadixJobTypeAuxJobSleep)
+	selector := radixlabels.IsJobAuxObjectSelector(kube.RadixJobTypeManagerAux)
 	return slice.FindAll(deployments, func(depl appsv1.Deployment) bool {
 		return selector.Matches(labels.Set(depl.GetLabels()))
 	})
@@ -3843,7 +3843,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeAuxJobSleep).String()})
+	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux).String()})
 	require.Len(t, deploymentList.Items, 1)
 	deployment := deploymentList.Items[0]
 	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")

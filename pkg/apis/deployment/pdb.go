@@ -14,7 +14,7 @@ import (
 )
 
 func componentShallHavePdb(component v1.RadixCommonDeployComponent) bool {
-	return *getDesiredComponentReplicas(component) > 1
+	return getDeployComponentReplicas(component) > 1
 }
 
 func (deploy *Deployment) createOrUpdatePodDisruptionBudget(ctx context.Context, component v1.RadixCommonDeployComponent) error {
