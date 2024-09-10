@@ -121,7 +121,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr[int32](DefaultReplicas),
+			Replicas: pointers.Ptr(DefaultReplicas),
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -352,18 +352,18 @@ func getDeployComponentReplicas(deployComponent v1.RadixCommonDeployComponent) i
 	if override := deployComponent.GetReplicasOverride(); override != nil {
 		return int32(*override)
 	}
-	// TODO: Clean up types
-	componentReplicas := int32(DefaultReplicas)
+
+	componentReplicas := DefaultReplicas
 	if replicas := deployComponent.GetReplicas(); replicas != nil {
 		componentReplicas = int32(*replicas)
 	}
 
 	if hs := deployComponent.GetHorizontalScaling(); hs != nil {
 		if hs.MinReplicas != nil && *hs.MinReplicas > componentReplicas {
-			componentReplicas = *hs.MinReplicas
+			return *hs.MinReplicas
 		}
 		if hs.MaxReplicas < componentReplicas {
-			componentReplicas = hs.MaxReplicas
+			return hs.MaxReplicas
 		}
 	}
 

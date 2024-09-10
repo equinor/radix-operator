@@ -310,7 +310,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 				assert.True(t, deploymentByNameExists(componentNameRadixQuote, deployments), "radixquote deployment not there")
 				spec := getDeploymentByName(componentNameRadixQuote, deployments).Spec
-				assert.Equal(t, int32(DefaultReplicas), *spec.Replicas, "number of replicas was unexpected")
+				assert.Equal(t, DefaultReplicas, *spec.Replicas, "number of replicas was unexpected")
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRadixQuote, deployments))
