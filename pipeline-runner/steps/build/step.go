@@ -111,16 +111,12 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 		return err
 	}
 
-	jobs, err := step.getBuildJobs(pipelineInfo)
-	if err != nil {
-		return err
-	}
-
+	jobs := step.getBuildJobs(pipelineInfo)
 	namespace := utils.GetAppNamespace(step.GetAppName())
 	return step.applyBuildJobs(ctx, pipelineInfo, jobs, namespace)
 }
 
-func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineInfo) ([]batchv1.Job, error) {
+func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineInfo) []batchv1.Job {
 	rr := step.GetRegistration()
 	var secrets []string
 	if pipelineInfo.RadixApplication.Spec.Build != nil {

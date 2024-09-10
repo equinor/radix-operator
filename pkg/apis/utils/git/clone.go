@@ -1,7 +1,6 @@
 package git
 
 import (
-	"errors"
 	"fmt"
 	"path"
 
@@ -38,22 +37,6 @@ type CloneConfig struct {
 	NSlookupImage string
 	GitImage      string
 	BashImage     string
-}
-
-func (c CloneConfig) Validate() error {
-	var errs []error
-
-	if len(c.NSlookupImage) == 0 {
-		errs = append(errs, errors.New("field NSlookupImage not set"))
-	}
-	if len(c.GitImage) == 0 {
-		errs = append(errs, errors.New("field GitImage not set"))
-	}
-	if len(c.BashImage) == 0 {
-		errs = append(errs, errors.New("field BashImage not set"))
-	}
-
-	return errors.Join(errs...)
 }
 
 // CloneInitContainers The sidecars for cloning repo

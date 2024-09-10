@@ -9,7 +9,7 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "--RADIX_APP=radix-job-demo",
+        "--RADIX_APP=oauth-demo",
         "--JOB_NAME=radix-pipeline-20231113133209-r",
         "--PIPELINE_TYPE=build-deploy",
         "--DEBUG=true",

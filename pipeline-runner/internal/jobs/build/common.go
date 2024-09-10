@@ -28,7 +28,7 @@ func getJobName(timeStamp time.Time, imageTag, hash string) string {
 	return fmt.Sprintf("radix-builder-%s-%s-%s", ts, imageTag, hash)
 }
 
-func getDefaultJobLabels(appName, pipelineJobName, imageTag string) map[string]string {
+func getCommonJobLabels(appName, pipelineJobName, imageTag string) map[string]string {
 	return map[string]string{
 		kube.RadixJobNameLabel:  pipelineJobName,
 		kube.RadixAppLabel:      appName,
@@ -37,7 +37,7 @@ func getDefaultJobLabels(appName, pipelineJobName, imageTag string) map[string]s
 	}
 }
 
-func getDefaultJobAnnotations(branch string, componentImages ...pipeline.BuildComponentImage) map[string]string {
+func getCommonJobAnnotations(branch string, componentImages ...pipeline.BuildComponentImage) map[string]string {
 	componentImagesAnnotation, _ := json.Marshal(componentImages)
 	return map[string]string{
 		kube.RadixBranchAnnotation:          branch,
@@ -45,30 +45,27 @@ func getDefaultJobAnnotations(branch string, componentImages ...pipeline.BuildCo
 	}
 }
 
-func getDefaultPodLabels(pipelineJobName string) map[string]string {
+func getCommonPodLabels(pipelineJobName string) map[string]string {
 	return radixlabels.ForPipelineJobName(pipelineJobName)
 }
 
-func getDefaultPodAnnotations() map[string]string {
+func getCommonPodAnnotations() map[string]string {
 	return radixannotations.ForClusterAutoscalerSafeToEvict(false)
 }
 
-func getDefaultPodAffinity(runtime *radixv1.Runtime) *corev1.Affinity {
+func getCommonPodAffinity(runtime *radixv1.Runtime) *corev1.Affinity {
 	return utils.GetAffinityForPipelineJob(runtime)
 }
 
-func getDefaultPodTolerations() []corev1.Toleration {
+func getCommonPodTolerations() []corev1.Toleration {
 	return utils.GetPipelineJobPodSpecTolerations()
 }
 
-func getDefaultPodInitContainers(cloneURL, branch string, cloneConfig git.CloneConfig) ([]corev1.Container, error) {
-	if err := cloneConfig.Validate(); err != nil {
-		return nil, err
-	}
-	return git.CloneInitContainers(cloneURL, branch, cloneConfig), nil
+func getCommonPodInitContainers(cloneURL, branch string, cloneConfig git.CloneConfig) []corev1.Container {
+	return git.CloneInitContainers(cloneURL, branch, cloneConfig)
 }
 
-func getDefaultPodContainerEnvVars(componentImage pipeline.BuildComponentImage, branch, gitCommitHash, gitTags string) []corev1.EnvVar {
+func getCommonPodContainerEnvVars(componentImage pipeline.BuildComponentImage, branch, gitCommitHash, gitTags string) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  defaults.RadixBranchEnvironmentVariable,
@@ -90,7 +87,7 @@ func getDefaultPodContainerEnvVars(componentImage pipeline.BuildComponentImage, 
 	return envVars
 }
 
-func getDefaultPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {
+func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: git.BuildContextVolumeName,
@@ -130,7 +127,7 @@ func getDefaultPodVolumes(componentImages []pipeline.BuildComponentImage) []core
 	return volumes
 }
 
-func getDefaultPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {
+func getCommonPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      git.BuildContextVolumeName,
