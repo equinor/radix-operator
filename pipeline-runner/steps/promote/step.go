@@ -84,6 +84,11 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment = rd.DeepCopy()
 	radixDeployment.Name = utils.GetDeploymentName(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 
+	activeRadixDeployment, err := cli.GetKubeutil().GetActiveDeployment(ctx, toNs)
+	if err != nil {
+		return err
+	}
+
 	if radixDeployment.GetAnnotations() == nil {
 		radixDeployment.ObjectMeta.Annotations = make(map[string]string)
 	}
@@ -100,7 +105,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(ctx, radixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
+	err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
 	if err != nil {
 		return err
 	}
@@ -141,9 +146,9 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 	return nil
 }
 
-func mergeWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
+func mergeWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
 	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
-	if err := mergeComponentsWithRadixApplication(ctx, radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
+	if err := mergeComponentsWithRadixApplication(ctx, radixConfig, activeRadixDeployment, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
 		return err
 	}
 
@@ -181,8 +186,8 @@ func mergeJobComponentsWithRadixApplication(ctx context.Context, radixConfig *v1
 	return nil
 }
 
-func mergeComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(ctx, radixConfig, environment, componentImages, defaultEnvVars, nil)
+func mergeComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(ctx, radixConfig, activeRadixDeployment, environment, componentImages, defaultEnvVars, nil)
 	if err != nil {
 		return err
 	}

@@ -13,25 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getNumberOfReplicas(component v1.RadixCommonDeployComponent) int {
-	if component.GetReplicas() != nil {
-		return *component.GetReplicas()
-	}
-	return DefaultReplicas // 1
-
-}
-
 func componentShallHavePdb(component v1.RadixCommonDeployComponent) bool {
-	replicas := getNumberOfReplicas(component)
-	if replicas == 0 {
-		return false
-	}
-	horizontalScaling := component.GetHorizontalScaling()
-	if horizontalScaling != nil {
-		return horizontalScaling.MinReplicas != nil &&
-			*horizontalScaling.MinReplicas > 1
-	}
-	return replicas > 1
+	return getDeployComponentReplicas(component) > 1
 }
 
 func (deploy *Deployment) createOrUpdatePodDisruptionBudget(ctx context.Context, component v1.RadixCommonDeployComponent) error {
