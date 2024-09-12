@@ -326,7 +326,7 @@ func validateComponents(app *radixv1.RadixApplication) error {
 				errs = append(errs, err)
 			}
 
-			err = validateReplica(environment.Replicas)
+			err = validateReplica(environment.Replicas, "environment replicas")
 			if err != nil {
 				errs = append(errs, err)
 			}

@@ -1053,11 +1053,11 @@
                             "type": "string"
                           },
                           "requestsStorage": {
-                            "description": "TODO: describe\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "skuName": {
-                            "description": "TODO: describe\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "storage": {
@@ -1826,11 +1826,11 @@
                       "type": "string"
                     },
                     "requestsStorage": {
-                      "description": "TODO: describe\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
                       "type": "string"
                     },
                     "skuName": {
-                      "description": "TODO: describe\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
                       "type": "string"
                     },
                     "storage": {
@@ -2717,11 +2717,11 @@
                             "type": "string"
                           },
                           "requestsStorage": {
-                            "description": "TODO: describe\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "skuName": {
-                            "description": "TODO: describe\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "storage": {
@@ -3277,11 +3277,11 @@
                       "type": "string"
                     },
                     "requestsStorage": {
-                      "description": "TODO: describe\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
                       "type": "string"
                     },
                     "skuName": {
-                      "description": "TODO: describe\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
                       "type": "string"
                     },
                     "storage": {

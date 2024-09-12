@@ -31,8 +31,8 @@ import (
 
 const (
 	// DefaultReplicas Hold the default replicas for the deployment if nothing is stated in the radix config
-	DefaultReplicas         = 1
-	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
+	DefaultReplicas         int32 = 1
+	prometheusInstanceLabel       = "LABEL_PROMETHEUS_INSTANCE"
 )
 
 // DeploymentSyncer defines interface for syncing a RadixDeployment
@@ -603,6 +603,7 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, de
 		return nil, nil, err
 	}
 	desiredJobAuxDeployment.ObjectMeta.Labels = deploy.getJobAuxDeploymentLabels(deployComponent)
+	desiredJobAuxDeployment.Spec.Selector.MatchLabels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
 	desiredJobAuxDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForJobAPIAuxComponent()

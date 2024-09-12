@@ -48,22 +48,24 @@ var radixjobsKind = v1.SchemeGroupVersion.WithKind("RadixJob")
 
 // Get takes name of the radixJob, and returns the corresponding radixJob object, and an error if there is any.
 func (c *FakeRadixJobs) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixJob, err error) {
+	emptyResult := &v1.RadixJob{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(radixjobsResource, c.ns, name), &v1.RadixJob{})
+		Invokes(testing.NewGetActionWithOptions(radixjobsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixJob), err
 }
 
 // List takes label and field selectors, and returns the list of RadixJobs that match those selectors.
 func (c *FakeRadixJobs) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixJobList, err error) {
+	emptyResult := &v1.RadixJobList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(radixjobsResource, radixjobsKind, c.ns, opts), &v1.RadixJobList{})
+		Invokes(testing.NewListActionWithOptions(radixjobsResource, radixjobsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -82,40 +84,43 @@ func (c *FakeRadixJobs) List(ctx context.Context, opts metav1.ListOptions) (resu
 // Watch returns a watch.Interface that watches the requested radixJobs.
 func (c *FakeRadixJobs) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(radixjobsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(radixjobsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a radixJob and creates it.  Returns the server's representation of the radixJob, and an error, if there is any.
 func (c *FakeRadixJobs) Create(ctx context.Context, radixJob *v1.RadixJob, opts metav1.CreateOptions) (result *v1.RadixJob, err error) {
+	emptyResult := &v1.RadixJob{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(radixjobsResource, c.ns, radixJob), &v1.RadixJob{})
+		Invokes(testing.NewCreateActionWithOptions(radixjobsResource, c.ns, radixJob, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixJob), err
 }
 
 // Update takes the representation of a radixJob and updates it. Returns the server's representation of the radixJob, and an error, if there is any.
 func (c *FakeRadixJobs) Update(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (result *v1.RadixJob, err error) {
+	emptyResult := &v1.RadixJob{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(radixjobsResource, c.ns, radixJob), &v1.RadixJob{})
+		Invokes(testing.NewUpdateActionWithOptions(radixjobsResource, c.ns, radixJob, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixJob), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixJobs) UpdateStatus(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (*v1.RadixJob, error) {
+func (c *FakeRadixJobs) UpdateStatus(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (result *v1.RadixJob, err error) {
+	emptyResult := &v1.RadixJob{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(radixjobsResource, "status", c.ns, radixJob), &v1.RadixJob{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(radixjobsResource, "status", c.ns, radixJob, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixJob), err
 }
@@ -130,7 +135,7 @@ func (c *FakeRadixJobs) Delete(ctx context.Context, name string, opts metav1.Del
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeRadixJobs) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(radixjobsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(radixjobsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.RadixJobList{})
 	return err
@@ -138,11 +143,12 @@ func (c *FakeRadixJobs) DeleteCollection(ctx context.Context, opts metav1.Delete
 
 // Patch applies the patch and returns the patched radixJob.
 func (c *FakeRadixJobs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixJob, err error) {
+	emptyResult := &v1.RadixJob{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(radixjobsResource, c.ns, name, pt, data, subresources...), &v1.RadixJob{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(radixjobsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1.RadixJob), err
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
@@ -108,33 +107,32 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(1)).
+				WithReplicasOverride(pointers.Ptr(0)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).WithAzureServiceBusTrigger("test", "abcd", "queue", "", "", nil, nil).Build())))
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	t.Run("validate scaled objects", func(t *testing.T) {
-		scalers, _ := kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
-		authTriggers, _ := kedaClient.KedaV1alpha1().TriggerAuthentications(envNamespace).List(context.Background(), metav1.ListOptions{})
-		require.Equal(t, 2, len(scalers.Items), "Number of horizontal pod autoscalers wasn't as expected")
-		assert.False(t, scaledObjectByNameExists(componentOneName, scalers), "componentOneName horizontal pod autoscaler should not exist")
-		assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
-		assert.True(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should exist")
-		assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
-		require.Len(t, authTriggers.Items, 1, "componentThree requires AuthTrigger for Azure Service Bus")
-	})
+	scalers, _ := kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
+	authTriggers, _ := kedaClient.KedaV1alpha1().TriggerAuthentications(envNamespace).List(context.Background(), metav1.ListOptions{})
+	require.Equal(t, 2, len(scalers.Items), "Number of horizontal pod autoscalers wasn't as expected")
+	assert.False(t, scaledObjectByNameExists(componentOneName, scalers), "componentOneName horizontal pod autoscaler should not exist")
+	assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
+	assert.True(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should exist")
+	assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
+	require.Len(t, authTriggers.Items, 1, "componentThree requires AuthTrigger for Azure Service Bus")
 
 	// Test - remove HPA from component three
 	_, err = deployment.ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -145,31 +143,30 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(pointers.Ptr(1)).
+				WithReplicasOverride(pointers.Ptr(0)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1)).
+				WithReplicas(pointers.Ptr(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1))))
+				WithReplicas(pointers.Ptr(1))))
 	require.NoError(t, err)
 
-	t.Run("validate scaled objects after reconfiguration", func(t *testing.T) {
-		scalers, _ := kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
-		authTriggers, _ := kedaClient.KedaV1alpha1().TriggerAuthentications(envNamespace).List(context.Background(), metav1.ListOptions{})
-		require.Equal(t, 1, len(scalers.Items), "Number of horizontal pod autoscalers wasn't as expected")
-		assert.False(t, scaledObjectByNameExists(componentOneName, scalers), "componentOneName horizontal pod autoscaler should not exist")
-		assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
-		assert.False(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should not exist")
-		assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
-		assert.Len(t, authTriggers.Items, 0, "AuthTrigger should be removed when not required anymore by componentThree")
-	})
+	scalers, _ = kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
+	authTriggers, _ = kedaClient.KedaV1alpha1().TriggerAuthentications(envNamespace).List(context.Background(), metav1.ListOptions{})
+	require.Equal(t, 1, len(scalers.Items), "Number of horizontal pod autoscalers wasn't as expected")
+	assert.False(t, scaledObjectByNameExists(componentOneName, scalers), "componentOneName horizontal pod autoscaler should not exist")
+	assert.True(t, scaledObjectByNameExists(componentTwoName, scalers), "componentTwoName horizontal pod autoscaler should exist")
+	assert.False(t, scaledObjectByNameExists(componentThreeName, scalers), "componentThreeName horizontal pod autoscaler should not exist")
+	assert.Equal(t, int32(2), *getScaledObjectByName(componentTwoName, scalers).Spec.MinReplicaCount, "componentTwoName horizontal pod autoscaler config is incorrect")
+	assert.Len(t, authTriggers.Items, 0, "AuthTrigger should be removed when not required anymore by componentThree")
 
 }
 
@@ -291,6 +288,46 @@ func TestScalerTriggers(t *testing.T) {
 
 		})
 	}
+}
+
+func TestScaledObjectSpec(t *testing.T) {
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := deployment.SetupTest(t)
+	componentName := "a-component-name"
+	rrBuilder := utils.ARadixRegistration().WithName("someapp")
+	raBuilder := utils.ARadixApplication().
+		WithRadixRegistration(rrBuilder)
+
+	rdBuilder := utils.ARadixDeployment().
+		WithRadixApplication(raBuilder).
+		WithComponents(utils.NewDeployComponentBuilder().
+			WithName(componentName).
+			WithHorizontalScaling(
+				utils.NewHorizontalScalingBuilder().
+					WithCPUTrigger(80).
+					WithMinReplicas(2).
+					WithMaxReplicas(3).
+					WithPollingInterval(4).
+					WithCooldownPeriod(5).Build(),
+			))
+
+	rd, err := deployment.ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	scaler, err := kedaClient.KedaV1alpha1().ScaledObjects(rd.GetNamespace()).Get(context.Background(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, int32(2), *scaler.Spec.MinReplicaCount)
+	assert.Equal(t, int32(3), *scaler.Spec.MaxReplicaCount)
+	assert.Equal(t, int32(4), *scaler.Spec.PollingInterval)
+	assert.Equal(t, int32(5), *scaler.Spec.CooldownPeriod)
+
+	require.Len(t, scaler.Spec.Triggers, 1)
+	trigger := scaler.Spec.Triggers[0]
+	assert.Equal(t, "cpu", trigger.Type)
+	assert.Equal(t, "cpu", trigger.Name)
+	assert.Equal(t, autoscalingv2.UtilizationMetricType, trigger.MetricType)
+	assert.Equal(t, "80", trigger.Metadata["value"])
+
 }
 
 // getFirstTriggerByType returns the trigger spec for the given name  and type or nil if not found

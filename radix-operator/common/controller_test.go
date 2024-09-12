@@ -24,30 +24,30 @@ func (m *mockResourceLocker) TryGetLock(key string) bool { return m.Called(key).
 func (m *mockResourceLocker) ReleaseLock(key string)     { m.Called(key) }
 
 type mockRateLimitingQueue struct {
-	getCh      chan interface{}
+	getCh      chan string
 	shutdownCh chan bool
 	mock.Mock
 }
 
-func (m *mockRateLimitingQueue) AddRateLimited(item interface{}) { m.Called(item) }
-func (m *mockRateLimitingQueue) Forget(item interface{})         { m.Called(item) }
-func (m *mockRateLimitingQueue) NumRequeues(item interface{}) int {
+func (m *mockRateLimitingQueue) AddRateLimited(item string) { m.Called(item) }
+func (m *mockRateLimitingQueue) Forget(item string)         { m.Called(item) }
+func (m *mockRateLimitingQueue) NumRequeues(item string) int {
 	return m.Called(item).Int(0)
 }
-func (m *mockRateLimitingQueue) AddAfter(item interface{}, duration time.Duration) {
+func (m *mockRateLimitingQueue) AddAfter(item string, duration time.Duration) {
 	m.Called(item, duration)
 }
-func (m *mockRateLimitingQueue) Add(item interface{}) { m.Called(item) }
+func (m *mockRateLimitingQueue) Add(item string) { m.Called(item) }
 func (m *mockRateLimitingQueue) Len() int {
 	return m.Called().Int(0)
 }
-func (m *mockRateLimitingQueue) Get() (item interface{}, shutdown bool) {
+func (m *mockRateLimitingQueue) Get() (item string, shutdown bool) {
 	return <-m.getCh, <-m.shutdownCh
 }
-func (m *mockRateLimitingQueue) Done(item interface{}) { m.Called(item) }
-func (m *mockRateLimitingQueue) ShutDown()             { m.Called() }
-func (m *mockRateLimitingQueue) ShutDownWithDrain()    { m.Called() }
-func (m *mockRateLimitingQueue) ShuttingDown() bool    { return m.Called().Bool(0) }
+func (m *mockRateLimitingQueue) Done(item string)   { m.Called(item) }
+func (m *mockRateLimitingQueue) ShutDown()          { m.Called() }
+func (m *mockRateLimitingQueue) ShutDownWithDrain() { m.Called() }
+func (m *mockRateLimitingQueue) ShuttingDown() bool { return m.Called().Bool(0) }
 
 type commonControllerTestSuite struct {
 	ControllerTestSuite
@@ -61,14 +61,15 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
-			parts := strings.Split(obj.(string), "/")
-			return parts[0], obj.(string), nil
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
+			identifier = obj
+			parts := strings.Split(identifier, "/")
+			return parts[0], identifier, nil
 		},
 		WorkQueue:            queue,
 		locker:               locker,
@@ -107,14 +108,15 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
-			parts := strings.Split(obj.(string), "/")
-			return parts[0], obj.(string), nil
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
+			identifier = obj
+			parts := strings.Split(identifier, "/")
+			return parts[0], identifier, nil
 		},
 		WorkQueue:            queue,
 		locker:               locker,
@@ -153,12 +155,12 @@ func (s *commonControllerTestSuite) Test_ForgetWhenLockKeyAndIdentifierError() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
 			return "", "", errors.New("any error")
 		},
 		WorkQueue:            queue,
@@ -195,12 +197,12 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
 		WorkQueue:            queue,
@@ -218,8 +220,8 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenNil() {
 
 	doneCh := make(chan struct{})
 	queue.On("ShuttingDown").Return(false).Times(1)
-	queue.On("Done", nil).Times(1).Run(func(args mock.Arguments) { close(doneCh) })
-	queue.getCh <- nil
+	queue.On("Done", "").Times(1).Run(func(args mock.Arguments) { close(doneCh) })
+	queue.getCh <- ""
 	queue.shutdownCh <- false
 
 	select {
@@ -235,12 +237,12 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
 		WorkQueue:            queue,
@@ -275,12 +277,12 @@ func (s *commonControllerTestSuite) Test_SkipItemWhenEmpty() {
 func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 	stopCh := make(chan struct{})
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
 		WorkQueue:            queue,
@@ -298,7 +300,7 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 		close(doneCh)
 	}()
 
-	queue.getCh <- nil
+	queue.getCh <- ""
 	queue.shutdownCh <- true
 
 	select {
@@ -314,12 +316,12 @@ func (s *commonControllerTestSuite) Test_QuitRunWhenShutdownTrue() {
 func (s *commonControllerTestSuite) Test_QuitRunWhenShuttingDownTrue() {
 	stopCh := make(chan struct{})
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
 			return "any", "any", nil
 		},
 		WorkQueue:            queue,
@@ -355,14 +357,15 @@ func (s *commonControllerTestSuite) Test_RequeueWhenLocked() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
-			parts := strings.Split(obj.(string), "/")
-			return parts[0], obj.(string), nil
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
+			identifier = obj
+			parts := strings.Split(identifier, "/")
+			return parts[0], identifier, nil
 		},
 		WorkQueue:            queue,
 		locker:               locker,
@@ -399,14 +402,15 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
 
-	queue := &mockRateLimitingQueue{getCh: make(chan interface{}, 1), shutdownCh: make(chan bool, 1)}
+	queue := &mockRateLimitingQueue{getCh: make(chan string, 1), shutdownCh: make(chan bool, 1)}
 	locker := &mockResourceLocker{}
 	sut := &Controller{
 		Handler:     s.Handler,
 		RadixClient: s.RadixClient,
-		LockKeyAndIdentifier: func(obj interface{}) (lockKey string, identifier string, err error) {
-			parts := strings.Split(obj.(string), "/")
-			return parts[0], obj.(string), nil
+		LockKeyAndIdentifier: func(obj string) (lockKey string, identifier string, err error) {
+			identifier = obj
+			parts := strings.Split(identifier, "/")
+			return parts[0], identifier, nil
 		},
 		WorkQueue:            queue,
 		locker:               locker,
