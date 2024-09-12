@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -63,28 +62,6 @@ func getCommonPodTolerations() []corev1.Toleration {
 
 func getCommonPodInitContainers(cloneURL, branch string, cloneConfig git.CloneConfig) []corev1.Container {
 	return git.CloneInitContainers(cloneURL, branch, cloneConfig)
-}
-
-func getCommonPodContainerEnvVars(componentImage pipeline.BuildComponentImage, branch, gitCommitHash, gitTags string) []corev1.EnvVar {
-	envVars := []corev1.EnvVar{
-		{
-			Name:  defaults.RadixBranchEnvironmentVariable,
-			Value: branch,
-		},
-		{
-			Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
-			Value: componentImage.EnvName,
-		},
-		{
-			Name:  defaults.RadixCommitHashEnvironmentVariable,
-			Value: gitCommitHash,
-		},
-		{
-			Name:  defaults.RadixGitTagsEnvironmentVariable,
-			Value: gitTags,
-		},
-	}
-	return envVars
 }
 
 func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {

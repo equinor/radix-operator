@@ -112,6 +112,8 @@ type PipelineArguments struct {
 	Builder       Builder
 	DNSConfig     *dnsaliasconfig.DNSConfig
 
+	// Name of secret with .dockerconfigjson key containing docker auths. Optional.
+	// Used to authenticate external container registries when using buildkit to build dockerfiles.
 	ExternalContainerRegistryDefaultAuthSecret string
 }
 

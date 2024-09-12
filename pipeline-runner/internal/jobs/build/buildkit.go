@@ -257,13 +257,13 @@ func (c *buildKitJobSource) getPodContainerResources() corev1.ResourceRequiremen
 	}
 }
 
-func (*buildKitJobSource) getPodContainerSecurityContext() *corev1.SecurityContext {
+func (c *buildKitJobSource) getPodContainerSecurityContext() *corev1.SecurityContext {
 	return securitycontext.Container(
 		securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
 		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: utils.StringPtr("allow-buildah.json"),
+			LocalhostProfile: utils.StringPtr(c.pipelineArgs.SeccompProfileFileName),
 		}),
 		securitycontext.WithContainerRunAsNonRoot(pointers.Ptr(false)),
 		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
@@ -271,10 +271,8 @@ func (*buildKitJobSource) getPodContainerSecurityContext() *corev1.SecurityConte
 }
 
 func (c *buildKitJobSource) getPodContainerEnvVars() []corev1.EnvVar {
-	envVars := getCommonPodContainerEnvVars(c.componentImage, c.pipelineArgs.Branch, c.gitCommitHash, c.gitTags)
-
-	envVars = append(envVars,
-		corev1.EnvVar{
+	envVars := []corev1.EnvVar{
+		{
 			Name: "BUILDAH_USERNAME",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
@@ -283,7 +281,7 @@ func (c *buildKitJobSource) getPodContainerEnvVars() []corev1.EnvVar {
 				},
 			},
 		},
-		corev1.EnvVar{
+		{
 			Name: "BUILDAH_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
@@ -292,7 +290,7 @@ func (c *buildKitJobSource) getPodContainerEnvVars() []corev1.EnvVar {
 				},
 			},
 		},
-		corev1.EnvVar{
+		{
 			Name: "BUILDAH_CACHE_USERNAME",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
@@ -301,7 +299,7 @@ func (c *buildKitJobSource) getPodContainerEnvVars() []corev1.EnvVar {
 				},
 			},
 		},
-		corev1.EnvVar{
+		{
 			Name: "BUILDAH_CACHE_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
@@ -310,7 +308,7 @@ func (c *buildKitJobSource) getPodContainerEnvVars() []corev1.EnvVar {
 				},
 			},
 		},
-	)
+	}
 
 	return envVars
 }

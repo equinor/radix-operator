@@ -164,56 +164,71 @@ func (c *acrJobSource) getPodContainerVolumeMounts(componentImage pipeline.Build
 }
 
 func (c *acrJobSource) getPodContainerEnvVars(componentImage pipeline.BuildComponentImage) []corev1.EnvVar {
-	envVars := getCommonPodContainerEnvVars(componentImage, c.pipelineArgs.Branch, c.gitCommitHash, c.gitTags)
-	envVars = append(envVars, c.getPodContainerBuildSecretEnvVars()...)
-
 	var push string
 	if c.pipelineArgs.PushImage {
 		push = "--push"
 	}
 	firstPartContainerRegistry := strings.Split(c.pipelineArgs.ContainerRegistry, ".")[0]
-	envVars = append(envVars,
-		corev1.EnvVar{
+	envVars := []corev1.EnvVar{
+		{
+			Name:  defaults.RadixBranchEnvironmentVariable,
+			Value: c.pipelineArgs.Branch,
+		},
+		{
+			Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
+			Value: componentImage.EnvName,
+		},
+		{
+			Name:  defaults.RadixCommitHashEnvironmentVariable,
+			Value: c.gitCommitHash,
+		},
+		{
+			Name:  defaults.RadixGitTagsEnvironmentVariable,
+			Value: c.gitTags,
+		},
+		{
 			Name:  "AZURE_CREDENTIALS",
 			Value: path.Join(azureServicePrincipleContext, "sp_credentials.json"),
 		},
-		corev1.EnvVar{
+		{
 			Name:  "SUBSCRIPTION_ID",
 			Value: c.pipelineArgs.SubscriptionId,
 		},
-		corev1.EnvVar{
+		{
 			Name:  "DOCKER_FILE_NAME",
 			Value: componentImage.Dockerfile,
 		},
-		corev1.EnvVar{
+		{
 			Name:  "DOCKER_REGISTRY",
 			Value: firstPartContainerRegistry,
 		},
-		corev1.EnvVar{
+		{
 			Name:  "IMAGE",
 			Value: componentImage.ImagePath,
 		},
-		corev1.EnvVar{
+		{
 			Name:  "CLUSTERTYPE_IMAGE",
 			Value: componentImage.ClusterTypeImagePath,
 		},
-		corev1.EnvVar{
+		{
 			Name:  "CLUSTERNAME_IMAGE",
 			Value: componentImage.ClusterNameImagePath,
 		},
-		corev1.EnvVar{
+		{
 			Name:  "CONTEXT",
 			Value: componentImage.Context,
 		},
-		corev1.EnvVar{
+		{
 			Name:  "PUSH",
 			Value: push,
 		},
-		corev1.EnvVar{
+		{
 			Name:  defaults.RadixZoneEnvironmentVariable,
 			Value: c.pipelineArgs.RadixZone,
 		},
-	)
+	}
+
+	envVars = append(envVars, c.getPodContainerBuildSecretEnvVars()...)
 
 	return envVars
 }
