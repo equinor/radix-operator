@@ -156,7 +156,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 			MaxReplicaCount: pointers.Ptr(config.MaxReplicas),
 			PollingInterval: config.PollingInterval,
 			CooldownPeriod:  config.CooldownPeriod,
-			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: true},
+			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: false},
 			ScaleTargetRef: &kedav1.ScaleTarget{
 				Kind:       "Deployment",
 				Name:       componentName,
