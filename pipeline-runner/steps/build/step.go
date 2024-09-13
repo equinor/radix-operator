@@ -11,7 +11,7 @@ import (
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
+	jobutil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -164,7 +164,7 @@ func (step *BuildStepImplementation) getJobOwnerReferences(ctx context.Context, 
 	if pipelineInfo.PipelineArguments.Debug {
 		return nil, nil
 	}
-	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	ownerReference, err := jobutil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 	if err != nil {
 		return nil, err
 	}
