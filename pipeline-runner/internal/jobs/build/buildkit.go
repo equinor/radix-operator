@@ -29,9 +29,13 @@ const (
 	defaultExternalRegistruAuthPath = "/radix-default-external-registry-auth"
 )
 
-type BuildKit struct{}
+func NewBuildKit() Interface {
+	return &buildKit{}
+}
 
-func (c *BuildKit) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+type buildKit struct{}
+
+func (c *buildKit) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
 	var jobs []batchv1.Job
 
 	for _, componentImage := range componentImages {
@@ -42,7 +46,7 @@ func (c *BuildKit) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArgume
 	return jobs
 }
 
-func (c *BuildKit) constructJob(componentImage pipeline.BuildComponentImage, useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
+func (c *buildKit) constructJob(componentImage pipeline.BuildComponentImage, useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
 	kubeJob := kubeJobBuilder{
 		source: &buildKitJobSource{
 			pipelineArgs:   pipelineArgs,

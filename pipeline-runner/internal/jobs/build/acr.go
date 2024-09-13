@@ -26,9 +26,13 @@ const (
 	acrHomePath                  = "/home/radix-image-builder"
 )
 
-type ACR struct{}
+func NewACR() Interface {
+	return &acr{}
+}
 
-func (c *ACR) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+type acr struct{}
+
+func (c *acr) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
 	kubeJob := kubeJobBuilder{
 		source: &acrJobSource{
 			pipelineArgs:    pipelineArgs,

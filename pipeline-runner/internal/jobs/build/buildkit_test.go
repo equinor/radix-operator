@@ -69,7 +69,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 		{ComponentName: "c3", EnvName: "c3env", ContainerName: "c3container", Context: "c3ctx", Dockerfile: "c3dockerfile", ImageName: "c2imagename", ImagePath: "c2image", ClusterTypeImagePath: "c3clustertypeimage", ClusterNameImagePath: "c3clusternameimage", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
 	}
 
-	sut := build.BuildKit{}
+	sut := build.NewBuildKit()
 	jobs := sut.GetJobs(useCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
 	require.Len(t, jobs, len(componentImages))
 

@@ -46,10 +46,10 @@ func WithBuildJobFactory(factory BuildJobFactory) Option {
 
 func defaultBuildJobFactory(useBuildKit bool) internalbuild.Interface {
 	if useBuildKit {
-		return &internalbuild.BuildKit{}
+		return internalbuild.NewBuildKit()
 	}
 
-	return &internalbuild.ACR{}
+	return internalbuild.NewACR()
 }
 
 // NewBuildStep Constructor.
