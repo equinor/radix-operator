@@ -263,7 +263,7 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx
 	environmentComponentImageSources := make(environmentComponentImageSourceMap)
 	for _, envName := range pipelineInfo.TargetEnvironments {
 		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
-		activeRadixDeployment, err := internal.GetCurrentRadixDeployment(ctx, cli.GetKubeutil(), envNamespace)
+		activeRadixDeployment, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeutil(), envNamespace)
 		if err != nil {
 			return nil, err
 		}

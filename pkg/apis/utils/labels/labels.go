@@ -41,11 +41,20 @@ func ForComponentName(componentName string) kubelabels.Set {
 }
 
 // ForJobAuxObject returns labels describing the job aux object,
-func ForJobAuxObject(jobName string) kubelabels.Set {
+func ForJobAuxObject(jobName, auxType string) kubelabels.Set {
 	return kubelabels.Set{
-		kube.RadixComponentLabel:         jobName,
-		kube.RadixPodIsJobAuxObjectLabel: "true",
+		kube.RadixAuxiliaryComponentLabel:     jobName,
+		kube.RadixAuxiliaryComponentTypeLabel: auxType,
+		kube.RadixPodIsJobAuxObjectLabel:      "true",
 	}
+}
+
+// IsJobAuxObjectSelector returns labels indicating that an object is a job auxiliary object,
+func IsJobAuxObjectSelector(auxType string) kubelabels.Selector {
+	return kubelabels.Set{
+		kube.RadixAuxiliaryComponentTypeLabel: auxType,
+		kube.RadixPodIsJobAuxObjectLabel:      "true",
+	}.AsSelector()
 }
 
 // ForComponentType returns labels describing the component type,
@@ -54,6 +63,14 @@ func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixComponentTypeLabel: string(componentType),
 	}
+}
+
+// IsComponentSelector returns labels matching any component,
+func IsComponentSelector() kubelabels.Selector {
+	hasComponentTypeLabel, _ := kubelabels.NewRequirement(kube.RadixComponentTypeLabel, selection.Exists, []string{})
+	hasComponentLabel, _ := kubelabels.NewRequirement(kube.RadixComponentLabel, selection.Exists, []string{})
+
+	return kubelabels.NewSelector().Add(*hasComponentTypeLabel, *hasComponentLabel)
 }
 
 // ForBatchType returns labels describing the type of batch,
@@ -92,13 +109,6 @@ func ForCommitId(commitId string) kubelabels.Set {
 func ForPodIsJobScheduler() kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixPodIsJobSchedulerLabel: "true",
-	}
-}
-
-// ForIsJobAuxObject returns labels indicating that an object is a job auxiliary object,
-func ForIsJobAuxObject() kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixPodIsJobAuxObjectLabel: "true",
 	}
 }
 

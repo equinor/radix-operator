@@ -26,8 +26,8 @@ func removeCharacters(input string, characters string) string {
 }
 
 // InvalidNumberOfReplicaError Invalid number of replica
-func InvalidNumberOfReplicaError(replica int) error {
-	return fmt.Errorf("replicas %v must be between %v and %v", replica, minReplica, MaxReplica)
+func InvalidNumberOfReplicaError(replica int, fieldName string) error {
+	return fmt.Errorf("%s value %v must be between %v and %v", fieldName, replica, minReplica, MaxReplica)
 }
 
 // GitTagsContainIllegalChars Git tags contain illegal characters
@@ -72,7 +72,11 @@ func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {
 			errs = append(errs, err)
 		}
 
-		if err := validateReplica(component.Replicas); err != nil {
+		if err := validateReplica(component.Replicas, "component replicas"); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err := validateReplica(component.ReplicasOverride, "component replicas override"); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -103,13 +107,13 @@ func validateDeployJobComponents(deployment *radixv1.RadixDeployment) []error {
 	return errs
 }
 
-func validateReplica(replica *int) error {
+func validateReplica(replica *int, fieldName string) error {
 	if replica == nil {
 		return nil
 	}
 	replicaValue := *replica
 	if replicaValue > MaxReplica || replicaValue < minReplica {
-		return InvalidNumberOfReplicaError(replicaValue)
+		return InvalidNumberOfReplicaError(replicaValue, fieldName)
 	}
 	return nil
 }

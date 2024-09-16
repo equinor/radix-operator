@@ -310,7 +310,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 				assert.True(t, deploymentByNameExists(componentNameRadixQuote, deployments), "radixquote deployment not there")
 				spec := getDeploymentByName(componentNameRadixQuote, deployments).Spec
-				assert.Equal(t, int32(DefaultReplicas), *spec.Replicas, "number of replicas was unexpected")
+				assert.Equal(t, DefaultReplicas, *spec.Replicas, "number of replicas was unexpected")
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRadixQuote, deployments))
@@ -778,28 +778,18 @@ func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service 
 }
 
 func getDeploymentsForRadixComponents(deployments []appsv1.Deployment) []appsv1.Deployment {
-	var result []appsv1.Deployment
-	for _, depl := range deployments {
-		if _, ok := depl.Labels[kube.RadixComponentLabel]; ok {
-			if _, ok := depl.Labels[kube.RadixPodIsJobAuxObjectLabel]; ok {
-				continue
-			}
-			result = append(result, depl)
-		}
-	}
-	return result
+
+	selector := radixlabels.IsComponentSelector()
+	return slice.FindAll(deployments, func(depl appsv1.Deployment) bool {
+		return selector.Matches(labels.Set(depl.GetLabels()))
+	})
 }
 
 func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Deployment {
-	var result []appsv1.Deployment
-	for _, depl := range deployments {
-		if _, ok := depl.Labels[kube.RadixComponentLabel]; ok {
-			if _, ok := depl.Labels[kube.RadixPodIsJobAuxObjectLabel]; ok {
-				result = append(result, depl)
-			}
-		}
-	}
-	return result
+	selector := radixlabels.IsJobAuxObjectSelector(kube.RadixJobTypeManagerAux)
+	return slice.FindAll(deployments, func(depl appsv1.Deployment) bool {
+		return selector.Matches(labels.Set(depl.GetLabels()))
+	})
 }
 
 func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecificIngresses(t *testing.T) {
@@ -1545,6 +1535,7 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 		assert.Equal(t, "master", deployments.Items[0].Annotations[kube.RadixBranchAnnotation])
+		assert.Equal(t, "0", deployments.Items[0].Annotations[kube.RadixDeploymentObservedGeneration])
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["radix-commit"])
 	})
 }
@@ -1770,7 +1761,7 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(pointers.Ptr(4)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(pointers.Ptr(6)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(pointers.Ptr(11)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
-			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 			utils.NewDeployComponentBuilder().WithName("comp7").WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 		))
 	require.NoError(t, err)
@@ -1876,7 +1867,11 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().
+				WithName("comp1").
+				WithReplicas(pointers.Ptr(1)).
+				WithReplicasOverride(pointers.Ptr(0)).
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1895,7 +1890,51 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 
 	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
 	assert.Equal(t, int32(2), *comp1.Spec.Replicas)
+}
 
+func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+	// Initial sync creating deployments should use replicas from spec
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+		))
+	require.NoError(t, err)
+
+	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
+
+	// Resync existing RD with replicas override to 5 should set deployment replicas to 5
+	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(5)),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(5), *comp1.Spec.Replicas)
+
+	// Resync existing RD with replicas set back to original value (start) should use replicas from spec
+	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
 }
 
 func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
@@ -3804,7 +3843,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName).String()})
+	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux).String()})
 	require.Len(t, deploymentList.Items, 1)
 	deployment := deploymentList.Items[0]
 	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")

@@ -33,7 +33,7 @@ func ConstructForTargetEnvironment(ctx context.Context, config *radixv1.RadixApp
 
 	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
-	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, config, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
+	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, config, activeRadixDeployment, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
 	if err != nil {
 		return nil, err
 	}
@@ -127,8 +127,8 @@ func getPreservingDeployComponents(ctx context.Context, activeRadixDeployment *r
 	return preservingDeployComponents, nil
 }
 
-// GetCurrentRadixDeployment Returns active RadixDeployment if it exists and if it is available to get
-func GetCurrentRadixDeployment(ctx context.Context, kubeUtil *kube.Kube, namespace string) (*radixv1.RadixDeployment, error) {
+// GetActiveRadixDeployment Returns active RadixDeployment if it exists and if it is available to get
+func GetActiveRadixDeployment(ctx context.Context, kubeUtil *kube.Kube, namespace string) (*radixv1.RadixDeployment, error) {
 	var currentRd *radixv1.RadixDeployment
 	// For new applications, or applications with new environments defined in radixconfig, the namespace
 	// or rolebinding may not be configured yet by radix-operator.
