@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
@@ -116,6 +118,30 @@ func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Proces
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.Nil(pipelineInfo.PrepareBuildContext)
+}
+
+func (s *applyConfigTestSuite) Test_GitConfigMap_Processed() {
+	appName, radixConfigMapName, gitConfigMapName := "anyapp", "preparecm", "gitcm"
+	expectedGitHash, expectedGitTags := "anygithash", "anygittags"
+	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	expectedRa := utils.ARadixApplication().WithAppName(appName).BuildRA()
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, radixConfigMapName, appName, expectedRa, nil))
+	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, expectedGitHash, expectedGitTags))
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName:      appName,
+			PipelineType: string(radixv1.BuildDeploy),
+		},
+		RadixConfigMapName: radixConfigMapName,
+		GitConfigMapName:   gitConfigMapName,
+	}
+	cli := applyconfig.NewApplyConfigStep()
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	err := cli.Run(context.Background(), pipelineInfo)
+	s.Require().NoError(err)
+	s.Equal(expectedGitHash, pipelineInfo.GitCommitHash)
+	s.Equal(expectedGitTags, pipelineInfo.GitTags)
 }
 
 func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsNotMapped() {
@@ -486,9 +512,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 			buildComponentImageFunc(envName3, "job-4", "/workspace/", "client2.Dockerfile"),
 		},
 	}
-
 	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
-
 	for env, images := range pipelineInfo.BuildComponentImages {
 		s.ElementsMatch(expectedBuildComponentImages[env], images)
 	}
@@ -694,50 +718,723 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 	s.Equal(expectedDeployEnvironmentComponentImages, pipelineInfo.DeployEnvironmentComponentImages)
 }
 
-/*******************************************************/
-// func (s *applyConfigTestSuite) Test_ApplyConfig_ShouldNotFail() {
-// 	appName := "anyapp"
-// 	prepareConfigMapName := "preparecm"
-// 	type scenario struct {
-// 		name                string
-// 		componentBuilder    *utils.RadixApplicationComponentBuilder
-// 		jobComponentBuilder *utils.RadixApplicationJobComponentBuilder
-// 	}
-// 	scenarios := []scenario{
-// 		{name: "no components"},
-// 		{name: "with a component", componentBuilder: pointers.Ptr(utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp1"))},
-// 		{name: "with a job-component", jobComponentBuilder: pointers.Ptr(utils.NewApplicationJobComponentBuilder().WithSchedulerPort(pointers.Ptr[int32](8080)).WithName("job1"))},
-// 	}
+func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled() {
+	appName, envName, buildBranch, jobPort := "anyapp", "dev", "anybranch", pointers.Ptr[int32](9999)
+	prepareConfigMapName := "preparecm"
 
-// 	for _, ts := range scenarios {
-// 		s.T().Run(ts.name, func(t *testing.T) {
-// 			s.SetupTest()
-// 			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
-// 			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-// 			raBuilder := utils.NewRadixApplicationBuilder().
-// 				WithAppName(appName).
-// 				WithEnvironment("dev", "anybranch")
-// 			if ts.componentBuilder != nil {
-// 				raBuilder = raBuilder.WithComponent(*ts.componentBuilder)
-// 			}
-// 			if ts.jobComponentBuilder != nil {
-// 				raBuilder = raBuilder.WithJobComponent(*ts.jobComponentBuilder)
-// 			}
-// 			ra := raBuilder.BuildRA()
-// 			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName, buildBranch).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithName("client-component-1").WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithName("client-component-2").WithEnabled(true).WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithName("client-component-3").WithEnabled(false).WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithName("client-component-4").WithSourceFolder("./client2/").WithDockerfileName("client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithName("client-component-5").WithEnabled(false).WithSourceFolder("./client2/").WithDockerfileName("client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithName("client-component-6").WithEnabled(false).WithSourceFolder("./client3/").WithDockerfileName("client.Dockerfile").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
+			utils.NewApplicationComponentBuilder().WithName("client-component-7").WithEnabled(true).WithSourceFolder("./client4/").WithDockerfileName("client.Dockerfile").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
+			utils.NewApplicationComponentBuilder().WithName("client-component-8").WithImage("client-8-image"),
+			utils.NewApplicationComponentBuilder().WithName("client-component-9").WithImage("client-9-image").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
+			utils.NewApplicationComponentBuilder().WithName("client-component-10").WithImage("client-10-image").WithEnabled(false).
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-1").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-2").WithEnabled(true).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-3").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-4").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc2/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-5").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc2/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-6").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc3/").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("calc-7").WithEnabled(true).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc4/").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
+			utils.NewApplicationJobComponentBuilder().WithName("calc-8").WithSchedulerPort(jobPort).WithImage("calc-8-image"),
+			utils.NewApplicationJobComponentBuilder().WithName("calc-9").WithSchedulerPort(jobPort).WithImage("calc-9-image").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
+			utils.NewApplicationJobComponentBuilder().WithName("calc-10").WithSchedulerPort(jobPort).WithImage("calc-10-image").WithEnabled(false).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
+		).
+		BuildRA()
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	pipelineInfo := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType:      string(radixv1.BuildDeploy),
+			Branch:            buildBranch,
+			ImageTag:          "imgtag",
+			ContainerRegistry: "registry",
+			Clustertype:       "clustertype",
+			Clustername:       "clustername",
+		},
+		RadixConfigMapName: prepareConfigMapName,
+	}
 
-// 			pipeline := model.PipelineInfo{
-// 				PipelineArguments:  model.PipelineArguments{},
-// 				RadixConfigMapName: prepareConfigMapName,
-// 			}
+	applyStep := applyconfig.NewApplyConfigStep()
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 
-// 			applyStep := applyconfig.NewApplyConfigStep()
-// 			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-// 			err := applyStep.Run(context.Background(), &pipeline)
-// 			s.NoError(err)
-// 		})
-// 	}
-// }
+	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
+
+	imageNameFunc := func(comp string) string {
+		return fmt.Sprintf("%s-%s", envName, comp)
+	}
+	imagePathFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
+	}
+	imagePathClusterTypeFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+	}
+	imagePathClusterNameFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+	}
+	buildComponentImageFunc := func(component, context, dockerfile string) pipeline.BuildComponentImage {
+		return pipeline.BuildComponentImage{
+			ComponentName:        component,
+			EnvName:              envName,
+			ContainerName:        fmt.Sprintf("build-%s-%s", component, envName),
+			Context:              context,
+			Dockerfile:           dockerfile,
+			ImageName:            imageNameFunc(component),
+			ImagePath:            imagePathFunc(component),
+			ClusterTypeImagePath: imagePathClusterTypeFunc(component),
+			ClusterNameImagePath: imagePathClusterNameFunc(component),
+		}
+	}
+	expectedBuildComponentImages := pipeline.EnvironmentBuildComponentImages{
+		envName: []pipeline.BuildComponentImage{
+			buildComponentImageFunc("client-component-1", "/workspace/client/", "client.Dockerfile"),
+			buildComponentImageFunc("client-component-2", "/workspace/client/", "client.Dockerfile"),
+			buildComponentImageFunc("client-component-4", "/workspace/client2/", "client.Dockerfile"),
+			buildComponentImageFunc("client-component-6", "/workspace/client3/", "client.Dockerfile"),
+			buildComponentImageFunc("calc-1", "/workspace/calc/", "calc.Dockerfile"),
+			buildComponentImageFunc("calc-2", "/workspace/calc/", "calc.Dockerfile"),
+			buildComponentImageFunc("calc-4", "/workspace/calc2/", "calc.Dockerfile"),
+			buildComponentImageFunc("calc-6", "/workspace/calc3/", "calc.Dockerfile"),
+		},
+	}
+	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
+	for env, images := range pipelineInfo.BuildComponentImages {
+		s.ElementsMatch(expectedBuildComponentImages[env], images)
+	}
+
+	expectedDeployEnvironmentComponentImages := pipeline.DeployEnvironmentComponentImages{
+		envName: pipeline.DeployComponentImages{
+			"client-component-1":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("client-component-1"), Build: true},
+			"client-component-2":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("client-component-2"), Build: true},
+			"client-component-4":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("client-component-4"), Build: true},
+			"client-component-6":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("client-component-6"), Build: true},
+			"client-component-8":  pipeline.DeployComponentImage{ImagePath: "client-8-image", Build: false},
+			"client-component-10": pipeline.DeployComponentImage{ImagePath: "client-10-image", Build: false},
+			"calc-1":              pipeline.DeployComponentImage{ImagePath: imagePathFunc("calc-1"), Build: true},
+			"calc-2":              pipeline.DeployComponentImage{ImagePath: imagePathFunc("calc-2"), Build: true},
+			"calc-4":              pipeline.DeployComponentImage{ImagePath: imagePathFunc("calc-4"), Build: true},
+			"calc-6":              pipeline.DeployComponentImage{ImagePath: imagePathFunc("calc-6"), Build: true},
+			"calc-8":              pipeline.DeployComponentImage{ImagePath: "calc-8-image", Build: false},
+			"calc-10":             pipeline.DeployComponentImage{ImagePath: "calc-10-image", Build: false},
+		},
+	}
+	s.Equal(expectedDeployEnvironmentComponentImages, pipelineInfo.DeployEnvironmentComponentImages)
+}
+
+func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedComponents() {
+	appName, envName, buildBranch, jobPort := "anyapp", "dev", "anybranch", pointers.Ptr[int32](9999)
+	prepareConfigMapName := "preparecm"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName, buildBranch).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-changed").WithDockerfileName("comp-changed.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-new").WithDockerfileName("comp-new.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-unchanged").WithDockerfileName("comp-unchanged.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-common1-changed").WithDockerfileName("common1.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-common2-unchanged").WithDockerfileName("common2.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-common3-changed").WithDockerfileName("common3.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-deployonly").WithImage("comp-deployonly:anytag"),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job-changed").WithDockerfileName("job-changed.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job-new").WithDockerfileName("job-new.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job-unchanged").WithDockerfileName("job-unchanged.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job-common1-unchanged").WithDockerfileName("common1.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job-common2-changed").WithDockerfileName("common2.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job-common3-changed").WithDockerfileName("common3.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job-deployonly").WithImage("job-deployonly:anytag"),
+		).
+		BuildRA()
+	currentRd := utils.NewDeploymentBuilder().
+		WithDeploymentName("currentrd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithAnnotations(map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(ra), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(nil)}).
+		WithCondition(radixv1.DeploymentActive).
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp-changed").WithImage("dev-comp-changed-current:anytag"),
+			utils.NewDeployComponentBuilder().WithName("comp-unchanged").WithImage("dev-comp-unchanged-current:anytag"),
+			utils.NewDeployComponentBuilder().WithName("comp-common1-changed").WithImage("dev-comp-common1-changed:anytag"),
+			utils.NewDeployComponentBuilder().WithName("comp-common2-unchanged").WithImage("dev-comp-common2-unchanged:anytag"),
+		).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName("job-changed").WithImage("dev-job-changed-current:anytag"),
+			utils.NewDeployJobComponentBuilder().WithName("job-unchanged").WithImage("dev-job-unchanged-current:anytag"),
+			utils.NewDeployJobComponentBuilder().WithName("job-common1-unchanged").WithImage("dev-job-common1-unchanged:anytag"),
+			utils.NewDeployJobComponentBuilder().WithName("job-common2-changed").WithImage("dev-job-common2-changed:anytag"),
+		).
+		BuildRD()
+	_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), currentRd, metav1.CreateOptions{})
+	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
+	buildCtx := &model.PrepareBuildContext{
+		EnvironmentsToBuild: []model.EnvironmentToBuild{
+			{Environment: envName, Components: []string{"comp-changed", "comp-common1-changed", "comp-common3-changed", "job-changed", "job-common2-changed", "job-common3-changed"}},
+		},
+	}
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, buildCtx))
+	pipelineInfo := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType:      "build-deploy",
+			Branch:            buildBranch,
+			ImageTag:          "imgtag",
+			Clustertype:       "clustertype",
+			Clustername:       "clustername",
+			ContainerRegistry: "registry",
+		},
+		RadixConfigMapName: prepareConfigMapName,
+	}
+
+	applyStep := applyconfig.NewApplyConfigStep()
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+
+	// Run apply config step
+	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
+
+	imageNameFunc := func(comp string) string {
+		return fmt.Sprintf("%s-%s", envName, comp)
+	}
+	imagePathFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
+	}
+	imagePathClusterTypeFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+	}
+	imagePathClusterNameFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+	}
+	buildComponentImageFunc := func(component, dockerfile string) pipeline.BuildComponentImage {
+		return pipeline.BuildComponentImage{
+			ComponentName:        component,
+			EnvName:              envName,
+			ContainerName:        fmt.Sprintf("build-%s-%s", component, envName),
+			Context:              "/workspace/",
+			Dockerfile:           dockerfile,
+			ImageName:            imageNameFunc(component),
+			ImagePath:            imagePathFunc(component),
+			ClusterTypeImagePath: imagePathClusterTypeFunc(component),
+			ClusterNameImagePath: imagePathClusterNameFunc(component),
+		}
+	}
+	expectedBuildComponentImages := pipeline.EnvironmentBuildComponentImages{
+		envName: []pipeline.BuildComponentImage{
+			buildComponentImageFunc("comp-changed", "comp-changed.Dockerfile"),
+			buildComponentImageFunc("comp-new", "comp-new.Dockerfile"),
+			buildComponentImageFunc("comp-common1-changed", "common1.Dockerfile"),
+			buildComponentImageFunc("comp-common3-changed", "common3.Dockerfile"),
+			buildComponentImageFunc("job-changed", "job-changed.Dockerfile"),
+			buildComponentImageFunc("job-new", "job-new.Dockerfile"),
+			buildComponentImageFunc("job-common2-changed", "common2.Dockerfile"),
+			buildComponentImageFunc("job-common3-changed", "common3.Dockerfile"),
+		},
+	}
+	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
+	for env, images := range pipelineInfo.BuildComponentImages {
+		s.ElementsMatch(expectedBuildComponentImages[env], images)
+	}
+
+	expectedDeployEnvironmentComponentImages := pipeline.DeployEnvironmentComponentImages{
+		envName: pipeline.DeployComponentImages{
+			"comp-changed":           pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp-changed"), Build: true},
+			"comp-new":               pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp-new"), Build: true},
+			"comp-unchanged":         pipeline.DeployComponentImage{ImagePath: "dev-comp-unchanged-current:anytag", Build: false},
+			"comp-common1-changed":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp-common1-changed"), Build: true},
+			"comp-common2-unchanged": pipeline.DeployComponentImage{ImagePath: "dev-comp-common2-unchanged:anytag", Build: false},
+			"comp-common3-changed":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp-common3-changed"), Build: true},
+			"comp-deployonly":        pipeline.DeployComponentImage{ImagePath: "comp-deployonly:anytag", Build: false},
+			"job-changed":            pipeline.DeployComponentImage{ImagePath: imagePathFunc("job-changed"), Build: true},
+			"job-new":                pipeline.DeployComponentImage{ImagePath: imagePathFunc("job-new"), Build: true},
+			"job-unchanged":          pipeline.DeployComponentImage{ImagePath: "dev-job-unchanged-current:anytag", Build: false},
+			"job-common1-unchanged":  pipeline.DeployComponentImage{ImagePath: "dev-job-common1-unchanged:anytag", Build: false},
+			"job-common2-changed":    pipeline.DeployComponentImage{ImagePath: imagePathFunc("job-common2-changed"), Build: true},
+			"job-common3-changed":    pipeline.DeployComponentImage{ImagePath: imagePathFunc("job-common3-changed"), Build: true},
+			"job-deployonly":         pipeline.DeployComponentImage{ImagePath: "job-deployonly:anytag", Build: false},
+		},
+	}
+	s.Equal(expectedDeployEnvironmentComponentImages, pipelineInfo.DeployEnvironmentComponentImages)
+}
+
+func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponentsToBuild() {
+	appName, envName, buildBranch, jobPort, buildSecretName := "anyapp", "dev", "anybranch", pointers.Ptr[int32](9999), "SECRET1"
+	prepareConfigMapName := "preparecm"
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	raBuilder := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName, buildBranch).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp"),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job"),
+		)
+	defaultRa := raBuilder.WithBuildSecrets(buildSecretName).BuildRA()
+	raWithoutSecret := raBuilder.WithBuildSecrets().BuildRA()
+	oldRa := defaultRa.DeepCopy()
+	oldRa.Spec.Components[0].Variables = radixv1.EnvVarsMap{"anyvar": "anyvalue"}
+	currentBuildSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName}, Data: map[string][]byte{buildSecretName: []byte("anydata")}}
+	oldBuildSecret := currentBuildSecret.DeepCopy()
+	oldBuildSecret.Data[buildSecretName] = []byte("newdata")
+	radixDeploymentFactory := func(annotations map[string]string, condition radixv1.RadixDeployCondition, componentBuilders []utils.DeployComponentBuilder, jobBuilders []utils.DeployJobComponentBuilder) *radixv1.RadixDeployment {
+		builder := utils.NewDeploymentBuilder().
+			WithDeploymentName("currentrd").
+			WithAppName(appName).
+			WithEnvironment(envName).
+			WithAnnotations(annotations).
+			WithCondition(condition).
+			WithActiveFrom(time.Now().Add(-1 * time.Hour)).
+			WithComponents(componentBuilders...).
+			WithJobComponents(jobBuilders...)
+
+		if condition == radixv1.DeploymentInactive {
+			builder = builder.WithActiveTo(time.Now().Add(1 * time.Hour))
+		}
+
+		return builder.BuildRD()
+	}
+	piplineArgs := model.PipelineArguments{
+		PipelineType:      string(radixv1.BuildDeploy),
+		Branch:            buildBranch,
+		ImageTag:          "imgtag",
+		ContainerRegistry: "registry",
+		Clustertype:       "clustertype",
+		Clustername:       "clustername",
+	}
+	type testSpec struct {
+		name                          string
+		existingRd                    *radixv1.RadixDeployment
+		customRa                      *radixv1.RadixApplication
+		prepareBuildCtx               *model.PrepareBuildContext
+		expectedBuildComponentNames   []string
+		expectedDeployComponentImages pipeline.DeployComponentImages
+	}
+	imageNameFunc := func(comp string) string {
+		return fmt.Sprintf("%s-%s", envName, comp)
+	}
+	imagePathFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s", piplineArgs.ContainerRegistry, appName, imageNameFunc(comp), piplineArgs.ImageTag)
+	}
+	imagePathClusterTypeFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s-%s", piplineArgs.ContainerRegistry, appName, imageNameFunc(comp), piplineArgs.Clustertype, piplineArgs.ImageTag)
+	}
+	imagePathClusterNameFunc := func(comp string) string {
+		return fmt.Sprintf("%s/%s-%s:%s-%s", piplineArgs.ContainerRegistry, appName, imageNameFunc(comp), piplineArgs.Clustername, piplineArgs.ImageTag)
+	}
+	buildComponentImageFunc := func(component string) pipeline.BuildComponentImage {
+		return pipeline.BuildComponentImage{
+			ComponentName:        component,
+			EnvName:              envName,
+			ContainerName:        fmt.Sprintf("build-%s-%s", component, envName),
+			Context:              "/workspace/",
+			Dockerfile:           "Dockerfile",
+			ImageName:            imageNameFunc(component),
+			ImagePath:            imagePathFunc(component),
+			ClusterTypeImagePath: imagePathClusterTypeFunc(component),
+			ClusterNameImagePath: imagePathClusterNameFunc(component),
+		}
+	}
+	tests := []testSpec{
+		{
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component changed, job changed - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-changed-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{"comp", "job"},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component changed - build component",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{"comp"},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: "job-current:anytag", Build: false},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, job changed - build job",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{"job"},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: "comp-current:anytag", Build: false},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged - no build job",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: "comp-current:anytag", Build: false},
+				"job":  pipeline.DeployComponentImage{ImagePath: "job-current:anytag", Build: false},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged, existing RD missing - build all",
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, missing prepare context for environment - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: "otherenv",
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged - no build job",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: "comp-current:anytag", Build: false},
+				"job":  pipeline.DeployComponentImage{ImagePath: "job-current:anytag", Build: false},
+			},
+		},
+		{
+			name: "radixconfig hash changed, buildsecret hash unchanged, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(oldRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash missing, buildsecret hash unchanged, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash changed, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(oldBuildSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret magic hash, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(nil)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret magic hash, no build secret, component unchanged, job unchanged - no build job",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(raWithoutSecret), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(nil)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			customRa: raWithoutSecret,
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: "comp-current:anytag", Build: false},
+				"job":  pipeline.DeployComponentImage{ImagePath: "job-current:anytag", Build: false},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret missing, no build secret, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(raWithoutSecret)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			customRa: raWithoutSecret,
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "radixconfig hash unchanged, buildsecret hash missing, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa)},
+				radixv1.DeploymentActive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "missing current RD, component unchanged, job unchanged - build all",
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+		{
+			name: "no current RD, component unchanged, job unchanged - build all",
+			existingRd: radixDeploymentFactory(
+				map[string]string{kube.RadixConfigHash: internaltest.GetRadixApplicationHash(defaultRa), kube.RadixBuildSecretHash: internaltest.GetBuildSecretHash(currentBuildSecret)},
+				radixv1.DeploymentInactive,
+				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
+				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
+			),
+			prepareBuildCtx: &model.PrepareBuildContext{
+				EnvironmentsToBuild: []model.EnvironmentToBuild{
+					{
+						Environment: envName,
+						Components:  []string{},
+					},
+				},
+			},
+			expectedBuildComponentNames: []string{"comp", "job"},
+			expectedDeployComponentImages: pipeline.DeployComponentImages{
+				"comp": pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp"), Build: true},
+				"job":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("job"), Build: true},
+			},
+		},
+	}
+
+	for _, test := range tests {
+
+		s.Run(test.name, func() {
+			ra := defaultRa
+			if test.customRa != nil {
+				ra = test.customRa
+			}
+			_, _ = s.kubeClient.CoreV1().Secrets(utils.GetAppNamespace(appName)).Create(context.Background(), currentBuildSecret, metav1.CreateOptions{})
+			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			if test.existingRd != nil {
+				_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
+				_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), test.existingRd, metav1.CreateOptions{})
+			}
+			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, test.prepareBuildCtx))
+			pipelineInfo := model.PipelineInfo{
+				PipelineArguments:  piplineArgs,
+				RadixConfigMapName: prepareConfigMapName,
+			}
+			applyStep := applyconfig.NewApplyConfigStep()
+			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+
+			// Run applyconfig step
+			s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
+
+			expectedBuildComponentImages := pipeline.EnvironmentBuildComponentImages{}
+			if len(test.expectedBuildComponentNames) > 0 {
+				expectedBuildComponentImages[envName] = slice.Map(test.expectedBuildComponentNames, buildComponentImageFunc)
+			}
+			s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
+			for env, images := range pipelineInfo.BuildComponentImages {
+				s.ElementsMatch(expectedBuildComponentImages[env], images)
+			}
+
+			s.Equal(pipeline.DeployEnvironmentComponentImages{envName: test.expectedDeployComponentImages}, pipelineInfo.DeployEnvironmentComponentImages)
+		})
+	}
+}
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 	appName := "anyapp"
@@ -1019,6 +1716,58 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 			}
 		})
 	}
+}
+
+func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
+	appName, envName, rjName, buildBranch, jobPort := "anyapp", "dev", "anyrj", "anybranch", pointers.Ptr[int32](9999)
+	prepareConfigMapName := "preparecm"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	rj := utils.ARadixBuildDeployJob().WithJobName(rjName).WithAppName(appName).BuildRJ()
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName, buildBranch).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp1").WithImage("comp1img:{imageTagName}").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("comp1envtag")),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp2").WithImage("comp2img:{imageTagName}").
+				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("comp2envtag")),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job1").WithImage("job1img:{imageTagName}").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job1envtag")),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(jobPort).WithName("job2").WithImage("job2img:{imageTagName}").
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job2envtag")),
+		).
+		BuildRA()
+	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+	pipelineInfo := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType:  "deploy",
+			ToEnvironment: envName,
+			JobName:       rjName,
+			ImageTagNames: map[string]string{"comp1": "comp1customtag", "job1": "job1customtag"},
+		},
+		RadixConfigMapName: prepareConfigMapName,
+	}
+
+	applyStep := applyconfig.NewApplyConfigStep()
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+
+	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
+
+	expectedDeployComponentImages := pipeline.DeployEnvironmentComponentImages{
+		envName: pipeline.DeployComponentImages{
+			"comp1": pipeline.DeployComponentImage{ImagePath: "comp1img:{imageTagName}", ImageTagName: "comp1customtag"},
+			"comp2": pipeline.DeployComponentImage{ImagePath: "comp2img:{imageTagName}"},
+			"job1":  pipeline.DeployComponentImage{ImagePath: "job1img:{imageTagName}", ImageTagName: "job1customtag"},
+			"job2":  pipeline.DeployComponentImage{ImagePath: "job2img:{imageTagName}"},
+		},
+	}
+
+	s.Equal(expectedDeployComponentImages, pipelineInfo.DeployEnvironmentComponentImages)
 }
 
 func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
