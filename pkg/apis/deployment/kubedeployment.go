@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -27,8 +28,8 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 		return err
 	}
 
-	// If component is stopped or HorizontalScaling is nil then delete hpa if exists before updating deployment
-	if isComponentStopped(deployComponent) || deployComponent.GetHorizontalScaling() == nil {
+	// If component has manual override or HorizontalScaling is nil then delete hpa if exists before updating deployment
+	if deployComponent.GetReplicasOverride() != nil || deployComponent.GetHorizontalScaling() == nil {
 		err = deploy.deleteScaledObjectIfExists(ctx, deployComponent.GetName())
 		if err != nil {
 			return err
@@ -60,6 +61,22 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 	if err != nil {
 		return err
 	}
+
+	// If selector doesnt match pod labels, recreate deployment
+	selector := labels.Set(desiredJobAuxDeployment.Spec.Selector.MatchLabels).AsSelector()
+	if currentJobAuxDeployment != nil && !selector.Matches(labels.Set(currentJobAuxDeployment.Spec.Template.Labels)) {
+		log.Ctx(ctx).Info().Msgf("Deleting outdated deployment (label selector does not match) %s", currentJobAuxDeployment.GetName())
+		err = deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment.Name)
+		if err != nil {
+			return err
+		}
+
+		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
+		if err != nil {
+			return err
+		}
+	}
+
 	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
 
@@ -104,7 +121,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr[int32](DefaultReplicas),
+			Replicas: pointers.Ptr(DefaultReplicas),
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -124,11 +141,11 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 			Name:            jobAuxDeploymentName,
 			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)},
 			Labels:          make(map[string]string),
-			Annotations:     make(map[string]string),
+			Annotations:     radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointers.Ptr[int32](1),
-			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobAuxObject(jobName)},
+			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
@@ -161,7 +178,10 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context,
 	// When HPA is enabled for a component, the HPA controller will scale the Deployment up/down by changing Replicas
 	// We must keep this value as long as replicas >= 0.
 	// Current replicas will be 0 if the component was previously stopped (replicas set explicitly to 0)
-	if hs := deployComponent.GetHorizontalScaling(); hs != nil && !isComponentStopped(deployComponent) {
+	// Do not override replicas if override is set
+	hs := deployComponent.GetHorizontalScaling()
+	override := deployComponent.GetReplicasOverride()
+	if hs != nil && override == nil {
 		if replicas := currentDeployment.Spec.Replicas; replicas != nil && *replicas > 0 {
 			desiredDeployment.Spec.Replicas = currentDeployment.Spec.Replicas
 		}
@@ -189,9 +209,8 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
-		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
-		radixlabels.ForIsJobAuxObject(),
+		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
 	)
 }
 
@@ -231,15 +250,16 @@ func getDeployComponentCommitId(deployComponent v1.RadixCommonDeployComponent) s
 func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
-		radixlabels.ForComponentName(deployComponent.GetName()),
-		radixlabels.ForComponentType(deployComponent.GetType()),
-		radixlabels.ForIsJobAuxObject(),
+		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
 	)
 }
 
 func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 	branch, _ := deploy.getRadixBranchAndCommitId()
-	return radixannotations.ForRadixBranch(branch)
+	return radixannotations.Merge(
+		radixannotations.ForRadixBranch(branch),
+		radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment),
+	)
 }
 
 func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
@@ -251,7 +271,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.ObjectMeta.Annotations = deploy.getDeploymentAnnotations()
 
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
-	desiredDeployment.Spec.Replicas = getDesiredComponentReplicas(deployComponent)
+	desiredDeployment.Spec.Replicas = pointers.Ptr(getDeployComponentReplicas(deployComponent))
 	desiredDeployment.Spec.RevisionHistoryLimit = getRevisionHistoryLimit(deployComponent)
 
 	deploymentStrategy, err := getDeploymentStrategy()
@@ -324,33 +344,30 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 }
 
 func isComponentStopped(deployComponent v1.RadixCommonDeployComponent) bool {
-	if replicas := deployComponent.GetReplicas(); replicas != nil {
-		return *replicas == 0
-	}
-
-	return false
+	replicas := deployComponent.GetReplicasOverride()
+	return replicas != nil && *replicas == 0
 }
 
-func getDesiredComponentReplicas(deployComponent v1.RadixCommonDeployComponent) *int32 {
-	if isComponentStopped(deployComponent) {
-		return pointers.Ptr[int32](0)
+func getDeployComponentReplicas(deployComponent v1.RadixCommonDeployComponent) int32 {
+	if override := deployComponent.GetReplicasOverride(); override != nil {
+		return int32(*override)
 	}
 
-	componentReplicas := int32(DefaultReplicas)
+	componentReplicas := DefaultReplicas
 	if replicas := deployComponent.GetReplicas(); replicas != nil {
 		componentReplicas = int32(*replicas)
 	}
 
 	if hs := deployComponent.GetHorizontalScaling(); hs != nil {
 		if hs.MinReplicas != nil && *hs.MinReplicas > componentReplicas {
-			componentReplicas = *hs.MinReplicas
+			return *hs.MinReplicas
 		}
 		if hs.MaxReplicas < componentReplicas {
-			componentReplicas = hs.MaxReplicas
+			return hs.MaxReplicas
 		}
 	}
 
-	return pointers.Ptr(componentReplicas)
+	return componentReplicas
 }
 
 func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int32 {

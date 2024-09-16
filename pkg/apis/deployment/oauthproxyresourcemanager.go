@@ -15,6 +15,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
@@ -638,7 +639,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deploymentName,
-			Annotations:     make(map[string]string),
+			Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(o.rd),
 			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		},
 		Spec: appsv1.DeploymentSpec{

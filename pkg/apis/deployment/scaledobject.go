@@ -22,9 +22,14 @@ import (
 func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
-	horizontalScaling := deployComponent.GetHorizontalScaling().NormalizeConfig()
+
+	if deployComponent.GetReplicasOverride() != nil {
+		log.Ctx(ctx).Debug().Msgf("Skip creating ScaledObject %s in namespace %s: manuall override is set", componentName, namespace)
+		return nil
+	}
 
 	// Check if scaler config exists
+	horizontalScaling := deployComponent.GetHorizontalScaling().NormalizeConfig()
 	if horizontalScaling == nil {
 		log.Ctx(ctx).Debug().Msgf("Skip creating ScaledObject %s in namespace %s: no HorizontalScaling config exists", componentName, namespace)
 		return nil
@@ -34,8 +39,6 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 		return nil
 	}
 
-	scaler := deploy.getScalerConfig(componentName, horizontalScaling)
-
 	auths := deploy.getTriggerAuths(componentName, horizontalScaling)
 	for _, auth := range auths {
 		if err := deploy.kubeutil.ApplyTriggerAuthentication(ctx, namespace, auth); err != nil {
@@ -43,6 +46,7 @@ func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deploy
 		}
 	}
 
+	scaler := deploy.getScalerConfig(componentName, horizontalScaling)
 	return deploy.kubeutil.ApplyScaledObject(ctx, namespace, scaler)
 }
 
@@ -152,7 +156,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 			MaxReplicaCount: pointers.Ptr(config.MaxReplicas),
 			PollingInterval: config.PollingInterval,
 			CooldownPeriod:  config.CooldownPeriod,
-			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: true},
+			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: false},
 			ScaleTargetRef: &kedav1.ScaleTarget{
 				Kind:       "Deployment",
 				Name:       componentName,

@@ -186,7 +186,7 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
 			ra.Spec.Components[1].EnvironmentConfig = nil
 		}},
-		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *radixv1.RadixApplication) {
+		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica+1, "environment replicas"), func(ra *radixv1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
 		}},
 		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("env name", invalidResourceName), func(ra *radixv1.RadixApplication) {
