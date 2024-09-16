@@ -27,9 +27,10 @@ const (
 	buildKitHomePath                = "/home/build"
 	buildKitBuildSecretsPath        = "/build-secrets"
 	privateImageHubDockerAuthPath   = "/radix-private-image-hubs"
-	defaultExternalRegistruAuthPath = "/radix-default-external-registry-auth"
+	defaultExternalRegistryAuthPath = "/radix-default-external-registry-auth"
 )
 
+// NewBuildKit returns a JobBuilder implementation for building components and jobs using radix-buildkit-builder (https://github.com/equinor/radix-buildkit-builder)
 func NewBuildKit() JobsBuilder {
 	return &buildKit{}
 }
@@ -239,7 +240,7 @@ func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 	// When multiple files contains credentials for the same registry (e.g. docker.io), credentials from the last file is used
 	var authFiles []string
 	if len(c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret) > 0 {
-		authFiles = append(authFiles, path.Join(defaultExternalRegistruAuthPath, corev1.DockerConfigJsonKey))
+		authFiles = append(authFiles, path.Join(defaultExternalRegistryAuthPath, corev1.DockerConfigJsonKey))
 	}
 	authFiles = append(authFiles, path.Join(privateImageHubDockerAuthPath, corev1.DockerConfigJsonKey))
 	for _, authFile := range authFiles {
@@ -347,7 +348,7 @@ func (c *buildKitKubeJobProps) getPodContainerVolumeMounts() []corev1.VolumeMoun
 		volumeMounts = append(volumeMounts,
 			corev1.VolumeMount{
 				Name:      c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret,
-				MountPath: defaultExternalRegistruAuthPath,
+				MountPath: defaultExternalRegistryAuthPath,
 				ReadOnly:  true,
 			},
 		)

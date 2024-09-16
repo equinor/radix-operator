@@ -27,6 +27,7 @@ const (
 	acrHomePath                  = "/home/radix-image-builder"
 )
 
+// NewBuildKit returns a JobBuilder implementation for building components and jobs using radix-image-builder (https://github.com/equinor/radix-image-builder)
 func NewACR() JobsBuilder {
 	return &acr{}
 }

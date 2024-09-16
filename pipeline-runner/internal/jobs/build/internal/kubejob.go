@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// KubeJobProps defines properties to be used with the BuildKubeJob function.
 type KubeJobProps interface {
 	JobName() string
 	JobLabels() map[string]string
@@ -21,6 +22,7 @@ type KubeJobProps interface {
 	PodContainers() []corev1.Container
 }
 
+// BuildKubeJob builds a Kubernetes job with properties defined by source argument
 func BuildKubeJob(props KubeJobProps) batchv1.Job {
 	return batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
