@@ -13,39 +13,39 @@ import (
 	v1 "k8s.io/api/batch/v1"
 )
 
-// MockInterface is a mock of Interface interface.
-type MockInterface struct {
+// MockJobsBuilder is a mock of JobsBuilder interface.
+type MockJobsBuilder struct {
 	ctrl     *gomock.Controller
-	recorder *MockInterfaceMockRecorder
+	recorder *MockJobsBuilderMockRecorder
 }
 
-// MockInterfaceMockRecorder is the mock recorder for MockInterface.
-type MockInterfaceMockRecorder struct {
-	mock *MockInterface
+// MockJobsBuilderMockRecorder is the mock recorder for MockJobsBuilder.
+type MockJobsBuilderMockRecorder struct {
+	mock *MockJobsBuilder
 }
 
-// NewMockInterface creates a new mock instance.
-func NewMockInterface(ctrl *gomock.Controller) *MockInterface {
-	mock := &MockInterface{ctrl: ctrl}
-	mock.recorder = &MockInterfaceMockRecorder{mock}
+// NewMockJobsBuilder creates a new mock instance.
+func NewMockJobsBuilder(ctrl *gomock.Controller) *MockJobsBuilder {
+	mock := &MockJobsBuilder{ctrl: ctrl}
+	mock.recorder = &MockJobsBuilderMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockInterface) EXPECT() *MockInterfaceMockRecorder {
+func (m *MockJobsBuilder) EXPECT() *MockJobsBuilderMockRecorder {
 	return m.recorder
 }
 
-// GetJobs mocks base method.
-func (m *MockInterface) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []v1.Job {
+// BuildJobs mocks base method.
+func (m *MockJobsBuilder) BuildJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []v1.Job {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetJobs", useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
+	ret := m.ctrl.Call(m, "BuildJobs", useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
 	ret0, _ := ret[0].([]v1.Job)
 	return ret0
 }
 
-// GetJobs indicates an expected call of GetJobs.
-func (mr *MockInterfaceMockRecorder) GetJobs(useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets interface{}) *gomock.Call {
+// BuildJobs indicates an expected call of BuildJobs.
+func (mr *MockJobsBuilderMockRecorder) BuildJobs(useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJobs", reflect.TypeOf((*MockInterface)(nil).GetJobs), useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildJobs", reflect.TypeOf((*MockJobsBuilder)(nil).BuildJobs), useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
 }

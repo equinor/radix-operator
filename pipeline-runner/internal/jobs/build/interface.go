@@ -6,6 +6,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 )
 
-type Interface interface {
-	GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job
+type JobsBuilder interface {
+	BuildJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job
 }

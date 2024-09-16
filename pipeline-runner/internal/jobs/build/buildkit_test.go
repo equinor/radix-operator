@@ -70,7 +70,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 	}
 
 	sut := build.NewBuildKit()
-	jobs := sut.GetJobs(useCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
+	jobs := sut.BuildJobs(useCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {

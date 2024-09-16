@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type BuildJobFactory func(useBuildKit bool) internalbuild.Interface
+type BuildJobFactory func(useBuildKit bool) internalbuild.JobsBuilder
 
 // BuildStepImplementation Step to build docker image
 type BuildStepImplementation struct {
@@ -44,7 +44,7 @@ func WithBuildJobFactory(factory BuildJobFactory) Option {
 	}
 }
 
-func defaultBuildJobFactory(useBuildKit bool) internalbuild.Interface {
+func defaultBuildJobFactory(useBuildKit bool) internalbuild.JobsBuilder {
 	if useBuildKit {
 		return internalbuild.NewBuildKit()
 	}
@@ -124,7 +124,7 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 	}
 	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
 	return step.buildJobFactory(pipelineInfo.IsUsingBuildKit()).
-		GetJobs(
+		BuildJobs(
 			pipelineInfo.IsUsingBuildCache(),
 			pipelineInfo.PipelineArguments,
 			rr.Spec.CloneURL,

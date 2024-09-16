@@ -47,8 +47,8 @@ const (
 )
 
 func createbuildJobFactoryMock(m *mock.Mock) build.BuildJobFactory {
-	return func(useBuildKit bool) internalbuild.Interface {
-		return m.MethodCalled(buildJobFactoryMockMethodName, useBuildKit).Get(0).(internalbuild.Interface)
+	return func(useBuildKit bool) internalbuild.JobsBuilder {
+		return m.MethodCalled(buildJobFactoryMockMethodName, useBuildKit).Get(0).(internalbuild.JobsBuilder)
 	}
 }
 
@@ -168,8 +168,8 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 	m.AssertNotCalled(s.T(), buildJobFactoryMockMethodName, mock.Anything)
 
 	// secret correctly set
-	jobBuilder := buildjobmock.NewMockInterface(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().GetJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
+	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	pipelineInfo.BuildSecret = &corev1.Secret{Data: map[string][]byte{secretName: []byte("anyvalue")}}
 	err = cli.Run(context.Background(), pipelineInfo)
@@ -201,8 +201,8 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 		RadixApplication:     ra,
 	}
 
-	jobBuilder := buildjobmock.NewMockInterface(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().GetJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
+	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.NoError(err)
@@ -245,12 +245,12 @@ func (s *buildTestSuite) Test_JobsCreated() {
 		}},
 	}
 
-	jobBuilder := buildjobmock.NewMockInterface(gomock.NewController(s.T()))
+	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
 	jobsToReturn := []batchv1.Job{
 		{ObjectMeta: metav1.ObjectMeta{Name: "job1", Namespace: utils.GetAppNamespace(appName)}},
 		{ObjectMeta: metav1.ObjectMeta{Name: "job2", Namespace: utils.GetAppNamespace(appName)}},
 	}
-	jobBuilder.EXPECT().GetJobs(
+	jobBuilder.EXPECT().BuildJobs(
 		gomock.Any(),
 		pipelineInfo.PipelineArguments,
 		cloneUrl,
@@ -981,10 +981,10 @@ func (s *buildTestSuite) Test_BuildChangedComponents() {
 	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
 
 	// Run build step
-	jobsBuilder := buildjobmock.NewMockInterface(s.ctrl)
+	jobsBuilder := buildjobmock.NewMockJobsBuilder(s.ctrl)
 	m.On(buildJobFactoryMockMethodName, false).Return(jobsBuilder).Times(1)
 	expectedComponentImages := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
-	jobsBuilder.EXPECT().GetJobs(false, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.InAnyOrder(expectedComponentImages), gomock.InAnyOrder([]string{})).Return([]batchv1.Job{{}}).Times(1)
+	jobsBuilder.EXPECT().BuildJobs(false, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.InAnyOrder(expectedComponentImages), gomock.InAnyOrder([]string{})).Return([]batchv1.Job{{}}).Times(1)
 	s.Require().NoError(buildStep.Run(context.Background(), &pipelineInfo))
 	s.Require().NoError(deployStep.Run(context.Background(), &pipelineInfo))
 	// jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
@@ -1467,7 +1467,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 			s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
 
 			// Run build step
-			jobsBuilder := buildjobmock.NewMockInterface(s.ctrl)
+			jobsBuilder := buildjobmock.NewMockJobsBuilder(s.ctrl)
 			m.On(buildJobFactoryMockMethodName, false).Return(jobsBuilder).Times(1)
 			if len(test.expectedJobContainers) > 0 {
 				var expectedBuildSecrets []string
@@ -1475,7 +1475,7 @@ func (s *buildTestSuite) Test_DetectComponentsToBuild() {
 					expectedBuildSecrets = ra.Spec.Build.Secrets
 				}
 				expectedComponentImages := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
-				jobsBuilder.EXPECT().GetJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.InAnyOrder(expectedComponentImages), gomock.InAnyOrder(expectedBuildSecrets)).Return([]batchv1.Job{{}}).Times(1)
+				jobsBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.InAnyOrder(expectedComponentImages), gomock.InAnyOrder(expectedBuildSecrets)).Return([]batchv1.Job{{}}).Times(1)
 				jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 			}
 			s.Require().NoError(buildStep.Run(context.Background(), &pipelineInfo))
@@ -1739,9 +1739,9 @@ func (s *buildTestSuite) Test_BuildJobSpec_WithBuildSecrets() {
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 
 	// Run build step
-	jobsBuilder := buildjobmock.NewMockInterface(s.ctrl)
+	jobsBuilder := buildjobmock.NewMockJobsBuilder(s.ctrl)
 	m.On(buildJobFactoryMockMethodName, false).Return(jobsBuilder).Times(1)
-	jobsBuilder.EXPECT().GetJobs(false, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.InAnyOrder([]string{"SECRET1", "SECRET2"})).Return([]batchv1.Job{{}}).Times(1)
+	jobsBuilder.EXPECT().BuildJobs(false, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.InAnyOrder([]string{"SECRET1", "SECRET2"})).Return([]batchv1.Job{{}}).Times(1)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(1)
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 	// jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
@@ -1810,10 +1810,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_BuildKit() {
 	s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 
 	// Run build step
-	jobsBuilder := buildjobmock.NewMockInterface(s.ctrl)
+	jobsBuilder := buildjobmock.NewMockJobsBuilder(s.ctrl)
 	m.On(buildJobFactoryMockMethodName, true).Return(jobsBuilder).Times(1)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
-	jobsBuilder.EXPECT().GetJobs(true, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobsBuilder.EXPECT().BuildJobs(true, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 
 	// jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
@@ -1968,10 +1968,10 @@ func (s *buildTestSuite) Test_BuildJobSpec_OverrideUseBuildCacheInBuildKit() {
 			s.Require().NoError(applyStep.Run(context.Background(), &pipeline))
 
 			// Run build step
-			jobsBuilder := buildjobmock.NewMockInterface(s.ctrl)
+			jobsBuilder := buildjobmock.NewMockJobsBuilder(s.ctrl)
 			m.On(buildJobFactoryMockMethodName, true).Return(jobsBuilder).Times(1)
 			jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
-			jobsBuilder.EXPECT().GetJobs(ts.expectedUseBuildCache, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+			jobsBuilder.EXPECT().BuildJobs(ts.expectedUseBuildCache, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 			s.Require().NoError(buildStep.Run(context.Background(), &pipeline))
 			// jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 			// s.Require().Len(jobs.Items, 1)

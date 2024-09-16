@@ -8,6 +8,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -29,41 +30,40 @@ const (
 	defaultExternalRegistruAuthPath = "/radix-default-external-registry-auth"
 )
 
-func NewBuildKit() Interface {
+func NewBuildKit() JobsBuilder {
 	return &buildKit{}
 }
 
 type buildKit struct{}
 
-func (c *buildKit) GetJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+func (c *buildKit) BuildJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
 	var jobs []batchv1.Job
 
 	for _, componentImage := range componentImages {
-		job := c.constructJob(componentImage, useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets)
+		job := c.buildJob(componentImage, useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets)
 		jobs = append(jobs, job)
 	}
 
 	return jobs
 }
 
-func (c *buildKit) constructJob(componentImage pipeline.BuildComponentImage, useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
-	kubeJob := kubeJobBuilder{
-		source: &buildKitJobSource{
-			pipelineArgs:   pipelineArgs,
-			componentImage: componentImage,
-			cloneURL:       cloneURL,
-			gitCommitHash:  gitCommitHash,
-			gitTags:        gitTags,
-			buildSecrets:   buildSecrets,
-			useBuildCache:  useBuildCache,
-		},
+func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
+	props := &buildKitKubeJobProps{
+		pipelineArgs:   pipelineArgs,
+		componentImage: componentImage,
+		cloneURL:       cloneURL,
+		gitCommitHash:  gitCommitHash,
+		gitTags:        gitTags,
+		buildSecrets:   buildSecrets,
+		useBuildCache:  useBuildCache,
 	}
-	return kubeJob.GetJob()
+
+	return internal.BuildKubeJob(props)
 }
 
-var _ kubeJobBuilderSource = &buildKitJobSource{}
+var _ internal.KubeJobProps = &buildKitKubeJobProps{}
 
-type buildKitJobSource struct {
+type buildKitKubeJobProps struct {
 	pipelineArgs   model.PipelineArguments
 	componentImage pipeline.BuildComponentImage
 	cloneURL       string
@@ -73,12 +73,12 @@ type buildKitJobSource struct {
 	useBuildCache  bool
 }
 
-func (c *buildKitJobSource) JobName() string {
+func (c *buildKitKubeJobProps) JobName() string {
 	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s", c.pipelineArgs.JobName, c.componentImage.EnvName, c.componentImage.ComponentName)))
 	return getJobName(time.Now(), c.pipelineArgs.ImageTag, hash)
 }
 
-func (c *buildKitJobSource) JobLabels() map[string]string {
+func (c *buildKitKubeJobProps) JobLabels() map[string]string {
 	return labels.Merge(
 		getCommonJobLabels(c.pipelineArgs.AppName, c.pipelineArgs.JobName, c.pipelineArgs.ImageTag),
 		labels.ForEnvironmentName(c.componentImage.EnvName),
@@ -86,36 +86,36 @@ func (c *buildKitJobSource) JobLabels() map[string]string {
 	)
 }
 
-func (c *buildKitJobSource) JobAnnotations() map[string]string {
+func (c *buildKitKubeJobProps) JobAnnotations() map[string]string {
 	return getCommonJobAnnotations(c.pipelineArgs.Branch, c.componentImage)
 }
 
-func (c *buildKitJobSource) PodLabels() map[string]string {
+func (c *buildKitKubeJobProps) PodLabels() map[string]string {
 	return getCommonPodLabels(c.pipelineArgs.JobName)
 }
 
-func (c *buildKitJobSource) PodAnnotations() map[string]string {
+func (c *buildKitKubeJobProps) PodAnnotations() map[string]string {
 	annotations := getCommonPodAnnotations()
 	annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", c.componentImage.ContainerName)] = "unconfined"
 	return annotations
 }
 
-func (c *buildKitJobSource) PodTolerations() []corev1.Toleration {
+func (c *buildKitKubeJobProps) PodTolerations() []corev1.Toleration {
 	return getCommonPodTolerations()
 }
 
-func (c *buildKitJobSource) PodAffinity() *corev1.Affinity {
+func (c *buildKitKubeJobProps) PodAffinity() *corev1.Affinity {
 	return getCommonPodAffinity(c.componentImage.Runtime)
 }
 
-func (*buildKitJobSource) PodSecurityContext() *corev1.PodSecurityContext {
+func (*buildKitKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {
 	return securitycontext.Pod(
 		securitycontext.WithPodFSGroup(1000),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
 		securitycontext.WithPodRunAsNonRoot(pointers.Ptr(false)))
 }
 
-func (c *buildKitJobSource) PodVolumes() []corev1.Volume {
+func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 	volumes := getCommonPodVolumes([]pipeline.BuildComponentImage{c.componentImage})
 
 	volumes = append(volumes,
@@ -182,12 +182,12 @@ func (c *buildKitJobSource) PodVolumes() []corev1.Volume {
 	return volumes
 }
 
-func (c *buildKitJobSource) PodInitContainers() []corev1.Container {
+func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
 	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.Branch, cloneCfg)
 }
 
-func (c *buildKitJobSource) PodContainers() []corev1.Container {
+func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
 	container := corev1.Container{
 		Name:            c.componentImage.ContainerName,
 		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.BuildKitImageBuilder),
@@ -202,7 +202,7 @@ func (c *buildKitJobSource) PodContainers() []corev1.Container {
 	return []corev1.Container{container}
 }
 
-func (c *buildKitJobSource) getPodContainerArgs() []string {
+func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 	args := []string{
 		"--registry", c.pipelineArgs.ContainerRegistry,
 		"--registry-username", "$(BUILDAH_USERNAME)",
@@ -249,7 +249,7 @@ func (c *buildKitJobSource) getPodContainerArgs() []string {
 	return args
 }
 
-func (c *buildKitJobSource) getPodContainerResources() corev1.ResourceRequirements {
+func (c *buildKitKubeJobProps) getPodContainerResources() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{
 		Requests: map[corev1.ResourceName]resource.Quantity{
 			corev1.ResourceCPU:    resource.MustParse(c.pipelineArgs.Builder.ResourcesRequestsCPU),
@@ -261,7 +261,7 @@ func (c *buildKitJobSource) getPodContainerResources() corev1.ResourceRequiremen
 	}
 }
 
-func (c *buildKitJobSource) getPodContainerSecurityContext() *corev1.SecurityContext {
+func (c *buildKitKubeJobProps) getPodContainerSecurityContext() *corev1.SecurityContext {
 	return securitycontext.Container(
 		securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
@@ -274,7 +274,7 @@ func (c *buildKitJobSource) getPodContainerSecurityContext() *corev1.SecurityCon
 	)
 }
 
-func (c *buildKitJobSource) getPodContainerEnvVars() []corev1.EnvVar {
+func (c *buildKitKubeJobProps) getPodContainerEnvVars() []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name: "BUILDAH_USERNAME",
@@ -317,7 +317,7 @@ func (c *buildKitJobSource) getPodContainerEnvVars() []corev1.EnvVar {
 	return envVars
 }
 
-func (c *buildKitJobSource) getPodContainerVolumeMounts() []corev1.VolumeMount {
+func (c *buildKitKubeJobProps) getPodContainerVolumeMounts() []corev1.VolumeMount {
 	volumeMounts := getCommonPodContainerVolumeMounts(c.componentImage)
 
 	volumeMounts = append(volumeMounts,
