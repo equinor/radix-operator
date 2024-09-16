@@ -83,10 +83,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		pipelineInfo.SourceDeploymentGitCommitHash = sourceDeploymentGitCommitHash
 		pipelineInfo.SourceDeploymentGitBranch = sourceDeploymentGitBranch
 	}
-	job, err := cli.getPreparePipelinesJobConfig(pipelineInfo)
-	if err != nil {
-		return err
-	}
+	job := cli.getPreparePipelinesJobConfig(pipelineInfo)
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
@@ -99,7 +96,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 	}
 
 	log.Ctx(ctx).Info().Msgf("Apply job (%s) to copy radixconfig to configmap for app %s and prepare Tekton pipeline", job.Name, appName)
-	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
+	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -119,7 +116,7 @@ func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
 
-func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) (*batchv1.Job, error) {
+func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
 	appName := cli.GetAppName()
 	registration := cli.GetRegistration()
 	configBranch := applicationconfig.GetConfigBranch(registration)
@@ -204,7 +201,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		},
 	}
 	initContainers := git.CloneInitContainersWithContainerName(registration.Spec.CloneURL, configBranch, git.CloneConfigContainerName, internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments))
-	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars), nil
+	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 }
 
 func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
