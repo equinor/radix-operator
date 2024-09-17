@@ -95,8 +95,6 @@ spec:
               value: {{ .Values.imageBuilder }}
             - name: RADIXOPERATOR_JOB_SCHEDULER
               value: {{ .Values.jobScheduler }}
-            - name: USE_CACHE
-              value: {{ .Values.useImageBuilderCache | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: LOG_PRETTY
@@ -157,8 +155,10 @@ spec:
             {{- end }}
             - name: SECCOMP_PROFILE_FILENAME
               value: {{ .Values.seccompProfile.fileNameOnNode }}
-            - name: RADIX_BUILDAH_IMAGE_BUILDER
+            - name: RADIX_BUILDAH_IMAGE_BUILDER # TODO: Deprecated, remove
               value: {{ .Values.buildahImageBuilder }}
+            - name: RADIX_BUILDKIT_IMAGE_BUILDER
+              value: {{ .Values.buildKitImageBuilder }}
             - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE
               value: {{ .Values.gitCloneNsLookupImage }}
             - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE

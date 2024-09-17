@@ -18,14 +18,16 @@ type DeployEnvironmentComponentImages map[string]DeployComponentImages
 
 // BuildComponentImage holds info about a build container
 type BuildComponentImage struct {
-	ComponentName string
-	EnvName       string
-	ContainerName string
-	Context       string
-	Dockerfile    string
-	ImageName     string
-	ImagePath     string
-	Runtime       *radixv1.Runtime
+	ComponentName        string
+	EnvName              string
+	ContainerName        string
+	Context              string
+	Dockerfile           string
+	ImageName            string
+	ImagePath            string
+	ClusterTypeImagePath string
+	ClusterNameImagePath string
+	Runtime              *radixv1.Runtime
 }
 
 // EnvironmentBuildComponentImages maps component names with build information for environment

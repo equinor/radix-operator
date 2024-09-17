@@ -16,7 +16,8 @@ kubeClientRateLimitQPS: 5
 
 configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
-buildahImageBuilder: xx
+buildKitImageBuilder: radix-buildkit-builder:main-latest # TODO: Configure in radix-flux
+buildahImageBuilder: xx # TODO: Deprecated, remove
 jobScheduler: radix-job-scheduler:main-latest
 radixTekton: radix-tekton:main-latest
 
@@ -25,7 +26,6 @@ gitCloneNsLookupImage: "" # Image containing nslookup, e.g. "alpine:3.20". Defau
 gitCloneGitImage: "" # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
 gitCloneBashImage: "" # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
 
-useImageBuilderCache: 0
 reservedAppDNSAlias:
   api: radix-api
   canary: radix-canary-golang

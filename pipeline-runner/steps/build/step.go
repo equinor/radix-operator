@@ -2,12 +2,16 @@ package build
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
+	internalbuild "github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	jobutil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -15,25 +19,50 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
+type BuildJobFactory func(useBuildKit bool) internalbuild.JobsBuilder
+
 // BuildStepImplementation Step to build docker image
 type BuildStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	jobWaiter internalwait.JobCompletionWaiter
+	jobWaiter       internalwait.JobCompletionWaiter
+	buildJobFactory BuildJobFactory
+}
+
+type Option func(step *BuildStepImplementation)
+
+func WithBuildJobFactory(factory BuildJobFactory) Option {
+	return func(step *BuildStepImplementation) {
+		step.buildJobFactory = factory
+	}
+}
+
+func defaultBuildJobFactory(useBuildKit bool) internalbuild.JobsBuilder {
+	if useBuildKit {
+		return internalbuild.NewBuildKit()
+	}
+
+	return internalbuild.NewACR()
 }
 
 // NewBuildStep Constructor.
 // jobWaiter is optional and will be set by Init(...) function if nil.
-func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
+func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter, options ...Option) model.Step {
 	step := &BuildStepImplementation{
-		stepType:  pipeline.BuildStep,
-		jobWaiter: jobWaiter,
+		stepType:        pipeline.BuildStep,
+		jobWaiter:       jobWaiter,
+		buildJobFactory: defaultBuildJobFactory,
+	}
+
+	for _, o := range options {
+		o(step)
 	}
 
 	return step
@@ -78,20 +107,35 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 
 	log.Ctx(ctx).Info().Msgf("Building app %s for branch %s and commit %s", step.GetAppName(), branch, commitID)
 
-	namespace := utils.GetAppNamespace(step.GetAppName())
-	buildSecrets, err := getBuildSecretsAsVariables(pipelineInfo)
-	if err != nil {
+	if err := step.validateBuildSecrets(pipelineInfo); err != nil {
 		return err
 	}
 
-	jobs, err := step.buildContainerImageBuildingJobs(ctx, pipelineInfo, buildSecrets)
-	if err != nil {
-		return err
-	}
-	return step.createACRBuildJobs(ctx, pipelineInfo, jobs, namespace)
+	jobs := step.getBuildJobs(pipelineInfo)
+	namespace := utils.GetAppNamespace(step.GetAppName())
+	return step.applyBuildJobs(ctx, pipelineInfo, jobs, namespace)
 }
 
-func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []*batchv1.Job, namespace string) error {
+func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineInfo) []batchv1.Job {
+	rr := step.GetRegistration()
+	var secrets []string
+	if pipelineInfo.RadixApplication.Spec.Build != nil {
+		secrets = pipelineInfo.RadixApplication.Spec.Build.Secrets
+	}
+	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
+	return step.buildJobFactory(pipelineInfo.IsUsingBuildKit()).
+		BuildJobs(
+			pipelineInfo.IsUsingBuildCache(),
+			pipelineInfo.PipelineArguments,
+			rr.Spec.CloneURL,
+			pipelineInfo.GitCommitHash,
+			pipelineInfo.GitTags,
+			imagesToBuild,
+			secrets,
+		)
+}
+
+func (step *BuildStepImplementation) applyBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []batchv1.Job, namespace string) error {
 	ownerReference, err := step.getJobOwnerReferences(ctx, pipelineInfo, namespace)
 	if err != nil {
 		return err
@@ -99,18 +143,17 @@ func (step *BuildStepImplementation) createACRBuildJobs(ctx context.Context, pip
 
 	g := errgroup.Group{}
 	for _, job := range jobs {
-		job := job
 		g.Go(func() error {
 			logger := log.Ctx(ctx).With().Str("job", job.Name).Logger()
 			job.OwnerReferences = ownerReference
-			jobDescription := step.getJobDescription(job)
+			jobDescription := step.getJobDescription(&job)
 			logger.Info().Msgf("Apply %s", jobDescription)
-			job, err = step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
+			createdJob, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.Background(), &job, metav1.CreateOptions{})
 			if err != nil {
 				logger.Error().Err(err).Msgf("failed %s", jobDescription)
 				return err
 			}
-			return step.jobWaiter.Wait(job)
+			return step.jobWaiter.Wait(createdJob)
 		})
 	}
 	return g.Wait()
@@ -121,7 +164,7 @@ func (step *BuildStepImplementation) getJobOwnerReferences(ctx context.Context, 
 	if pipelineInfo.PipelineArguments.Debug {
 		return nil, nil
 	}
-	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	ownerReference, err := jobutil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 	if err != nil {
 		return nil, err
 	}
@@ -140,4 +183,22 @@ func (step *BuildStepImplementation) getJobDescription(job *batchv1.Job) string 
 		builder.WriteString(fmt.Sprintf(" in the environment %s", envName))
 	}
 	return builder.String()
+}
+
+func (*BuildStepImplementation) validateBuildSecrets(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.RadixApplication.Spec.Build == nil || len(pipelineInfo.RadixApplication.Spec.Build.Secrets) == 0 {
+		return nil
+	}
+
+	if pipelineInfo.BuildSecret == nil {
+		return errors.New("build secrets has not been set")
+	}
+
+	for _, secretName := range pipelineInfo.RadixApplication.Spec.Build.Secrets {
+		if secretValue, ok := pipelineInfo.BuildSecret.Data[secretName]; !ok || strings.EqualFold(string(secretValue), defaults.BuildSecretDefaultData) {
+			return fmt.Errorf("build secret %s has not been set", secretName)
+		}
+	}
+
+	return nil
 }

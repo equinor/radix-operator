@@ -329,16 +329,23 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			envNameForName := getLengthLimitedName(envName)
 			imageName := fmt.Sprintf("%s-%s", envNameForName, componentName)
 			containerName := fmt.Sprintf("build-%s-%s", componentName, envNameForName)
-			imagePath := operatorutils.GetImagePath(pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.RadixApplication.GetName(), imageName, pipelineInfo.PipelineArguments.ImageTag)
+			appName := pipelineInfo.RadixApplication.GetName()
+			containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
+			imageTag := pipelineInfo.PipelineArguments.ImageTag
+			imagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, imageTag)
+			clusterTypeImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.PipelineArguments.Clustertype, imageTag))
+			clusterNameImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.PipelineArguments.Clustername, imageTag))
 			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
-				ComponentName: componentName,
-				EnvName:       envName,
-				ContainerName: containerName,
-				Context:       getContext(imageSource.Source.Folder),
-				Dockerfile:    getDockerfileName(imageSource.Source.DockefileName),
-				ImageName:     imageName,
-				ImagePath:     imagePath,
-				Runtime:       imageSource.Runtime,
+				ComponentName:        componentName,
+				EnvName:              envName,
+				ContainerName:        containerName,
+				Context:              getContext(imageSource.Source.Folder),
+				Dockerfile:           getDockerfileName(imageSource.Source.DockefileName),
+				ImageName:            imageName,
+				ImagePath:            imagePath,
+				ClusterTypeImagePath: clusterTypeImagePath,
+				ClusterNameImagePath: clusterNameImagePath,
+				Runtime:              imageSource.Runtime,
 			})
 			componentImageSourceMap[envName][imageSourceIndex].Image = imagePath
 		}

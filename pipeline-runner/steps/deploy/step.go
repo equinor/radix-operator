@@ -72,10 +72,7 @@ func (cli *DeployStepImplementation) deploy(ctx context.Context, pipelineInfo *m
 }
 
 func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, envName string, pipelineInfo *model.PipelineInfo) error {
-	defaultEnvVars, err := getDefaultEnvVars(pipelineInfo)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve default env vars for RadixDeployment in app  %s. %v", appName, err)
-	}
+	defaultEnvVars := getDefaultEnvVars(pipelineInfo)
 
 	if commitID, ok := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]; !ok || len(commitID) == 0 {
 		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
@@ -135,7 +132,7 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 	return nil
 }
 
-func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) (radixv1.EnvVarsMap, error) {
+func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) radixv1.EnvVarsMap {
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 
@@ -143,5 +140,5 @@ func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) (radixv1.EnvVarsMap, er
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
 
-	return envVarsMap, nil
+	return envVarsMap
 }

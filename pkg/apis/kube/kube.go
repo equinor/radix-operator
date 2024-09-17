@@ -51,7 +51,6 @@ const (
 	RadixJobNameLabel                   = "radix-job-name"
 	RadixAuxiliaryComponentLabel        = "radix-aux-component"
 	RadixAuxiliaryComponentTypeLabel    = "radix-aux-component-type"
-	RadixBuildLabel                     = "radix-build"
 	RadixCommitLabel                    = "radix-commit"
 	RadixImageTagLabel                  = "radix-image-tag"
 	RadixJobTypeLabel                   = "radix-job-type"

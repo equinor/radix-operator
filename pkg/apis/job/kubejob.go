@@ -119,7 +119,6 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
-	useImageBuilderCache := os.Getenv(defaults.RadixUseCacheEnvironmentVariable)
 
 	clusterName, err := job.kubeutil.GetClusterName(ctx)
 	if err != nil {
@@ -162,11 +161,12 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.String()),
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.String()),
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.String()),
+		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, radixTektonImage),
 		fmt.Sprintf("--%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
-		fmt.Sprintf("--%s=%s", defaults.RadixBuildahImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixBuildahImageBuilderEnvironmentVariable)),
+		fmt.Sprintf("--%s=%s", defaults.RadixBuildKitImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable)),
 		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),
 
 		// Used for tagging source of image
@@ -198,7 +198,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
 		if jobSpec.Build.OverrideUseBuildCache != nil {
 			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixOverrideUseBuildCacheVariable, *jobSpec.Build.OverrideUseBuildCache))
 		}
