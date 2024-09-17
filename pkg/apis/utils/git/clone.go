@@ -5,30 +5,13 @@ import (
 	"path"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
-	// InternalContainerPrefix To indicate that this is not for user interest
-	InternalContainerPrefix = "internal-"
-
-	// CloneConfigContainerName Name of container for clone in the outer pipeline
-	CloneConfigContainerName = "clone-config"
-
-	// CloneContainerName Name of container
-	CloneContainerName = "clone"
-
-	// GitSSHKeyVolumeName Deploy key + known_hosts
-	GitSSHKeyVolumeName = "git-ssh-keys"
-
-	// BuildContextVolumeName Name of volume to hold build context
-	BuildContextVolumeName = "build-context"
-
-	// Workspace Folder to hold the code to build
-	Workspace = "/workspace"
-
 	// The script to ensure that github responds before cloning. It breaks after max attempts
 	waitForGithubToRespond = "n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
 )
@@ -46,20 +29,31 @@ func CloneInitContainers(sshURL, branch string, config CloneConfig) []corev1.Con
 
 // CloneInitContainersWithContainerName The sidecars for cloning repo
 func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig) []corev1.Container {
-	gitCloneCmd := []string{"git", "clone", "--recurse-submodules", sshURL, "-b", branch, "--verbose", "--progress", Workspace}
+	gitCloneCmd := []string{"sh", "-c",
+		fmt.Sprintf("git config --global --add safe.directory %[1]s"+
+			" && git clone --recurse-submodules %[2]s -b %[3]s --verbose --progress %[1]s"+
+			" && cd %[1]s"+
+			" && if [ -n $(git lfs ls-files 2>/dev/null) ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi",
+			Workspace, sshURL, branch)}
 	containers := []corev1.Container{
 		{
-			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),
-			Image:           config.NSlookupImage,
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			Args:            []string{waitForGithubToRespond},
-			Command:         []string{"/bin/sh", "-c"},
+			Name:    fmt.Sprintf("%snslookup", InternalContainerPrefix),
+			Image:   config.NSlookupImage,
+			Command: []string{"/bin/sh", "-c"},
+			Args:    []string{waitForGithubToRespond},
+			Env: []corev1.EnvVar{
+				{
+					Name:  defaults.HomeEnvironmentVariable,
+					Value: BuildHomeVolumePath,
+				},
+			},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
 				},
 			},
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			SecurityContext: securitycontext.Container(
 				securitycontext.WithContainerRunAsUser(1000), // Any user will probably do
 				securitycontext.WithContainerRunAsGroup(1000),
@@ -82,6 +76,11 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 					Name:      GitSSHKeyVolumeName,
 					MountPath: "/.ssh",
 					ReadOnly:  true,
+				},
+				{
+					Name:      BuildHomeVolumeName,
+					MountPath: BuildHomeVolumePath,
+					ReadOnly:  false,
 				},
 			},
 			SecurityContext: securitycontext.Container(

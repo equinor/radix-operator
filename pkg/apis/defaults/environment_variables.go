@@ -223,10 +223,13 @@ const (
 	// RadixGitCloneGitImageEnvironmentVariable The container image containing git, used in pipeline git clone init containers
 	RadixGitCloneGitImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE"
 
-	// RadixGitCloneGitImageEnvironmentVariable The container image containing bash, used in pipeline git clone init containers
+	// RadixGitCloneBashImageEnvironmentVariable The container image containing bash, used in pipeline git clone init containers
 	RadixGitCloneBashImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE"
 
-	// Name of the secret containing default credentials for external container registries.
+	// RadixExternalRegistryDefaultAuthEnvironmentVariable Name of the secret containing default credentials for external container registries.
 	// Used when pulling images for components and jobs and for pulling images in Dockerfiles when building with buildah.
 	RadixExternalRegistryDefaultAuthEnvironmentVariable = "RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET"
+
+	// HomeEnvironmentVariable The environment variable for the home directory
+	HomeEnvironmentVariable = "HOME"
 )

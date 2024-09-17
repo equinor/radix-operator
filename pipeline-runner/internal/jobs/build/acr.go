@@ -16,6 +16,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -23,8 +24,6 @@ import (
 
 const (
 	azureServicePrincipleContext = "/radix-image-builder/.azure"
-	acrHomeVolumeName            = "radix-image-builder-home"
-	acrHomePath                  = "/home/radix-image-builder"
 )
 
 // NewBuildKit returns a JobBuilder implementation for building components and jobs using radix-image-builder (https://github.com/equinor/radix-image-builder)
@@ -106,7 +105,7 @@ func (c *acrKubeJobProps) PodVolumes() []corev1.Volume {
 			},
 		},
 		corev1.Volume{
-			Name: acrHomeVolumeName,
+			Name: git.BuildHomeVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
@@ -159,8 +158,8 @@ func (c *acrKubeJobProps) getPodContainerVolumeMounts(componentImage pipeline.Bu
 		},
 		// .azure folder is created in the user home folder
 		corev1.VolumeMount{
-			Name:      acrHomeVolumeName,
-			MountPath: acrHomePath,
+			Name:      git.BuildHomeVolumeName,
+			MountPath: git.BuildHomeVolumePath,
 			ReadOnly:  false,
 		},
 	)

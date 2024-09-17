@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,8 +24,6 @@ import (
 const (
 	buildKitRunVolumeName           = "build-kit-run"
 	buildKitRootVolumeName          = "build-kit-root"
-	buildKitHomeVolumeName          = "radix-image-builder-home"
-	buildKitHomePath                = "/home/build"
 	buildKitBuildSecretsPath        = "/build-secrets"
 	privateImageHubDockerAuthPath   = "/radix-private-image-hubs"
 	defaultExternalRegistryAuthPath = "/radix-default-external-registry-auth"
@@ -129,7 +128,7 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 			},
 		},
 		corev1.Volume{
-			Name: buildKitHomeVolumeName,
+			Name: git.BuildHomeVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
@@ -338,8 +337,8 @@ func (c *buildKitKubeJobProps) getPodContainerVolumeMounts() []corev1.VolumeMoun
 			ReadOnly:  true,
 		},
 		corev1.VolumeMount{
-			Name:      buildKitHomeVolumeName,
-			MountPath: buildKitHomePath, // Writable directory where buildah's auth.json file is stored
+			Name:      git.BuildHomeVolumeName,
+			MountPath: git.BuildHomeVolumePath, // Writable directory where buildah's auth.json file is stored
 			ReadOnly:  false,
 		},
 	)

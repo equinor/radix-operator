@@ -130,7 +130,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 				{Name: fmt.Sprintf("var-%s", ci.ContainerName), VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 				{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
-				{Name: "radix-image-builder-home", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
+				{Name: git.BuildHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
 				{Name: "build-kit-run", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 				{Name: "build-kit-root", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 			}
@@ -150,11 +150,13 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 			assert.ElementsMatch(t, []string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 			cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 			assert.Equal(t, args.GitCloneGitImage, cloneContainer.Image)
-			assert.Equal(t, []string{"git", "clone", "--recurse-submodules", cloneURL, "-b", args.Branch, "--verbose", "--progress", git.Workspace}, cloneContainer.Command)
+			assert.Equal(t, []string{"sh", "-c", "git config --global --add safe.directory /workspace && git clone --recurse-submodules anycloneurl -b anybranch --verbose --progress /workspace && cd /workspace && if [ -n $(git lfs ls-files 2>/dev/null) ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi"},
+				cloneContainer.Command)
 			assert.Empty(t, cloneContainer.Args)
 			expectedCloneVolumeMounts := []corev1.VolumeMount{
 				{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
 				{Name: git.GitSSHKeyVolumeName, MountPath: "/.ssh", ReadOnly: true},
+				{Name: git.BuildHomeVolumeName, MountPath: git.BuildHomeVolumePath, ReadOnly: false},
 			}
 			assert.ElementsMatch(t, expectedCloneVolumeMounts, cloneContainer.VolumeMounts)
 
@@ -231,7 +233,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 				{Name: "build-kit-run", MountPath: "/run", ReadOnly: false},
 				{Name: "build-kit-root", MountPath: "/root", ReadOnly: false},
 				{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
-				{Name: "radix-image-builder-home", MountPath: "/home/build", ReadOnly: false},
+				{Name: git.BuildHomeVolumeName, MountPath: git.BuildHomeVolumePath, ReadOnly: false},
 			}
 			if len(args.ExternalContainerRegistryDefaultAuthSecret) > 0 {
 				expectedVolumeMounts = append(expectedVolumeMounts, corev1.VolumeMount{Name: args.ExternalContainerRegistryDefaultAuthSecret, MountPath: "/radix-default-external-registry-auth", ReadOnly: true})
