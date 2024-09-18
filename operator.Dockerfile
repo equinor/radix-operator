@@ -19,6 +19,3 @@ WORKDIR /app
 COPY --from=builder /build/radix-operator .
 USER 1000
 ENTRYPOINT ["/app/radix-operator"]
-
-
-

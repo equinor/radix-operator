@@ -3,7 +3,6 @@ package job
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -362,7 +361,6 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTa
 			Namespace: utils.GetAppNamespace(appName),
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  radixJobName,
-				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s", appName, imageTag),
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,

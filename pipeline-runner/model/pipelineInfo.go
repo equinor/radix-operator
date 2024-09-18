@@ -63,7 +63,6 @@ type PipelineArguments struct {
 	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID string
 	ImageTag string
-	UseCache bool
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
 	PushImage             bool
@@ -76,9 +75,9 @@ type PipelineArguments struct {
 
 	// Images used for copying radix config/building
 	TektonPipeline string
-	// ImageBuilder Points to the image builder
+	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
-	// BuildKitImageBuilder Points to the BuildKit compliant image builder
+	// BuildKitImageBuilder Points to the BuildKit compliant image builder (repository and tag only)
 	BuildKitImageBuilder string
 	// GitCloneNsLookupImage defines image containing nslookup.
 	// Used as option to the CloneInitContainers function.
@@ -112,6 +111,10 @@ type PipelineArguments struct {
 	AppName       string
 	Builder       Builder
 	DNSConfig     *dnsaliasconfig.DNSConfig
+
+	// Name of secret with .dockerconfigjson key containing docker auths. Optional.
+	// Used to authenticate external container registries when using buildkit to build dockerfiles.
+	ExternalContainerRegistryDefaultAuthSecret string
 }
 
 // InitPipeline Initialize pipeline with step implementations
@@ -195,4 +198,17 @@ func (info *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType)
 
 func (info *PipelineInfo) IsUsingBuildKit() bool {
 	return info.RadixApplication.Spec.Build != nil && info.RadixApplication.Spec.Build.UseBuildKit != nil && *info.RadixApplication.Spec.Build.UseBuildKit
+}
+
+func (info *PipelineInfo) IsUsingBuildCache() bool {
+	if !info.IsUsingBuildKit() {
+		return false
+	}
+
+	useBuildCache := info.RadixApplication.Spec.Build == nil || info.RadixApplication.Spec.Build.UseBuildCache == nil || *info.RadixApplication.Spec.Build.UseBuildCache
+	if info.PipelineArguments.OverrideUseBuildCache != nil {
+		useBuildCache = *info.PipelineArguments.OverrideUseBuildCache
+	}
+
+	return useBuildCache
 }

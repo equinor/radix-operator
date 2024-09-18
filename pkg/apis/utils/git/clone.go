@@ -1,7 +1,6 @@
 package git
 
 import (
-	"errors"
 	"fmt"
 	"path"
 
@@ -40,32 +39,13 @@ type CloneConfig struct {
 	BashImage     string
 }
 
-func (c CloneConfig) Validate() error {
-	var errs []error
-
-	if len(c.NSlookupImage) == 0 {
-		errs = append(errs, errors.New("field NSlookupImage not set"))
-	}
-	if len(c.GitImage) == 0 {
-		errs = append(errs, errors.New("field GitImage not set"))
-	}
-	if len(c.BashImage) == 0 {
-		errs = append(errs, errors.New("field BashImage not set"))
-	}
-
-	return errors.Join(errs...)
-}
-
 // CloneInitContainers The sidecars for cloning repo
-func CloneInitContainers(sshURL, branch string, config CloneConfig) ([]corev1.Container, error) {
+func CloneInitContainers(sshURL, branch string, config CloneConfig) []corev1.Container {
 	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, config)
 }
 
 // CloneInitContainersWithContainerName The sidecars for cloning repo
-func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig) ([]corev1.Container, error) {
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid clone configuration: %w", err)
-	}
+func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig) []corev1.Container {
 	gitCloneCmd := []string{"git", "clone", "--recurse-submodules", sshURL, "-b", branch, "--verbose", "--progress", Workspace}
 	containers := []corev1.Container{
 		{
@@ -140,5 +120,5 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 		},
 	}
 
-	return containers, nil
+	return containers
 }
