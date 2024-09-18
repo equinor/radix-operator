@@ -33,7 +33,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 		fmt.Sprintf("git config --global --add safe.directory %[1]s"+
 			" && git clone --recurse-submodules %[2]s -b %[3]s --verbose --progress %[1]s"+
 			" && cd %[1]s"+
-			" && if [ -n $(git lfs ls-files 2>/dev/null) ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi",
+			" && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi",
 			Workspace, sshURL, branch)}
 	containers := []corev1.Container{
 		{
@@ -41,12 +41,6 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Image:   config.NSlookupImage,
 			Command: []string{"/bin/sh", "-c"},
 			Args:    []string{waitForGithubToRespond},
-			Env: []corev1.EnvVar{
-				{
-					Name:  defaults.HomeEnvironmentVariable,
-					Value: BuildHomeVolumePath,
-				},
-			},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
@@ -67,6 +61,12 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Image:           config.GitImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         gitCloneCmd,
+			Env: []corev1.EnvVar{
+				{
+					Name:  defaults.HomeEnvironmentVariable,
+					Value: BuildHomeVolumePath,
+				},
+			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      BuildContextVolumeName,
