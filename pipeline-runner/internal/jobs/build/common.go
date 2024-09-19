@@ -78,7 +78,7 @@ func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev
 				},
 			},
 		},
-		corev1.Volume{
+		{
 			Name: git.CloneRepoHomeVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
