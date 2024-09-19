@@ -98,6 +98,9 @@ func getJobVolumes() []corev1.Volume {
 			Name: git.BuildContextVolumeName,
 		},
 		{
+			Name: git.CloneRepoHomeVolumeName,
+		},
+		{
 			Name: git.GitSSHKeyVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
