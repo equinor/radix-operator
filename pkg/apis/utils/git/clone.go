@@ -5,7 +5,6 @@ import (
 	"path"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -63,7 +62,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Command:         gitCloneCmd,
 			Env: []corev1.EnvVar{
 				{
-					Name:  defaults.HomeEnvironmentVariable,
+					Name:  "HOME",
 					Value: CloneRepoHomeVolumePath,
 				},
 			},
