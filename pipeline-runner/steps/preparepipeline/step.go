@@ -200,7 +200,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Value: strings.Join(pipelineInfo.PipelineArguments.DNSConfig.ReservedDNSAliases, ","),
 		},
 	}
-	initContainers := git.CloneInitContainersWithContainerName(registration.Spec.CloneURL, configBranch, git.CloneConfigContainerName, internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments))
+	initContainers := git.CloneInitContainersWithContainerName(registration.Spec.CloneURL, configBranch, git.CloneConfigContainerName, internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments), false)
 	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 }
 

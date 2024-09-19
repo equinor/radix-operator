@@ -6,29 +6,12 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
-	// InternalContainerPrefix To indicate that this is not for user interest
-	InternalContainerPrefix = "internal-"
-
-	// CloneConfigContainerName Name of container for clone in the outer pipeline
-	CloneConfigContainerName = "clone-config"
-
-	// CloneContainerName Name of container
-	CloneContainerName = "clone"
-
-	// GitSSHKeyVolumeName Deploy key + known_hosts
-	GitSSHKeyVolumeName = "git-ssh-keys"
-
-	// BuildContextVolumeName Name of volume to hold build context
-	BuildContextVolumeName = "build-context"
-
-	// Workspace Folder to hold the code to build
-	Workspace = "/workspace"
-
 	// The script to ensure that github responds before cloning. It breaks after max attempts
 	waitForGithubToRespond = "n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
 )
@@ -41,25 +24,29 @@ type CloneConfig struct {
 
 // CloneInitContainers The sidecars for cloning repo
 func CloneInitContainers(sshURL, branch string, config CloneConfig) []corev1.Container {
-	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, config)
+	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, config, true)
 }
 
 // CloneInitContainersWithContainerName The sidecars for cloning repo
-func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig) []corev1.Container {
-	gitCloneCmd := []string{"git", "clone", "--recurse-submodules", sshURL, "-b", branch, "--verbose", "--progress", Workspace}
+func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig, useLfs bool) []corev1.Container {
+	gitConfigCommand := fmt.Sprintf("git config --global --add safe.directory %s", Workspace)
+	gitCloneCommand := fmt.Sprintf("git clone --recurse-submodules %s -b %s --verbose --progress %s", sshURL, branch, Workspace)
+	getLfsFilesCommands := fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", Workspace)
+	gitCloneCmd := []string{"sh", "-c", fmt.Sprintf("%s && %s %s", gitConfigCommand, gitCloneCommand,
+		utils.TernaryString(useLfs, fmt.Sprintf("&& %s", getLfsFilesCommands), ""))}
 	containers := []corev1.Container{
 		{
-			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),
-			Image:           config.NSlookupImage,
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			Args:            []string{waitForGithubToRespond},
-			Command:         []string{"/bin/sh", "-c"},
+			Name:    fmt.Sprintf("%snslookup", InternalContainerPrefix),
+			Image:   config.NSlookupImage,
+			Command: []string{"/bin/sh", "-c"},
+			Args:    []string{waitForGithubToRespond},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
 				},
 			},
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			SecurityContext: securitycontext.Container(
 				securitycontext.WithContainerRunAsUser(1000), // Any user will probably do
 				securitycontext.WithContainerRunAsGroup(1000),
@@ -73,6 +60,12 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Image:           config.GitImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         gitCloneCmd,
+			Env: []corev1.EnvVar{
+				{
+					Name:  "HOME",
+					Value: CloneRepoHomeVolumePath,
+				},
+			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      BuildContextVolumeName,
@@ -82,6 +75,11 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 					Name:      GitSSHKeyVolumeName,
 					MountPath: "/.ssh",
 					ReadOnly:  true,
+				},
+				{
+					Name:      CloneRepoHomeVolumeName,
+					MountPath: CloneRepoHomeVolumePath,
+					ReadOnly:  false,
 				},
 			},
 			SecurityContext: securitycontext.Container(

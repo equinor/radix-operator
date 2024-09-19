@@ -78,6 +78,14 @@ func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev
 				},
 			},
 		},
+		{
+			Name: git.CloneRepoHomeVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
+				},
+			},
+		},
 	}
 
 	for _, image := range componentImages {
