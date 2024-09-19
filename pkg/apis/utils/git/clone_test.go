@@ -33,7 +33,7 @@ func Test_CloneInitContainersWithContainerName_CustomImages(t *testing.T) {
 	}
 	cloneName := "anyclonename"
 	cfg := git.CloneConfig{NSlookupImage: "anynslookup:any", GitImage: "anygit:any", BashImage: "anybash:any"}
-	containers := git.CloneInitContainersWithContainerName("anysshurl", "anybranch", cloneName, cfg)
+	containers := git.CloneInitContainersWithContainerName("anysshurl", "anybranch", cloneName, cfg, true)
 	actual := slice.Map(containers, func(c v1.Container) containerInfo { return containerInfo{name: c.Name, image: c.Image} })
 	expected := []containerInfo{
 		{name: fmt.Sprintf("%snslookup", git.InternalContainerPrefix), image: cfg.NSlookupImage},
