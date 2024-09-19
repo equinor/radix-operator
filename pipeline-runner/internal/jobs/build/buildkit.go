@@ -24,6 +24,8 @@ import (
 const (
 	buildKitRunVolumeName           = "build-kit-run"
 	buildKitRootVolumeName          = "build-kit-root"
+	buildKitHomeVolumeName          = "radix-image-builder-home"
+	buildKitHomePath                = "/home/build"
 	buildKitBuildSecretsPath        = "/build-secrets"
 	privateImageHubDockerAuthPath   = "/radix-private-image-hubs"
 	defaultExternalRegistryAuthPath = "/radix-default-external-registry-auth"
@@ -128,7 +130,7 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 			},
 		},
 		corev1.Volume{
-			Name: git.BuildHomeVolumeName,
+			Name: buildKitHomeVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
@@ -148,6 +150,14 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
+				},
+			},
+		},
+		corev1.Volume{
+			Name: git.CloneRepoHomeVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
 				},
 			},
 		},
@@ -337,8 +347,8 @@ func (c *buildKitKubeJobProps) getPodContainerVolumeMounts() []corev1.VolumeMoun
 			ReadOnly:  true,
 		},
 		corev1.VolumeMount{
-			Name:      git.BuildHomeVolumeName,
-			MountPath: git.BuildHomeVolumePath, // Writable directory where buildah's auth.json file is stored
+			Name:      buildKitHomeVolumeName,
+			MountPath: buildKitHomePath, // Writable directory where buildah's auth.json file is stored
 			ReadOnly:  false,
 		},
 	)

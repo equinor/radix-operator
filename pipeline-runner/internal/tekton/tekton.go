@@ -18,7 +18,6 @@ import (
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -99,6 +98,9 @@ func getJobVolumes() []corev1.Volume {
 			Name: git.BuildContextVolumeName,
 		},
 		{
+			Name: git.CloneRepoHomeVolumeName,
+		},
+		{
 			Name: git.GitSSHKeyVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
@@ -117,14 +119,6 @@ func getJobVolumes() []corev1.Volume {
 							FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"},
 						},
 					},
-				},
-			},
-		},
-		{
-			Name: git.BuildHomeVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
 				},
 			},
 		},

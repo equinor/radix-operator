@@ -64,7 +64,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Env: []corev1.EnvVar{
 				{
 					Name:  defaults.HomeEnvironmentVariable,
-					Value: BuildHomeVolumePath,
+					Value: CloneRepoHomeVolumePath,
 				},
 			},
 			VolumeMounts: []corev1.VolumeMount{
@@ -78,8 +78,8 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 					ReadOnly:  true,
 				},
 				{
-					Name:      BuildHomeVolumeName,
-					MountPath: BuildHomeVolumePath,
+					Name:      CloneRepoHomeVolumeName,
+					MountPath: CloneRepoHomeVolumePath,
 					ReadOnly:  false,
 				},
 			},

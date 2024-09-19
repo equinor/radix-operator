@@ -105,7 +105,8 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 		{Name: git.BuildContextVolumeName},
 		{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
 		{Name: defaults.AzureACRServicePrincipleSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.AzureACRServicePrincipleSecretName}}},
-		{Name: git.BuildHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
+		{Name: "radix-image-builder-home", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
+		{Name: git.CloneRepoHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
 	}
 	for _, image := range componentImages {
 		expectedVolumes = append(expectedVolumes,
@@ -124,7 +125,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	expectedCloneVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
 		{Name: git.GitSSHKeyVolumeName, MountPath: "/.ssh", ReadOnly: true},
-		{Name: git.BuildHomeVolumeName, MountPath: git.BuildHomeVolumePath, ReadOnly: false},
+		{Name: git.CloneRepoHomeVolumeName, MountPath: git.CloneRepoHomeVolumePath},
 	}
 	assert.ElementsMatch(t, expectedCloneVolumeMounts, cloneContainer.VolumeMounts)
 
@@ -177,7 +178,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), MountPath: "/tmp", ReadOnly: false},
 				{Name: fmt.Sprintf("var-%s", ci.ContainerName), MountPath: "/var", ReadOnly: false},
 				{Name: defaults.AzureACRServicePrincipleSecretName, MountPath: "/radix-image-builder/.azure", ReadOnly: true},
-				{Name: git.BuildHomeVolumeName, MountPath: git.BuildHomeVolumePath, ReadOnly: false},
+				{Name: "radix-image-builder-home", MountPath: "/home/radix-image-builder", ReadOnly: false},
 			}
 			assert.ElementsMatch(t, expectedVolumeMounts, c.VolumeMounts)
 		})
