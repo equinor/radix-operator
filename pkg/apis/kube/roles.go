@@ -144,17 +144,6 @@ func ReadSecretsRule(secretNames []string) RuleBuilder {
 	}
 }
 
-func UpdateDeploymentsRule(deployments []string) RuleBuilder {
-	return func() rbacv1.PolicyRule {
-		return rbacv1.PolicyRule{
-			APIGroups:     []string{"apps"},
-			Resources:     []string{"deployments"},
-			ResourceNames: deployments,
-			Verbs:         []string{"update"},
-		}
-	}
-}
-
 func CreateAppRole(appName, roleName string, customLabels map[string]string, ruleBuilders ...RuleBuilder) *rbacv1.Role {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
