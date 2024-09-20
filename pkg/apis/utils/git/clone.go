@@ -30,7 +30,7 @@ func CloneInitContainers(sshURL, branch string, config CloneConfig) []corev1.Con
 // CloneInitContainersWithContainerName The sidecars for cloning repo
 func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig, useLfs bool) []corev1.Container {
 	gitConfigCommand := fmt.Sprintf("git config --global --add safe.directory %s", Workspace)
-	gitCloneCommand := fmt.Sprintf("git clone --recurse-submodules %s -b %s --verbose --progress %s", sshURL, branch, Workspace)
+	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --verbose --progress %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, branch, Workspace)
 	getLfsFilesCommands := fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", Workspace)
 	gitCloneCmd := []string{"sh", "-c", fmt.Sprintf("%s && %s %s", gitConfigCommand, gitCloneCommand,
 		utils.TernaryString(useLfs, fmt.Sprintf("&& %s", getLfsFilesCommands), ""))}
