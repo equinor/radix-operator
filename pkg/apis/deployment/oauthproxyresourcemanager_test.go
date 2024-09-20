@@ -410,22 +410,17 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	expectedRoles := []string{fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix))}
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
 	expectedSecretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
-	expectedDeploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(envNs).List(context.Background(), metav1.ListOptions{})
 	s.ElementsMatch(expectedRoles, getRoleNames(actualRoles))
 
 	admRole := getRoleByName(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoles)
 	s.Equal(expectedLabels, admRole.Labels)
-	s.Len(admRole.Rules, 2)
+	s.Len(admRole.Rules, 1)
 	s.ElementsMatch([]string{""}, admRole.Rules[0].APIGroups)
 	s.ElementsMatch([]string{"secrets"}, admRole.Rules[0].Resources)
 	s.ElementsMatch([]string{expectedSecretName}, admRole.Rules[0].ResourceNames)
 	s.ElementsMatch([]string{"get", "update", "patch", "list", "watch", "delete"}, admRole.Rules[0].Verbs)
-	s.ElementsMatch([]string{"apps"}, admRole.Rules[1].APIGroups)
-	s.ElementsMatch([]string{"deployments"}, admRole.Rules[1].Resources)
-	s.ElementsMatch([]string{expectedDeploymentName}, admRole.Rules[1].ResourceNames)
-	s.ElementsMatch([]string{"update"}, admRole.Rules[1].Verbs)
 
 	readerRole := getRoleByName(fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoles)
 	s.Equal(expectedLabels, readerRole.Labels)

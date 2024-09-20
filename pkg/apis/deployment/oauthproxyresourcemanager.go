@@ -483,7 +483,6 @@ func (o *oauthProxyResourceManager) createOrUpdateRbac(ctx context.Context, comp
 
 func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-adm", component.GetName())
 	namespace := o.rd.Namespace
 
@@ -493,7 +492,6 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 		roleName,
 		radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
 		kube.ManageSecretsRule([]string{secretName}),
-		kube.UpdateDeploymentsRule([]string{deploymentName}),
 	)
 
 	err := o.kubeutil.ApplyRole(ctx, namespace, role)
