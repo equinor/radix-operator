@@ -67,7 +67,9 @@ func addEventHandlersForRadixRegistrations(radixInformerFactory informers.Shared
 			newRR := newObj.(*radixv1.RadixRegistration)
 			if oldRR.GetResourceVersion() == newRR.GetResourceVersion() &&
 				radixutils.ArrayEqualElements(oldRR.Spec.AdGroups, newRR.Spec.AdGroups) &&
-				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) {
+				radixutils.ArrayEqualElements(oldRR.Spec.AdUsers, newRR.Spec.AdUsers) &&
+				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) &&
+				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdUsers, newRR.Spec.ReaderAdUsers) {
 				return // updating RadixRegistration has the same resource version. Do nothing.
 			}
 			enqueueRadixDNSAliasesForAppName(controller, radixClient, newRR.GetName(), logger)

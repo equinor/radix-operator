@@ -56,7 +56,6 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		{"empty ad group", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = []string{""} }, nil},
 		{"empty configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "" }, nil},
 		{"invalid configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "main.." }, nil},
-		{"empty ad groups", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = nil }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireAdGroups}},
 	}
 
 	_, client := validRRSetup()
@@ -114,7 +113,6 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 		{"empty ad group", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = []string{""} }, nil},
 		{"empty configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "" }, nil},
 		{"invalid configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "main.." }, nil},
-		{"empty ad groups", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = nil }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireAdGroups}},
 	}
 
 	_, client := validRRSetup()

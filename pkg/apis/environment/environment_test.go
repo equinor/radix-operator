@@ -165,17 +165,21 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-tekton-env", "radix-app-admin-envs", "radix-pipeline-env", "radix-app-reader-envs")
 	adGroupName := rr.Spec.AdGroups[0]
+	adUserName := rr.Spec.AdUsers[0]
 	t.Run("It contains the correct AD groups", func(t *testing.T) {
 		subjects := rolebindings.Items[0].Subjects
-		assert.Len(t, subjects, 1)
+		require.Len(t, subjects, 2)
 		assert.Equal(t, adGroupName, subjects[0].Name)
+		assert.Equal(t, adUserName, subjects[0].Name)
 	})
 
 	readerAdGroupName := rr.Spec.ReaderAdGroups[0]
+	readerAdUserName := rr.Spec.ReaderAdUsers[0]
 	t.Run("It contains the correct reader AD groups", func(t *testing.T) {
 		subjects := rolebindings.Items[1].Subjects
-		assert.Len(t, subjects, 1)
+		require.Len(t, subjects, 2)
 		assert.Equal(t, readerAdGroupName, subjects[0].Name)
+		assert.Equal(t, readerAdUserName, subjects[1].Name)
 	})
 }
 
