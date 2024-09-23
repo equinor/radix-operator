@@ -45,6 +45,15 @@ func RequireConfigurationItem(rr *v1.RadixRegistration) error {
 	return nil
 }
 
+// RequireAdGroups validates that AdGroups contains minimum one item
+func RequireAdGroups(rr *v1.RadixRegistration) error {
+	if len(rr.Spec.AdGroups) == 0 {
+		return ResourceNameCannotBeEmptyErrorWithMessage("AD groups")
+	}
+
+	return nil
+}
+
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(ctx context.Context, client radixclient.Interface, radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
