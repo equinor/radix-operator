@@ -460,6 +460,10 @@ type RadixComponent struct {
 	// Runtime defines the target runtime requirements for the component
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
+
+	// Network settings.
+	// +optional
+	Network *Network `json:"network,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -558,6 +562,10 @@ type RadixEnvironmentConfig struct {
 	// Runtime defines environment specific target runtime requirements for the component
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
+
+	// Environment specific network settings.
+	// +optional
+	Network *Network `json:"network,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -1439,6 +1447,41 @@ const (
 	// OperatorNotIn Values are not within the list
 	OperatorNotIn Operator = "NotIn"
 )
+
+// Network defines settings for network traffic.
+// Currently, only public ingress traffic is supported
+type Network struct {
+	// Ingress defines settings for ingress traffic.
+	// +optional
+	Ingress *Ingress `json:"ingress,omitempty"`
+
+	// If we decide to add support for egress configuration (managed by standard NetworkPolicy or more advanced systems like Cilium),
+	// we will add a `Egress` fields here.
+}
+
+// Ingress defines settings for ingress traffic.
+type Ingress struct {
+	// Public defines settings for public traffic.
+	// +optional
+	Public *IngressPublic `json:"public,omitempty"`
+
+	// If we decide to add support for private/internal ingress configuration (managed by NetworkPolicies),
+	// we will add a `Private` fields here.
+}
+
+// IP address or CIDR.
+// +kubebuilder:validation:Pattern=`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`
+type IPOrCIDR string
+
+// Ingress defines settings for ingress traffic.
+type IngressPublic struct {
+	// Allow defines a list of public IP adresses or CIDRs which are allowed to access the component.
+	// All IP adresses are allowed if this field is empty or not set.
+	// +optional
+	Allow *[]IPOrCIDR `json:"allow,omitempty"`
+
+	// This is where we will add additional fields used for configuring the Ingress Nginx controller.
+}
 
 // RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {

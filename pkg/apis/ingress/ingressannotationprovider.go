@@ -128,3 +128,30 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 
 	return annotations, nil
 }
+
+// NewIngressPublicAllowListAnnotationProvider provides Ingress annotations for allowing
+// only public traffic from IP adresses defined in Network.Ingress.Public.Allow field
+func NewIngressPublicAllowListAnnotationProvider() AnnotationProvider {
+	return &ingressPublicAllowListAnnotationProvider{}
+}
+
+type ingressPublicAllowListAnnotationProvider struct{}
+
+func (*ingressPublicAllowListAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+	if network := component.GetNetwork(); network == nil || network.Ingress == nil || network.Ingress.Public == nil || network.Ingress.Public.Allow == nil || len(*network.Ingress.Public.Allow) == 0 {
+		return nil, nil
+	}
+
+	annotations := make(map[string]string, 1)
+	var sb strings.Builder
+
+	for i, addr := range *component.GetNetwork().Ingress.Public.Allow {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(string(addr))
+	}
+	annotations["nginx.ingress.kubernetes.io/whitelist-source-range"] = sb.String()
+
+	return annotations, nil
+}
