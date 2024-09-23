@@ -78,7 +78,7 @@ func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 	appName := "any-app"
 	rr, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName(appName))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	roleBindings, _ := client.RbacV1().RoleBindings(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
@@ -86,15 +86,12 @@ func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 		getRoleBindingNames(roleBindings),
 	)
 
+	require.Len(t, getRoleBindingByName(defaults.AppAdminRoleName, roleBindings).Subjects, 1)
 	assert.Equal(t, getRoleBindingByName(defaults.PipelineAppRoleName, roleBindings).Subjects[0].Name, defaults.PipelineServiceAccountName)
 	assert.Equal(t, getRoleBindingByName(defaults.AppAdminRoleName, roleBindings).Subjects[0].Name, rr.Spec.AdGroups[0])
-	assert.Equal(t, getRoleBindingByName(defaults.AppAdminRoleName, roleBindings).Subjects[1].Name, rr.Spec.AdUsers[0])
-	assert.Len(t, getRoleBindingByName(defaults.AppAdminRoleName, roleBindings).Subjects, 1)
 	assert.Equal(t, getRoleBindingByName(defaults.RadixTektonAppRoleName, roleBindings).Subjects[0].Name, defaults.RadixTektonServiceAccountName)
 	assert.Equal(t, getRoleBindingByName(defaults.AppReaderRoleName, roleBindings).Subjects[0].Name, rr.Spec.ReaderAdGroups[0])
-	assert.Equal(t, getRoleBindingByName(defaults.AppReaderRoleName, roleBindings).Subjects[1].Name, rr.Spec.ReaderAdUsers[0])
 	assert.Equal(t, getRoleBindingByName("git-ssh-keys", roleBindings).Subjects[0].Name, rr.Spec.AdGroups[0])
-	assert.Equal(t, getRoleBindingByName("git-ssh-keys", roleBindings).Subjects[1].Name, rr.Spec.AdUsers[0])
 }
 
 func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.T) {
@@ -208,7 +205,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultRole)
 
 	// Test
-	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().WithName("any-app"))
+	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().WithName("any-app").WithAdGroups([]string{}).WithReaderAdGroups([]string{}))
 	require.NoError(t, err)
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})

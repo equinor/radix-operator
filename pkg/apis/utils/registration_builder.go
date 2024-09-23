@@ -135,8 +135,8 @@ func (rb *RegistrationBuilderStruct) WithReaderAdGroups(readerAdGroups []string)
 }
 
 // WithReaderAdUsers Sets reader ad user
-func (rb *RegistrationBuilderStruct) WithReaderAdUsers(readerAdGroups []string) RegistrationBuilder {
-	rb.readerAdGroups = readerAdGroups
+func (rb *RegistrationBuilderStruct) WithReaderAdUsers(readerAdUsers []string) RegistrationBuilder {
+	rb.readerAdUsers = readerAdUsers
 	return rb
 }
 
