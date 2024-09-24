@@ -11,6 +11,7 @@ import (
 )
 
 type AnnotationProvider interface {
+	// GetAnnotations returns annotations for use on Ingress resources
 	GetAnnotations(component radixv1.RadixCommonDeployComponent, namespace string) (map[string]string, error)
 }
 
@@ -137,6 +138,8 @@ func NewIngressPublicAllowListAnnotationProvider() AnnotationProvider {
 
 type ingressPublicAllowListAnnotationProvider struct{}
 
+// GetAnnotations returns annotations for only allowing public ingress traffic
+// for IPs or CIDRs defined in Network.Ingress.Public.Allow for a component
 func (*ingressPublicAllowListAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
 	if network := component.GetNetwork(); network == nil || network.Ingress == nil || network.Ingress.Public == nil || network.Ingress.Public.Allow == nil || len(*network.Ingress.Public.Allow) == 0 {
 		return nil, nil
