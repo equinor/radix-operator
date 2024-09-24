@@ -7,4 +7,6 @@ spec:
   repository: "https://github.com/equinor/testapp"
   cloneURL: "git@github.com:equinor/testapp"
   adGroups: ["Tardis"]
+  adUsers: ["TardisUser"]
   readerAdGroups: ["ReaderAdGroupsTest"]
+  readerAdUsers: ["ReaderAdUserTest"]

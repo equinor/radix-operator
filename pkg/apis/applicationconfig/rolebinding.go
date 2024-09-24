@@ -9,14 +9,12 @@ import (
 )
 
 func rolebindingAppReaderToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
-	readerAdGroups := registration.Spec.ReaderAdGroups
-	subjects := kube.GetRoleBindingGroups(readerAdGroups)
+	subjects := utils.GetAppReaderRbacSubjects(registration)
 	roleName := role.ObjectMeta.Name
 	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 }
 func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
-	adGroups, _ := utils.GetAdGroups(registration)
-	subjects := kube.GetRoleBindingGroups(adGroups)
+	subjects, _ := utils.GetAppAdminRbacSubjects(registration)
 	roleName := role.ObjectMeta.Name
 	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 }

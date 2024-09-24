@@ -16,6 +16,7 @@ type RegistrationBuilder interface {
 	WithRepository(string) RegistrationBuilder
 	WithSharedSecret(string) RegistrationBuilder
 	WithAdGroups([]string) RegistrationBuilder
+	WithAdUsers([]string) RegistrationBuilder
 	WithPublicKey(string) RegistrationBuilder
 	WithPrivateKey(string) RegistrationBuilder
 	WithCloneURL(string) RegistrationBuilder
@@ -28,6 +29,7 @@ type RegistrationBuilder interface {
 	WithConfigurationItem(string) RegistrationBuilder
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
 	WithReaderAdGroups([]string) RegistrationBuilder
+	WithReaderAdUsers([]string) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
 }
 
@@ -38,6 +40,7 @@ type RegistrationBuilderStruct struct {
 	repository          string
 	sharedSecret        string
 	adGroups            []string
+	adUsers             []string
 	publicKey           string
 	privateKey          string
 	cloneURL            string
@@ -49,6 +52,7 @@ type RegistrationBuilderStruct struct {
 	radixConfigFullName string
 	configurationItem   string
 	readerAdGroups      []string
+	readerAdUsers       []string
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -57,7 +61,9 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithCloneURL(radixRegistration.Spec.CloneURL)
 	rb.WithSharedSecret(radixRegistration.Spec.SharedSecret)
 	rb.WithAdGroups(radixRegistration.Spec.AdGroups)
+	rb.WithAdUsers(radixRegistration.Spec.AdUsers)
 	rb.WithReaderAdGroups(radixRegistration.Spec.ReaderAdGroups)
+	rb.WithReaderAdUsers(radixRegistration.Spec.ReaderAdUsers)
 	rb.WithPublicKey(radixRegistration.Spec.DeployKeyPublic)
 	rb.WithPrivateKey(radixRegistration.Spec.DeployKey)
 	rb.WithOwner(radixRegistration.Spec.Owner)
@@ -116,9 +122,21 @@ func (rb *RegistrationBuilderStruct) WithAdGroups(adGroups []string) Registratio
 	return rb
 }
 
+// WithAdUsers Sets ad user
+func (rb *RegistrationBuilderStruct) WithAdUsers(adUsers []string) RegistrationBuilder {
+	rb.adUsers = adUsers
+	return rb
+}
+
 // WithReaderAdGroups Sets reader ad group
 func (rb *RegistrationBuilderStruct) WithReaderAdGroups(readerAdGroups []string) RegistrationBuilder {
 	rb.readerAdGroups = readerAdGroups
+	return rb
+}
+
+// WithReaderAdUsers Sets reader ad user
+func (rb *RegistrationBuilderStruct) WithReaderAdUsers(readerAdUsers []string) RegistrationBuilder {
+	rb.readerAdUsers = readerAdUsers
 	return rb
 }
 
@@ -193,7 +211,9 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			DeployKey:           rb.privateKey,
 			DeployKeyPublic:     rb.publicKey,
 			AdGroups:            rb.adGroups,
+			AdUsers:             rb.adUsers,
 			ReaderAdGroups:      rb.readerAdGroups,
+			ReaderAdUsers:       rb.readerAdUsers,
 			Owner:               rb.owner,
 			Creator:             rb.creator,
 			WBS:                 rb.wbs,
