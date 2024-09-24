@@ -194,7 +194,7 @@ func validateRadixRegistrationSSHKey(rr *v1.RadixRegistration) error {
 	return validateSSHKey(rr.Spec.DeployKey)
 }
 
-func validateSSHKey(deployKey string) error {
+func validateSSHKey(_ string) error {
 	// todo - how can this be validated..e.g. checked that the key isn't protected by a password
 	return nil
 }

@@ -107,6 +107,7 @@ var (
 	ErrInvalidUseOfPublicPortInWebhookUrl                                  = errors.New("invalid use of public port in webhook")
 	ErrMissingAzureIdentity                                                = errors.New("missing identity")
 	ErrInvalidRuntimeArchitecture                                          = errors.New("invalid runtime architecture")
+	ErrInvalidIPv4OrCIDR                                                   = errors.New("invalid IPv4 or CIDR")
 )
 
 // DuplicateAliasForDNSAliasError Error when aliases are duplicate
