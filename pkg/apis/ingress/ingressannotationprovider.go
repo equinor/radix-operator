@@ -130,7 +130,7 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 }
 
 // NewIngressPublicAllowListAnnotationProvider provides Ingress annotations for allowing
-// only public traffic from IP adresses defined in Network.Ingress.Public.Allow field
+// only public traffic from IP addresses defined in Network.Ingress.Public.Allow field
 func NewIngressPublicAllowListAnnotationProvider() AnnotationProvider {
 	return &ingressPublicAllowListAnnotationProvider{}
 }
