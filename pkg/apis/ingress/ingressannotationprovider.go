@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -145,16 +146,9 @@ func (*ingressPublicAllowListAnnotationProvider) GetAnnotations(component radixv
 		return nil, nil
 	}
 
-	annotations := make(map[string]string, 1)
-	var sb strings.Builder
-
-	for i, addr := range *component.GetNetwork().Ingress.Public.Allow {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		sb.WriteString(string(addr))
+	addressList := slice.Map(*component.GetNetwork().Ingress.Public.Allow, func(v radixv1.IPOrCIDR) string { return string(v) })
+	annotations := map[string]string{
+		"nginx.ingress.kubernetes.io/whitelist-source-range": strings.Join(addressList, ","),
 	}
-	annotations["nginx.ingress.kubernetes.io/whitelist-source-range"] = sb.String()
-
 	return annotations, nil
 }
