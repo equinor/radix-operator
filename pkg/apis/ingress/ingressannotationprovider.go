@@ -147,8 +147,5 @@ func (*ingressPublicAllowListAnnotationProvider) GetAnnotations(component radixv
 	}
 
 	addressList := slice.Map(*component.GetNetwork().Ingress.Public.Allow, func(v radixv1.IPOrCIDR) string { return string(v) })
-	annotations := map[string]string{
-		"nginx.ingress.kubernetes.io/whitelist-source-range": strings.Join(addressList, ","),
-	}
-	return annotations, nil
+	return map[string]string{"nginx.ingress.kubernetes.io/whitelist-source-range": strings.Join(addressList, ",")}, nil
 }
