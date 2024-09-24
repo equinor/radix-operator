@@ -372,8 +372,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCr
 	appName, envName, componentName := "anyapp", "qa", "server"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
+	adminGroups, adminUsers := []string{"adm1", "adm2"}, []string{"admUsr1", "admUsr2"}
+	// readerGroups, readerUsers := []string{"rdr1", "rdr2"}, []string{"rdrUsr1", "rdrUsr2"}
 
-	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).BuildRR()
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups(adminGroups).WithAdUsers(adminUsers).BuildRR()
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
@@ -396,8 +398,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	appName, envName, componentName := "anyapp", "qa", "server"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
+	adminGroups, adminUsers := []string{"adm1", "adm2"}, []string{"admUsr1", "admUsr2"}
+	readerGroups, readerUsers := []string{"rdr1", "rdr2"}, []string{"rdrUsr1", "rdrUsr2"}
 
-	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).WithReaderAdGroups([]string{"rd1", "rd2"}).BuildRR()
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups(adminGroups).WithAdUsers(adminUsers).WithReaderAdGroups(readerGroups).WithReaderAdUsers(readerUsers).BuildRR()
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
@@ -410,22 +414,17 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	expectedRoles := []string{fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix))}
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
 	expectedSecretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
-	expectedDeploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(envNs).List(context.Background(), metav1.ListOptions{})
 	s.ElementsMatch(expectedRoles, getRoleNames(actualRoles))
 
 	admRole := getRoleByName(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoles)
 	s.Equal(expectedLabels, admRole.Labels)
-	s.Len(admRole.Rules, 2)
+	s.Len(admRole.Rules, 1)
 	s.ElementsMatch([]string{""}, admRole.Rules[0].APIGroups)
 	s.ElementsMatch([]string{"secrets"}, admRole.Rules[0].Resources)
 	s.ElementsMatch([]string{expectedSecretName}, admRole.Rules[0].ResourceNames)
 	s.ElementsMatch([]string{"get", "update", "patch", "list", "watch", "delete"}, admRole.Rules[0].Verbs)
-	s.ElementsMatch([]string{"apps"}, admRole.Rules[1].APIGroups)
-	s.ElementsMatch([]string{"deployments"}, admRole.Rules[1].Resources)
-	s.ElementsMatch([]string{expectedDeploymentName}, admRole.Rules[1].ResourceNames)
-	s.ElementsMatch([]string{"update"}, admRole.Rules[1].Verbs)
 
 	readerRole := getRoleByName(fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoles)
 	s.Equal(expectedLabels, readerRole.Labels)
@@ -442,8 +441,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	s.Equal(expectedLabels, admRoleBinding.Labels)
 	s.Equal(admRole.Name, admRoleBinding.RoleRef.Name)
 	expectedSubjects := []rbacv1.Subject{
-		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "ad1"},
-		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "ad2"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "adm1"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "adm2"},
+		{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "admUsr1"},
+		{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "admUsr2"},
 	}
 	s.ElementsMatch(expectedSubjects, admRoleBinding.Subjects)
 
@@ -451,8 +452,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	s.Equal(expectedLabels, readerRoleBinding.Labels)
 	s.Equal(readerRole.Name, readerRoleBinding.RoleRef.Name)
 	expectedSubjects = []rbacv1.Subject{
-		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "rd1"},
-		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "rd2"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "rdr1"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "rdr2"},
+		{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "rdrUsr1"},
+		{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "rdrUsr2"},
 	}
 	s.ElementsMatch(expectedSubjects, readerRoleBinding.Subjects)
 }

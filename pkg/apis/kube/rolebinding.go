@@ -18,9 +18,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-// GetRoleBindingGroups Get subjects for list of ad groups
-func GetRoleBindingGroups(groups []string) []rbacv1.Subject {
-	subjects := []rbacv1.Subject{}
+// GetRoleBindingSubjects Get subjects for list of ad groups
+func GetRoleBindingSubjects(groups, users []string) []rbacv1.Subject {
+	var subjects []rbacv1.Subject
 	for _, group := range groups {
 		subjects = append(subjects, rbacv1.Subject{
 			Kind:     rbacv1.GroupKind,
@@ -28,32 +28,19 @@ func GetRoleBindingGroups(groups []string) []rbacv1.Subject {
 			APIGroup: rbacv1.GroupName,
 		})
 	}
+	for _, user := range users {
+		subjects = append(subjects, rbacv1.Subject{
+			Kind:     rbacv1.UserKind,
+			Name:     user,
+			APIGroup: rbacv1.GroupName,
+		})
+	}
 	return subjects
-}
-
-// GetRolebindingToRole Get role binding object
-func GetRolebindingToRole(appName, roleName string, groups []string) *rbacv1.RoleBinding {
-	return GetRolebindingToRoleWithLabels(roleName, groups, map[string]string{
-		RadixAppLabel: appName,
-	})
-}
-
-// GetRolebindingToRoleWithLabels Get role binding object
-func GetRolebindingToRoleWithLabels(roleName string, groups []string, labels map[string]string) *rbacv1.RoleBinding {
-	subjects := GetRoleBindingGroups(groups)
-	return getRoleBindingForSubjects(roleName, k8s.KindRole, subjects, labels)
 }
 
 // GetRolebindingToRoleWithLabelsForSubjects Get rolebinding object with subjects as input
 func GetRolebindingToRoleWithLabelsForSubjects(roleName string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return getRoleBindingForSubjects(roleName, k8s.KindRole, subjects, labels)
-}
-
-// GetRolebindingToClusterRole Get role binding object
-func GetRolebindingToClusterRole(appName, roleName string, groups []string) *rbacv1.RoleBinding {
-	return GetRolebindingToClusterRoleWithLabels(roleName, groups, map[string]string{
-		RadixAppLabel: appName,
-	})
 }
 
 // GetRolebindingToClusterRoleForSubjects Get role binding object for list of subjects
@@ -68,14 +55,8 @@ func GetRolebindingToClusterRoleForSubjectsWithLabels(roleName string, subjects 
 	return getRoleBindingForSubjects(roleName, k8s.KindClusterRole, subjects, labels)
 }
 
-// GetRolebindingToClusterRoleWithLabels Get role binding object
-func GetRolebindingToClusterRoleWithLabels(roleName string, groups []string, labels map[string]string) *rbacv1.RoleBinding {
-	subjects := GetRoleBindingGroups(groups)
-	return getRoleBindingForSubjects(roleName, k8s.KindClusterRole, subjects, labels)
-}
-
 // GetRolebindingToRoleForSubjectsWithLabels Get role binding object for list of subjects with labels set
-func GetRolebindingToRoleForSubjectsWithLabels(appName, roleName string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
+func GetRolebindingToRoleForSubjectsWithLabels(roleName string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return getRoleBindingForSubjects(roleName, k8s.KindRole, subjects, labels)
 }
 

@@ -41,7 +41,7 @@ func (s *syncer) syncAppAdminRbac(ctx context.Context, rr *radixv1.RadixRegistra
 }
 
 func (s *syncer) syncAppReaderRbac(ctx context.Context, rr *radixv1.RadixRegistration) error {
-	subjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
+	subjects := utils.GetAppReaderRbacSubjects(rr)
 	roleName := s.getClusterRoleNameForReader()
 	return s.syncClusterRoleAndBinding(ctx, roleName, subjects)
 }

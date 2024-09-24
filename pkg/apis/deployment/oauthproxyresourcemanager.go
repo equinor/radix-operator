@@ -483,7 +483,6 @@ func (o *oauthProxyResourceManager) createOrUpdateRbac(ctx context.Context, comp
 
 func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-adm", component.GetName())
 	namespace := o.rd.Namespace
 
@@ -493,7 +492,6 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 		roleName,
 		radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
 		kube.ManageSecretsRule([]string{secretName}),
-		kube.UpdateDeploymentsRule([]string{deploymentName}),
 	)
 
 	err := o.kubeutil.ApplyRole(ctx, namespace, role)
@@ -502,12 +500,10 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 	}
 
 	// create rolebinding
-	adGroups, err := utils.GetAdGroups(o.rr)
+	subjects, err := utils.GetAppAdminRbacSubjects(o.rr)
 	if err != nil {
 		return err
 	}
-
-	subjects := kube.GetRoleBindingGroups(adGroups)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
@@ -531,7 +527,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Cont
 	}
 
 	// create rolebinding
-	subjects := kube.GetRoleBindingGroups(o.rr.Spec.ReaderAdGroups)
+	subjects := utils.GetAppReaderRbacSubjects(o.rr)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }

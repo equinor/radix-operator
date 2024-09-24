@@ -8,7 +8,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
@@ -56,12 +55,12 @@ func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(ctx context.Conte
 
 func (deploy *Deployment) grantAdminAccessToSecrets(ctx context.Context, roleName string, secretNames []string, extraLabels map[string]string) error {
 	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
-	adminGroups, err := utils.GetAdGroups(registration)
+	subjects, err := utils.GetAppAdminRbacSubjects(registration)
 	if err != nil {
 		return err
 	}
 	role := kube.CreateManageSecretRole(registration.Name, roleName, secretNames, extraLabels)
-	roleBinding := roleBindingAppSecrets(registration.Name, role, adminGroups)
+	roleBinding := kube.GetRolebindingToRoleForSubjectsWithLabels(role.ObjectMeta.Name, subjects, role.Labels)
 
 	if err := deploy.kubeutil.ApplyRole(ctx, namespace, role); err != nil {
 		return err
@@ -74,7 +73,8 @@ func (deploy *Deployment) grantReaderAccessToSecrets(ctx context.Context, roleNa
 	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
 
 	role := kube.CreateReadSecretRole(registration.Name, roleName, secretNames, extraLabels)
-	roleBinding := roleBindingAppSecrets(registration.Name, role, registration.Spec.ReaderAdGroups)
+	subjects := utils.GetAppReaderRbacSubjects(registration)
+	roleBinding := kube.GetRolebindingToRoleForSubjectsWithLabels(role.ObjectMeta.Name, subjects, role.Labels)
 
 	if err := deploy.kubeutil.ApplyRole(ctx, namespace, role); err != nil {
 		return err
@@ -124,10 +124,4 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec(ctx context.C
 	}
 
 	return nil
-}
-
-func roleBindingAppSecrets(appName string, role *rbacv1.Role, groups []string) *rbacv1.RoleBinding {
-	roleName := role.ObjectMeta.Name
-	subjects := kube.GetRoleBindingGroups(groups)
-	return kube.GetRolebindingToRoleForSubjectsWithLabels(appName, roleName, subjects, role.Labels)
 }
