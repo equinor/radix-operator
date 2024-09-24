@@ -81,8 +81,10 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		deployComponent.Monitoring = getRadixCommonComponentMonitoring(&radixComponent, environmentSpecificConfig)
 		deployComponent.HorizontalScaling = getRadixCommonComponentHorizontalScaling(&radixComponent, environmentSpecificConfig)
 		deployComponent.Runtime = componentImage.Runtime
-		deployComponent.Network = getRadixComponentNetwork(&radixComponent, environmentSpecificConfig)
 		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
+			return nil, err
+		}
+		if deployComponent.Network, err = getRadixComponentNetwork(&radixComponent, environmentSpecificConfig); err != nil {
 			return nil, err
 		}
 		deployComponents = append(deployComponents, deployComponent)
@@ -91,7 +93,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 	return deployComponents, nil
 }
 
-func getRadixComponentNetwork(component *radixv1.RadixComponent, environmentConfig *radixv1.RadixEnvironmentConfig) *radixv1.Network {
+func getRadixComponentNetwork(component *radixv1.RadixComponent, environmentConfig *radixv1.RadixEnvironmentConfig) (*radixv1.Network, error) {
 	var dst *radixv1.Network
 	if component.Network != nil {
 		dst = component.Network.DeepCopy()
@@ -101,10 +103,12 @@ func getRadixComponentNetwork(component *radixv1.RadixComponent, environmentConf
 		if dst == nil {
 			dst = &radixv1.Network{}
 		}
-		mergo.Merge(dst, environmentConfig.Network, mergo.WithOverride, mergo.WithOverrideEmptySlice)
+		if err := mergo.Merge(dst, environmentConfig.Network, mergo.WithOverride, mergo.WithOverrideEmptySlice); err != nil {
+			return nil, err
+		}
 	}
 
-	return dst
+	return dst, nil
 }
 
 func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *bool {
