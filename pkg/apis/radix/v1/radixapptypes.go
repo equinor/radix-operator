@@ -1475,8 +1475,8 @@ type IPOrCIDR string
 
 // Ingress defines settings for ingress traffic.
 type IngressPublic struct {
-	// Allow defines a list of public IP adresses or CIDRs which are allowed to access the component.
-	// All IP adresses are allowed if this field is empty or not set.
+	// Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
+	// All IP addresses are allowed if this field is empty or not set.
 	// +optional
 	Allow *[]IPOrCIDR `json:"allow,omitempty"`
 

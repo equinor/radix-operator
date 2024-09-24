@@ -700,8 +700,8 @@ spec:
                                     properties:
                                       allow:
                                         description: |-
-                                          Allow defines a list of public IP adresses or CIDRs which are allowed to access the component.
-                                          All IP adresses are allowed if this field is empty or not set.
+                                          Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
+                                          All IP addresses are allowed if this field is empty or not set.
                                         items:
                                           description: IP address or CIDR.
                                           pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
@@ -1440,8 +1440,8 @@ spec:
                               properties:
                                 allow:
                                   description: |-
-                                    Allow defines a list of public IP adresses or CIDRs which are allowed to access the component.
-                                    All IP adresses are allowed if this field is empty or not set.
+                                    Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
+                                    All IP addresses are allowed if this field is empty or not set.
                                   items:
                                     description: IP address or CIDR.
                                     pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
