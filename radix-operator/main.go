@@ -13,6 +13,7 @@ import (
 	"time"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-common/utils/slice"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -30,6 +31,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
+	"github.com/equinor/radix-operator/radix-operator/scheduler"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/pkg/errors"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -81,6 +83,7 @@ type App struct {
 	kubeUtil                 *kube.Kube
 	config                   *apiconfig.Config
 	kedaClient               kedav2.Interface
+	schedulers               []scheduler.Task
 }
 
 func main() {
@@ -136,7 +139,14 @@ func initializeApp(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load ingress configuration: %w", err)
 	}
+	app.schedulers = createSchedulers()
 	return &app, nil
+}
+
+func createSchedulers() []scheduler.Task {
+	return []scheduler.Task{
+		scheduler.NewEnvironmentsCleanupTask(),
+	}
 }
 
 func (a *App) Run(ctx context.Context) error {
@@ -161,6 +171,7 @@ func (a *App) Run(ctx context.Context) error {
 	g.Go(func() error { return alertController.Run(ctx, a.opts.alertControllerThreads) })
 	g.Go(func() error { return batchController.Run(ctx, 1) })
 	g.Go(func() error { return dnsAliasesController.Run(ctx, a.opts.environmentControllerThreads) })
+	g.Go(func() error { return a.runSchedulers() })
 
 	// Informers must be started after all controllers are initialized
 	// Therefore we must initialize the controllers outside of go routines
@@ -413,4 +424,15 @@ func Healthz(writer http.ResponseWriter, _ *http.Request) {
 	}
 
 	_, _ = fmt.Fprintf(writer, "%s", response)
+}
+
+func (a *App) runSchedulers() error {
+	var errs []error
+	slice.All(a.schedulers, func(task scheduler.Task) bool {
+		if err := task.Run(); err != nil {
+			errs = append(errs, err)
+		}
+		return true
+	})
+	return stderrors.Join(errs...)
 }
