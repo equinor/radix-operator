@@ -1547,6 +1547,76 @@ func Test_GetRadixComponentsForEnv_Runtime_AlwaysUseFromDeployComponentImages(t 
 	}
 }
 
+func Test_Test_GetRadixComponentsForEnv_NetworkIngressPublicAllow(t *testing.T) {
+	tests := map[string]struct {
+		commonConfig *radixv1.Network
+		envConfig    *radixv1.Network
+		setEnv       bool
+		expected     *radixv1.Network
+	}{
+		"nil in common": {
+			setEnv:   false,
+			expected: nil,
+		},
+		"empty in common, env not set": {
+			commonConfig: &radixv1.Network{},
+			setEnv:       false,
+			expected:     &radixv1.Network{},
+		},
+		"empty in common and nil in env": {
+			commonConfig: &radixv1.Network{},
+			setEnv:       true,
+			expected:     &radixv1.Network{},
+		},
+		"empty in common and env": {
+			commonConfig: &radixv1.Network{},
+			setEnv:       true,
+			envConfig:    &radixv1.Network{},
+			expected:     &radixv1.Network{},
+		},
+		"allow set in common, nil in env": {
+			commonConfig: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("commonip1"), radixv1.IPOrCIDR("commonip2")}}}},
+			setEnv:       true,
+			envConfig:    &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{}}},
+			expected:     &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("commonip1"), radixv1.IPOrCIDR("commonip2")}}}},
+		},
+		"allow set in common, empty in env": {
+			commonConfig: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("commonip1"), radixv1.IPOrCIDR("commonip2")}}}},
+			setEnv:       true,
+			envConfig:    &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{}}}},
+			expected:     &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{}}}},
+		},
+		"allow set in common and env": {
+			commonConfig: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("commonip1"), radixv1.IPOrCIDR("commonip2")}}}},
+			setEnv:       true,
+			envConfig:    &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("envip1"), radixv1.IPOrCIDR("envip2")}}}},
+			expected:     &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("envip1"), radixv1.IPOrCIDR("envip2")}}}},
+		},
+		"allow nil in common set in env": {
+			commonConfig: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{}}},
+			setEnv:       true,
+			envConfig:    &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("envip1"), radixv1.IPOrCIDR("envip2")}}}},
+			expected:     &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("envip1"), radixv1.IPOrCIDR("envip2")}}}},
+		},
+	}
+
+	for testName, test := range tests {
+		t.Run(testName, func(t *testing.T) {
+			const envName = "anyenv"
+			component := utils.AnApplicationComponent().WithName("anycomponent").WithNetwork(test.commonConfig)
+			if test.setEnv {
+				component = component.WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().WithEnvironment(envName).WithNetwork(test.envConfig),
+				)
+			}
+			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
+			components, err := GetRadixComponentsForEnv(context.Background(), ra, nil, envName, make(pipeline.DeployComponentImages), make(radixv1.EnvVarsMap), nil)
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, components[0].Network)
+		})
+	}
+}
+
 func convertRadixDeployComponentToNameSet(deployComponents []radixv1.RadixDeployComponent) map[string]bool {
 	set := make(map[string]bool)
 	for _, deployComponent := range deployComponents {

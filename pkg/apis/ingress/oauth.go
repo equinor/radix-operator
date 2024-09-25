@@ -12,7 +12,10 @@ import (
 
 // GetAuxOAuthProxyAnnotationProviders Gets aux OAuth proxy annotation providers
 func GetAuxOAuthProxyAnnotationProviders() []AnnotationProvider {
-	return []AnnotationProvider{NewForceSslRedirectAnnotationProvider()}
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressPublicAllowListAnnotationProvider(),
+	}
 }
 
 // BuildOAuthProxyIngressForComponentIngress builds OAuth proxy ingress for RadixDeploy component ingress

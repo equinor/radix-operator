@@ -1,7 +1,7 @@
 package utils
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 // RadixEnvironmentConfigBuilder Handles construction of RA component environment
@@ -13,19 +13,20 @@ type RadixEnvironmentConfigBuilder interface {
 	WithReplicas(*int) RadixEnvironmentConfigBuilder
 	WithEnvironmentVariable(string, string) RadixEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixEnvironmentConfigBuilder
-	WithVolumeMounts([]v1.RadixVolumeMount) RadixEnvironmentConfigBuilder
-	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
+	WithVolumeMounts([]radixv1.RadixVolumeMount) RadixEnvironmentConfigBuilder
+	BuildEnvironmentConfig() radixv1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
 	WithMonitoring(monitoring *bool) RadixEnvironmentConfigBuilder
-	WithNode(v1.RadixNode) RadixEnvironmentConfigBuilder
-	WithAuthentication(*v1.Authentication) RadixEnvironmentConfigBuilder
-	WithSecretRefs(v1.RadixSecretRefs) RadixEnvironmentConfigBuilder
+	WithNode(radixv1.RadixNode) RadixEnvironmentConfigBuilder
+	WithAuthentication(*radixv1.Authentication) RadixEnvironmentConfigBuilder
+	WithSecretRefs(radixv1.RadixSecretRefs) RadixEnvironmentConfigBuilder
 	WithEnabled(bool) RadixEnvironmentConfigBuilder
-	WithIdentity(*v1.Identity) RadixEnvironmentConfigBuilder
+	WithIdentity(*radixv1.Identity) RadixEnvironmentConfigBuilder
 	WithImageTagName(string) RadixEnvironmentConfigBuilder
-	WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder
+	WithHorizontalScaling(scaling *radixv1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixEnvironmentConfigBuilder
-	WithRuntime(*v1.Runtime) RadixEnvironmentConfigBuilder
+	WithRuntime(*radixv1.Runtime) RadixEnvironmentConfigBuilder
+	WithNetwork(*radixv1.Network) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -33,37 +34,38 @@ type radixEnvironmentConfigBuilder struct {
 	sourceFolder            string
 	dockerfileName          string
 	image                   string
-	variables               v1.EnvVarsMap
+	variables               radixv1.EnvVarsMap
 	replicas                *int
-	resources               v1.ResourceRequirements
+	resources               radixv1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
-	volumeMounts            []v1.RadixVolumeMount
+	volumeMounts            []radixv1.RadixVolumeMount
 	monitoring              *bool
-	node                    v1.RadixNode
-	secretRefs              v1.RadixSecretRefs
-	authentication          *v1.Authentication
+	node                    radixv1.RadixNode
+	secretRefs              radixv1.RadixSecretRefs
+	authentication          *radixv1.Authentication
 	enabled                 *bool
-	identity                *v1.Identity
+	identity                *radixv1.Identity
 	imageTagName            string
-	horizontalScaling       *v1.RadixHorizontalScaling
+	horizontalScaling       *radixv1.RadixHorizontalScaling
 	readOnlyFileSystem      *bool
-	runtime                 *v1.Runtime
+	runtime                 *radixv1.Runtime
+	network                 *radixv1.Network
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(scaling *v1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(scaling *radixv1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder {
 	ceb.horizontalScaling = scaling
 	return ceb
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
-	ceb.resources = v1.ResourceRequirements{
+	ceb.resources = radixv1.ResourceRequirements{
 		Limits:   limit,
 		Requests: request,
 	}
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) RadixEnvironmentConfigBuilder {
 	ceb.volumeMounts = volumeMounts
 	return ceb
 }
@@ -95,7 +97,7 @@ func (ceb *radixEnvironmentConfigBuilder) WithReplicas(replicas *int) RadixEnvir
 
 func (ceb *radixEnvironmentConfigBuilder) WithEnvironmentVariable(name, value string) RadixEnvironmentConfigBuilder {
 	if ceb.variables == nil {
-		ceb.variables = make(v1.EnvVarsMap)
+		ceb.variables = make(radixv1.EnvVarsMap)
 	}
 
 	ceb.variables[name] = value
@@ -112,17 +114,17 @@ func (ceb *radixEnvironmentConfigBuilder) WithMonitoring(monitoring *bool) Radix
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithNode(node v1.RadixNode) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithNode(node radixv1.RadixNode) RadixEnvironmentConfigBuilder {
 	ceb.node = node
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithAuthentication(authentication *v1.Authentication) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithAuthentication(authentication *radixv1.Authentication) RadixEnvironmentConfigBuilder {
 	ceb.authentication = authentication
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithSecretRefs(secretRefs radixv1.RadixSecretRefs) RadixEnvironmentConfigBuilder {
 	ceb.secretRefs = secretRefs
 	return ceb
 }
@@ -132,7 +134,7 @@ func (ceb *radixEnvironmentConfigBuilder) WithEnabled(enabled bool) RadixEnviron
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithIdentity(identity *v1.Identity) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithIdentity(identity *radixv1.Identity) RadixEnvironmentConfigBuilder {
 	ceb.identity = identity
 	return ceb
 }
@@ -147,13 +149,18 @@ func (ceb *radixEnvironmentConfigBuilder) WithReadOnlyFileSystem(readOnlyFileSys
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithRuntime(runtime *v1.Runtime) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithRuntime(runtime *radixv1.Runtime) RadixEnvironmentConfigBuilder {
 	ceb.runtime = runtime
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
-	return v1.RadixEnvironmentConfig{
+func (ceb *radixEnvironmentConfigBuilder) WithNetwork(network *radixv1.Network) RadixEnvironmentConfigBuilder {
+	ceb.network = network
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() radixv1.RadixEnvironmentConfig {
+	return radixv1.RadixEnvironmentConfig{
 		Environment:             ceb.environment,
 		SourceFolder:            ceb.sourceFolder,
 		DockerfileName:          ceb.dockerfileName,
@@ -173,6 +180,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		HorizontalScaling:       ceb.horizontalScaling,
 		ReadOnlyFileSystem:      ceb.readOnlyFileSystem,
 		Runtime:                 ceb.runtime,
+		Network:                 ceb.network,
 	}
 }
 

@@ -31,6 +31,12 @@ spec:
           clientId: 11111111-2222-BBBB-cccc-555555555555
       runtime:
         architecture: arm64
+      network:
+        ingress:
+          public:
+            allow:
+              - 143.10.0.0/30
+              - 143.20.0.0
       environmentConfig:
         - environment: prod
           replicas: 4
@@ -65,6 +71,12 @@ spec:
               path: /path/to/mount
           runtime:
             architecture: amd64
+          network:
+            ingress:
+              public:
+                allow:
+                  - 144.10.0.0/30
+                  - 144.20.0.0
     - name: redis
       src: redis/
       ports:

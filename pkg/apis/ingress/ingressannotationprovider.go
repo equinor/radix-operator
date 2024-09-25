@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -11,6 +12,7 @@ import (
 )
 
 type AnnotationProvider interface {
+	// GetAnnotations returns annotations for use on Ingress resources
 	GetAnnotations(component radixv1.RadixCommonDeployComponent, namespace string) (map[string]string, error)
 }
 
@@ -127,4 +129,23 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 	}
 
 	return annotations, nil
+}
+
+// NewIngressPublicAllowListAnnotationProvider provides Ingress annotations for allowing
+// only public traffic from IP addresses defined in Network.Ingress.Public.Allow field
+func NewIngressPublicAllowListAnnotationProvider() AnnotationProvider {
+	return &ingressPublicAllowListAnnotationProvider{}
+}
+
+type ingressPublicAllowListAnnotationProvider struct{}
+
+// GetAnnotations returns annotations for only allowing public ingress traffic
+// for IPs or CIDRs defined in Network.Ingress.Public.Allow for a component
+func (*ingressPublicAllowListAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+	if network := component.GetNetwork(); network == nil || network.Ingress == nil || network.Ingress.Public == nil || network.Ingress.Public.Allow == nil || len(*network.Ingress.Public.Allow) == 0 {
+		return nil, nil
+	}
+
+	addressList := slice.Map(*component.GetNetwork().Ingress.Public.Allow, func(v radixv1.IPOrCIDR) string { return string(v) })
+	return map[string]string{"nginx.ingress.kubernetes.io/whitelist-source-range": strings.Join(addressList, ",")}, nil
 }

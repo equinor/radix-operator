@@ -56,6 +56,8 @@ var (
 		validateVolumeMountConfigForRA,
 		ValidateNotificationsForRA,
 	}
+
+	ipOrCidrRegExp = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
 )
 
 // RadixApplicationValidator defines a validator function for a RadixApplication
@@ -278,78 +280,96 @@ func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) erro
 func validateComponents(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, component := range app.Spec.Components {
-		if component.Image != "" &&
-			(component.SourceFolder != "" || component.DockerfileName != "") {
-			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(component.Name))
+		if err := validateComponent(app, component); err != nil {
+			errs = append(errs, fmt.Errorf("invalid configuration for component %s: %w", component.Name, err))
 		}
+	}
 
-		err := validateComponentName(component.Name, "component")
-		if err != nil {
-			errs = append(errs, err)
+	return errors.Join(errs...)
+}
+
+func validateComponent(app *radixv1.RadixApplication, component radixv1.RadixComponent) error {
+	var errs []error
+
+	if component.Image != "" &&
+		(component.SourceFolder != "" || component.DockerfileName != "") {
+		errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(component.Name))
+	}
+
+	if err := validateComponentName(component.Name, "component"); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validatePorts(component.Ports); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validatePublicPort(component); err != nil {
+		errs = append(errs, err)
+	}
+
+	// Common resource requirements
+	if err := validateResourceRequirements(&component.Resources); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateMonitoring(&component); err != nil {
+		errs = append(errs, err)
+	}
+
+	errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
+
+	if err := validateIdentity(component.Identity); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateRuntime(component.Runtime); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateNetwork(component.Network); err != nil {
+		errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
+	}
+
+	for _, environment := range component.EnvironmentConfig {
+		if err := validateComponentEnvironment(app, component, environment); err != nil {
+			errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
 		}
+	}
 
-		errList := validatePorts(component.Name, component.Ports)
-		if len(errList) > 0 {
-			errs = append(errs, errList...)
-		}
+	return errors.Join(errs...)
+}
 
-		errList = validatePublicPort(component)
-		if len(errList) > 0 {
-			errs = append(errs, errList...)
-		}
+func validateComponentEnvironment(app *radixv1.RadixApplication, component radixv1.RadixComponent, environment radixv1.RadixEnvironmentConfig) error {
+	var errs []error
 
-		// Common resource requirements
-		errList = validateResourceRequirements(&component.Resources)
-		if len(errList) > 0 {
-			errs = append(errs, errList...)
-		}
+	if !doesEnvExist(app, environment.Environment) {
+		errs = append(errs, EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, component.Name))
+	}
 
-		err = validateMonitoring(&component)
-		if err != nil {
-			errs = append(errs, err)
-		}
+	if err := validateReplica(environment.Replicas, "environment replicas"); err != nil {
+		errs = append(errs, err)
+	}
 
-		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
+	if err := validateResourceRequirements(&environment.Resources); err != nil {
+		errs = append(errs, err)
+	}
 
-		err = validateIdentity(component.Identity)
-		if err != nil {
-			errs = append(errs, err)
-		}
+	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
+		errs = append(errs,
+			ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(component.Name, environment.Environment))
+	}
 
-		if err := validateRuntime(component.Runtime); err != nil {
-			errs = append(errs, err)
-		}
+	if err := validateIdentity(environment.Identity); err != nil {
+		errs = append(errs, err)
+	}
 
-		for _, environment := range component.EnvironmentConfig {
-			if !doesEnvExist(app, environment.Environment) {
-				err = EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, component.Name)
-				errs = append(errs, err)
-			}
+	if err := validateRuntime(environment.Runtime); err != nil {
+		errs = append(errs, err)
+	}
 
-			err = validateReplica(environment.Replicas, "environment replicas")
-			if err != nil {
-				errs = append(errs, err)
-			}
-
-			errList = validateResourceRequirements(&environment.Resources)
-			if len(errList) > 0 {
-				errs = append(errs, errList...)
-			}
-
-			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
-				errs = append(errs,
-					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(component.Name, environment.Environment))
-			}
-
-			err = validateIdentity(environment.Identity)
-			if err != nil {
-				errs = append(errs, err)
-			}
-
-			if err := validateRuntime(environment.Runtime); err != nil {
-				errs = append(errs, err)
-			}
-		}
+	if err := validateNetwork(environment.Network); err != nil {
+		errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
 	}
 
 	return errors.Join(errs...)
@@ -358,75 +378,87 @@ func validateComponents(app *radixv1.RadixApplication) error {
 func validateJobComponents(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, job := range app.Spec.Jobs {
-		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
-			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(job.Name))
+		if err := validateJobComponent(app, job); err != nil {
+			errs = append(errs, fmt.Errorf("invalid configuration for job %s: %w", job.Name, err))
 		}
+	}
 
-		err := validateComponentName(job.Name, "job")
-		if err != nil {
+	return errors.Join(errs...)
+}
+
+func validateJobComponent(app *radixv1.RadixApplication, job radixv1.RadixJobComponent) error {
+	var errs []error
+
+	if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
+		errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(job.Name))
+	}
+
+	if err := validateComponentName(job.Name, "job"); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateJobSchedulerPort(&job); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateJobPayload(&job); err != nil {
+		errs = append(errs, err)
+	}
+
+	if len(job.Ports) > 0 {
+		if err := validatePorts(job.Ports); err != nil {
 			errs = append(errs, err)
 		}
+	}
 
-		if err = validateJobSchedulerPort(&job); err != nil {
-			errs = append(errs, err)
+	// Common resource requirements
+	if err := validateResourceRequirements(&job.Resources); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateMonitoring(&job); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateIdentity(job.Identity); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateRuntime(job.Runtime); err != nil {
+		errs = append(errs, err)
+	}
+
+	for _, environment := range job.EnvironmentConfig {
+		if err := validateJobComponentEnvironment(app, job, environment); err != nil {
+			errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
 		}
+	}
 
-		if err = validateJobPayload(&job); err != nil {
-			errs = append(errs, err)
-		}
+	return errors.Join(errs...)
+}
 
-		if len(job.Ports) > 0 {
-			errList := validatePorts(job.Name, job.Ports)
-			if len(errList) > 0 {
-				errs = append(errs, errList...)
-			}
-		}
+func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) error {
+	var errs []error
 
-		// Common resource requirements
-		errList := validateResourceRequirements(&job.Resources)
-		if len(errList) > 0 {
-			errs = append(errs, errList...)
-		}
+	if !doesEnvExist(app, environment.Environment) {
+		errs = append(errs, EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, job.Name))
+	}
 
-		err = validateMonitoring(&job)
-		if err != nil {
-			errs = append(errs, err)
-		}
+	if err := validateResourceRequirements(&environment.Resources); err != nil {
+		errs = append(errs, err)
+	}
 
-		err = validateIdentity(job.Identity)
-		if err != nil {
-			errs = append(errs, err)
-		}
+	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
+		errs = append(errs,
+			ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(job.Name, environment.Environment))
+	}
 
-		if err := validateRuntime(job.Runtime); err != nil {
-			errs = append(errs, err)
-		}
+	if err := validateIdentity(environment.Identity); err != nil {
+		errs = append(errs, err)
+	}
 
-		for _, environment := range job.EnvironmentConfig {
-			if !doesEnvExist(app, environment.Environment) {
-				err = EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, job.Name)
-				errs = append(errs, err)
-			}
-
-			errList = validateResourceRequirements(&environment.Resources)
-			if len(errList) > 0 {
-				errs = append(errs, errList...)
-			}
-
-			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
-				errs = append(errs,
-					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(job.Name, environment.Environment))
-			}
-
-			err = validateIdentity(environment.Identity)
-			if err != nil {
-				errs = append(errs, err)
-			}
-
-			if err := validateRuntime(environment.Runtime); err != nil {
-				errs = append(errs, err)
-			}
-		}
+	if err := validateRuntime(environment.Runtime); err != nil {
+		errs = append(errs, err)
 	}
 
 	return errors.Join(errs...)
@@ -630,33 +662,27 @@ func validateJobPayload(job *radixv1.RadixJobComponent) error {
 	return nil
 }
 
-func validatePorts(componentName string, ports []radixv1.ComponentPort) []error {
+func validatePorts(ports []radixv1.ComponentPort) error {
 	errs := []error{}
 
 	for _, port := range ports {
 		if len(port.Name) > maxPortNameLength {
-			err := InvalidPortNameLengthErrorWithMessage(port.Name)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			errs = append(errs, InvalidPortNameLengthErrorWithMessage(port.Name))
 		}
 
-		err := validateRequiredResourceName("port name", port.Name, 15)
-		if err != nil {
+		if err := validateRequiredResourceName("port name", port.Name, 15); err != nil {
 			errs = append(errs, err)
 		}
 
 		if port.Port < minimumPortNumber || port.Port > maximumPortNumber {
-			if err := InvalidPortNumberErrorWithMessage(port.Port); err != nil {
-				errs = append(errs, err)
-			}
+			errs = append(errs, InvalidPortNumberErrorWithMessage(port.Port))
 		}
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
-func validatePublicPort(component radixv1.RadixComponent) []error {
+func validatePublicPort(component radixv1.RadixComponent) error {
 	errs := []error{}
 
 	publicPortName := component.PublicPort
@@ -675,7 +701,7 @@ func validatePublicPort(component radixv1.RadixComponent) []error {
 		}
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
 func validateMonitoring(component radixv1.RadixCommonComponent) error {
@@ -697,10 +723,10 @@ func validateMonitoring(component radixv1.RadixCommonComponent) error {
 	return nil
 }
 
-func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirements) []error {
-	errs := []error{}
+func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirements) error {
+	var errs []error
 	if resourceRequirements == nil {
-		return errs
+		return nil
 	}
 	limitQuantities := make(map[string]resource.Quantity)
 	for name, value := range resourceRequirements.Limits {
@@ -721,7 +747,8 @@ func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirem
 			errs = append(errs, ResourceRequestOverLimitErrorWithMessage(name, value, limit.String()))
 		}
 	}
-	return errs
+
+	return errors.Join(errs...)
 }
 
 func validateQuantity(name, value string) (resource.Quantity, error) {
@@ -1614,5 +1641,50 @@ func validateComponentName(componentName, componentType string) error {
 			return ComponentNameReservedSuffixErrorWithMessage(componentName, componentType, string(aux))
 		}
 	}
+	return nil
+}
+
+func validateNetwork(network *radixv1.Network) error {
+	if network == nil {
+		return nil
+	}
+
+	if err := validateNetworkIngress(network.Ingress); err != nil {
+		return fmt.Errorf("invalid ingress configuration: %w", err)
+	}
+
+	return nil
+}
+
+func validateNetworkIngress(ingress *radixv1.Ingress) error {
+	if ingress == nil {
+		return nil
+	}
+	if err := validateNetworkIngressPublic(ingress.Public); err != nil {
+		return fmt.Errorf("invalid public configuration: %w", err)
+	}
+
+	return nil
+}
+
+func validateNetworkIngressPublic(public *radixv1.IngressPublic) error {
+	var errs []error
+
+	if allow := public.Allow; allow != nil {
+		for _, ipOrCidr := range *allow {
+			if err := validateIPOrCIDR(ipOrCidr); err != nil {
+				errs = append(errs, fmt.Errorf("invalid value '%s' in allow list: %w", ipOrCidr, err))
+			}
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateIPOrCIDR(ipOrCidr radixv1.IPOrCIDR) error {
+	if !ipOrCidrRegExp.Match([]byte(ipOrCidr)) {
+		return ErrInvalidIPv4OrCIDR
+	}
+
 	return nil
 }
