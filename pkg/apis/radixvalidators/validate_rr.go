@@ -20,12 +20,14 @@ const (
 
 var (
 	ErrInvalidRadixConfigFullName = stderrors.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
+	ErrInvalidEntraUuid           = stderrors.New("invalid Entra uuid")
+	validUuidRegex                = regexp.MustCompile("^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$")
 
-	requiredRadixRegistrationValidators []RadixRegistrationValidator = []RadixRegistrationValidator{
+	requiredRadixRegistrationValidators = []RadixRegistrationValidator{
 		validateRadixRegistrationAppName,
 		validateRadixRegistrationGitSSHUrl,
 		validateRadixRegistrationSSHKey,
-		validateRadixRegistrationAdGroups,
+		validateRadixRegistrationAdConfig,
 		validateRadixRegistrationConfigBranch,
 		validateRadixRegistrationConfigurationItem,
 	}
@@ -138,18 +140,24 @@ func validateRequiredResourceName(resourceName, value string, maxLength int) err
 	return nil
 }
 
-func validateRadixRegistrationAdGroups(rr *v1.RadixRegistration) error {
-	return validateAdGroups(rr.Spec.AdGroups)
-}
-
-func validateAdGroups(groups []string) error {
-	re := regexp.MustCompile("^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$")
-	for _, group := range groups {
-		isValid := re.MatchString(group)
-		if !isValid {
-			return fmt.Errorf("refer ad group %s by object id. It should be in uuid format %s", group, re.String())
+func validateRadixRegistrationAdConfig(rr *v1.RadixRegistration) error {
+	errs := []error{}
+	for _, group := range rr.Spec.AdGroups {
+		if !validUuidRegex.MatchString(group) {
+			errs = append(errs, fmt.Errorf("%w: %s", ErrInvalidEntraUuid, group))
 		}
 	}
+	for _, group := range rr.Spec.AdUsers {
+		if !validUuidRegex.MatchString(group) {
+			errs = append(errs, fmt.Errorf("%w: %s", ErrInvalidEntraUuid, group))
+		}
+	}
+
+	err := stderrors.Join(errs...)
+	if err != nil {
+		return fmt.Errorf("radix registration Entra validation error: %w", err)
+	}
+
 	return nil
 }
 
@@ -194,7 +202,7 @@ func validateRadixRegistrationSSHKey(rr *v1.RadixRegistration) error {
 	return validateSSHKey(rr.Spec.DeployKey)
 }
 
-func validateSSHKey(deployKey string) error {
+func validateSSHKey(_ string) error {
 	// todo - how can this be validated..e.g. checked that the key isn't protected by a password
 	return nil
 }

@@ -84,10 +84,31 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
 			return nil, err
 		}
+		if deployComponent.Network, err = getRadixComponentNetwork(&radixComponent, environmentSpecificConfig); err != nil {
+			return nil, err
+		}
 		deployComponents = append(deployComponents, deployComponent)
 	}
 
 	return deployComponents, nil
+}
+
+func getRadixComponentNetwork(component *radixv1.RadixComponent, environmentConfig *radixv1.RadixEnvironmentConfig) (*radixv1.Network, error) {
+	var dst *radixv1.Network
+	if component.Network != nil {
+		dst = component.Network.DeepCopy()
+	}
+
+	if environmentConfig != nil && environmentConfig.Network != nil {
+		if dst == nil {
+			dst = &radixv1.Network{}
+		}
+		if err := mergo.Merge(dst, environmentConfig.Network, mergo.WithOverride, mergo.WithOverrideEmptySlice); err != nil {
+			return nil, err
+		}
+	}
+
+	return dst, nil
 }
 
 func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *bool {

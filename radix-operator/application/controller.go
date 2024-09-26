@@ -94,7 +94,9 @@ func NewController(ctx context.Context,
 			// If neither admin or reader AD groups change, this
 			// does not affect the deployment
 			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
-				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) {
+				radixutils.ArrayEqualElements(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&
+				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) &&
+				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdUsers, oldRr.Spec.ReaderAdUsers) {
 				return
 			}
 			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).Get(ctx, newRr.Name, metav1.GetOptions{})

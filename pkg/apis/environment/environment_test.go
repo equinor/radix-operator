@@ -164,19 +164,18 @@ func Test_Create_RoleBinding(t *testing.T) {
 	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.Background(), metav1.ListOptions{})
 
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-tekton-env", "radix-app-admin-envs", "radix-pipeline-env", "radix-app-reader-envs")
-	adGroupName := rr.Spec.AdGroups[0]
-	t.Run("It contains the correct AD groups", func(t *testing.T) {
-		subjects := rolebindings.Items[0].Subjects
-		assert.Len(t, subjects, 1)
-		assert.Equal(t, adGroupName, subjects[0].Name)
-	})
 
-	readerAdGroupName := rr.Spec.ReaderAdGroups[0]
-	t.Run("It contains the correct reader AD groups", func(t *testing.T) {
-		subjects := rolebindings.Items[1].Subjects
-		assert.Len(t, subjects, 1)
-		assert.Equal(t, readerAdGroupName, subjects[0].Name)
-	})
+	// It contains the correct AD groups
+	subjects := rolebindings.Items[0].Subjects
+	require.Len(t, subjects, 2)
+	assert.Equal(t, rr.Spec.AdGroups[0], subjects[0].Name)
+	assert.Equal(t, rr.Spec.AdUsers[0], subjects[1].Name)
+
+	// It contains the correct reader AD groups
+	subjects = rolebindings.Items[1].Subjects
+	require.Len(t, subjects, 2)
+	assert.Equal(t, rr.Spec.ReaderAdGroups[0], subjects[0].Name)
+	assert.Equal(t, rr.Spec.ReaderAdUsers[0], subjects[1].Name)
 }
 
 func Test_Create_LimitRange(t *testing.T) {

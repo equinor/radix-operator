@@ -99,7 +99,9 @@ func NewController(ctx context.Context,
 			// If neither admin nor reader AD groups change, this
 			// does not affect the alert
 			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
-				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) {
+				radixutils.ArrayEqualElements(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&
+				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) &&
+				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdUsers, oldRr.Spec.ReaderAdUsers) {
 				return
 			}
 

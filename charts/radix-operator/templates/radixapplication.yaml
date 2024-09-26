@@ -687,6 +687,29 @@ spec:
                               Enabled or disables collection of custom Prometheus metrics.
                               More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
                             type: boolean
+                          network:
+                            description: Environment specific network settings.
+                            properties:
+                              ingress:
+                                description: Ingress defines settings for ingress
+                                  traffic.
+                                properties:
+                                  public:
+                                    description: Public defines settings for public
+                                      traffic.
+                                    properties:
+                                      allow:
+                                        description: |-
+                                          Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
+                                          All IP addresses are allowed if this field is empty or not set.
+                                        items:
+                                          description: IP address or CIDR.
+                                          pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+                                          type: string
+                                        type: array
+                                    type: object
+                                type: object
+                            type: object
                           node:
                             description: |-
                               Environment specific GPU requirements for the component.
@@ -1406,6 +1429,27 @@ spec:
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
+                    network:
+                      description: Network settings.
+                      properties:
+                        ingress:
+                          description: Ingress defines settings for ingress traffic.
+                          properties:
+                            public:
+                              description: Public defines settings for public traffic.
+                              properties:
+                                allow:
+                                  description: |-
+                                    Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
+                                    All IP addresses are allowed if this field is empty or not set.
+                                  items:
+                                    description: IP address or CIDR.
+                                    pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+                                    type: string
+                                  type: array
+                              type: object
+                          type: object
+                      type: object
                     node:
                       description: |-
                         Defines GPU requirements for the component.

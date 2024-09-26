@@ -248,14 +248,15 @@ func (s *alertTestSuite) Test_OnSync_Rbac_UpdateWithOwnerReference() {
 
 func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 	namespace, appName := "any-ns", "any-app"
-	adminGroups, readerGroups := []string{"admin1", "admin2"}, []string{"reader1", "reader2"}
+	adminGroups, adminUsers := []string{"admin1", "admin2"}, []string{"adminUser1", "adminUser2"}
+	readerGroups, readerUsers := []string{"reader1", "reader2"}, []string{"readerUser1", "readerUser2"}
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
 		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
 		Spec:       radixv1.RadixAlertSpec{},
 	}
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{AdGroups: adminGroups, ReaderAdGroups: readerGroups}}
+	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{AdGroups: adminGroups, AdUsers: adminUsers, ReaderAdGroups: readerGroups, ReaderAdUsers: readerUsers}}
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -272,7 +273,14 @@ func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 	actualAdminRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretAdminRoleName(alertName), metav1.GetOptions{})
 	s.Equal(actualAdminRole.Name, actualAdminRoleBinding.RoleRef.Name, "rolebinding role reference not as expected")
 	s.Equal("Role", actualAdminRoleBinding.RoleRef.Kind, "rolebinding role kind not as expected")
-	s.ElementsMatch([]rbacv1.Subject{{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "admin1"}, {APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "admin2"}}, actualAdminRoleBinding.Subjects)
+	s.ElementsMatch(
+		[]rbacv1.Subject{
+			{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "admin1"},
+			{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "admin2"},
+			{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.UserKind, Name: "adminUser1"},
+			{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.UserKind, Name: "adminUser2"},
+		},
+		actualAdminRoleBinding.Subjects)
 
 	actualReaderRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretReaderRoleName(alertName), metav1.GetOptions{})
 	s.Len(actualReaderRole.Rules, 1, "role rules not as expected")
@@ -283,7 +291,14 @@ func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 	actualReaderRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretReaderRoleName(alertName), metav1.GetOptions{})
 	s.Equal(actualReaderRole.Name, actualReaderRoleBinding.RoleRef.Name, "rolebinding role reference not as expected")
 	s.Equal("Role", actualReaderRoleBinding.RoleRef.Kind, "rolebinding role kind not as expected")
-	s.ElementsMatch([]rbacv1.Subject{{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "reader1"}, {APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "reader2"}}, actualReaderRoleBinding.Subjects)
+	s.ElementsMatch(
+		[]rbacv1.Subject{
+			{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "reader1"},
+			{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.GroupKind, Name: "reader2"},
+			{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.UserKind, Name: "readerUser1"},
+			{APIGroup: "rbac.authorization.k8s.io", Kind: rbacv1.UserKind, Name: "readerUser2"},
+		},
+		actualReaderRoleBinding.Subjects)
 }
 
 func (s *alertTestSuite) Test_OnSync_Secret_RemoveOrphanedKeys() {
