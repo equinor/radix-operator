@@ -129,6 +129,7 @@ type RadixDeployComponent struct {
 	Identity                *Identity               `json:"identity,omitempty"`
 	ReadOnlyFileSystem      *bool                   `json:"readOnlyFileSystem,omitempty"`
 	Runtime                 *Runtime                `json:"runtime,omitempty"`
+	Network                 *Network                `json:"network,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -233,6 +234,10 @@ func (deployComponent *RadixDeployComponent) GetReadOnlyFileSystem() *bool {
 
 func (deployComponent *RadixDeployComponent) GetRuntime() *Runtime {
 	return deployComponent.Runtime
+}
+
+func (deployComponent *RadixDeployComponent) GetNetwork() *Network {
+	return deployComponent.Network
 }
 
 func (deployComponent *RadixDeployComponent) SetName(name string) {
@@ -354,6 +359,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetRuntime() *Runtime {
 	return deployJobComponent.Runtime
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetNetwork() *Network {
+	return nil
+}
+
 func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
 	deployJobComponent.Name = name
 }
@@ -443,6 +452,7 @@ type RadixCommonDeployComponent interface {
 	GetIdentity() *Identity
 	GetReadOnlyFileSystem() *bool
 	GetRuntime() *Runtime
+	GetNetwork() *Network
 }
 
 // RadixCommonDeployComponentFactory defines a common component factory

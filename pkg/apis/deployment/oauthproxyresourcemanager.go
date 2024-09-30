@@ -500,12 +500,10 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 	}
 
 	// create rolebinding
-	adGroups, err := utils.GetAdGroups(o.rr)
+	subjects, err := utils.GetAppAdminRbacSubjects(o.rr)
 	if err != nil {
 		return err
 	}
-
-	subjects := kube.GetRoleBindingGroups(adGroups)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
@@ -529,7 +527,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Cont
 	}
 
 	// create rolebinding
-	subjects := kube.GetRoleBindingGroups(o.rr.Spec.ReaderAdGroups)
+	subjects := utils.GetAppReaderRbacSubjects(o.rr)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }

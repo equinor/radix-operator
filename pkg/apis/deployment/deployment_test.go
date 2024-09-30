@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -111,6 +112,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	commitId := string(uuid.NewUUID())
 	const componentNameApp = "app"
 	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
+	adminUsers, readerUsers := []string{"admUsr1", "admUsr2"}, []string{"rdrUsr1", "rdrUsr2"}
 
 	for _, componentsExist := range []bool{true, false} {
 		testScenario := utils.TernaryString(componentsExist, "Updating deployment", "Creating deployment")
@@ -120,7 +122,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		_ = os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
 
 		t.Run("Test Suite", func(t *testing.T) {
-			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)
+			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithAdUsers(adminUsers).WithReaderAdGroups(readerGroups).WithReaderAdUsers(readerUsers)
 			aRadixApplicationBuilder := utils.ARadixApplication().
 				WithRadixRegistration(aRadixRegistrationBuilder)
 			environment := "test"
@@ -428,8 +430,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.Background(), metav1.ListOptions{})
 
 				require.Subset(t, getRoleBindingNames(rolebindings), []string{"radix-app-adm-radixquote", "radix-app-reader-radixquote"})
-				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
-				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
+				assert.ElementsMatch(t, slices.Concat(adminGroups, adminUsers), slice.Map(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
+				assert.ElementsMatch(t, slices.Concat(readerGroups, readerUsers), slice.Map(getRoleBindingByName("radix-app-reader-radixquote", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
@@ -507,6 +509,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 	defer TeardownTest()
 	commitId := string(uuid.NewUUID())
 	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
+	adminUsers, readerUsers := []string{"admUsr1", "admUsr2"}, []string{"rdrUsr1", "rdrUsr2"}
 
 	for _, jobsExist := range []bool{false, true} {
 		testScenario := utils.TernaryString(jobsExist, "Updating deployment", "Creating deployment")
@@ -516,7 +519,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 		os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, jobSchedulerImage)
 
 		t.Run("Test Suite", func(t *testing.T) {
-			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)
+			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithAdUsers(adminUsers).WithReaderAdGroups(readerGroups).WithReaderAdUsers(readerUsers)
 			aRadixApplicationBuilder := utils.ARadixApplication().
 				WithRadixRegistration(aRadixRegistrationBuilder)
 			environment := "test"
@@ -755,8 +758,8 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.Background(), metav1.ListOptions{})
 				assert.Subset(t, getRoleBindingNames(rolebindings), []string{"radix-app-adm-job", "radix-app-reader-job", defaults.RadixJobSchedulerRoleName})
-				assert.ElementsMatch(t, adminGroups, slice.Map(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
-				assert.ElementsMatch(t, readerGroups, slice.Map(getRoleBindingByName("radix-app-reader-job", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
+				assert.ElementsMatch(t, slices.Concat(adminGroups, adminUsers), slice.Map(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
+				assert.ElementsMatch(t, slices.Concat(readerGroups, readerUsers), slice.Map(getRoleBindingByName("radix-app-reader-job", rolebindings).Subjects, func(s rbacv1.Subject) string { return s.Name }))
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
@@ -4178,13 +4181,14 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 	appName, envName := "anyapp", "anyenv"
 	fqdnManual1, fqdnManual2 := "foo1.example.com", "foo2.example.com"
 	fqdnAutomation1, fqdnAutomation2 := "bar1.example.com", "bar2.example.com"
-	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
+	adminGroups, adminUsers := []string{"adm1", "adm2"}, []string{"admUsr1", "admUsr2"}
+	readerGroups, readerUsers := []string{"rdr1", "rdr2"}, []string{"rdrUsr1", "rdrUsr2"}
 	ns := utils.GetEnvironmentNamespace(appName, envName)
 
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 
-	rrBuilder := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups(adminGroups).WithAdUsers(adminUsers).WithReaderAdGroups(readerGroups).WithReaderAdUsers(readerUsers)
 	raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(rrBuilder)
 	rdBuilder := utils.NewDeploymentBuilder().
 		WithRadixApplication(raBuilder).
@@ -4252,21 +4256,24 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 	roleBindings, _ := kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
 	require.Subset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
 	assert.Equal(t, rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Name: "radix-app-externaldns-adm", Kind: "Role"}, getRoleBindingByName("radix-app-externaldns-adm", roleBindings).RoleRef)
+
 	assert.ElementsMatch(t,
-		slice.Map(adminGroups, func(group string) rbacv1.Subject {
-			return rbacv1.Subject{
-				Kind: "Group", APIGroup: rbacv1.GroupName, Name: group, Namespace: "",
-			}
-		}),
+		[]rbacv1.Subject{
+			{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "adm1"},
+			{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "adm2"},
+			{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "admUsr1"},
+			{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "admUsr2"},
+		},
 		getRoleBindingByName("radix-app-externaldns-adm", roleBindings).Subjects,
 	)
 	assert.Equal(t, rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Name: "radix-app-externaldns-reader", Kind: "Role"}, getRoleBindingByName("radix-app-externaldns-reader", roleBindings).RoleRef)
 	assert.ElementsMatch(t,
-		slice.Map(readerGroups, func(group string) rbacv1.Subject {
-			return rbacv1.Subject{
-				Kind: "Group", APIGroup: rbacv1.GroupName, Name: group, Namespace: "",
-			}
-		}),
+		[]rbacv1.Subject{
+			{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "rdr1"},
+			{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "rdr2"},
+			{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "rdrUsr1"},
+			{Kind: rbacv1.UserKind, APIGroup: rbacv1.GroupName, Name: "rdrUsr2"},
+		},
 		getRoleBindingByName("radix-app-externaldns-reader", roleBindings).Subjects,
 	)
 }

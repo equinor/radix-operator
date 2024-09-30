@@ -19,15 +19,13 @@ func (app *Application) applyRbacAppNamespace(ctx context.Context) error {
 	registration := app.registration
 
 	appNamespace := utils.GetAppNamespace(registration.Name)
-	adGroups, err := utils.GetAdGroups(registration)
+	subjects, err := utils.GetAppAdminRbacSubjects(registration)
 	if err != nil {
 		return err
 	}
-	subjects := kube.GetRoleBindingGroups(adGroups)
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
 
-	readerAdGroups := registration.Spec.ReaderAdGroups
-	readerSubjects := kube.GetRoleBindingGroups(readerAdGroups)
+	readerSubjects := utils.GetAppReaderRbacSubjects(registration)
 	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppReaderRoleName, readerSubjects)
 
 	for _, roleBinding := range []*rbacv1.RoleBinding{adminRoleBinding, readerRoleBinding} {
@@ -56,7 +54,7 @@ func (app *Application) applyRbacRadixRegistration(ctx context.Context) error {
 	// Reader RBAC
 	clusterRoleReaderName := fmt.Sprintf("radix-platform-user-rr-reader-%s", appName)
 	readerClusterRole := app.buildRRClusterRole(ctx, clusterRoleReaderName, []string{"get", "list", "watch"})
-	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
+	appReaderSubjects := utils.GetAppReaderRbacSubjects(rr)
 	readerClusterRoleBinding := app.rrClusterRoleBinding(ctx, readerClusterRole, appReaderSubjects)
 
 	// Apply roles and bindings

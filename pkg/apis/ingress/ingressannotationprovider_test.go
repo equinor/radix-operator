@@ -129,6 +129,56 @@ func Test_ClientCertificateAnnotations(t *testing.T) {
 	assert.Empty(t, result, "Expected Annotations to be empty")
 }
 
+func Test_PublicIngressAllowAnnotationProvider(t *testing.T) {
+	tests := map[string]struct {
+		component          radixv1.RadixCommonDeployComponent
+		expectedAnnotation map[string]string
+	}{
+		"network is not set": {
+			component:          &radixv1.RadixDeployComponent{},
+			expectedAnnotation: make(map[string]string),
+		},
+		"network.ingress is not set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{}},
+			expectedAnnotation: make(map[string]string),
+		},
+		"network.ingress.public is not set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{}}},
+			expectedAnnotation: make(map[string]string),
+		},
+		"network.ingress.public.allow is not set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{}}}},
+			expectedAnnotation: make(map[string]string),
+		},
+		"network.ingress.public.allow is empty": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{}}}}},
+			expectedAnnotation: make(map[string]string),
+		},
+		"network.ingress.public.allow single entry": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("10.0.0.1")}}}}},
+			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/whitelist-source-range": "10.0.0.1"},
+		},
+		"network.ingress.public.allow multiple entries": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("10.0.0.1"), radixv1.IPOrCIDR("10.10.10.10/30")}}}}},
+			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/whitelist-source-range": "10.0.0.1,10.10.10.10/30"},
+		},
+	}
+
+	sut := &ingressPublicAllowListAnnotationProvider{}
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			actual, err := sut.GetAnnotations(testSpec.component, "")
+			assert.NoError(t, err)
+			if len(testSpec.expectedAnnotation) == 0 {
+				assert.Empty(t, actual)
+			} else {
+				assert.Equal(t, actual, testSpec.expectedAnnotation)
+			}
+		})
+	}
+
+}
+
 type OAuth2AnnotationsTestSuite struct {
 	suite.Suite
 	oauth2Config *defaults.MockOAuth2Config

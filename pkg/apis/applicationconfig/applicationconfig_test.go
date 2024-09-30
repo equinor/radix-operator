@@ -3,6 +3,7 @@ package applicationconfig_test
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -409,10 +410,16 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest(t)
 
-	adminGroups, readerGroups := []string{"admin1", "admin2"}, []string{"reader1", "reader2"}
+	adminGroups, adminUsers := []string{"admin1", "admin2"}, []string{"adminUser1", "adminUser2"}
+	readerGroups, readerUsers := []string{"reader1", "reader2"}, []string{"readerUser1", "readerUser2"}
 	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient,
 		utils.ARadixApplication().
-			WithRadixRegistration(utils.ARadixRegistration().WithAdGroups(adminGroups).WithReaderAdGroups(readerGroups)).
+			WithRadixRegistration(
+				utils.ARadixRegistration().
+					WithAdGroups(adminGroups).
+					WithAdUsers(adminUsers).
+					WithReaderAdGroups(readerGroups).
+					WithReaderAdUsers(readerUsers)).
 			WithAppName("any-app").
 			WithEnvironment("dev", "master"))
 	require.NoError(t, err)
@@ -423,8 +430,8 @@ func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 		expectedSubjects []string
 	}
 	tests := []testSpec{
-		{roleName: "radix-private-image-hubs-reader", expectedVerbs: []string{"get", "list", "watch"}, expectedSubjects: readerGroups},
-		{roleName: "radix-private-image-hubs", expectedVerbs: []string{"get", "list", "watch", "update", "patch", "delete"}, expectedSubjects: adminGroups},
+		{roleName: "radix-private-image-hubs-reader", expectedVerbs: []string{"get", "list", "watch"}, expectedSubjects: slices.Concat(readerGroups, readerUsers)},
+		{roleName: "radix-private-image-hubs", expectedVerbs: []string{"get", "list", "watch", "update", "patch", "delete"}, expectedSubjects: slices.Concat(adminGroups, adminUsers)},
 	}
 
 	roles, _ := client.RbacV1().Roles("any-app-app").List(context.Background(), metav1.ListOptions{})

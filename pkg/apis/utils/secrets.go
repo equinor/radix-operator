@@ -87,10 +87,7 @@ func GrantAppReaderAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regi
 	}
 
 	// create rolebinding
-	readerAdGroups := registration.Spec.ReaderAdGroups
-
-	subjects := kube.GetRoleBindingGroups(readerAdGroups)
-
+	subjects := GetAppReaderRbacSubjects(registration)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
@@ -107,12 +104,11 @@ func GrantAppAdminAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regis
 	}
 
 	// create rolebinding
-	adGroups, err := GetAdGroups(registration)
+	subjects, err := GetAppAdminRbacSubjects(registration)
 	if err != nil {
 		return err
 	}
 
-	subjects := kube.GetRoleBindingGroups(adGroups)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
