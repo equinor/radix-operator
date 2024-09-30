@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
+	radixutils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -149,5 +153,31 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to sync pipeline service accounts: %w", err)
 	}
 
+	return nil
+}
+
+func (app *ApplicationConfig) annotateOrphanedEnvironments(ctx context.Context, appEnvironments []radixv1.Environment) error {
+	environments, err := app.kubeutil.ListEnvironmentsWithSelector(ctx, labels.ForApplicationName(app.config.Name).String())
+	if err != nil {
+		return err
+	}
+	appEnvNames := slice.Reduce(appEnvironments, make(map[string]struct{}), func(acc map[string]struct{}, env radixv1.Environment) map[string]struct{} {
+		acc[env.Name] = struct{}{}
+		return acc
+	})
+	orphanedEnvironments := slice.FindAll(environments, func(radixEnvironment *radixv1.RadixEnvironment) bool {
+		_, ok := appEnvNames[radixEnvironment.Spec.EnvName]
+		return !ok
+	})
+	for _, env := range orphanedEnvironments {
+		annotations := env.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		if _, ok := annotations[kube.RadixEnvironmentIsOrphanedAnnotation]; !ok {
+			annotations[kube.RadixEnvironmentIsOrphanedAnnotation] = radixutils.FormatTimestamp(time.Now())
+			env.SetAnnotations(annotations)
+		}
+	}
 	return nil
 }

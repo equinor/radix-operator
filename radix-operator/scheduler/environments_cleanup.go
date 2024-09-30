@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/equinor/radix-operator/radix-operator/scheduler/internal"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 )
@@ -23,9 +24,11 @@ func (e environmentsCleanupTask) Start() {
 
 // NewEnvironmentsCleanupTask Creates a new environments cleanup task
 func NewEnvironmentsCleanupTask(ctx context.Context, scheduleSpec string) (Task, error) {
-	c := cron.New(cron.WithSeconds())
+	logger := internal.NewLogger(ctx)
+	c := cron.New(cron.WithLogger(logger), cron.WithSeconds(), cron.WithChain(cron.DelayIfStillRunning(logger)))
 	if _, err := c.AddFunc(scheduleSpec, func() {
 		fmt.Println("Task running:", time.Now())
+		time.Sleep(15 * time.Second)
 	}); err != nil {
 		return nil, err
 	}

@@ -31,6 +31,16 @@ func (kubeutil *Kube) GetEnvironment(ctx context.Context, name string) (*radixv1
 	return environment, nil
 }
 
+// ListEnvironmentsWithSelector Gets lists environments with label selector
+func (kubeutil *Kube) ListEnvironmentsWithSelector(ctx context.Context, labelSelectorString string) ([]*radixv1.RadixEnvironment, error) {
+	listOptions := metav1.ListOptions{LabelSelector: labelSelectorString}
+	list, err := kubeutil.radixclient.RadixV1().RadixEnvironments().List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return slice.PointersOf(list.Items).([]*radixv1.RadixEnvironment), nil
+}
+
 // ListEnvironments lists environments from cache if lister is present
 func (kubeutil *Kube) ListEnvironments(ctx context.Context) ([]*radixv1.RadixEnvironment, error) {
 	var environments []*radixv1.RadixEnvironment

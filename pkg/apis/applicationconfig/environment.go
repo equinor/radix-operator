@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,6 +19,9 @@ func (app *ApplicationConfig) syncEnvironments(ctx context.Context) error {
 		if err := app.syncEnvironment(ctx, app.buildRadixEnvironment(env)); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if err := app.annotateOrphanedEnvironments(ctx, app.config.Spec.Environments); err != nil {
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }
@@ -40,6 +44,12 @@ func (app *ApplicationConfig) syncEnvironment(ctx context.Context, radixEnvironm
 			return app.createRadixEnvironment(ctx, radixEnvironment)
 		}
 		return fmt.Errorf("failed to get RadixEnvironment: %v", err)
+	}
+	if annotations := radixEnvironment.GetAnnotations(); annotations != nil {
+		if _, ok := annotations[kube.RadixEnvironmentIsOrphanedAnnotation]; ok {
+			delete(annotations, kube.RadixEnvironmentIsOrphanedAnnotation)
+			radixEnvironment.SetAnnotations(annotations)
+		}
 	}
 	return app.updateRadixEnvironment(ctx, radixEnvironment)
 }

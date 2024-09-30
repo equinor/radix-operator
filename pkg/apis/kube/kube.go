@@ -18,17 +18,19 @@ import (
 
 // Radix Annotations
 const (
-	RadixBranchAnnotation                            = "radix-branch"
-	RadixGitTagsAnnotation                           = "radix.equinor.com/radix-git-tags"
-	RadixCommitAnnotation                            = "radix.equinor.com/radix-commit"
-	RadixConfigHash                                  = "radix.equinor.com/radix-config-hash"
-	RadixBuildSecretHash                             = "radix.equinor.com/build-secret-hash"
+	RadixBranchAnnotation  = "radix-branch"
+	RadixGitTagsAnnotation = "radix.equinor.com/radix-git-tags"
+	RadixCommitAnnotation  = "radix.equinor.com/radix-commit"
+	RadixConfigHash        = "radix.equinor.com/radix-config-hash"
+	RadixBuildSecretHash   = "radix.equinor.com/build-secret-hash"
+	// RadixEnvironmentIsOrphanedAnnotation The RadixEnvironment gets this annotation with a timestamp when it gets orphaned
+	RadixEnvironmentIsOrphanedAnnotation             = "radix.equinor.com/environment-is-orphaned"
 	RadixComponentImagesAnnotation                   = "radix-component-images"
 	RadixBuildComponentsAnnotation                   = "radix-build-component"
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
 	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
-	// RadixDeploymentObservedGeneration Used to verify kubernetes deployements are synced with active radix deployment, must contain the active RadixDeployments synced Generation
+	// RadixDeploymentObservedGeneration Used to verify kubernetes deployments are synced with active radix deployment, must contain the active RadixDeployments synced Generation
 	RadixDeploymentObservedGeneration = "radix.equinor.com/radix-deployment-observed-generation"
 	// RestoredStatusAnnotation See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
