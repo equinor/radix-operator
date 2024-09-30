@@ -13,7 +13,6 @@ import (
 	"time"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
-	"github.com/equinor/radix-common/utils/slice"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -88,8 +87,10 @@ type App struct {
 
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	var app *App
 	go func() {
 		<-ctx.Done()
+		app.stopSchedulers()
 		log.Ctx(ctx).Info().Msg("Shutting down gracefully")
 	}()
 
@@ -139,14 +140,18 @@ func initializeApp(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load ingress configuration: %w", err)
 	}
-	app.schedulers = createSchedulers()
+	app.schedulers = createSchedulers(ctx)
 	return &app, nil
 }
 
-func createSchedulers() []scheduler.Task {
-	return []scheduler.Task{
-		scheduler.NewEnvironmentsCleanupTask(),
+func createSchedulers(ctx context.Context) []scheduler.Task {
+	var tasks []scheduler.Task
+	if envCleanupTask, err := scheduler.NewEnvironmentsCleanupTask(ctx, "0/3 * * * * *"); err != nil {
+		log.Ctx(ctx).Err(err).Msg("Failed to create environment cleanup task")
+	} else {
+		tasks = append(tasks, envCleanupTask)
 	}
+	return tasks
 }
 
 func (a *App) Run(ctx context.Context) error {
@@ -171,7 +176,10 @@ func (a *App) Run(ctx context.Context) error {
 	g.Go(func() error { return alertController.Run(ctx, a.opts.alertControllerThreads) })
 	g.Go(func() error { return batchController.Run(ctx, 1) })
 	g.Go(func() error { return dnsAliasesController.Run(ctx, a.opts.environmentControllerThreads) })
-	g.Go(func() error { return a.runSchedulers() })
+	g.Go(func() error {
+		a.startSchedulers()
+		return nil
+	})
 
 	// Informers must be started after all controllers are initialized
 	// Therefore we must initialize the controllers outside of go routines
@@ -426,13 +434,14 @@ func Healthz(writer http.ResponseWriter, _ *http.Request) {
 	_, _ = fmt.Fprintf(writer, "%s", response)
 }
 
-func (a *App) runSchedulers() error {
-	var errs []error
-	slice.All(a.schedulers, func(task scheduler.Task) bool {
-		if err := task.Run(); err != nil {
-			errs = append(errs, err)
-		}
-		return true
-	})
-	return stderrors.Join(errs...)
+func (a *App) startSchedulers() {
+	for _, task := range a.schedulers {
+		task.Start()
+	}
+}
+
+func (a *App) stopSchedulers() {
+	for _, task := range a.schedulers {
+		task.Stop()
+	}
 }

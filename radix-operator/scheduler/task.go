@@ -1,5 +1,6 @@
 package scheduler
 
 type Task interface {
-	Run() error
+	Start()
+	Stop()
 }
