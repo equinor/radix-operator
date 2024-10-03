@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -1547,73 +1548,105 @@ func Test_GetRadixComponentsForEnv_Runtime_AlwaysUseFromDeployComponentImages(t 
 	}
 }
 
-func Test_Test_GetRadixComponentsForEnv_NetworkIngressPublicAllow(t *testing.T) {
-	tests := map[string]struct {
-		commonConfig *radixv1.Network
-		envConfig    *radixv1.Network
-		setEnv       bool
-		expected     *radixv1.Network
-	}{
-		"nil in common": {
-			setEnv:   false,
-			expected: nil,
+func Test_Test_GetRadixComponentsForEnv_NetworkIngressPublicConfig(t *testing.T) {
+	exp2 := func(n int) int {
+		return int(math.Exp2(float64(n)))
+	}
+
+	type setIngressFuncs []func(*radixv1.IngressPublic)
+	// Defines a list of functions that will set a single component specific IngressPublic field value.
+	// The field value that each function set must be different from the value set by the corresponding (same field)
+	// function in setEnvCfg
+	setCommonCfg := setIngressFuncs{
+		func(cfg *radixv1.IngressPublic) {
+			cfg.Allow = &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("10.10.10.10"), radixv1.IPOrCIDR("20.20.20.20")}
 		},
-		"empty in common, env not set": {
-			commonConfig: &radixv1.Network{},
-			setEnv:       false,
-			expected:     &radixv1.Network{},
+		func(cfg *radixv1.IngressPublic) {
+			cfg.ProxyBodySize = pointers.Ptr(radixv1.NginxSizeFormat("20m"))
 		},
-		"empty in common and nil in env": {
-			commonConfig: &radixv1.Network{},
-			setEnv:       true,
-			expected:     &radixv1.Network{},
+		func(cfg *radixv1.IngressPublic) {
+			cfg.ProxyReadTimeout = pointers.Ptr[uint](100)
 		},
-		"empty in common and env": {
-			commonConfig: &radixv1.Network{},
-			setEnv:       true,
-			envConfig:    &radixv1.Network{},
-			expected:     &radixv1.Network{},
+		func(cfg *radixv1.IngressPublic) {
+			cfg.ProxySendTimeout = pointers.Ptr[uint](150)
 		},
-		"allow set in common, nil in env": {
-			commonConfig: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("commonip1"), radixv1.IPOrCIDR("commonip2")}}}},
-			setEnv:       true,
-			envConfig:    &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{}}},
-			expected:     &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("commonip1"), radixv1.IPOrCIDR("commonip2")}}}},
+	}
+	// Defines a list of functions that will set a single environment specific IngressPublic field value.
+	// The field value that each function set must be different from the value set by the corresponding (same field)
+	// function in setCommonCfg
+	setEnvCfg := setIngressFuncs{
+		func(cfg *radixv1.IngressPublic) {
+			cfg.Allow = &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("1.1.1.1"), radixv1.IPOrCIDR("2.2.2.2")}
 		},
-		"allow set in common, empty in env": {
-			commonConfig: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("commonip1"), radixv1.IPOrCIDR("commonip2")}}}},
-			setEnv:       true,
-			envConfig:    &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{}}}},
-			expected:     &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{}}}},
+		func(cfg *radixv1.IngressPublic) {
+			cfg.ProxyBodySize = pointers.Ptr(radixv1.NginxSizeFormat("10m"))
 		},
-		"allow set in common and env": {
-			commonConfig: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("commonip1"), radixv1.IPOrCIDR("commonip2")}}}},
-			setEnv:       true,
-			envConfig:    &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("envip1"), radixv1.IPOrCIDR("envip2")}}}},
-			expected:     &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("envip1"), radixv1.IPOrCIDR("envip2")}}}},
+		func(cfg *radixv1.IngressPublic) {
+			cfg.ProxyReadTimeout = pointers.Ptr[uint](10)
 		},
-		"allow nil in common set in env": {
-			commonConfig: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{}}},
-			setEnv:       true,
-			envConfig:    &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("envip1"), radixv1.IPOrCIDR("envip2")}}}},
-			expected:     &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("envip1"), radixv1.IPOrCIDR("envip2")}}}},
+		func(cfg *radixv1.IngressPublic) {
+			cfg.ProxySendTimeout = pointers.Ptr[uint](15)
 		},
 	}
 
-	for testName, test := range tests {
-		t.Run(testName, func(t *testing.T) {
-			const envName = "anyenv"
-			component := utils.AnApplicationComponent().WithName("anycomponent").WithNetwork(test.commonConfig)
-			if test.setEnv {
-				component = component.WithEnvironmentConfigs(
-					utils.AnEnvironmentConfig().WithEnvironment(envName).WithNetwork(test.envConfig),
-				)
-			}
-			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
-			components, err := GetRadixComponentsForEnv(context.Background(), ra, nil, envName, make(pipeline.DeployComponentImages), make(radixv1.EnvVarsMap), nil)
-			require.NoError(t, err)
-			assert.Equal(t, test.expected, components[0].Network)
-		})
+	/*
+		The tests will check every possible combination of component and environment specific configuration of the IngressPublic spec.
+		exp2 is used in the two for-loops to create a bitmap representation of each function in setCommonCfg and setEnvCfg.
+		The function is called with the corresponding config (common or env) and expectedCfg if the function's bit is set.
+
+		How it works:
+		We have 4 functions in each slice. To iterate over every possible combination of function call (call none, some or all),
+		we calculate 2 pow 4 = 16, and iterate from 0 to 15. This binary representation for each value will then be:
+		0:  0000 (no functions will be called)
+		1:  0001 (function with index 0 will be called)
+		2:  0010 (function with index 1 will be called)
+		3:  0011 (functions with indexes 0 and 1 will be called)
+		4:  0100 (function with index 2 will be called)
+		...
+		15: 1111 (all functions will be called)
+
+		It is imortant that the setCommonCfg functions are applied to expectedCfg first and setEnvCfg last,
+		since we excpect environment config to take precedence over common config if the field is non-nil.
+	*/
+	for c := range exp2(len(setCommonCfg)) {
+		for e := range exp2(len(setEnvCfg)) {
+			// Include bitmap representation of which functions in common and env config that must be called
+			// This makes it a bit easier to identity what fields are set in common and env config in case a test fails
+			testName := fmt.Sprintf("common bitmap: %.4b - env bitmap: %.4b", c, e)
+			t.Run(testName, func(t *testing.T) {
+				commonCfg := &radixv1.IngressPublic{}
+				envCfg := &radixv1.IngressPublic{}
+				expectedCfg := &radixv1.IngressPublic{}
+				for i := range len(setCommonCfg) {
+					if c&exp2(i) > 0 {
+						setCommonCfg[i](commonCfg)
+						setCommonCfg[i](expectedCfg)
+					}
+				}
+				for i := range len(setEnvCfg) {
+					if e&exp2(i) > 0 {
+						setEnvCfg[i](envCfg)
+						setEnvCfg[i](expectedCfg)
+					}
+				}
+
+				const envName = "anyenv"
+				ra := utils.ARadixApplication().
+					WithComponents(
+						utils.AnApplicationComponent().
+							WithName("anycomponent").
+							WithNetwork(&radixv1.Network{Ingress: &radixv1.Ingress{Public: commonCfg}}).
+							WithEnvironmentConfigs(
+								utils.AnEnvironmentConfig().
+									WithEnvironment(envName).
+									WithNetwork(&radixv1.Network{Ingress: &radixv1.Ingress{Public: envCfg}}),
+							),
+					).BuildRA()
+				components, err := GetRadixComponentsForEnv(context.Background(), ra, nil, envName, make(pipeline.DeployComponentImages), make(radixv1.EnvVarsMap), nil)
+				require.NoError(t, err)
+				assert.Equal(t, expectedCfg, components[0].Network.Ingress.Public)
+			})
+		}
 	}
 }
 

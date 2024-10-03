@@ -103,7 +103,7 @@ func getRadixComponentNetwork(component *radixv1.RadixComponent, environmentConf
 		if dst == nil {
 			dst = &radixv1.Network{}
 		}
-		if err := mergo.Merge(dst, environmentConfig.Network, mergo.WithOverride, mergo.WithOverrideEmptySlice); err != nil {
+		if err := mergo.Merge(dst, environmentConfig.Network, mergo.WithOverride, mergo.WithOverrideEmptySlice, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
 			return nil, err
 		}
 	}
