@@ -76,6 +76,7 @@ func (app *ApplicationConfig) updateRadixEnvironment(ctx context.Context, radixE
 		app.logger.Debug().Msgf("re-taken RadixEnvironment %s (revision %s)", radixEnvironment.GetName(), existingRE.GetResourceVersion())
 
 		newRE := existingRE.DeepCopy()
+		newRE.SetAnnotations(radixEnvironment.GetAnnotations())
 		newRE.Spec = radixEnvironment.Spec
 		// Will perform update as patching does not seem to work for this custom resource
 		updated, err := app.kubeutil.UpdateRadixEnvironment(ctx, newRE)

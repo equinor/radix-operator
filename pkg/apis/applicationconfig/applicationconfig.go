@@ -2,6 +2,7 @@ package applicationconfig
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -20,7 +21,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -90,7 +91,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Cont
 
 	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(ctx, app.config.Name, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8errors.IsNotFound(err) {
 			app.logger.Debug().Msgf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
 			if err = radixvalidators.CanRadixApplicationBeInserted(ctx, app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 				return err
@@ -166,18 +167,22 @@ func (app *ApplicationConfig) annotateOrphanedEnvironments(ctx context.Context, 
 		return acc
 	})
 	orphanedEnvironments := slice.FindAll(environments, func(radixEnvironment *radixv1.RadixEnvironment) bool {
-		_, ok := appEnvNames[radixEnvironment.Spec.EnvName]
-		return !ok
+		_, envExistsInApp := appEnvNames[radixEnvironment.Spec.EnvName]
+		return !envExistsInApp
 	})
-	for _, env := range orphanedEnvironments {
-		annotations := env.GetAnnotations()
+	var errs []error
+	for _, radixEnvironment := range orphanedEnvironments {
+		annotations := radixEnvironment.GetAnnotations()
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
 		if _, ok := annotations[kube.RadixEnvironmentIsOrphanedAnnotation]; !ok {
 			annotations[kube.RadixEnvironmentIsOrphanedAnnotation] = radixutils.FormatTimestamp(time.Now())
-			env.SetAnnotations(annotations)
+			radixEnvironment.SetAnnotations(annotations)
+			if err = app.updateRadixEnvironment(ctx, radixEnvironment); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
