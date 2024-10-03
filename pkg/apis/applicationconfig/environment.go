@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,7 +19,7 @@ func (app *ApplicationConfig) syncEnvironments(ctx context.Context) error {
 			errs = append(errs, err)
 		}
 	}
-	if err := app.annotateOrphanedEnvironments(ctx, app.config.Spec.Environments); err != nil {
+	if err := app.handleOrphanedEnvironments(ctx); err != nil {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
@@ -44,12 +43,6 @@ func (app *ApplicationConfig) syncEnvironment(ctx context.Context, radixEnvironm
 			return app.createRadixEnvironment(ctx, radixEnvironment)
 		}
 		return fmt.Errorf("failed to get RadixEnvironment: %v", err)
-	}
-	if annotations := radixEnvironment.GetAnnotations(); annotations != nil {
-		if _, ok := annotations[kube.RadixEnvironmentIsOrphanedAnnotation]; ok {
-			delete(annotations, kube.RadixEnvironmentIsOrphanedAnnotation)
-			radixEnvironment.SetAnnotations(annotations)
-		}
 	}
 	return app.updateRadixEnvironment(ctx, radixEnvironment)
 }
@@ -76,7 +69,6 @@ func (app *ApplicationConfig) updateRadixEnvironment(ctx context.Context, radixE
 		app.logger.Debug().Msgf("re-taken RadixEnvironment %s (revision %s)", radixEnvironment.GetName(), existingRE.GetResourceVersion())
 
 		newRE := existingRE.DeepCopy()
-		newRE.SetAnnotations(radixEnvironment.GetAnnotations())
 		newRE.Spec = radixEnvironment.Spec
 		// Will perform update as patching does not seem to work for this custom resource
 		updated, err := app.kubeutil.UpdateRadixEnvironment(ctx, newRE)

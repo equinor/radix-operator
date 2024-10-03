@@ -36,4 +36,6 @@ type RadixEnvironmentSpec struct {
 type RadixEnvironmentStatus struct {
 	Reconciled meta.Time `json:"reconciled" yaml:"reconciled"`
 	Orphaned   bool      `json:"orphaned" yaml:"orphaned"`
+	// OrphanedTimestamp is a timestamp representing the server time when this RadixEnvironment was removed from the RadixApplication
+	OrphanedTimestamp string `json:"orphanedTimestamp" yaml:"orphanedTimestamp"`
 }

@@ -69,14 +69,10 @@ func cleanupRadixEnvironments(ctx context.Context, kubeUtil *kube.Kube, retentio
 func getOutdatedOrphanedEnvironments(radixEnvironments []*radixv1.RadixEnvironment, retentionPeriod time.Duration) ([]*radixv1.RadixEnvironment, error) {
 	var errs []error
 	return slice.FindAll(radixEnvironments, func(re *radixv1.RadixEnvironment) bool {
-		if !re.Status.Orphaned {
+		if !re.Status.Orphaned || re.Status.OrphanedTimestamp == "" {
 			return false
 		}
-		setOrphanedTimestamp, exists := re.GetAnnotations()[kube.RadixEnvironmentIsOrphanedAnnotation]
-		if !exists {
-			return false
-		}
-		timestamp, err := time.Parse(time.RFC3339, setOrphanedTimestamp)
+		timestamp, err := time.Parse(time.RFC3339, re.Status.OrphanedTimestamp)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to parse orphaned timestamp in environment %s: %w", re.GetName(), err))
 			return false

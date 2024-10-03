@@ -157,12 +157,12 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 	return nil
 }
 
-func (app *ApplicationConfig) annotateOrphanedEnvironments(ctx context.Context, appEnvironments []radixv1.Environment) error {
+func (app *ApplicationConfig) handleOrphanedEnvironments(ctx context.Context) error {
 	environments, err := app.kubeutil.ListEnvironmentsWithSelector(ctx, labels.ForApplicationName(app.config.Name).String())
 	if err != nil {
 		return err
 	}
-	appEnvNames := slice.Reduce(appEnvironments, make(map[string]struct{}), func(acc map[string]struct{}, env radixv1.Environment) map[string]struct{} {
+	appEnvNames := slice.Reduce(app.config.Spec.Environments, make(map[string]struct{}), func(acc map[string]struct{}, env radixv1.Environment) map[string]struct{} {
 		acc[env.Name] = struct{}{}
 		return acc
 	})
@@ -172,14 +172,9 @@ func (app *ApplicationConfig) annotateOrphanedEnvironments(ctx context.Context, 
 	})
 	var errs []error
 	for _, radixEnvironment := range orphanedEnvironments {
-		annotations := radixEnvironment.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-		if _, ok := annotations[kube.RadixEnvironmentIsOrphanedAnnotation]; !ok {
-			annotations[kube.RadixEnvironmentIsOrphanedAnnotation] = radixutils.FormatTimestamp(time.Now())
-			radixEnvironment.SetAnnotations(annotations)
-			if err = app.updateRadixEnvironment(ctx, radixEnvironment); err != nil {
+		if radixEnvironment.Status.OrphanedTimestamp == "" {
+			radixEnvironment.Status.OrphanedTimestamp = radixutils.FormatTimestamp(time.Now())
+			if err = utils.UpdateRadixEnvironmentStatus(ctx, app.radixclient, app.config, radixEnvironment, metav1.NewTime(time.Now().UTC())); err != nil {
 				errs = append(errs, err)
 			}
 		}

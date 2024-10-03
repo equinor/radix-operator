@@ -18,13 +18,11 @@ import (
 
 // Radix Annotations
 const (
-	RadixBranchAnnotation  = "radix-branch"
-	RadixGitTagsAnnotation = "radix.equinor.com/radix-git-tags"
-	RadixCommitAnnotation  = "radix.equinor.com/radix-commit"
-	RadixConfigHash        = "radix.equinor.com/radix-config-hash"
-	RadixBuildSecretHash   = "radix.equinor.com/build-secret-hash"
-	// RadixEnvironmentIsOrphanedAnnotation The RadixEnvironment gets this annotation with a timestamp when it gets orphaned
-	RadixEnvironmentIsOrphanedAnnotation             = "radix.equinor.com/environment-is-orphaned"
+	RadixBranchAnnotation                            = "radix-branch"
+	RadixGitTagsAnnotation                           = "radix.equinor.com/radix-git-tags"
+	RadixCommitAnnotation                            = "radix.equinor.com/radix-commit"
+	RadixConfigHash                                  = "radix.equinor.com/radix-config-hash"
+	RadixBuildSecretHash                             = "radix.equinor.com/build-secret-hash"
 	RadixComponentImagesAnnotation                   = "radix-component-images"
 	RadixBuildComponentsAnnotation                   = "radix-build-component"
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
