@@ -140,13 +140,14 @@ func initializeApp(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load ingress configuration: %w", err)
 	}
-	app.schedulers = createSchedulers(ctx, app.kubeUtil)
+	app.schedulers = app.createSchedulers(ctx)
 	return &app, nil
 }
 
-func createSchedulers(ctx context.Context, kubeUtil *kube.Kube) []scheduler.Task {
+func (a *App) createSchedulers(ctx context.Context) []scheduler.Task {
 	var tasks []scheduler.Task
-	if envCleanupTask, err := scheduler.NewRadixEnvironmentsCleanupTask(ctx, kubeUtil, time.Minute*10, "0/3 * * * *"); err != nil {
+	if envCleanupTask, err := scheduler.NewRadixEnvironmentsCleanupTask(ctx, a.kubeUtil,
+		a.config.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod, a.config.TaskConfig.OrphanedEnvironmentsCleanupCron); err != nil {
 		log.Ctx(ctx).Err(err).Msg("Failed to create environment cleanup task")
 	} else {
 		tasks = append(tasks, envCleanupTask)

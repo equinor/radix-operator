@@ -177,6 +177,10 @@ spec:
               value: {{ .Values.ingress.certificate.automation.renewBefore }}  
             - name: RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET
               value: {{ .Values.externalRegistryDefaultAuthSecret }}            
+            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD
+              value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
+            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRONE
+              value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
           livenessProbe:
             httpGet:
               path: /healthz

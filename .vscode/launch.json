@@ -145,7 +145,6 @@
         "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT": "10",
         "RADIX_PIPELINE_JOBS_HISTORY_LIMIT": "5",
         "SECCOMP_PROFILE_FILENAME": "allow-buildah.json",
-        // "RADIX_BUILDAH_IMAGE_BUILDER": "quay.io/buildah/stable:v1.31",
         "RADIX_BUILDKIT_IMAGE_BUILDER": "radix-buildkit-builder:main-latest",
         "RADIX_RESERVED_APP_DNS_ALIASES": "api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
         "RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www",
@@ -153,6 +152,8 @@
         "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION": "2160h",
         "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE": "720h",
         "RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET": "radix-external-registry-default-auth",
+        "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD": "30d",
+        "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRONE": "0 0 * * *",
         "LOG_LEVEL": "info",
         "LOG_PRETTY": "true"
       },

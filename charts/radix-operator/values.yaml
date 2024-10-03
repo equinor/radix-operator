@@ -125,6 +125,9 @@ ingress:
       annotations:
         nginx.org/lb-method: random
 
+task:
+  orphanedEnvironmentsRetentionPeriod: 24h
+  orphanedEnvironmentsCleanupCron: "0 0 * * *"
 nodeSelector: {}
 
 tolerations: []

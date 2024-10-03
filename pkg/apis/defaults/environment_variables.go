@@ -229,4 +229,10 @@ const (
 	// RadixExternalRegistryDefaultAuthEnvironmentVariable Name of the secret containing default credentials for external container registries.
 	// Used when pulling images for components and jobs and for pulling images in Dockerfiles when building with buildah.
 	RadixExternalRegistryDefaultAuthEnvironmentVariable = "RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET"
+
+	// RadixOrphanedEnvironmentsRetentionPeriodVariable The duration for which orphaned environments are retained
+	RadixOrphanedEnvironmentsRetentionPeriodVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD"
+
+	// RadixOrphanedEnvironmentsCleanupCronVariable The cron expression for cleaning up orphaned environments
+	RadixOrphanedEnvironmentsCleanupCronVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRONE"
 )
