@@ -73,3 +73,13 @@ func (kubeutil *Kube) UpdateRadixEnvironment(ctx context.Context, radixEnvironme
 	log.Ctx(ctx).Debug().Msgf("Updated RadixEnvironment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
 	return updated, nil
 }
+
+// DeleteEnvironment Deletes RadixEnvironment
+func (kubeutil *Kube) DeleteEnvironment(ctx context.Context, name string) error {
+	log.Ctx(ctx).Debug().Msgf("Delete RadixEnvironment %s", name)
+	if err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		return fmt.Errorf("failed to delete RadixEnvironment object: %v", err)
+	}
+	log.Ctx(ctx).Debug().Msgf("Deleted RadixEnvironment %s", name)
+	return nil
+}
