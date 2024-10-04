@@ -36,23 +36,26 @@ func (e *environmentsCleanup) String() string {
 
 // Run Runs the cleanup task
 func (e *environmentsCleanup) Run() {
-	ctx := e.ctx
-	log.Ctx(ctx).Debug().Msgf("Cleanup orphaned RadixEnvironments out of the retention period %s", e.retentionPeriod.String())
-	radixEnvironments, err := e.kubeUtil.ListEnvironments(ctx)
+	log.Ctx(e.ctx).Debug().Msgf("Cleanup orphaned RadixEnvironments out of the retention period %s", e.retentionPeriod.String())
+	radixEnvironments, err := e.kubeUtil.ListEnvironments(e.ctx)
+	if err != nil {
+		log.Ctx(e.ctx).Error().Err(err).Msg("Failed to get RadixEnvironments")
+		return
+	}
 	var errs []error
 	outdatedOrphanedEnvironments, err := getOutdatedOrphanedEnvironments(radixEnvironments, e.retentionPeriod)
 	if err != nil {
 		errs = append(errs, err)
 	}
 	for _, outdatedEnvironment := range outdatedOrphanedEnvironments {
-		if err = e.kubeUtil.DeleteEnvironment(ctx, outdatedEnvironment.GetName()); err != nil && !k8serrors.IsNotFound(err) {
+		if err = e.kubeUtil.DeleteEnvironment(e.ctx, outdatedEnvironment.GetName()); err != nil && !k8serrors.IsNotFound(err) {
 			errs = append(errs, fmt.Errorf("error deleting of the outdated orphaned environment %s: %w", outdatedEnvironment.GetName(), err))
 			continue
 		}
-		log.Ctx(ctx).Info().Msgf("Deleted the outdated orphaned environment %s", outdatedEnvironment.GetName())
+		log.Ctx(e.ctx).Info().Msgf("Deleted the outdated orphaned environment %s", outdatedEnvironment.GetName())
 	}
 	if errs != nil {
-		log.Ctx(ctx).Error().Err(errors.Join(errs...)).Msg("Errors processing RadixEnvironments")
+		log.Ctx(e.ctx).Error().Err(errors.Join(errs...)).Msg("Errors processing RadixEnvironments")
 	}
 }
 
