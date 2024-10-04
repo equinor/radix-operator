@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+	"time"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -55,7 +57,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
-		err := app.OnSync(context.Background())
+		err := app.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.Background(),
@@ -66,7 +68,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
-		err := app.OnSync(context.Background())
+		err := app.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.Background(),
@@ -120,7 +122,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
-	err = app.OnSync(context.Background())
+	err = app.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
 	assert.NoError(t, err)
 	environments, err := radixClient.RadixV1().RadixEnvironments().List(
 		context.Background(),
@@ -674,6 +676,103 @@ func Test_IsConfigBranch(t *testing.T) {
 	})
 }
 
+func Test_DeleteRestoreEnvironments(t *testing.T) {
+	tu, kubeClient, kubeUtil, radixClient := setupTest(t)
+	const (
+		appName = "anyapp"
+		env1    = "env1"
+		env2    = "env2"
+		env3    = "env3"
+	)
+	applicationBuilder := utils.NewRadixApplicationBuilder().
+		WithRadixRegistration(utils.ARadixRegistration()).WithAppName(appName).
+		WithComponent(utils.AnApplicationComponent())
+
+	ra, err := tu.ApplyApplication(applicationBuilder.WithApplicationEnvironmentBuilders(
+		utils.NewApplicationEnvironmentBuilder().WithName(env1),
+		utils.NewApplicationEnvironmentBuilder().WithName(env2),
+	)) // set env1, env2
+	require.NoError(t, err)
+
+	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), ra.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	environmentList, err := radixClient.RadixV1().RadixEnvironments().List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, environmentList.Items, 2, "There should be two environment")
+	envMap := convertToEnvMap(environmentList)
+	assert.False(t, envMap[env1].Status.Orphaned, "Orphaned should be false for env1")
+	assert.Empty(t, envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env1")
+	assert.False(t, envMap[env2].Status.Orphaned, "Orphaned should be false for env2")
+	assert.Empty(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env2")
+
+	app := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, radixRegistration,
+		applicationBuilder.WithApplicationEnvironmentBuilders(
+			utils.NewApplicationEnvironmentBuilder().WithName(env2),
+			utils.NewApplicationEnvironmentBuilder().WithName(env3),
+		).BuildRA(), nil) // remove env1, add env3
+	syncTime1 := time.Now().UTC()
+	err = app.OnSync(context.Background(), metav1.NewTime(syncTime1))
+	require.NoError(t, err)
+
+	environmentList, err = radixClient.RadixV1().RadixEnvironments().List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, environmentList.Items, 3, "There should be three environments")
+	envMap = convertToEnvMap(environmentList)
+	assert.True(t, envMap[env1].Status.Orphaned, "Orphaned should be true for env1")
+	assert.Equal(t, commonUtils.FormatTimestamp(syncTime1), envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
+	assert.False(t, envMap[env2].Status.Orphaned, "Orphaned should be false for env2")
+	assert.Empty(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env3")
+	assert.False(t, envMap[env3].Status.Orphaned, "Orphaned should be false for env2")
+	assert.Empty(t, envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env3")
+
+	app = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, radixRegistration,
+		applicationBuilder.WithApplicationEnvironmentBuilders(
+			utils.NewApplicationEnvironmentBuilder().WithName(env2),
+		).BuildRA(), nil) // remove env3
+	syncTime2 := syncTime1.Add(time.Hour * 1)
+	err = app.OnSync(context.Background(), metav1.NewTime(syncTime2))
+	require.NoError(t, err)
+
+	environmentList, err = radixClient.RadixV1().RadixEnvironments().List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, environmentList.Items, 3, "There should be three environments")
+	envMap = convertToEnvMap(environmentList)
+	assert.True(t, envMap[env1].Status.Orphaned, "Orphaned should be true for env1")
+	assert.Equal(t, commonUtils.FormatTimestamp(syncTime1), envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
+	assert.False(t, envMap[env2].Status.Orphaned, "Orphaned should be false for env2")
+	assert.Empty(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env2")
+	assert.True(t, envMap[env3].Status.Orphaned, "Orphaned should be true for env3")
+	assert.Equal(t, commonUtils.FormatTimestamp(syncTime2), envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env3")
+
+	app = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, radixRegistration,
+		applicationBuilder.WithApplicationEnvironmentBuilders(
+			utils.NewApplicationEnvironmentBuilder().WithName(env1),
+			utils.NewApplicationEnvironmentBuilder().WithName(env2),
+		).BuildRA(), nil) // remove env3
+	syncTime3 := syncTime2.Add(time.Hour * 1)
+	err = app.OnSync(context.Background(), metav1.NewTime(syncTime3))
+	require.NoError(t, err)
+
+	environmentList, err = radixClient.RadixV1().RadixEnvironments().List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, environmentList.Items, 3, "There should be three environments")
+	envMap = convertToEnvMap(environmentList)
+	assert.False(t, envMap[env1].Status.Orphaned, "Orphaned should be false for env1")
+	assert.Empty(t, envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env1")
+	assert.False(t, envMap[env2].Status.Orphaned, "Orphaned should be false for env2")
+	assert.Empty(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env2")
+	assert.True(t, envMap[env3].Status.Orphaned, "Orphaned should be true for env1")
+	assert.Equal(t, commonUtils.FormatTimestamp(syncTime2), envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
+}
+
+func convertToEnvMap(environmentList *radixv1.RadixEnvironmentList) map[string]radixv1.RadixEnvironment {
+	return slice.Reduce(environmentList.Items, make(map[string]radixv1.RadixEnvironment), func(acc map[string]radixv1.RadixEnvironment, environment radixv1.RadixEnvironment) map[string]radixv1.RadixEnvironment {
+		acc[environment.Spec.EnvName] = environment
+		return acc
+	})
+}
+
 func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
@@ -726,7 +825,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 
 	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 
-	err = applicationConfig.OnSync(context.Background())
+	err = applicationConfig.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
 	if err != nil {
 		return err
 	}

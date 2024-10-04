@@ -131,11 +131,11 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Cont
 // OnSync is called when an application config is applied to application namespace
 // It compares the actual state with the desired, and attempts to
 // converge the two
-func (app *ApplicationConfig) OnSync(ctx context.Context) error {
+func (app *ApplicationConfig) OnSync(ctx context.Context, time metav1.Time) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixApplication).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 
-	if err := app.syncEnvironments(ctx); err != nil {
+	if err := app.syncEnvironments(ctx, time); err != nil {
 		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}
 	if err := app.syncPrivateImageHubSecrets(ctx); err != nil {
@@ -157,27 +157,37 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 	return nil
 }
 
-func (app *ApplicationConfig) handleOrphanedEnvironments(ctx context.Context) error {
-	environments, err := app.kubeutil.ListEnvironmentsWithSelector(ctx, labels.ForApplicationName(app.config.Name).String())
+func (app *ApplicationConfig) handleOrphanedEnvironments(ctx context.Context, syncTime metav1.Time) error {
+	radixEnvironments, err := app.kubeutil.ListEnvironmentsWithSelector(ctx, labels.ForApplicationName(app.config.Name).String())
 	if err != nil {
 		return err
 	}
-	appEnvNames := slice.Reduce(app.config.Spec.Environments, make(map[string]struct{}), func(acc map[string]struct{}, env radixv1.Environment) map[string]struct{} {
-		acc[env.Name] = struct{}{}
-		return acc
-	})
-	orphanedEnvironments := slice.FindAll(environments, func(radixEnvironment *radixv1.RadixEnvironment) bool {
-		_, envExistsInApp := appEnvNames[radixEnvironment.Spec.EnvName]
-		return !envExistsInApp
-	})
+	appEnvNames := app.getAppEnvNames()
 	var errs []error
-	for _, radixEnvironment := range orphanedEnvironments {
-		if radixEnvironment.Status.OrphanedTimestamp == "" {
-			radixEnvironment.Status.OrphanedTimestamp = radixutils.FormatTimestamp(time.Now())
-			if err = utils.UpdateRadixEnvironmentStatus(ctx, app.radixclient, app.config, radixEnvironment, metav1.NewTime(time.Now().UTC())); err != nil {
+	for _, re := range radixEnvironments {
+		origOrphaned := re.Status.Orphaned
+		origOrphanedTimestamp := re.Status.OrphanedTimestamp
+		_, existsInApp := appEnvNames[re.Spec.EnvName]
+		if existsInApp {
+			if re.Status.OrphanedTimestamp == "" {
+				re.Status.OrphanedTimestamp = radixutils.FormatTimestamp(time.Now())
+			}
+		} else {
+			re.Status.OrphanedTimestamp = ""
+		}
+		re.Status.Orphaned = !existsInApp
+		if origOrphaned != re.Status.Orphaned || origOrphanedTimestamp != re.Status.OrphanedTimestamp {
+			if err = utils.UpdateRadixEnvironmentStatus(ctx, app.radixclient, app.config, re, syncTime); err != nil {
 				errs = append(errs, err)
 			}
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func (app *ApplicationConfig) getAppEnvNames() map[string]struct{} {
+	return slice.Reduce(app.config.Spec.Environments, make(map[string]struct{}), func(acc map[string]struct{}, env radixv1.Environment) map[string]struct{} {
+		acc[env.Name] = struct{}{}
+		return acc
+	})
 }

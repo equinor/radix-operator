@@ -74,7 +74,7 @@ func (eb *EnvironmentBuilderStruct) WithUID(uid types.UID) EnvironmentBuilder {
 	return eb
 }
 
-// WithCreatedTime sets created objectmeta timestamp
+// WithCreatedTime sets created object meta timestamp
 func (eb *EnvironmentBuilderStruct) WithCreatedTime(created time.Time) EnvironmentBuilder {
 	eb.CreatedTime = &created
 	return eb
@@ -199,6 +199,6 @@ func NewEnvironmentBuilder() EnvironmentBuilder {
 		ResourceVersion: "",
 		Owners:          make([]meta.OwnerReference, 0),
 		AppLabel:        false,
-		IsOrphan:        true,
+		IsOrphan:        false,
 	}
 }
