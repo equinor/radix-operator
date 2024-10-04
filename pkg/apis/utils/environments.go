@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 
-	utils2 "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	v2 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +27,7 @@ func UpdateRadixEnvironmentStatus(ctx context.Context, radixClient versioned.Int
 func changeStatus(radixApplication *v1.RadixApplication, envName string, currStatus *v1.RadixEnvironmentStatus, time v2.Time) {
 	isOrphaned := !existsInAppConfig(radixApplication, envName)
 	if isOrphaned && len(currStatus.OrphanedTimestamp) == 0 {
-		currStatus.OrphanedTimestamp = utils2.FormatTimestamp(time.Time)
+		currStatus.OrphanedTimestamp = utils.FormatTimestamp(time.Time)
 	} else if !isOrphaned && len(currStatus.OrphanedTimestamp) > 0 {
 		currStatus.OrphanedTimestamp = ""
 	}
