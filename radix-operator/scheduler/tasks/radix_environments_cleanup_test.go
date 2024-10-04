@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -45,9 +46,12 @@ func TestCleanupRadixEnvironments(t *testing.T) {
 		env1            = "env1"
 		env2            = "env2"
 	)
+	now := time.Now()
+	expiredOrphanedTimestamp := commonUtils.FormatTimestamp(now.Add(time.Hour * -5))
+	notExpiredOrphanedTimestamp := commonUtils.FormatTimestamp(now.Add(time.Hour * 5))
 	scenarios := []scenario{
 		{
-			name:                 "No ens",
+			name:                 "No environments",
 			existingEnvironments: []envProps{},
 			expectedEnvironments: []envProps{},
 		},
@@ -55,6 +59,32 @@ func TestCleanupRadixEnvironments(t *testing.T) {
 			name:                 "Not orphaned environments",
 			existingEnvironments: []envProps{{name: env1}},
 			expectedEnvironments: []envProps{{name: env1}},
+		},
+		{
+			name:                 "Only not expired orphaned",
+			existingEnvironments: []envProps{{name: env1, orphaned: true, orphanedTimestamp: notExpiredOrphanedTimestamp}},
+			expectedEnvironments: []envProps{{name: env1, orphaned: true, orphanedTimestamp: notExpiredOrphanedTimestamp}},
+		},
+		{
+			name:                 "Delete expired orphaned",
+			existingEnvironments: []envProps{{name: env1, orphaned: true, orphanedTimestamp: expiredOrphanedTimestamp}},
+			expectedEnvironments: []envProps{},
+		},
+		{
+			name: "Delete expired orphaned, keep not orphaned",
+			existingEnvironments: []envProps{
+				{name: env1, orphaned: true, orphanedTimestamp: expiredOrphanedTimestamp},
+				{name: env2},
+			},
+			expectedEnvironments: []envProps{{name: env2}},
+		},
+		{
+			name: "Delete expired orphaned, keep not expired orphaned",
+			existingEnvironments: []envProps{
+				{name: env1, orphaned: true, orphanedTimestamp: expiredOrphanedTimestamp},
+				{name: env2, orphaned: true, orphanedTimestamp: notExpiredOrphanedTimestamp},
+			},
+			expectedEnvironments: []envProps{{name: env2, orphaned: true, orphanedTimestamp: notExpiredOrphanedTimestamp}},
 		},
 	}
 	for _, ts := range scenarios {
@@ -65,7 +95,9 @@ func TestCleanupRadixEnvironments(t *testing.T) {
 				_, err := kubeUtil.RadixClient().RadixV1().RadixEnvironments().Create(context.Background(), createRadixEnvironment(envProp), metav1.CreateOptions{})
 				require.NoError(t, err, "Failed to create existing RadixEnvironment %s", envProp.name)
 			}
+
 			task.Run()
+
 			environmentList, err := kubeUtil.RadixClient().RadixV1().RadixEnvironments().List(context.Background(), metav1.ListOptions{})
 			require.NoError(t, err)
 			assert.Len(t, environmentList.Items, len(ts.expectedEnvironments), "Mismatch expected environment list")
