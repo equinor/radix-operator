@@ -1553,10 +1553,12 @@ func Test_Test_GetRadixComponentsForEnv_NetworkIngressPublicConfig(t *testing.T)
 		return int(math.Exp2(float64(n)))
 	}
 
+	// Defines a list of functions that will set a single field in IngressPublic on component level (setCommonCfg)
+	// and in environmentConfig (setEnvCfg). Each field in IngressPublic should be represented in both listes.
+	// The corresponding field setter function in each list must set different values, or the tests won't be trustworthy.
+	// bool fields should have two functions, one for true and one for false value.
+	// All fields in IngressPublic should be represented in a function.
 	type setIngressFuncs []func(*radixv1.IngressPublic)
-	// Defines a list of functions that will set a single component specific IngressPublic field value.
-	// The field value that each function set must be different from the value set by the corresponding (same field)
-	// function in setEnvCfg
 	setCommonCfg := setIngressFuncs{
 		func(cfg *radixv1.IngressPublic) {
 			cfg.Allow = &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("10.10.10.10"), radixv1.IPOrCIDR("20.20.20.20")}
@@ -1571,9 +1573,6 @@ func Test_Test_GetRadixComponentsForEnv_NetworkIngressPublicConfig(t *testing.T)
 			cfg.ProxySendTimeout = pointers.Ptr[uint](150)
 		},
 	}
-	// Defines a list of functions that will set a single environment specific IngressPublic field value.
-	// The field value that each function set must be different from the value set by the corresponding (same field)
-	// function in setCommonCfg
 	setEnvCfg := setIngressFuncs{
 		func(cfg *radixv1.IngressPublic) {
 			cfg.Allow = &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("1.1.1.1"), radixv1.IPOrCIDR("2.2.2.2")}
