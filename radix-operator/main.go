@@ -31,6 +31,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
 	"github.com/equinor/radix-operator/radix-operator/scheduler"
+	"github.com/equinor/radix-operator/radix-operator/scheduler/tasks"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/pkg/errors"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -82,7 +83,7 @@ type App struct {
 	kubeUtil                 *kube.Kube
 	config                   *apiconfig.Config
 	kedaClient               kedav2.Interface
-	schedulers               []scheduler.Task
+	schedulers               []scheduler.TaskScheduler
 }
 
 func main() {
@@ -144,15 +145,16 @@ func initializeApp(ctx context.Context) (*App, error) {
 	return &app, nil
 }
 
-func (a *App) createSchedulers(ctx context.Context) []scheduler.Task {
-	var tasks []scheduler.Task
-	if envCleanupTask, err := scheduler.NewRadixEnvironmentsCleanupTask(ctx, a.kubeUtil,
-		a.config.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod, a.config.TaskConfig.OrphanedEnvironmentsCleanupCron); err != nil {
+func (a *App) createSchedulers(ctx context.Context) []scheduler.TaskScheduler {
+	var taskSchedulers []scheduler.TaskScheduler
+	if envCleanupTask, err := scheduler.NewTaskScheduler(ctx,
+		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.config.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod),
+		a.config.TaskConfig.OrphanedEnvironmentsCleanupCron); err != nil {
 		log.Ctx(ctx).Err(err).Msg("Failed to create environment cleanup task")
 	} else {
-		tasks = append(tasks, envCleanupTask)
+		taskSchedulers = append(taskSchedulers, envCleanupTask)
 	}
-	return tasks
+	return taskSchedulers
 }
 
 func (a *App) Run(ctx context.Context) error {
