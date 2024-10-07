@@ -11,18 +11,18 @@ import (
 
 // TaskScheduler Interface for scheduling tasks
 type TaskScheduler interface {
-	// Start Starts the task scheduler
+	// Start Starts the task scheduler crone
 	Start()
 	// Stop Stops the task scheduler
-	Stop()
+	Stop() context.Context
 }
 
 type taskScheduler struct {
 	cron *cron.Cron
 }
 
-func (e taskScheduler) Stop() {
-	e.cron.Stop()
+func (e taskScheduler) Stop() context.Context {
+	return e.cron.Stop()
 }
 
 func (e taskScheduler) Start() {

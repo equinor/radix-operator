@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -83,17 +84,10 @@ type App struct {
 	kubeUtil                 *kube.Kube
 	config                   *apiconfig.Config
 	kedaClient               kedav2.Interface
-	schedulers               []scheduler.TaskScheduler
 }
 
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	var app *App
-	go func() {
-		<-ctx.Done()
-		app.stopSchedulers()
-		log.Ctx(ctx).Info().Msg("Shutting down gracefully")
-	}()
 
 	app, err := initializeApp(ctx)
 	if err != nil {
@@ -141,20 +135,20 @@ func initializeApp(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load ingress configuration: %w", err)
 	}
-	app.schedulers = app.createSchedulers(ctx)
 	return &app, nil
 }
 
-func (a *App) createSchedulers(ctx context.Context) []scheduler.TaskScheduler {
+func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, error) {
+	var errs []error
 	var taskSchedulers []scheduler.TaskScheduler
 	if envCleanupTask, err := scheduler.NewTaskScheduler(ctx,
 		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.config.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod),
 		a.config.TaskConfig.OrphanedEnvironmentsCleanupCron); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Failed to create environment cleanup task")
+		errs = append(errs, fmt.Errorf("failed to create environment cleanup task: %w", err))
 	} else {
 		taskSchedulers = append(taskSchedulers, envCleanupTask)
 	}
-	return taskSchedulers
+	return taskSchedulers, stderrors.Join(errs...)
 }
 
 func (a *App) Run(ctx context.Context) error {
@@ -179,10 +173,7 @@ func (a *App) Run(ctx context.Context) error {
 	g.Go(func() error { return alertController.Run(ctx, a.opts.alertControllerThreads) })
 	g.Go(func() error { return batchController.Run(ctx, 1) })
 	g.Go(func() error { return dnsAliasesController.Run(ctx, a.opts.environmentControllerThreads) })
-	g.Go(func() error {
-		a.startSchedulers()
-		return nil
-	})
+	g.Go(func() error { return a.runSchedulers(ctx) })
 
 	// Informers must be started after all controllers are initialized
 	// Therefore we must initialize the controllers outside of go routines
@@ -437,14 +428,25 @@ func Healthz(writer http.ResponseWriter, _ *http.Request) {
 	_, _ = fmt.Fprintf(writer, "%s", response)
 }
 
-func (a *App) startSchedulers() {
-	for _, task := range a.schedulers {
-		task.Start()
+func (a *App) runSchedulers(ctx context.Context) error {
+	schedulers, err := a.createSchedulers(ctx)
+	if err != nil {
+		return err
 	}
-}
+	for _, taskScheduler := range schedulers {
+		taskScheduler.Start()
+	}
 
-func (a *App) stopSchedulers() {
-	for _, task := range a.schedulers {
-		task.Stop()
+	<-ctx.Done()
+
+	var wg sync.WaitGroup
+	for _, taskScheduler := range schedulers {
+		wg.Add(1)
+		go func(taskScheduler scheduler.TaskScheduler) {
+			defer wg.Done()
+			<-taskScheduler.Stop().Done()
+		}(taskScheduler)
 	}
+	wg.Wait()
+	return nil
 }
