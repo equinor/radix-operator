@@ -234,5 +234,5 @@ const (
 	RadixOrphanedEnvironmentsRetentionPeriodVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD"
 
 	// RadixOrphanedEnvironmentsCleanupCronVariable The cron expression for cleaning up orphaned environments
-	RadixOrphanedEnvironmentsCleanupCronVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRONE"
+	RadixOrphanedEnvironmentsCleanupCronVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON"
 )

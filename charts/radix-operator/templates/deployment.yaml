@@ -179,7 +179,7 @@ spec:
               value: {{ .Values.externalRegistryDefaultAuthSecret }}            
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD
               value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
-            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRONE
+            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
           livenessProbe:
             httpGet:

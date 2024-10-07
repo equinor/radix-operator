@@ -30,13 +30,13 @@ func (e taskScheduler) Start() {
 }
 
 // NewTaskScheduler Creates a new task scheduler
-func NewTaskScheduler(ctx context.Context, task tasks.Task, scheduleSpec string) (TaskScheduler, error) {
+func NewTaskScheduler(ctx context.Context, task tasks.Task, cronSpec string) (TaskScheduler, error) {
 	taskLogger := internal.NewLogger(ctx)
 	c := cron.New(cron.WithLogger(taskLogger), cron.WithChain(cron.DelayIfStillRunning(taskLogger)))
-	if _, err := c.AddFunc(scheduleSpec, task.Run); err != nil {
+	if _, err := c.AddFunc(cronSpec, task.Run); err != nil {
 		return nil, err
 	}
-	log.Ctx(ctx).Info().Msgf("Created schedule %s for the task %s", scheduleSpec, task.String())
+	log.Ctx(ctx).Info().Msgf("Created schedule %s for the task %s", cronSpec, task.String())
 	return &taskScheduler{
 		cron: c,
 	}, nil
