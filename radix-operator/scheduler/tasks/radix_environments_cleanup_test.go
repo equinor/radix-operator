@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -20,7 +20,7 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest(t *testing.T) *kube.Kube {
+func setupTest() *kube.Kube {
 	kubeClient := kubefake.NewSimpleClientset()
 	radixClient := radixfake.NewSimpleClientset()
 	kedaClient := kedafake.NewSimpleClientset()
@@ -32,7 +32,7 @@ func setupTest(t *testing.T) *kube.Kube {
 type envProps struct {
 	name              string
 	orphaned          bool
-	orphanedTimestamp string
+	orphanedTimestamp *metav1.Time
 }
 
 func TestCleanupRadixEnvironments(t *testing.T) {
@@ -47,8 +47,8 @@ func TestCleanupRadixEnvironments(t *testing.T) {
 		env2            = "env2"
 	)
 	now := time.Now()
-	expiredOrphanedTimestamp := commonUtils.FormatTimestamp(now.Add(time.Hour * -5))
-	notExpiredOrphanedTimestamp := commonUtils.FormatTimestamp(now.Add(time.Hour * 5))
+	expiredOrphanedTimestamp := pointers.Ptr(metav1.Time{Time: now.Add(time.Hour * -5)})
+	notExpiredOrphanedTimestamp := pointers.Ptr(metav1.Time{Time: now.Add(time.Hour * 5)})
 	scenarios := []scenario{
 		{
 			name:                 "No environments",
@@ -89,7 +89,7 @@ func TestCleanupRadixEnvironments(t *testing.T) {
 	}
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			kubeUtil := setupTest(t)
+			kubeUtil := setupTest()
 			task := tasks.NewRadixEnvironmentsCleanup(context.Background(), kubeUtil, retentionPeriod)
 			for _, envProp := range ts.existingEnvironments {
 				_, err := kubeUtil.RadixClient().RadixV1().RadixEnvironments().Create(context.Background(), createRadixEnvironment(envProp), metav1.CreateOptions{})

@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
-	radixutils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -169,11 +168,11 @@ func (app *ApplicationConfig) handleOrphanedEnvironments(ctx context.Context, sy
 		origOrphanedTimestamp := re.Status.OrphanedTimestamp
 		_, existsInApp := appEnvNames[re.Spec.EnvName]
 		if existsInApp {
-			if re.Status.OrphanedTimestamp == "" {
-				re.Status.OrphanedTimestamp = radixutils.FormatTimestamp(time.Now())
+			if re.Status.OrphanedTimestamp == nil {
+				re.Status.OrphanedTimestamp = pointers.Ptr(syncTime)
 			}
 		} else {
-			re.Status.OrphanedTimestamp = ""
+			re.Status.OrphanedTimestamp = nil
 		}
 		re.Status.Orphaned = !existsInApp
 		if origOrphaned != re.Status.Orphaned || origOrphanedTimestamp != re.Status.OrphanedTimestamp {

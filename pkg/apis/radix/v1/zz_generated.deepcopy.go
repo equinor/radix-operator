@@ -2111,6 +2111,10 @@ func (in *RadixEnvironmentSpec) DeepCopy() *RadixEnvironmentSpec {
 func (in *RadixEnvironmentStatus) DeepCopyInto(out *RadixEnvironmentStatus) {
 	*out = *in
 	in.Reconciled.DeepCopyInto(&out.Reconciled)
+	if in.OrphanedTimestamp != nil {
+		in, out := &in.OrphanedTimestamp, &out.OrphanedTimestamp
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

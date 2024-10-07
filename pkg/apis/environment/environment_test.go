@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
@@ -212,7 +211,8 @@ func Test_Orphaned_Status(t *testing.T) {
 
 	t.Run("Orphaned is true when app config nil", func(t *testing.T) {
 		assert.True(t, env.config.Status.Orphaned)
-		assert.Equal(t, commonUtils.FormatTimestamp(testTime1.Time), env.config.Status.OrphanedTimestamp)
+		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
+		assert.Equal(t, testTime1.Time, env.config.Status.OrphanedTimestamp.Time)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
@@ -223,7 +223,7 @@ func Test_Orphaned_Status(t *testing.T) {
 
 	t.Run("Orphaned is false when app config contains environment name", func(t *testing.T) {
 		assert.False(t, env.config.Status.Orphaned)
-		assert.Empty(t, env.config.Status.OrphanedTimestamp)
+		assert.Nil(t, env.config.Status.OrphanedTimestamp)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
@@ -234,7 +234,8 @@ func Test_Orphaned_Status(t *testing.T) {
 
 	t.Run("Orphaned is true when app config is cleared", func(t *testing.T) {
 		assert.True(t, env.config.Status.Orphaned)
-		assert.Equal(t, commonUtils.FormatTimestamp(testTime2.Time), env.config.Status.OrphanedTimestamp)
+		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
+		assert.Equal(t, testTime2.Time, env.config.Status.OrphanedTimestamp.Time)
 	})
 }
 

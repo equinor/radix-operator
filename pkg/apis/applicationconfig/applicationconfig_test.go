@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -702,9 +701,9 @@ func Test_DeleteRestoreEnvironments(t *testing.T) {
 	assert.Len(t, environmentList.Items, 2, "There should be two environment")
 	envMap := convertToEnvMap(environmentList)
 	assert.False(t, envMap[env1].Status.Orphaned, "Orphaned should be false for env1")
-	assert.Empty(t, envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env1")
+	assert.Nil(t, envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be nil for env1")
 	assert.False(t, envMap[env2].Status.Orphaned, "Orphaned should be false for env2")
-	assert.Empty(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env2")
+	assert.Nil(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be nil for env2")
 
 	app := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, radixRegistration,
 		applicationBuilder.WithApplicationEnvironmentBuilders(
@@ -720,11 +719,11 @@ func Test_DeleteRestoreEnvironments(t *testing.T) {
 	assert.Len(t, environmentList.Items, 3, "There should be three environments")
 	envMap = convertToEnvMap(environmentList)
 	assert.True(t, envMap[env1].Status.Orphaned, "Orphaned should be true for env1")
-	assert.Equal(t, commonUtils.FormatTimestamp(syncTime1), envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
+	assert.Equal(t, syncTime1, envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
 	assert.False(t, envMap[env2].Status.Orphaned, "Orphaned should be false for env2")
-	assert.Empty(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env3")
+	assert.Nil(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be nil for env3")
 	assert.False(t, envMap[env3].Status.Orphaned, "Orphaned should be false for env2")
-	assert.Empty(t, envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env3")
+	assert.Nil(t, envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be nil for env3")
 
 	app = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, radixRegistration,
 		applicationBuilder.WithApplicationEnvironmentBuilders(
@@ -739,11 +738,11 @@ func Test_DeleteRestoreEnvironments(t *testing.T) {
 	assert.Len(t, environmentList.Items, 3, "There should be three environments")
 	envMap = convertToEnvMap(environmentList)
 	assert.True(t, envMap[env1].Status.Orphaned, "Orphaned should be true for env1")
-	assert.Equal(t, commonUtils.FormatTimestamp(syncTime1), envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
+	assert.Equal(t, syncTime1, envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
 	assert.False(t, envMap[env2].Status.Orphaned, "Orphaned should be false for env2")
-	assert.Empty(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env2")
+	assert.Nil(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be nil for env2")
 	assert.True(t, envMap[env3].Status.Orphaned, "Orphaned should be true for env3")
-	assert.Equal(t, commonUtils.FormatTimestamp(syncTime2), envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env3")
+	assert.Equal(t, syncTime2, envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env3")
 
 	app = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, radixRegistration,
 		applicationBuilder.WithApplicationEnvironmentBuilders(
@@ -759,11 +758,11 @@ func Test_DeleteRestoreEnvironments(t *testing.T) {
 	assert.Len(t, environmentList.Items, 3, "There should be three environments")
 	envMap = convertToEnvMap(environmentList)
 	assert.False(t, envMap[env1].Status.Orphaned, "Orphaned should be false for env1")
-	assert.Empty(t, envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env1")
+	assert.Nil(t, envMap[env1].Status.OrphanedTimestamp, "OrphanedTimestamp should be nil for env1")
 	assert.False(t, envMap[env2].Status.Orphaned, "Orphaned should be false for env2")
-	assert.Empty(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be empty for env2")
+	assert.Nil(t, envMap[env2].Status.OrphanedTimestamp, "OrphanedTimestamp should be nil for env2")
 	assert.True(t, envMap[env3].Status.Orphaned, "Orphaned should be true for env1")
-	assert.Equal(t, commonUtils.FormatTimestamp(syncTime2), envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
+	assert.Equal(t, syncTime2, envMap[env3].Status.OrphanedTimestamp, "OrphanedTimestamp should be set for env1")
 }
 
 func convertToEnvMap(environmentList *radixv1.RadixEnvironmentList) map[string]radixv1.RadixEnvironment {

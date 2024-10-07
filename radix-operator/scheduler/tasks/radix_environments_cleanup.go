@@ -43,10 +43,7 @@ func (e *environmentsCleanup) Run() {
 		return
 	}
 	var errs []error
-	outdatedOrphanedEnvironments, err := getOutdatedOrphanedEnvironments(radixEnvironments, e.retentionPeriod)
-	if err != nil {
-		errs = append(errs, err)
-	}
+	outdatedOrphanedEnvironments := getOutdatedOrphanedEnvironments(radixEnvironments, e.retentionPeriod)
 	for _, outdatedEnvironment := range outdatedOrphanedEnvironments {
 		if err = e.kubeUtil.DeleteEnvironment(e.ctx, outdatedEnvironment.GetName()); err != nil && !k8serrors.IsNotFound(err) {
 			errs = append(errs, fmt.Errorf("error deleting of the outdated orphaned environment %s: %w", outdatedEnvironment.GetName(), err))
@@ -59,17 +56,8 @@ func (e *environmentsCleanup) Run() {
 	}
 }
 
-func getOutdatedOrphanedEnvironments(radixEnvironments []*radixv1.RadixEnvironment, retentionPeriod time.Duration) ([]*radixv1.RadixEnvironment, error) {
-	var errs []error
+func getOutdatedOrphanedEnvironments(radixEnvironments []*radixv1.RadixEnvironment, retentionPeriod time.Duration) []*radixv1.RadixEnvironment {
 	return slice.FindAll(radixEnvironments, func(re *radixv1.RadixEnvironment) bool {
-		if !re.Status.Orphaned || re.Status.OrphanedTimestamp == "" {
-			return false
-		}
-		timestamp, err := time.Parse(time.RFC3339, re.Status.OrphanedTimestamp)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to parse orphaned timestamp in environment %s: %w", re.GetName(), err))
-			return false
-		}
-		return timestamp.Before(time.Now().Add(-retentionPeriod))
-	}), errors.Join(errs...)
+		return re.Status.Orphaned && re.Status.OrphanedTimestamp != nil && re.Status.OrphanedTimestamp.Time.Before(time.Now().Add(-retentionPeriod))
+	})
 }
