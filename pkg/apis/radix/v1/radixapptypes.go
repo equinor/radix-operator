@@ -1473,6 +1473,11 @@ type Ingress struct {
 // +kubebuilder:validation:Pattern=`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`
 type IPOrCIDR string
 
+// NGINX size format.
+//
+// +kubebuilder:validation:Pattern=`^(?:0|[1-9][0-9]*[kKmMgG]?)$`
+type NginxSizeFormat string
+
 // Ingress defines settings for ingress traffic.
 type IngressPublic struct {
 	// Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
@@ -1480,7 +1485,29 @@ type IngressPublic struct {
 	// +optional
 	Allow *[]IPOrCIDR `json:"allow,omitempty"`
 
-	// This is where we will add additional fields used for configuring the Ingress Nginx controller.
+	// Defines a timeout, in seconds, for reading a response from the proxied server.
+	// The timeout is set only between two successive read operations, not for the transmission of the whole response.
+	// If the proxied server does not transmit anything within this time, the connection is closed.
+	//
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	ProxyReadTimeout *uint `json:"proxyReadTimeout,omitempty"`
+
+	// Defines a timeout, in seconds, for transmitting a request to the proxied server.
+	// The timeout is set only between two successive write operations, not for the transmission of the whole request.
+	// If the proxied server does not receive anything within this time, the connection is closed.
+	//
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	ProxySendTimeout *uint `json:"proxySendTimeout,omitempty"`
+
+	// Sets the maximum allowed size of the client request body.
+	// Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
+	// If the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.
+	// Setting size to 0 disables checking of client request body size.
+	//
+	// +optional
+	ProxyBodySize *NginxSizeFormat `json:"proxyBodySize,omitempty"`
 }
 
 // RadixCommonComponent defines a common component interface for Radix components
