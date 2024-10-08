@@ -2,7 +2,10 @@ package deploy
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
+	"sync"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -14,6 +17,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -69,11 +73,32 @@ func (cli *DeployConfigStepImplementation) deploy(ctx context.Context, pipelineI
 		log.Ctx(ctx).Info().Msg("skip deploy step")
 		return nil
 	}
-
+	var deployedEnvs, notDeployedEnvs []string
+	var errs []error
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 	for envName, envConfig := range envConfigToDeploy {
-		if err := cli.deployToEnv(ctx, appName, envName, envConfig, pipelineInfo); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer mu.Unlock()
+			if err := cli.deployToEnv(ctx, appName, envName, envConfig, pipelineInfo); err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				notDeployedEnvs = append(notDeployedEnvs, envName)
+			} else {
+				mu.Lock()
+				deployedEnvs = append(deployedEnvs, envName)
+			}
+		}()
+	}
+	wg.Wait()
+	if len(deployedEnvs) == 0 {
+		return errors.Join(errs...)
+	}
+	log.Ctx(ctx).Info().Msgf("Deployed app config %s to environments %v", appName, strings.Join(deployedEnvs, ","))
+	if errs != nil {
+		log.Ctx(ctx).Error().Err(errors.Join(errs...)).Msgf("Failed to deploy app config %s to environments %v", appName, strings.Join(notDeployedEnvs, ","))
 	}
 	return nil
 }
@@ -85,21 +110,14 @@ func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appN
 		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
 
-	radixApplicationHash, err := internal.CreateRadixApplicationHash(pipelineInfo.RadixApplication)
-	if err != nil {
-		return err
-	}
-
-	buildSecretHash, err := internal.CreateBuildSecretHash(pipelineInfo.BuildSecret)
-	if err != nil {
-		return err
-	}
-
 	activeRd, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, envName))
 	if err != nil {
 		return err
 	}
-	radixDeployment, err := constructForTargetEnvironment(pipelineInfo, activeRd, envName)
+	if activeRd == nil {
+		return fmt.Errorf("failed to get active Radix deployment in environment %s - the config cannot be applied", envName)
+	}
+	radixDeployment, err := constructForTargetEnvironment(pipelineInfo, activeRd)
 
 	if err != nil {
 		return fmt.Errorf("failed to create Radix deployment in environment %s. %w", envName, err)
@@ -116,17 +134,18 @@ func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appN
 		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
 	}
 
-	if err := cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {
+	if err = cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Failed to activate Radix deployment %s in environment %s. Deleting deployment", radixDeploymentName, envName)
-		if err := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); err != nil {
-			log.Ctx(ctx).Error().Err(err).Msgf("Failed to delete Radix deployment")
+		if deleteErr := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); deleteErr != nil && !k8serrors.IsNotFound(deleteErr) {
+			log.Ctx(ctx).Error().Err(deleteErr).Msgf("Failed to delete Radix deployment")
 		}
 		return err
 	}
 	return nil
 }
 
-func constructForTargetEnvironment(pipelineInfo *model.PipelineInfo, activeRd *radixv1.RadixDeployment, envVars radixv1.EnvVarsMap) (interface{}, error) {
+func constructForTargetEnvironment(pipelineInfo *model.PipelineInfo, activeRd *radixv1.RadixDeployment) (*radixv1.RadixDeployment, error) {
+	envVars := getDefaultEnvVars(pipelineInfo)
 	commitID := envVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := envVars[defaults.RadixGitTagsEnvironmentVariable]
 	radixDeployment := activeRd.DeepCopy()

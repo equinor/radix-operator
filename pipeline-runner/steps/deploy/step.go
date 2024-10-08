@@ -12,6 +12,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -122,10 +123,10 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
 	}
 
-	if err := cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {
+	if err = cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Failed to activate Radix deployment %s in environment %s. Deleting deployment", radixDeploymentName, envName)
-		if err := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); err != nil {
-			log.Ctx(ctx).Error().Err(err).Msgf("Failed to delete Radix deployment")
+		if deleteErr := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); deleteErr != nil && !k8serrors.IsNotFound(deleteErr) {
+			log.Ctx(ctx).Error().Err(deleteErr).Msgf("Failed to delete Radix deployment")
 		}
 		return err
 	}
