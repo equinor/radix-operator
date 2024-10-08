@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -151,11 +150,4 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (app *ApplicationConfig) getAppEnvNames() map[string]struct{} {
-	return slice.Reduce(app.config.Spec.Environments, make(map[string]struct{}), func(acc map[string]struct{}, env radixv1.Environment) map[string]struct{} {
-		acc[env.Name] = struct{}{}
-		return acc
-	})
 }

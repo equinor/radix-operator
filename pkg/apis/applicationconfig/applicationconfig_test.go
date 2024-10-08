@@ -674,13 +674,6 @@ func Test_IsConfigBranch(t *testing.T) {
 	})
 }
 
-func convertToEnvMap(environmentList *radixv1.RadixEnvironmentList) map[string]radixv1.RadixEnvironment {
-	return slice.Reduce(environmentList.Items, make(map[string]radixv1.RadixEnvironment), func(acc map[string]radixv1.RadixEnvironment, environment radixv1.RadixEnvironment) map[string]radixv1.RadixEnvironment {
-		acc[environment.Spec.EnvName] = environment
-		return acc
-	})
-}
-
 func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
