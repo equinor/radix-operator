@@ -12,15 +12,19 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
+	"github.com/equinor/radix-operator/pkg/apis/config/task"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
 const (
-	minPipelineJobsHistoryLimit       = 3
-	minDeploymentsHistoryLimit        = 3
-	minPipelineJobsHistoryPeriodLimit = time.Hour * 24
+	minPipelineJobsHistoryLimit                = 3
+	minDeploymentsHistoryLimit                 = 3
+	minPipelineJobsHistoryPeriodLimit          = time.Hour * 24
+	minOrphanedEnvironmentsRetentionPeriod     = time.Minute * 5
+	defaultOrphanedEnvironmentsRetentionPeriod = time.Hour * 24 * 30
+	defaultOrphanedEnvironmentsCleanupCron     = "0 0 * * *"
 )
 
 // Gets pipeline job history limit per each list, grouped by pipeline environment and job status
@@ -106,5 +110,27 @@ func NewConfig() *apiconfig.Config {
 		ContainerRegistryConfig: containerregistry.Config{
 			ExternalRegistryAuthSecret: viper.GetString(defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable),
 		},
+		TaskConfig: &task.Config{
+			OrphanedRadixEnvironmentsRetentionPeriod: getOrphanedRadixEnvironmentsRetentionPeriod(),
+			OrphanedEnvironmentsCleanupCron:          getOrphanedEnvironmentsCleanupCron(),
+		},
 	}
+}
+
+func getOrphanedEnvironmentsCleanupCron() string {
+	cronExpression := viper.GetString(defaults.RadixOrphanedEnvironmentsCleanupCronVariable)
+	if cronExpression == "" {
+		log.Error().Msgf("Invalid or empty orphaned Radix environment cleanup cron expression, set default expression %s", defaultOrphanedEnvironmentsCleanupCron)
+		return defaultOrphanedEnvironmentsCleanupCron
+	}
+	return cronExpression
+}
+
+func getOrphanedRadixEnvironmentsRetentionPeriod() time.Duration {
+	duration := viper.GetDuration(defaults.RadixOrphanedEnvironmentsRetentionPeriodVariable)
+	if duration < minOrphanedEnvironmentsRetentionPeriod {
+		log.Error().Msgf("Invalid or too short orphaned Radix environment retention period %s, set default period %s", duration.String(), defaultOrphanedEnvironmentsRetentionPeriod.String())
+		return defaultOrphanedEnvironmentsRetentionPeriod
+	}
+	return duration
 }

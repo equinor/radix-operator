@@ -10,7 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -53,7 +53,7 @@ func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radi
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
 
-func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*v1.RadixRegistration, *v1.RadixEnvironment, Environment, error) {
+func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*radixv1.RadixRegistration, *radixv1.RadixEnvironment, Environment, error) {
 	rr, _ := utils.GetRadixRegistrationFromFile(regConfigFileName)
 	re, _ := utils.GetRadixEnvironmentFromFile(radixEnvFileName)
 	nw, _ := networkpolicy.NewNetworkPolicy(client, kubeUtil, re.Spec.AppName)
@@ -71,7 +71,7 @@ func Test_Create_Namespace(t *testing.T) {
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env)
+	sync(t, &env, metav1.NewTime(time.Now().UTC()))
 
 	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
@@ -104,7 +104,7 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env)
+	sync(t, &env, metav1.NewTime(time.Now().UTC()))
 
 	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
@@ -137,7 +137,7 @@ func Test_Create_EgressRules(t *testing.T) {
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, egressRuleEnvConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env)
+	sync(t, &env, metav1.NewTime(time.Now().UTC()))
 
 	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
@@ -159,7 +159,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env)
+	sync(t, &env, metav1.NewTime(time.Now().UTC()))
 
 	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.Background(), metav1.ListOptions{})
 
@@ -184,7 +184,7 @@ func Test_Create_LimitRange(t *testing.T) {
 	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env)
+	sync(t, &env, metav1.NewTime(time.Now().UTC()))
 
 	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(context.Background(), metav1.ListOptions{})
 
@@ -206,43 +206,49 @@ func Test_Orphaned_Status(t *testing.T) {
 	require.NoError(t, err)
 
 	env.appConfig = nil
-	sync(t, &env)
+	testTime1 := metav1.NewTime(time.Now().UTC())
+	sync(t, &env, testTime1)
 
 	t.Run("Orphaned is true when app config nil", func(t *testing.T) {
 		assert.True(t, env.config.Status.Orphaned)
+		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
+		assert.Equal(t, testTime1.Time, env.config.Status.OrphanedTimestamp.Time)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
 		WithAppName("testapp").
 		WithEnvironment("testenv", "master").
 		BuildRA()
-	sync(t, &env)
+	sync(t, &env, metav1.NewTime(time.Now().UTC()))
 
 	t.Run("Orphaned is false when app config contains environment name", func(t *testing.T) {
 		assert.False(t, env.config.Status.Orphaned)
+		assert.Nil(t, env.config.Status.OrphanedTimestamp)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
 		WithAppName("testapp").
 		BuildRA()
-	sync(t, &env)
+	testTime2 := metav1.NewTime(time.Now().UTC())
+	sync(t, &env, testTime2)
 
 	t.Run("Orphaned is true when app config is cleared", func(t *testing.T) {
 		assert.True(t, env.config.Status.Orphaned)
+		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
+		assert.Equal(t, testTime2.Time, env.config.Status.OrphanedTimestamp.Time)
 	})
 }
 
 // sync calls OnSync on the Environment resource and asserts success
-func sync(t *testing.T, env *Environment) {
-	time := metav1.NewTime(time.Now().UTC())
-	err := env.OnSync(context.Background(), time)
+func sync(t *testing.T, env *Environment, testTime metav1.Time) {
+	err := env.OnSync(context.Background(), testTime)
 
 	t.Run("Method succeeds", func(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
 	t.Run("Reconciled time is set", func(t *testing.T) {
-		assert.Equal(t, time, env.config.Status.Reconciled)
+		assert.Equal(t, testTime, env.config.Status.Reconciled)
 	})
 }
 

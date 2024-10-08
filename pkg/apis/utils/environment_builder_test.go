@@ -43,7 +43,7 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 	assert.Equal(t, "", re.Spec.EnvName)
 
 	// Status
-	assert.True(t, re.Status.Orphaned)
+	assert.False(t, re.Status.Orphaned)
 	assert.Equal(t, minTime, re.Status.Reconciled)
 }
 

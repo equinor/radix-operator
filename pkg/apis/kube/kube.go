@@ -28,7 +28,7 @@ const (
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"
 	RadixDeploymentPromotedFromDeploymentAnnotation  = "radix.equinor.com/radix-deployment-promoted-from-deployment"
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
-	// RadixDeploymentObservedGeneration Used to verify kubernetes deployements are synced with active radix deployment, must contain the active RadixDeployments synced Generation
+	// RadixDeploymentObservedGeneration Used to verify kubernetes deployments are synced with active radix deployment, must contain the active RadixDeployments synced Generation
 	RadixDeploymentObservedGeneration = "radix.equinor.com/radix-deployment-observed-generation"
 	// RestoredStatusAnnotation See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"

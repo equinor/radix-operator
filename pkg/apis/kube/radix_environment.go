@@ -31,6 +31,16 @@ func (kubeutil *Kube) GetEnvironment(ctx context.Context, name string) (*radixv1
 	return environment, nil
 }
 
+// ListEnvironmentsWithSelector Gets lists environments with label selector
+func (kubeutil *Kube) ListEnvironmentsWithSelector(ctx context.Context, labelSelectorString string) ([]*radixv1.RadixEnvironment, error) {
+	listOptions := metav1.ListOptions{LabelSelector: labelSelectorString}
+	list, err := kubeutil.radixclient.RadixV1().RadixEnvironments().List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return slice.PointersOf(list.Items).([]*radixv1.RadixEnvironment), nil
+}
+
 // ListEnvironments lists environments from cache if lister is present
 func (kubeutil *Kube) ListEnvironments(ctx context.Context) ([]*radixv1.RadixEnvironment, error) {
 	var environments []*radixv1.RadixEnvironment
@@ -62,4 +72,14 @@ func (kubeutil *Kube) UpdateRadixEnvironment(ctx context.Context, radixEnvironme
 	}
 	log.Ctx(ctx).Debug().Msgf("Updated RadixEnvironment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
 	return updated, nil
+}
+
+// DeleteEnvironment Deletes RadixEnvironment
+func (kubeutil *Kube) DeleteEnvironment(ctx context.Context, name string) error {
+	log.Ctx(ctx).Debug().Msgf("Delete RadixEnvironment %s", name)
+	if err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		return fmt.Errorf("failed to delete RadixEnvironment object: %v", err)
+	}
+	log.Ctx(ctx).Debug().Msgf("Deleted RadixEnvironment %s", name)
+	return nil
 }

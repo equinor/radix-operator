@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -86,7 +86,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Cont
 
 	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(ctx, app.config.Name, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8errors.IsNotFound(err) {
 			app.logger.Debug().Msgf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
 			if err = radixvalidators.CanRadixApplicationBeInserted(ctx, app.radixclient, app.config, app.dnsAliasConfig); err != nil {
 				return err
