@@ -2,12 +2,10 @@ package applicationconfig
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -15,7 +13,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -154,34 +151,6 @@ func (app *ApplicationConfig) OnSync(ctx context.Context, time metav1.Time) erro
 	}
 
 	return nil
-}
-
-func (app *ApplicationConfig) handleOrphanedEnvironments(ctx context.Context, syncTime metav1.Time) error {
-	radixEnvironments, err := app.kubeutil.ListEnvironmentsWithSelector(ctx, labels.ForApplicationName(app.config.Name).String())
-	if err != nil {
-		return err
-	}
-	appEnvNames := app.getAppEnvNames()
-	var errs []error
-	for _, re := range radixEnvironments {
-		origOrphaned := re.Status.Orphaned
-		origOrphanedTimestamp := re.Status.OrphanedTimestamp
-		_, existsInApp := appEnvNames[re.Spec.EnvName]
-		if existsInApp {
-			if re.Status.OrphanedTimestamp == nil {
-				re.Status.OrphanedTimestamp = pointers.Ptr(syncTime)
-			}
-		} else {
-			re.Status.OrphanedTimestamp = nil
-		}
-		re.Status.Orphaned = !existsInApp
-		if origOrphaned != re.Status.Orphaned || origOrphanedTimestamp != re.Status.OrphanedTimestamp {
-			if err = utils.UpdateRadixEnvironmentStatus(ctx, app.radixclient, app.config, re, syncTime); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-	return errors.Join(errs...)
 }
 
 func (app *ApplicationConfig) getAppEnvNames() map[string]struct{} {

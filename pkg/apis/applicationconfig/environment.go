@@ -19,9 +19,6 @@ func (app *ApplicationConfig) syncEnvironments(ctx context.Context, syncTime met
 			errs = append(errs, err)
 		}
 	}
-	// if err := app.handleOrphanedEnvironments(ctx, syncTime); err != nil {
-	// 	errs = append(errs, err)
-	// }
 	return errors.Join(errs...)
 }
 
