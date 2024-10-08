@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
@@ -56,7 +55,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
-		err := app.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
+		err := app.OnSync(context.Background())
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.Background(),
@@ -67,7 +66,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
-		err := app.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
+		err := app.OnSync(context.Background())
 		assert.NoError(t, err)
 		environments, _ := radixClient.RadixV1().RadixEnvironments().List(
 			context.Background(),
@@ -121,7 +120,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
-	err = app.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
+	err = app.OnSync(context.Background())
 	assert.NoError(t, err)
 	environments, err := radixClient.RadixV1().RadixEnvironments().List(
 		context.Background(),
@@ -734,7 +733,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 
 	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 
-	err = applicationConfig.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
+	err = applicationConfig.OnSync(context.Background())
 	if err != nil {
 		return err
 	}

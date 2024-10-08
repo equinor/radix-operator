@@ -147,6 +147,7 @@ func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, 
 		errs = append(errs, fmt.Errorf("failed to create environment cleanup task: %w", err))
 	} else {
 		taskSchedulers = append(taskSchedulers, envCleanupTask)
+		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.config.TaskConfig.OrphanedEnvironmentsCleanupCron)
 	}
 	return taskSchedulers, stderrors.Join(errs...)
 }

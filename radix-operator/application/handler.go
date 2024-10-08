@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"time"
 
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
@@ -79,7 +78,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	syncApplication := radixApplication.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync application %s", syncApplication.Name)
 	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsConfig)
-	err = applicationConfig.OnSync(ctx, metav1.NewTime(time.Now().UTC()))
+	err = applicationConfig.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue

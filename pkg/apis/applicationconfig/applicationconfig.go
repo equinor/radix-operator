@@ -127,11 +127,11 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Cont
 // OnSync is called when an application config is applied to application namespace
 // It compares the actual state with the desired, and attempts to
 // converge the two
-func (app *ApplicationConfig) OnSync(ctx context.Context, time metav1.Time) error {
+func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixApplication).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 
-	if err := app.syncEnvironments(ctx, time); err != nil {
+	if err := app.syncEnvironments(ctx); err != nil {
 		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}
 	if err := app.syncPrivateImageHubSecrets(ctx); err != nil {

@@ -4,6 +4,4 @@ package tasks
 type Task interface {
 	// Run Runs the task
 	Run()
-	// String Returns the task description
-	String() string
 }

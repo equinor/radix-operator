@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/scheduler/internal"
 	"github.com/equinor/radix-operator/radix-operator/scheduler/tasks"
 	"github.com/robfig/cron/v3"
-	"github.com/rs/zerolog/log"
 )
 
 // TaskScheduler Interface for scheduling tasks
@@ -36,7 +35,6 @@ func NewTaskScheduler(ctx context.Context, task tasks.Task, cronSpec string) (Ta
 	if _, err := c.AddFunc(cronSpec, task.Run); err != nil {
 		return nil, err
 	}
-	log.Ctx(ctx).Info().Msgf("Created schedule %s for the task %s", cronSpec, task.String())
 	return &taskScheduler{
 		cron: c,
 	}, nil

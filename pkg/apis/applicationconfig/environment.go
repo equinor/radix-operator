@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func (app *ApplicationConfig) syncEnvironments(ctx context.Context, syncTime metav1.Time) error {
+func (app *ApplicationConfig) syncEnvironments(ctx context.Context) error {
 	var errs []error
 	for _, env := range app.config.Spec.Environments {
 		if err := app.syncEnvironment(ctx, app.buildRadixEnvironment(env)); err != nil {

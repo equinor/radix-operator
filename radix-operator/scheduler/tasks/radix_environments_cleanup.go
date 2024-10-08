@@ -29,11 +29,6 @@ func NewRadixEnvironmentsCleanup(ctx context.Context, kubeUtil *kube.Kube, reten
 	}
 }
 
-// String Returns the task description
-func (e *environmentsCleanup) String() string {
-	return "RadixEnvironments cleanup task"
-}
-
 // Run Runs the cleanup task
 func (e *environmentsCleanup) Run() {
 	log.Ctx(e.ctx).Debug().Msgf("Cleanup orphaned RadixEnvironments out of the retention period %s", e.retentionPeriod.String())
