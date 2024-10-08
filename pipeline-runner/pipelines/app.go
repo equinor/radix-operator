@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/build"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deploy"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/deployconfig"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
@@ -125,6 +126,7 @@ func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registra
 	stepImplementations = append(stepImplementations, build.NewBuildStep(nil))
 	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep(nil))
 	stepImplementations = append(stepImplementations, deploy.NewDeployStep(watcher.NewNamespaceWatcherImpl(cli.kubeclient), watcher.NewRadixDeploymentWatcher(cli.radixclient, time.Minute*5)))
+	stepImplementations = append(stepImplementations, deployconfig.NewDeployConfigStep(watcher.NewNamespaceWatcherImpl(cli.kubeclient), watcher.NewRadixDeploymentWatcher(cli.radixclient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, promote.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {
