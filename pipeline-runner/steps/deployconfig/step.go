@@ -60,7 +60,8 @@ func (cli *DeployConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 }
 
 type envDeployConfig struct {
-	externalDNSAliases []radixv1.ExternalAlias
+	externalDNSAliases    []radixv1.ExternalAlias
+	activeRadixDeployment *radixv1.RadixDeployment
 }
 
 // Deploy Handles deploy step of the pipeline
@@ -68,21 +69,35 @@ func (cli *DeployConfigStepImplementation) deploy(ctx context.Context, pipelineI
 	appName := cli.GetAppName()
 	log.Ctx(ctx).Info().Msgf("Deploying app config %s", appName)
 
-	envConfigToDeploy := cli.getEnvConfigToDeploy(pipelineInfo)
+	envConfigToDeploy, err := cli.getEnvConfigToDeploy(ctx, pipelineInfo)
 	if len(envConfigToDeploy) == 0 {
-		log.Ctx(ctx).Info().Msg("skip deploy step")
-		return nil
+		log.Ctx(ctx).Info().Msg("no environments to deploy to")
+		return err
 	}
+	deployedEnvs, notDeployedEnvs, err := cli.deployEnvs(ctx, pipelineInfo, envConfigToDeploy)
+	if len(deployedEnvs) == 0 {
+		return err
+	}
+	log.Ctx(ctx).Info().Msgf("Deployed app config %s to environments %v", appName, strings.Join(deployedEnvs, ","))
+	if err != nil {
+		// some environments failed to deploy, but because some of them where - just log an error and not deployed envs.
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to deploy app config %s to environments %v", appName, strings.Join(notDeployedEnvs, ","))
+	}
+	return nil
+}
+
+func (cli *DeployConfigStepImplementation) deployEnvs(ctx context.Context, pipelineInfo *model.PipelineInfo, envConfigToDeploy map[string]envDeployConfig) ([]string, []string, error) {
+	appName := cli.GetAppName()
 	var deployedEnvs, notDeployedEnvs []string
 	var errs []error
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	for envName, envConfig := range envConfigToDeploy {
+	for envName, deployConfig := range envConfigToDeploy {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			defer mu.Unlock()
-			if err := cli.deployToEnv(ctx, appName, envName, envConfig, pipelineInfo); err != nil {
+			if err := cli.deployToEnv(ctx, appName, envName, deployConfig, pipelineInfo); err != nil {
 				mu.Lock()
 				errs = append(errs, err)
 				notDeployedEnvs = append(notDeployedEnvs, envName)
@@ -93,31 +108,17 @@ func (cli *DeployConfigStepImplementation) deploy(ctx context.Context, pipelineI
 		}()
 	}
 	wg.Wait()
-	if len(deployedEnvs) == 0 {
-		return errors.Join(errs...)
-	}
-	log.Ctx(ctx).Info().Msgf("Deployed app config %s to environments %v", appName, strings.Join(deployedEnvs, ","))
-	if errs != nil {
-		log.Ctx(ctx).Error().Err(errors.Join(errs...)).Msgf("Failed to deploy app config %s to environments %v", appName, strings.Join(notDeployedEnvs, ","))
-	}
-	return nil
+	return deployedEnvs, notDeployedEnvs, errors.Join(errs...)
 }
 
-func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appName, envName string, envConfig envDeployConfig, pipelineInfo *model.PipelineInfo) error {
+func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appName, envName string, deployConfig envDeployConfig, pipelineInfo *model.PipelineInfo) error {
 	defaultEnvVars := getDefaultEnvVars(pipelineInfo)
 
 	if commitID, ok := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]; !ok || len(commitID) == 0 {
 		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
 
-	activeRd, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, envName))
-	if err != nil {
-		return err
-	}
-	if activeRd == nil {
-		return fmt.Errorf("failed to get active Radix deployment in environment %s - the config cannot be applied", envName)
-	}
-	radixDeployment, err := constructForTargetEnvironment(pipelineInfo, activeRd)
+	radixDeployment, err := constructForTargetEnvironment(pipelineInfo, deployConfig)
 
 	if err != nil {
 		return fmt.Errorf("failed to create Radix deployment in environment %s. %w", envName, err)
@@ -141,21 +142,31 @@ func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appN
 		}
 		return err
 	}
+
 	return nil
 }
 
-func constructForTargetEnvironment(pipelineInfo *model.PipelineInfo, activeRd *radixv1.RadixDeployment) (*radixv1.RadixDeployment, error) {
+func constructForTargetEnvironment(pipelineInfo *model.PipelineInfo, deployConfig envDeployConfig) (*radixv1.RadixDeployment, error) {
+	radixDeployment := deployConfig.activeRadixDeployment.DeepCopy()
+
+	setExternalDNSesToRadixDeployment(radixDeployment, deployConfig)
+	if err := setAnnotationsAndLabels(pipelineInfo, radixDeployment); err != nil {
+		return nil, err
+	}
+	return radixDeployment, nil
+}
+
+func setAnnotationsAndLabels(pipelineInfo *model.PipelineInfo, radixDeployment *radixv1.RadixDeployment) error {
 	envVars := getDefaultEnvVars(pipelineInfo)
 	commitID := envVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := envVars[defaults.RadixGitTagsEnvironmentVariable]
-	radixDeployment := activeRd.DeepCopy()
 	radixConfigHash, err := internal.CreateRadixApplicationHash(pipelineInfo.RadixApplication)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	buildSecretHash, err := internal.CreateBuildSecretHash(pipelineInfo.BuildSecret)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	radixDeployment.SetAnnotations(map[string]string{
 		kube.RadixGitTagsAnnotation: gitTags,
@@ -166,20 +177,103 @@ func constructForTargetEnvironment(pipelineInfo *model.PipelineInfo, activeRd *r
 	radixDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	radixDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	radixDeployment.ObjectMeta.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
-	return radixDeployment, nil
+	return nil
 }
 
-func (cli *DeployConfigStepImplementation) getEnvConfigToDeploy(pipelineInfo *model.PipelineInfo) map[string]envDeployConfig {
-	accumulation := make(map[string]envDeployConfig)
-	return slice.Reduce(pipelineInfo.RadixApplication.Spec.DNSExternalAlias, accumulation, func(acc map[string]envDeployConfig, alias radixv1.ExternalAlias) map[string]envDeployConfig {
-		deployConfig, ok := acc[alias.Environment]
-		if !ok {
-			deployConfig = envDeployConfig{}
-		}
-		deployConfig.externalDNSAliases = append(deployConfig.externalDNSAliases, alias)
-		acc[alias.Environment] = deployConfig
+func setExternalDNSesToRadixDeployment(radixDeployment *radixv1.RadixDeployment, deployConfig envDeployConfig) {
+	externalAliasesMap := slice.Reduce(deployConfig.externalDNSAliases, make(map[string][]radixv1.ExternalAlias), func(acc map[string][]radixv1.ExternalAlias, dnsExternalAlias radixv1.ExternalAlias) map[string][]radixv1.ExternalAlias {
+		acc[dnsExternalAlias.Component] = append(acc[dnsExternalAlias.Component], dnsExternalAlias)
 		return acc
 	})
+	for _, deployComponent := range radixDeployment.Spec.Components {
+		deployComponent.ExternalDNS = slice.Map(externalAliasesMap[deployComponent.Name], func(externalAlias radixv1.ExternalAlias) radixv1.RadixDeployExternalDNS {
+			return radixv1.RadixDeployExternalDNS{
+				FQDN: externalAlias.Alias, UseCertificateAutomation: externalAlias.UseCertificateAutomation}
+		})
+	}
+}
+
+func (cli *DeployConfigStepImplementation) getEnvConfigToDeploy(ctx context.Context, pipelineInfo *model.PipelineInfo) (map[string]envDeployConfig, error) {
+	envDeployConfigs := cli.getEnvDeployConfigs(pipelineInfo)
+	haveActiveRd, err := cli.setActiveRadixDeployments(ctx, envDeployConfigs)
+	if err != nil {
+		return nil, err
+	}
+	if !haveActiveRd {
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to get active Radix deployments")
+		return nil, err
+	}
+	if err := cli.setExternalDNSAliasesToEnvDeployConfigs(pipelineInfo, envDeployConfigs); err != nil {
+		return nil, err
+	}
+	applicableEnvDeployConfig := getApplicableEnvDeployConfig(envDeployConfigs, pipelineInfo)
+	return applicableEnvDeployConfig, nil
+}
+
+func getApplicableEnvDeployConfig(envDeployConfigs map[string]envDeployConfig, pipelineInfo *model.PipelineInfo) map[string]envDeployConfig {
+	applicableEnvDeployConfig := make(map[string]envDeployConfig)
+	for envName, deployConfig := range envDeployConfigs {
+		appExternalAliases := slice.FindAll(pipelineInfo.RadixApplication.Spec.DNSExternalAlias, func(dnsExternalAlias radixv1.ExternalAlias) bool { return dnsExternalAlias.Environment == envName })
+		if equalExternalDNSAliases(deployConfig, appExternalAliases) {
+			continue
+		}
+		applicableEnvDeployConfig[envName] = envDeployConfig{
+			externalDNSAliases:    appExternalAliases,
+			activeRadixDeployment: deployConfig.activeRadixDeployment,
+		}
+
+	}
+	return applicableEnvDeployConfig
+}
+
+func equalExternalDNSAliases(deployConfig envDeployConfig, appExternalAliases []radixv1.ExternalAlias) bool {
+	if len(deployConfig.externalDNSAliases) != len(appExternalAliases) {
+		return false
+	}
+	appExternalAliasesMap := slice.Reduce(deployConfig.externalDNSAliases, make(map[string]radixv1.ExternalAlias), func(acc map[string]radixv1.ExternalAlias, dnsExternalAlias radixv1.ExternalAlias) map[string]radixv1.ExternalAlias {
+		acc[dnsExternalAlias.Alias] = dnsExternalAlias
+		return acc
+	})
+	return slice.All(deployConfig.externalDNSAliases, func(dnsExternalAlias radixv1.ExternalAlias) bool {
+		appExternalAlias, ok := appExternalAliasesMap[dnsExternalAlias.Alias]
+		return ok && appExternalAlias.UseCertificateAutomation == dnsExternalAlias.UseCertificateAutomation && appExternalAlias.Component == dnsExternalAlias.Component
+	})
+}
+
+func (cli *DeployConfigStepImplementation) getEnvDeployConfigs(pipelineInfo *model.PipelineInfo) map[string]envDeployConfig {
+	return slice.Reduce(pipelineInfo.RadixApplication.Spec.Environments, make(map[string]envDeployConfig), func(acc map[string]envDeployConfig, env radixv1.Environment) map[string]envDeployConfig {
+		acc[env.Name] = envDeployConfig{}
+		return acc
+	})
+}
+
+func (cli *DeployConfigStepImplementation) setActiveRadixDeployments(ctx context.Context, envDeployConfigs map[string]envDeployConfig) (bool, error) {
+	var errs []error
+	hasActiveRd := false
+	for envName, deployConfig := range envDeployConfigs {
+		if activeRd, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeutil(), utils.GetEnvironmentNamespace(cli.GetAppName(), envName)); err != nil {
+			errs = append(errs, err)
+		} else if activeRd != nil {
+			deployConfig.activeRadixDeployment = activeRd
+			hasActiveRd = true
+		}
+		envDeployConfigs[envName] = deployConfig
+	}
+	return hasActiveRd, errors.Join(errs...)
+}
+
+func (cli *DeployConfigStepImplementation) setExternalDNSAliasesToEnvDeployConfigs(pipelineInfo *model.PipelineInfo, envDeployConfigs map[string]envDeployConfig) error {
+	var errs []error
+	for _, dnsExternalAlias := range pipelineInfo.RadixApplication.Spec.DNSExternalAlias {
+		deployConfig, ok := envDeployConfigs[dnsExternalAlias.Environment]
+		if !ok {
+			errs = append(errs, fmt.Errorf("environment %s used in external DNS not found in RadixApplication", dnsExternalAlias.Environment))
+			continue
+		}
+		deployConfig.externalDNSAliases = append(deployConfig.externalDNSAliases, dnsExternalAlias)
+		envDeployConfigs[dnsExternalAlias.Environment] = deployConfig
+	}
+	return errors.Join(errs...)
 }
 
 func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) radixv1.EnvVarsMap {
