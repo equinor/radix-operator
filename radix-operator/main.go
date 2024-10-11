@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -30,6 +31,8 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
+	"github.com/equinor/radix-operator/radix-operator/scheduler"
+	"github.com/equinor/radix-operator/radix-operator/scheduler/tasks"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/pkg/errors"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -85,10 +88,6 @@ type App struct {
 
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	go func() {
-		<-ctx.Done()
-		log.Ctx(ctx).Info().Msg("Shutting down gracefully")
-	}()
 
 	app, err := initializeApp(ctx)
 	if err != nil {
@@ -139,6 +138,20 @@ func initializeApp(ctx context.Context) (*App, error) {
 	return &app, nil
 }
 
+func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, error) {
+	var errs []error
+	var taskSchedulers []scheduler.TaskScheduler
+	if envCleanupTask, err := scheduler.NewTaskScheduler(ctx,
+		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.config.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod),
+		a.config.TaskConfig.OrphanedEnvironmentsCleanupCron); err != nil {
+		errs = append(errs, fmt.Errorf("failed to create environment cleanup task: %w", err))
+	} else {
+		taskSchedulers = append(taskSchedulers, envCleanupTask)
+		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.config.TaskConfig.OrphanedEnvironmentsCleanupCron)
+	}
+	return taskSchedulers, stderrors.Join(errs...)
+}
+
 func (a *App) Run(ctx context.Context) error {
 	var g errgroup.Group
 	g.SetLimit(-1)
@@ -161,6 +174,7 @@ func (a *App) Run(ctx context.Context) error {
 	g.Go(func() error { return alertController.Run(ctx, a.opts.alertControllerThreads) })
 	g.Go(func() error { return batchController.Run(ctx, 1) })
 	g.Go(func() error { return dnsAliasesController.Run(ctx, a.opts.environmentControllerThreads) })
+	g.Go(func() error { return a.runSchedulers(ctx) })
 
 	// Informers must be started after all controllers are initialized
 	// Therefore we must initialize the controllers outside of go routines
@@ -413,4 +427,27 @@ func Healthz(writer http.ResponseWriter, _ *http.Request) {
 	}
 
 	_, _ = fmt.Fprintf(writer, "%s", response)
+}
+
+func (a *App) runSchedulers(ctx context.Context) error {
+	schedulers, err := a.createSchedulers(ctx)
+	if err != nil {
+		return err
+	}
+	for _, taskScheduler := range schedulers {
+		taskScheduler.Start()
+	}
+
+	<-ctx.Done()
+
+	var wg sync.WaitGroup
+	for _, taskScheduler := range schedulers {
+		wg.Add(1)
+		go func(taskScheduler scheduler.TaskScheduler) {
+			defer wg.Done()
+			<-taskScheduler.Stop().Done()
+		}(taskScheduler)
+	}
+	wg.Wait()
+	return nil
 }

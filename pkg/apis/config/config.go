@@ -6,6 +6,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
+	"github.com/equinor/radix-operator/pkg/apis/config/task"
 )
 
 // Config from environment variables
@@ -17,4 +18,5 @@ type Config struct {
 	CertificateAutomation   certificate.AutomationConfig
 	DeploymentSyncer        deployment.SyncerConfig
 	ContainerRegistryConfig containerregistry.Config
+	TaskConfig              *task.Config
 }
