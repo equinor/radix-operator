@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/deploy"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deployconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -44,27 +43,12 @@ func (s *deployConfigTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 }
 
-func (s *deployConfigTestSuite) Test_EmptyTargetEnvironments_SkipDeployment() {
-	appName := "anyappname"
-	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
-	pipelineInfo := &model.PipelineInfo{
-		TargetEnvironments: []string{},
-	}
-	namespaceWatcher := watcher.NewMockNamespaceWatcher(s.ctrl)
-	namespaceWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any()).Times(0)
-	radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
-	radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
-	cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
-	s.Require().NoError(err)
-}
-
 type scenario struct {
 	name                            string
 	raBuilder                       utils.ApplicationBuilder
 	existingRadixDeploymentBuilders []utils.DeploymentBuilder
 	expectedRadixDeploymentBuilders []utils.DeploymentBuilder
+	affectedEnvs                    []string
 }
 
 func (s *deployConfigTestSuite) TestDeployConfig() {
@@ -79,6 +63,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 		jobName    = "anyjobname"
 		commitId   = "anycommit"
 		gitTags    = "gittags"
+		branch1    = "branch1"
 	)
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 
@@ -87,7 +72,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			ts := scenario{
 				name: "No active deployments",
 				raBuilder: utils.NewRadixApplicationBuilder().WithAppName(appName).
-					WithEnvironment(env1, "main").
+					WithEnvironment(env1, branch1).
 					WithEnvironment(env2, "").
 					WithComponents(
 						utils.AnApplicationComponent().WithName(component1),
@@ -96,6 +81,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			}
 			ts.existingRadixDeploymentBuilders = nil
 			ts.expectedRadixDeploymentBuilders = nil
+			ts.affectedEnvs = nil
 			return ts
 		}(),
 	}
@@ -121,7 +107,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			}
 
 			namespaceWatcher := watcher.NewMockNamespaceWatcher(s.ctrl)
-			namespaceWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any()).Return(nil).Times(len(ra.Spec.Environments))
+			namespaceWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any()).Return(nil).Times(len(ts.affectedEnvs))
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(len(ts.expectedRadixDeploymentBuilders))
 
