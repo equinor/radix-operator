@@ -91,7 +91,7 @@ func (cli *DeployConfigStepImplementation) deployEnvs(ctx context.Context, pipel
 	var deployedEnvs, notDeployedEnvs []string
 	var errs []error
 	var wg sync.WaitGroup
-	var mu sync.Mutex
+	var mu sync.RWMutex
 	for envName, deployConfig := range envConfigToDeploy {
 		wg.Add(1)
 		go func() {

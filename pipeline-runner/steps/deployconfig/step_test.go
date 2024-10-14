@@ -111,8 +111,43 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				WithComponents(
 					utils.AnApplicationComponent().WithName(component1),
 				).
-				WithDNSExternalAlias(alias2, env1, component1, false),
+				WithDNSExternalAlias(alias1, env1, component1, false),
 
+			existingActiveRadixDeploymentBuilders: []utils.DeploymentBuilder{
+				utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(env1).WithImageTag(existingImageTag).WithComponent(
+					utils.NewDeployComponentBuilder().WithName(component1).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: alias1, UseCertificateAutomation: false})).
+					WithActiveFrom(timeNow.Add(-time.Hour * 24 * 7)),
+				utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(env2).WithImageTag(existingImageTag).WithComponent(
+					utils.NewDeployComponentBuilder().WithName(component1).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: alias3, UseCertificateAutomation: false})).
+					WithActiveFrom(timeNow.Add(-time.Hour * 24 * 7)),
+			},
+			expectedActiveRadixDeploymentBuilders: []utils.DeploymentBuilder{
+				utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(env1).WithImageTag(existingImageTag).WithComponent(
+					utils.NewDeployComponentBuilder().WithName(component1).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: alias1, UseCertificateAutomation: false})).
+					WithActiveFrom(timeNow.Add(-time.Hour * 24 * 7)),
+				utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(env2).WithImageTag(existingImageTag).WithComponent(
+					utils.NewDeployComponentBuilder().WithName(component1).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: alias3, UseCertificateAutomation: false})).
+					WithActiveFrom(timeNow.Add(-time.Hour * 24 * 7)),
+			},
+			affectedEnvs: nil,
+		},
+		{
+			name: "Changed alias",
+			existingRaBuilder: utils.NewRadixApplicationBuilder().WithAppName(appName).
+				WithEnvironment(env1, branch1).
+				WithEnvironment(env2, "").
+				WithComponents(
+					utils.AnApplicationComponent().WithName(component1).WithImageTagName(existingImageTag),
+				).
+				WithDNSExternalAlias(alias1, env1, component1, false).
+				WithDNSExternalAlias(alias3, env2, component1, false),
+			applyingRaBuilder: utils.NewRadixApplicationBuilder().WithAppName(appName).
+				WithEnvironment(env1, "").
+				WithEnvironment(env2, "").
+				WithComponents(
+					utils.AnApplicationComponent().WithName(component1).WithImageTagName(existingImageTag),
+				).
+				WithDNSExternalAlias(alias2, env1, component1, false),
 			existingActiveRadixDeploymentBuilders: []utils.DeploymentBuilder{
 				utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(env1).WithImageTag(existingImageTag).WithComponent(
 					utils.NewDeployComponentBuilder().WithName(component1).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: alias1, UseCertificateAutomation: false})).
