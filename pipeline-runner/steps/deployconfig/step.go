@@ -60,7 +60,7 @@ func (cli *DeployConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 }
 
 type envDeployConfig struct {
-	externalDNSAliases    []radixv1.ExternalAlias
+	appExternalDNSAliases []radixv1.ExternalAlias
 	activeRadixDeployment *radixv1.RadixDeployment
 }
 
@@ -118,7 +118,7 @@ func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appN
 		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
 
-	radixDeployment, err := constructForTargetEnvironment(pipelineInfo, deployConfig)
+	radixDeployment, err := constructForTargetEnvironment(appName, envName, pipelineInfo, deployConfig)
 
 	if err != nil {
 		return fmt.Errorf("failed to create Radix deployment in environment %s. %w", envName, err)
@@ -146,8 +146,9 @@ func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appN
 	return nil
 }
 
-func constructForTargetEnvironment(pipelineInfo *model.PipelineInfo, deployConfig envDeployConfig) (*radixv1.RadixDeployment, error) {
+func constructForTargetEnvironment(appName, envName string, pipelineInfo *model.PipelineInfo, deployConfig envDeployConfig) (*radixv1.RadixDeployment, error) {
 	radixDeployment := deployConfig.activeRadixDeployment.DeepCopy()
+	radixDeployment.SetName(utils.GetDeploymentName(appName, envName, pipelineInfo.PipelineArguments.ImageTag))
 
 	setExternalDNSesToRadixDeployment(radixDeployment, deployConfig)
 	if err := setAnnotationsAndLabels(pipelineInfo, radixDeployment); err != nil {
@@ -181,7 +182,7 @@ func setAnnotationsAndLabels(pipelineInfo *model.PipelineInfo, radixDeployment *
 }
 
 func setExternalDNSesToRadixDeployment(radixDeployment *radixv1.RadixDeployment, deployConfig envDeployConfig) {
-	externalAliasesMap := slice.Reduce(deployConfig.externalDNSAliases, make(map[string][]radixv1.ExternalAlias), func(acc map[string][]radixv1.ExternalAlias, dnsExternalAlias radixv1.ExternalAlias) map[string][]radixv1.ExternalAlias {
+	externalAliasesMap := slice.Reduce(deployConfig.appExternalDNSAliases, make(map[string][]radixv1.ExternalAlias), func(acc map[string][]radixv1.ExternalAlias, dnsExternalAlias radixv1.ExternalAlias) map[string][]radixv1.ExternalAlias {
 		acc[dnsExternalAlias.Component] = append(acc[dnsExternalAlias.Component], dnsExternalAlias)
 		return acc
 	})
@@ -203,22 +204,25 @@ func (cli *DeployConfigStepImplementation) getEnvConfigToDeploy(ctx context.Cont
 		log.Ctx(ctx).Error().Err(err).Msg("Failed to get active Radix deployments")
 		return nil, err
 	}
-	if err := cli.setExternalDNSAliasesToEnvDeployConfigs(pipelineInfo, envDeployConfigs); err != nil {
-		return nil, err
-	}
 	applicableEnvDeployConfig := getApplicableEnvDeployConfig(envDeployConfigs, pipelineInfo)
 	return applicableEnvDeployConfig, nil
+}
+
+type activeDeploymentExternalDNS struct {
+	externalDNS   radixv1.RadixDeployExternalDNS
+	componentName string
 }
 
 func getApplicableEnvDeployConfig(envDeployConfigs map[string]envDeployConfig, pipelineInfo *model.PipelineInfo) map[string]envDeployConfig {
 	applicableEnvDeployConfig := make(map[string]envDeployConfig)
 	for envName, deployConfig := range envDeployConfigs {
-		appExternalAliases := slice.FindAll(pipelineInfo.RadixApplication.Spec.DNSExternalAlias, func(dnsExternalAlias radixv1.ExternalAlias) bool { return dnsExternalAlias.Environment == envName })
-		if equalExternalDNSAliases(deployConfig, appExternalAliases) {
+		appExternalDNSAliases := slice.FindAll(pipelineInfo.RadixApplication.Spec.DNSExternalAlias, func(dnsExternalAlias radixv1.ExternalAlias) bool { return dnsExternalAlias.Environment == envName })
+		activeDeploymentExternalDNSes := getActiveDeploymentExternalDNSes(deployConfig)
+		if equalExternalDNSAliases(activeDeploymentExternalDNSes, appExternalDNSAliases) {
 			continue
 		}
 		applicableEnvDeployConfig[envName] = envDeployConfig{
-			externalDNSAliases:    appExternalAliases,
+			appExternalDNSAliases: appExternalDNSAliases,
 			activeRadixDeployment: deployConfig.activeRadixDeployment,
 		}
 
@@ -226,17 +230,29 @@ func getApplicableEnvDeployConfig(envDeployConfigs map[string]envDeployConfig, p
 	return applicableEnvDeployConfig
 }
 
-func equalExternalDNSAliases(deployConfig envDeployConfig, appExternalAliases []radixv1.ExternalAlias) bool {
-	if len(deployConfig.externalDNSAliases) != len(appExternalAliases) {
+func getActiveDeploymentExternalDNSes(deployConfig envDeployConfig) []activeDeploymentExternalDNS {
+	return slice.Reduce(deployConfig.activeRadixDeployment.Spec.Components, make([]activeDeploymentExternalDNS, 0),
+		func(acc []activeDeploymentExternalDNS, component radixv1.RadixDeployComponent) []activeDeploymentExternalDNS {
+			externalDNSes := slice.Map(component.ExternalDNS, func(externalDNS radixv1.RadixDeployExternalDNS) activeDeploymentExternalDNS {
+				return activeDeploymentExternalDNS{componentName: component.Name, externalDNS: externalDNS}
+			})
+			return append(acc, externalDNSes...)
+		})
+}
+
+func equalExternalDNSAliases(activeDeploymentExternalDNSes []activeDeploymentExternalDNS, appExternalAliases []radixv1.ExternalAlias) bool {
+	if len(activeDeploymentExternalDNSes) != len(appExternalAliases) {
 		return false
 	}
-	appExternalAliasesMap := slice.Reduce(deployConfig.externalDNSAliases, make(map[string]radixv1.ExternalAlias), func(acc map[string]radixv1.ExternalAlias, dnsExternalAlias radixv1.ExternalAlias) map[string]radixv1.ExternalAlias {
+	appExternalAliasesMap := slice.Reduce(appExternalAliases, make(map[string]radixv1.ExternalAlias), func(acc map[string]radixv1.ExternalAlias, dnsExternalAlias radixv1.ExternalAlias) map[string]radixv1.ExternalAlias {
 		acc[dnsExternalAlias.Alias] = dnsExternalAlias
 		return acc
 	})
-	return slice.All(deployConfig.externalDNSAliases, func(dnsExternalAlias radixv1.ExternalAlias) bool {
-		appExternalAlias, ok := appExternalAliasesMap[dnsExternalAlias.Alias]
-		return ok && appExternalAlias.UseCertificateAutomation == dnsExternalAlias.UseCertificateAutomation && appExternalAlias.Component == dnsExternalAlias.Component
+	return slice.All(activeDeploymentExternalDNSes, func(activeExternalDNS activeDeploymentExternalDNS) bool {
+		appExternalAlias, ok := appExternalAliasesMap[activeExternalDNS.externalDNS.FQDN]
+		return ok &&
+			appExternalAlias.UseCertificateAutomation == activeExternalDNS.externalDNS.UseCertificateAutomation &&
+			appExternalAlias.Component == activeExternalDNS.componentName
 	})
 }
 
@@ -260,20 +276,6 @@ func (cli *DeployConfigStepImplementation) setActiveRadixDeployments(ctx context
 		envDeployConfigs[envName] = deployConfig
 	}
 	return hasActiveRd, errors.Join(errs...)
-}
-
-func (cli *DeployConfigStepImplementation) setExternalDNSAliasesToEnvDeployConfigs(pipelineInfo *model.PipelineInfo, envDeployConfigs map[string]envDeployConfig) error {
-	var errs []error
-	for _, dnsExternalAlias := range pipelineInfo.RadixApplication.Spec.DNSExternalAlias {
-		deployConfig, ok := envDeployConfigs[dnsExternalAlias.Environment]
-		if !ok {
-			errs = append(errs, fmt.Errorf("environment %s used in external DNS not found in RadixApplication", dnsExternalAlias.Environment))
-			continue
-		}
-		deployConfig.externalDNSAliases = append(deployConfig.externalDNSAliases, dnsExternalAlias)
-		envDeployConfigs[dnsExternalAlias.Environment] = deployConfig
-	}
-	return errors.Join(errs...)
 }
 
 func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) radixv1.EnvVarsMap {
