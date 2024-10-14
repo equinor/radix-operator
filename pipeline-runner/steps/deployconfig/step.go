@@ -88,28 +88,31 @@ func (cli *DeployConfigStepImplementation) deploy(ctx context.Context, pipelineI
 
 func (cli *DeployConfigStepImplementation) deployEnvs(ctx context.Context, pipelineInfo *model.PipelineInfo, envConfigToDeploy map[string]envDeployConfig) ([]string, []string, error) {
 	appName := cli.GetAppName()
-	deployedEnvCh, notDeployedEnvCh, errsCh := make(chan string), make(chan string), make(chan error)
+	deployedEnvCh, notDeployedEnvCh, errsCh, done := make(chan string), make(chan string), make(chan error), make(chan bool)
+	defer close(errsCh)
+	defer close(deployedEnvCh)
+	defer close(notDeployedEnvCh)
+	defer close(done)
 	var notDeployedEnvs, deployedEnvs []string
 	var errs []error
+	go func() {
+		for {
+			select {
+			case envName := <-deployedEnvCh:
+				deployedEnvs = append(deployedEnvs, envName)
+			case envName := <-notDeployedEnvCh:
+				notDeployedEnvs = append(notDeployedEnvs, envName)
+			case err := <-errsCh:
+				errs = append(errs, err)
+			case <-done:
+				return
+			}
+		}
+	}()
 	var wg sync.WaitGroup
-	go func() {
-		for envName := range deployedEnvCh {
-			deployedEnvs = append(deployedEnvs, envName)
-		}
-	}()
-	go func() {
-		for envName := range notDeployedEnvCh {
-			notDeployedEnvs = append(notDeployedEnvs, envName)
-		}
-	}()
-	go func() {
-		for err := range errsCh {
-			errs = append(errs, err)
-		}
-	}()
-	for envName, deployConfig := range envConfigToDeploy {
+	for env, deployConfig := range envConfigToDeploy {
 		wg.Add(1)
-		go func() {
+		go func(envName string) {
 			defer wg.Done()
 			if err := cli.deployToEnv(ctx, appName, envName, deployConfig, pipelineInfo); err != nil {
 				errsCh <- err
@@ -117,12 +120,10 @@ func (cli *DeployConfigStepImplementation) deployEnvs(ctx context.Context, pipel
 			} else {
 				deployedEnvCh <- envName
 			}
-		}()
+		}(env)
 	}
 	wg.Wait()
-	close(deployedEnvCh)
-	close(notDeployedEnvCh)
-	close(errsCh)
+	done <- true
 	return deployedEnvs, notDeployedEnvs, errors.Join(errs...)
 }
 
