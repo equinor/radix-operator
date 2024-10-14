@@ -88,26 +88,41 @@ func (cli *DeployConfigStepImplementation) deploy(ctx context.Context, pipelineI
 
 func (cli *DeployConfigStepImplementation) deployEnvs(ctx context.Context, pipelineInfo *model.PipelineInfo, envConfigToDeploy map[string]envDeployConfig) ([]string, []string, error) {
 	appName := cli.GetAppName()
-	var deployedEnvs, notDeployedEnvs []string
+	deployedEnvCh, notDeployedEnvCh, errsCh := make(chan string), make(chan string), make(chan error)
+	var notDeployedEnvs, deployedEnvs []string
 	var errs []error
 	var wg sync.WaitGroup
-	var mu sync.RWMutex
+	go func() {
+		for envName := range deployedEnvCh {
+			deployedEnvs = append(deployedEnvs, envName)
+		}
+	}()
+	go func() {
+		for envName := range notDeployedEnvCh {
+			notDeployedEnvs = append(notDeployedEnvs, envName)
+		}
+	}()
+	go func() {
+		for err := range errsCh {
+			errs = append(errs, err)
+		}
+	}()
 	for envName, deployConfig := range envConfigToDeploy {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			defer mu.Unlock()
 			if err := cli.deployToEnv(ctx, appName, envName, deployConfig, pipelineInfo); err != nil {
-				mu.Lock()
-				errs = append(errs, err)
-				notDeployedEnvs = append(notDeployedEnvs, envName)
+				errsCh <- err
+				notDeployedEnvCh <- envName
 			} else {
-				mu.Lock()
-				deployedEnvs = append(deployedEnvs, envName)
+				deployedEnvCh <- envName
 			}
 		}()
 	}
 	wg.Wait()
+	close(deployedEnvCh)
+	close(notDeployedEnvCh)
+	close(errsCh)
 	return deployedEnvs, notDeployedEnvs, errors.Join(errs...)
 }
 
