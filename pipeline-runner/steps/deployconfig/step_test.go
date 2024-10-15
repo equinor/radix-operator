@@ -54,7 +54,6 @@ type scenario struct {
 	applyingRaProps                        raProps
 	existingRadixDeploymentBuilderProps    []radixDeploymentBuildersProps
 	expectedNewRadixDeploymentBuilderProps []radixDeploymentBuildersProps
-	affectedEnvs                           []string
 }
 
 type raProps struct {
@@ -184,10 +183,9 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}}, // new RD
 				},
 			},
-			affectedEnvs: []string{env1},
 		},
 		{
-			name: "Deleted environment, no active deployments, no new deployments",
+			name: "Deleted environment without alias",
 			existingRaProps: raProps{
 				envs:           []string{env1, env2},
 				componentNames: []string{component1},
@@ -196,10 +194,48 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				},
 			},
 			applyingRaProps: raProps{
-				envs:           []string{env2},
+				envs:           []string{env1},
 				componentNames: []string{component1},
 				dnsExternalAliases: []dnsExternalAlias{
 					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
+				},
+			},
+		},
+		{
+			name: "Deleted environment with alias",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
 				},
 			},
 		},
@@ -222,11 +258,13 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			s.SetupTest()
 			s.createUsedNamespaces(ts)
 			s.createRadixDeployments(ts.existingRadixDeploymentBuilderProps, existingRa)
+			expectedRdByEnvMap := getRadixDeploymentsByEnvMap(s.buildRadixDeployments(ts.expectedNewRadixDeploymentBuilderProps, pipelineInfo.RadixApplication))
+			affectedEnvs := maps.GetKeysFromMap(expectedRdByEnvMap)
 
 			namespaceWatcher := watcher.NewMockNamespaceWatcher(s.ctrl)
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
-			namespaceWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any()).Return(nil).Times(len(ts.affectedEnvs))
-			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(len(ts.affectedEnvs))
+			namespaceWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any()).Return(nil).Times(len(affectedEnvs))
+			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(len(affectedEnvs))
 
 			cli := deployconfig.NewDeployConfigStep(namespaceWatcher, radixDeploymentWatcher)
 			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
@@ -240,7 +278,6 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				return
 			}
 
-			expectedRdByEnvMap := getRadixDeploymentsByEnvMap(s.buildRadixDeployments(ts.expectedNewRadixDeploymentBuilderProps, pipelineInfo.RadixApplication))
 			for envName, expectedRdList := range expectedRdByEnvMap {
 				actualRdList, ok := actualNewRdsByEnvMap[envName]
 				if !ok {
