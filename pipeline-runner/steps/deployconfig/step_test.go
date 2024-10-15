@@ -180,7 +180,46 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
 				{
 					envName: env1, imageTag: appliedImageTag, activeFrom: zeroTime,
-					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}}, // new RD
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}},
+				},
+			},
+		},
+		{
+			name: "Added alias",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false}, // added alias
+					{alias: alias2, envName: env1, componentName: component1, useCertificateAutomation: true},
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component1: {
+						{fqdn: alias1, useCertificateAutomation: false},
+						{fqdn: alias2, useCertificateAutomation: true},
+					}},
 				},
 			},
 		},
@@ -377,9 +416,10 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 			})
 		for componentName, externalDNSs := range rdProps.externalDNSs {
 			componentBuilder := utils.NewDeployComponentBuilder().WithName(componentName)
-			for _, compExternalDNS := range externalDNSs {
-				componentBuilder = componentBuilder.WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: compExternalDNS.fqdn, UseCertificateAutomation: compExternalDNS.useCertificateAutomation})
-			}
+			componentBuilder = componentBuilder.WithExternalDNS(
+				slice.Map(externalDNSs, func(compExternalDNS externalDNS) radixv1.RadixDeployExternalDNS {
+					return radixv1.RadixDeployExternalDNS{FQDN: compExternalDNS.fqdn, UseCertificateAutomation: compExternalDNS.useCertificateAutomation}
+				})...)
 			builder = builder.WithComponent(componentBuilder)
 		}
 		rdList = append(rdList, *builder.BuildRD())
