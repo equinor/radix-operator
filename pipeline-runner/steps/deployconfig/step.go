@@ -87,11 +87,11 @@ func (cli *DeployConfigStepImplementation) deploy(ctx context.Context, pipelineI
 }
 
 func (cli *DeployConfigStepImplementation) deployEnvs(ctx context.Context, pipelineInfo *model.PipelineInfo, envConfigToDeploy map[string]envDeployConfig) ([]string, []string, error) {
-	appName := cli.GetAppName()
-	deployedEnvCh, notDeployedEnvCh, errsCh, done := make(chan string), make(chan string), make(chan error), make(chan bool)
-	defer close(errsCh)
+	deployedEnvCh, notDeployedEnvCh := make(chan string), make(chan string)
+	errsCh, done := make(chan error), make(chan bool)
 	defer close(deployedEnvCh)
 	defer close(notDeployedEnvCh)
+	defer close(errsCh)
 	defer close(done)
 	var notDeployedEnvs, deployedEnvs []string
 	var errs []error
@@ -109,7 +109,9 @@ func (cli *DeployConfigStepImplementation) deployEnvs(ctx context.Context, pipel
 			}
 		}
 	}()
+
 	var wg sync.WaitGroup
+	appName := cli.GetAppName()
 	for env, deployConfig := range envConfigToDeploy {
 		wg.Add(1)
 		go func(envName string) {
