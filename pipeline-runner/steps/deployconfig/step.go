@@ -55,8 +55,7 @@ func (cli *DeployConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *DeployConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	err := cli.deploy(ctx, pipelineInfo)
-	return err
+	return cli.deploy(ctx, pipelineInfo)
 }
 
 type envDeployConfig struct {
@@ -167,7 +166,7 @@ func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appN
 func constructForTargetEnvironment(appName, envName string, pipelineInfo *model.PipelineInfo, deployConfig envDeployConfig) (*radixv1.RadixDeployment, error) {
 	radixDeployment := deployConfig.activeRadixDeployment.DeepCopy()
 	radixDeployment.SetName(utils.GetDeploymentName(appName, envName, pipelineInfo.PipelineArguments.ImageTag))
-
+	radixDeployment.Status = radixv1.RadixDeployStatus{}
 	setExternalDNSesToRadixDeployment(radixDeployment, deployConfig)
 	if err := setAnnotationsAndLabels(pipelineInfo, radixDeployment); err != nil {
 		return nil, err
@@ -194,8 +193,8 @@ func setAnnotationsAndLabels(pipelineInfo *model.PipelineInfo, radixDeployment *
 		kube.RadixConfigHash:        radixConfigHash,
 	})
 	radixDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	radixDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	radixDeployment.ObjectMeta.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
+	radixDeployment.ObjectMeta.Labels[kube.RadixImageTagLabel] = pipelineInfo.PipelineArguments.ImageTag
 	return nil
 }
 
@@ -204,8 +203,8 @@ func setExternalDNSesToRadixDeployment(radixDeployment *radixv1.RadixDeployment,
 		acc[dnsExternalAlias.Component] = append(acc[dnsExternalAlias.Component], dnsExternalAlias)
 		return acc
 	})
-	for _, deployComponent := range radixDeployment.Spec.Components {
-		deployComponent.ExternalDNS = slice.Map(externalAliasesMap[deployComponent.Name], func(externalAlias radixv1.ExternalAlias) radixv1.RadixDeployExternalDNS {
+	for i := 0; i < len(radixDeployment.Spec.Components); i++ {
+		radixDeployment.Spec.Components[i].ExternalDNS = slice.Map(externalAliasesMap[radixDeployment.Spec.Components[i].Name], func(externalAlias radixv1.ExternalAlias) radixv1.RadixDeployExternalDNS {
 			return radixv1.RadixDeployExternalDNS{
 				FQDN: externalAlias.Alias, UseCertificateAutomation: externalAlias.UseCertificateAutomation}
 		})

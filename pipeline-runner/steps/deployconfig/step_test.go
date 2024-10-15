@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deployconfig"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -48,12 +49,12 @@ func (s *deployConfigTestSuite) SetupTest() {
 }
 
 type scenario struct {
-	name                                string
-	existingRaProps                     raProps
-	applyingRaProps                     raProps
-	existingRadixDeploymentBuilderProps []radixDeploymentBuildersProps
-	expectedRadixDeploymentBuilderProps []radixDeploymentBuildersProps
-	affectedEnvs                        []string
+	name                                   string
+	existingRaProps                        raProps
+	applyingRaProps                        raProps
+	existingRadixDeploymentBuilderProps    []radixDeploymentBuildersProps
+	expectedNewRadixDeploymentBuilderProps []radixDeploymentBuildersProps
+	affectedEnvs                           []string
 }
 
 type raProps struct {
@@ -101,7 +102,8 @@ type externalDNS struct {
 func (s *deployConfigTestSuite) TestDeployConfig() {
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	timeNow := time.Now()
-	inPast := timeNow.Add(-time.Hour * 24 * 7)
+	timeInPast := timeNow.Add(-time.Hour * 24 * 7)
+	zeroTime := time.Time{}
 	scenarios := []scenario{
 		{
 			name: "No active deployments, no RA changes",
@@ -139,38 +141,12 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			},
 			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
 				{
-					envName: env1, imageTag: existingImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias1, useCertificateAutomation: false},
-						},
-					},
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
 				},
 				{
-					envName: env2, imageTag: existingImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias3, useCertificateAutomation: false},
-						},
-					},
-				},
-			},
-			expectedRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
-				{
-					envName: env1, imageTag: existingImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias1, useCertificateAutomation: false},
-						},
-					},
-				},
-				{
-					envName: env2, imageTag: existingImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias3, useCertificateAutomation: false},
-						},
-					},
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
 				},
 			},
 		},
@@ -188,51 +164,24 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				envs:           []string{env1, env2},
 				componentNames: []string{component1},
 				dnsExternalAliases: []dnsExternalAlias{
-					{alias: alias2, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias2, envName: env1, componentName: component1, useCertificateAutomation: false}, // renamed alias
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
 				},
 			},
 			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
 				{
-					envName: env1, imageTag: existingImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias1, useCertificateAutomation: false},
-						},
-					},
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
 				},
 				{
-					envName: env2, imageTag: existingImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias3, useCertificateAutomation: false},
-						},
-					},
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
 				},
 			},
-			expectedRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
 				{
-					envName: env1, imageTag: existingImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias1, useCertificateAutomation: false},
-						},
-					},
-				},
-				{
-					envName: env2, imageTag: existingImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias3, useCertificateAutomation: false},
-						},
-					},
-				},
-				{
-					envName: env2, imageTag: appliedImageTag, activeFrom: inPast,
-					externalDNSs: map[string][]externalDNS{
-						component1: {
-							{fqdn: alias2, useCertificateAutomation: false},
-						},
-					},
+					envName: env1, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}}, // new RD
 				},
 			},
 			affectedEnvs: []string{env1},
@@ -259,7 +208,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 	for _, ts := range scenarios {
 		s.T().Run(ts.name, func(t *testing.T) {
 			t.Logf("Running test case '%s'", ts.name)
-			s.createRadixApplication(ts.existingRaProps)
+			existingRa := s.createRadixApplication(ts.existingRaProps)
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
 					JobName:  jobName,
@@ -272,7 +221,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 
 			s.SetupTest()
 			s.createUsedNamespaces(ts)
-			s.createRadixDeployments(ts.existingRadixDeploymentBuilderProps)
+			s.createRadixDeployments(ts.existingRadixDeploymentBuilderProps, existingRa)
 
 			namespaceWatcher := watcher.NewMockNamespaceWatcher(s.ctrl)
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
@@ -286,81 +235,109 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				s.Require().NoError(err)
 			}
 
-			actualRdsByEnvMap, ok := s.getActualRadixDeploymentsByEnvMap(ts)
+			actualNewRdsByEnvMap, ok := s.getActualNewRadixDeploymentsByEnvMap(ts)
 			if !ok {
 				return
 			}
 
-			expectedRdList := s.buildRadixDeployments(ts.expectedRadixDeploymentBuilderProps)
-			for _, expectedRd := range expectedRdList {
-				actualRd, ok := actualRdsByEnvMap[expectedRd.Spec.Environment]
-				if !s.True(ok, "Expected RadixDeployment for environment %s not found", expectedRd.Spec.Environment) {
+			expectedRdByEnvMap := getRadixDeploymentsByEnvMap(s.buildRadixDeployments(ts.expectedNewRadixDeploymentBuilderProps, pipelineInfo.RadixApplication))
+			for envName, expectedRdList := range expectedRdByEnvMap {
+				actualRdList, ok := actualNewRdsByEnvMap[envName]
+				if !ok {
+					t.Errorf("No Radix Deployments found for environment %s", envName)
 					continue
 				}
-				if !s.Len(actualRd.Spec.Components, len(expectedRd.Spec.Components), "Invalid number of components") {
+				if !s.Len(actualRdList, len(expectedRdList), "Invalid number of Radix Deployments for environment %s", envName) {
 					continue
 				}
-				for i := 0; i < len(expectedRd.Spec.Components); i++ {
-					s.Equal(expectedRd.Spec.Components[i].Name, actualRd.Spec.Components[i].Name)
-					for envVarName, envVarValue := range expectedRd.Spec.Components[i].EnvironmentVariables {
-						s.Equal(envVarValue, actualRd.Spec.Components[i].EnvironmentVariables[envVarName], "Invalid or missing an environment variable %s for the env %s and component %s", envVarName, expectedRd.Spec.Environment, expectedRd.Spec.Components[i].Name)
+				for i := 0; i < len(expectedRdList); i++ {
+					expectedRd := expectedRdList[i]
+					actualRd := actualRdList[i]
+					if !s.Len(actualRd.Spec.Components, len(expectedRd.Spec.Components), "Invalid number of components") {
+						continue
 					}
-					for j := 0; j < len(expectedRd.Spec.Components[i].ExternalDNS); j++ {
-						s.Equal(expectedRd.Spec.Components[i].ExternalDNS[j].UseCertificateAutomation, actualRd.Spec.Components[i].ExternalDNS[j].UseCertificateAutomation, "Invalid external UseCertificateAutomation for the env %s and component %s", expectedRd.Spec.Environment, expectedRd.Spec.Components[i].Name)
-						s.Equal(expectedRd.Spec.Components[i].ExternalDNS[j].FQDN, actualRd.Spec.Components[i].ExternalDNS[j].FQDN, "Invalid external FQDN for the env %s and component %s", expectedRd.Spec.Environment, expectedRd.Spec.Components[i].Name)
+					for i := 0; i < len(expectedRd.Spec.Components); i++ {
+						expectedComponent := expectedRd.Spec.Components[i]
+						actualComponent := actualRd.Spec.Components[i]
+						s.Equal(expectedComponent.Name, actualComponent.Name)
+						for envVarName, envVarValue := range expectedComponent.EnvironmentVariables {
+							s.Equal(envVarValue, actualComponent.EnvironmentVariables[envVarName], "Invalid or missing an environment variable %s for the env %s and component %s", envVarName, expectedRd.Spec.Environment, expectedComponent.Name)
+						}
+						for j := 0; j < len(expectedComponent.ExternalDNS); j++ {
+							expectedExternalDNS := expectedComponent.ExternalDNS[j]
+							actualExternalDNS := actualComponent.ExternalDNS[j]
+							s.Equal(expectedExternalDNS.UseCertificateAutomation, actualExternalDNS.UseCertificateAutomation, "Invalid external UseCertificateAutomation for the env %s and component %s", expectedRd.Spec.Environment, expectedComponent.Name)
+							s.Equal(expectedExternalDNS.FQDN, actualExternalDNS.FQDN, "Invalid external FQDN for the env %s and component %s", expectedRd.Spec.Environment, expectedComponent.Name)
+						}
 					}
-				}
 
-				s.ElementsMatch(strings.Split(expectedRd.GetName(), "-")[:2], strings.Split(actualRd.GetName(), "-")[:2], "Invalid name prefix parts")
-				expectedAnnotations := expectedRd.GetAnnotations()
-				actualAnnotations := actualRd.GetAnnotations()
-				if s.Len(actualAnnotations, len(expectedAnnotations), "Invalid number of annotations") {
-					for key, value := range expectedAnnotations {
-						s.Equal(expectedAnnotations[key], actualAnnotations[key], "Invalid or missing an annotation %s or value %s", key, value)
+					s.ElementsMatch(strings.Split(expectedRd.GetName(), "-")[:2], strings.Split(actualRd.GetName(), "-")[:2], "Invalid name prefix parts")
+					expectedAnnotations := expectedRd.GetAnnotations()
+					actualAnnotations := actualRd.GetAnnotations()
+					if s.Len(actualAnnotations, len(expectedAnnotations), "Invalid number of annotations") {
+						for key, value := range expectedAnnotations {
+							s.Equal(expectedAnnotations[key], actualAnnotations[key], "Invalid or missing an annotation %s or value %s", key, value)
+						}
 					}
-				}
-				expectedLabels := expectedRd.GetLabels()
-				actualLabels := actualRd.GetLabels()
-				if s.Len(actualLabels, len(expectedLabels), "Invalid number of labels") {
-					for key, value := range expectedLabels {
-						s.Equal(expectedLabels[key], actualLabels[key], "Invalid or missing an label %s or value %s", key, value)
+					expectedLabels := expectedRd.GetLabels()
+					actualLabels := actualRd.GetLabels()
+					if s.Len(actualLabels, len(expectedLabels), "Invalid number of labels") {
+						for key, value := range expectedLabels {
+							s.Equal(expectedLabels[key], actualLabels[key], "Invalid or missing an label %s or value %s", key, value)
+						}
 					}
+					// TODO check other props
 				}
-				// TODO check other props
 			}
 		})
 	}
 }
 
-func (s *deployConfigTestSuite) getActualRadixDeploymentsByEnvMap(ts scenario) (map[string]radixv1.RadixDeployment, bool) {
-	rdsList, _ := s.radixClient.RadixV1().RadixDeployments("").List(context.Background(), metav1.ListOptions{})
-	if !s.Assert().Len(rdsList.Items, len(ts.expectedRadixDeploymentBuilderProps)) {
+func (s *deployConfigTestSuite) getActualNewRadixDeploymentsByEnvMap(ts scenario) (map[string][]radixv1.RadixDeployment, bool) {
+	rdsList, err := s.radixClient.RadixV1().RadixDeployments("").List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err)
+	radixDeployments := slice.FindAll(rdsList.Items, func(rd radixv1.RadixDeployment) bool { return rd.Status.ActiveFrom.IsZero() })
+	if !s.Assert().Len(radixDeployments, len(ts.expectedNewRadixDeploymentBuilderProps)) {
 		return nil, false
 	}
-	return slice.Reduce(rdsList.Items, make(map[string]radixv1.RadixDeployment), func(acc map[string]radixv1.RadixDeployment, rd radixv1.RadixDeployment) map[string]radixv1.RadixDeployment {
-		acc[rd.Spec.Environment] = rd
+	return getRadixDeploymentsByEnvMap(radixDeployments), true
+}
+
+func getRadixDeploymentsByEnvMap(radixDeployments []radixv1.RadixDeployment) map[string][]radixv1.RadixDeployment {
+	return slice.Reduce(radixDeployments, make(map[string][]radixv1.RadixDeployment), func(acc map[string][]radixv1.RadixDeployment, rd radixv1.RadixDeployment) map[string][]radixv1.RadixDeployment {
+		acc[rd.Spec.Environment] = append(acc[rd.Spec.Environment], rd)
 		return acc
-	}), true
+	})
 }
 
-func (s *deployConfigTestSuite) createRadixApplication(props raProps) {
-	existingRa := buildRadixApplication(props)
-	_, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(existingRa.Name)).Create(context.Background(), existingRa, metav1.CreateOptions{})
+func (s *deployConfigTestSuite) createRadixApplication(props raProps) *radixv1.RadixApplication {
+	radixApplication := buildRadixApplication(props)
+	_, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(radixApplication.Name)).Create(context.Background(), radixApplication, metav1.CreateOptions{})
 	s.Require().NoError(err)
+	return radixApplication
 }
 
-func (s *deployConfigTestSuite) createRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps) {
-	rdList := s.buildRadixDeployments(deploymentBuildersProps)
+func (s *deployConfigTestSuite) createRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication) {
+	rdList := s.buildRadixDeployments(deploymentBuildersProps, ra)
 	for _, rd := range rdList {
-		_, err := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).Create(context.Background(), rd, metav1.CreateOptions{})
+		_, err := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).Create(context.Background(), &rd, metav1.CreateOptions{})
 		s.Require().NoError(err)
 	}
 }
 
-func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps) []*radixv1.RadixDeployment {
-	var rdList []*radixv1.RadixDeployment
+func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication) []radixv1.RadixDeployment {
+	radixConfigHash, _ := internal.CreateRadixApplicationHash(ra)
+	buildSecretHash, _ := internal.CreateBuildSecretHash(nil)
+	var rdList []radixv1.RadixDeployment
 	for _, rdProps := range deploymentBuildersProps {
-		builder := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(rdProps.envName).WithImageTag(rdProps.imageTag).WithActiveFrom(rdProps.activeFrom)
+		builder := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(rdProps.envName).WithImageTag(rdProps.imageTag).
+			WithActiveFrom(rdProps.activeFrom).WithLabel(kube.RadixCommitLabel, commitId).WithLabel(kube.RadixJobNameLabel, jobName).
+			WithAnnotations(map[string]string{
+				kube.RadixGitTagsAnnotation: gitTags,
+				kube.RadixCommitAnnotation:  commitId,
+				kube.RadixBuildSecretHash:   buildSecretHash,
+				kube.RadixConfigHash:        radixConfigHash,
+			})
 		for componentName, externalDNSs := range rdProps.externalDNSs {
 			componentBuilder := utils.NewDeployComponentBuilder().WithName(componentName)
 			for _, compExternalDNS := range externalDNSs {
@@ -368,7 +345,7 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 			}
 			builder = builder.WithComponent(componentBuilder)
 		}
-		rdList = append(rdList, builder.BuildRD())
+		rdList = append(rdList, *builder.BuildRD())
 	}
 	return rdList
 }
