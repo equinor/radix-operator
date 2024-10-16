@@ -73,11 +73,15 @@ const (
 	appName          = "anyapp"
 	env1             = "env1"
 	env2             = "env2"
+	env3             = "env3"
 	component1       = "component1"
 	component2       = "component2"
 	alias1           = "alias1"
 	alias2           = "alias2"
 	alias3           = "alias3"
+	alias4           = "alias4"
+	alias5           = "alias5"
+	alias6           = "alias6"
 	jobName          = "anyjobname"
 	commitId         = "anycommit"
 	gitTags          = "gittags"
@@ -150,41 +154,6 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			},
 		},
 		{
-			name: "Changed alias",
-			existingRaProps: raProps{
-				envs:           []string{env1, env2},
-				componentNames: []string{component1},
-				dnsExternalAliases: []dnsExternalAlias{
-					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
-					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
-				},
-			},
-			applyingRaProps: raProps{
-				envs:           []string{env1, env2},
-				componentNames: []string{component1},
-				dnsExternalAliases: []dnsExternalAlias{
-					{alias: alias2, envName: env1, componentName: component1, useCertificateAutomation: false}, // renamed alias
-					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
-				},
-			},
-			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
-				{
-					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
-					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
-				},
-				{
-					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
-					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
-				},
-			},
-			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
-				{
-					envName: env1, imageTag: appliedImageTag, activeFrom: zeroTime,
-					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}},
-				},
-			},
-		},
-		{
 			name: "Added alias",
 			existingRaProps: raProps{
 				envs:           []string{env1, env2},
@@ -220,6 +189,86 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 						{fqdn: alias1, useCertificateAutomation: false},
 						{fqdn: alias2, useCertificateAutomation: true},
 					}},
+				},
+			},
+		},
+		{
+			name: "Changed alias in one environment",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias2, envName: env1, componentName: component1, useCertificateAutomation: false}, // renamed alias
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}},
+				},
+			},
+		},
+		{
+			name: "Changed alias in multiple environments",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2, env3},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
+					{alias: alias5, envName: env3, componentName: component1, useCertificateAutomation: true},
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2, env3},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias2, envName: env1, componentName: component1, useCertificateAutomation: false}, // renamed alias
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
+					{alias: alias6, envName: env3, componentName: component1, useCertificateAutomation: true}, // renamed alias
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env3, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias5, useCertificateAutomation: true}}},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env3, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias6, useCertificateAutomation: true}}},
 				},
 			},
 		},
