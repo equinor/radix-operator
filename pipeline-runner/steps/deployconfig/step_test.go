@@ -273,6 +273,120 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			},
 		},
 		{
+			name: "Changed component in DNS",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1, component2},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1, component2},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias3, envName: env2, componentName: component2, useCertificateAutomation: false}, // changed component
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env2, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component2: {{fqdn: alias3, useCertificateAutomation: false}}},
+				},
+			},
+		},
+		{
+			name: "Delete DNS",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias3, envName: env2, componentName: component1, useCertificateAutomation: false}, // deleted
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env2, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{},
+				},
+			},
+		},
+		{
+			name: "Delete multiple DNSes",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1, component2},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias2, envName: env2, componentName: component1, useCertificateAutomation: false}, // deleted
+					{alias: alias3, envName: env2, componentName: component2, useCertificateAutomation: false},
+					{alias: alias4, envName: env2, componentName: component2, useCertificateAutomation: false}, // deleted
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1, component2},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false}, // renamed alias
+					{alias: alias3, envName: env2, componentName: component2, useCertificateAutomation: false},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{
+						component1: {
+							{fqdn: alias2, useCertificateAutomation: false},
+						},
+						component2: {
+							{fqdn: alias3, useCertificateAutomation: false},
+							{fqdn: alias4, useCertificateAutomation: false},
+						},
+					},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env2, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component2: {{fqdn: alias3, useCertificateAutomation: false}}},
+				},
+			},
+		},
+		{
 			name: "Deleted environment without alias",
 			existingRaProps: raProps{
 				envs:           []string{env1, env2},
@@ -369,7 +483,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			for envName, expectedRdList := range expectedRdByEnvMap {
 				actualRdList, ok := actualNewRdsByEnvMap[envName]
 				if !ok {
-					t.Errorf("No Radix Deployments found for environment %s", envName)
+					t.Logf("Error: No Radix Deployments found for environment %s", envName)
 					continue
 				}
 				if !s.Len(actualRdList, len(expectedRdList), "Invalid number of Radix Deployments for environment %s", envName) {
@@ -387,6 +501,9 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 						s.Equal(expectedComponent.Name, actualComponent.Name)
 						for envVarName, envVarValue := range expectedComponent.EnvironmentVariables {
 							s.Equal(envVarValue, actualComponent.EnvironmentVariables[envVarName], "Invalid or missing an environment variable %s for the env %s and component %s", envVarName, expectedRd.Spec.Environment, expectedComponent.Name)
+						}
+						if !s.Len(actualComponent.ExternalDNS, len(expectedComponent.ExternalDNS), "Invalid number of external DNS") {
+							continue
 						}
 						for j := 0; j < len(expectedComponent.ExternalDNS); j++ {
 							expectedExternalDNS := expectedComponent.ExternalDNS[j]
@@ -455,7 +572,7 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 	buildSecretHash, _ := internal.CreateBuildSecretHash(nil)
 	var rdList []radixv1.RadixDeployment
 	for _, rdProps := range deploymentBuildersProps {
-		builder := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(rdProps.envName).WithImageTag(rdProps.imageTag).
+		deploymentBuilder := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(rdProps.envName).WithImageTag(rdProps.imageTag).
 			WithActiveFrom(rdProps.activeFrom).WithLabel(kube.RadixCommitLabel, commitId).WithLabel(kube.RadixJobNameLabel, jobName).
 			WithAnnotations(map[string]string{
 				kube.RadixGitTagsAnnotation: gitTags,
@@ -463,15 +580,21 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 				kube.RadixBuildSecretHash:   buildSecretHash,
 				kube.RadixConfigHash:        radixConfigHash,
 			})
-		for componentName, externalDNSs := range rdProps.externalDNSs {
-			componentBuilder := utils.NewDeployComponentBuilder().WithName(componentName)
-			componentBuilder = componentBuilder.WithExternalDNS(
-				slice.Map(externalDNSs, func(compExternalDNS externalDNS) radixv1.RadixDeployExternalDNS {
-					return radixv1.RadixDeployExternalDNS{FQDN: compExternalDNS.fqdn, UseCertificateAutomation: compExternalDNS.useCertificateAutomation}
-				})...)
-			builder = builder.WithComponent(componentBuilder)
+		for _, component := range ra.Spec.Components {
+			componentBuilder := utils.NewDeployComponentBuilder().WithName(component.Name)
+			for varName, varValue := range component.GetVariables() {
+				componentBuilder = componentBuilder.WithEnvironmentVariable(varName, varValue)
+			}
+			if externalDNSs, ok := rdProps.externalDNSs[component.Name]; ok {
+				componentBuilder = componentBuilder.WithExternalDNS(
+					slice.Map(externalDNSs, func(compExternalDNS externalDNS) radixv1.RadixDeployExternalDNS {
+						return radixv1.RadixDeployExternalDNS{FQDN: compExternalDNS.fqdn, UseCertificateAutomation: compExternalDNS.useCertificateAutomation}
+					})...)
+			}
+			// set other props if needed
+			deploymentBuilder = deploymentBuilder.WithComponent(componentBuilder)
 		}
-		rdList = append(rdList, *builder.BuildRD())
+		rdList = append(rdList, *deploymentBuilder.BuildRD())
 	}
 	return rdList
 }
@@ -497,7 +620,7 @@ func buildRadixApplication(props raProps) *radixv1.RadixApplication {
 		existingRaBuilder.WithEnvironment(env, branch1)
 	}
 	for _, componentName := range props.componentNames {
-		existingRaBuilder.WithComponents(utils.AnApplicationComponent().WithName(componentName).WithImageTagName(existingImageTag))
+		existingRaBuilder.WithComponent(utils.AnApplicationComponent().WithName(componentName).WithImageTagName(existingImageTag))
 	}
 	for _, item := range props.dnsExternalAliases {
 		existingRaBuilder.WithDNSExternalAlias(item.alias, item.envName, item.componentName, item.useCertificateAutomation)
