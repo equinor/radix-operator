@@ -183,6 +183,34 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			},
 		},
 		{
+			name: "DNSes deleted from two envs, one has no active deployments, deploy only second one",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias2, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			applyingRaProps: raProps{
+				envs:               []string{env1, env2},
+				componentNames:     []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env2, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{},
+				},
+			},
+		},
+		{
 			name: "Deleted environment",
 			existingRaProps: raProps{
 				envs:           []string{env1, env2},

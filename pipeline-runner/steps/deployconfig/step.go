@@ -213,16 +213,10 @@ func setExternalDNSesToRadixDeployment(radixDeployment *radixv1.RadixDeployment,
 
 func (cli *DeployConfigStepImplementation) getEnvConfigToDeploy(ctx context.Context, pipelineInfo *model.PipelineInfo) (map[string]envDeployConfig, error) {
 	envDeployConfigs := cli.getEnvDeployConfigs(pipelineInfo)
-	haveActiveRd, err := cli.setActiveRadixDeployments(ctx, envDeployConfigs)
-	if err != nil {
+	if err := cli.setActiveRadixDeployments(ctx, envDeployConfigs); err != nil {
 		return nil, err
 	}
-	if !haveActiveRd {
-		log.Ctx(ctx).Error().Err(err).Msg("Failed to get active Radix deployments")
-		return nil, err
-	}
-	applicableEnvDeployConfig := getApplicableEnvDeployConfig(ctx, envDeployConfigs, pipelineInfo)
-	return applicableEnvDeployConfig, nil
+	return getApplicableEnvDeployConfig(ctx, envDeployConfigs, pipelineInfo), nil
 }
 
 type activeDeploymentExternalDNS struct {
@@ -234,8 +228,10 @@ func getApplicableEnvDeployConfig(ctx context.Context, envDeployConfigs map[stri
 	applicableEnvDeployConfig := make(map[string]envDeployConfig)
 	for envName, deployConfig := range envDeployConfigs {
 		appExternalDNSAliases := slice.FindAll(pipelineInfo.RadixApplication.Spec.DNSExternalAlias, func(dnsExternalAlias radixv1.ExternalAlias) bool { return dnsExternalAlias.Environment == envName })
-		if len(appExternalDNSAliases) > 0 && deployConfig.activeRadixDeployment == nil {
-			log.Ctx(ctx).Info().Msgf("External DNS alias(es) exists for the environment %s, but it has no active Radix deployment yet - ignore DNS alias(es).", envName)
+		if deployConfig.activeRadixDeployment == nil {
+			if len(appExternalDNSAliases) > 0 {
+				log.Ctx(ctx).Info().Msgf("External DNS alias(es) exists for the environment %s, but it has no active Radix deployment yet - ignore DNS alias(es).", envName)
+			}
 			continue
 		}
 		activeDeploymentExternalDNSes := getActiveDeploymentExternalDNSes(deployConfig)
@@ -284,19 +280,17 @@ func (cli *DeployConfigStepImplementation) getEnvDeployConfigs(pipelineInfo *mod
 	})
 }
 
-func (cli *DeployConfigStepImplementation) setActiveRadixDeployments(ctx context.Context, envDeployConfigs map[string]envDeployConfig) (bool, error) {
+func (cli *DeployConfigStepImplementation) setActiveRadixDeployments(ctx context.Context, envDeployConfigs map[string]envDeployConfig) error {
 	var errs []error
-	hasActiveRd := false
 	for envName, deployConfig := range envDeployConfigs {
 		if activeRd, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeutil(), utils.GetEnvironmentNamespace(cli.GetAppName(), envName)); err != nil {
 			errs = append(errs, err)
 		} else if activeRd != nil {
 			deployConfig.activeRadixDeployment = activeRd
-			hasActiveRd = true
 		}
 		envDeployConfigs[envName] = deployConfig
 	}
-	return hasActiveRd, errors.Join(errs...)
+	return errors.Join(errs...)
 }
 
 func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) radixv1.EnvVarsMap {
