@@ -296,10 +296,8 @@ func (cli *DeployConfigStepImplementation) setActiveRadixDeployments(ctx context
 func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) radixv1.EnvVarsMap {
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
-
 	envVarsMap := make(radixv1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
-
 	return envVarsMap
 }

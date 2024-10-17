@@ -109,6 +109,31 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 	zeroTime := time.Time{}
 	scenarios := []scenario{
 		{
+			name: "No DNSes changes, no deployments",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias2, envName: env2, componentName: component2, useCertificateAutomation: true},
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias2, envName: env2, componentName: component2, useCertificateAutomation: true},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+			},
+		},
+		{
 			name: "DNS exists for env, which has no active deployments, ignore this env",
 			existingRaProps: raProps{
 				envs:               []string{env1, env2},
