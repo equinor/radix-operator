@@ -221,7 +221,7 @@ func (cli *DeployConfigStepImplementation) getEnvConfigToDeploy(ctx context.Cont
 		log.Ctx(ctx).Error().Err(err).Msg("Failed to get active Radix deployments")
 		return nil, err
 	}
-	applicableEnvDeployConfig := getApplicableEnvDeployConfig(envDeployConfigs, pipelineInfo)
+	applicableEnvDeployConfig := getApplicableEnvDeployConfig(ctx, envDeployConfigs, pipelineInfo)
 	return applicableEnvDeployConfig, nil
 }
 
@@ -230,10 +230,14 @@ type activeDeploymentExternalDNS struct {
 	componentName string
 }
 
-func getApplicableEnvDeployConfig(envDeployConfigs map[string]envDeployConfig, pipelineInfo *model.PipelineInfo) map[string]envDeployConfig {
+func getApplicableEnvDeployConfig(ctx context.Context, envDeployConfigs map[string]envDeployConfig, pipelineInfo *model.PipelineInfo) map[string]envDeployConfig {
 	applicableEnvDeployConfig := make(map[string]envDeployConfig)
 	for envName, deployConfig := range envDeployConfigs {
 		appExternalDNSAliases := slice.FindAll(pipelineInfo.RadixApplication.Spec.DNSExternalAlias, func(dnsExternalAlias radixv1.ExternalAlias) bool { return dnsExternalAlias.Environment == envName })
+		if len(appExternalDNSAliases) > 0 && deployConfig.activeRadixDeployment == nil {
+			log.Ctx(ctx).Info().Msgf("External DNS alias(es) exists for the environment %s, but it has no active Radix deployment yet - ignore DNS alias(es).", envName)
+			continue
+		}
 		activeDeploymentExternalDNSes := getActiveDeploymentExternalDNSes(deployConfig)
 		if equalExternalDNSAliases(activeDeploymentExternalDNSes, appExternalDNSAliases) {
 			continue

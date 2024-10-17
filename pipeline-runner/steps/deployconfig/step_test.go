@@ -109,19 +109,76 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 	zeroTime := time.Time{}
 	scenarios := []scenario{
 		{
-			name: "No active deployments, no RA changes",
+			name: "DNS exists for env, which has no active deployments, ignore this env",
 			existingRaProps: raProps{
-				envs:           []string{env1, env2},
-				componentNames: []string{component1},
-				dnsExternalAliases: []dnsExternalAlias{
-					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
-				},
+				envs:               []string{env1, env2},
+				componentNames:     []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{},
 			},
 			applyingRaProps: raProps{
 				envs:           []string{env1, env2},
 				componentNames: []string{component1},
 				dnsExternalAliases: []dnsExternalAlias{
 					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+		},
+		{
+			name: "DNSes added for two envs, one has no active deployments, deploy only second one",
+			existingRaProps: raProps{
+				envs:               []string{env1, env2},
+				componentNames:     []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias2, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env2, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env2, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias2, useCertificateAutomation: false}}},
+				},
+			},
+		},
+		{
+			name: "DNS changed in both of two envs, one has no active deployments, deploy only second one with change",
+			existingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias1, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias2, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			applyingRaProps: raProps{
+				envs:           []string{env1, env2},
+				componentNames: []string{component1},
+				dnsExternalAliases: []dnsExternalAlias{
+					{alias: alias3, envName: env1, componentName: component1, useCertificateAutomation: false},
+					{alias: alias4, envName: env2, componentName: component1, useCertificateAutomation: false},
+				},
+			},
+			existingRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: existingImageTag, activeFrom: timeInPast,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias1, useCertificateAutomation: false}}},
+				},
+			},
+			expectedNewRadixDeploymentBuilderProps: []radixDeploymentBuildersProps{
+				{
+					envName: env1, imageTag: appliedImageTag, activeFrom: zeroTime,
+					externalDNSs: map[string][]externalDNS{component1: {{fqdn: alias3, useCertificateAutomation: false}}},
 				},
 			},
 		},
@@ -625,6 +682,5 @@ func buildRadixApplication(props raProps) *radixv1.RadixApplication {
 	for _, item := range props.dnsExternalAliases {
 		existingRaBuilder.WithDNSExternalAlias(item.alias, item.envName, item.componentName, item.useCertificateAutomation)
 	}
-	existingRa := existingRaBuilder.BuildRA()
-	return existingRa
+	return existingRaBuilder.BuildRA()
 }
