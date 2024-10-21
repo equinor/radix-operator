@@ -795,7 +795,7 @@ func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Depl
 	})
 }
 
-func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsAllIngresses(t *testing.T) {
+func TestObjectSynced_MultiComponent_AllClusters_ContainsAllIngresses(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
@@ -827,11 +827,13 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsAllIngresses(t *te
 	assert.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
 	require.Truef(t, ingressByNameExists("app", ingresses), "All ingresses for public component should exist")
 	require.Truef(t, ingressByNameExists("radixquote", ingresses), "All ingresses for public component should exist")
-	require.Truef(t, ingressByNameExists("another.alias.com", ingresses), "All ingresses for public component should exist")
-	require.Truef(t, ingressByNameExists("app-active-cluster-url-alias", ingresses), "All ingresses for public component should exist")
-	require.Truef(t, ingressByNameExists("edcradix-url-alias", ingresses), "All ingresses for public component should exist")
-	require.Truef(t, ingressByNameExists("radixquote-active-cluster-url-alias", ingresses), "All ingresses for public component should exist")
+
 	require.Truef(t, ingressByNameExists("some.alias.com", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("another.alias.com", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("edcradix-url-alias", ingresses), "All ingresses for public component should exist")
+
+	require.Truef(t, ingressByNameExists("app-active-cluster-url-alias", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("radixquote-active-cluster-url-alias", ingresses), "All ingresses for public component should exist")
 
 	appIngress := getIngressByName("app", ingresses)
 	assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", appIngress.Spec.Rules[0].Host)
@@ -873,16 +875,6 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsAllIngresses(t *te
 	assert.Equal(t, "true", anotherAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "app", anotherAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
-	appActiveAliasIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
-	assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", appActiveAliasIngress.Spec.Rules[0].Host)
-	assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", appActiveAliasIngress.Spec.TLS[0].Hosts[0])
-	assert.Equal(t, int32(8080), appActiveAliasIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
-	assert.Equal(t, "true", appActiveAliasIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should be an active cluster alias")
-	assert.Equal(t, "app", appActiveAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
 	edcIngress := getIngressByName("edcradix-url-alias", ingresses)
 	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", edcIngress.Spec.Rules[0].Host)
 	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", edcIngress.Spec.TLS[0].Hosts[0])
@@ -892,6 +884,16 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsAllIngresses(t *te
 	assert.Empty(t, edcIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
 	assert.Equal(t, "true", edcIngress.Labels[kube.RadixAppAliasLabel], "Ingress should be an app alias")
 	assert.Equal(t, "app", edcIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+
+	appActiveAliasIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
+	assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", appActiveAliasIngress.Spec.Rules[0].Host)
+	assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", appActiveAliasIngress.Spec.TLS[0].Hosts[0])
+	assert.Equal(t, int32(8080), appActiveAliasIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
+	assert.Equal(t, "true", appActiveAliasIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should be an active cluster alias")
+	assert.Equal(t, "app", appActiveAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	radixQuoteIngress := getIngressByName("radixquote-active-cluster-url-alias", ingresses)
 	assert.Equal(t, "radixquote-edcradix-test.dev.radix.equinor.com", radixQuoteIngress.Spec.Rules[0].Host)
