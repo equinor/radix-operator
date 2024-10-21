@@ -12,10 +12,11 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -165,19 +166,15 @@ func (cli *DeployConfigStepImplementation) deployToEnv(ctx context.Context, appN
 
 func constructForTargetEnvironment(appName, envName string, pipelineInfo *model.PipelineInfo, deployConfig envDeployConfig) (*radixv1.RadixDeployment, error) {
 	radixDeployment := deployConfig.activeRadixDeployment.DeepCopy()
-	radixDeployment.SetName(utils.GetDeploymentName(appName, envName, pipelineInfo.PipelineArguments.ImageTag))
-	radixDeployment.Status = radixv1.RadixDeployStatus{}
-	setExternalDNSesToRadixDeployment(radixDeployment, deployConfig)
-	if err := setAnnotationsAndLabels(pipelineInfo, radixDeployment); err != nil {
+	if err := setMetadata(appName, envName, pipelineInfo, radixDeployment); err != nil {
 		return nil, err
 	}
+	setExternalDNSesToRadixDeployment(radixDeployment, deployConfig)
+	radixDeployment.Status = radixv1.RadixDeployStatus{}
 	return radixDeployment, nil
 }
 
-func setAnnotationsAndLabels(pipelineInfo *model.PipelineInfo, radixDeployment *radixv1.RadixDeployment) error {
-	envVars := getDefaultEnvVars(pipelineInfo)
-	commitID := envVars[defaults.RadixCommitHashEnvironmentVariable]
-	gitTags := envVars[defaults.RadixGitTagsEnvironmentVariable]
+func setMetadata(appName, envName string, pipelineInfo *model.PipelineInfo, radixDeployment *radixv1.RadixDeployment) error {
 	radixConfigHash, err := internal.CreateRadixApplicationHash(pipelineInfo.RadixApplication)
 	if err != nil {
 		return err
@@ -186,15 +183,21 @@ func setAnnotationsAndLabels(pipelineInfo *model.PipelineInfo, radixDeployment *
 	if err != nil {
 		return err
 	}
-	radixDeployment.SetAnnotations(map[string]string{
-		kube.RadixGitTagsAnnotation: gitTags,
-		kube.RadixCommitAnnotation:  commitID,
-		kube.RadixBuildSecretHash:   buildSecretHash,
-		kube.RadixConfigHash:        radixConfigHash,
-	})
-	radixDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	radixDeployment.ObjectMeta.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
-	radixDeployment.ObjectMeta.Labels[kube.RadixImageTagLabel] = pipelineInfo.PipelineArguments.ImageTag
+	envVars := getDefaultEnvVars(pipelineInfo)
+	commitID := envVars[defaults.RadixCommitHashEnvironmentVariable]
+	gitTags := envVars[defaults.RadixGitTagsEnvironmentVariable]
+	radixDeployment.ObjectMeta = metav1.ObjectMeta{
+		Name:        utils.GetDeploymentName(appName, envName, pipelineInfo.PipelineArguments.ImageTag),
+		Namespace:   utils.GetEnvironmentNamespace(appName, envName),
+		Annotations: radixannotations.ForRadixDeployment(gitTags, commitID, buildSecretHash, radixConfigHash),
+		Labels: radixlabels.Merge(
+			radixlabels.ForApplicationName(appName),
+			radixlabels.ForEnvironmentName(envName),
+			radixlabels.ForCommitId(commitID),
+			radixlabels.ForPipelineJobName(pipelineInfo.PipelineArguments.JobName),
+			radixlabels.ForRadixImageTag(pipelineInfo.PipelineArguments.ImageTag),
+		),
+	}
 	return nil
 }
 
