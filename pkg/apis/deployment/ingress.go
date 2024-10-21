@@ -50,15 +50,6 @@ func (deploy *Deployment) createOrUpdateClusterIngress(ctx context.Context, depl
 }
 
 func (deploy *Deployment) createOrUpdateActiveClusterIngress(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
-	clustername, err := deploy.kubeutil.GetClusterName(ctx)
-	if err != nil {
-		return err
-	}
-
-	if !isActiveCluster(clustername) {
-		return deploy.garbageCollectNonActiveClusterIngress(ctx, deployComponent)
-	}
-
 	namespace := deploy.radixDeployment.Namespace
 	publicPortNumber := getPublicPortForComponent(deployComponent)
 
@@ -72,12 +63,7 @@ func (deploy *Deployment) createOrUpdateActiveClusterIngress(ctx context.Context
 }
 
 func (deploy *Deployment) createOrUpdateAppAliasIngress(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
-	clustername, err := deploy.kubeutil.GetClusterName(ctx)
-	if err != nil {
-		return err
-	}
-
-	if !deployComponent.IsDNSAppAlias() || !isActiveCluster(clustername) {
+	if !deployComponent.IsDNSAppAlias() {
 		return deploy.garbageCollectAppAliasIngressNoLongerInSpecForComponent(ctx, deployComponent)
 	}
 
@@ -93,14 +79,9 @@ func (deploy *Deployment) createOrUpdateAppAliasIngress(ctx context.Context, dep
 }
 
 func (deploy *Deployment) createOrUpdateExternalDNSIngresses(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
-	clustername, err := deploy.kubeutil.GetClusterName(ctx)
-	if err != nil {
-		return err
-	}
-
 	externalDNSList := deployComponent.GetExternalDNS()
 
-	if len(externalDNSList) == 0 || !isActiveCluster(clustername) {
+	if len(externalDNSList) == 0 {
 		return deploy.garbageCollectAllExternalAliasIngressesForComponent(ctx, deployComponent)
 	}
 
@@ -156,10 +137,6 @@ func (deploy *Deployment) garbageCollectAppAliasIngressNoLongerInSpecForComponen
 
 func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	return deploy.garbageCollectIngressByLabelSelectorForComponent(ctx, getLabelSelectorForComponent(component))
-}
-
-func (deploy *Deployment) garbageCollectNonActiveClusterIngress(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectIngressByLabelSelectorForComponent(ctx, fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixActiveClusterAliasLabel, "true"))
 }
 
 func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(ctx context.Context, labelSelector string) error {

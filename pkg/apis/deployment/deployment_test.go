@@ -795,7 +795,7 @@ func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Depl
 	})
 }
 
-func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecificIngresses(t *testing.T) {
+func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsAllIngresses(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
@@ -824,11 +824,18 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "Only cluster specific ingresses for the two public components should appear")
-	assert.Truef(t, ingressByNameExists("app", ingresses), "Cluster specific ingress for public component should exist")
-	assert.Truef(t, ingressByNameExists("radixquote", ingresses), "Cluster specific ingress for public component should exist")
+	assert.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
+	require.Truef(t, ingressByNameExists("app", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("radixquote", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("another.alias.com", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("app-active-cluster-url-alias", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("edcradix-url-alias", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("radixquote-active-cluster-url-alias", ingresses), "All ingresses for public component should exist")
+	require.Truef(t, ingressByNameExists("some.alias.com", ingresses), "All ingresses for public component should exist")
 
 	appIngress := getIngressByName("app", ingresses)
+	assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", appIngress.Spec.Rules[0].Host)
+	assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", appIngress.Spec.TLS[0].Hosts[0])
 	assert.Equal(t, int32(8080), appIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Empty(t, appIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Empty(t, appIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
@@ -837,12 +844,65 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 	assert.Equal(t, "app", appIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	quoteIngress := getIngressByName("radixquote", ingresses)
+	assert.Equal(t, "radixquote-edcradix-test.AnyClusterName.dev.radix.equinor.com", quoteIngress.Spec.Rules[0].Host)
+	assert.Equal(t, "radixquote-edcradix-test.AnyClusterName.dev.radix.equinor.com", quoteIngress.Spec.TLS[0].Hosts[0])
 	assert.Equal(t, int32(3000), quoteIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Empty(t, quoteIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Empty(t, quoteIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Empty(t, quoteIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "true", quoteIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should be default")
 	assert.Equal(t, "radixquote", quoteIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+
+	someAliasIngress := getIngressByName("some.alias.com", ingresses)
+	assert.Equal(t, "some.alias.com", someAliasIngress.Spec.Rules[0].Host)
+	assert.Equal(t, "some.alias.com", someAliasIngress.Spec.TLS[0].Hosts[0])
+	assert.Equal(t, int32(8080), someAliasIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, someAliasIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Empty(t, someAliasIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Empty(t, someAliasIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
+	assert.Equal(t, "true", someAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should be an external app alias")
+	assert.Equal(t, "app", someAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+
+	anotherAliasIngress := getIngressByName("another.alias.com", ingresses)
+	assert.Equal(t, "another.alias.com", anotherAliasIngress.Spec.Rules[0].Host)
+	assert.Equal(t, "another.alias.com", anotherAliasIngress.Spec.TLS[0].Hosts[0])
+	assert.Equal(t, int32(8080), anotherAliasIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, anotherAliasIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Empty(t, anotherAliasIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Empty(t, anotherAliasIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
+	assert.Equal(t, "true", anotherAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "app", anotherAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+
+	appActiveAliasIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
+	assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", appActiveAliasIngress.Spec.Rules[0].Host)
+	assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", appActiveAliasIngress.Spec.TLS[0].Hosts[0])
+	assert.Equal(t, int32(8080), appActiveAliasIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
+	assert.Equal(t, "true", appActiveAliasIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should be an active cluster alias")
+	assert.Equal(t, "app", appActiveAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+
+	edcIngress := getIngressByName("edcradix-url-alias", ingresses)
+	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", edcIngress.Spec.Rules[0].Host)
+	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", edcIngress.Spec.TLS[0].Hosts[0])
+	assert.Equal(t, int32(8080), edcIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, edcIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Empty(t, edcIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Empty(t, edcIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
+	assert.Equal(t, "true", edcIngress.Labels[kube.RadixAppAliasLabel], "Ingress should be an app alias")
+	assert.Equal(t, "app", edcIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+
+	radixQuoteIngress := getIngressByName("radixquote-active-cluster-url-alias", ingresses)
+	assert.Equal(t, "radixquote-edcradix-test.dev.radix.equinor.com", radixQuoteIngress.Spec.Rules[0].Host)
+	assert.Equal(t, "radixquote-edcradix-test.dev.radix.equinor.com", radixQuoteIngress.Spec.TLS[0].Hosts[0])
+	assert.Equal(t, int32(3000), radixQuoteIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
+	assert.Empty(t, radixQuoteIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Empty(t, radixQuoteIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Empty(t, radixQuoteIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
+	assert.Equal(t, "true", radixQuoteIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should be an active cluster alias")
+	assert.Equal(t, "radixquote", radixQuoteIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
+
 }
 
 func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
@@ -1283,7 +1343,7 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 	assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 1, len(ingresses.Items), "Number of ingresses was not according to public components")
+	assert.Equal(t, 2, len(ingresses.Items), "Number of ingresses was not according to public components")
 }
 
 func TestConfigMap_IsGarbageCollected(t *testing.T) {
@@ -2242,7 +2302,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 	require.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "Both components should be public")
+	assert.Equal(t, 4, len(ingresses.Items), "Both components should be public")
 
 	// Remove public on component 2
 	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -2259,7 +2319,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 				WithPublicPort("")))
 	require.NoError(t, err)
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 1, len(ingresses.Items), "Only component 1 should be public")
+	assert.Equal(t, 2, len(ingresses.Items), "Only component 1 should be public")
 
 	// Remove public on component 1
 	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -2303,8 +2363,9 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
+	assert.Equal(t, 2, len(ingresses.Items), "Component should be public")
 	assert.Equal(t, int32(80), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
+	assert.Equal(t, int32(80), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
 
 	// New publicPort exists, old public exists (ignored)
 	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -2321,8 +2382,14 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 
 	assert.NoError(t, err)
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
+	require.Equal(t, 2, len(ingresses.Items), "Component should be public, should have 2 ingresses, for canonical hostname and public hostname")
 	assert.Equal(t, int32(80), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
+	assert.Equal(t, "componentOneName-anyappname-test.AnyClusterName.dev.radix.equinor.com", ingresses.Items[0].Spec.Rules[0].Host)
+	assert.Equal(t, []string{"componentOneName-anyappname-test.AnyClusterName.dev.radix.equinor.com"}, ingresses.Items[0].Spec.TLS[0].Hosts)
+
+	assert.Equal(t, int32(80), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
+	assert.Equal(t, "componentOneName-anyappname-test.dev.radix.equinor.com", ingresses.Items[1].Spec.Rules[0].Host)
+	assert.Equal(t, []string{"componentOneName-anyappname-test.dev.radix.equinor.com"}, ingresses.Items[1].Spec.TLS[0].Hosts)
 
 	// New publicPort does not exist, old public does not exist
 	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -2357,9 +2424,9 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	assert.NoError(t, err)
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
 	expectedIngresses := getIngressesForRadixComponents(&ingresses.Items)
-	assert.Equal(t, 1, len(expectedIngresses), "Component should be public")
-	actualPortValue := ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number
-	assert.Equal(t, int32(443), actualPortValue)
+	assert.Equal(t, 2, len(expectedIngresses), "Component should be public")
+	assert.Equal(t, int32(443), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
+	assert.Equal(t, int32(443), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
 }
 
 func getIngressesForRadixComponents(ingresses *[]networkingv1.Ingress) []networkingv1.Ingress {
@@ -2554,7 +2621,7 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, radixDeployBuilder)
 	require.NoError(t, err)
 	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 1, len(ingresses.Items), "Environment should have one ingresses")
+	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses (canonical+public) ingress")
 	assert.True(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, testClusterName))
 }
 
