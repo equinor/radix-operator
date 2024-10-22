@@ -58,8 +58,8 @@ type deployComponentBuilder struct {
 	ingressConfiguration    []string
 	secrets                 []string
 	secretRefs              v1.RadixSecretRefs
-	dnsappalias             bool
-	// Deprecated: For backwards comptibility externalAppAlias is still supported, new code should use publicPort instead
+	dnsAppAlias             bool
+	// Deprecated: For backwards compatibility externalAppAlias is still supported, new code should use externalDNS instead
 	externalAppAlias   []string
 	externalDNS        []v1.RadixDeployExternalDNS
 	resources          v1.ResourceRequirements
@@ -113,10 +113,11 @@ func (dcb *deployComponentBuilder) WithAlwaysPullImageOnDeploy(val bool) DeployC
 }
 
 func (dcb *deployComponentBuilder) WithDNSAppAlias(createDNSAppAlias bool) DeployComponentBuilder {
-	dcb.dnsappalias = createDNSAppAlias
+	dcb.dnsAppAlias = createDNSAppAlias
 	return dcb
 }
 
+// Deprecated: For backwards compatibility it is still supported, new code should use WithExternalDNS instead
 func (dcb *deployComponentBuilder) WithDNSExternalAliases(alias ...string) DeployComponentBuilder {
 	dcb.externalAppAlias = alias
 	return dcb
@@ -252,7 +253,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		SecretRefs:              dcb.secretRefs,
 		IngressConfiguration:    dcb.ingressConfiguration,
 		EnvironmentVariables:    dcb.environmentVariables,
-		DNSAppAlias:             dcb.dnsappalias,
+		DNSAppAlias:             dcb.dnsAppAlias,
 		DNSExternalAlias:        dcb.externalAppAlias,
 		ExternalDNS:             dcb.externalDNS,
 		Resources:               dcb.resources,

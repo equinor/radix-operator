@@ -50,3 +50,9 @@ func Test_ForClusterAutoscalerSafeToEvict(t *testing.T) {
 	expected = map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
 	assert.Equal(t, expected, actual)
 }
+
+func Test_ForRadixDeployment(t *testing.T) {
+	actual := ForRadixDeployment("any-tag", "any-commit", "any-secret-hash", "any-config-hash")
+	expected := map[string]string{kube.RadixGitTagsAnnotation: "any-tag", kube.RadixCommitAnnotation: "any-commit", kube.RadixBuildSecretHash: "any-secret-hash", kube.RadixConfigHash: "any-config-hash"}
+	assert.Equal(t, expected, actual)
+}

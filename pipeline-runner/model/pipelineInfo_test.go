@@ -7,10 +7,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
 	applyConfigStep           = &model.DefaultStepImplementation{StepType: pipeline.ApplyConfigStep, SuccessMessage: "config applied"}
+	deployConfigStep          = &model.DefaultStepImplementation{StepType: pipeline.DeployConfigStep, SuccessMessage: "config deployed"}
 	buildStep                 = &model.DefaultStepImplementation{StepType: pipeline.BuildStep, SuccessMessage: "built"}
 	deployStep                = &model.DefaultStepImplementation{StepType: pipeline.DeployStep, SuccessMessage: "deployed"}
 	prepareTektonPipelineStep = &model.DefaultStepImplementation{StepType: pipeline.PreparePipelinesStep,
@@ -59,14 +61,17 @@ func Test_BuildAndDefaultNoPushOnlyPipeline(t *testing.T) {
 }
 
 func Test_ApplyConfigPipeline(t *testing.T) {
-	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.ApplyConfig))
+	pipelineType, err := pipeline.GetPipelineFromName(string(v1.ApplyConfig))
+	require.NoError(t, err, "Failed to get pipeline type. Error %v", err)
 
-	p, _ := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep)
+	p, err := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep, deployConfigStep)
+	require.NoError(t, err, "Failed to create pipeline. Error %v", err)
 	assert.Equal(t, v1.ApplyConfig, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
-	assert.Equal(t, 2, len(p.Steps))
+	assert.Equal(t, 3, len(p.Steps))
 	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
+	assert.Equal(t, "config deployed", p.Steps[2].SucceededMsg())
 }
 
 func Test_GetImageTagNamesFromArgs(t *testing.T) {

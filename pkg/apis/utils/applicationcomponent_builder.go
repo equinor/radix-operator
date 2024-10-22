@@ -12,7 +12,7 @@ type RadixApplicationComponentBuilder interface {
 	WithDockerfileName(string) RadixApplicationComponentBuilder
 	WithImage(string) RadixApplicationComponentBuilder
 	WithImageTagName(imageTagName string) RadixApplicationComponentBuilder
-	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
+	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithPorts([]radixv1.ComponentPort) RadixApplicationComponentBuilder
