@@ -316,8 +316,3 @@ func getPublicPortForComponent(deployComponent radixv1.RadixCommonDeployComponen
 
 	return 0
 }
-
-func isActiveCluster(clustername string) bool {
-	activeClustername := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
-	return strings.EqualFold(clustername, activeClustername)
-}
