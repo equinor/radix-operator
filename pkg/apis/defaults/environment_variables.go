@@ -61,9 +61,6 @@ const (
 	// RadixClusterTypeEnvironmentVariable The type of cluster dev|playground|prod. Will be equal to OperatorClusterTypeEnvironmentVariable
 	RadixClusterTypeEnvironmentVariable = "RADIX_CLUSTER_TYPE"
 
-	// ActiveClusternameEnvironmentVariable The name of the active cluster. If ActiveClusternameEnvironmentVariable == ClusternameEnvironmentVariable, this is the active cluster
-	ActiveClusternameEnvironmentVariable = "RADIX_ACTIVE_CLUSTERNAME"
-
 	// RadixCommitHashEnvironmentVariable Contains the commit id of the build
 	RadixCommitHashEnvironmentVariable = "RADIX_GIT_COMMIT_HASH"
 
