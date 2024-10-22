@@ -2,7 +2,6 @@
 nameOverride: ""
 fullnameOverride: ""
 clusterName: xx
-activeClusterName: xx
 clusterActiveEgressIps: xx
 
 registrationControllerThreads: 1

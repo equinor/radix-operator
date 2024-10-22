@@ -79,9 +79,6 @@ spec:
               value: {{ .Values.app.rollingUpdate.maxUnavailable | quote }}
             - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE
               value: {{ .Values.app.rollingUpdate.maxSurge | quote }}
-            # Active cluster name
-            - name: RADIX_ACTIVE_CLUSTERNAME
-              value: {{ .Values.activeClusterName }}
             # Maximum custom resources
             - name: RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT
               value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
@@ -174,9 +171,9 @@ spec:
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
               value: {{ .Values.ingress.certificate.automation.duration }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE
-              value: {{ .Values.ingress.certificate.automation.renewBefore }}  
+              value: {{ .Values.ingress.certificate.automation.renewBefore }}
             - name: RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET
-              value: {{ .Values.externalRegistryDefaultAuthSecret }}            
+              value: {{ .Values.externalRegistryDefaultAuthSecret }}
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD
               value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
@@ -198,7 +195,7 @@ spec:
           {{- with .Values.volumeMounts }}
           volumeMounts:
           {{- toYaml . | nindent 12 }}
-          {{- end }}          
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -214,4 +211,4 @@ spec:
       {{- with .Values.volumes }}
       volumes:
       {{- toYaml . | nindent 8 }}
-      {{- end }}        
+      {{- end }}

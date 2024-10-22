@@ -64,7 +64,6 @@ type Options struct {
 	alertControllerThreads        int
 	kubeClientRateLimitBurst      int
 	kubeClientRateLimitQPS        float32
-	activeClusterNameEnvVar       string
 }
 
 type App struct {
@@ -93,7 +92,6 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize app")
 	}
-	log.Ctx(ctx).Info().Msgf("Active cluster name: %v", app.opts.activeClusterNameEnvVar)
 
 	err = app.Run(ctx)
 	if err != nil {
@@ -233,7 +231,6 @@ func getInitParams() (Options, error) {
 		alertControllerThreads:        alertControllerThreads,
 		kubeClientRateLimitBurst:      kubeClientRateLimitBurst,
 		kubeClientRateLimitQPS:        kubeClientRateLimitQPS,
-		activeClusterNameEnvVar:       os.Getenv(defaults.ActiveClusternameEnvironmentVariable),
 	}, stderrors.Join(regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr)
 }
 
