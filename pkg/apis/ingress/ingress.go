@@ -116,5 +116,6 @@ func GetAnnotationProvider(ingressConfiguration IngressConfiguration, certificat
 		NewClientCertificateAnnotationProvider(certificateNamespace),
 		NewOAuth2AnnotationProvider(oauth2DefaultConfig),
 		NewIngressPublicAllowListAnnotationProvider(),
+		NewIngressPublicConfigAnnotationProvider(),
 	}
 }

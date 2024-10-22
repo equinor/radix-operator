@@ -2,6 +2,7 @@ package ingress
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -148,4 +149,37 @@ func (*ingressPublicAllowListAnnotationProvider) GetAnnotations(component radixv
 
 	addressList := slice.Map(*component.GetNetwork().Ingress.Public.Allow, func(v radixv1.IPOrCIDR) string { return string(v) })
 	return map[string]string{"nginx.ingress.kubernetes.io/whitelist-source-range": strings.Join(addressList, ",")}, nil
+}
+
+// NewIngressPublicConfigAnnotationProvider provides Ingress annotations
+// for fields in `Network.Ingress.Public`, except for `allow`
+func NewIngressPublicConfigAnnotationProvider() AnnotationProvider {
+	return &ingressPublicConfigAnnotationProvider{}
+}
+
+type ingressPublicConfigAnnotationProvider struct{}
+
+// GetAnnotations returns annotations for only allowing public ingress traffic
+// for IPs or CIDRs defined in Network.Ingress.Public.Allow for a component
+func (*ingressPublicConfigAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+	if network := component.GetNetwork(); network == nil || network.Ingress == nil || network.Ingress.Public == nil {
+		return nil, nil
+	}
+
+	annotations := map[string]string{}
+	cfg := component.GetNetwork().Ingress.Public
+
+	if v := cfg.ProxyBodySize; v != nil {
+		annotations["nginx.ingress.kubernetes.io/proxy-body-size"] = string(*v)
+	}
+
+	if v := cfg.ProxyReadTimeout; v != nil {
+		annotations["nginx.ingress.kubernetes.io/proxy-read-timeout"] = strconv.FormatUint(uint64(*v), 10)
+	}
+
+	if v := cfg.ProxySendTimeout; v != nil {
+		annotations["nginx.ingress.kubernetes.io/proxy-send-timeout"] = strconv.FormatUint(uint64(*v), 10)
+	}
+
+	return annotations, nil
 }

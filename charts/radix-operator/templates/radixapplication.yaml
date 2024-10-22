@@ -707,6 +707,28 @@ spec:
                                           pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
                                           type: string
                                         type: array
+                                      proxyBodySize:
+                                        description: |-
+                                          Sets the maximum allowed size of the client request body.
+                                          Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
+                                          If the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.
+                                          Setting size to 0 disables checking of client request body size.
+                                        pattern: ^(?:0|[1-9][0-9]*[kKmMgG]?)$
+                                        type: string
+                                      proxyReadTimeout:
+                                        description: |-
+                                          Defines a timeout, in seconds, for reading a response from the proxied server.
+                                          The timeout is set only between two successive read operations, not for the transmission of the whole response.
+                                          If the proxied server does not transmit anything within this time, the connection is closed.
+                                        minimum: 0
+                                        type: integer
+                                      proxySendTimeout:
+                                        description: |-
+                                          Defines a timeout, in seconds, for transmitting a request to the proxied server.
+                                          The timeout is set only between two successive write operations, not for the transmission of the whole request.
+                                          If the proxied server does not receive anything within this time, the connection is closed.
+                                        minimum: 0
+                                        type: integer
                                     type: object
                                 type: object
                             type: object
@@ -1447,6 +1469,28 @@ spec:
                                     pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
                                     type: string
                                   type: array
+                                proxyBodySize:
+                                  description: |-
+                                    Sets the maximum allowed size of the client request body.
+                                    Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
+                                    If the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.
+                                    Setting size to 0 disables checking of client request body size.
+                                  pattern: ^(?:0|[1-9][0-9]*[kKmMgG]?)$
+                                  type: string
+                                proxyReadTimeout:
+                                  description: |-
+                                    Defines a timeout, in seconds, for reading a response from the proxied server.
+                                    The timeout is set only between two successive read operations, not for the transmission of the whole response.
+                                    If the proxied server does not transmit anything within this time, the connection is closed.
+                                  minimum: 0
+                                  type: integer
+                                proxySendTimeout:
+                                  description: |-
+                                    Defines a timeout, in seconds, for transmitting a request to the proxied server.
+                                    The timeout is set only between two successive write operations, not for the transmission of the whole request.
+                                    If the proxied server does not receive anything within this time, the connection is closed.
+                                  minimum: 0
+                                  type: integer
                               type: object
                           type: object
                       type: object

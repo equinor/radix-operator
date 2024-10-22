@@ -176,7 +176,67 @@ func Test_PublicIngressAllowAnnotationProvider(t *testing.T) {
 			}
 		})
 	}
+}
 
+func Test_PublicIngressConfigAnnotationProvider(t *testing.T) {
+	tests := map[string]struct {
+		component          radixv1.RadixCommonDeployComponent
+		expectedAnnotation map[string]string
+	}{
+		"network is not set": {
+			component:          &radixv1.RadixDeployComponent{},
+			expectedAnnotation: make(map[string]string),
+		},
+		"network.ingress is not set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{}},
+			expectedAnnotation: make(map[string]string),
+		},
+		"network.ingress.public is not set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{}}},
+			expectedAnnotation: make(map[string]string),
+		},
+		"allow is ignored": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("10.0.0.1")}}}}},
+			expectedAnnotation: make(map[string]string),
+		},
+		"proxyReadTimeout annotation set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{ProxyReadTimeout: pointers.Ptr[uint](123)}}}},
+			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/proxy-read-timeout": "123"},
+		},
+		"proxySendTimeout annotation set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{ProxySendTimeout: pointers.Ptr[uint](456)}}}},
+			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/proxy-send-timeout": "456"},
+		},
+		"proxyBodySize annotation set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{ProxyBodySize: pointers.Ptr(radixv1.NginxSizeFormat("789k"))}}}},
+			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/proxy-body-size": "789k"},
+		},
+		"all fields set": {
+			component: &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{
+				ProxyReadTimeout: pointers.Ptr[uint](123),
+				ProxySendTimeout: pointers.Ptr[uint](456),
+				ProxyBodySize:    pointers.Ptr(radixv1.NginxSizeFormat("789k")),
+			}}}},
+			expectedAnnotation: map[string]string{
+				"nginx.ingress.kubernetes.io/proxy-read-timeout": "123",
+				"nginx.ingress.kubernetes.io/proxy-send-timeout": "456",
+				"nginx.ingress.kubernetes.io/proxy-body-size":    "789k",
+			},
+		},
+	}
+
+	sut := &ingressPublicConfigAnnotationProvider{}
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			actual, err := sut.GetAnnotations(testSpec.component, "")
+			assert.NoError(t, err)
+			if len(testSpec.expectedAnnotation) == 0 {
+				assert.Empty(t, actual)
+			} else {
+				assert.Equal(t, actual, testSpec.expectedAnnotation)
+			}
+		})
+	}
 }
 
 type OAuth2AnnotationsTestSuite struct {

@@ -278,15 +278,3 @@ func (env *Environment) AsOwnerReference() []metav1.OwnerReference {
 func (env *Environment) GetConfig() *v1.RadixEnvironment {
 	return env.config
 }
-
-func existsInAppConfig(app *v1.RadixApplication, envName string) bool {
-	if app == nil {
-		return false
-	}
-	for _, appEnv := range app.Spec.Environments {
-		if appEnv.Name == envName {
-			return true
-		}
-	}
-	return false
-}

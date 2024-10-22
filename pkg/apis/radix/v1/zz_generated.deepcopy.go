@@ -453,6 +453,21 @@ func (in *IngressPublic) DeepCopyInto(out *IngressPublic) {
 			copy(*out, *in)
 		}
 	}
+	if in.ProxyReadTimeout != nil {
+		in, out := &in.ProxyReadTimeout, &out.ProxyReadTimeout
+		*out = new(uint)
+		**out = **in
+	}
+	if in.ProxySendTimeout != nil {
+		in, out := &in.ProxySendTimeout, &out.ProxySendTimeout
+		*out = new(uint)
+		**out = **in
+	}
+	if in.ProxyBodySize != nil {
+		in, out := &in.ProxyBodySize, &out.ProxyBodySize
+		*out = new(NginxSizeFormat)
+		**out = **in
+	}
 	return
 }
 
@@ -2111,6 +2126,10 @@ func (in *RadixEnvironmentSpec) DeepCopy() *RadixEnvironmentSpec {
 func (in *RadixEnvironmentStatus) DeepCopyInto(out *RadixEnvironmentStatus) {
 	*out = *in
 	in.Reconciled.DeepCopyInto(&out.Reconciled)
+	if in.OrphanedTimestamp != nil {
+		in, out := &in.OrphanedTimestamp, &out.OrphanedTimestamp
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

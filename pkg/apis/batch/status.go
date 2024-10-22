@@ -121,30 +121,31 @@ func (s *syncer) buildJobStatuses(ctx context.Context) ([]radixv1.RadixBatchJobS
 }
 
 func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.RadixBatchJob, allJobs []*batchv1.Job) radixv1.RadixBatchJobStatus {
-	currentStatus := slice.FindAll(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
+	currentStatus, hasCurrentStatus := slice.FindFirst(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
 		return jobStatus.Name == batchJob.Name
 	})
-	if len(currentStatus) > 0 && isJobStatusDone(currentStatus[0]) {
-		return currentStatus[0]
+	if hasCurrentStatus && isJobStatusDone(currentStatus) {
+		return currentStatus
 	}
 
 	status := radixv1.RadixBatchJobStatus{
 		Name:  batchJob.Name,
 		Phase: radixv1.BatchJobPhaseWaiting,
 	}
-	if len(currentStatus) > 0 {
-		status.Restart = currentStatus[0].Restart
+	if hasCurrentStatus {
+		status.Restart = currentStatus.Restart
+		status.Phase = currentStatus.Phase
 	}
 
 	if isBatchJobStopRequested(batchJob) {
 		status.Phase = radixv1.BatchJobPhaseStopped
 		now := metav1.Now()
 		status.EndTime = &now
-		if len(currentStatus) > 0 {
-			status.CreationTime = currentStatus[0].CreationTime
-			status.StartTime = currentStatus[0].StartTime
-			status.Message = currentStatus[0].Message
-			status.Reason = currentStatus[0].Reason
+		if hasCurrentStatus {
+			status.CreationTime = currentStatus.CreationTime
+			status.StartTime = currentStatus.StartTime
+			status.Message = currentStatus.Message
+			status.Reason = currentStatus.Reason
 		}
 		s.updateJobAndPodStatuses(ctx, batchJob.Name, &status)
 		return status
@@ -158,12 +159,16 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 	status.CreationTime = &job.CreationTimestamp
 	status.Failed = job.Status.Failed
 
+	var uncountedSucceeded, uncountedFailed int
+	if uncounted := job.Status.UncountedTerminatedPods; uncounted != nil {
+		uncountedSucceeded, uncountedFailed = len(uncounted.Succeeded), len(uncounted.Failed)
+	}
 	jobConditionsSortedDesc := getJobConditionsSortedDesc(job)
-	if job.Status.Succeeded > 0 &&
+	if (job.Status.Succeeded+int32(uncountedSucceeded)) > 0 &&
 		s.setJobStatus(ctx, batchJob, &status, job, jobConditionsSortedDesc, radixv1.BatchJobPhaseSucceeded, batchv1.JobComplete) {
 		return status
 	}
-	if job.Status.Failed == jobBackoffLimit+1 &&
+	if (job.Status.Failed+int32(uncountedFailed)) == jobBackoffLimit+1 &&
 		s.setJobStatus(ctx, batchJob, &status, job, jobConditionsSortedDesc, radixv1.BatchJobPhaseFailed, batchv1.JobFailed) {
 		return status
 	}

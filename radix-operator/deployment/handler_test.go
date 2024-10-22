@@ -158,6 +158,7 @@ func (s *handlerSuite) Test_Sync() {
 			ingress.NewClientCertificateAnnotationProvider(activeRd.Namespace),
 			ingress.NewOAuth2AnnotationProvider(oauthConfig),
 			ingress.NewIngressPublicAllowListAnnotationProvider(),
+			ingress.NewIngressPublicConfigAnnotationProvider(),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
 			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
