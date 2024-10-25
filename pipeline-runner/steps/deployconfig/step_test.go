@@ -561,7 +561,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				PipelineArguments: model.PipelineArguments{
 					JobName:  jobName,
 					ImageTag: appliedImageTag,
-					DeployConfigStep: model.DeployConfigStepOptions{
+					ApplyConfigOptions: model.ApplyConfigOptions{
 						DeployExternalDNS: true,
 					},
 				},

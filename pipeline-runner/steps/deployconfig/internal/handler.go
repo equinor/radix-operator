@@ -1,4 +1,4 @@
-package deployconfig
+package internal
 
 import (
 	"context"
@@ -27,39 +27,44 @@ type envInfo struct {
 type envInfoList []envInfo
 
 type deployHandler struct {
-	updaters     []DeploymentUpdater
-	kubeutil     *kube.Kube
-	pipelineInfo model.PipelineInfo
-	rdWatcher    watcher.RadixDeploymentWatcher
+	pipelineInfo     *model.PipelineInfo
+	kubeUtil         *kube.Kube
+	rdWatcher        watcher.RadixDeploymentWatcher
+	featureProviders []FeatureProvider
 }
 
-func (h *deployHandler) deploy(ctx context.Context) error {
-	envsToDeploy, err := h.getEnvironmentsToDeploy(ctx)
+func NewHandler(pipelineInfo *model.PipelineInfo, kubeUtil *kube.Kube, rdWatcher watcher.RadixDeploymentWatcher, featureProviders []FeatureProvider) *deployHandler {
+	return &deployHandler{
+		pipelineInfo:     pipelineInfo,
+		kubeUtil:         kubeUtil,
+		rdWatcher:        rdWatcher,
+		featureProviders: featureProviders,
+	}
+}
+
+func (h *deployHandler) Deploy(ctx context.Context) error {
+	candidates, err := h.getEnvironmentCandidates(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get list of environments to deploy: %w", err)
+		return fmt.Errorf("failed to list environments: %w", err)
 	}
 
-	if err := h.validateEnvironmentsToDeploy(envsToDeploy); err != nil {
-		return fmt.Errorf("failed to validate environments: %w", err)
+	deployments, err := h.buildDeploymentsForEnvironments(ctx, candidates)
+	if err != nil {
+		return fmt.Errorf("failed to build Radix deployments: %w", err)
 	}
 
-	return h.deployEnvironments(ctx, envsToDeploy)
-}
-
-func (h *deployHandler) validateEnvironmentsToDeploy(envsToDeploy envInfoList) error {
-	for _, envInfo := range envsToDeploy {
-		if envInfo.activeRd == nil {
-			return fmt.Errorf("cannot deploy to environment %s because it does not have an active Radix deployment", envInfo.envName)
-		}
+	if err := h.applyDeployments(ctx, deployments); err != nil {
+		return fmt.Errorf("failed to apply Radix deployments: %w", err)
 	}
+
 	return nil
 }
 
-func (h *deployHandler) getEnvironmentsToDeploy(ctx context.Context) (envInfoList, error) {
+func (h *deployHandler) getEnvironmentCandidates(ctx context.Context) (envInfoList, error) {
 	allEnvs := envInfoList{}
 	for _, env := range h.pipelineInfo.RadixApplication.Spec.Environments {
 		envNs := utils.GetEnvironmentNamespace(h.pipelineInfo.RadixApplication.GetName(), env.Name)
-		rd, err := internal.GetActiveRadixDeployment(ctx, h.kubeutil, envNs)
+		rd, err := internal.GetActiveRadixDeployment(ctx, h.kubeUtil, envNs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get active Radix deployment for environment %s: %w", env.Name, err)
 		}
@@ -68,8 +73,8 @@ func (h *deployHandler) getEnvironmentsToDeploy(ctx context.Context) (envInfoLis
 
 	deployEnvs := envInfoList{}
 	for _, envInfo := range allEnvs {
-		if slices.ContainsFunc(h.updaters, func(deployer DeploymentUpdater) bool {
-			return deployer.MustDeployEnvironment(envInfo.envName, h.pipelineInfo.RadixApplication, envInfo.activeRd)
+		if slices.ContainsFunc(h.featureProviders, func(deployer FeatureProvider) bool {
+			return deployer.IsEnabledForEnvironment(envInfo.envName, h.pipelineInfo.RadixApplication, envInfo.activeRd)
 		}) {
 			deployEnvs = append(deployEnvs, envInfo)
 		}
@@ -78,16 +83,12 @@ func (h *deployHandler) getEnvironmentsToDeploy(ctx context.Context) (envInfoLis
 	return deployEnvs, nil
 }
 
-func (h *deployHandler) deployEnvironments(ctx context.Context, envs envInfoList) error {
-	rdList, err := h.buildDeployments(ctx, envs)
-	if err != nil {
-		return fmt.Errorf("failed to build Radix deployments: %w", err)
+func (h *deployHandler) validateEnvironments(environments envInfoList) error {
+	for _, envInfo := range environments {
+		if envInfo.activeRd == nil {
+			return fmt.Errorf("cannot deploy to environment %s because it does not have an active Radix deployment", envInfo.envName)
+		}
 	}
-
-	if err := h.applyDeployments(ctx, rdList); err != nil {
-		return fmt.Errorf("failed to apply Radix deployments: %w", err)
-	}
-
 	return nil
 }
 
@@ -98,7 +99,7 @@ func (h *deployHandler) applyDeployments(ctx context.Context, rdList []*radixv1.
 
 	for _, rd := range rdList {
 		log.Ctx(ctx).Info().Msgf("Apply Radix deployment %s to environment %s", rd.GetName(), rd.Spec.Environment)
-		_, err := h.kubeutil.RadixClient().RadixV1().RadixDeployments(rd.GetNamespace()).Create(ctx, rd, metav1.CreateOptions{})
+		_, err := h.kubeUtil.RadixClient().RadixV1().RadixDeployments(rd.GetNamespace()).Create(ctx, rd, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to apply Radix deployment %s to environment %s: %w", rd.GetName(), rd.Spec.Environment, err)
 		}
@@ -121,10 +122,13 @@ func (h *deployHandler) applyDeployments(ctx context.Context, rdList []*radixv1.
 	return nil
 }
 
-func (h *deployHandler) buildDeployments(ctx context.Context, envs envInfoList) ([]*radixv1.RadixDeployment, error) {
-	var rdList []*radixv1.RadixDeployment
+func (h *deployHandler) buildDeploymentsForEnvironments(ctx context.Context, environments envInfoList) ([]*radixv1.RadixDeployment, error) {
+	if err := h.validateEnvironments(environments); err != nil {
+		return nil, fmt.Errorf("failed to validate environments: %w", err)
+	}
 
-	for _, envInfo := range envs {
+	var rdList []*radixv1.RadixDeployment
+	for _, envInfo := range environments {
 		rd, err := h.buildDeployment(ctx, envInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build Radix deployment for environment %s: %w", envInfo.envName, err)
@@ -167,13 +171,12 @@ func (h *deployHandler) buildDeployment(ctx context.Context, envInfo envInfo) (*
 		return nil, fmt.Errorf("failed to construct Radix deployment: %w", err)
 	}
 
-	// TODO: Verify that the same components and jobs exist in both RDs?
-
 	targetRd := envInfo.activeRd.DeepCopy()
 	targetRd.ObjectMeta = *sourceRd.ObjectMeta.DeepCopy()
+	targetRd.Status = radixv1.RadixDeployStatus{}
 
-	for _, updater := range h.updaters {
-		if err := updater.UpdateDeployment(targetRd, sourceRd); err != nil {
+	for _, updater := range h.featureProviders {
+		if err := updater.Mutate(targetRd, sourceRd); err != nil {
 			return nil, fmt.Errorf("failed to apply configu to Radix deployment: %w", err)
 		}
 	}

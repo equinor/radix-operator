@@ -115,7 +115,7 @@
         "--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
         "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
         "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
-        "--PIPELINE_DEPLOYCONFIG_STEP_DEPLOYEXTERNALDNS=true"
+        "--APPLY_CONFIG_DEPLOY_EXTERNALDNS=true"
       ]
     },
     {

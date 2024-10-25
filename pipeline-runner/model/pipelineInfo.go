@@ -55,9 +55,8 @@ type Builder struct {
 	ResourcesRequestsMemory string
 }
 
-type DeployConfigStepOptions struct {
+type ApplyConfigOptions struct {
 	DeployExternalDNS bool
-	// DeployAppAlias    bool
 }
 
 // PipelineArguments Holds arguments for the pipeline
@@ -121,7 +120,7 @@ type PipelineArguments struct {
 	// Used to authenticate external container registries when using buildkit to build dockerfiles.
 	ExternalContainerRegistryDefaultAuthSecret string
 
-	DeployConfigStep DeployConfigStepOptions
+	ApplyConfigOptions ApplyConfigOptions
 }
 
 // InitPipeline Initialize pipeline with step implementations
