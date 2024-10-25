@@ -66,13 +66,3 @@ func ForClusterAutoscalerSafeToEvict(safeToEvict bool) map[string]string {
 func forAzureWorkloadIdentityClientId(clientId string) map[string]string {
 	return map[string]string{azureWorkloadIdentityClientIdAnnotation: clientId}
 }
-
-// ForRadixDeployment Annotations foor RadixDeployment
-func ForRadixDeployment(gitTags, commitID, buildSecretHash, radixConfigHash string) map[string]string {
-	return map[string]string{
-		kube.RadixGitTagsAnnotation: gitTags,
-		kube.RadixCommitAnnotation:  commitID,
-		kube.RadixBuildSecretHash:   buildSecretHash,
-		kube.RadixConfigHash:        radixConfigHash,
-	}
-}

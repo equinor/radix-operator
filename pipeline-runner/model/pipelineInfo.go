@@ -57,7 +57,7 @@ type Builder struct {
 
 type DeployConfigStepOptions struct {
 	DeployExternalDNS bool
-	DeployAppAlias    bool
+	// DeployAppAlias    bool
 }
 
 // PipelineArguments Holds arguments for the pipeline
