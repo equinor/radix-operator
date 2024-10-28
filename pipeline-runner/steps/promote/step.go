@@ -82,7 +82,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	}
 
 	radixDeployment = rd.DeepCopy()
-	radixDeployment.Name = utils.GetDeploymentName(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
+	radixDeployment.Name = utils.GetDeploymentName(pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 
 	activeRadixDeployment, err := cli.GetKubeutil().GetActiveDeployment(ctx, toNs)
 	if err != nil {

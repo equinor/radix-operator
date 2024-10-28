@@ -59,7 +59,7 @@ func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) st
 
 func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []radixv1.RadixDeployComponent, jobs []radixv1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *radixv1.RadixDeployment {
 	appName := radixApplication.GetName()
-	deployName := utils.GetDeploymentName(appName, env, imageTag)
+	deployName := utils.GetDeploymentName(env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
 	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})

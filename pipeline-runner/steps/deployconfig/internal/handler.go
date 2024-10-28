@@ -139,13 +139,6 @@ func (h *deployHandler) buildDeploymentsForEnvironments(ctx context.Context, env
 }
 
 func (h *deployHandler) buildDeployment(ctx context.Context, envInfo envInfo) (*radixv1.RadixDeployment, error) {
-	// TODO: should we use the new RA hash or hash from current active RD?
-	// Both can cause inconsitency issues since we technically do not apply everything from RA to the RDs
-	// radixApplicationHash, err := internal.CreateRadixApplicationHash(h.pipelineInfo.RadixApplication)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	sourceRd, err := internal.ConstructForTargetEnvironment(
 		ctx,
 		h.pipelineInfo.RadixApplication,

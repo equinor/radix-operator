@@ -572,8 +572,8 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 
 			s.SetupTest()
 			s.createUsedNamespaces(ts)
-			s.createRadixDeployments(ts.existingRadixDeploymentBuilderProps, existingRa)
-			expectedRdByEnvMap := getRadixDeploymentsByEnvMap(s.buildRadixDeployments(ts.expectedNewRadixDeploymentBuilderProps, pipelineInfo.RadixApplication))
+			existingRdByEnvMap := s.createRadixDeployments(ts.existingRadixDeploymentBuilderProps, existingRa)
+			expectedRdByEnvMap := getRadixDeploymentsByEnvMap(s.buildRadixDeployments(ts.expectedNewRadixDeploymentBuilderProps, pipelineInfo.RadixApplication, existingRdByEnvMap))
 			affectedEnvs := maps.GetKeysFromMap(expectedRdByEnvMap)
 
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
@@ -670,24 +670,37 @@ func (s *deployConfigTestSuite) createRadixApplication(props raProps) *radixv1.R
 	return radixApplication
 }
 
-func (s *deployConfigTestSuite) createRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication) {
-	rdList := s.buildRadixDeployments(deploymentBuildersProps, ra)
+func (s *deployConfigTestSuite) createRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication) map[string]radixv1.RadixDeployment {
+	rdList := s.buildRadixDeployments(deploymentBuildersProps, ra, nil)
 	for _, rd := range rdList {
 		_, err := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).Create(context.Background(), &rd, metav1.CreateOptions{})
 		s.Require().NoError(err)
 	}
+	return slice.Reduce(rdList, make(map[string]radixv1.RadixDeployment), func(acc map[string]radixv1.RadixDeployment, rd radixv1.RadixDeployment) map[string]radixv1.RadixDeployment {
+		acc[rd.Spec.Environment] = rd
+		return acc
+	})
 }
 
-func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication) []radixv1.RadixDeployment {
+func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication, sourceEnvMap map[string]radixv1.RadixDeployment) []radixv1.RadixDeployment {
 	radixConfigHash, _ := internal.CreateRadixApplicationHash(ra)
 	buildSecretHash, _ := internal.CreateBuildSecretHash(nil)
 	var rdList []radixv1.RadixDeployment
 	for _, rdProps := range deploymentBuildersProps {
+		if sourceRd, ok := sourceEnvMap[rdProps.envName]; ok {
+			if sourceRdRadixConfigHash, ok := sourceRd.GetAnnotations()[kube.RadixConfigHash]; ok && len(sourceRdRadixConfigHash) > 0 {
+				radixConfigHash = sourceRdRadixConfigHash
+			}
+			if sourceBuildSecretHash, ok := sourceRd.GetAnnotations()[kube.RadixBuildSecretHash]; ok && len(sourceBuildSecretHash) > 0 {
+				buildSecretHash = sourceBuildSecretHash
+			}
+		}
 		deploymentBuilder := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(rdProps.envName).WithImageTag(rdProps.imageTag).
 			WithActiveFrom(rdProps.activeFrom).WithLabel(kube.RadixCommitLabel, commitId).WithLabel(kube.RadixJobNameLabel, jobName).
 			WithAnnotations(map[string]string{
 				kube.RadixGitTagsAnnotation: gitTags,
 				kube.RadixCommitAnnotation:  commitId,
+				kube.RadixBranchAnnotation:  "",
 				kube.RadixBuildSecretHash:   buildSecretHash,
 				kube.RadixConfigHash:        radixConfigHash,
 			})
@@ -705,7 +718,11 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 			// set other props if needed
 			deploymentBuilder = deploymentBuilder.WithComponent(componentBuilder)
 		}
-		rdList = append(rdList, *deploymentBuilder.BuildRD())
+		rd := deploymentBuilder.BuildRD()
+		labels := rd.GetLabels()
+		delete(labels, kube.RadixImageTagLabel) // HACK - not actually used label
+		rd.SetLabels(labels)
+		rdList = append(rdList, *rd)
 	}
 	return rdList
 }
