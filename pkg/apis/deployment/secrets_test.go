@@ -47,7 +47,6 @@ func teardownSecretsTest() {
 	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
 	_ = os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-	_ = os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 }
