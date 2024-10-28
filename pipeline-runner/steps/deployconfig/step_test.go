@@ -561,6 +561,9 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				PipelineArguments: model.PipelineArguments{
 					JobName:  jobName,
 					ImageTag: appliedImageTag,
+					ApplyConfigOptions: model.ApplyConfigOptions{
+						DeployExternalDNS: true,
+					},
 				},
 				RadixApplication: buildRadixApplication(ts.applyingRaProps),
 				GitCommitHash:    commitId,
@@ -573,12 +576,10 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			expectedRdByEnvMap := getRadixDeploymentsByEnvMap(s.buildRadixDeployments(ts.expectedNewRadixDeploymentBuilderProps, pipelineInfo.RadixApplication))
 			affectedEnvs := maps.GetKeysFromMap(expectedRdByEnvMap)
 
-			namespaceWatcher := watcher.NewMockNamespaceWatcher(s.ctrl)
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
-			namespaceWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any()).Return(nil).Times(len(affectedEnvs))
 			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(len(affectedEnvs))
 
-			cli := deployconfig.NewDeployConfigStep(namespaceWatcher, radixDeploymentWatcher)
+			cli := deployconfig.NewDeployConfigStep(radixDeploymentWatcher)
 			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
 			if err := cli.Run(context.Background(), pipelineInfo); err != nil {
 				t.Logf("Error: %v", err)
