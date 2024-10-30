@@ -11,6 +11,12 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Active From",type="date",JSONPath=".status.activeFrom"
+// +kubebuilder:printcolumn:name="Active To",type="date",JSONPath=".status.activeTo"
+// +kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.condition"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:resource:path=radixdeployments,shortName=rd
+// +kubebuilder:subresource:status
 
 // RadixDeployment describe a deployment
 type RadixDeployment struct {
@@ -105,7 +111,7 @@ type RadixDeployComponent struct {
 	Name             string          `json:"name"`
 	Image            string          `json:"image"`
 	Ports            []ComponentPort `json:"ports"`
-	Replicas         *int            `json:"replicas"`
+	Replicas         *int            `json:"replicas,omitempty"`
 	ReplicasOverride *int            `json:"replicasOverride,omitempty"`
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public               bool                     `json:"public"`
