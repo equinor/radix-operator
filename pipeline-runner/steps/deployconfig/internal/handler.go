@@ -165,7 +165,7 @@ func (h *deployHandler) buildDeployment(ctx context.Context, envInfo envInfo) (*
 
 	for _, updater := range h.featureProviders {
 		if err := updater.Mutate(*targetRd, *sourceRd); err != nil {
-			return nil, fmt.Errorf("failed to apply configu to Radix deployment: %w", err)
+			return nil, fmt.Errorf("failed to apply configuration to Radix deployment: %w", err)
 		}
 	}
 
