@@ -719,9 +719,6 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 			deploymentBuilder = deploymentBuilder.WithComponent(componentBuilder)
 		}
 		rd := deploymentBuilder.BuildRD()
-		labels := rd.GetLabels()
-		delete(labels, kube.RadixImageTagLabel) // HACK - not actually used label
-		rd.SetLabels(labels)
 		rdList = append(rdList, *rd)
 	}
 	return rdList
