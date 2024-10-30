@@ -60,7 +60,7 @@ type RadixDeployStatus struct {
 	ActiveFrom meta_v1.Time         `json:"activeFrom"`
 	ActiveTo   meta_v1.Time         `json:"activeTo"`
 	Condition  RadixDeployCondition `json:"condition"`
-	Reconciled meta_v1.Time         `json:"reconciled"`
+	Reconciled meta_v1.Time         `json:"reconciled,omitempty"`
 }
 
 // RadixDeployCondition Holds the condition of a component
@@ -78,7 +78,7 @@ const (
 type RadixDeploymentSpec struct {
 	AppName          string                         `json:"appname"`
 	Components       []RadixDeployComponent         `json:"components"`
-	Jobs             []RadixDeployJobComponent      `json:"jobs"`
+	Jobs             []RadixDeployJobComponent      `json:"jobs,omitempty"`
 	Environment      string                         `json:"environment"`
 	ImagePullSecrets []core_v1.LocalObjectReference `json:"imagePullSecrets"`
 }
