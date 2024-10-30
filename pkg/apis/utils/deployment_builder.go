@@ -240,7 +240,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 	}
 	deployName := db.DeploymentName
 	if deployName == "" {
-		deployName = GetDeploymentName(db.AppName, db.Environment, db.ImageTag)
+		deployName = GetDeploymentName(db.Environment, db.ImageTag)
 	}
 	status := v1.RadixDeployStatus{}
 	if !db.emptyStatus {

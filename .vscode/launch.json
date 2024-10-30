@@ -93,6 +93,32 @@
       ]
     },
     {
+      "name": "Launch-applyconfig-pipeline",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/pipeline-runner/main.go",
+      "env": {},
+      "args": [
+        "--RADIX_APP=oauth-demo",
+        "--JOB_NAME=radix-pipeline-20231030091802-mfzoz",
+        "--PIPELINE_TYPE=apply-config",
+        "--RADIX_TEKTON_IMAGE=radix-tekton:main-latest",
+        "--RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE=radixdevcache.azurecr.io/alpine:3.20",
+        "--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=radixdevcache.azurecr.io/alpine/git:2.45.2",
+        "--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=radixdevcache.azurecr.io/bash:5.2",
+        "--DEBUG=true",
+        "--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
+        "--RADIX_CLUSTER_TYPE=development",
+        "--RADIX_ZONE=dev",
+        "--RADIX_CLUSTERNAME=weekly-43",
+        "--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
+        "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
+        "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
+        "--APPLY_CONFIG_DEPLOY_EXTERNALDNS=true"
+      ]
+    },
+    {
       "name": "Launch-operator",
       "type": "go",
       "request": "launch",

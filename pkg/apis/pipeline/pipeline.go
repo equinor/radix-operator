@@ -40,7 +40,8 @@ func GetSupportedPipelines() []Definition {
 			DeployStep}},
 		{v1.ApplyConfig, []StepType{
 			PreparePipelinesStep,
-			ApplyConfigStep}},
+			ApplyConfigStep,
+			DeployConfigStep}},
 	}
 }
 

@@ -159,6 +159,8 @@ const (
 	// RadixPipelineActionEnvironmentVariable Pipeline action: prepare, run
 	RadixPipelineActionEnvironmentVariable = "RADIX_PIPELINE_ACTION"
 
+	RadixPipelineApplyConfigDeployExternalDNSFlag = "APPLY_CONFIG_DEPLOY_EXTERNALDNS"
+
 	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
 	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"
 

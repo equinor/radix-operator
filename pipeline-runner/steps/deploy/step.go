@@ -7,11 +7,10 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -72,10 +71,9 @@ func (cli *DeployStepImplementation) deploy(ctx context.Context, pipelineInfo *m
 }
 
 func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, envName string, pipelineInfo *model.PipelineInfo) error {
-	defaultEnvVars := getDefaultEnvVars(pipelineInfo)
-
-	if commitID, ok := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]; !ok || len(commitID) == 0 {
-		defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable] = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
+	commitID, gitTags := pipelineInfo.GitCommitHash, pipelineInfo.GitTags
+	if len(commitID) == 0 {
+		commitID = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
 
 	radixApplicationHash, err := internal.CreateRadixApplicationHash(pipelineInfo.RadixApplication)
@@ -99,9 +97,10 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
 		pipelineInfo.PipelineArguments.Branch,
+		commitID,
+		gitTags,
 		pipelineInfo.DeployEnvironmentComponentImages[envName],
 		envName,
-		defaultEnvVars,
 		radixApplicationHash,
 		buildSecretHash,
 		pipelineInfo.PrepareBuildContext,
@@ -122,23 +121,12 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
 	}
 
-	if err := cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {
+	if err = cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Failed to activate Radix deployment %s in environment %s. Deleting deployment", radixDeploymentName, envName)
-		if err := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); err != nil {
-			log.Ctx(ctx).Error().Err(err).Msgf("Failed to delete Radix deployment")
+		if deleteErr := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); deleteErr != nil && !k8serrors.IsNotFound(deleteErr) {
+			log.Ctx(ctx).Error().Err(deleteErr).Msgf("Failed to delete Radix deployment")
 		}
 		return err
 	}
 	return nil
-}
-
-func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) radixv1.EnvVarsMap {
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
-
-	envVarsMap := make(radixv1.EnvVarsMap)
-	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
-	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
-
-	return envVarsMap
 }

@@ -39,17 +39,18 @@ func (deploy *Deployment) syncExternalDnsResources(ctx context.Context) error {
 			if err := deploy.createOrUpdateExternalDnsCertificate(ctx, externalDns); err != nil {
 				return err
 			}
-		} else {
-			if err := deploy.garbageCollectExternalDnsCertificate(ctx, externalDns); err != nil {
-				return err
-			}
-
-			secretName := utils.GetExternalDnsTlsSecretName(externalDns)
-			if err := deploy.createOrUpdateExternalDnsTlsSecret(ctx, externalDns, secretName); err != nil {
-				return err
-			}
-			secretNames = append(secretNames, secretName)
+			continue
 		}
+
+		if err := deploy.garbageCollectExternalDnsCertificate(ctx, externalDns); err != nil {
+			return err
+		}
+
+		secretName := utils.GetExternalDnsTlsSecretName(externalDns)
+		if err := deploy.createOrUpdateExternalDnsTlsSecret(ctx, externalDns, secretName); err != nil {
+			return err
+		}
+		secretNames = append(secretNames, secretName)
 	}
 
 	return deploy.grantAccessToExternalDnsSecrets(ctx, secretNames)
