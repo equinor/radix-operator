@@ -218,7 +218,7 @@ func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, envVarsS
 	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
 	if isPortPublic {
 		canonicalHostName := getHostName(deployComponent.GetName(), namespace, clusterName, dnsZone)
-		publicHostName := getActiveClusterHostName(deployComponent.GetName(), namespace)
+		publicHostName := getActiveClusterHostName(deployComponent.GetName(), namespace, dnsZone)
 		envVarSet.Add(defaults.PublicEndpointEnvironmentVariable, publicHostName)
 		envVarSet.Add(defaults.CanonicalEndpointEnvironmentVariable, canonicalHostName)
 	}

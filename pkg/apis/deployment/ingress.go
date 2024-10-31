@@ -223,7 +223,7 @@ func (deploy *Deployment) getActiveClusterAliasIngressConfig(
 	namespace string,
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
-	hostname := getActiveClusterHostName(component.GetName(), namespace)
+	hostname := getActiveClusterHostName(component.GetName(), namespace, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable))
 	if hostname == "" {
 		return nil, nil
 	}
@@ -289,8 +289,7 @@ func getDefaultIngressName(componentName string) string {
 	return componentName
 }
 
-func getActiveClusterHostName(componentName, namespace string) string {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
+func getActiveClusterHostName(componentName, namespace, dnsZone string) string {
 	if dnsZone == "" {
 		return ""
 	}
