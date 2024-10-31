@@ -1563,7 +1563,6 @@ spec:
             - components
             - environment
             - imagePullSecrets
-            - jobs
             type: object
           status:
             description: RadixDeployStatus is the status for a rd
@@ -1582,9 +1581,7 @@ spec:
                 type: string
             required:
             - activeFrom
-            - activeTo
             - condition
-            - reconciled
             type: object
         required:
         - spec

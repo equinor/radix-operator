@@ -57,10 +57,12 @@ func (rd *RadixDeployment) GetCommonComponentByName(name string) RadixCommonDepl
 
 // RadixDeployStatus is the status for a rd
 type RadixDeployStatus struct {
-	ActiveFrom meta_v1.Time         `json:"activeFrom"`
-	ActiveTo   meta_v1.Time         `json:"activeTo"`
-	Condition  RadixDeployCondition `json:"condition"`
-	Reconciled meta_v1.Time         `json:"reconciled,omitempty"`
+	ActiveFrom meta_v1.Time `json:"activeFrom"`
+	// +optional
+	ActiveTo  meta_v1.Time         `json:"activeTo,omitempty"`
+	Condition RadixDeployCondition `json:"condition"`
+	// +optional
+	Reconciled meta_v1.Time `json:"reconciled"`
 }
 
 // RadixDeployCondition Holds the condition of a component
