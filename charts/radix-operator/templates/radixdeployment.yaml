@@ -19,16 +19,24 @@ spec:
   - additionalPrinterColumns:
     - jsonPath: .status.activeFrom
       name: Active From
-      type: date
+      type: string
     - jsonPath: .status.activeTo
       name: Active To
-      type: date
+      type: string
     - jsonPath: .status.condition
       name: Condition
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - jsonPath: .status.reconciled
+      name: Reconciled
+      priority: 1
+      type: date
+    - jsonPath: .metadata.annotations.radix-branch
+      name: Branch
+      priority: 1
+      type: string
     name: v1
     schema:
       openAPIV3Schema:

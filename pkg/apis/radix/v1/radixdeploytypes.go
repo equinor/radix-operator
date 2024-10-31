@@ -11,10 +11,12 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:printcolumn:name="Active From",type="date",JSONPath=".status.activeFrom"
-// +kubebuilder:printcolumn:name="Active To",type="date",JSONPath=".status.activeTo"
+// +kubebuilder:printcolumn:name="Active From",type="string",JSONPath=".status.activeFrom"
+// +kubebuilder:printcolumn:name="Active To",type="string",JSONPath=".status.activeTo"
 // +kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.condition"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Reconciled",type="date",JSONPath=".status.reconciled",priority=1
+// +kubebuilder:printcolumn:name="Branch",type="string",JSONPath=".metadata.annotations.radix-branch",priority=1
 // +kubebuilder:resource:path=radixdeployments,shortName=rd
 // +kubebuilder:subresource:status
 
