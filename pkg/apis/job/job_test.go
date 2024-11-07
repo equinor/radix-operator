@@ -167,12 +167,13 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
-	appName, jobName, branch, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	rj, err := s.applyJobWithSync(utils.NewJobBuilder().
 		WithJobName(jobName).
 		WithAppName(appName).
 		WithBranch(branch).
+		WithToEnvironment(envName).
 		WithCommitID(commitID).
 		WithPushImage(true).
 		WithImageTag(imageTag).
@@ -234,6 +235,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=%s", s.config.bashImage),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
+				fmt.Sprintf("--TO_ENVIRONMENT=%s", envName),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
 				"--PUSH_IMAGE=1",
 			},

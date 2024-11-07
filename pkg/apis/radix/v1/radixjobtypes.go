@@ -1,7 +1,7 @@
 package v1
 
 import (
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
@@ -9,20 +9,20 @@ import (
 
 // RadixJob describe a Radix job
 type RadixJob struct {
-	meta_v1.TypeMeta   `json:",inline" yaml:",inline"`
-	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec               RadixJobSpec   `json:"spec" yaml:"spec"`
-	Status             RadixJobStatus `json:"status" yaml:"status"`
+	metav1.TypeMeta   `json:",inline",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              RadixJobSpec   `json:"spec"`
+	Status            RadixJobStatus `json:"status"`
 }
 
 // RadixJobStatus is the status for a Radix job
 type RadixJobStatus struct {
-	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
-	Created    *meta_v1.Time     `json:"created" yaml:"created"`
-	Started    *meta_v1.Time     `json:"started" yaml:"started"`
-	Ended      *meta_v1.Time     `json:"ended" yaml:"ended"`
-	TargetEnvs []string          `json:"targetEnvironments" yaml:"targetEnvironments"`
-	Steps      []RadixJobStep    `json:"steps" yaml:"steps"`
+	Condition  RadixJobCondition `json:"condition"`
+	Created    *metav1.Time      `json:"created"`
+	Started    *metav1.Time      `json:"started"`
+	Ended      *metav1.Time      `json:"ended"`
+	TargetEnvs []string          `json:"targetEnvironments"`
+	Steps      []RadixJobStep    `json:"steps"`
 }
 
 // RadixJobCondition Holds the condition of a job
@@ -47,18 +47,18 @@ const (
 
 // RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
-	AppName             string               `json:"appName" yaml:"appName"`
-	CloneURL            string               `json:"cloneURL" yaml:"cloneURL"`
-	TektonImage         string               `json:"tektonImage" yaml:"tektonImage"`
-	PipeLineType        RadixPipelineType    `json:"pipeLineType" yaml:"pipeLineType"`
-	PipelineImage       string               `json:"pipelineImage" yaml:"pipelineImage"`
-	Build               RadixBuildSpec       `json:"build" yaml:"build"`
-	Promote             RadixPromoteSpec     `json:"promote" yaml:"promote"`
-	Deploy              RadixDeploySpec      `json:"deploy" yaml:"deploy"`
+	AppName             string               `json:"appName"`
+	CloneURL            string               `json:"cloneURL"`
+	TektonImage         string               `json:"tektonImage"`
+	PipeLineType        RadixPipelineType    `json:"pipeLineType"`
+	PipelineImage       string               `json:"pipelineImage"`
+	Build               RadixBuildSpec       `json:"build"`
+	Promote             RadixPromoteSpec     `json:"promote"`
+	Deploy              RadixDeploySpec      `json:"deploy"`
 	ApplyConfig         RadixApplyConfigSpec `json:"applyConfig"`
-	Stop                bool                 `json:"stop" yaml:"stop"`
-	TriggeredBy         string               `json:"triggeredBy" yaml:"triggeredBy"`
-	RadixConfigFullName string               `json:"radixConfigFullName" yaml:"radixConfigFullName"`
+	Stop                bool                 `json:"stop"`
+	TriggeredBy         string               `json:"triggeredBy"`
+	RadixConfigFullName string               `json:"radixConfigFullName"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
@@ -78,27 +78,33 @@ type RadixBuildSpec struct {
 	// Tag of the built image
 	//
 	// required: true
-	ImageTag string `json:"imageTag" yaml:"imageTag"`
+	ImageTag string `json:"imageTag"`
 
 	// Branch, from which the image to be built
 	//
 	// required: true
-	Branch string `json:"branch" yaml:"branch"`
+	Branch string `json:"branch"`
+
+	// ToEnvironment the environment to build or build-deploy to
+	//
+	// required: false
+	// example: prod
+	ToEnvironment string `json:"toEnvironment,omitempty"`
 
 	// CommitID, from which the image to be built
 	//
 	// required: false
-	CommitID string `json:"commitID" yaml:"commitID"`
+	CommitID string `json:"commitID,omitempty"`
 
 	// Is the built image need to be pushed to the container registry repository
 	//
 	// required: false
-	PushImage bool `json:"pushImage" yaml:"pushImage"`
+	PushImage bool `json:"pushImage,omitempty"`
 
 	// OverrideUseBuildCache override default or configured build cache option
 	//
 	// required: false
-	OverrideUseBuildCache *bool `json:"overrideUseBuildCache,omitempty" yaml:"overrideUseBuildCache,omitempty"`
+	OverrideUseBuildCache *bool `json:"overrideUseBuildCache,omitempty"`
 }
 
 // RadixPromoteSpec is the spec for a promote job
@@ -106,22 +112,22 @@ type RadixPromoteSpec struct {
 	// Name of the Radix deployment to be promoted
 	//
 	// required: false
-	DeploymentName string `json:"deploymentName" yaml:"deploymentName"`
+	DeploymentName string `json:"deploymentName,omitempty"`
 
 	// Environment name, from which the Radix deployment is being promoted
 	//
 	// required: true
-	FromEnvironment string `json:"fromEnvironment" yaml:"fromEnvironment"`
+	FromEnvironment string `json:"fromEnvironment"`
 
 	// Environment name, to which the Radix deployment is being promoted
 	//
 	// required: true
-	ToEnvironment string `json:"toEnvironment" yaml:"toEnvironment"`
+	ToEnvironment string `json:"toEnvironment"`
 
 	// CommitID of the promoted deployment
 	//
 	// required: false
-	CommitID string `json:"commitID" yaml:"commitID"`
+	CommitID string `json:"commitID,omitempty"`
 }
 
 // RadixDeploySpec is the spec for a deploy job
@@ -129,24 +135,24 @@ type RadixDeploySpec struct {
 	// Target environment for deploy
 	//
 	// required: true
-	ToEnvironment string `json:"toEnvironment" yaml:"toEnvironment"`
+	ToEnvironment string `json:"toEnvironment"`
 
 	// Image tags names for components - if empty will use default logic
 	//
 	// required: false
 	// Example: component1: tag1,component2: tag2
-	ImageTagNames map[string]string `json:"imageTagNames" yaml:"imageTagNames"`
+	ImageTagNames map[string]string `json:"imageTagNames,omitempty"`
 
 	// Commit ID connected to the deployment
 	//
 	// required: false
-	CommitID string `json:"commitID" yaml:"commitID"`
+	CommitID string `json:"commitID,omitempty"`
 
 	// ComponentsToDeploy List of components to deploy
 	// OPTIONAL If specified, only these components are deployed
 	//
 	// required: false
-	ComponentsToDeploy []string `json:"componentsToDeploy"  yaml:"componentsToDeploy"`
+	ComponentsToDeploy []string `json:"componentsToDeploy,omitempty"`
 }
 
 // RadixApplyConfigSpec is the spec for a apply-config job
@@ -154,26 +160,26 @@ type RadixApplyConfigSpec struct {
 	// Deploy External DNS configuration
 	//
 	// required: false
-	DeployExternalDNS bool `json:"deployExternalDNS"`
+	DeployExternalDNS bool `json:"deployExternalDNS,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixJobList is a list of Radix jobs
 type RadixJobList struct {
-	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
-	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
-	Items            []RadixJob `json:"items" yaml:"items"`
+	metav1.TypeMeta `json:",inline",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []RadixJob `json:"items"`
 }
 
 // RadixJobStep holds status for a single step
 type RadixJobStep struct {
-	Name       string            `json:"name" yaml:"name"`
-	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
-	Started    *meta_v1.Time     `json:"started" yaml:"started"`
-	Ended      *meta_v1.Time     `json:"ended" yaml:"ended"`
-	PodName    string            `json:"podName" yaml:"podName"`
-	Components []string          `json:"components,omitempty" yaml:"components,omitempty"`
+	Name       string            `json:"name"`
+	Condition  RadixJobCondition `json:"condition"`
+	Started    *metav1.Time      `json:"started"`
+	Ended      *metav1.Time      `json:"ended"`
+	PodName    string            `json:"podName"`
+	Components []string          `json:"components,omitempty"`
 }
 
 // RadixJobResultType Type of the Radix pipeline job result
@@ -186,6 +192,6 @@ const (
 
 // RadixJobResult is returned by Radix pipeline jobs via ConfigMap
 type RadixJobResult struct {
-	Result  RadixJobResultType `json:"result" yaml:"result"`
-	Message string             `json:"message" yaml:"message"`
+	Result  RadixJobResultType `json:"result"`
+	Message string             `json:"message"`
 }

@@ -147,12 +147,12 @@ func (job *Job) syncStatuses(ctx context.Context, ra *v1.RadixApplication) (stop
 		return true, nil
 	}
 
-	appRadixJobs, err := job.getRadixJobs(ctx)
+	existingRadixJobs, err := job.getRadixJobs(ctx)
 	if err != nil {
 		err = fmt.Errorf("failed to get all RadixJobs: %v", err)
 		return false, err
 	}
-	if job.isOtherJobRunningOnBranchOrEnvironment(ra, appRadixJobs) {
+	if job.isOtherJobRunningOnBranchOrEnvironment(ra, existingRadixJobs) {
 		err = job.queueJob(ctx)
 		if err != nil {
 			return false, err
@@ -169,34 +169,41 @@ func (job *Job) syncStatuses(ctx context.Context, ra *v1.RadixApplication) (stop
 	return
 }
 
-func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, appRadixJobs []v1.RadixJob) bool {
+func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, existingRadixJobs []v1.RadixJob) bool {
 	isJobActive := func(rj *v1.RadixJob) bool {
 		return rj.Status.Condition == v1.JobWaiting || rj.Status.Condition == v1.JobRunning
 	}
 
 	jobTargetEnvironments := job.getTargetEnvironments(ra)
-	for _, rj := range appRadixJobs {
-		if rj.GetName() == job.radixJob.GetName() || !isJobActive(&rj) {
+	for _, existingRadixJob := range existingRadixJobs {
+		if existingRadixJob.GetName() == job.radixJob.GetName() || !isJobActive(&existingRadixJob) {
 			continue
 		}
-		switch rj.Spec.PipeLineType {
+		switch existingRadixJob.Spec.PipeLineType {
 		case v1.BuildDeploy, v1.Build:
 			if len(jobTargetEnvironments) > 0 {
-				rjTargetBranches := applicationconfig.GetTargetEnvironments(rj.Spec.Build.Branch, ra)
-				for _, rjEnvName := range rjTargetBranches {
-					if _, ok := jobTargetEnvironments[rjEnvName]; ok {
+				existingJobTargetEnvironments := applicationconfig.GetTargetEnvironments(existingRadixJob.Spec.Build.Branch, ra)
+				for _, existingJobTargetEnvironment := range existingJobTargetEnvironments {
+					if _, ok := jobTargetEnvironments[existingJobTargetEnvironment]; ok {
 						return true
 					}
 				}
-			} else if job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch {
-				return true
+				continue
+			}
+			if job.radixJob.Spec.Build.Branch == existingRadixJob.Spec.Build.Branch {
+				if len(job.radixJob.Spec.Build.ToEnvironment) == 0 {
+					return true
+				}
+				if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Build.ToEnvironment]; ok {
+					return true
+				}
 			}
 		case v1.Deploy:
-			if _, ok := jobTargetEnvironments[rj.Spec.Deploy.ToEnvironment]; ok {
+			if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Deploy.ToEnvironment]; ok {
 				return true
 			}
 		case v1.Promote:
-			if _, ok := jobTargetEnvironments[rj.Spec.Promote.ToEnvironment]; ok {
+			if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Promote.ToEnvironment]; ok {
 				return true
 			}
 		}
@@ -207,14 +214,18 @@ func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, 
 func (job *Job) getTargetEnvironments(ra *v1.RadixApplication) map[string]struct{} {
 	targetEnvs := make(map[string]struct{})
 	if job.radixJob.Spec.PipeLineType == v1.BuildDeploy || job.radixJob.Spec.PipeLineType == v1.Build {
-		if ra != nil {
-			return slice.Reduce(applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.Branch, ra),
-				targetEnvs, func(acc map[string]struct{}, envName string) map[string]struct{} {
-					acc[envName] = struct{}{}
-					return acc
-				})
+		if ra == nil {
+			return targetEnvs
 		}
-	} else if job.radixJob.Spec.PipeLineType == v1.Deploy {
+		return slice.Reduce(applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.Branch, ra),
+			targetEnvs, func(acc map[string]struct{}, envName string) map[string]struct{} {
+				if len(job.radixJob.Spec.Build.ToEnvironment) == 0 || envName == job.radixJob.Spec.Build.ToEnvironment {
+					acc[envName] = struct{}{}
+				}
+				return acc
+			})
+	}
+	if job.radixJob.Spec.PipeLineType == v1.Deploy {
 		targetEnvs[job.radixJob.Spec.Deploy.ToEnvironment] = struct{}{}
 	} else if job.radixJob.Spec.PipeLineType == v1.Promote {
 		targetEnvs[job.radixJob.Spec.Promote.ToEnvironment] = struct{}{}
@@ -251,7 +262,9 @@ func (job *Job) getTargetEnv(ra *v1.RadixApplication, rj *v1.RadixJob) (targetEn
 
 	for _, env := range ra.Spec.Environments {
 		if len(env.Build.From) > 0 && branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) {
-			targetEnvs = append(targetEnvs, env.Name)
+			if len(rj.Spec.Build.ToEnvironment) == 0 || env.Name == rj.Spec.Build.ToEnvironment {
+				targetEnvs = append(targetEnvs, env.Name)
+			}
 		}
 	}
 	return targetEnvs

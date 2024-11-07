@@ -91,8 +91,8 @@ const (
 	// RadixPromoteFromEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote from
 	RadixPromoteFromEnvironmentEnvironmentVariable = "FROM_ENVIRONMENT"
 
-	// RadixPromoteToEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote to
-	RadixPromoteToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
+	// RadixPipelineJobToEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote to
+	RadixPipelineJobToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
 
 	// RadixPromoteSourceDeploymentCommitHashEnvironmentVariable Git commit hash of source deployment in promote jobs
 	RadixPromoteSourceDeploymentCommitHashEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_COMMIT_HASH"

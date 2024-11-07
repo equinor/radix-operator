@@ -102,7 +102,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.CommitID, defaults.RadixCommitIdEnvironmentVariable, "", "Commit ID to build from")
 	cmd.Flags().StringVar(&pipelineArgs.DeploymentName, defaults.RadixPromoteDeploymentEnvironmentVariable, "", "Radix deployment name")
 	cmd.Flags().StringVar(&pipelineArgs.FromEnvironment, defaults.RadixPromoteFromEnvironmentEnvironmentVariable, "", "Radix application environment name to promote from")
-	cmd.Flags().StringVar(&pipelineArgs.ToEnvironment, defaults.RadixPromoteToEnvironmentEnvironmentVariable, "", "Radix application environment name to promote to")
+	cmd.Flags().StringVar(&pipelineArgs.ToEnvironment, defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, "", "Radix application environment name to promote to")
 	cmd.Flags().StringVar(&pipelineArgs.TektonPipeline, defaults.RadixTektonPipelineImageEnvironmentVariable, "", "Radix Tekton docker image")
 	cmd.Flags().StringVar(&pipelineArgs.ImageBuilder, defaults.RadixImageBuilderEnvironmentVariable, "", "Radix Image Builder docker image")
 	cmd.Flags().StringVar(&pipelineArgs.BuildKitImageBuilder, defaults.RadixBuildKitImageBuilderEnvironmentVariable, "", "Radix Build Kit Image Builder container image")
