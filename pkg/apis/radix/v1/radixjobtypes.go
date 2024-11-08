@@ -9,7 +9,7 @@ import (
 
 // RadixJob describe a Radix job
 type RadixJob struct {
-	metav1.TypeMeta   `json:",inline",inline"`
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Spec              RadixJobSpec   `json:"spec"`
 	Status            RadixJobStatus `json:"status"`
@@ -167,7 +167,7 @@ type RadixApplyConfigSpec struct {
 
 // RadixJobList is a list of Radix jobs
 type RadixJobList struct {
-	metav1.TypeMeta `json:",inline",inline"`
+	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 	Items           []RadixJob `json:"items"`
 }
