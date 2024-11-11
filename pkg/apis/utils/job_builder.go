@@ -202,6 +202,7 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			TektonImage:   jb.tektonImageTag,
 			Build: v1.RadixBuildSpec{
 				Branch:                jb.branch,
+				ToEnvironment:         jb.toEnvironment,
 				ImageTag:              jb.imageTag,
 				CommitID:              jb.commitID,
 				PushImage:             jb.pushImage,

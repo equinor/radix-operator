@@ -137,7 +137,7 @@ func (step *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipel
 			Value: pipelineInfo.PipelineArguments.FromEnvironment,
 		},
 		{
-			Name:  defaults.RadixPromoteToEnvironmentEnvironmentVariable,
+			Name:  defaults.RadixPipelineJobToEnvironmentEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.ToEnvironment,
 		},
 		{

@@ -188,6 +188,12 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 		targetEnvironments = append(targetEnvironments, info.PipelineArguments.ToEnvironment)
 	}
 
+	// For build and build-deploy pipeline
+	if (info.IsPipelineType(radixv1.Build) || info.IsPipelineType(radixv1.BuildDeploy)) &&
+		len(info.PipelineArguments.ToEnvironment) > 0 {
+		targetEnvironments = []string{info.PipelineArguments.ToEnvironment}
+	}
+
 	info.TargetEnvironments = targetEnvironments
 }
 
