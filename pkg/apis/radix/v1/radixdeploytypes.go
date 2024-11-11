@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
-	core_v1 "k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
@@ -22,10 +22,10 @@ import (
 
 // RadixDeployment describe a deployment
 type RadixDeployment struct {
-	meta_v1.TypeMeta   `json:",inline"`
-	meta_v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec               RadixDeploymentSpec `json:"spec"`
-	Status             RadixDeployStatus   `json:"status"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              RadixDeploymentSpec `json:"spec"`
+	Status            RadixDeployStatus   `json:"status"`
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found
@@ -59,12 +59,12 @@ func (rd *RadixDeployment) GetCommonComponentByName(name string) RadixCommonDepl
 
 // RadixDeployStatus is the status for a rd
 type RadixDeployStatus struct {
-	ActiveFrom meta_v1.Time `json:"activeFrom"`
+	ActiveFrom metav1.Time `json:"activeFrom"`
 	// +optional
-	ActiveTo  meta_v1.Time         `json:"activeTo,omitempty"`
+	ActiveTo  metav1.Time          `json:"activeTo,omitempty"`
 	Condition RadixDeployCondition `json:"condition"`
 	// +optional
-	Reconciled meta_v1.Time `json:"reconciled"`
+	Reconciled metav1.Time `json:"reconciled"`
 }
 
 // RadixDeployCondition Holds the condition of a component
@@ -80,20 +80,20 @@ const (
 
 // RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
-	AppName          string                         `json:"appname"`
-	Components       []RadixDeployComponent         `json:"components"`
-	Jobs             []RadixDeployJobComponent      `json:"jobs,omitempty"`
-	Environment      string                         `json:"environment"`
-	ImagePullSecrets []core_v1.LocalObjectReference `json:"imagePullSecrets"`
+	AppName          string                        `json:"appname"`
+	Components       []RadixDeployComponent        `json:"components"`
+	Jobs             []RadixDeployJobComponent     `json:"jobs,omitempty"`
+	Environment      string                        `json:"environment"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixDeploymentList is a list of Radix deployments
 type RadixDeploymentList struct {
-	meta_v1.TypeMeta `json:",inline"`
-	meta_v1.ListMeta `json:"metadata"`
-	Items            []RadixDeployment `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []RadixDeployment `json:"items"`
 }
 
 // RadixDeployExternalDNS is the spec for an external DNS alias
