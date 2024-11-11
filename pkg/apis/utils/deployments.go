@@ -6,7 +6,7 @@ import (
 )
 
 // GetDeploymentName Function to get deployment name
-func GetDeploymentName(appName, env, tag string) string {
+func GetDeploymentName(env, tag string) string {
 	random := strings.ToLower(RandString(8))
 	return fmt.Sprintf("%s-%s-%s", env, tag, random)
 }

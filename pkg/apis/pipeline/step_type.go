@@ -22,4 +22,7 @@ const (
 
 	// RunPipelinesStep Step to run pipelines
 	RunPipelinesStep = "run-pipelines"
+
+	// DeployConfigStep Step to deploy the RD for applied config
+	DeployConfigStep = "deploy-config"
 )

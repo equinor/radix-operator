@@ -115,7 +115,6 @@ func (db *DeploymentBuilderStruct) WithLabel(label, value string) DeploymentBuil
 
 // WithImageTag Sets deployment tag to be appended to name
 func (db *DeploymentBuilderStruct) WithImageTag(imageTag string) DeploymentBuilder {
-	db.Labels[kube.RadixImageTagLabel] = imageTag
 	db.ImageTag = imageTag
 	return db
 }
@@ -240,7 +239,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 	}
 	deployName := db.DeploymentName
 	if deployName == "" {
-		deployName = GetDeploymentName(db.AppName, db.Environment, db.ImageTag)
+		deployName = GetDeploymentName(db.Environment, db.ImageTag)
 	}
 	status := v1.RadixDeployStatus{}
 	if !db.emptyStatus {

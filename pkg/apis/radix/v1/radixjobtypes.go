@@ -47,17 +47,18 @@ const (
 
 // RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
-	AppName             string            `json:"appName" yaml:"appName"`
-	CloneURL            string            `json:"cloneURL" yaml:"cloneURL"`
-	TektonImage         string            `json:"tektonImage" yaml:"tektonImage"`
-	PipeLineType        RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
-	PipelineImage       string            `json:"pipelineImage" yaml:"pipelineImage"`
-	Build               RadixBuildSpec    `json:"build" yaml:"build"`
-	Promote             RadixPromoteSpec  `json:"promote" yaml:"promote"`
-	Deploy              RadixDeploySpec   `json:"deploy" yaml:"deploy"`
-	Stop                bool              `json:"stop" yaml:"stop"`
-	TriggeredBy         string            `json:"triggeredBy" yaml:"triggeredBy"`
-	RadixConfigFullName string            `json:"radixConfigFullName" yaml:"radixConfigFullName"`
+	AppName             string               `json:"appName" yaml:"appName"`
+	CloneURL            string               `json:"cloneURL" yaml:"cloneURL"`
+	TektonImage         string               `json:"tektonImage" yaml:"tektonImage"`
+	PipeLineType        RadixPipelineType    `json:"pipeLineType" yaml:"pipeLineType"`
+	PipelineImage       string               `json:"pipelineImage" yaml:"pipelineImage"`
+	Build               RadixBuildSpec       `json:"build" yaml:"build"`
+	Promote             RadixPromoteSpec     `json:"promote" yaml:"promote"`
+	Deploy              RadixDeploySpec      `json:"deploy" yaml:"deploy"`
+	ApplyConfig         RadixApplyConfigSpec `json:"applyConfig"`
+	Stop                bool                 `json:"stop" yaml:"stop"`
+	TriggeredBy         string               `json:"triggeredBy" yaml:"triggeredBy"`
+	RadixConfigFullName string               `json:"radixConfigFullName" yaml:"radixConfigFullName"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
@@ -146,6 +147,14 @@ type RadixDeploySpec struct {
 	//
 	// required: false
 	ComponentsToDeploy []string `json:"componentsToDeploy"  yaml:"componentsToDeploy"`
+}
+
+// RadixApplyConfigSpec is the spec for a apply-config job
+type RadixApplyConfigSpec struct {
+	// Deploy External DNS configuration
+	//
+	// required: false
+	DeployExternalDNS bool `json:"deployExternalDNS"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
