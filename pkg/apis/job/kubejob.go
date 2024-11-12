@@ -196,6 +196,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 	case radixv1.BuildDeploy, radixv1.Build:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Build.ToEnvironment))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
 		if jobSpec.Build.OverrideUseBuildCache != nil {
@@ -204,9 +205,9 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 	case radixv1.Promote:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
 	case radixv1.Deploy:
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Deploy.CommitID))
 		for componentName, imageTagName := range jobSpec.Deploy.ImageTagNames {
 			args = append(args, fmt.Sprintf("--%s=%s=%s", defaults.RadixImageTagNameEnvironmentVariable, componentName, imageTagName))
