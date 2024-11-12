@@ -5,19 +5,27 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
-	core_v1 "k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Active From",type="string",JSONPath=".status.activeFrom"
+// +kubebuilder:printcolumn:name="Active To",type="string",JSONPath=".status.activeTo"
+// +kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.condition"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Reconciled",type="date",JSONPath=".status.reconciled",priority=1
+// +kubebuilder:printcolumn:name="Branch",type="string",JSONPath=".metadata.annotations.radix-branch",priority=1
+// +kubebuilder:resource:path=radixdeployments,shortName=rd
+// +kubebuilder:subresource:status
 
 // RadixDeployment describe a deployment
 type RadixDeployment struct {
-	meta_v1.TypeMeta   `json:",inline"`
-	meta_v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec               RadixDeploymentSpec `json:"spec"`
-	Status             RadixDeployStatus   `json:"status"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              RadixDeploymentSpec `json:"spec"`
+	Status            RadixDeployStatus   `json:"status,omitempty"`
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found
@@ -51,10 +59,12 @@ func (rd *RadixDeployment) GetCommonComponentByName(name string) RadixCommonDepl
 
 // RadixDeployStatus is the status for a rd
 type RadixDeployStatus struct {
-	ActiveFrom meta_v1.Time         `json:"activeFrom"`
-	ActiveTo   meta_v1.Time         `json:"activeTo"`
-	Condition  RadixDeployCondition `json:"condition"`
-	Reconciled meta_v1.Time         `json:"reconciled"`
+	ActiveFrom metav1.Time `json:"activeFrom"`
+	// +optional
+	ActiveTo  metav1.Time          `json:"activeTo,omitempty"`
+	Condition RadixDeployCondition `json:"condition"`
+	// +optional
+	Reconciled metav1.Time `json:"reconciled"`
 }
 
 // RadixDeployCondition Holds the condition of a component
@@ -70,20 +80,20 @@ const (
 
 // RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
-	AppName          string                         `json:"appname"`
-	Components       []RadixDeployComponent         `json:"components"`
-	Jobs             []RadixDeployJobComponent      `json:"jobs"`
-	Environment      string                         `json:"environment"`
-	ImagePullSecrets []core_v1.LocalObjectReference `json:"imagePullSecrets"`
+	AppName          string                        `json:"appname"`
+	Components       []RadixDeployComponent        `json:"components,omitempty"`
+	Jobs             []RadixDeployJobComponent     `json:"jobs,omitempty"`
+	Environment      string                        `json:"environment"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixDeploymentList is a list of Radix deployments
 type RadixDeploymentList struct {
-	meta_v1.TypeMeta `json:",inline"`
-	meta_v1.ListMeta `json:"metadata"`
-	Items            []RadixDeployment `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []RadixDeployment `json:"items"`
 }
 
 // RadixDeployExternalDNS is the spec for an external DNS alias
@@ -104,8 +114,8 @@ type RadixDeployExternalDNS struct {
 type RadixDeployComponent struct {
 	Name             string          `json:"name"`
 	Image            string          `json:"image"`
-	Ports            []ComponentPort `json:"ports"`
-	Replicas         *int            `json:"replicas"`
+	Ports            []ComponentPort `json:"ports,omitempty"`
+	Replicas         *int            `json:"replicas,omitempty"`
 	ReplicasOverride *int            `json:"replicasOverride,omitempty"`
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public               bool                     `json:"public"`
@@ -392,7 +402,7 @@ type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name"`
 	Environment             string                    `json:"environment"`
 	Image                   string                    `json:"image"`
-	Ports                   []ComponentPort           `json:"ports"`
+	Ports                   []ComponentPort           `json:"ports,omitempty"`
 	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty"`
 	Secrets                 []string                  `json:"secrets,omitempty"`
 	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty"`
