@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pipeline-runner/internal/hash"
+	hash2 "github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,10 +16,10 @@ func Test_ToHashString(t *testing.T) {
 	}
 
 	type algorithm struct {
-		alg     hash.Algorithm
+		alg     hash2.Algorithm
 		hashLen int
 	}
-	algorithms := []algorithm{{alg: hash.SHA256, hashLen: 32}}
+	algorithms := []algorithm{{alg: hash2.SHA256, hashLen: 32}}
 
 	type testSpec struct {
 		test     string
@@ -65,14 +65,14 @@ func Test_ToHashString(t *testing.T) {
 	for _, test := range tests {
 		for _, alg := range algorithms {
 			t.Run(test.test, func(t *testing.T) {
-				valHash, err := hash.ToHashString(alg.alg, test.val)
+				valHash, err := hash2.ToHashString(alg.alg, test.val)
 				require.NoError(t, err)
 				hashParts := strings.Split(valHash, "=")
 				assert.Equal(t, string(alg.alg), hashParts[0])
 				valHashBytes, err := hex.DecodeString(hashParts[1])
 				require.NoError(t, err)
 				assert.Len(t, valHashBytes, alg.hashLen)
-				match, err := hash.CompareWithHashString(test.valOther, valHash)
+				match, err := hash2.CompareWithHashString(test.valOther, valHash)
 				require.NoError(t, err)
 				assert.Equal(t, test.match, match)
 				t.Parallel()

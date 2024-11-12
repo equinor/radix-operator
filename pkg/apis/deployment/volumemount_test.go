@@ -1182,7 +1182,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				equalPvcLists, err := utils.EqualPvcLists(&scenario.existingPvcsAfterTestRun, &existingPvcs, true)
 				assert.Nil(t, err)
 				assert.True(t, equalPvcLists)
-				equalStorageClassLists, err := utils.EqualStorageClassLists(&scenario.existingStorageClassesAfterTestRun, &existingScs)
+				equalStorageClassLists, err := utils.EqualPersistentVolumeLists(&scenario.existingStorageClassesAfterTestRun, &existingScs)
 				assert.Nil(t, err)
 				assert.True(t, equalStorageClassLists)
 			}

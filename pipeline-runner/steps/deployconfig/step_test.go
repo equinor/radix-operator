@@ -11,10 +11,10 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deployconfig"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -683,8 +683,8 @@ func (s *deployConfigTestSuite) createRadixDeployments(deploymentBuildersProps [
 }
 
 func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication, sourceEnvMap map[string]radixv1.RadixDeployment) []radixv1.RadixDeployment {
-	radixConfigHash, _ := internal.CreateRadixApplicationHash(ra)
-	buildSecretHash, _ := internal.CreateBuildSecretHash(nil)
+	radixConfigHash, _ := hash.CreateRadixApplicationHash(ra)
+	buildSecretHash, _ := hash.CreateBuildSecretHash(nil)
 	var rdList []radixv1.RadixDeployment
 	for _, rdProps := range deploymentBuildersProps {
 		if sourceRd, ok := sourceEnvMap[rdProps.envName]; ok {
