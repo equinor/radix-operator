@@ -23,9 +23,9 @@ import (
 // RadixDeployment describe a deployment
 type RadixDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
 	Spec              RadixDeploymentSpec `json:"spec"`
-	Status            RadixDeployStatus   `json:"status"`
+	Status            RadixDeployStatus   `json:"status,omitempty"`
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found
@@ -81,10 +81,10 @@ const (
 // RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
 	AppName          string                        `json:"appname"`
-	Components       []RadixDeployComponent        `json:"components"`
+	Components       []RadixDeployComponent        `json:"components,omitempty"`
 	Jobs             []RadixDeployJobComponent     `json:"jobs,omitempty"`
 	Environment      string                        `json:"environment"`
-	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -114,7 +114,7 @@ type RadixDeployExternalDNS struct {
 type RadixDeployComponent struct {
 	Name             string          `json:"name"`
 	Image            string          `json:"image"`
-	Ports            []ComponentPort `json:"ports"`
+	Ports            []ComponentPort `json:"ports,omitempty"`
 	Replicas         *int            `json:"replicas,omitempty"`
 	ReplicasOverride *int            `json:"replicasOverride,omitempty"`
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
@@ -402,7 +402,7 @@ type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name"`
 	Environment             string                    `json:"environment"`
 	Image                   string                    `json:"image"`
-	Ports                   []ComponentPort           `json:"ports"`
+	Ports                   []ComponentPort           `json:"ports,omitempty"`
 	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty"`
 	Secrets                 []string                  `json:"secrets,omitempty"`
 	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty"`
