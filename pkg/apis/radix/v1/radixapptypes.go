@@ -884,11 +884,15 @@ type RadixVolumeMount struct {
 	// +optional
 	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 
-	// BlobFuse2 settings for Azure Storage FUSE CSI driver
+	// UseAzureIdentity defines that credentials for accessing Azure Key Vault will be acquired using Azure Workload Identity instead of using a ClientID and Secret.
+	// +optional
+	UseAzureIdentity *bool `json:"useAzureIdentity,omitempty"`
+
+	// BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2
 	BlobFuse2 *RadixBlobFuse2VolumeMount `json:"blobFuse2,omitempty"`
 
 	// AzureFile settings for Azure File CSI driver
-	// Deprecated, use BlobFuse2 instead.
+	// Deprecated.
 	AzureFile *RadixAzureFileVolumeMount `json:"azureFile,omitempty"`
 
 	// EmptyDir settings for EmptyDir volume
@@ -974,17 +978,13 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	Streaming *RadixVolumeMountStreaming `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
 
-	// Name of a storage account. If not defined - it will be configured in a secret.
+	// Name of a storage account. It is mandatory when using a workload identity. It is optional when using Access Key, if it is not defined, it will be configured in a secret.
 	// +optional
-	StorageAccount string
-
-	// ClientID of a service principal. Applicable when using a workload identity.
-	// +optional
-	ClientId string
+	StorageAccount string `json:"storageAccount,omitempty"`
 
 	// ResourceGroup of a storage account. Applicable when using a workload identity.
 	// +optional
-	ResourceGroup string
+	ResourceGroup string `json:"resourceGroup,omitempty"`
 }
 
 // RadixAzureFileVolumeMount defines an external storage resource, configured to use Azure File with CSI driver.

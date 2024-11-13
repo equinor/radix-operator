@@ -882,7 +882,7 @@
                         "description": "RadixVolumeMount defines an external storage resource.",
                         "properties": {
                           "accessMode": {
-                            "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                             "enum": [
                               "ReadOnlyMany",
                               "ReadWriteOnce",
@@ -892,7 +892,7 @@
                             "type": "string"
                           },
                           "azureFile": {
-                            "description": "AzureFile settings for Azure File CSI driver",
+                            "description": "AzureFile settings for Azure File CSI driver\nDeprecated.",
                             "properties": {
                               "accessMode": {
                                 "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -937,7 +937,7 @@
                             "type": "object"
                           },
                           "bindingMode": {
-                            "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                             "enum": [
                               "Immediate",
                               "WaitForFirstConsumer",
@@ -946,7 +946,7 @@
                             "type": "string"
                           },
                           "blobFuse2": {
-                            "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver",
+                            "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                             "properties": {
                               "accessMode": {
                                 "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -979,13 +979,16 @@
                                 "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.",
                                 "enum": [
                                   "fuse2",
-                                  "nfs",
                                   ""
                                 ],
                                 "type": "string"
                               },
                               "requestsStorage": {
                                 "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
+                                "type": "string"
+                              },
+                              "resourceGroup": {
+                                "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
                                 "type": "string"
                               },
                               "skuName": {
@@ -997,6 +1000,10 @@
                                   "Standard_RAGRS",
                                   ""
                                 ],
+                                "type": "string"
+                              },
+                              "storageAccount": {
+                                "description": "Name of a storage account. If not defined - it will be configured in a secret.",
                                 "type": "string"
                               },
                               "streaming": {
@@ -1080,7 +1087,7 @@
                             "type": "object"
                           },
                           "gid": {
-                            "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
                           },
                           "name": {
@@ -1095,30 +1102,33 @@
                             "type": "string"
                           },
                           "requestsStorage": {
-                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
                           },
                           "skuName": {
-                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
                           },
                           "storage": {
-                            "description": "Storage defines the name of the container in the external storage resource.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "Storage defines the name of the container in the external storage resource.\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
                           },
                           "type": {
-                            "description": "Type defines the storage type.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "Type defines the storage type.\nDeprecated, use BlobFuse2 instead.",
                             "enum": [
                               "blob",
                               "azure-blob",
-                              "azure-file",
                               ""
                             ],
                             "type": "string"
                           },
                           "uid": {
-                            "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
+                          },
+                          "useAzureIdentity": {
+                            "description": "UseAzureIdentity defines that credentials for accessing Azure Key Vault will be acquired using Azure Workload Identity instead of using a ClientID and Secret.",
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -1697,7 +1707,7 @@
                   "description": "RadixVolumeMount defines an external storage resource.",
                   "properties": {
                     "accessMode": {
-                      "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                       "enum": [
                         "ReadOnlyMany",
                         "ReadWriteOnce",
@@ -1707,7 +1717,7 @@
                       "type": "string"
                     },
                     "azureFile": {
-                      "description": "AzureFile settings for Azure File CSI driver",
+                      "description": "AzureFile settings for Azure File CSI driver\nDeprecated.",
                       "properties": {
                         "accessMode": {
                           "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -1752,7 +1762,7 @@
                       "type": "object"
                     },
                     "bindingMode": {
-                      "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                       "enum": [
                         "Immediate",
                         "WaitForFirstConsumer",
@@ -1761,7 +1771,7 @@
                       "type": "string"
                     },
                     "blobFuse2": {
-                      "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver",
+                      "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                       "properties": {
                         "accessMode": {
                           "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -1794,13 +1804,16 @@
                           "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.",
                           "enum": [
                             "fuse2",
-                            "nfs",
                             ""
                           ],
                           "type": "string"
                         },
                         "requestsStorage": {
                           "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
+                          "type": "string"
+                        },
+                        "resourceGroup": {
+                          "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
                           "type": "string"
                         },
                         "skuName": {
@@ -1812,6 +1825,10 @@
                             "Standard_RAGRS",
                             ""
                           ],
+                          "type": "string"
+                        },
+                        "storageAccount": {
+                          "description": "Name of a storage account. If not defined - it will be configured in a secret.",
                           "type": "string"
                         },
                         "streaming": {
@@ -1895,7 +1912,7 @@
                       "type": "object"
                     },
                     "gid": {
-                      "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
                     },
                     "name": {
@@ -1910,30 +1927,33 @@
                       "type": "string"
                     },
                     "requestsStorage": {
-                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
                     },
                     "skuName": {
-                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
                     },
                     "storage": {
-                      "description": "Storage defines the name of the container in the external storage resource.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "Storage defines the name of the container in the external storage resource.\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
                     },
                     "type": {
-                      "description": "Type defines the storage type.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "Type defines the storage type.\nDeprecated, use BlobFuse2 instead.",
                       "enum": [
                         "blob",
                         "azure-blob",
-                        "azure-file",
                         ""
                       ],
                       "type": "string"
                     },
                     "uid": {
-                      "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
+                    },
+                    "useAzureIdentity": {
+                      "description": "UseAzureIdentity defines that credentials for accessing Azure Key Vault will be acquired using Azure Workload Identity instead of using a ClientID and Secret.",
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -2588,7 +2608,7 @@
                         "description": "RadixVolumeMount defines an external storage resource.",
                         "properties": {
                           "accessMode": {
-                            "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                             "enum": [
                               "ReadOnlyMany",
                               "ReadWriteOnce",
@@ -2598,7 +2618,7 @@
                             "type": "string"
                           },
                           "azureFile": {
-                            "description": "AzureFile settings for Azure File CSI driver",
+                            "description": "AzureFile settings for Azure File CSI driver\nDeprecated.",
                             "properties": {
                               "accessMode": {
                                 "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -2643,7 +2663,7 @@
                             "type": "object"
                           },
                           "bindingMode": {
-                            "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                             "enum": [
                               "Immediate",
                               "WaitForFirstConsumer",
@@ -2652,7 +2672,7 @@
                             "type": "string"
                           },
                           "blobFuse2": {
-                            "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver",
+                            "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                             "properties": {
                               "accessMode": {
                                 "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -2685,13 +2705,16 @@
                                 "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.",
                                 "enum": [
                                   "fuse2",
-                                  "nfs",
                                   ""
                                 ],
                                 "type": "string"
                               },
                               "requestsStorage": {
                                 "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
+                                "type": "string"
+                              },
+                              "resourceGroup": {
+                                "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
                                 "type": "string"
                               },
                               "skuName": {
@@ -2703,6 +2726,10 @@
                                   "Standard_RAGRS",
                                   ""
                                 ],
+                                "type": "string"
+                              },
+                              "storageAccount": {
+                                "description": "Name of a storage account. If not defined - it will be configured in a secret.",
                                 "type": "string"
                               },
                               "streaming": {
@@ -2786,7 +2813,7 @@
                             "type": "object"
                           },
                           "gid": {
-                            "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
                           },
                           "name": {
@@ -2801,30 +2828,33 @@
                             "type": "string"
                           },
                           "requestsStorage": {
-                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
                           },
                           "skuName": {
-                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
                           },
                           "storage": {
-                            "description": "Storage defines the name of the container in the external storage resource.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "Storage defines the name of the container in the external storage resource.\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
                           },
                           "type": {
-                            "description": "Type defines the storage type.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "Type defines the storage type.\nDeprecated, use BlobFuse2 instead.",
                             "enum": [
                               "blob",
                               "azure-blob",
-                              "azure-file",
                               ""
                             ],
                             "type": "string"
                           },
                           "uid": {
-                            "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                            "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 instead.",
                             "type": "string"
+                          },
+                          "useAzureIdentity": {
+                            "description": "UseAzureIdentity defines that credentials for accessing Azure Key Vault will be acquired using Azure Workload Identity instead of using a ClientID and Secret.",
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -3148,7 +3178,7 @@
                   "description": "RadixVolumeMount defines an external storage resource.",
                   "properties": {
                     "accessMode": {
-                      "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                       "enum": [
                         "ReadOnlyMany",
                         "ReadWriteOnce",
@@ -3158,7 +3188,7 @@
                       "type": "string"
                     },
                     "azureFile": {
-                      "description": "AzureFile settings for Azure File CSI driver",
+                      "description": "AzureFile settings for Azure File CSI driver\nDeprecated.",
                       "properties": {
                         "accessMode": {
                           "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -3203,7 +3233,7 @@
                       "type": "object"
                     },
                     "bindingMode": {
-                      "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                       "enum": [
                         "Immediate",
                         "WaitForFirstConsumer",
@@ -3212,7 +3242,7 @@
                       "type": "string"
                     },
                     "blobFuse2": {
-                      "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver",
+                      "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                       "properties": {
                         "accessMode": {
                           "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -3245,13 +3275,16 @@
                           "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.",
                           "enum": [
                             "fuse2",
-                            "nfs",
                             ""
                           ],
                           "type": "string"
                         },
                         "requestsStorage": {
                           "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
+                          "type": "string"
+                        },
+                        "resourceGroup": {
+                          "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
                           "type": "string"
                         },
                         "skuName": {
@@ -3263,6 +3296,10 @@
                             "Standard_RAGRS",
                             ""
                           ],
+                          "type": "string"
+                        },
+                        "storageAccount": {
+                          "description": "Name of a storage account. If not defined - it will be configured in a secret.",
                           "type": "string"
                         },
                         "streaming": {
@@ -3346,7 +3383,7 @@
                       "type": "object"
                     },
                     "gid": {
-                      "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
                     },
                     "name": {
@@ -3361,30 +3398,33 @@
                       "type": "string"
                     },
                     "requestsStorage": {
-                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
                     },
                     "skuName": {
-                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
                     },
                     "storage": {
-                      "description": "Storage defines the name of the container in the external storage resource.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "Storage defines the name of the container in the external storage resource.\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
                     },
                     "type": {
-                      "description": "Type defines the storage type.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "Type defines the storage type.\nDeprecated, use BlobFuse2 instead.",
                       "enum": [
                         "blob",
                         "azure-blob",
-                        "azure-file",
                         ""
                       ],
                       "type": "string"
                     },
                     "uid": {
-                      "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 or AzureFile instead.",
+                      "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.\nDeprecated, use BlobFuse2 instead.",
                       "type": "string"
+                    },
+                    "useAzureIdentity": {
+                      "description": "UseAzureIdentity defines that credentials for accessing Azure Key Vault will be acquired using Azure Workload Identity instead of using a ClientID and Secret.",
+                      "type": "boolean"
                     }
                   },
                   "required": [
