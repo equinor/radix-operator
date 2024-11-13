@@ -287,10 +287,6 @@ func volumeMountBlobFuse2ValidationError(cause error) error {
 	return fmt.Errorf("blobFuse2 failed validation. %w", cause)
 }
 
-func volumeMountAzureFileValidationError(cause error) error {
-	return fmt.Errorf("azureFile failed validation. %w", cause)
-}
-
 func volumeMountEmptyDirValidationError(cause error) error {
 	return fmt.Errorf("emptyDir failed validation. %w", cause)
 }

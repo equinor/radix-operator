@@ -824,8 +824,8 @@ type RadixPrivateImageHubCredential struct {
 // RadixVolumeMount defines an external storage resource.
 type RadixVolumeMount struct {
 	// Type defines the storage type.
-	// Deprecated, use BlobFuse2 or AzureFile instead.
-	// +kubebuilder:validation:Enum=blob;azure-blob;azure-file;""
+	// Deprecated, use BlobFuse2 instead.
+	// +kubebuilder:validation:Enum=blob;azure-blob;""
 	// +optional
 	Type MountType `json:"type"`
 
@@ -840,7 +840,7 @@ type RadixVolumeMount struct {
 	Container string `json:"container,omitempty"` // Outdated. Use Storage instead
 
 	// Storage defines the name of the container in the external storage resource.
-	// Deprecated, use BlobFuse2 or AzureFile instead.
+	// Deprecated, use BlobFuse2 instead.
 	// +optional
 	Storage string `json:"storage"` // Container name, file Share name, etc.
 
@@ -849,37 +849,37 @@ type RadixVolumeMount struct {
 	Path string `json:"path"` // Path within the pod (replica), where the volume mount has been mounted to
 
 	// GID defines the group ID (number) which will be set as owner of the mounted volume.
-	// Deprecated, use BlobFuse2 or AzureFile instead.
+	// Deprecated, use BlobFuse2 instead.
 	// +optional
 	GID string `json:"gid,omitempty"` // Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
 
 	// UID defines the user ID (number) which will be set as owner of the mounted volume.
-	// Deprecated, use BlobFuse2 or AzureFile instead.
+	// Deprecated, use BlobFuse2 instead.
 	// +optional
 	UID string `json:"uid,omitempty"` // Optional. Volume mount owner UserID. Used instead of GID.
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// Deprecated, use BlobFuse2 or AzureFile instead.
+	// Deprecated, use BlobFuse2 instead.
 	// +optional
 	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// Deprecated, use BlobFuse2 or AzureFile instead.
+	// Deprecated, use BlobFuse2 instead.
 	// +optional
 	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
 	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// Deprecated, use BlobFuse2 or AzureFile instead.
+	// Deprecated, use BlobFuse2 instead.
 	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
 	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// Deprecated, use BlobFuse2 or AzureFile instead.
+	// Deprecated, use BlobFuse2 instead.
 	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
 	// +optional
 	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
@@ -888,6 +888,7 @@ type RadixVolumeMount struct {
 	BlobFuse2 *RadixBlobFuse2VolumeMount `json:"blobFuse2,omitempty"`
 
 	// AzureFile settings for Azure File CSI driver
+	// Deprecated, use BlobFuse2 instead.
 	AzureFile *RadixAzureFileVolumeMount `json:"azureFile,omitempty"`
 
 	// EmptyDir settings for EmptyDir volume
@@ -900,10 +901,6 @@ func (v *RadixVolumeMount) HasDeprecatedVolume() bool {
 
 func (v *RadixVolumeMount) HasBlobFuse2() bool {
 	return v.BlobFuse2 != nil
-}
-
-func (v *RadixVolumeMount) HasAzureFile() bool {
-	return v.AzureFile != nil
 }
 
 func (v *RadixVolumeMount) HasEmptyDir() bool {
@@ -923,15 +920,13 @@ type BlobFuse2Protocol string
 const (
 	// BlobFuse2ProtocolFuse2 Use of fuse2 protocol for storage account for blobfuse2
 	BlobFuse2ProtocolFuse2 BlobFuse2Protocol = "fuse2"
-	// BlobFuse2ProtocolNfs Use of NFS storage account for blobfuse2
-	BlobFuse2ProtocolNfs BlobFuse2Protocol = "nfs"
 )
 
 // RadixBlobFuse2VolumeMount defines an external storage resource, configured to use Blobfuse2 - A Microsoft supported Azure Storage FUSE driver.
 // More info: https://github.com/Azure/azure-storage-fuse
 type RadixBlobFuse2VolumeMount struct {
 	// Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.
-	// +kubebuilder:validation:Enum=fuse2;nfs;""
+	// +kubebuilder:validation:Enum=fuse2;""
 	// +optional
 	Protocol BlobFuse2Protocol `json:"protocol,omitempty"`
 
@@ -978,11 +973,22 @@ type RadixBlobFuse2VolumeMount struct {
 	// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
 	// +optional
 	Streaming *RadixVolumeMountStreaming `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
+
+	// Name of a storage account. If not defined - it will be configured in a secret.
+	// +optional
+	StorageAccount string
+
+	// ClientID of a service principal. Applicable when using a workload identity.
+	// +optional
+	ClientId string
+
+	// ResourceGroup of a storage account. Applicable when using a workload identity.
+	// +optional
+	ResourceGroup string
 }
 
 // RadixAzureFileVolumeMount defines an external storage resource, configured to use Azure File with CSI driver.
-// More info: https://github.com/kubernetes-sigs/azurefile-csi-driver
-// https://github.com/kubernetes-sigs/azurefile-csi-driver/blob/master/docs/driver-parameters.md
+// Deprecated, use BlobFuse2 instead.
 type RadixAzureFileVolumeMount struct {
 	// Share. Name of the file share in the external storage resource.
 	// +optional
@@ -1058,10 +1064,6 @@ const (
 	MountTypeBlobFuse2FuseCsiAzure MountType = "azure-blob"
 	// MountTypeBlobFuse2Fuse2CsiAzure Use of azure/csi driver for blobfuse2, protocol Fuse2 in Azure storage account
 	MountTypeBlobFuse2Fuse2CsiAzure MountType = "blobfuse2-fuse2"
-	// MountTypeBlobFuse2NfsCsiAzure Use of azure/csi driver for blobfuse2, protocol NFS in Azure storage account
-	MountTypeBlobFuse2NfsCsiAzure MountType = "blobfuse2-nfs"
-	// MountTypeAzureFileCsiAzure Use of azure/csi driver for Azure File in Azure storage account
-	MountTypeAzureFileCsiAzure MountType = "azure-file"
 )
 
 // RadixNode defines node attributes, where container should be scheduled

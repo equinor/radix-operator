@@ -1474,7 +1474,7 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 		}
 
 		volumeSourceCount := len(slice.FindAll(
-			[]bool{v.HasDeprecatedVolume(), v.HasBlobFuse2(), v.HasAzureFile(), v.HasEmptyDir()},
+			[]bool{v.HasDeprecatedVolume(), v.HasBlobFuse2(), v.HasEmptyDir()},
 			func(b bool) bool { return b }),
 		)
 		if volumeSourceCount > 1 {
@@ -1493,10 +1493,6 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 			if err := validateVolumeMountBlobFuse2(v.BlobFuse2); err != nil {
 				return volumeMountValidationError(v.Name, err)
 			}
-		case v.HasAzureFile():
-			if err := validateVolumeMountAzureFile(v.AzureFile); err != nil {
-				return volumeMountValidationError(v.Name, err)
-			}
 		case v.HasEmptyDir():
 			if err := validateVolumeMountEmptyDir(v.EmptyDir); err != nil {
 				return volumeMountValidationError(v.Name, err)
@@ -1508,7 +1504,7 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 }
 
 func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
-	if !slices.Contains([]radixv1.MountType{radixv1.MountTypeBlob, radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure}, v.Type) {
+	if !slices.Contains([]radixv1.MountType{radixv1.MountTypeBlob, radixv1.MountTypeBlobFuse2FuseCsiAzure}, v.Type) {
 		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountInvalidType)
 	}
 
@@ -1523,7 +1519,7 @@ func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
 		if len(v.Container) == 0 {
 			return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingContainer)
 		}
-	case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure:
+	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		if len(v.Storage) == 0 {
 			return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
 		}
@@ -1533,7 +1529,7 @@ func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
 }
 
 func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) error {
-	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, radixv1.BlobFuse2ProtocolNfs, ""}, fuse2.Protocol) {
+	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, ""}, fuse2.Protocol) {
 		return volumeMountBlobFuse2ValidationError(ErrVolumeMountInvalidProtocol)
 	}
 
@@ -1547,10 +1543,6 @@ func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) erro
 		}
 	}
 	return nil
-}
-
-func validateVolumeMountAzureFile(_ *radixv1.RadixAzureFileVolumeMount) error {
-	return volumeMountAzureFileValidationError(ErrVolumeMountTypeNotImplemented)
 }
 
 func validateVolumeMountEmptyDir(emptyDir *radixv1.RadixEmptyDirVolumeMount) error {

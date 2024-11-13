@@ -1459,24 +1459,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: nil,
 		},
-		"blobfuse2: valid protocol nfs": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-							Protocol:  radixv1.BlobFuse2ProtocolNfs,
-							Container: "any-container",
-						},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
-		},
 		"blobfuse2: valid requestsStorage": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
@@ -1545,21 +1527,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountInvalidRequestsStorage,
-		},
-		"azureFile: not implemented": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name:      "some_name",
-						Path:      "some_path",
-						AzureFile: &radixv1.RadixAzureFileVolumeMount{},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountTypeNotImplemented,
 		},
 		"emptyDir: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -2237,10 +2204,8 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		otherAppName      = "anyapp2"
 		raEnv             = "test"
 		raComponentName   = "app"
-		raPublicPort      = 8080
 		someEnv           = "dev"
 		someComponentName = "component-abc"
-		somePort          = 9090
 		alias1            = "alias1"
 		alias2            = "alias2"
 	)

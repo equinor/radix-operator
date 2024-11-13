@@ -40,23 +40,23 @@ func EqualPersistentVolumeLists(list1, list2 *[]corev1.PersistentVolume) (bool, 
 
 // EqualPersistentVolumes Compare two PersistentVolumes
 func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) (bool, error) {
-	pv1Copy, labels1, params1, mountOptions1 := getPersistentVolumeCopyWithCollections(pv1)
-	pv2Copy, labels2, params2, mountOptions2 := getPersistentVolumeCopyWithCollections(pv2)
+	pv1Copy, labels1, attribs1, mountOptions1 := getPersistentVolumeCopyWithCollections(pv1)
+	pv2Copy, labels2, attribs2, mountOptions2 := getPersistentVolumeCopyWithCollections(pv2)
 	patchBytes, err := getPersistentVolumePatch(pv1Copy, pv2Copy)
 	if err != nil {
 		return false, err
 	}
 	if !EqualStringMaps(labels1, labels2) {
-		return false, nil // StorageClasses labels are not equal
+		return false, nil // PersistentVolume labels are not equal
 	}
-	if !EqualStringMaps(params1, params2) {
-		return false, nil // StorageClasses parameters are not equal
+	if !EqualStringMaps(attribs1, attribs2) {
+		return false, nil // PersistentVolume parameters are not equal
 	}
 	if !EqualStringLists(mountOptions1, mountOptions2) {
-		return false, nil // StorageClass-es MountOptions are not equal
+		return false, nil // PersistentVolume-es MountOptions are not equal
 	}
 	if !kube.IsEmptyPatch(patchBytes) {
-		return false, nil // StorageClasses properties are not equal
+		return false, nil // PersistentVolume properties are not equal
 	}
 	return true, nil
 }
@@ -67,13 +67,13 @@ func getPersistentVolumeCopyWithCollections(pv *corev1.PersistentVolume) (*corev
 	// to avoid label order variations
 	labels := pvCopy.ObjectMeta.Labels
 	pvCopy.ObjectMeta.Labels = map[string]string{}
-	// to avoid Parameters order variations
-	scParams := pvCopy.Spec.Parameters // TODO nodeStorageSecretRef: name, ns
-	pvCopy.Parameters = map[string]string{}
+	// to avoid Attribs order variations
+	pvAttribs := pvCopy.Spec.CSI.VolumeAttributes
+	pvCopy.Spec.CSI.VolumeAttributes = map[string]string{}
 	// to avoid MountOptions order variations
 	mountOptions := pvCopy.Spec.MountOptions
 	pvCopy.Spec.MountOptions = []string{}
-	return pvCopy, labels, scParams, mountOptions
+	return pvCopy, labels, pvAttribs, mountOptions
 }
 
 func getPersistentVolumePatch(pv1, pv2 *corev1.PersistentVolume) ([]byte, error) {

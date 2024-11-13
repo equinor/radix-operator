@@ -14,7 +14,6 @@ import (
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,30 +31,30 @@ const (
 
 	csiVolumeNameTemplate                = "%s-%s-%s-%s"       // <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"         // pvc-<volumename>-<randomstring5>
-	csiStorageClassNameTemplate          = "sc-%s-%s"          // sc-<namespace>-<volumename>
+	csiPersistentVolumeNameTemplate      = "sc-%s-%s"          // sc-<namespace>-<volumename>
 	csiVolumeNodeMountPathTemplate       = "%s/%s/%s/%s/%s/%s" // <volumeRootMount>/<namespace>/<radixvolumeid>/<componentname>/<radixvolumename>/<storage>
 
-	csiStorageClassProvisionerSecretNameParameter       = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
-	csiStorageClassProvisionerSecretNamespaceParameter  = "csi.storage.k8s.io/provisioner-secret-namespace" // namespace of the secret
-	csiStorageClassNodeStageSecretNameParameter         = "csi.storage.k8s.io/node-stage-secret-name"       // Usually equal to csiStorageClassProvisionerSecretNameParameter
-	csiStorageClassNodeStageSecretNamespaceParameter    = "csi.storage.k8s.io/node-stage-secret-namespace"  // Usually equal to csiStorageClassProvisionerSecretNamespaceParameter
-	csiAzureStorageClassSkuNameParameter                = "skuName"                                         // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-	csiStorageClassContainerNameParameter               = "containerName"                                   // Container name - foc container storages
-	csiStorageClassShareNameParameter                   = "shareName"                                       // File Share name - for file storages
-	csiStorageClassTmpPathMountOption                   = "tmp-path"                                        // Path within the node, where the volume mount has been mounted to
-	csiStorageClassGidMountOption                       = "gid"                                             // Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
-	csiStorageClassUidMountOption                       = "uid"                                             // Volume mount owner UserID. Used instead of GroupID
-	csiStorageClassUseAdlsMountOption                   = "use-adls"                                        // Use ADLS or Block Blob
-	csiStorageClassStreamingEnabledMountOption          = "streaming"                                       // Enable Streaming
-	csiStorageClassStreamingCacheMountOption            = "stream-cache-mb"                                 // Limit total amount of data being cached in memory to conserve memory
-	csiStorageClassStreamingMaxBlocksPerFileMountOption = "max-blocks-per-file"                             // Maximum number of blocks to be cached in memory for streaming
-	csiStorageClassStreamingMaxBuffersMountOption       = "max-buffers"                                     // The total number of buffers to be cached in memory (in MB).
-	csiStorageClassStreamingBlockSizeMountOption        = "block-size-mb"                                   // The size of each block to be cached in memory (in MB).
-	csiStorageClassStreamingBufferSizeMountOption       = "buffer-size-mb"                                  // The size of each buffer to be cached in memory (in MB).
-	csiStorageClassProtocolParameter                    = "protocol"                                        // Protocol
-	csiStorageClassProtocolParameterFuse                = "fuse"                                            // Protocol "blobfuse"
-	csiStorageClassProtocolParameterFuse2               = "fuse2"                                           // Protocol "blobfuse2"
-	csiStorageClassProtocolParameterNfs                 = "nfs"                                             // Protocol "nfs"
+	csiPersistentVolumeProvisionerSecretNameParameter       = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
+	csiPersistentVolumeProvisionerSecretNamespaceParameter  = "csi.storage.k8s.io/provisioner-secret-namespace" // namespace of the secret
+	csiPersistentVolumeNodeStageSecretNameParameter         = "csi.storage.k8s.io/node-stage-secret-name"       // Usually equal to csiPersistentVolumeProvisionerSecretNameParameter
+	csiPersistentVolumeNodeStageSecretNamespaceParameter    = "csi.storage.k8s.io/node-stage-secret-namespace"  // Usually equal to csiPersistentVolumeProvisionerSecretNamespaceParameter
+	csiVolumeMountAttributeContainerName                    = "containerName"                                   // Container name - foc container storages
+	csiPersistentVolumeTmpPathMountOption                   = "tmp-path"                                        // Path within the node, where the volume mount has been mounted to
+	csiPersistentVolumeGidMountOption                       = "gid"                                             // Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
+	csiPersistentVolumeUidMountOption                       = "uid"                                             // Volume mount owner UserID. Used instead of GroupID
+	csiPersistentVolumeUseAdlsMountOption                   = "use-adls"                                        // Use ADLS or Block Blob
+	csiPersistentVolumeStreamingEnabledMountOption          = "streaming"                                       // Enable Streaming
+	csiPersistentVolumeStreamingCacheMountOption            = "stream-cache-mb"                                 // Limit total amount of data being cached in memory to conserve memory
+	csiPersistentVolumeStreamingMaxBlocksPerFileMountOption = "max-blocks-per-file"                             // Maximum number of blocks to be cached in memory for streaming
+	csiPersistentVolumeStreamingMaxBuffersMountOption       = "max-buffers"                                     // The total number of buffers to be cached in memory (in MB).
+	csiPersistentVolumeStreamingBlockSizeMountOption        = "block-size-mb"                                   // The size of each block to be cached in memory (in MB).
+	csiPersistentVolumeStreamingBufferSizeMountOption       = "buffer-size-mb"                                  // The size of each buffer to be cached in memory (in MB).
+	csiVolumeMountAttributeProtocol                         = "protocol"                                        // Protocol
+	csiPersistentVolumeProtocolParameterFuse                = "fuse"                                            // Protocol "blobfuse"
+	csiPersistentVolumeProtocolParameterFuse2               = "fuse2"                                           // Protocol "blobfuse2"
+	csiVolumeMountAttributeStorageAccount                   = "storageAccount"
+	csiVolumeMountAttributeClientID                         = "clientID"
+	csiVolumeMountAttributeResourceGroup                    = "resourcegroup"
 
 	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
 	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
@@ -68,27 +67,20 @@ const (
 const (
 	// provisionerBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
 	provisionerBlobCsiAzure string = "blob.csi.azure.com"
-	// provisionerFileCsiAzure Use of azure/csi driver for files in Azure storage account
-	provisionerFileCsiAzure string = "file.csi.azure.com"
 )
 
 var (
-	csiVolumeProvisioners = map[string]any{provisionerBlobCsiAzure: struct{}{}, provisionerFileCsiAzure: struct{}{}}
+	csiVolumeProvisioners = map[string]any{provisionerBlobCsiAzure: struct{}{}}
 )
 
-// getStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
-func getStorageClassProvisionerByVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) (string, bool) {
+// getPersistentVolumeProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
+func getPersistentVolumeProvisionerByVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) (string, bool) {
 	if radixVolumeMount.BlobFuse2 != nil {
 		return provisionerBlobCsiAzure, true
 	}
-	if radixVolumeMount.AzureFile != nil {
-		return provisionerFileCsiAzure, true
-	}
 	switch radixVolumeMount.Type {
-	case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure, radixv1.MountTypeBlobFuse2NfsCsiAzure:
+	case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
 		return provisionerBlobCsiAzure, true
-	case radixv1.MountTypeAzureFileCsiAzure:
-		return provisionerFileCsiAzure, true
 	}
 	return "", false
 }
@@ -96,7 +88,7 @@ func getStorageClassProvisionerByVolumeMountType(radixVolumeMount *radixv1.Radix
 // isKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
 func isKnownCsiAzureVolumeMount(volumeMount string) bool {
 	switch volumeMount {
-	case string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeAzureFileCsiAzure):
+	case string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure):
 		return true
 	}
 	return false
@@ -174,7 +166,7 @@ func getCsiAzureVolumeMountName(volumeMount *radixv1.RadixVolumeMount, component
 	if len(volumeMount.Name) == 0 {
 		return "", fmt.Errorf("name is empty for volume mount in the component %s", componentName)
 	}
-	csiAzureVolumeStorageName := GetRadixVolumeMountStorage(volumeMount)
+	csiAzureVolumeStorageName := getRadixVolumeMountStorage(volumeMount)
 	if len(csiAzureVolumeStorageName) == 0 {
 		return "", fmt.Errorf("storage is empty for volume mount %s in the component %s", volumeMount.Name, componentName)
 	}
@@ -186,41 +178,27 @@ func getCsiAzureVolumeMountName(volumeMount *radixv1.RadixVolumeMount, component
 
 // GetCsiAzureVolumeMountType Gets the CSI Azure volume mount type
 func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radixv1.MountType {
-	if radixVolumeMount.BlobFuse2 != nil {
-		switch radixVolumeMount.BlobFuse2.Protocol {
-		case radixv1.BlobFuse2ProtocolFuse2, "": // default protocol if not set
-			return radixv1.MountTypeBlobFuse2Fuse2CsiAzure
-		case radixv1.BlobFuse2ProtocolNfs:
-			return radixv1.MountTypeBlobFuse2NfsCsiAzure
-		default:
-			return "unsupported"
-		}
+	if radixVolumeMount.BlobFuse2 == nil {
+		return radixVolumeMount.Type
 	}
-	if radixVolumeMount.AzureFile != nil {
-		return radixv1.MountTypeAzureFileCsiAzure
+	switch radixVolumeMount.BlobFuse2.Protocol {
+	case radixv1.BlobFuse2ProtocolFuse2, "": // default protocol if not set
+		return radixv1.MountTypeBlobFuse2Fuse2CsiAzure
+	default:
+		return "unsupported"
 	}
-	return radixVolumeMount.Type
 }
 
 func getCsiRadixVolumeTypeIdForName(radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
 	if radixVolumeMount.BlobFuse2 != nil {
 		switch radixVolumeMount.BlobFuse2.Protocol {
-		case radixv1.BlobFuse2ProtocolFuse2, "":
-			return "csi-blobfuse2-fuse2", nil
-		case radixv1.BlobFuse2ProtocolNfs:
-			return "csi-blobfuse2-nfs", nil
 		default:
 			return "", fmt.Errorf("unknown blobfuse2 protocol %s", radixVolumeMount.BlobFuse2.Protocol)
 		}
 	}
-	if radixVolumeMount.AzureFile != nil {
-		return "csi-az-file", nil
-	}
 	switch radixVolumeMount.Type {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		return "csi-az-blob", nil
-	case radixv1.MountTypeAzureFileCsiAzure:
-		return "csi-az-file", nil
 	}
 	return "", fmt.Errorf("unknown volume mount type %s", radixVolumeMount.Type)
 }
@@ -310,8 +288,6 @@ func getComponentVolumeMountVolumes(ctx context.Context, kubeclient kubernetes.I
 			return getComponentVolumeMountDeprecatedVolumeSource(ctx, volumeMount, namespace, environment, deployComponent.GetName(), kubeclient)
 		case volumeMount.HasBlobFuse2():
 			return getComponentVolumeMountBlobFuse2VolumeSource(ctx, volumeMount, namespace, deployComponent.GetName(), kubeclient)
-		case volumeMount.HasAzureFile():
-			return getComponentVolumeMountAzureFileVolumeSource(ctx, volumeMount, namespace, deployComponent.GetName(), kubeclient)
 		case volumeMount.HasEmptyDir():
 			return getComponentVolumeMountEmptyDirVolumeSource(volumeMount.EmptyDir), nil
 		}
@@ -339,7 +315,7 @@ func getComponentVolumeMountDeprecatedVolumeSource(ctx context.Context, volumeMo
 	switch volumeMount.Type {
 	case radixv1.MountTypeBlob:
 		return getBlobFuseVolume(namespace, environment, componentName, volumeMount), nil
-	case radixv1.MountTypeAzureFileCsiAzure, radixv1.MountTypeBlobFuse2FuseCsiAzure:
+	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		return getCsiAzureVolume(ctx, kubeclient, namespace, componentName, volumeMount)
 	}
 
@@ -347,10 +323,6 @@ func getComponentVolumeMountDeprecatedVolumeSource(ctx context.Context, volumeMo
 }
 
 func getComponentVolumeMountBlobFuse2VolumeSource(ctx context.Context, volumeMount *radixv1.RadixVolumeMount, namespace, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
-	return getCsiAzureVolume(ctx, kubeclient, namespace, componentName, volumeMount)
-}
-
-func getComponentVolumeMountAzureFileVolumeSource(ctx context.Context, volumeMount *radixv1.RadixVolumeMount, namespace, componentName string, kubeclient kubernetes.Interface) (*corev1.VolumeSource, error) {
 	return getCsiAzureVolume(ctx, kubeclient, namespace, componentName, volumeMount)
 }
 
@@ -390,15 +362,9 @@ func getVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentNa
 		return getVolumeMountDeprecatedVolumeName(volumeMount, componentName)
 	case volumeMount.HasBlobFuse2():
 		return getVolumeMountBlobFuse2VolumeName(volumeMount, componentName)
-	case volumeMount.HasAzureFile():
-		return getVolumeMountAzureFileVolumeName(volumeMount, componentName)
 	}
 
 	return fmt.Sprintf("radix-vm-%s", volumeMount.Name), nil
-}
-
-func getVolumeMountAzureFileVolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
-	return getCsiAzureVolumeMountName(volumeMount, componentName)
 }
 
 func getVolumeMountBlobFuse2VolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
@@ -409,7 +375,7 @@ func getVolumeMountDeprecatedVolumeName(volumeMount *radixv1.RadixVolumeMount, c
 	switch volumeMount.Type {
 	case radixv1.MountTypeBlob:
 		return getBlobFuseVolumeMountName(volumeMount, componentName), nil
-	case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure:
+	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		return getCsiAzureVolumeMountName(volumeMount, componentName)
 	}
 
@@ -444,9 +410,9 @@ func createCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMo
 	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(5))), nil // volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
 
-// GetCsiAzureStorageClassName hold a name of CSI volume storage class
-func GetCsiAzureStorageClassName(namespace, volumeName string) string {
-	return fmt.Sprintf(csiStorageClassNameTemplate, namespace, volumeName) // volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
+// GetCsiAzurePersistentVolumeName hold a name of CSI volume storage class
+func GetCsiAzurePersistentVolumeName(namespace, volumeName string) string {
+	return fmt.Sprintf(csiPersistentVolumeNameTemplate, namespace, volumeName) // volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
 
 func getBlobFuseVolume(namespace, environment, componentName string, volumeMount *radixv1.RadixVolumeMount) *corev1.VolumeSource {
@@ -533,9 +499,9 @@ func (deploy *Deployment) garbageCollectVolumeMountsSecretsNoLongerInSpecForComp
 	return deploy.GarbageCollectSecrets(ctx, secrets, excludeSecretNames)
 }
 
-func (deploy *Deployment) getCsiAzureStorageClasses(ctx context.Context, namespace, componentName string) (*storagev1.StorageClassList, error) {
-	return deploy.kubeclient.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{
-		LabelSelector: getLabelSelectorForCsiAzureStorageClass(namespace, componentName),
+func (deploy *Deployment) getCsiAzurePersistentVolume(ctx context.Context, namespace, componentName string) (*corev1.PersistentVolumeList, error) {
+	return deploy.kubeclient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{
+		LabelSelector: getLabelSelectorForCsiAzurePersistentVolume(namespace, componentName),
 	})
 }
 
@@ -549,19 +515,19 @@ func (deploy *Deployment) getPersistentVolumesForPvc(ctx context.Context) (*core
 	return deploy.kubeclient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 }
 
-func getLabelSelectorForCsiAzureStorageClass(namespace, componentName string) string {
-	return fmt.Sprintf("%s=%s, %s=%s, %s in (%s, %s, %s, %s)", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeAzureFileCsiAzure))
+func getLabelSelectorForCsiAzurePersistentVolume(namespace, componentName string) string {
+	return fmt.Sprintf("%s=%s, %s=%s, %s in (%s, %s)", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure))
 }
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaim(componentName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeAzureFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure))
 }
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMountName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s), %s = %s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeAzureFileCsiAzure), kube.RadixVolumeMountNameLabel, radixVolumeMountName)
+	return fmt.Sprintf("%s=%s, %s in (%s, %s), %s = %s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), kube.RadixVolumeMountNameLabel, radixVolumeMountName)
 }
 
-func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appName, namespace, componentName, pvcName, storageClassName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
+func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appName, namespace, componentName, pvcName, pvName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
 	requestsVolumeMountSize, err := resource.ParseQuantity(getRadixBlobFuse2VolumeMountRequestsStorage(radixVolumeMount))
 	if err != nil {
 		requestsVolumeMountSize = resource.MustParse("1Mi")
@@ -583,26 +549,28 @@ func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appNa
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: requestsVolumeMountSize}, // it seems correct number is not needed for CSI driver
 			},
-			VolumeName: pvcName,
+			VolumeName: pvName,
 		},
 	}
 	return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, pvc, metav1.CreateOptions{})
 }
 
 func populateCsiAzureVolumeMount(persistentVolume *corev1.PersistentVolume, appName string, volumeRootMount string, namespace string, componentName string, pvName string, radixVolumeMount *radixv1.RadixVolumeMount, secretName string, provisioner string) error {
-	bindingMode := getBindingMode(getRadixBlobFuse2VolumeMountBindingMode(radixVolumeMount))
 	persistentVolume.ObjectMeta.Name = pvName
 	persistentVolume.ObjectMeta.Labels = getCsiAzurePersistentVolumeLabels(appName, namespace, componentName, radixVolumeMount)
 	persistentVolume.ObjectMeta.Annotations = getCsiAzurePersistentVolumeAnnotations(provisioner, secretName, namespace)
-	persistentVolume.Parameters = getCsiAzureStorageClassParameters(secretName, namespace, radixVolumeMount)
-	mountOptions, err := getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentName, radixVolumeMount)
+	mountOptions, err := getCsiAzurePersistentVolumeMountOptions(volumeRootMount, namespace, componentName, radixVolumeMount)
 	if err != nil {
 		return err
 	}
 	persistentVolume.Spec.MountOptions = mountOptions
+	persistentVolume.Spec.CSI = &corev1.CSIPersistentVolumeSource{
+		VolumeHandle:     "azure-csi-driver-volume-handle",
+		Driver:           "blob.csi.azure.com",
+		VolumeAttributes: getCsiAzurePersistentVolumeAttributes(radixVolumeMount),
+	}
 	persistentVolume.Spec.CSI.NodePublishSecretRef = &corev1.SecretReference{Name: secretName, Namespace: namespace} // TODO - remove for Workload identity
-	persistentVolume.Spec.PersistentVolumeReclaimPolicy = corev1.PersistentVolumeReclaimRetain                       // Using only PersistentVolumeReclaimPolicy. PersistentVolumeReclaimPolicy deletes volume on unmount.
-	persistentVolume.VolumeBindingMode = &bindingMode
+	persistentVolume.Spec.PersistentVolumeReclaimPolicy = corev1.PersistentVolumeReclaimRetain                       // Using only PersistentVolumeReclaimRetain. PersistentVolumeReclaimPolicy deletes volume on unmount.
 	return nil
 }
 
@@ -612,13 +580,6 @@ func getCsiAzurePersistentVolumeAnnotations(provisioner, secretName, namespace s
 		"volume.kubernetes.io/provisioner-deletion-secret-name":      secretName,
 		"volume.kubernetes.io/provisioner-deletion-secret-namespace": namespace,
 	}
-}
-
-func getBindingMode(bindingModeValue string) storagev1.VolumeBindingMode {
-	if strings.EqualFold(strings.ToLower(bindingModeValue), strings.ToLower(string(storagev1.VolumeBindingWaitForFirstConsumer))) {
-		return storagev1.VolumeBindingWaitForFirstConsumer
-	}
-	return storagev1.VolumeBindingImmediate
 }
 
 func getCsiAzurePersistentVolumeLabels(appName, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) map[string]string {
@@ -631,45 +592,34 @@ func getCsiAzurePersistentVolumeLabels(appName, namespace, componentName string,
 	}
 }
 
-func getCsiAzureStorageClassParameters(secretName string, namespace string, radixVolumeMount *radixv1.RadixVolumeMount) map[string]string {
-	parameters := map[string]string{
-		csiStorageClassProvisionerSecretNameParameter:      secretName,
-		csiStorageClassProvisionerSecretNamespaceParameter: namespace,
-		csiStorageClassNodeStageSecretNameParameter:        secretName,
-		csiStorageClassNodeStageSecretNamespaceParameter:   namespace,
-	}
-	skuName := getRadixBlobFuse2VolumeMountSkuName(radixVolumeMount)
-	if len(skuName) > 0 {
-		parameters[csiAzureStorageClassSkuNameParameter] = skuName
-	}
+func getCsiAzurePersistentVolumeAttributes(radixVolumeMount *radixv1.RadixVolumeMount) map[string]string {
+	attributes := make(map[string]string)
 	switch GetCsiAzureVolumeMountType(radixVolumeMount) {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
-		parameters[csiStorageClassContainerNameParameter] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
-		parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse
+		attributes[csiVolumeMountAttributeContainerName] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
+		attributes[csiVolumeMountAttributeProtocol] = csiPersistentVolumeProtocolParameterFuse
 	case radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
-		parameters[csiStorageClassContainerNameParameter] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
-		parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse2
-	case radixv1.MountTypeBlobFuse2NfsCsiAzure:
-		parameters[csiStorageClassContainerNameParameter] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
-		parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterNfs
-	case radixv1.MountTypeAzureFileCsiAzure:
-		parameters[csiStorageClassShareNameParameter] = getRadixAzureFileVolumeMountShareName(radixVolumeMount)
+		attributes[csiVolumeMountAttributeContainerName] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
+		attributes[csiVolumeMountAttributeProtocol] = csiPersistentVolumeProtocolParameterFuse2
+		attributes[csiVolumeMountAttributeStorageAccount] = radixVolumeMount.BlobFuse2.StorageAccount
+		attributes[csiVolumeMountAttributeClientID] = radixVolumeMount.BlobFuse2.ClientId
+		attributes[csiVolumeMountAttributeResourceGroup] = radixVolumeMount.BlobFuse2.ResourceGroup
 	}
-	return parameters
+	return attributes
 }
 
-func getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
+func getCsiAzurePersistentVolumeMountOptions(volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
 	csiVolumeTypeId, err := getCsiRadixVolumeTypeIdForName(radixVolumeMount)
 	if err != nil {
 		return nil, err
 	}
-	tmpPath := fmt.Sprintf(csiVolumeNodeMountPathTemplate, volumeRootMount, namespace, csiVolumeTypeId, componentName, radixVolumeMount.Name, GetRadixVolumeMountStorage(radixVolumeMount))
-	return getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath, radixVolumeMount)
+	tmpPath := fmt.Sprintf(csiVolumeNodeMountPathTemplate, volumeRootMount, namespace, csiVolumeTypeId, componentName, radixVolumeMount.Name, getRadixVolumeMountStorage(radixVolumeMount))
+	return getCsiAzurePersistentVolumeMountOptionsForAzureBlob(tmpPath, radixVolumeMount)
 }
 
-func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
+func getCsiAzurePersistentVolumeMountOptionsForAzureBlob(tmpPath string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
 	mountOptions := []string{
-		// fmt.Sprintf("--%s=%s", csiStorageClassTmpPathMountOption, tmpPath),//TODO fix this path to be able to mount on external mount
+		// fmt.Sprintf("--%s=%s", csiPersistentVolumeTmpPathMountOption, tmpPath),//TODO fix this path to be able to mount on external mount
 		"--file-cache-timeout-in-seconds=120",
 		"--use-attr-cache=true",
 		"--cancel-list-on-mount-seconds=0",
@@ -680,11 +630,11 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 	}
 	gid := getRadixBlobFuse2VolumeMountGid(radixVolumeMount)
 	if len(gid) > 0 {
-		mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiStorageClassGidMountOption, gid))
+		mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiPersistentVolumeGidMountOption, gid))
 	} else {
 		uid := getRadixBlobFuse2VolumeMountUid(radixVolumeMount)
 		if len(uid) > 0 {
-			mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiStorageClassUidMountOption, uid))
+			mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiPersistentVolumeUidMountOption, uid))
 		}
 	}
 	if getRadixBlobFuse2VolumeMountAccessMode(radixVolumeMount) == string(corev1.ReadOnlyMany) {
@@ -692,7 +642,7 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 	}
 	if radixVolumeMount.BlobFuse2 != nil {
 		mountOptions = append(mountOptions, getStreamingMountOptions(radixVolumeMount.BlobFuse2.Streaming)...)
-		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassUseAdlsMountOption, radixVolumeMount.BlobFuse2.UseAdls != nil && *radixVolumeMount.BlobFuse2.UseAdls))
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiPersistentVolumeUseAdlsMountOption, radixVolumeMount.BlobFuse2.UseAdls != nil && *radixVolumeMount.BlobFuse2.UseAdls))
 	}
 	return mountOptions, nil
 }
@@ -702,24 +652,24 @@ func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []st
 	if streaming != nil && streaming.Enabled != nil && !*streaming.Enabled {
 		return nil
 	}
-	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true))
+	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%t", csiPersistentVolumeStreamingEnabledMountOption, true))
 	if streaming == nil {
 		return mountOptions
 	}
 	if streaming.StreamCache != nil {
-		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingCacheMountOption, *streaming.StreamCache))
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiPersistentVolumeStreamingCacheMountOption, *streaming.StreamCache))
 	}
 	if streaming.BlockSize != nil {
-		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBlockSizeMountOption, *streaming.BlockSize))
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiPersistentVolumeStreamingBlockSizeMountOption, *streaming.BlockSize))
 	}
 	if streaming.BufferSize != nil {
-		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBufferSizeMountOption, *streaming.BufferSize))
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiPersistentVolumeStreamingBufferSizeMountOption, *streaming.BufferSize))
 	}
 	if streaming.MaxBuffers != nil {
-		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBuffersMountOption, *streaming.MaxBuffers))
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiPersistentVolumeStreamingMaxBuffersMountOption, *streaming.MaxBuffers))
 	}
 	if streaming.MaxBlocksPerFile != nil {
-		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *streaming.MaxBlocksPerFile))
+		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiPersistentVolumeStreamingMaxBlocksPerFileMountOption, *streaming.MaxBlocksPerFile))
 	}
 	return mountOptions
 }
@@ -759,13 +709,6 @@ func getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount *radixv1.RadixVo
 	return radixVolumeMount.Storage
 }
 
-func getRadixAzureFileVolumeMountShareName(radixVolumeMount *radixv1.RadixVolumeMount) string {
-	if radixVolumeMount.AzureFile != nil {
-		return radixVolumeMount.AzureFile.Share
-	}
-	return radixVolumeMount.Storage
-}
-
 func getRadixBlobFuse2VolumeMountRequestsStorage(radixVolumeMount *radixv1.RadixVolumeMount) string {
 	if radixVolumeMount.BlobFuse2 != nil {
 		return radixVolumeMount.BlobFuse2.RequestsStorage
@@ -788,11 +731,11 @@ func (deploy *Deployment) deletePersistentVolumeClaim(ctx context.Context, names
 	return nil
 }
 
-func (deploy *Deployment) deleteCsiAzureStorageClasses(ctx context.Context, storageClassName string) error {
-	if len(storageClassName) > 0 {
-		return deploy.kubeclient.StorageV1().StorageClasses().Delete(ctx, storageClassName, metav1.DeleteOptions{})
+func (deploy *Deployment) deleteCsiAzurePersistentVolumes(ctx context.Context, pvName string) error {
+	if len(pvName) > 0 {
+		return deploy.kubeclient.CoreV1().PersistentVolumes().Delete(ctx, pvName, metav1.DeleteOptions{})
 	}
-	log.Ctx(ctx).Debug().Msg("Skip deleting StorageClass - name is empty")
+	log.Ctx(ctx).Debug().Msg("Skip deleting PersistentVolume - name is empty")
 	return nil
 }
 
@@ -804,18 +747,13 @@ func (deploy *Deployment) deletePersistentVolume(ctx context.Context, pvName str
 	return nil
 }
 
-// GetRadixVolumeMountStorage get RadixVolumeMount storage property, depend on volume type
-func GetRadixVolumeMountStorage(radixVolumeMount *radixv1.RadixVolumeMount) string {
+func getRadixVolumeMountStorage(radixVolumeMount *radixv1.RadixVolumeMount) string {
 	if radixVolumeMount.Type == radixv1.MountTypeBlob {
 		return radixVolumeMount.Container // Outdated
 	}
 	blobFuse2VolumeMountContainer := getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
 	if len(blobFuse2VolumeMountContainer) != 0 {
 		return blobFuse2VolumeMountContainer
-	}
-	azureFileVolumeMountShare := getRadixAzureFileVolumeMountShareName(radixVolumeMount)
-	if len(azureFileVolumeMountShare) != 0 {
-		return azureFileVolumeMountShare
 	}
 	return radixVolumeMount.Storage
 }
@@ -851,13 +789,13 @@ func knownCSIDriver(csiPersistentVolumeSource *corev1.CSIPersistentVolumeSource)
 	return ok
 }
 
-// createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - StorageClasses, PersistentVolumeClaims, PersistentVolume
+// createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
 func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Context, desiredDeployment *appsv1.Deployment) error {
 	namespace := deploy.radixDeployment.GetNamespace()
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := desiredDeployment.ObjectMeta.Name
 	volumeRootMount := "/tmp" // TODO: add to environment variable, so this volume can be mounted to external disk
-	scList, err := deploy.getCsiAzureStorageClasses(ctx, namespace, componentName)
+	scList, err := deploy.getCsiAzurePersistentVolume(ctx, namespace, componentName)
 	if err != nil {
 		return err
 	}
@@ -869,7 +807,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Cont
 	scMap := utils.GetPersistentVolumeMap(&scList.Items)
 	pvcMap := utils.GetPersistentVolumeClaimMap(&pvcList.Items)
 	radixVolumeMountMap := deploy.getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName)
-	var actualStorageClassNames []string
+	var actualPersistentVolumeNames []string
 	actualPvcNames, err := deploy.getCurrentlyUsedPersistentVolumeClaims(ctx, namespace)
 	if err != nil {
 		return err
@@ -882,12 +820,12 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Cont
 		if !existsRadixVolumeMount {
 			return fmt.Errorf("not found Radix volume mount for desired volume %s", volume.Name)
 		}
-		pv, storageClassIsCreated, err := deploy.getOrCreateCsiAzurePersistentVolume(ctx, appName, volumeRootMount, namespace, componentName, radixVolumeMount, volume.Name, scMap)
+		pv, pvIsCreated, err := deploy.getOrCreateCsiAzurePersistentVolume(ctx, appName, volumeRootMount, namespace, componentName, radixVolumeMount, volume.Name, scMap)
 		if err != nil {
 			return err
 		}
-		actualStorageClassNames = append(actualStorageClassNames, pv.Name)
-		pvc, err := deploy.createCsiAzurePersistentVolumeClaim(ctx, pv, storageClassIsCreated, appName, namespace, componentName, radixVolumeMount, volume.PersistentVolumeClaim.ClaimName, pvcMap)
+		actualPersistentVolumeNames = append(actualPersistentVolumeNames, pv.Name)
+		pvc, err := deploy.createCsiAzurePersistentVolumeClaim(ctx, pv, pvIsCreated, appName, namespace, componentName, radixVolumeMount, volume.PersistentVolumeClaim.ClaimName, pvcMap)
 		if err != nil {
 			return err
 		}
@@ -967,42 +905,42 @@ func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	log.Ctx(ctx).Debug().Msgf("Create PersistentVolumeClaim %s in namespace %s for StorageClass %s", persistentVolumeClaimName, namespace, pv.Name)
+	log.Ctx(ctx).Debug().Msgf("Create PersistentVolumeClaim %s in namespace %s for PersistentVolume %s", persistentVolumeClaimName, namespace, pv.Name)
 	return deploy.createPersistentVolumeClaim(ctx, appName, namespace, componentName, persistentVolumeClaimName, pv.Name, radixVolumeMount)
 }
 
 func (deploy *Deployment) getOrCreateCsiAzurePersistentVolume(ctx context.Context, appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, volumeName string, pvMap map[string]*corev1.PersistentVolume) (*corev1.PersistentVolume, bool, error) {
-	var volumeMountProvisioner, foundProvisioner = getStorageClassProvisionerByVolumeMountType(radixVolumeMount)
+	var volumeMountProvisioner, foundProvisioner = getPersistentVolumeProvisionerByVolumeMountType(radixVolumeMount)
 	if !foundProvisioner {
 		return nil, false, fmt.Errorf("not found Storage Class provisioner for volume mount type %s", string(GetCsiAzureVolumeMountType(radixVolumeMount)))
 	}
-	pvName := GetCsiAzureStorageClassName(namespace, volumeName)
+	pvName := GetCsiAzurePersistentVolumeName(namespace, volumeName)
 	csiVolumeSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
-	if existingStorageClass, exists := pvMap[pvName]; exists {
-		desiredStorageClass := existingStorageClass.DeepCopy()
-		err := populateCsiAzureVolumeMount(desiredStorageClass, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, csiVolumeSecretName, volumeMountProvisioner)
+	if existingPersistentVolume, exists := pvMap[pvName]; exists {
+		desiredPersistentVolume := existingPersistentVolume.DeepCopy()
+		err := populateCsiAzureVolumeMount(desiredPersistentVolume, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, csiVolumeSecretName, volumeMountProvisioner)
 		if err != nil {
 			return nil, false, err
 		}
-		if equal, err := utils.EqualPersistentVolumes(existingStorageClass, desiredStorageClass); equal || err != nil {
-			return existingStorageClass, false, err
+		if equal, err := utils.EqualPersistentVolumes(existingPersistentVolume, desiredPersistentVolume); equal || err != nil {
+			return existingPersistentVolume, false, err
 		}
 
-		log.Ctx(ctx).Info().Msgf("Delete StorageClass %s in namespace %s", existingStorageClass.Name, namespace)
-		err = deploy.deleteCsiAzureStorageClasses(ctx, existingStorageClass.Name)
+		log.Ctx(ctx).Info().Msgf("Delete PersistentVolume %s in namespace %s", existingPersistentVolume.Name, namespace)
+		err = deploy.deleteCsiAzurePersistentVolumes(ctx, existingPersistentVolume.Name)
 		if err != nil {
 			return nil, false, err
 		}
 	}
 
-	log.Ctx(ctx).Debug().Msgf("Create StorageClass %s in namespace %s", pvName, namespace)
-	storageClass := &storagev1.StorageClass{}
-	err := populateCsiAzureVolumeMount(storageClass, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, csiVolumeSecretName, volumeMountProvisioner)
+	log.Ctx(ctx).Debug().Msgf("Create PersistentVolume %s in namespace %s", pvName, namespace)
+	pv := &corev1.PersistentVolume{}
+	err := populateCsiAzureVolumeMount(pv, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, csiVolumeSecretName, volumeMountProvisioner)
 	if err != nil {
 		return nil, false, err
 	}
-	desiredStorageClass, err := deploy.kubeclient.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{})
-	return desiredStorageClass, true, err
+	desiredPersistentVolume, err := deploy.kubeclient.CoreV1().PersistentVolumes().Create(ctx, pv, metav1.CreateOptions{})
+	return desiredPersistentVolume, true, err
 }
 
 func (deploy *Deployment) getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName string) map[string]*radixv1.RadixVolumeMount {
@@ -1025,7 +963,7 @@ func findCsiAzureVolumeForComponent(volumeMountMap map[string]*radixv1.RadixVolu
 		return false
 	}
 	for _, radixVolumeMount := range volumeMounts {
-		if radixVolumeMount.BlobFuse2 == nil && radixVolumeMount.AzureFile == nil && !isKnownCsiAzureVolumeMount(string(GetCsiAzureVolumeMountType(&radixVolumeMount))) {
+		if radixVolumeMount.BlobFuse2 == nil && !isKnownCsiAzureVolumeMount(string(GetCsiAzureVolumeMountType(&radixVolumeMount))) {
 			continue
 		}
 		radixVolumeMount := radixVolumeMount
