@@ -15,6 +15,7 @@ func GetAuxOAuthProxyAnnotationProviders() []AnnotationProvider {
 	return []AnnotationProvider{
 		NewForceSslRedirectAnnotationProvider(),
 		NewIngressPublicAllowListAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
 	}
 }
 

@@ -183,3 +183,13 @@ func (*ingressPublicConfigAnnotationProvider) GetAnnotations(component radixv1.R
 
 	return annotations, nil
 }
+
+func NewRedirectErrorPageAnnotationProvider() AnnotationProvider {
+	return &redirectErrorPageAnnotationProvider{}
+}
+
+type redirectErrorPageAnnotationProvider struct{}
+
+func (redirectErrorPageAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+	return map[string]string{"nginx.ingress.kubernetes.io/custom-http-errors": "503"}, nil
+}
