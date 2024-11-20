@@ -28,28 +28,33 @@ const (
 )
 
 func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
+	batchJobKubeJobs := slice.FindAll(existingJobs, isKubeJobForBatchJob(batchJob))
+
 	if isBatchJobStopRequested(batchJob) {
 		// Delete existing k8s job if stop is requested for batch job
-		batchJobKubeJobs := slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })
 		return s.deleteJobs(ctx, batchJobKubeJobs)
 	}
 
-	jobNeedToBeRestarted, err := s.handleJobToRestart(ctx, batchJob, existingJobs)
-	if err != nil {
-		return err
-	}
-	if !jobNeedToBeRestarted && (isBatchJobDone(s.radixBatch, batchJob.Name) ||
-		slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })) {
+	requiresRestart := s.jobRequiresRestart(*batchJob)
+	if !requiresRestart && (isBatchJobDone(s.radixBatch, batchJob.Name) || len(batchJobKubeJobs) > 0) {
 		return nil
 	}
-	err = s.validatePayloadSecretReference(ctx, batchJob, jobComponent)
-	if err != nil {
+
+	if requiresRestart {
+		if err := s.deleteJobs(ctx, batchJobKubeJobs); err != nil {
+			return err
+		}
+	}
+
+	if err := s.validatePayloadSecretReference(ctx, batchJob, jobComponent); err != nil {
 		return err
 	}
+
 	job, err := s.buildJob(ctx, batchJob, jobComponent, rd)
 	if err != nil {
 		return err
 	}
+
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		_, err = s.kubeClient.BatchV1().Jobs(s.radixBatch.GetNamespace()).Create(ctx, job, metav1.CreateOptions{})
 		return err
@@ -74,45 +79,6 @@ func (s *syncer) validatePayloadSecretReference(ctx context.Context, batchJob *r
 		return fmt.Errorf("payload secret %s, in the job %s of the batch %s has no entry %s for the job", batchJob.PayloadSecretRef.Name, batchJob.Name, s.radixBatch.GetName(), batchJob.PayloadSecretRef.Key)
 	}
 	return nil
-}
-
-func (s *syncer) handleJobToRestart(ctx context.Context, batchJob *radixv1.RadixBatchJob, existingJobs []*batchv1.Job) (bool, error) {
-	jobStatusIdx := slice.FindIndex(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
-		return jobStatus.Name == batchJob.Name
-	})
-
-	jobRestartTimestamp, jobStatusRestartTimestamp := s.getJobRestartTimestamps(batchJob, jobStatusIdx)
-	if !needRestartJob(jobRestartTimestamp, jobStatusRestartTimestamp) {
-		return false, nil
-	}
-
-	jobsToDelete := slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })
-	err := s.deleteJobs(ctx, jobsToDelete)
-	if err != nil {
-		return true, err
-	}
-
-	jobStatus := radixv1.RadixBatchJobStatus{
-		Name:    batchJob.Name,
-		Restart: jobRestartTimestamp,
-	}
-	if jobStatusIdx >= 0 {
-		s.radixBatch.Status.JobStatuses[jobStatusIdx] = jobStatus
-		return true, nil
-	}
-	s.radixBatch.Status.JobStatuses = append(s.radixBatch.Status.JobStatuses, jobStatus)
-	return true, nil
-}
-
-func needRestartJob(jobRestartTimestamp string, jobStatusRestartTimestamp string) bool {
-	return len(jobRestartTimestamp) > 0 && jobRestartTimestamp != jobStatusRestartTimestamp
-}
-
-func (s *syncer) getJobRestartTimestamps(batchJob *radixv1.RadixBatchJob, jobStatusIdx int) (string, string) {
-	if jobStatusIdx >= 0 {
-		return batchJob.Restart, s.radixBatch.Status.JobStatuses[jobStatusIdx].Restart
-	}
-	return batchJob.Restart, ""
 }
 
 func (s *syncer) deleteJobs(ctx context.Context, jobsToDelete []*batchv1.Job) error {

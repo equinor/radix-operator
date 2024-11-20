@@ -2299,6 +2299,174 @@ func (s *syncerTestSuite) Test_BatchStatus() {
 	}
 }
 
+func (s *syncerTestSuite) Test_ShouldRestartBatchJobNotRestartedBefore() {
+	const (
+		appName          = "any-app"
+		rdName           = "any-rd"
+		namespace        = "any-ns"
+		jobComponentName = "any-job"
+		batchName        = "any-rb"
+		batchJob1Name    = "job1"
+		batchJob2Name    = "job2"
+		restartTime      = "2020-01-01T08:00:00Z"
+	)
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  jobComponentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: batchJob1Name, Restart: restartTime},
+				{Name: batchJob2Name},
+			},
+		},
+		Status: radixv1.RadixBatchStatus{
+			Condition: radixv1.RadixBatchCondition{
+				Type: radixv1.BatchConditionTypeCompleted,
+			},
+			JobStatuses: []radixv1.RadixBatchJobStatus{
+				{Name: batchJob1Name, Phase: radixv1.BatchJobPhaseSucceeded},
+				{Name: batchJob2Name, Phase: radixv1.BatchJobPhaseSucceeded},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName, Image: "any-image"}},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(restartTime, batch.Status.JobStatuses[0].Restart)
+	s.Equal(radixv1.BatchJobPhaseWaiting, batch.Status.JobStatuses[0].Phase)
+	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
+	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 1)
+	s.Equal(batchJob1Name, jobs.Items[0].Labels[kube.RadixBatchJobNameLabel])
+}
+
+func (s *syncerTestSuite) Test_ShouldRestartBatchJobWithNewRestartTimestamp() {
+	const (
+		appName          = "any-app"
+		rdName           = "any-rd"
+		namespace        = "any-ns"
+		jobComponentName = "any-job"
+		batchName        = "any-rb"
+		batchJob1Name    = "job1"
+		batchJob2Name    = "job2"
+		newRestartTime   = "2020-01-01T08:00:00Z"
+		oldRestartTime   = "2020-01-01T07:00:00Z"
+	)
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  jobComponentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: batchJob1Name, Restart: newRestartTime},
+				{Name: batchJob2Name},
+			},
+		},
+		Status: radixv1.RadixBatchStatus{
+			Condition: radixv1.RadixBatchCondition{
+				Type: radixv1.BatchConditionTypeCompleted,
+			},
+			JobStatuses: []radixv1.RadixBatchJobStatus{
+				{Name: batchJob1Name, Phase: radixv1.BatchJobPhaseSucceeded, Restart: oldRestartTime},
+				{Name: batchJob2Name, Phase: radixv1.BatchJobPhaseSucceeded},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName, Image: "any-image"}},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(newRestartTime, batch.Status.JobStatuses[0].Restart)
+	s.Equal(radixv1.BatchJobPhaseWaiting, batch.Status.JobStatuses[0].Phase)
+	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
+	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 1)
+	s.Equal(batchJob1Name, jobs.Items[0].Labels[kube.RadixBatchJobNameLabel])
+}
+
+func (s *syncerTestSuite) Test_ShouldNotRestartBatchJobWhenAlreadyRestarted() {
+	const (
+		appName          = "any-app"
+		rdName           = "any-rd"
+		namespace        = "any-ns"
+		jobComponentName = "any-job"
+		batchName        = "any-rb"
+		batchJob1Name    = "job1"
+		batchJob2Name    = "job2"
+		restartTime      = "2020-01-01T08:00:00Z"
+	)
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  jobComponentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: batchJob1Name, Restart: restartTime},
+				{Name: batchJob2Name},
+			},
+		},
+		Status: radixv1.RadixBatchStatus{
+			Condition: radixv1.RadixBatchCondition{
+				Type: radixv1.BatchConditionTypeCompleted,
+			},
+			JobStatuses: []radixv1.RadixBatchJobStatus{
+				{Name: batchJob1Name, Phase: radixv1.BatchJobPhaseSucceeded, Restart: restartTime},
+				{Name: batchJob2Name, Phase: radixv1.BatchJobPhaseSucceeded},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName, Image: "any-image"}},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(restartTime, batch.Status.JobStatuses[0].Restart)
+	s.Equal(radixv1.BatchJobPhaseSucceeded, batch.Status.JobStatuses[0].Phase)
+	s.Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
+	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(jobs.Items, 0)
+}
+
 func getRadixBatchJobsMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJob {
 	batchJobsMap := make(map[string]*radixv1.RadixBatchJob)
 	for i := 0; i < len(batch.Spec.Jobs); i++ {

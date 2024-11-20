@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -49,7 +50,7 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return err
 	}
 
-	if isBatchDone(s.radixBatch) {
+	if isBatchDone(s.radixBatch) && !slice.Any(s.radixBatch.Spec.Jobs, s.jobRequiresRestart) {
 		return nil
 	}
 
@@ -128,4 +129,16 @@ func (s *syncer) batchJobIdentifierLabel(batchJobName, appName string) labels.Se
 		radixlabels.ForJobScheduleJobType(),
 		radixlabels.ForBatchJobName(batchJobName),
 	)
+}
+
+func (s *syncer) jobRequiresRestart(job radixv1.RadixBatchJob) bool {
+	if job.Restart == "" {
+		return false
+	}
+
+	currentStatus, found := slice.FindFirst(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
+		return jobStatus.Name == job.Name
+	})
+
+	return !found || job.Restart != currentStatus.Restart
 }
