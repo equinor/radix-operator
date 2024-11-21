@@ -36,11 +36,12 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 	}
 
 	requiresRestart := s.jobRequiresRestart(*batchJob)
-	if !requiresRestart && (isBatchJobDone(s.radixBatch, batchJob.Name) || len(batchJobKubeJobs) > 0) {
+	if !requiresRestart && (s.isBatchJobDone(batchJob.Name) || len(batchJobKubeJobs) > 0) {
 		return nil
 	}
 
 	if requiresRestart {
+		s.restartedJobs[batchJob.Name] = *batchJob
 		if err := s.deleteJobs(ctx, batchJobKubeJobs); err != nil {
 			return err
 		}

@@ -121,21 +121,26 @@ func (s *syncer) buildJobStatuses(ctx context.Context) ([]radixv1.RadixBatchJobS
 }
 
 func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.RadixBatchJob, allJobs []*batchv1.Job) radixv1.RadixBatchJobStatus {
+	restartedJob, isRestartedJob := s.restartedJobs[batchJob.Name]
+
 	currentStatus, hasCurrentStatus := slice.FindFirst(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
 		return jobStatus.Name == batchJob.Name
 	})
 
-	if !s.jobRequiresRestart(*batchJob) && hasCurrentStatus && isJobStatusDone(currentStatus) {
+	if !isRestartedJob && hasCurrentStatus && isJobStatusDone(currentStatus) {
 		return currentStatus
 	}
 
 	status := radixv1.RadixBatchJobStatus{
-		Name:    batchJob.Name,
-		Phase:   radixv1.BatchJobPhaseWaiting,
-		Restart: batchJob.Restart,
+		Name:  batchJob.Name,
+		Phase: radixv1.BatchJobPhaseWaiting,
 	}
 
-	if hasCurrentStatus && !s.jobRequiresRestart(*batchJob) {
+	if isRestartedJob {
+		status.Restart = restartedJob.Restart
+	}
+
+	if hasCurrentStatus && !isRestartedJob {
 		status.Phase = currentStatus.Phase
 	}
 

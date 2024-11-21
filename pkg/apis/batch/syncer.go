@@ -16,6 +16,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const (
+	syncStatusForEveryNumberOfBatchJobsReconciled = 10
+)
+
 // Syncer of  RadixBatch
 type Syncer interface {
 	// OnSync Syncs RadixBatch
@@ -25,20 +29,22 @@ type Syncer interface {
 // NewSyncer Constructor os RadixBatches Syncer
 func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixBatch *radixv1.RadixBatch, config *config.Config) Syncer {
 	return &syncer{
-		kubeClient:  kubeclient,
-		kubeUtil:    kubeUtil,
-		radixClient: radixClient,
-		radixBatch:  radixBatch,
-		config:      config,
+		kubeClient:    kubeclient,
+		kubeUtil:      kubeUtil,
+		radixClient:   radixClient,
+		radixBatch:    radixBatch,
+		config:        config,
+		restartedJobs: map[string]radixv1.RadixBatchJob{},
 	}
 }
 
 type syncer struct {
-	kubeClient  kubernetes.Interface
-	kubeUtil    *kube.Kube
-	radixClient radixclient.Interface
-	radixBatch  *radixv1.RadixBatch
-	config      *config.Config
+	kubeClient    kubernetes.Interface
+	kubeUtil      *kube.Kube
+	radixClient   radixclient.Interface
+	radixBatch    *radixv1.RadixBatch
+	config        *config.Config
+	restartedJobs map[string]radixv1.RadixBatchJob
 }
 
 // OnSync Syncs RadixBatches
@@ -50,7 +56,7 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return err
 	}
 
-	if isBatchDone(s.radixBatch) && !slice.Any(s.radixBatch.Spec.Jobs, s.jobRequiresRestart) {
+	if s.isBatchDone() && !s.isRestartRequestedForAnyBatchJob() {
 		return nil
 	}
 
@@ -58,8 +64,6 @@ func (s *syncer) OnSync(ctx context.Context) error {
 }
 
 func (s *syncer) reconcile(ctx context.Context) error {
-	const syncStatusForEveryNumberOfBatchJobsReconciled = 10
-
 	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent(ctx)
 	if err != nil {
 		return err
@@ -84,7 +88,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 			return fmt.Errorf("batchjob %s: failed to reconcile kubejob: %w", batchJob.Name, err)
 		}
 
-		if i%syncStatusForEveryNumberOfBatchJobsReconciled == 0 {
+		if i%syncStatusForEveryNumberOfBatchJobsReconciled == (syncStatusForEveryNumberOfBatchJobsReconciled - 1) {
 			if err := s.syncStatus(ctx, nil); err != nil {
 				return fmt.Errorf("batchjob %s: failed to sync status: %w", batchJob.Name, err)
 			}
@@ -141,4 +145,19 @@ func (s *syncer) jobRequiresRestart(job radixv1.RadixBatchJob) bool {
 	})
 
 	return !found || job.Restart != currentStatus.Restart
+}
+
+func (s *syncer) isBatchDone() bool {
+	return s.radixBatch.Status.Condition.Type == radixv1.BatchConditionTypeCompleted
+}
+
+func (s *syncer) isBatchJobDone(batchJobName string) bool {
+	return slice.Any(s.radixBatch.Status.JobStatuses,
+		func(jobStatus radixv1.RadixBatchJobStatus) bool {
+			return jobStatus.Name == batchJobName && isJobStatusDone(jobStatus)
+		})
+}
+
+func (s *syncer) isRestartRequestedForAnyBatchJob() bool {
+	return slice.Any(s.radixBatch.Spec.Jobs, s.jobRequiresRestart)
 }

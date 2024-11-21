@@ -16,7 +16,7 @@ func (s *syncer) reconcileService(ctx context.Context, batchJob *radixv1.RadixBa
 		return nil
 	}
 
-	if isBatchJobStopRequested(batchJob) || isBatchJobDone(s.radixBatch, batchJob.Name) {
+	if isBatchJobStopRequested(batchJob) || s.isBatchJobDone(batchJob.Name) {
 		return nil
 	}
 

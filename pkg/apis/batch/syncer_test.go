@@ -51,7 +51,7 @@ func TestSyncerTestSuite(t *testing.T) {
 }
 
 func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, config *config.Config) Syncer {
-	return &syncer{kubeClient: s.kubeClient, kubeUtil: s.kubeUtil, radixClient: s.radixClient, radixBatch: forJob, config: config}
+	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, forJob, config)
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -2336,12 +2336,20 @@ func (s *syncerTestSuite) Test_ShouldRestartBatchJobNotRestartedBefore() {
 		ObjectMeta: metav1.ObjectMeta{Name: rdName},
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
-			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName, Image: "any-image"}},
+			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
+		},
+	}
+	kubeJob := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "any-previous-job-name",
+			Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
 		},
 	}
 	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), kubeJob, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch, nil)
 	s.Require().NoError(sut.OnSync(context.Background()))
@@ -2352,7 +2360,7 @@ func (s *syncerTestSuite) Test_ShouldRestartBatchJobNotRestartedBefore() {
 	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
-	s.Equal(batchJob1Name, jobs.Items[0].Labels[kube.RadixBatchJobNameLabel])
+	s.Equal(getKubeJobName(batchName, batchJob1Name), jobs.Items[0].GetName())
 }
 
 func (s *syncerTestSuite) Test_ShouldRestartBatchJobWithNewRestartTimestamp() {
@@ -2393,12 +2401,20 @@ func (s *syncerTestSuite) Test_ShouldRestartBatchJobWithNewRestartTimestamp() {
 		ObjectMeta: metav1.ObjectMeta{Name: rdName},
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
-			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName, Image: "any-image"}},
+			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
+		},
+	}
+	kubeJob := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "any-previous-job-name",
+			Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
 		},
 	}
 	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), kubeJob, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch, nil)
 	s.Require().NoError(sut.OnSync(context.Background()))
@@ -2409,19 +2425,20 @@ func (s *syncerTestSuite) Test_ShouldRestartBatchJobWithNewRestartTimestamp() {
 	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
-	s.Equal(batchJob1Name, jobs.Items[0].Labels[kube.RadixBatchJobNameLabel])
+	s.Equal(getKubeJobName(batchName, batchJob1Name), jobs.Items[0].GetName())
 }
 
 func (s *syncerTestSuite) Test_ShouldNotRestartBatchJobWhenAlreadyRestarted() {
 	const (
-		appName          = "any-app"
-		rdName           = "any-rd"
-		namespace        = "any-ns"
-		jobComponentName = "any-job"
-		batchName        = "any-rb"
-		batchJob1Name    = "job1"
-		batchJob2Name    = "job2"
-		restartTime      = "2020-01-01T08:00:00Z"
+		appName            = "any-app"
+		rdName             = "any-rd"
+		namespace          = "any-ns"
+		jobComponentName   = "any-job"
+		batchName          = "any-rb"
+		batchJob1Name      = "job1"
+		batchJob2Name      = "job2"
+		restartTime        = "2020-01-01T08:00:00Z"
+		exitingKubeJobName = "any-exiting-kube-job"
 	)
 	batch := &radixv1.RadixBatch{
 		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
@@ -2449,12 +2466,20 @@ func (s *syncerTestSuite) Test_ShouldNotRestartBatchJobWhenAlreadyRestarted() {
 		ObjectMeta: metav1.ObjectMeta{Name: rdName},
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
-			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName, Image: "any-image"}},
+			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
+		},
+	}
+	kubeJob := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   exitingKubeJobName,
+			Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
 		},
 	}
 	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), kubeJob, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(batch, nil)
 	s.Require().NoError(sut.OnSync(context.Background()))
@@ -2464,7 +2489,81 @@ func (s *syncerTestSuite) Test_ShouldNotRestartBatchJobWhenAlreadyRestarted() {
 	s.Equal(radixv1.BatchJobPhaseSucceeded, batch.Status.JobStatuses[0].Phase)
 	s.Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
-	s.Len(jobs.Items, 0)
+	s.Require().Len(jobs.Items, 1)
+	s.Equal(exitingKubeJobName, jobs.Items[0].GetName())
+}
+
+func (s *syncerTestSuite) Test_RestartCorrectlyHandledWithIntermediateStatusUpdates() {
+	const (
+		appName          = "any-app"
+		rdName           = "any-rd"
+		namespace        = "any-ns"
+		jobComponentName = "any-job"
+		batchName        = "any-rb"
+		batchJobName     = "thejob"
+		restartTime      = "2020-01-01T08:00:00Z"
+	)
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  jobComponentName,
+			},
+			Jobs: func() []radixv1.RadixBatchJob {
+				var jobs []radixv1.RadixBatchJob
+				for i := range syncStatusForEveryNumberOfBatchJobsReconciled {
+					jobs = append(jobs, radixv1.RadixBatchJob{Name: fmt.Sprintf("anyjob%v", i)})
+				}
+				jobs = append(jobs, radixv1.RadixBatchJob{Name: batchJobName, Restart: restartTime})
+				return jobs
+			}(),
+		},
+		Status: radixv1.RadixBatchStatus{
+			Condition: radixv1.RadixBatchCondition{
+				Type: radixv1.BatchConditionTypeCompleted,
+			},
+			JobStatuses: func() []radixv1.RadixBatchJobStatus {
+				var jobs []radixv1.RadixBatchJobStatus
+				for i := range syncStatusForEveryNumberOfBatchJobsReconciled {
+					jobs = append(jobs, radixv1.RadixBatchJobStatus{Name: fmt.Sprintf("anyjob%v", i), Phase: radixv1.BatchJobPhaseSucceeded})
+				}
+				jobs = append(jobs, radixv1.RadixBatchJobStatus{Name: batchJobName, Phase: radixv1.BatchJobPhaseSucceeded})
+				return jobs
+			}(),
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
+		},
+	}
+	kubeJob := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "any-previous-job-name",
+			Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJobName)),
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), kubeJob, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
+	s.Require().NoError(err)
+	batchJobStatus, foundBatchJobStatus := slice.FindFirst(batch.Status.JobStatuses, func(s radixv1.RadixBatchJobStatus) bool { return s.Name == batchJobName })
+	s.Require().True(foundBatchJobStatus)
+	s.Equal(restartTime, batchJobStatus.Restart)
+	s.Equal(radixv1.BatchJobPhaseWaiting, batchJobStatus.Phase)
+	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
+	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 1)
+	s.Equal(getKubeJobName(batchName, batchJobName), jobs.Items[0].GetName())
 }
 
 func getRadixBatchJobsMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJob {
