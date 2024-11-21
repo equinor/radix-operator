@@ -2493,6 +2493,58 @@ func (s *syncerTestSuite) Test_ShouldNotRestartBatchJobWhenAlreadyRestarted() {
 	s.Equal(exitingKubeJobName, jobs.Items[0].GetName())
 }
 
+func (s *syncerTestSuite) Test_ShouldKeepRestartStatusOnSync() {
+	const (
+		appName            = "any-app"
+		rdName             = "any-rd"
+		namespace          = "any-ns"
+		jobComponentName   = "any-job"
+		batchName          = "any-rb"
+		batchJob1Name      = "job1"
+		batchJob2Name      = "job2"
+		restartTime        = "2020-01-01T08:00:00Z"
+		exitingKubeJobName = "any-exiting-kube-job"
+	)
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  jobComponentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: batchJob1Name, Restart: restartTime},
+				{Name: batchJob2Name},
+			},
+		},
+		Status: radixv1.RadixBatchStatus{
+			Condition: radixv1.RadixBatchCondition{
+				Type: radixv1.BatchConditionTypeActive,
+			},
+			JobStatuses: []radixv1.RadixBatchJobStatus{
+				{Name: batchJob1Name, Phase: radixv1.BatchJobPhaseWaiting, Restart: restartTime},
+				{Name: batchJob2Name, Phase: radixv1.BatchJobPhaseSucceeded},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(restartTime, batch.Status.JobStatuses[0].Restart)
+}
+
 func (s *syncerTestSuite) Test_RestartCorrectlyHandledWithIntermediateStatusUpdates() {
 	const (
 		appName          = "any-app"

@@ -142,6 +142,7 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 
 	if hasCurrentStatus && !isRestartedJob {
 		status.Phase = currentStatus.Phase
+		status.Restart = currentStatus.Restart
 	}
 
 	if isBatchJobStopRequested(batchJob) {
