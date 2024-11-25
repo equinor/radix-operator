@@ -960,7 +960,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 
 				// action
 				deployComponent := deployment.radixDeployment.Spec.Components[0]
-				err := deployment.createOrUpdateCsiAzureVolumeResources(context.Background(), desiredDeployment, deployComponent)
+				err := deployment.createOrUpdateCsiAzureVolumeResources(context.Background(), desiredDeployment, &deployComponent)
 				assert.Nil(t, err)
 
 				existingPvcs, existingScs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(deployment)

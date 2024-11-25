@@ -401,8 +401,7 @@ func createCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMo
 	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(5))), nil // volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
 
-// GetCsiAzurePersistentVolumeName hold a name of CSI volume storage class
-func GetCsiAzurePersistentVolumeName(namespace, volumeName string) string {
+func getCsiAzurePersistentVolumeName(namespace, volumeName string) string {
 	return fmt.Sprintf(csiPersistentVolumeNameTemplate, namespace, volumeName) // volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
 
@@ -545,9 +544,9 @@ func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appNa
 	return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, pvc, metav1.CreateOptions{})
 }
 
-func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume, appName string, volumeRootMount string, namespace string, componentName string, pvName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) error {
+func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume, appName, volumeRootMount, namespace, componentName, pvName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) error {
 	identityClientId := getIdentityClientId(identity)
-	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount)
+	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount.UseAzureIdentity)
 	csiVolumeCredSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
 	persistentVolume.ObjectMeta.Name = pvName
 	persistentVolume.ObjectMeta.Labels = getCsiAzurePersistentVolumeLabels(appName, namespace, componentName, radixVolumeMount)
@@ -576,8 +575,8 @@ func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume,
 	return nil
 }
 
-func getUseAzureIdentity(identity *radixv1.Identity, radixVolumeMount *radixv1.RadixVolumeMount) bool {
-	return len(getIdentityClientId(identity)) > 0 && radixVolumeMount.UseAzureIdentity != nil && *radixVolumeMount.UseAzureIdentity
+func getUseAzureIdentity(identity *radixv1.Identity, useAzureIdentity *bool) bool {
+	return len(getIdentityClientId(identity)) > 0 && useAzureIdentity != nil && *useAzureIdentity
 }
 
 func getIdentityClientId(identity *radixv1.Identity) string {
@@ -825,12 +824,12 @@ func knownCSIDriver(csiPersistentVolumeSource *corev1.CSIPersistentVolumeSource)
 }
 
 // createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
-func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Context, desiredDeployment *appsv1.Deployment, deployComponent radixv1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Context, desiredDeployment *appsv1.Deployment, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.GetNamespace()
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := desiredDeployment.ObjectMeta.Name
 	volumeRootMount := "/tmp" // TODO: add to environment variable, so this volume can be mounted to external disk
-	scList, err := deploy.getCsiAzurePersistentVolume(ctx, namespace, componentName)
+	pvList, err := deploy.getCsiAzurePersistentVolume(ctx, namespace, componentName)
 	if err != nil {
 		return err
 	}
@@ -839,7 +838,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Cont
 		return err
 	}
 
-	scMap := utils.GetPersistentVolumeMap(&scList.Items)
+	pvMap := utils.GetPersistentVolumeMap(&pvList.Items)
 	pvcMap := utils.GetPersistentVolumeClaimMap(&pvcList.Items)
 	radixVolumeMountMap := deploy.getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName)
 	var actualPersistentVolumeNames []string
@@ -856,7 +855,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Cont
 		if !existsRadixVolumeMount {
 			return fmt.Errorf("not found Radix volume mount for desired volume %s", volume.Name)
 		}
-		pv, pvIsCreated, err := deploy.getOrCreateCsiAzurePersistentVolume(ctx, appName, volumeRootMount, namespace, componentName, radixVolumeMount, volume.Name, scMap, identity)
+		pv, pvIsCreated, err := deploy.getOrCreateCsiAzurePersistentVolume(ctx, appName, volumeRootMount, namespace, componentName, radixVolumeMount, volume.Name, pvMap, identity)
 		if err != nil {
 			return err
 		}
@@ -946,31 +945,31 @@ func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(ctx context.Contex
 }
 
 func (deploy *Deployment) getOrCreateCsiAzurePersistentVolume(ctx context.Context, appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, volumeName string, pvMap map[string]*corev1.PersistentVolume, identity *radixv1.Identity) (*corev1.PersistentVolume, bool, error) {
-	pvName := GetCsiAzurePersistentVolumeName(namespace, volumeName)
-	if existingPersistentVolume, exists := pvMap[pvName]; exists {
-		desiredPersistentVolume := existingPersistentVolume.DeepCopy()
-		err := populateCsiAzurePersistentVolume(desiredPersistentVolume, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, identity)
+	pvName := getCsiAzurePersistentVolumeName(namespace, volumeName)
+	if existingPv, exists := pvMap[pvName]; exists {
+		desiredPv := existingPv.DeepCopy()
+		err := populateCsiAzurePersistentVolume(desiredPv, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, identity)
 		if err != nil {
 			return nil, false, err
 		}
-		if equal, err := utils.EqualPersistentVolumes(existingPersistentVolume, desiredPersistentVolume); equal || err != nil {
-			return existingPersistentVolume, false, err
+		if equal, err := utils.EqualPersistentVolumes(existingPv, desiredPv); equal || err != nil {
+			return existingPv, false, err
 		}
 
-		log.Ctx(ctx).Info().Msgf("Delete PersistentVolume %s in namespace %s", existingPersistentVolume.Name, namespace)
-		err = deploy.deleteCsiAzurePersistentVolumes(ctx, existingPersistentVolume.Name)
+		log.Ctx(ctx).Info().Msgf("Delete PersistentVolume %s in namespace %s", existingPv.Name, namespace)
+		err = deploy.deleteCsiAzurePersistentVolumes(ctx, existingPv.Name)
 		if err != nil {
 			return nil, false, err
 		}
 	}
 
 	log.Ctx(ctx).Debug().Msgf("Create PersistentVolume %s in namespace %s", pvName, namespace)
-	pv := &corev1.PersistentVolume{}
-	err := populateCsiAzurePersistentVolume(pv, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, nil)
+	newPv := &corev1.PersistentVolume{}
+	err := populateCsiAzurePersistentVolume(newPv, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, identity)
 	if err != nil {
 		return nil, false, err
 	}
-	desiredPersistentVolume, err := deploy.kubeclient.CoreV1().PersistentVolumes().Create(ctx, pv, metav1.CreateOptions{})
+	desiredPersistentVolume, err := deploy.kubeclient.CoreV1().PersistentVolumes().Create(ctx, newPv, metav1.CreateOptions{})
 	return desiredPersistentVolume, true, err
 }
 

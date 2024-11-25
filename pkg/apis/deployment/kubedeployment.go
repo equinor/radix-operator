@@ -41,7 +41,7 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 		}
 	}
 
-	err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, desiredDeployment)
+	err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, desiredDeployment, deployComponent)
 	if err != nil {
 		return err
 	}
