@@ -159,6 +159,7 @@ func (s *handlerSuite) Test_Sync() {
 			ingress.NewOAuth2AnnotationProvider(oauthConfig),
 			ingress.NewIngressPublicAllowListAnnotationProvider(),
 			ingress.NewIngressPublicConfigAnnotationProvider(),
+			ingress.NewRedirectErrorPageAnnotationProvider(),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
 			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),

@@ -117,5 +117,6 @@ func GetAnnotationProvider(ingressConfiguration IngressConfiguration, certificat
 		NewOAuth2AnnotationProvider(oauth2DefaultConfig),
 		NewIngressPublicAllowListAnnotationProvider(),
 		NewIngressPublicConfigAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
 	}
 }
