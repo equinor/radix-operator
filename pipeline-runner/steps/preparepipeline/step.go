@@ -172,7 +172,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Value: pipelineInfo.PipelineArguments.FromEnvironment,
 		},
 		{
-			Name:  defaults.RadixPromoteToEnvironmentEnvironmentVariable,
+			Name:  defaults.RadixPipelineJobToEnvironmentEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.ToEnvironment,
 		},
 		{

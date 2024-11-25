@@ -194,6 +194,9 @@ func (h *history) getRadixJobsMapToRadixDeployments(ctx context.Context, appName
 func getRadixJobEnvs(rj radixv1.RadixJob, envsMap map[string][]string) []string {
 	switch rj.Spec.PipeLineType {
 	case radixv1.BuildDeploy:
+		if len(rj.Spec.Build.ToEnvironment) > 0 {
+			return []string{rj.Spec.Build.ToEnvironment}
+		}
 		return envsMap[rj.Spec.Build.Branch]
 	case radixv1.Deploy:
 		return []string{rj.Spec.Deploy.ToEnvironment}

@@ -103,6 +103,11 @@ deploy-pipeline:
 	az acr login --name $(CONTAINER_REPO)
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) --platform linux/arm64,linux/amd64 -f pipeline.Dockerfile --push .
 
+.PHONY: deploy-pipeline-arm64
+deploy-pipeline-arm64:
+	az acr login --name $(CONTAINER_REPO)
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) --platform linux/arm64 -f pipeline.Dockerfile --push .
+
 .PHONY: build-operator
 build-operator:
 	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) -f operator.Dockerfile .
@@ -127,7 +132,7 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: crds
-crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd delete-temp-crds
+crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd delete-temp-crds
 
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-crds
@@ -137,6 +142,10 @@ radixapplication-crd: temp-crds
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-crds
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixbatches.yaml $(CRD_CHART_DIR)radixbatch.yaml
+
+.PHONY: radixdeployment-crd
+radixdeployment-crd: temp-crds
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdeployments.yaml $(CRD_CHART_DIR)radixdeployment.yaml
 
 .PHONY: radixdnsalias-crd
 radixdnsalias-crd: temp-crds

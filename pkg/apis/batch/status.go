@@ -121,10 +121,13 @@ func (s *syncer) buildJobStatuses(ctx context.Context) ([]radixv1.RadixBatchJobS
 }
 
 func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.RadixBatchJob, allJobs []*batchv1.Job) radixv1.RadixBatchJobStatus {
+	restartedJob, isRestartedJob := s.restartedJobs[batchJob.Name]
+
 	currentStatus, hasCurrentStatus := slice.FindFirst(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
 		return jobStatus.Name == batchJob.Name
 	})
-	if hasCurrentStatus && isJobStatusDone(currentStatus) {
+
+	if !isRestartedJob && hasCurrentStatus && isJobStatusDone(currentStatus) {
 		return currentStatus
 	}
 
@@ -132,9 +135,14 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 		Name:  batchJob.Name,
 		Phase: radixv1.BatchJobPhaseWaiting,
 	}
-	if hasCurrentStatus {
-		status.Restart = currentStatus.Restart
+
+	if isRestartedJob {
+		status.Restart = restartedJob.Restart
+	}
+
+	if hasCurrentStatus && !isRestartedJob {
 		status.Phase = currentStatus.Phase
+		status.Restart = currentStatus.Restart
 	}
 
 	if isBatchJobStopRequested(batchJob) {
@@ -151,7 +159,7 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 		return status
 	}
 
-	job, jobFound := slice.FindFirst(allJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })
+	job, jobFound := slice.FindFirst(allJobs, isKubeJobForBatchJob(batchJob))
 	if !jobFound {
 		return status
 	}
