@@ -1382,7 +1382,7 @@ func createExpectedVolumeMount(props expectedPvcScProperties, modify func(pv *co
 	if len(idOption) > 0 {
 		mountOptions = append(mountOptions, idOption)
 	}
-	reclaimPolicy := corev1.PersistentVolumeReclaimRetain
+	// reclaimPolicy := corev1.PersistentVolumeReclaimRetain
 	sc := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: props.persistentVolumeName,
@@ -1395,15 +1395,15 @@ func createExpectedVolumeMount(props expectedPvcScProperties, modify func(pv *co
 			},
 		},
 		Spec: corev1.PersistentVolumeSpec{
-			Provisioner: props.scProvisioner,
-			Attr: map[string]string{
-				csiPersistentVolumeProvisionerSecretNameParameter:      props.scSecretName,
-				csiPersistentVolumeProvisionerSecretNamespaceParameter: props.namespace,
-				csiPersistentVolumeNodeStageSecretNameParameter:        props.scSecretName,
-				csiPersistentVolumeNodeStageSecretNamespaceParameter:   props.namespace,
-			},
-			MountOptions:  mountOptions,
-			ReclaimPolicy: &reclaimPolicy,
+			// Provisioner: props.scProvisioner,
+			// Attr: map[string]string{
+			// 	csiPersistentVolumeProvisionerSecretNameParameter:      props.scSecretName,
+			// 	csiPersistentVolumeProvisionerSecretNamespaceParameter: props.namespace,
+			// 	csiPersistentVolumeNodeStageSecretNameParameter:        props.scSecretName,
+			// 	csiPersistentVolumeNodeStageSecretNamespaceParameter:   props.namespace,
+			// },
+			MountOptions: mountOptions,
+			// ReclaimPolicy: &reclaimPolicy,
 		},
 	}
 	setVolumeMountAttribute(props.radixVolumeMountType, props.radixStorageName, &sc)
@@ -1452,7 +1452,7 @@ func createExpectedPvc(props expectedPvcScProperties, modify func(*corev1.Persis
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(props.requestsVolumeMountSize)}, // it seems correct number is not needed for CSI driver
 			},
-			PersistentVolumeName: utils.StringPtr(props.persistentVolumeName),
+			VolumeName: props.persistentVolumeName,
 		},
 	}
 	if modify != nil {

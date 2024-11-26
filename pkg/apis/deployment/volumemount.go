@@ -518,10 +518,6 @@ func getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(compon
 }
 
 func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appName, namespace, componentName, pvcName, pvName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
-	requestsVolumeMountSize, err := resource.ParseQuantity(getRadixBlobFuse2VolumeMountRequestsStorage(radixVolumeMount))
-	if err != nil {
-		requestsVolumeMountSize = resource.MustParse("1Mi")
-	}
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pvcName,
@@ -536,12 +532,20 @@ func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appNa
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{getVolumeMountAccessMode(radixVolumeMount)},
 			Resources: corev1.VolumeResourceRequirements{
-				Requests: corev1.ResourceList{corev1.ResourceStorage: requestsVolumeMountSize}, // it seems correct number is not needed for CSI driver
+				Requests: corev1.ResourceList{corev1.ResourceStorage: getVolumeCapacity(radixVolumeMount)},
 			},
 			VolumeName: pvName,
 		},
 	}
 	return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, pvc, metav1.CreateOptions{})
+}
+
+func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quantity {
+	requestsVolumeMountSize, err := resource.ParseQuantity(getRadixBlobFuse2VolumeMountRequestsStorage(radixVolumeMount))
+	if err != nil {
+		return resource.MustParse("1Mi")
+	}
+	return requestsVolumeMountSize
 }
 
 func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume, appName, volumeRootMount, namespace, componentName, pvName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) error {
@@ -556,6 +560,7 @@ func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume,
 		return err
 	}
 	persistentVolume.Spec.MountOptions = mountOptions
+	persistentVolume.Spec.Capacity = corev1.ResourceList{corev1.ResourceStorage: getVolumeCapacity(radixVolumeMount)}
 	persistentVolume.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{getVolumeMountAccessMode(radixVolumeMount)}
 	persistentVolume.Spec.ClaimRef = &corev1.ObjectReference{
 		APIVersion: "v1",
