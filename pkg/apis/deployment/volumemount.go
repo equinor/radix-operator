@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -534,7 +535,8 @@ func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appNa
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: getVolumeCapacity(radixVolumeMount)},
 			},
-			VolumeName: pvName,
+			VolumeName:       pvName,
+			StorageClassName: pointers.Ptr(""), // avoid to use the "default" storage class
 		},
 	}
 	return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, pvc, metav1.CreateOptions{})
@@ -559,6 +561,7 @@ func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume,
 	if err != nil {
 		return err
 	}
+	persistentVolume.Spec.StorageClassName = ""
 	persistentVolume.Spec.MountOptions = mountOptions
 	persistentVolume.Spec.Capacity = corev1.ResourceList{corev1.ResourceStorage: getVolumeCapacity(radixVolumeMount)}
 	persistentVolume.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{getVolumeMountAccessMode(radixVolumeMount)}
