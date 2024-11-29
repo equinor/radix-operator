@@ -6,7 +6,7 @@ toolchain go1.22.5
 
 require (
 	dario.cat/mergo v1.0.1
-	github.com/cert-manager/cert-manager v1.14.2
+	github.com/cert-manager/cert-manager v1.15.4
 	github.com/equinor/radix-common v1.9.4
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
@@ -101,7 +101,7 @@ require (
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
 	knative.dev/pkg v0.0.0-20240805063731-c88d5dad9653 // indirect
 	sigs.k8s.io/controller-runtime v0.19.0 // indirect
-	sigs.k8s.io/gateway-api v1.0.0 // indirect
+	sigs.k8s.io/gateway-api v1.1.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
