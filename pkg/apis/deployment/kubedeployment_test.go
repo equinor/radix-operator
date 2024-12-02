@@ -87,7 +87,6 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 			WithAppName("any-app").
 			WithEnvironment("test"))
 
-	require.NotNil(t, readynessProbe.ProbeHandler.HTTPGet)
 	component := rd.GetComponentByName("comp1")
 	require.NotNil(t, component.HealthChecks)
 	assert.Equal(t, readynessProbe, component.HealthChecks.ReadinessProbe)

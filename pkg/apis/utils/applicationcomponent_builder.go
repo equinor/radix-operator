@@ -2,6 +2,7 @@ package utils
 
 import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // RadixApplicationComponentBuilder Handles construction of RA component
@@ -10,6 +11,7 @@ type RadixApplicationComponentBuilder interface {
 	WithAlwaysPullImageOnDeploy(bool) RadixApplicationComponentBuilder
 	WithSourceFolder(string) RadixApplicationComponentBuilder
 	WithDockerfileName(string) RadixApplicationComponentBuilder
+	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *corev1.Probe) RadixApplicationComponentBuilder
 	WithImage(string) RadixApplicationComponentBuilder
 	WithImageTagName(imageTagName string) RadixApplicationComponentBuilder
 	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
@@ -64,6 +66,7 @@ type radixApplicationComponentBuilder struct {
 	horizontalScaling       *radixv1.RadixHorizontalScaling
 	runtime                 *radixv1.Runtime
 	network                 *radixv1.Network
+	healtChecks             *radixv1.RadixHealthChecks
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -73,6 +76,15 @@ func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicat
 
 func (rcb *radixApplicationComponentBuilder) WithAlwaysPullImageOnDeploy(val bool) RadixApplicationComponentBuilder {
 	rcb.alwaysPullImageOnDeploy = &val
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *corev1.Probe) RadixApplicationComponentBuilder {
+	rcb.healtChecks = &radixv1.RadixHealthChecks{
+		LivenessProbe:  livenessProbe,
+		ReadinessProbe: readynessProbe,
+		StartupProbe:   startupProbe,
+	}
 	return rcb
 }
 
@@ -230,6 +242,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixCompo
 		Name:                    rcb.name,
 		SourceFolder:            rcb.sourceFolder,
 		DockerfileName:          rcb.dockerfileName,
+		HealthChecks:            rcb.healtChecks,
 		Image:                   rcb.image,
 		Ports:                   rcb.ports,
 		Secrets:                 rcb.secrets,

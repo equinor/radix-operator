@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type scenarioDef struct {
@@ -1046,6 +1047,98 @@ func Test_GetRadixComponents_Monitoring(t *testing.T) {
 			assert.Equal(t, testCase.expectedMonitoring, deployComponent[0].Monitoring)
 		})
 	}
+}
+
+func Test_GetRadixComponents_CustomHealthChecks(t *testing.T) {
+	createProbe := func(handler corev1.ProbeHandler, seconds int32) *corev1.Probe {
+		return &corev1.Probe{
+			ProbeHandler:                  handler,
+			InitialDelaySeconds:           seconds,
+			TimeoutSeconds:                seconds + 1,
+			PeriodSeconds:                 seconds + 2,
+			SuccessThreshold:              seconds + 3,
+			FailureThreshold:              seconds + 4,
+			TerminationGracePeriodSeconds: pointers.Ptr(int64(seconds + 5)),
+		}
+	}
+
+	httpProbe := corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Port: intstr.FromInt32(5000), Path: "/healthz", Scheme: "http"}}
+	execProbe := corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: []string{"/bin/sh", "-c", "/healthz /healthz"}}}
+	tcpProbe := corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt32(8000)}}
+
+	testCases := []struct {
+		description     string
+		healthChecks    *radixv1.RadixHealthChecks
+		envHealthChecks *radixv1.RadixHealthChecks
+
+		expectedHealthChecks *radixv1.RadixHealthChecks
+	}{
+		{"No configuration set results in default readieness probe", nil, nil, nil},
+		{
+			"component has healthchecks, no env config",
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+			nil,
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+		},
+		{
+			"Env healthchecks, no component healthchecks",
+			nil,
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+		},
+		{
+			"Env healthchecks, component healthchecks, env overrides comp",
+			&radixv1.RadixHealthChecks{createProbe(execProbe, 1), createProbe(httpProbe, 10), createProbe(tcpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+		},
+		{
+			"Env healthchecks, component healthchecks, env merges comp",
+			&radixv1.RadixHealthChecks{nil, createProbe(httpProbe, 10), createProbe(tcpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), nil},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(tcpProbe, 20)},
+		},
+	}
+
+	readynessProbe := createProbe(corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{
+		Port: intstr.IntOrString{IntVal: 5000},
+	}}, 10)
+
+	livenessProbe := createProbe(corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{IntVal: 5000},
+	}}, 20)
+	startuProbe := createProbe(corev1.ProbeHandler{Exec: &corev1.ExecAction{
+		Command: []string{"echo", "hello"},
+	}}, 30)
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			raBuilder := utils.ARadixApplication().
+				WithComponents(
+					utils.NewApplicationComponentBuilder().
+						WithName("comp").
+						WithHealthChecks(startuProbe, readynessProbe, livenessProbe).
+						WithEnvironmentConfig(
+							utils.NewComponentEnvironmentBuilder().WithEnvironment("dev").
+								WithHealthChecks(startuProbe, readynessProbe, livenessProbe)))
+			ra := raBuilder.BuildRA()
+
+			deployComponents, err := GetRadixComponentsForEnv(context.Background(), ra, nil, "dev", make(pipeline.DeployComponentImages), make(radixv1.EnvVarsMap), nil)
+			require.NoError(t, err)
+			require.Len(t, deployComponents, 1)
+
+			if testCase.healthChecks == nil {
+				assert.Nil(t, deployComponents[0].HealthChecks)
+			} else {
+				require.NotNil(t, deployComponents[0].HealthChecks)
+				assert.Equal(t, testCase.expectedHealthChecks.ReadinessProbe, deployComponents[0].HealthChecks.ReadinessProbe)
+				assert.Equal(t, testCase.expectedHealthChecks.LivenessProbe, deployComponents[0].HealthChecks.LivenessProbe)
+				assert.Equal(t, testCase.expectedHealthChecks.StartupProbe, deployComponents[0].HealthChecks.StartupProbe)
+			}
+
+		})
+	}
+
 }
 
 func Test_GetRadixComponents_ReplicasOverride(t *testing.T) {
