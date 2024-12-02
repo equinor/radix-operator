@@ -116,25 +116,11 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 func (deploy *Deployment) createOrUpdateVolumeMountSecrets(ctx context.Context, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
 	var volumeMountSecretsToManage []string
 	for _, volumeMount := range volumeMounts {
-		switch GetCsiAzureVolumeMountType(&volumeMount) {
-		case radixv1.MountTypeBlob:
-			{
-				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ctx, namespace, componentName, volumeMount.Name)
-				volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
-				err := deploy.createOrUpdateVolumeMountsSecrets(ctx, namespace, componentName, secretName, accountName, accountKey)
-				if err != nil {
-					return nil, err
-				}
-			}
-		case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
-			{
-				secretName, accountKey, accountName := deploy.getCsiAzureVolumeMountCredsSecrets(ctx, namespace, componentName, volumeMount.Name)
-				volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
-				err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(ctx, namespace, componentName, &volumeMount, secretName, accountName, accountKey)
-				if err != nil {
-					return nil, err
-				}
-			}
+		secretName, accountKey, accountName := deploy.getCsiAzureVolumeMountCredsSecrets(ctx, namespace, componentName, volumeMount.Name)
+		volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
+		err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(ctx, namespace, componentName, &volumeMount, secretName, accountName, accountKey)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return volumeMountSecretsToManage, nil
@@ -228,18 +214,12 @@ func (deploy *Deployment) listSecretsForComponent(ctx context.Context, component
 }
 
 func (deploy *Deployment) listSecretsForVolumeMounts(ctx context.Context, component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
-	blobVolumeMountSecret := getLabelSelectorForBlobVolumeMountSecret(component)
-	secrets, err := deploy.listSecrets(ctx, blobVolumeMountSecret)
-	if err != nil {
-		return nil, err
-	}
 	csiAzureVolumeMountSecret := getLabelSelectorForCsiAzureVolumeMountSecret(component)
 	csiSecrets, err := deploy.listSecrets(ctx, csiAzureVolumeMountSecret)
 	if err != nil {
 		return nil, err
 	}
-	secrets = append(secrets, csiSecrets...)
-	return secrets, err
+	return csiSecrets, nil
 }
 
 func (deploy *Deployment) listSecrets(ctx context.Context, labelSelector string) ([]*v1.Secret, error) {

@@ -475,10 +475,6 @@ func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) strin
 	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
 }
 
-func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlob))
-}
-
 func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
 	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobFuse2FuseCsiAzure), string(v1.MountTypeBlobFuse2Fuse2CsiAzure))
 }

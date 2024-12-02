@@ -133,6 +133,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
 	return desiredDeployment, err
 }
+
 func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent) *appsv1.Deployment {
 	jobName := deployComponent.GetName()
 	jobAuxDeploymentName := getJobAuxObjectName(jobName)
@@ -293,7 +294,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
 
-	volumes, err := deploy.GetVolumesForComponent(ctx, deployComponent)
+	volumes, err := GetVolumes(ctx, deploy.kubeclient, deploy.kubeutil, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent, deploy.radixDeployment.GetName(), desiredDeployment.Spec.Template.Spec.Volumes)
 	if err != nil {
 		return err
 	}

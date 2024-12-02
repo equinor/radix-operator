@@ -1281,39 +1281,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountMissingType,
 		},
-		"multiple types: deprecated source and blobfuse2": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name:      "anyname",
-						Path:      "/path",
-						Type:      radixv1.MountTypeBlob,
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMultipleTypes,
-		},
-		"multiple types: blobfuse2 and emptyDir": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name:      "anyname",
-						Path:      "/path",
-						Type:      radixv1.MountTypeBlob,
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{},
-						EmptyDir:  &radixv1.RadixEmptyDirVolumeMount{},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMultipleTypes,
-		},
 		"deprecated blob: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{

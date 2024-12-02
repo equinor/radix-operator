@@ -1058,8 +1058,6 @@ type MountType string
 
 // These are valid types of mount
 const (
-	// MountTypeBlob Use of azure/blobfuse flexvolume
-	MountTypeBlob MountType = "blob"
 	// MountTypeBlobFuse2FuseCsiAzure Use of azure/csi driver for blobfuse2, protocol Fuse in Azure storage account
 	MountTypeBlobFuse2FuseCsiAzure MountType = "azure-blob"
 	// MountTypeBlobFuse2Fuse2CsiAzure Use of azure/csi driver for blobfuse2, protocol Fuse2 in Azure storage account

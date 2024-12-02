@@ -1504,27 +1504,17 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 }
 
 func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
-	if !slices.Contains([]radixv1.MountType{radixv1.MountTypeBlob, radixv1.MountTypeBlobFuse2FuseCsiAzure}, v.Type) {
+	if v.Type != radixv1.MountTypeBlobFuse2FuseCsiAzure {
 		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountInvalidType)
 	}
-
 	if len(v.RequestsStorage) > 0 {
 		if _, err := resource.ParseQuantity(v.RequestsStorage); err != nil {
 			return volumeMountDeprecatedSourceValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
 		}
 	}
-
-	switch v.Type {
-	case radixv1.MountTypeBlob:
-		if len(v.Container) == 0 {
-			return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingContainer)
-		}
-	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
-		if len(v.Storage) == 0 {
-			return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
-		}
+	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Storage) == 0 {
+		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
 	}
-
 	return nil
 }
 

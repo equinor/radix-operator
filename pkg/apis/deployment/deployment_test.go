@@ -212,12 +212,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPublicPort("http").
 							WithVolumeMounts(
 								radixv1.RadixVolumeMount{
-									Type:      radixv1.MountTypeBlob,
-									Name:      blobVolumeName,
-									Container: "some-container",
-									Path:      "some-path",
-								},
-								radixv1.RadixVolumeMount{
 									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 									Name:    blobCsiAzureVolumeName,
 									Storage: "some-storage",
@@ -587,12 +581,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 								"cpu":    "501m",
 							}).
 							WithVolumeMounts(
-								radixv1.RadixVolumeMount{
-									Type:      radixv1.MountTypeBlob,
-									Name:      blobVolumeName,
-									Container: "some-container",
-									Path:      "some-path",
-								},
 								radixv1.RadixVolumeMount{
 									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 									Name:    blobCsiAzureVolumeName,
@@ -3858,7 +3846,6 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(compName).
 					WithVolumeMounts(
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
 						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
 					),
 			),
@@ -3868,8 +3855,8 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
 	deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), compName, metav1.GetOptions{})
 	require.NotNil(t, deployment)
-	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 2, "incorrect number of volumes")
-	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 2, "incorrect number of volumemounts")
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 1, "incorrect number of volumes")
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 1, "incorrect number of volumemounts")
 }
 
 func Test_JobSynced_VolumeAndMounts(t *testing.T) {
@@ -3890,7 +3877,6 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployJobComponentBuilder().
 					WithName(jobName).
 					WithVolumeMounts(
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
 						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
 					),
 			),
@@ -3901,7 +3887,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux).String()})
 	require.Len(t, deploymentList.Items, 1)
 	deployment := deploymentList.Items[0]
-	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 2, "incorrect number of volumes")
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 1, "incorrect number of volumes")
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 0, "incorrect number of volumemounts")
 }
 
