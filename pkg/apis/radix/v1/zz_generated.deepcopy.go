@@ -1613,6 +1613,11 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.HealthChecks != nil {
+		in, out := &in.HealthChecks, &out.HealthChecks
+		*out = new(RadixHealthChecks)
+		(*in).DeepCopyInto(*out)
+	}
 	out.MonitoringConfig = in.MonitoringConfig
 	in.Resources.DeepCopyInto(&out.Resources)
 	if in.HorizontalScaling != nil {

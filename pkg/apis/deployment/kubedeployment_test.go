@@ -11,7 +11,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func teardownReadinessProbe() {
@@ -22,7 +25,7 @@ func teardownReadinessProbe() {
 func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
 	teardownReadinessProbe()
 
-	probe, err := getReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
+	probe, err := getDefaultReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
 	assert.Error(t, err)
 	assert.Nil(t, probe)
 }
@@ -30,7 +33,7 @@ func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
 func TestGetReadinessProbe_Custom(t *testing.T) {
 	test.SetRequiredEnvironmentVariables()
 
-	probe, err := getReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
+	probe, err := getDefaultReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
 	assert.Nil(t, err)
 
 	assert.Equal(t, int32(5), probe.InitialDelaySeconds)
@@ -38,6 +41,58 @@ func TestGetReadinessProbe_Custom(t *testing.T) {
 	assert.Equal(t, int32(5000), probe.ProbeHandler.TCPSocket.Port.IntVal)
 
 	teardownReadinessProbe()
+}
+func TestComponentWithoutCustomHealthChecks(t *testing.T) {
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithComponents(utils.NewDeployComponentBuilder().
+				WithName("comp1")).
+			WithAppName("any-app").
+			WithEnvironment("test"))
+
+	component := rd.GetComponentByName("comp1")
+	assert.Nil(t, component.HealthChecks)
+}
+func TestComponentWithCustomHealthChecks(t *testing.T) {
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	createProbe := func(handler corev1.ProbeHandler, seconds int32) *corev1.Probe {
+		return &corev1.Probe{
+			ProbeHandler:                  handler,
+			InitialDelaySeconds:           seconds,
+			TimeoutSeconds:                seconds + 1,
+			PeriodSeconds:                 seconds + 2,
+			SuccessThreshold:              seconds + 3,
+			FailureThreshold:              seconds + 4,
+			TerminationGracePeriodSeconds: pointers.Ptr(int64(seconds + 5)),
+		}
+	}
+
+	readynessProbe := createProbe(corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{
+		Port: intstr.IntOrString{IntVal: 5000},
+	}}, 10)
+
+	livenessProbe := createProbe(corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{IntVal: 5000},
+	}}, 20)
+	startuProbe := createProbe(corev1.ProbeHandler{Exec: &corev1.ExecAction{
+		Command: []string{"echo", "hello"},
+	}}, 30)
+
+	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithComponents(utils.NewDeployComponentBuilder().
+				WithName("comp1").
+				WithHealthChecks(startuProbe, readynessProbe, livenessProbe)).
+			WithAppName("any-app").
+			WithEnvironment("test"))
+
+	require.NotNil(t, readynessProbe.ProbeHandler.HTTPGet)
+	component := rd.GetComponentByName("comp1")
+	require.NotNil(t, component.HealthChecks)
+	assert.Equal(t, readynessProbe, component.HealthChecks.ReadinessProbe)
+	assert.Equal(t, livenessProbe, component.HealthChecks.LivenessProbe)
+	assert.Equal(t, startuProbe, component.HealthChecks.StartupProbe)
 }
 
 func Test_UpdateResourcesInDeployment(t *testing.T) {

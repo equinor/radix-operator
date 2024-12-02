@@ -347,7 +347,9 @@ type RadixComponent struct {
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
-	// HealthChecks can tell Radix if your application is ready to receive traffic. Defaults to a TCP check against your public port.
+	// HealthChecks can tell Radix if your application is ready to receive traffic.
+	// Defaults to a TCP check against your first listed port.
+	// If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
 	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
 
 	// Name of an existing container image to use when running the component.
@@ -493,7 +495,9 @@ type RadixEnvironmentConfig struct {
 	// +optional
 	Image string `json:"image,omitempty"`
 
-	// HealthChecks can tell Radix if your application is ready to receive traffic. Defaults to a TCP check against your public port.
+	// HealthChecks can tell Radix if your application is ready to receive traffic.
+	// Defaults to a TCP check against your first listed port.
+	// If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
 	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
 
 	// Number of desired replicas.
@@ -821,7 +825,7 @@ type RadixHealthChecks struct {
 	// Periodic probe of container service readiness.
 	// Container will be removed from service endpoints if the probe fails.
 	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
-	// Defaults to TCP Probe against public port (allows traffic when application starts listening for traffic)
+	// Defaults to TCP Probe against the first listed port
 	// +optional
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 	// StartupProbe indicates that the Pod has successfully initialized.

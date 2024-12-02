@@ -422,9 +422,10 @@ spec:
                             pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           healthChecks:
-                            description: HealthChecks can tell Radix if your application
-                              is ready to receive traffic. Defaults to a TCP check
-                              against your public port.
+                            description: |-
+                              HealthChecks can tell Radix if your application is ready to receive traffic.
+                              Defaults to a TCP check against your first listed port.
+                              If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
                             properties:
                               livenessProbe:
                                 description: |-
@@ -588,7 +589,7 @@ spec:
                                   Periodic probe of container service readiness.
                                   Container will be removed from service endpoints if the probe fails.
                                   More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
-                                  Defaults to TCP Probe against public port (allows traffic when application starts listening for traffic)
+                                  Defaults to TCP Probe against the first listed port
                                 properties:
                                   exec:
                                     description: Exec specifies the action to take.
@@ -1648,9 +1649,10 @@ spec:
                       - environment
                       x-kubernetes-list-type: map
                     healthChecks:
-                      description: HealthChecks can tell Radix if your application
-                        is ready to receive traffic. Defaults to a TCP check against
-                        your public port.
+                      description: |-
+                        HealthChecks can tell Radix if your application is ready to receive traffic.
+                        Defaults to a TCP check against your first listed port.
+                        If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
                       properties:
                         livenessProbe:
                           description: |-
@@ -1813,7 +1815,7 @@ spec:
                             Periodic probe of container service readiness.
                             Container will be removed from service endpoints if the probe fails.
                             More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
-                            Defaults to TCP Probe against public port (allows traffic when application starts listening for traffic)
+                            Defaults to TCP Probe against the first listed port
                           properties:
                             exec:
                               description: Exec specifies the action to take.
