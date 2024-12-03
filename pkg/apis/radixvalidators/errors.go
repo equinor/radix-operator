@@ -16,6 +16,7 @@ var (
 	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dns external alias not defined")
 	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dns external alias not defined")
 	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
+	ErrComponentHasInvalidHealthCheck                                      = errors.New("component has invalid health check")
 	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
 	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
 	ErrPortNameIsRequiredForPublicComponent                                = errors.New("port name is required for public component")
@@ -178,6 +179,11 @@ func ComponentForDNSExternalAliasNotDefinedErrorWithMessage(component string) er
 // ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage Component is not marked as public
 func ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage(component string) error {
 	return errors.WithMessagef(ErrComponentForDNSExternalAliasIsNotMarkedAsPublic, "component %s referred to by dnsExternalAlias is not marked as public", component)
+}
+
+// ComponentHasInvalidHealthChecks Component has invalid health checks
+func ComponentHasInvalidHealthChecks(component string, probeName string, err error) error {
+	return errors.WithMessagef(ErrComponentHasInvalidHealthCheck, "component %s has invalid health checks %s: %w", probeName, component, err)
 }
 
 // EnvironmentReferencedByComponentDoesNotExistErrorWithMessage Environment does not exists
