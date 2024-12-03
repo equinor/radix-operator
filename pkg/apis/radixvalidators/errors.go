@@ -108,6 +108,7 @@ var (
 	ErrMissingAzureIdentity                                                = errors.New("missing identity")
 	ErrInvalidRuntimeArchitecture                                          = errors.New("invalid runtime architecture")
 	ErrInvalidIPv4OrCIDR                                                   = errors.New("invalid IPv4 or CIDR")
+	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator                = errors.New("value 0 cannot be used for the In operator")
 )
 
 // DuplicateAliasForDNSAliasError Error when aliases are duplicate
