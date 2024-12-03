@@ -176,6 +176,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() radixv1.Radix
 		Environment:             ceb.environment,
 		SourceFolder:            ceb.sourceFolder,
 		DockerfileName:          ceb.dockerfileName,
+		HealthChecks:            ceb.healtChecks,
 		Image:                   ceb.image,
 		Variables:               ceb.variables,
 		Replicas:                ceb.replicas,

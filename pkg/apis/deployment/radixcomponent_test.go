@@ -1067,18 +1067,18 @@ func Test_GetRadixComponents_CustomHealthChecks(t *testing.T) {
 	tcpProbe := corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt32(8000)}}
 
 	testCases := []struct {
-		description     string
-		healthChecks    *radixv1.RadixHealthChecks
-		envHealthChecks *radixv1.RadixHealthChecks
+		description      string
+		compHealthChecks *radixv1.RadixHealthChecks
+		envHealthChecks  *radixv1.RadixHealthChecks
 
 		expectedHealthChecks *radixv1.RadixHealthChecks
 	}{
 		{"No configuration set results in default readieness probe", nil, nil, nil},
 		{
 			"component has healthchecks, no env config",
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 30), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
 			nil,
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 30), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
 		},
 		{
 			"Env healthchecks, no component healthchecks",
@@ -1088,9 +1088,9 @@ func Test_GetRadixComponents_CustomHealthChecks(t *testing.T) {
 		},
 		{
 			"Env healthchecks, component healthchecks, env overrides comp",
-			&radixv1.RadixHealthChecks{createProbe(execProbe, 1), createProbe(httpProbe, 10), createProbe(tcpProbe, 20)},
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(execProbe, 30), createProbe(httpProbe, 10), createProbe(tcpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 40), createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 40), createProbe(httpProbe, 20)},
 		},
 		{
 			"Env healthchecks, component healthchecks, env merges comp",
@@ -1100,34 +1100,24 @@ func Test_GetRadixComponents_CustomHealthChecks(t *testing.T) {
 		},
 	}
 
-	readynessProbe := createProbe(corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{IntVal: 5000},
-	}}, 10)
-
-	livenessProbe := createProbe(corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{
-		Port: intstr.IntOrString{IntVal: 5000},
-	}}, 20)
-	startuProbe := createProbe(corev1.ProbeHandler{Exec: &corev1.ExecAction{
-		Command: []string{"echo", "hello"},
-	}}, 30)
-
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			raBuilder := utils.ARadixApplication().
-				WithComponents(
-					utils.NewApplicationComponentBuilder().
-						WithName("comp").
-						WithHealthChecks(startuProbe, readynessProbe, livenessProbe).
-						WithEnvironmentConfig(
-							utils.NewComponentEnvironmentBuilder().WithEnvironment("dev").
-								WithHealthChecks(startuProbe, readynessProbe, livenessProbe)))
+			envConfig := utils.NewComponentEnvironmentBuilder().WithEnvironment("dev")
+			if testCase.envHealthChecks != nil {
+				envConfig.WithHealthChecks(testCase.envHealthChecks.StartupProbe, testCase.envHealthChecks.ReadinessProbe, testCase.envHealthChecks.LivenessProbe)
+			}
+			compConfig := utils.NewApplicationComponentBuilder().WithName("comp").WithEnvironmentConfig(envConfig)
+			if testCase.compHealthChecks != nil {
+				compConfig.WithHealthChecks(testCase.compHealthChecks.StartupProbe, testCase.compHealthChecks.ReadinessProbe, testCase.compHealthChecks.LivenessProbe)
+			}
+			raBuilder := utils.ARadixApplication().WithComponents(compConfig)
 			ra := raBuilder.BuildRA()
 
 			deployComponents, err := GetRadixComponentsForEnv(context.Background(), ra, nil, "dev", make(pipeline.DeployComponentImages), make(radixv1.EnvVarsMap), nil)
 			require.NoError(t, err)
 			require.Len(t, deployComponents, 1)
 
-			if testCase.healthChecks == nil {
+			if testCase.expectedHealthChecks == nil {
 				assert.Nil(t, deployComponents[0].HealthChecks)
 			} else {
 				require.NotNil(t, deployComponents[0].HealthChecks)

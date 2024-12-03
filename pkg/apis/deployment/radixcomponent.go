@@ -98,7 +98,12 @@ func getRadixCommonComponentHealthChecks(r *radixv1.RadixComponent, config *radi
 	if r.HealthChecks == nil && (config == nil || config.HealthChecks == nil) {
 		return nil
 	}
-	hc := r.HealthChecks.DeepCopy()
+	hc := &radixv1.RadixHealthChecks{}
+	if r.HealthChecks != nil {
+		hc.StartupProbe = r.HealthChecks.StartupProbe.DeepCopy()
+		hc.ReadinessProbe = r.HealthChecks.ReadinessProbe.DeepCopy()
+		hc.LivenessProbe = r.HealthChecks.LivenessProbe.DeepCopy()
+	}
 
 	if config == nil || config.HealthChecks == nil {
 		return hc
