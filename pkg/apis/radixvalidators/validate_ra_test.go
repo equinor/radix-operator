@@ -78,6 +78,14 @@ func Test_application_name_casing_is_validated(t *testing.T) {
 	}
 }
 
+func Test_Invalid_HealthChecks(t *testing.T) {
+	t.Errorf("Not implemented")
+}
+
+func Test_Valid_HealthChecks(t *testing.T) {
+	t.Errorf("Not implemented")
+}
+
 func Test_invalid_ra(t *testing.T) {
 	validRAFirstComponentName := "app"
 	validRAFirstJobName := "job"
