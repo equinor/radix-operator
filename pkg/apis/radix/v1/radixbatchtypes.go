@@ -99,7 +99,7 @@ type RadixBatchJob struct {
 
 	// ImageTagName defines the image tag name to use for the job image
 	//
-	// required: false
+	// +optional
 	ImageTagName string `json:"imageTagName,omitempty"`
 }
 
