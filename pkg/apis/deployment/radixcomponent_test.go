@@ -1075,28 +1075,27 @@ func Test_GetRadixComponents_CustomHealthChecks(t *testing.T) {
 	}{
 		{"No configuration set results in default readieness probe", nil, nil, nil},
 		{
-			"component has healthchecks, no env config",
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 30), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
-			nil,
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 30), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+			description:          "component has healthchecks, no env config",
+			compHealthChecks:     &radixv1.RadixHealthChecks{LivenessProbe: createProbe(tcpProbe, 30), ReadinessProbe: createProbe(execProbe, 10), StartupProbe: createProbe(httpProbe, 20)},
+			expectedHealthChecks: &radixv1.RadixHealthChecks{LivenessProbe: createProbe(tcpProbe, 30), ReadinessProbe: createProbe(execProbe, 10), StartupProbe: createProbe(httpProbe, 20)},
 		},
 		{
 			"Env healthchecks, no component healthchecks",
 			nil,
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{LivenessProbe: createProbe(tcpProbe, 1), ReadinessProbe: createProbe(execProbe, 10), StartupProbe: createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{LivenessProbe: createProbe(tcpProbe, 1), ReadinessProbe: createProbe(execProbe, 10), StartupProbe: createProbe(httpProbe, 20)},
 		},
 		{
 			"Env healthchecks, component healthchecks, env overrides comp",
-			&radixv1.RadixHealthChecks{createProbe(execProbe, 30), createProbe(httpProbe, 10), createProbe(tcpProbe, 20)},
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 40), createProbe(httpProbe, 20)},
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 40), createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{LivenessProbe: createProbe(execProbe, 30), ReadinessProbe: createProbe(httpProbe, 10), StartupProbe: createProbe(tcpProbe, 20)},
+			&radixv1.RadixHealthChecks{LivenessProbe: createProbe(tcpProbe, 1), ReadinessProbe: createProbe(execProbe, 40), StartupProbe: createProbe(httpProbe, 20)},
+			&radixv1.RadixHealthChecks{LivenessProbe: createProbe(tcpProbe, 1), ReadinessProbe: createProbe(execProbe, 40), StartupProbe: createProbe(httpProbe, 20)},
 		},
 		{
 			"Env healthchecks, component healthchecks, env merges comp",
-			&radixv1.RadixHealthChecks{nil, createProbe(httpProbe, 10), createProbe(tcpProbe, 20)},
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), nil},
-			&radixv1.RadixHealthChecks{createProbe(tcpProbe, 1), createProbe(execProbe, 10), createProbe(tcpProbe, 20)},
+			&radixv1.RadixHealthChecks{ReadinessProbe: createProbe(httpProbe, 10), StartupProbe: createProbe(tcpProbe, 20)},
+			&radixv1.RadixHealthChecks{LivenessProbe: createProbe(tcpProbe, 1), ReadinessProbe: createProbe(execProbe, 10)},
+			&radixv1.RadixHealthChecks{LivenessProbe: createProbe(tcpProbe, 1), ReadinessProbe: createProbe(execProbe, 10), StartupProbe: createProbe(tcpProbe, 20)},
 		},
 	}
 
