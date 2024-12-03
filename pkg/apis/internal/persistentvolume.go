@@ -19,45 +19,45 @@ func GetPersistentVolumeMap(pvList *[]corev1.PersistentVolume) map[string]*corev
 }
 
 // EqualPersistentVolumes Compare two PersistentVolumes
-func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) (bool, error) {
+func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner
 	// if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
 	// 	return false, nil
 	// }
-	if !utils.EqualStringMaps(getAnnotations(pv1), getAnnotations(pv2)) {
-		return false, nil
+	if !utils.EqualStringMaps(getPvAnnotations(pv1), getPvAnnotations(pv2)) {
+		return false
 	}
 	if !utils.EqualStringMaps(pv1.Spec.CSI.VolumeAttributes, pv2.Spec.CSI.VolumeAttributes) {
-		return false, nil
+		return false
 	}
 	if !utils.EqualStringMaps(getMountOptionsMap(pv1.Spec.MountOptions), getMountOptionsMap(pv2.Spec.MountOptions)) {
-		return false, nil
+		return false
 	}
-	if pv1.Spec.StorageClassName != pv2.Spec.StorageClassName ||
-		pv1.Spec.Capacity[corev1.ResourceStorage] != pv2.Spec.Capacity[corev1.ResourceStorage] ||
+	// ignore pv1.Spec.StorageClassName != pv2.Spec.StorageClassName for transition period
+	if pv1.Spec.Capacity[corev1.ResourceStorage] != pv2.Spec.Capacity[corev1.ResourceStorage] ||
 		len(pv1.Spec.AccessModes) != len(pv2.Spec.AccessModes) ||
 		(len(pv1.Spec.AccessModes) != 1 && pv1.Spec.AccessModes[0] != pv2.Spec.AccessModes[0]) ||
 		pv1.Spec.CSI.Driver != pv2.Spec.CSI.Driver {
-		return false, nil
+		return false
 	}
 	if pv1.Spec.CSI.NodeStageSecretRef != nil {
 		if pv2.Spec.CSI.NodeStageSecretRef == nil || pv1.Spec.CSI.NodeStageSecretRef.Name != pv2.Spec.CSI.NodeStageSecretRef.Name {
-			return false, nil
+			return false
 		}
 	} else if pv2.Spec.CSI.NodeStageSecretRef != nil {
-		return false, nil
+		return false
 	}
 	if pv1.Spec.ClaimRef != nil {
 		if pv2.Spec.ClaimRef == nil || pv1.Spec.ClaimRef.Name != pv2.Spec.ClaimRef.Name {
-			return false, nil
+			return false
 		}
 	} else if pv2.Spec.ClaimRef != nil {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
-func getAnnotations(pv *corev1.PersistentVolume) map[string]string {
+func getPvAnnotations(pv *corev1.PersistentVolume) map[string]string {
 	annotations := make(map[string]string)
 	for key, value := range pv.GetAnnotations() {
 		if key == "kubectl.kubernetes.io/last-applied-configuration" {

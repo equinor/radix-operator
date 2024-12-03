@@ -267,24 +267,6 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 			assert.Contains(t, volume.PersistentVolumeClaim.ClaimName, scenario.expectedPvcNamePrefix)
 		}
 	})
-	suite.T().Run("CSI Azure and Blobfuse-flex volumes", func(t *testing.T) {
-		t.Parallel()
-		testEnv := getTestEnv()
-		for _, scenario := range append(scenarios, blobFuseScenario) {
-			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
-			volumes, err := GetVolumes(context.Background(), testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "", nil)
-			assert.Nil(t, err)
-			assert.Len(t, volumes, 1)
-			volume := volumes[0]
-			if scenario.expectedVolumeNameIsPrefix {
-				assert.True(t, strings.HasPrefix(volume.Name, scenario.expectedVolumeName))
-			} else {
-				assert.Equal(t, scenario.expectedVolumeName, volume.Name)
-			}
-			assert.Less(t, len(volume.Name), 64)
-			assert.Equal(t, len(scenario.expectedPvcNamePrefix) > 0, volume.PersistentVolumeClaim != nil)
-		}
-	})
 	suite.T().Run("Unsupported volume type", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
@@ -901,7 +883,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 
 				// action
 				deployComponent := deployment.radixDeployment.Spec.Components[0]
-				err := deployment.createOrUpdateCsiAzureVolumeResources(context.Background(), desiredDeployment, &deployComponent)
+				err := deployment.createOrUpdateCsiAzureVolumeResources(context.Background(), &deployComponent, desiredDeployment)
 				assert.Nil(t, err)
 
 				existingPvcs, existingScs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(deployment)
@@ -1454,7 +1436,7 @@ func equalPersistentVolumeLists(list1, list2 *[]corev1.PersistentVolume) (bool, 
 		if !ok {
 			return false, fmt.Errorf("PersistentVolume not found by name %s in second list", pvName)
 		}
-		if equal, err := internal.EqualPersistentVolumes(pv1, pv2); err != nil || !equal {
+		if equal := internal.EqualPersistentVolumes(pv1, pv2); err != nil || !equal {
 			return false, err
 		}
 	}

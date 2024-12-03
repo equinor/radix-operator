@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -25,16 +26,11 @@ import (
 )
 
 const (
-	blobfuseDriver      = "azure/blobfuse"
-	defaultMountOptions = "--file-cache-timeout-in-seconds=120"
-
-	blobFuseVolumeNameTemplate          = "blobfuse-%s-%s"         // blobfuse-<componentname>-<radixvolumename>
-	blobFuseVolumeNodeMountPathTemplate = "/tmp/%s/%s/%s/%s/%s/%s" // /tmp/<namespace>/<componentname>/<environment>/<volumetype>/<radixvolumename>/<container>
-
+	csiVolumeTypeBlobFuse2ProtocolFuse   = "csi-az-blob"
+	csiVolumeTypeBlobFuse2ProtocolFuse2  = "csi-blobfuse2-fuse2"
 	csiVolumeNameTemplate                = "%s-%s-%s-%s"            // <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<randomstring5>
 	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-<guid>
-	csiVolumeNodeMountPathTemplate       = "%s/%s/%s/%s/%s/%s"      // <volumeRootMount>/<namespace>/<radixvolumeid>/<componentname>/<radixvolumename>/<storage>
 
 	csiPersistentVolumeProvisionerSecretNameParameter          = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
 	csiPersistentVolumeProvisionerSecretNamespaceParameter     = "csi.storage.k8s.io/provisioner-secret-namespace" // namespace of the secret
@@ -79,8 +75,9 @@ const (
 )
 
 var (
-	csiVolumeProvisioners            = map[string]any{provisionerBlobCsiAzure: struct{}{}}
-	functionalPersistentVolumePhases = []corev1.PersistentVolumePhase{corev1.VolumePending, corev1.VolumeBound, corev1.VolumeAvailable}
+	csiVolumeProvisioners                 = map[string]any{provisionerBlobCsiAzure: struct{}{}}
+	functionalPersistentVolumePhases      = []corev1.PersistentVolumePhase{corev1.VolumePending, corev1.VolumeBound, corev1.VolumeAvailable}
+	functionalPersistentVolumeClaimPhases = []corev1.PersistentVolumeClaimPhase{corev1.ClaimPending, corev1.ClaimBound}
 )
 
 // isKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
@@ -188,14 +185,13 @@ func getCsiRadixVolumeTypeId(radixVolumeMount *radixv1.RadixVolumeMount) (string
 	if radixVolumeMount.BlobFuse2 != nil {
 		switch radixVolumeMount.BlobFuse2.Protocol {
 		case radixv1.BlobFuse2ProtocolFuse2, "":
-			return "csi-blobfuse2-fuse2", nil
+			return csiVolumeTypeBlobFuse2ProtocolFuse2, nil
 		default:
 			return "", fmt.Errorf("unknown blobfuse2 protocol %s", radixVolumeMount.BlobFuse2.Protocol)
 		}
 	}
-	switch radixVolumeMount.Type {
-	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
-		return "csi-az-blob", nil
+	if radixVolumeMount.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure {
+		return csiVolumeTypeBlobFuse2ProtocolFuse, nil
 	}
 	return "", fmt.Errorf("unknown volume mount type %s", radixVolumeMount.Type)
 }
@@ -203,7 +199,7 @@ func getCsiRadixVolumeTypeId(radixVolumeMount *radixv1.RadixVolumeMount) (string
 // GetVolumes Get volumes of a component by RadixVolumeMounts
 func GetVolumes(ctx context.Context, kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string, existingVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	var volumes []corev1.Volume
-	volumeMountVolumes, err := getComponentVolumeMountVolumes(ctx, kubeclient, namespace, environment, deployComponent, existingVolumes)
+	volumeMountVolumes, err := getComponentVolumeMountVolumes(deployComponent, existingVolumes)
 	if err != nil {
 		return nil, err
 	}
@@ -270,58 +266,84 @@ func getComponentSecretRefsAzureKeyVaultVolumes(ctx context.Context, kubeutil *k
 	return volumes, nil
 }
 
-func getComponentVolumeMountVolumes(ctx context.Context, kubeClient kubernetes.Interface, namespace, environment string, deployComponent radixv1.RadixCommonDeployComponent, existingVolumes []corev1.Volume) ([]corev1.Volume, error) {
+func getComponentVolumeMountVolumes(deployComponent radixv1.RadixCommonDeployComponent, existingVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	componentName := deployComponent.GetName()
-	existingVolumesMap := getVolumesMap(existingVolumes)
+	existingVolumeSourcesMap := getVolumesSourcesByVolumeNamesMap(existingVolumes)
 	var volumes []corev1.Volume
-	for _, volumeMount := range deployComponent.GetVolumeMounts() {
-		volumeName, err := getVolumeMountVolumeName(&volumeMount, componentName)
+	var errs []error
+	for _, radixVolumeMount := range deployComponent.GetVolumeMounts() {
+		volume, err := createVolume(radixVolumeMount, componentName, existingVolumeSourcesMap)
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
-		var existingVolumeSource *corev1.VolumeSource
-		if existingVolume, ok := existingVolumesMap[volumeName]; ok {
-			existingVolumeSource = &existingVolume.VolumeSource
-		}
-		volumeSource, err := getVolumeSource(ctx, kubeClient, namespace, environment, componentName, &volumeMount, existingVolumeSource)
-		if err != nil {
-			return nil, err
-		}
-		volumes = append(volumes, corev1.Volume{
-			Name:         volumeName,
-			VolumeSource: *volumeSource,
-		})
+		volumes = append(volumes, *volume)
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
 	}
 	return volumes, nil
 }
 
-func getVolumesMap(volumes []corev1.Volume) map[string]corev1.Volume {
-	return slice.Reduce(volumes, make(map[string]corev1.Volume), func(acc map[string]corev1.Volume, volume corev1.Volume) map[string]corev1.Volume {
+func createVolume(radixVolumeMount radixv1.RadixVolumeMount, componentName string, existingVolumeSourcesMap map[string]corev1.VolumeSource) (*corev1.Volume, error) {
+	volumeName, err := getVolumeMountVolumeName(&radixVolumeMount, componentName)
+	if err != nil {
+		return nil, err
+	}
+	volumeSource, err := getOrCreateVolumeSource(volumeName, componentName, radixVolumeMount, existingVolumeSourcesMap)
+	if err != nil {
+		return nil, err
+	}
+	return &corev1.Volume{
+		Name:         volumeName,
+		VolumeSource: *volumeSource,
+	}, nil
+}
+
+func getOrCreateVolumeSource(volumeName string, componentName string, radixVolumeMount radixv1.RadixVolumeMount, existingVolumeSourcesMap map[string]corev1.VolumeSource) (*corev1.VolumeSource, error) {
+	if existingVolumeSource, ok := existingVolumeSourcesMap[volumeName]; ok {
+		return &existingVolumeSource, nil
+	}
+	return getVolumeSource(componentName, &radixVolumeMount)
+}
+
+func getVolumesSourcesByVolumeNamesMap(volumes []corev1.Volume) map[string]corev1.VolumeSource {
+	return slice.Reduce(volumes, make(map[string]corev1.VolumeSource), func(acc map[string]corev1.VolumeSource, volume corev1.Volume) map[string]corev1.VolumeSource {
 		if volume.PersistentVolumeClaim != nil {
-			acc[volume.Name] = volume
+			acc[volume.Name] = volume.VolumeSource
 		}
 		return acc
 	})
 }
 
-func getVolumeSource(ctx context.Context, kubeClient kubernetes.Interface, namespace, environment, componentName string, volumeMount *radixv1.RadixVolumeMount, existingVolumeSource *corev1.VolumeSource) (*corev1.VolumeSource, error) {
+func getVolumeSource(componentName string, volumeMount *radixv1.RadixVolumeMount) (*corev1.VolumeSource, error) {
 	switch {
 	case volumeMount.HasDeprecatedVolume():
-		return getComponentVolumeMountDeprecatedVolumeSource(ctx, kubeClient, namespace, environment, componentName, volumeMount, existingVolumeSource)
+		return getComponentVolumeMountDeprecatedVolumeSource(componentName, volumeMount)
 	case volumeMount.HasBlobFuse2():
-		return getCsiAzureVolumeSource(ctx, kubeClient, namespace, componentName, volumeMount, existingVolumeSource)
+		return getCsiAzureVolumeSource(componentName, volumeMount)
 	case volumeMount.HasEmptyDir():
 		return getComponentVolumeMountEmptyDirVolumeSource(volumeMount.EmptyDir), nil
 	}
 	return nil, fmt.Errorf("missing configuration for volumeMount %s", volumeMount.Name)
 }
 
-func getComponentVolumeMountDeprecatedVolumeSource(ctx context.Context, kubeClient kubernetes.Interface, namespace, environment, componentName string, volumeMount *radixv1.RadixVolumeMount, existingVolumeSource *corev1.VolumeSource) (*corev1.VolumeSource, error) {
-	switch volumeMount.Type {
-	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
-		return getCsiAzureVolumeSource(ctx, kubeClient, namespace, componentName, volumeMount, existingVolumeSource)
+func getCsiAzureVolumeSource(componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.VolumeSource, error) {
+	pvcName, err := getCsiAzurePersistentVolumeClaimName(componentName, radixVolumeMount)
+	if err != nil {
+		return nil, err
 	}
+	return &corev1.VolumeSource{
+		PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+			ClaimName: pvcName,
+		},
+	}, nil
+}
 
+func getComponentVolumeMountDeprecatedVolumeSource(componentName string, volumeMount *radixv1.RadixVolumeMount) (*corev1.VolumeSource, error) {
+	if volumeMount.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure {
+		return getCsiAzureVolumeSource(componentName, volumeMount)
+	}
 	return nil, fmt.Errorf("unsupported volume type %s", volumeMount.Type)
 }
 
@@ -333,32 +355,6 @@ func getComponentVolumeMountEmptyDirVolumeSource(spec *radixv1.RadixEmptyDirVolu
 	}
 }
 
-func getCsiAzureVolumeSource(ctx context.Context, kubeClient kubernetes.Interface, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, existingVolumeSource *corev1.VolumeSource) (*corev1.VolumeSource, error) {
-	existingNotTerminatingPvcList, err := getPvcNotTerminating(ctx, kubeClient, namespace, componentName, radixVolumeMount)
-	if err != nil {
-		return nil, err
-	}
-	pvList, err := getFunctionalCsiPersistentVolumesForNamespace(ctx, kubeClient, namespace)
-	if err != nil {
-		return nil, err
-	}
-
-	var pvcName string
-	if existingNotTerminatingPvcList != nil {
-		pvcName = existingNotTerminatingPvcList.Name
-	} else {
-		pvcName, err = createCsiAzurePersistentVolumeClaimName(componentName, radixVolumeMount)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &corev1.VolumeSource{
-		PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-			ClaimName: pvcName,
-		},
-	}, nil
-}
-
 func getVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
 	switch {
 	case volumeMount.HasDeprecatedVolume():
@@ -366,7 +362,6 @@ func getVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentNa
 	case volumeMount.HasBlobFuse2():
 		return getCsiAzureVolumeMountName(componentName, volumeMount)
 	}
-
 	return fmt.Sprintf("radix-vm-%s", volumeMount.Name), nil
 }
 
@@ -378,7 +373,7 @@ func getVolumeMountDeprecatedVolumeName(volumeMount *radixv1.RadixVolumeMount, c
 	return "", fmt.Errorf("unsupported type %s", volumeMount.Type)
 }
 
-func getPvcNotTerminating(ctx context.Context, kubeclient kubernetes.Interface, namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
+func getFunctionalPvcList(ctx context.Context, kubeclient kubernetes.Interface, namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) ([]corev1.PersistentVolumeClaim, error) {
 	pvcList, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentVolumeMount(componentName, radixVolumeMount.Name),
 	})
@@ -386,20 +381,14 @@ func getPvcNotTerminating(ctx context.Context, kubeclient kubernetes.Interface, 
 		return nil, err
 	}
 	existingPvcs := sortPvcsByCreatedTimestampDesc(pvcList.Items)
-	if len(existingPvcs) == 0 {
-		return nil, nil
-	}
-
-	for _, pvc := range existingPvcs {
-		switch pvc.Status.Phase {
-		case corev1.ClaimPending, corev1.ClaimBound:
-			return &pvc, nil
-		}
-	}
-	return nil, nil
+	return slice.FindAll(existingPvcs, func(pvc corev1.PersistentVolumeClaim) bool { return pvcIsFunctional(pvc) }), nil
 }
 
-func createCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
+func pvcIsFunctional(pvc corev1.PersistentVolumeClaim) bool {
+	return slice.Any(functionalPersistentVolumeClaimPhases, func(phase corev1.PersistentVolumeClaimPhase) bool { return pvc.Status.Phase == phase })
+}
+
+func getCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
 	volumeName, err := getCsiAzureVolumeMountName(componentName, radixVolumeMount)
 	if err != nil {
 		return "", err
@@ -488,8 +477,12 @@ func getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentVolumeMount(co
 	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, componentName, kube.RadixVolumeMountNameLabel, radixVolumeMountName)
 }
 
-func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appName, namespace, componentName, pvcName, pvName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
-	pvc := &corev1.PersistentVolumeClaim{
+func buildPersistentVolumeClaim(appName, namespace, componentName, pvName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
+	pvcName, err := getCsiAzurePersistentVolumeClaimName(componentName, radixVolumeMount)
+	if err != nil {
+		return nil, err
+	}
+	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pvcName,
 			Namespace: namespace,
@@ -506,10 +499,9 @@ func (deploy *Deployment) createPersistentVolumeClaim(ctx context.Context, appNa
 				Requests: corev1.ResourceList{corev1.ResourceStorage: getVolumeCapacity(radixVolumeMount)},
 			},
 			VolumeName:       pvName,
-			StorageClassName: pointers.Ptr(""), // avoid to use the "default" storage class
+			StorageClassName: pointers.Ptr(""), // use "" to avoid to use the "default" storage class
 		},
-	}
-	return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, pvc, metav1.CreateOptions{})
+	}, nil
 }
 
 func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quantity {
@@ -520,37 +512,33 @@ func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quan
 	return requestsVolumeMountSize
 }
 
-func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume, appName, volumeRootMount, namespace, componentName, pvName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) error {
+func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume, appName, namespace, componentName, pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) *corev1.PersistentVolume {
 	identityClientId := getIdentityClientId(identity)
 	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount.UseAzureIdentity)
 	csiVolumeCredSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
 	persistentVolume.ObjectMeta.Name = pvName
 	persistentVolume.ObjectMeta.Labels = getCsiAzurePersistentVolumeLabels(appName, namespace, componentName, radixVolumeMount)
 	persistentVolume.ObjectMeta.Annotations = getCsiAzurePersistentVolumeAnnotations(csiVolumeCredSecretName, namespace, useAzureIdentity)
-	mountOptions, err := getCsiAzurePersistentVolumeMountOptions(volumeRootMount, namespace, componentName, radixVolumeMount)
-	if err != nil {
-		return err
-	}
 	persistentVolume.Spec.StorageClassName = ""
-	persistentVolume.Spec.MountOptions = mountOptions
+	persistentVolume.Spec.MountOptions = getCsiAzurePersistentVolumeMountOptionsForAzureBlob(radixVolumeMount)
 	persistentVolume.Spec.Capacity = corev1.ResourceList{corev1.ResourceStorage: getVolumeCapacity(radixVolumeMount)}
 	persistentVolume.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{getVolumeMountAccessMode(radixVolumeMount)}
 	persistentVolume.Spec.ClaimRef = &corev1.ObjectReference{
 		APIVersion: "v1",
 		Kind:       k8s.KindPersistentVolumeClaim,
 		Namespace:  namespace,
-		Name:       pvName,
+		Name:       pvcName,
 	}
 	persistentVolume.Spec.CSI = &corev1.CSIPersistentVolumeSource{
 		Driver:           provisionerBlobCsiAzure,
 		VolumeHandle:     getVolumeHandle(namespace, componentName, pvName, radixVolumeMount),
-		VolumeAttributes: getCsiAzurePersistentVolumeAttributes(radixVolumeMount, pvName, namespace, useAzureIdentity, identityClientId),
+		VolumeAttributes: getCsiAzurePersistentVolumeAttributes(namespace, radixVolumeMount, pvName, pvcName, useAzureIdentity, identityClientId),
 	}
 	if !useAzureIdentity {
 		persistentVolume.Spec.CSI.NodeStageSecretRef = &corev1.SecretReference{Name: csiVolumeCredSecretName, Namespace: namespace}
 	}
 	persistentVolume.Spec.PersistentVolumeReclaimPolicy = corev1.PersistentVolumeReclaimRetain // Using only PersistentVolumeReclaimRetain. PersistentVolumeReclaimPolicy deletes volume on unmount.
-	return nil
+	return persistentVolume
 }
 
 // Specify a value the driver can use to uniquely identify the share in the cluster.
@@ -590,7 +578,7 @@ func getCsiAzurePersistentVolumeLabels(appName, namespace, componentName string,
 	}
 }
 
-func getCsiAzurePersistentVolumeAttributes(radixVolumeMount *radixv1.RadixVolumeMount, pvName, namespace string, useAzureIdentity bool, clientId string) map[string]string {
+func getCsiAzurePersistentVolumeAttributes(namespace string, radixVolumeMount *radixv1.RadixVolumeMount, pvName, pvcName string, useAzureIdentity bool, clientId string) map[string]string {
 	attributes := make(map[string]string)
 	switch GetCsiAzureVolumeMountType(radixVolumeMount) {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
@@ -608,7 +596,7 @@ func getCsiAzurePersistentVolumeAttributes(radixVolumeMount *radixv1.RadixVolume
 		}
 	}
 	attributes[csiVolumeMountAttributePvName] = pvName
-	attributes[csiVolumeMountAttributePvcName] = pvName
+	attributes[csiVolumeMountAttributePvcName] = pvcName
 	attributes[csiVolumeMountAttributePvcNamespace] = namespace
 	if !useAzureIdentity {
 		attributes[csiVolumeMountAttributeSecretNamespace] = namespace
@@ -618,16 +606,7 @@ func getCsiAzurePersistentVolumeAttributes(radixVolumeMount *radixv1.RadixVolume
 	return attributes
 }
 
-func getCsiAzurePersistentVolumeMountOptions(volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
-	csiVolumeTypeId, err := getCsiRadixVolumeTypeId(radixVolumeMount)
-	if err != nil {
-		return nil, err
-	}
-	tmpPath := fmt.Sprintf(csiVolumeNodeMountPathTemplate, volumeRootMount, namespace, csiVolumeTypeId, componentName, radixVolumeMount.Name, getRadixVolumeMountStorage(radixVolumeMount))
-	return getCsiAzurePersistentVolumeMountOptionsForAzureBlob(tmpPath, radixVolumeMount)
-}
-
-func getCsiAzurePersistentVolumeMountOptionsForAzureBlob(tmpPath string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
+func getCsiAzurePersistentVolumeMountOptionsForAzureBlob(radixVolumeMount *radixv1.RadixVolumeMount) []string {
 	mountOptions := []string{
 		// fmt.Sprintf("--%s=%s", csiPersistentVolumeTmpPathMountOption, tmpPath),//TODO fix this path to be able to mount on external mount
 		"--file-cache-timeout-in-seconds=120",
@@ -654,7 +633,7 @@ func getCsiAzurePersistentVolumeMountOptionsForAzureBlob(tmpPath string, radixVo
 		mountOptions = append(mountOptions, getStreamingMountOptions(radixVolumeMount.BlobFuse2.Streaming)...)
 		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiPersistentVolumeUseAdlsMountOption, radixVolumeMount.BlobFuse2.UseAdls != nil && *radixVolumeMount.BlobFuse2.UseAdls))
 	}
-	return mountOptions, nil
+	return mountOptions
 }
 
 func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []string {
@@ -773,10 +752,11 @@ func getRadixVolumeMountStorage(radixVolumeMount *radixv1.RadixVolumeMount) stri
 }
 
 func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(ctx context.Context, excludePvcNames map[string]any) error {
-	pvList, err := deploy.getPersistentVolumesForPvc(ctx)
+	pvList, err := deploy.kubeclient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
+	var errs []error
 	for _, pv := range pvList.Items {
 		if pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Kind != k8s.KindPersistentVolumeClaim || !knownCSIDriver(pv.Spec.CSI) {
 			continue
@@ -788,9 +768,12 @@ func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(ctx co
 			continue
 		}
 		log.Ctx(ctx).Info().Msgf("Delete orphaned Csi Azure PersistantVolume %s of PersistantVolumeClaim %s", pv.Name, pv.Spec.ClaimRef.Name)
-		if err = deploy.deletePersistentVolume(ctx, pv.Name); err != nil {
-			return err
+		if err := deploy.deletePersistentVolume(ctx, pv.Name); err != nil && !k8serrors.IsNotFound(err) {
+			errs = append(errs, err)
 		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 	return nil
 }
@@ -804,60 +787,100 @@ func knownCSIDriver(csiPersistentVolumeSource *corev1.CSIPersistentVolumeSource)
 }
 
 // createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
-func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Context, desiredDeployment *appsv1.Deployment, deployComponent radixv1.RadixCommonDeployComponent) error {
-	namespace := deploy.radixDeployment.GetNamespace()
-	appName := deploy.radixDeployment.Spec.AppName
+func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
 	componentName := desiredDeployment.ObjectMeta.Name
-	volumeRootMount := "/tmp" // TODO: add to environment variable, so this volume can be mounted to external disk
-	pvList, err := getFunctionalCsiPersistentVolumesForNamespace(ctx, deploy.kubeclient, namespace)
+	if err := deploy.createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx, componentName, deployComponent.GetIdentity(), desiredDeployment); err != nil {
+		return err
+	}
+	currentlyUsedPvcNames, err := deploy.getCurrentlyUsedPersistentVolumeClaims(ctx)
 	if err != nil {
 		return err
 	}
-	pvcList, err := deploy.getCsiAzurePersistentVolumeClaims(ctx, namespace, componentName)
-	if err != nil {
+	if err = deploy.garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx, componentName, currentlyUsedPvcNames); err != nil {
 		return err
 	}
+	return deploy.garbageCollectOrphanedCsiAzurePersistentVolumes(ctx, currentlyUsedPvcNames)
+}
 
-	existingPvcMap := internal.GetPersistentVolumeClaimMap(&pvcList.Items, false)
-	radixVolumeMountMap := deploy.getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName)
-	var actualPersistentVolumeNames []string
-	actualPvcNames, err := deploy.getCurrentlyUsedPersistentVolumeClaims(ctx, namespace)
+func (deploy *Deployment) createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx context.Context, componentName string, identity *radixv1.Identity, desiredDeployment *appsv1.Deployment) error {
+	namespace := deploy.radixDeployment.GetNamespace()
+	functionalPvList, err := getFunctionalCsiPersistentVolumesForNamespace(ctx, deploy.kubeclient, namespace)
 	if err != nil {
 		return err
 	}
-	identity := deployComponent.GetIdentity()
+	pvcByNameMap, err := deploy.getPvcByNameMap(ctx, namespace, componentName)
+	if err != nil {
+		return err
+	}
+	radixVolumeMountsByNameMap := deploy.getRadixVolumeMountsByNameMap(componentName)
+	var errs []error
+	var volumes []corev1.Volume
 	for _, volume := range desiredDeployment.Spec.Template.Spec.Volumes {
-		if volume.PersistentVolumeClaim == nil {
+		radixVolumeMount, existsRadixVolumeMount := radixVolumeMountsByNameMap[volume.Name]
+		if !existsRadixVolumeMount {
 			continue
 		}
-		radixVolumeMount, existsRadixVolumeMount := radixVolumeMountMap[volume.Name]
-		if !existsRadixVolumeMount {
-			return fmt.Errorf("not found Radix volume mount for desired volume %s", volume.Name)
-		}
-		pv, pvIsCreated, err := deploy.getOrCreateCsiAzurePersistentVolume(ctx, appName, volumeRootMount, namespace, componentName, radixVolumeMount, pvList, volume.PersistentVolumeClaim.ClaimName, identity)
+		processedVolume, err := deploy.createOrUpdateCsiAzureVolumeResourcesForVolume(ctx, namespace, componentName, identity, volume, radixVolumeMount, functionalPvList, pvcByNameMap)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
-		pvc, err := deploy.createCsiAzurePersistentVolumeClaim(ctx, pv, pvIsCreated, appName, namespace, componentName, radixVolumeMount, volume.PersistentVolumeClaim.ClaimName, existingPvcMap)
-		if err != nil {
-			return err
+		if processedVolume != nil {
+			volumes = append(volumes, *processedVolume)
 		}
-		actualPersistentVolumeNames = append(actualPersistentVolumeNames, pv.Name)
-		volume.PersistentVolumeClaim.ClaimName = pvc.Name
-		actualPvcNames[pvc.Name] = struct{}{}
 	}
-	err = deploy.garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx, namespace, pvcList, actualPvcNames)
-	if err != nil {
-		return err
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
-	err = deploy.garbageCollectOrphanedCsiAzurePersistentVolumes(ctx, actualPvcNames)
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return err
-	}
+	desiredDeployment.Spec.Template.Spec.Volumes = volumes
 	return nil
 }
 
-func (deploy *Deployment) getCurrentlyUsedPersistentVolumeClaims(ctx context.Context, namespace string) (map[string]any, error) {
+func (deploy *Deployment) createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, namespace string, componentName string, identity *radixv1.Identity, volume corev1.Volume, radixVolumeMount *radixv1.RadixVolumeMount, functionalPvList []corev1.PersistentVolume, pvcByNameMap map[string]*corev1.PersistentVolumeClaim) (*corev1.Volume, error) {
+	if volume.PersistentVolumeClaim == nil || volume.CSI == nil {
+		return &volume, nil
+	}
+	appName := deploy.radixDeployment.Spec.AppName
+	pvcName := volume.PersistentVolumeClaim.ClaimName
+	pvName, actualPvExists := getActualExistingCsiAzurePvNameByPvcName(appName, namespace, componentName, radixVolumeMount, functionalPvList, pvcName, identity)
+	if !actualPvExists {
+		pvName = getCsiAzurePersistentVolumeName()
+	}
+	existingPvc, pvcExist := pvcByNameMap[pvcName]
+	newPvc, err := buildPersistentVolumeClaim(appName, namespace, componentName, pvName, radixVolumeMount)
+	if err != nil {
+		return nil, err
+	}
+	if pvcExist && !internal.EqualPersistentVolumeClaims(existingPvc, newPvc) {
+		pvcName = newPvc.GetName()
+	}
+	if !actualPvExists {
+		log.Ctx(ctx).Debug().Msgf("Create PersistentVolume %s in namespace %s", pvName, namespace)
+		pv := populateCsiAzurePersistentVolume(&corev1.PersistentVolume{}, appName, namespace, componentName, pvName, pvcName, radixVolumeMount, identity)
+		if _, err = deploy.kubeclient.CoreV1().PersistentVolumes().Create(ctx, pv, metav1.CreateOptions{}); err != nil {
+			return nil, err
+		}
+	}
+	if !pvcExist {
+		log.Ctx(ctx).Debug().Msgf("Create PersistentVolumeClaim %s in namespace %s for PersistentVolume %s", pvcName, namespace, pvName)
+		if _, err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, newPvc, metav1.CreateOptions{}); err != nil {
+			return nil, err
+		}
+	}
+	volume.PersistentVolumeClaim.ClaimName = pvcName
+	return &volume, nil
+}
+
+func (deploy *Deployment) getPvcByNameMap(ctx context.Context, namespace string, componentName string) (map[string]*corev1.PersistentVolumeClaim, error) {
+	pvcList, err := deploy.getCsiAzurePersistentVolumeClaims(ctx, namespace, componentName)
+	if err != nil {
+		return nil, err
+	}
+	return internal.GetPersistentVolumeClaimMap(&pvcList.Items, false), nil
+}
+
+func (deploy *Deployment) getCurrentlyUsedPersistentVolumeClaims(ctx context.Context) (map[string]any, error) {
+	namespace := deploy.radixDeployment.GetNamespace()
 	pvcNames := make(map[string]any)
 	deploymentList, err := deploy.kubeclient.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -884,92 +907,62 @@ func addUsedPersistenceVolumeClaimsFrom(podTemplate corev1.PodTemplateSpec, pvcM
 	}
 }
 
-func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx context.Context, namespace string, pvcList *corev1.PersistentVolumeClaimList, excludePvcNames map[string]any) error {
+func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx context.Context, componentName string, excludePvcNames map[string]any) error {
+	namespace := deploy.radixDeployment.GetNamespace()
+	pvcList, err := deploy.getCsiAzurePersistentVolumeClaims(ctx, namespace, componentName)
+	if err != nil {
+		return err
+	}
+	var errs []error
 	for _, pvc := range pvcList.Items {
 		if _, ok := excludePvcNames[pvc.Name]; ok {
 			continue
 		}
-		pvName := pvc.Spec.VolumeName
 		log.Ctx(ctx).Debug().Msgf("Delete not used CSI Azure PersistentVolumeClaim %s in namespace %s", pvc.Name, namespace)
 		if err := deploy.deletePersistentVolumeClaim(ctx, namespace, pvc.Name); err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		pvName := pvc.Spec.VolumeName
 		log.Ctx(ctx).Debug().Msgf("Delete not used CSI Azure PersistentVolume %s in namespace %s", pvName, namespace)
 		if err := deploy.deletePersistentVolume(ctx, pvName); err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 	return nil
 }
 
-func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(ctx context.Context, pv *corev1.PersistentVolume, requiredNewPvc bool, appName, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, persistentVolumeClaimName string, pvcMap map[string]*corev1.PersistentVolumeClaim) (*corev1.PersistentVolumeClaim, error) {
-	if pvc, ok := pvcMap[persistentVolumeClaimName]; ok {
-		if len(pvc.Spec.VolumeName) == 0 {
-			return pvc, nil
-		}
-		if !requiredNewPvc && strings.EqualFold(pvc.Spec.VolumeName, pv.Name) {
-			return pvc, nil
-		}
-
-		log.Ctx(ctx).Debug().Msgf("Delete in garbage-collect an old PersistentVolumeClaim %s in namespace %s: changed PersistentVolume name to %s", pvc.Name, namespace, pv.Name)
-	}
-	persistentVolumeClaimName, err := createCsiAzurePersistentVolumeClaimName(componentName, radixVolumeMount)
-	if err != nil {
-		return nil, err
-	}
-	log.Ctx(ctx).Debug().Msgf("Create PersistentVolumeClaim %s in namespace %s for PersistentVolume %s", persistentVolumeClaimName, namespace, pv.Name)
-	return deploy.createPersistentVolumeClaim(ctx, appName, namespace, componentName, persistentVolumeClaimName, pv.Name, radixVolumeMount)
-}
-
-func (deploy *Deployment) getOrCreateCsiAzurePersistentVolume(ctx context.Context, appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, pvList []corev1.PersistentVolume, pvcName string, identity *radixv1.Identity) (*corev1.PersistentVolume, bool, error) {
-
-	for _, existingPv := range pvList {
+func getActualExistingCsiAzurePvNameByPvcName(appName, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, existingPvList []corev1.PersistentVolume, pvcName string, identity *radixv1.Identity) (string, bool) {
+	for _, existingPv := range existingPvList {
 		if existingPv.Spec.ClaimRef != nil && existingPv.Spec.ClaimRef.Name == pvcName {
-			desiredPv := existingPv.DeepCopy()
-			err := populateCsiAzurePersistentVolume(desiredPv, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, identity)
-			if err != nil {
-				return nil, false, err
+			desiredPv := populateCsiAzurePersistentVolume(existingPv.DeepCopy(), appName, namespace, componentName, existingPv.GetName(), pvcName, radixVolumeMount, identity)
+			if internal.EqualPersistentVolumes(&existingPv, desiredPv) {
+				return existingPv.GetName(), true
 			}
-			if equal, err := internal.EqualPersistentVolumes(&existingPv, desiredPv); equal || err != nil {
-				return &existingPv, false, err
-			}
-
-			log.Ctx(ctx).Info().Msgf("Delete PersistentVolume %s in namespace %s", existingPv.Name, namespace)
-			if err = deploy.deletePersistentVolume(ctx, existingPv.Name); err != nil {
-				return nil, false, err
-			}
-			continue
 		}
-
-		pvName := getCsiAzurePersistentVolumeName()
-		log.Ctx(ctx).Debug().Msgf("Create PersistentVolume %s in namespace %s", pvName, namespace)
-		newPv := &corev1.PersistentVolume{}
-		err := populateCsiAzurePersistentVolume(newPv, appName, volumeRootMount, namespace, componentName, pvName, radixVolumeMount, identity)
-		if err != nil {
-			return nil, false, err
-		}
-		desiredPersistentVolume, err := deploy.kubeclient.CoreV1().PersistentVolumes().Create(ctx, newPv, metav1.CreateOptions{})
-		return desiredPersistentVolume, true, err
 	}
-	return nil, false, fmt.Errorf("failed to create PersistentVolume %s in namespace %s", pvName, namespace) // TODO check if this is correct
+	return "", false
 }
 
-func (deploy *Deployment) getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName string) map[string]*radixv1.RadixVolumeMount {
-	volumeMountMap := make(map[string]*radixv1.RadixVolumeMount)
+func (deploy *Deployment) getRadixVolumeMountsByNameMap(componentName string) map[string]*radixv1.RadixVolumeMount {
+	volumeMountsByNameMap := make(map[string]*radixv1.RadixVolumeMount)
 	for _, component := range deploy.radixDeployment.Spec.Components {
-		if findCsiAzureVolumeForComponent(volumeMountMap, component.VolumeMounts, componentName, &component) {
+		if findCsiAzureVolumeForComponent(volumeMountsByNameMap, component.VolumeMounts, componentName, &component) {
 			break
 		}
 	}
 	for _, component := range deploy.radixDeployment.Spec.Jobs {
-		if findCsiAzureVolumeForComponent(volumeMountMap, component.VolumeMounts, componentName, &component) {
+		if findCsiAzureVolumeForComponent(volumeMountsByNameMap, component.VolumeMounts, componentName, &component) {
 			break
 		}
 	}
-	return volumeMountMap
+	return volumeMountsByNameMap
 }
 
-func findCsiAzureVolumeForComponent(volumeMountMap map[string]*radixv1.RadixVolumeMount, volumeMounts []radixv1.RadixVolumeMount, componentName string, component radixv1.RadixCommonDeployComponent) bool {
+func findCsiAzureVolumeForComponent(volumeMountsByNameMap map[string]*radixv1.RadixVolumeMount, volumeMounts []radixv1.RadixVolumeMount, componentName string, component radixv1.RadixCommonDeployComponent) bool {
 	if !strings.EqualFold(componentName, component.GetName()) {
 		return false
 	}
@@ -982,7 +975,7 @@ func findCsiAzureVolumeForComponent(volumeMountMap map[string]*radixv1.RadixVolu
 		if err != nil {
 			return false
 		}
-		volumeMountMap[volumeMountName] = &radixVolumeMount
+		volumeMountsByNameMap[volumeMountName] = &radixVolumeMount
 	}
 	return true
 }

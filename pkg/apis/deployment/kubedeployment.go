@@ -30,26 +30,19 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 
 	// If component has manual override or HorizontalScaling is nil then delete hpa if exists before updating deployment
 	if deployComponent.GetReplicasOverride() != nil || deployComponent.GetHorizontalScaling() == nil {
-		err = deploy.deleteScaledObjectIfExists(ctx, deployComponent.GetName())
-		if err != nil {
+		if err = deploy.deleteScaledObjectIfExists(ctx, deployComponent.GetName()); err != nil {
 			return err
 		}
-
-		err = deploy.deleteTargetAuthenticationIfExists(ctx, deployComponent.GetName())
-		if err != nil {
+		if err = deploy.deleteTargetAuthenticationIfExists(ctx, deployComponent.GetName()); err != nil {
 			return err
 		}
 	}
-
-	err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, desiredDeployment, deployComponent)
-	if err != nil {
+	if err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, deployComponent, desiredDeployment); err != nil {
 		return err
 	}
-	err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment)
-	if err != nil {
+	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment); err != nil {
 		return err
 	}
-
 	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 
@@ -66,8 +59,7 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 	selector := labels.Set(desiredJobAuxDeployment.Spec.Selector.MatchLabels).AsSelector()
 	if currentJobAuxDeployment != nil && !selector.Matches(labels.Set(currentJobAuxDeployment.Spec.Template.Labels)) {
 		log.Ctx(ctx).Info().Msgf("Deleting outdated deployment (label selector does not match) %s", currentJobAuxDeployment.GetName())
-		err = deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment.Name)
-		if err != nil {
+		if err = deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment.Name); err != nil {
 			return err
 		}
 
