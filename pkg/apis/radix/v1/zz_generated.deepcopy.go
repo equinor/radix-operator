@@ -1160,6 +1160,11 @@ func (in *RadixBatchJob) DeepCopyInto(out *RadixBatchJob) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.FailurePolicy != nil {
+		in, out := &in.FailurePolicy, &out.FailurePolicy
+		*out = new(RadixJobComponentFailurePolicy)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

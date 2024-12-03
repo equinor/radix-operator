@@ -65,6 +65,70 @@ spec:
                       format: int32
                       minimum: 0
                       type: integer
+                    failurePolicy:
+                      description: FailurePolicy specifies the policy of handling
+                        failed job replicas
+                      properties:
+                        rules:
+                          description: |-
+                            A list of failure policy rules. The rules are evaluated in order.
+                            Once a rule matches a job replica failure, the remaining of the rules are ignored.
+                            When no rule matches the failure, the default handling applies - the
+                            counter of failures is incremented and it is checked against
+                            the backoffLimit.
+                          items:
+                            description: RadixJobComponentFailurePolicyRule describes
+                              how a job replica failure is handled when the onExitCodes
+                              rules are met.
+                            properties:
+                              action:
+                                description: Specifies the action taken on a job replica
+                                  failure when the onExitCodes requirements are satisfied.
+                                enum:
+                                - FailJob
+                                - Ignore
+                                - Count
+                                type: string
+                              onExitCodes:
+                                description: Represents the requirement on the job
+                                  replica exit codes.
+                                properties:
+                                  operator:
+                                    description: |-
+                                      Represents the relationship between the job replica's exit code and the
+                                      specified values. Replicas completed with success (exit code 0) are
+                                      excluded from the requirement check.
+                                    enum:
+                                    - In
+                                    - NotIn
+                                    type: string
+                                  values:
+                                    description: |-
+                                      Specifies the set of values. The job replica's exit code is checked against this set of
+                                      values with respect to the operator. The list must not contain duplicates.
+                                      Value '0' cannot be used for the In operator.
+                                    items:
+                                      format: int32
+                                      minimum: 0
+                                      type: integer
+                                    maxItems: 255
+                                    minItems: 1
+                                    type: array
+                                    x-kubernetes-list-type: set
+                                required:
+                                - operator
+                                - values
+                                type: object
+                            required:
+                            - action
+                            - onExitCodes
+                            type: object
+                          maxItems: 20
+                          type: array
+                          x-kubernetes-list-type: atomic
+                      required:
+                      - rules
+                      type: object
                     imageTagName:
                       description: ImageTagName defines the image tag name to use
                         for the job image

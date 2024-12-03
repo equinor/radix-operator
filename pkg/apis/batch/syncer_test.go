@@ -2618,6 +2618,81 @@ func (s *syncerTestSuite) Test_RestartCorrectlyHandledWithIntermediateStatusUpda
 	s.Equal(getKubeJobName(batchName, batchJobName), jobs.Items[0].GetName())
 }
 
+func (s *syncerTestSuite) Test_JobWithFailurePolicy() {
+	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	jobName1, jobName2 := "any-job1", "any-job2"
+	rdFailurePolicy := &radixv1.RadixJobComponentFailurePolicy{
+		Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+			{
+				Action: radixv1.RadixJobComponentFailurePolicyActionFailJob,
+				OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{
+					Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn,
+					Values:   []int32{5, 3, 4},
+				},
+			},
+		},
+	}
+	batchJobFailurePolicy := &radixv1.RadixJobComponentFailurePolicy{
+		Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+			{
+				Action: radixv1.RadixJobComponentFailurePolicyActionIgnore,
+				OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{
+					Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpNotIn,
+					Values:   []int32{4, 2, 3},
+				},
+			},
+		},
+	}
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: jobName1},
+				{Name: jobName2, FailurePolicy: batchJobFailurePolicy},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:          componentName,
+					FailurePolicy: rdFailurePolicy,
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 2)
+
+	findJobByName := func(name string) func(j batchv1.Job) bool {
+		return func(j batchv1.Job) bool { return j.ObjectMeta.Name == getKubeJobName(batchName, name) }
+	}
+
+	job1, found := slice.FindFirst(jobs.Items, findJobByName(jobName1))
+	s.Require().True(found)
+	expectedPodFailurePolicy := utils.GetPodFailurePolicy(rd.Spec.Jobs[0].FailurePolicy)
+	s.Equal(expectedPodFailurePolicy, job1.Spec.PodFailurePolicy)
+
+	job2, found := slice.FindFirst(jobs.Items, findJobByName(jobName2))
+	s.Require().True(found)
+	expectedPodFailurePolicy = utils.GetPodFailurePolicy(batch.Spec.Jobs[1].FailurePolicy)
+	s.Equal(expectedPodFailurePolicy, job2.Spec.PodFailurePolicy)
+}
+
 func getRadixBatchJobsMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJob {
 	batchJobsMap := make(map[string]*radixv1.RadixBatchJob)
 	for i := 0; i < len(batch.Spec.Jobs); i++ {

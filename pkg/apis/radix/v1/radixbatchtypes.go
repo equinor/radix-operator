@@ -101,6 +101,10 @@ type RadixBatchJob struct {
 	//
 	// +optional
 	ImageTagName string `json:"imageTagName,omitempty"`
+
+	// FailurePolicy specifies the policy of handling failed job replicas
+	// +optional
+	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
 }
 
 // PayloadSecretKeySelector selects a key of a Secret.
