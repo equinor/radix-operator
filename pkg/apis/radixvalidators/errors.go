@@ -183,7 +183,7 @@ func ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage(component s
 
 // ComponentHasInvalidHealthChecks Component has invalid health checks
 func ComponentHasInvalidHealthChecks(component string, probeName string, err error) error {
-	return errors.WithMessagef(ErrComponentHasInvalidHealthCheck, "component %s has invalid health checks %s: %s", component, probeName, err.Error())
+	return errors.WithMessagef(ErrComponentHasInvalidHealthCheck, "component %s has invalid health check %s: %s", component, probeName, err.Error())
 }
 
 // EnvironmentReferencedByComponentDoesNotExistErrorWithMessage Environment does not exists
