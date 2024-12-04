@@ -23,6 +23,7 @@ type DeployComponentBuilder interface {
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithVolumeMounts(...v1.RadixVolumeMount) DeployComponentBuilder
+	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *v1.RadixProbe) DeployComponentBuilder
 	WithNodeGpu(gpu string) DeployComponentBuilder
 	WithNodeGpuCount(gpuCount string) DeployComponentBuilder
 	WithIngressConfiguration(...string) DeployComponentBuilder
@@ -70,10 +71,20 @@ type deployComponentBuilder struct {
 	identity           *v1.Identity
 	readOnlyFileSystem *bool
 	runtime            *v1.Runtime
+	healtChecks        *v1.RadixHealthChecks
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployComponentBuilder {
 	dcb.volumeMounts = volumeMounts
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *v1.RadixProbe) DeployComponentBuilder {
+	dcb.healtChecks = &v1.RadixHealthChecks{
+		LivenessProbe:  livenessProbe,
+		ReadinessProbe: readynessProbe,
+		StartupProbe:   startupProbe,
+	}
 	return dcb
 }
 
@@ -257,6 +268,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		DNSExternalAlias:        dcb.externalAppAlias,
 		ExternalDNS:             dcb.externalDNS,
 		Resources:               dcb.resources,
+		HealthChecks:            dcb.healtChecks,
 		HorizontalScaling:       dcb.horizontalScaling,
 		VolumeMounts:            dcb.volumeMounts,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,

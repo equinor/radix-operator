@@ -346,6 +346,11 @@ type RadixComponent struct {
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
+	// HealthChecks can tell Radix if your application is ready to receive traffic.
+	// Defaults to a TCP check against your first listed port.
+	// If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
+	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
+
 	// Name of an existing container image to use when running the component.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image
 	// +optional
@@ -488,6 +493,11 @@ type RadixEnvironmentConfig struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image
 	// +optional
 	Image string `json:"image,omitempty"`
+
+	// HealthChecks can tell Radix if your application is ready to receive traffic.
+	// Defaults to a TCP check against your first listed port.
+	// If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
+	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
 
 	// Number of desired replicas.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas
@@ -803,6 +813,28 @@ type RadixJobComponentPayload struct {
 	// Path to the folder where payload is mounted
 	// +kubebuilder:validation:MinLength=1
 	Path string `json:"path"`
+}
+
+type RadixHealthChecks struct {
+	// Periodic probe of container liveness.
+	// Container will be restarted if the probe fails.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+	// +optional
+	LivenessProbe *RadixProbe `json:"livenessProbe,omitempty"`
+	// Periodic probe of container service readiness.
+	// Container will be removed from service endpoints if the probe fails.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+	// Defaults to TCP Probe against the first listed port
+	// +optional
+	ReadinessProbe *RadixProbe `json:"readinessProbe,omitempty"`
+	// StartupProbe indicates that the Pod has successfully initialized.
+	// If specified, no other probes are executed until this completes successfully.
+	// If this probe fails, the Pod will be restarted, just as if the livenessProbe failed.
+	// This can be used to provide different probe parameters at the beginning of a Pod's lifecycle,
+	// when it might take a long time to load data or warm a cache, than during steady-state operation.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+	// +optional
+	StartupProbe *RadixProbe `json:"startupProbe,omitempty"`
 }
 
 // PrivateImageHubEntries defines authentication information for private image registries.
