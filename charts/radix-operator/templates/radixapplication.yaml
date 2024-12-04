@@ -1039,8 +1039,11 @@ spec:
                                       - ""
                                       type: string
                                     storageAccount:
-                                      description: Name of a storage account. If not
-                                        defined - it will be configured in a secret.
+                                      description: Name of a storage account. It is
+                                        mandatory when using a workload identity.
+                                        It is optional when using Access Key, if it
+                                        is not defined, it will be configured in a
+                                        secret.
                                       type: string
                                     streaming:
                                       description: |-
@@ -1844,8 +1847,10 @@ spec:
                                 - ""
                                 type: string
                               storageAccount:
-                                description: Name of a storage account. If not defined
-                                  - it will be configured in a secret.
+                                description: Name of a storage account. It is mandatory
+                                  when using a workload identity. It is optional when
+                                  using Access Key, if it is not defined, it will
+                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -2713,8 +2718,11 @@ spec:
                                       - ""
                                       type: string
                                     storageAccount:
-                                      description: Name of a storage account. If not
-                                        defined - it will be configured in a secret.
+                                      description: Name of a storage account. It is
+                                        mandatory when using a workload identity.
+                                        It is optional when using Access Key, if it
+                                        is not defined, it will be configured in a
+                                        secret.
                                       type: string
                                     streaming:
                                       description: |-
@@ -3274,8 +3282,10 @@ spec:
                                 - ""
                                 type: string
                               storageAccount:
-                                description: Name of a storage account. If not defined
-                                  - it will be configured in a secret.
+                                description: Name of a storage account. It is mandatory
+                                  when using a workload identity. It is optional when
+                                  using Access Key, if it is not defined, it will
+                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-

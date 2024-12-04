@@ -286,7 +286,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
 
-	volumes, err := GetVolumes(ctx, deploy.kubeclient, deploy.kubeutil, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent, deploy.radixDeployment.GetName(), desiredDeployment.Spec.Template.Spec.Volumes)
+	volumes, err := GetVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent, deploy.radixDeployment.GetName(), desiredDeployment.Spec.Template.Spec.Volumes)
 	if err != nil {
 		return err
 	}
