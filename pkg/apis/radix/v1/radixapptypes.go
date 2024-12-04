@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -821,13 +820,13 @@ type RadixHealthChecks struct {
 	// Container will be restarted if the probe fails.
 	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
 	// +optional
-	LivenessProbe *v1.Probe `json:"livenessProbe,omitempty"`
+	LivenessProbe *RadixProbe `json:"livenessProbe,omitempty"`
 	// Periodic probe of container service readiness.
 	// Container will be removed from service endpoints if the probe fails.
 	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
 	// Defaults to TCP Probe against the first listed port
 	// +optional
-	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
+	ReadinessProbe *RadixProbe `json:"readinessProbe,omitempty"`
 	// StartupProbe indicates that the Pod has successfully initialized.
 	// If specified, no other probes are executed until this completes successfully.
 	// If this probe fails, the Pod will be restarted, just as if the livenessProbe failed.
@@ -835,7 +834,7 @@ type RadixHealthChecks struct {
 	// when it might take a long time to load data or warm a cache, than during steady-state operation.
 	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
 	// +optional
-	StartupProbe *v1.Probe `json:"startupProbe,omitempty"`
+	StartupProbe *RadixProbe `json:"startupProbe,omitempty"`
 }
 
 // PrivateImageHubEntries defines authentication information for private image registries.

@@ -12,9 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func teardownReadinessProbe() {
@@ -56,26 +54,26 @@ func TestComponentWithoutCustomHealthChecks(t *testing.T) {
 }
 func TestComponentWithCustomHealthChecks(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	createProbe := func(handler corev1.ProbeHandler, seconds int32) *corev1.Probe {
-		return &corev1.Probe{
-			ProbeHandler:                  handler,
-			InitialDelaySeconds:           seconds,
-			TimeoutSeconds:                seconds + 1,
-			PeriodSeconds:                 seconds + 2,
-			SuccessThreshold:              seconds + 3,
-			FailureThreshold:              seconds + 4,
-			TerminationGracePeriodSeconds: pointers.Ptr(int64(seconds + 5)),
+	createProbe := func(handler v1.RadixProbeHandler, seconds int32) *v1.RadixProbe {
+		return &v1.RadixProbe{
+			RadixProbeHandler:   handler,
+			InitialDelaySeconds: pointers.Ptr(seconds),
+			TimeoutSeconds:      pointers.Ptr(seconds + 1),
+			PeriodSeconds:       pointers.Ptr(seconds + 2),
+			SuccessThreshold:    pointers.Ptr(seconds + 3),
+			FailureThreshold:    pointers.Ptr(seconds + 4),
+			// TerminationGracePeriodSeconds: pointers.Ptr(int64(seconds + 5)),
 		}
 	}
 
-	readynessProbe := createProbe(corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{
-		Port: intstr.IntOrString{IntVal: 5000},
+	readynessProbe := createProbe(v1.RadixProbeHandler{HTTPGet: &v1.RadixProbeHTTPGetAction{
+		Port: pointers.Ptr[int32](5000),
 	}}, 10)
 
-	livenessProbe := createProbe(corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{
-		Port: intstr.IntOrString{IntVal: 5000},
+	livenessProbe := createProbe(v1.RadixProbeHandler{TCPSocket: &v1.RadixProbeTCPSocketAction{
+		Port: pointers.Ptr[int32](5000),
 	}}, 20)
-	startuProbe := createProbe(corev1.ProbeHandler{Exec: &corev1.ExecAction{
+	startuProbe := createProbe(v1.RadixProbeHandler{Exec: &v1.RadixProbeExecAction{
 		Command: []string{"echo", "hello"},
 	}}, 30)
 

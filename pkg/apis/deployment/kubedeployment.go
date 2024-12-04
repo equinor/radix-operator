@@ -316,9 +316,9 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
 	if hc := deployComponent.GetHealthChecks(); hc != nil {
-		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = hc.ReadinessProbe
-		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = hc.LivenessProbe
-		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = hc.StartupProbe
+		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = hc.ReadinessProbe.MapToCoreProbe()
+		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = hc.LivenessProbe.MapToCoreProbe()
+		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = hc.StartupProbe.MapToCoreProbe()
 	} else {
 		readinessProbe, err := getDefaultReadinessProbeForComponent(deployComponent)
 		if err != nil {

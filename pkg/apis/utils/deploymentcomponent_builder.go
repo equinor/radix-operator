@@ -2,7 +2,6 @@ package utils
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // DeployComponentBuilder Handles construction of RD component
@@ -24,7 +23,7 @@ type DeployComponentBuilder interface {
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithVolumeMounts(...v1.RadixVolumeMount) DeployComponentBuilder
-	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *corev1.Probe) DeployComponentBuilder
+	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *v1.RadixProbe) DeployComponentBuilder
 	WithNodeGpu(gpu string) DeployComponentBuilder
 	WithNodeGpuCount(gpuCount string) DeployComponentBuilder
 	WithIngressConfiguration(...string) DeployComponentBuilder
@@ -80,7 +79,7 @@ func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolu
 	return dcb
 }
 
-func (dcb *deployComponentBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *corev1.Probe) DeployComponentBuilder {
+func (dcb *deployComponentBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *v1.RadixProbe) DeployComponentBuilder {
 	dcb.healtChecks = &v1.RadixHealthChecks{
 		LivenessProbe:  livenessProbe,
 		ReadinessProbe: readynessProbe,

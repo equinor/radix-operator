@@ -2,7 +2,6 @@ package utils
 
 import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // RadixEnvironmentConfigBuilder Handles construction of RA component environment
@@ -10,7 +9,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithEnvironment(string) RadixEnvironmentConfigBuilder
 	WithSourceFolder(string) RadixEnvironmentConfigBuilder
 	WithDockerfileName(string) RadixEnvironmentConfigBuilder
-	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *corev1.Probe) RadixEnvironmentConfigBuilder
+	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *radixv1.RadixProbe) RadixEnvironmentConfigBuilder
 	WithImage(string) RadixEnvironmentConfigBuilder
 	WithReplicas(*int) RadixEnvironmentConfigBuilder
 	WithEnvironmentVariable(string, string) RadixEnvironmentConfigBuilder
@@ -68,7 +67,7 @@ func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *corev1.Probe) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *radixv1.RadixProbe) RadixEnvironmentConfigBuilder {
 	ceb.healtChecks = &radixv1.RadixHealthChecks{
 		LivenessProbe:  livenessProbe,
 		ReadinessProbe: readynessProbe,

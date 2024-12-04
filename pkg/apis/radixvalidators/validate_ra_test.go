@@ -78,14 +78,6 @@ func Test_application_name_casing_is_validated(t *testing.T) {
 	}
 }
 
-func Test_Invalid_HealthChecks(t *testing.T) {
-	t.Errorf("Not implemented")
-}
-
-func Test_Valid_HealthChecks(t *testing.T) {
-	t.Errorf("Not implemented")
-}
-
 func Test_invalid_ra(t *testing.T) {
 	validRAFirstComponentName := "app"
 	validRAFirstJobName := "job"
@@ -613,6 +605,47 @@ func Test_invalid_ra(t *testing.T) {
 		{"oauth cookie expire less than refresh", radixvalidators.OAuthCookieRefreshMustBeLessThanExpireErrorWithMessage(validRAFirstComponentName, "prod"), func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
+		}},
+		{"no healthchecks are valid", nil, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].HealthChecks = nil
+		}},
+		{"custom healthchecks are valid", nil, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
+				LivenessProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz")}},
+				},
+				ReadinessProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{Exec: &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}}},
+				},
+				StartupProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](5000)}},
+				},
+			}
+		}},
+		{"invalid healthchecks are invalid", radixvalidators.ErrComponentHasInvalidHealthCheck, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
+				LivenessProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz")},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](5000)},
+					},
+				},
+				ReadinessProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz")},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](5000)},
+					},
+				},
+				StartupProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz")},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](5000)},
+					},
+				},
+			}
 		}},
 		{"duplicate name in job/component boundary", radixvalidators.DuplicateComponentOrJobNameErrorWithMessage([]string{validRAFirstComponentName}), func(ra *radixv1.RadixApplication) {
 			job := *ra.Spec.Jobs[0].DeepCopy()

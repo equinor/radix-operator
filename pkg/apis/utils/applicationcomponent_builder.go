@@ -2,7 +2,6 @@ package utils
 
 import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // RadixApplicationComponentBuilder Handles construction of RA component
@@ -11,7 +10,7 @@ type RadixApplicationComponentBuilder interface {
 	WithAlwaysPullImageOnDeploy(bool) RadixApplicationComponentBuilder
 	WithSourceFolder(string) RadixApplicationComponentBuilder
 	WithDockerfileName(string) RadixApplicationComponentBuilder
-	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *corev1.Probe) RadixApplicationComponentBuilder
+	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *radixv1.RadixProbe) RadixApplicationComponentBuilder
 	WithImage(string) RadixApplicationComponentBuilder
 	WithImageTagName(imageTagName string) RadixApplicationComponentBuilder
 	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
@@ -79,7 +78,7 @@ func (rcb *radixApplicationComponentBuilder) WithAlwaysPullImageOnDeploy(val boo
 	return rcb
 }
 
-func (rcb *radixApplicationComponentBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *corev1.Probe) RadixApplicationComponentBuilder {
+func (rcb *radixApplicationComponentBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *radixv1.RadixProbe) RadixApplicationComponentBuilder {
 	rcb.healtChecks = &radixv1.RadixHealthChecks{
 		LivenessProbe:  livenessProbe,
 		ReadinessProbe: readynessProbe,
