@@ -8,18 +8,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// GetPersistentVolumeMap Get map from PersistentVolumeList with name as key
-func GetPersistentVolumeMap(pvList *[]corev1.PersistentVolume) map[string]*corev1.PersistentVolume {
-	pvMap := make(map[string]*corev1.PersistentVolume)
-	for _, pv := range *pvList {
-		pv := pv
-		pvMap[pv.Name] = &pv
-	}
-	return pvMap
-}
-
 // EqualPersistentVolumes Compare two PersistentVolumes
 func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
+	if pv1 == nil || pv2 == nil {
+		return false
+	}
 	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner
 	// if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
 	// 	return false, nil
@@ -55,6 +48,88 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 		return false
 	}
 	return true
+}
+
+// EqualPersistentVolumesForTest Compare two PersistentVolumes for test
+func EqualPersistentVolumesForTest(pv1, pv2 *corev1.PersistentVolume) bool {
+	if pv1 == nil || pv2 == nil {
+		return false
+	}
+	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner
+	// if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
+	// 	return false, nil
+	// }
+	if !utils.EqualStringMaps(getPvAnnotations(pv1), getPvAnnotations(pv2)) {
+		return false
+	}
+	const (
+		pvNameAttrKey  = "csi.storage.k8s.io/pv/name"
+		pvcNameAttrKey = "csi.storage.k8s.io/pvc/name"
+	)
+	pv1Attrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, pvNameAttrKey, pvcNameAttrKey)
+	pv2Attrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, pvNameAttrKey, pvcNameAttrKey)
+	if !utils.EqualStringMaps(pv1Attrs, pv2Attrs) {
+		return false
+	}
+	pv1NameAttr := pv1.Spec.CSI.VolumeAttributes[pvNameAttrKey]
+	pv2NameAttr := pv2.Spec.CSI.VolumeAttributes[pvNameAttrKey]
+	if len(pv1NameAttr) == 0 || len(pv2NameAttr) == 0 {
+		return false
+	}
+	s := pv1NameAttr[:20]
+	if s != pv2NameAttr[:20] {
+		return false
+	}
+	pvc1NameAttr := pv1.Spec.CSI.VolumeAttributes[pvcNameAttrKey]
+	pvc2NameAttr := pv2.Spec.CSI.VolumeAttributes[pvcNameAttrKey]
+	s2 := pvc1NameAttr[:len(pvc1NameAttr)-5]
+	if s2 != pvc2NameAttr[:len(pvc1NameAttr)-5] {
+		return false
+	}
+
+	if !utils.EqualStringMaps(getMountOptionsMap(pv1.Spec.MountOptions), getMountOptionsMap(pv2.Spec.MountOptions)) {
+		return false
+	}
+	// ignore pv1.Spec.StorageClassName != pv2.Spec.StorageClassName for transition period
+	if pv1.Spec.Capacity[corev1.ResourceStorage] != pv2.Spec.Capacity[corev1.ResourceStorage] ||
+		len(pv1.Spec.AccessModes) != len(pv2.Spec.AccessModes) ||
+		(len(pv1.Spec.AccessModes) != 1 && pv1.Spec.AccessModes[0] != pv2.Spec.AccessModes[0]) ||
+		pv1.Spec.CSI.Driver != pv2.Spec.CSI.Driver {
+		return false
+	}
+	if pv1.Spec.CSI.NodeStageSecretRef != nil {
+		if pv2.Spec.CSI.NodeStageSecretRef == nil || pv1.Spec.CSI.NodeStageSecretRef.Name != pv2.Spec.CSI.NodeStageSecretRef.Name {
+			return false
+		}
+	} else if pv2.Spec.CSI.NodeStageSecretRef != nil {
+		return false
+	}
+	if pv1.Spec.ClaimRef != nil {
+		if pv2.Spec.ClaimRef == nil { // ignore  || pv1.Spec.ClaimRef.Name != pv2.Spec.ClaimRef.Name
+			return false
+		}
+	} else if pv2.Spec.ClaimRef != nil {
+		return false
+	}
+	return true
+}
+
+func cloneMap(original map[string]string, ignoreKeys ...string) map[string]string {
+	copy := make(map[string]string, len(original))
+	ignoreKeysMap := convertToSet(ignoreKeys)
+	for key, value := range original {
+		if _, ok := ignoreKeysMap[key]; !ok {
+			copy[key] = value
+		}
+	}
+	return copy
+}
+
+func convertToSet(ignoreKeys []string) map[string]struct{} {
+	return slice.Reduce(ignoreKeys, make(map[string]struct{}), func(acc map[string]struct{}, item string) map[string]struct{} {
+		acc[item] = struct{}{}
+		return acc
+	})
 }
 
 func getPvAnnotations(pv *corev1.PersistentVolume) map[string]string {

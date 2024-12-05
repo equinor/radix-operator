@@ -786,7 +786,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Cont
 	if err := deploy.createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx, componentName, deployComponent.GetIdentity(), desiredDeployment); err != nil {
 		return err
 	}
-	currentlyUsedPvcNames, err := deploy.getCurrentlyUsedPersistentVolumeClaims(ctx)
+	currentlyUsedPvcNames, err := deploy.getCurrentlyUsedPersistentVolumeClaims(ctx, desiredDeployment)
 	if err != nil {
 		return err
 	}
@@ -810,7 +810,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx co
 	var errs []error
 	var volumes []corev1.Volume
 	for _, volume := range desiredDeployment.Spec.Template.Spec.Volumes {
-		if volume.VolumeSource.CSI == nil || !knownCSIDriver(volume.VolumeSource.CSI.Driver) {
+		if volume.PersistentVolumeClaim == nil {
 			volumes = append(volumes, volume)
 			continue
 		}
@@ -835,7 +835,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx co
 }
 
 func (deploy *Deployment) createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, namespace string, componentName string, identity *radixv1.Identity, volume corev1.Volume, radixVolumeMount *radixv1.RadixVolumeMount, functionalPvList []corev1.PersistentVolume, pvcByNameMap map[string]*corev1.PersistentVolumeClaim) (*corev1.Volume, error) {
-	if volume.PersistentVolumeClaim == nil || volume.CSI == nil {
+	if volume.PersistentVolumeClaim == nil {
 		return &volume, nil
 	}
 	appName := deploy.radixDeployment.Spec.AppName
@@ -859,8 +859,9 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResourcesForVolume(ctx con
 			return nil, err
 		}
 	}
-	if !pvcExist {
-		log.Ctx(ctx).Debug().Msgf("Create PersistentVolumeClaim %s in namespace %s for PersistentVolume %s", pvcName, namespace, pvName)
+	if !pvcExist || !internal.EqualPersistentVolumeClaims(existingPvc, newPvc) {
+		newPvc.SetName(pvcName)
+		log.Ctx(ctx).Debug().Msgf("Create PersistentVolumeClaim %s in namespace %s for PersistentVolume %s", newPvc.GetName(), namespace, pvName)
 		if _, err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, newPvc, metav1.CreateOptions{}); err != nil {
 			return nil, err
 		}
@@ -874,10 +875,10 @@ func (deploy *Deployment) getPvcByNameMap(ctx context.Context, namespace string,
 	if err != nil {
 		return nil, err
 	}
-	return internal.GetPersistentVolumeClaimMap(&pvcList.Items, false), nil
+	return internal.GetPersistentVolumeClaimMap(&pvcList.Items), nil
 }
 
-func (deploy *Deployment) getCurrentlyUsedPersistentVolumeClaims(ctx context.Context) (map[string]any, error) {
+func (deploy *Deployment) getCurrentlyUsedPersistentVolumeClaims(ctx context.Context, desiredDeployment *appsv1.Deployment) (map[string]any, error) {
 	namespace := deploy.radixDeployment.GetNamespace()
 	pvcNames := make(map[string]any)
 	deploymentList, err := deploy.kubeclient.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
@@ -885,24 +886,25 @@ func (deploy *Deployment) getCurrentlyUsedPersistentVolumeClaims(ctx context.Con
 		return nil, err
 	}
 	for _, deployment := range deploymentList.Items {
-		addUsedPersistenceVolumeClaimsFrom(deployment.Spec.Template, pvcNames)
+		pvcNames = appendUsedPersistenceVolumeClaimsFrom(pvcNames, deployment.Spec.Template.Spec.Volumes)
 	}
 	jobsList, err := deploy.kubeclient.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	for _, job := range jobsList.Items {
-		addUsedPersistenceVolumeClaimsFrom(job.Spec.Template, pvcNames)
+		pvcNames = appendUsedPersistenceVolumeClaimsFrom(pvcNames, job.Spec.Template.Spec.Volumes)
 	}
-	return pvcNames, nil
+	return appendUsedPersistenceVolumeClaimsFrom(pvcNames, desiredDeployment.Spec.Template.Spec.Volumes), nil
 }
 
-func addUsedPersistenceVolumeClaimsFrom(podTemplate corev1.PodTemplateSpec, pvcMap map[string]any) {
-	for _, volume := range podTemplate.Spec.Volumes {
+func appendUsedPersistenceVolumeClaimsFrom(pvcMap map[string]any, volumes []corev1.Volume) map[string]any {
+	return slice.Reduce(volumes, pvcMap, func(acc map[string]any, volume corev1.Volume) map[string]any {
 		if volume.PersistentVolumeClaim != nil && len(volume.PersistentVolumeClaim.ClaimName) > 0 {
-			pvcMap[volume.PersistentVolumeClaim.ClaimName] = struct{}{}
+			acc[volume.PersistentVolumeClaim.ClaimName] = struct{}{}
 		}
-	}
+		return acc
+	})
 }
 
 func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx context.Context, componentName string, excludePvcNames map[string]any) error {

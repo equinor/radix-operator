@@ -6,14 +6,11 @@ import (
 )
 
 // GetPersistentVolumeClaimMap Get map from PersistentVolumeClaim with name as key
-func GetPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) map[string]*corev1.PersistentVolumeClaim {
+func GetPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim) map[string]*corev1.PersistentVolumeClaim {
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	for _, pvc := range *pvcList {
 		pvc := pvc
 		name := pvc.Name
-		if ignoreRandomPostfixInName {
-			name = utils.ShortenString(name, 6)
-		}
 		pvcMap[name] = &pvc
 	}
 	return pvcMap
@@ -21,6 +18,9 @@ func GetPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim, ignore
 
 // EqualPersistentVolumeClaims Compare two PersistentVolumeClaims
 func EqualPersistentVolumeClaims(pvc1, pvc2 *corev1.PersistentVolumeClaim) bool {
+	if pvc1 == nil || pvc2 == nil {
+		return false
+	}
 	if pvc1.GetNamespace() != pvc2.GetNamespace() {
 		return false
 	}
