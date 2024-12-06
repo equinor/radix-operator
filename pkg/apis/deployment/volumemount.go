@@ -401,13 +401,13 @@ func (deploy *Deployment) garbageCollectVolumeMountsSecretsNoLongerInSpecForComp
 	return deploy.GarbageCollectSecrets(ctx, secrets, excludeSecretNames)
 }
 
-func getFunctionalCsiPersistentVolumesForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string) ([]corev1.PersistentVolume, error) {
+func getCsiPersistentVolumesForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string, onlyFunctional bool) ([]corev1.PersistentVolume, error) {
 	pvList, err := kubeClient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return slice.FindAll(pvList.Items, func(pv corev1.PersistentVolume) bool {
-		return pvIsForCsiDriver(pv) && pvIsForNamespace(pv, namespace) && pvIsFunctional(pv)
+		return pvIsForCsiDriver(pv) && pvIsForNamespace(pv, namespace) && (!onlyFunctional || pvIsFunctional(pv))
 	}), nil
 }
 
@@ -689,7 +689,7 @@ func (deploy *Deployment) deletePersistentVolumeClaim(ctx context.Context, names
 		log.Ctx(ctx).Debug().Msgf("Skip deleting PVC - namespace %s or name %s is empty", namespace, pvcName)
 		return nil
 	}
-	if err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, pvcName, metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+	if err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, pvcName, metav1.DeleteOptions{}); err != nil { // && !k8serrors.IsNotFound(err) {
 		return err
 	}
 	return nil
@@ -700,7 +700,7 @@ func (deploy *Deployment) deletePersistentVolume(ctx context.Context, pvName str
 		log.Ctx(ctx).Debug().Msg("Skip deleting PersistentVolume - name is empty")
 		return nil
 	}
-	if err := deploy.kubeclient.CoreV1().PersistentVolumes().Delete(ctx, pvName, metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+	if err := deploy.kubeclient.CoreV1().PersistentVolumes().Delete(ctx, pvName, metav1.DeleteOptions{}); err != nil { // && !k8serrors.IsNotFound(err) {
 		return err
 	}
 	return nil
@@ -764,7 +764,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(ctx context.Cont
 
 func (deploy *Deployment) createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx context.Context, componentName string, identity *radixv1.Identity, desiredDeployment *appsv1.Deployment) error {
 	namespace := deploy.radixDeployment.GetNamespace()
-	functionalPvList, err := getFunctionalCsiPersistentVolumesForNamespace(ctx, deploy.kubeclient, namespace)
+	functionalPvList, err := getCsiPersistentVolumesForNamespace(ctx, deploy.kubeclient, namespace, true)
 	if err != nil {
 		return err
 	}
@@ -861,6 +861,7 @@ func (deploy *Deployment) getCurrentlyUsedPersistentVolumeClaims(ctx context.Con
 	for _, job := range jobsList.Items {
 		pvcNames = appendUsedPersistenceVolumeClaimsFrom(pvcNames, job.Spec.Template.Spec.Volumes)
 	}
+	// TODD add from RadixDeployments, connected to existing scheduled jobs and batches
 	return appendUsedPersistenceVolumeClaimsFrom(pvcNames, desiredDeployment.Spec.Template.Spec.Volumes), nil
 }
 
@@ -879,6 +880,8 @@ func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersist
 	if err != nil {
 		return err
 	}
+
+	!!!!! test failed - not deleted PVs
 	var errs []error
 	for _, pvc := range pvcList.Items {
 		if _, ok := excludePvcNames[pvc.Name]; ok {
@@ -898,6 +901,16 @@ func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersist
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
+	listPvcs, err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("PersistentVolumes: %v\n", listPvcs)
+	listPvs, err := deploy.kubeclient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("PersistentVolumes: %v\n", listPvs)
 	return nil
 }
 
