@@ -884,14 +884,10 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				err := deployment.createOrUpdateCsiAzureVolumeResources(context.Background(), &deployComponent, desiredDeployment)
 				assert.Nil(t, err)
 
-				existingPvcs, existingScs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(deployment, utils.GetEnvironmentNamespace(appName, environment))
+				existingPvcs, existingPvs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(deployment, utils.GetEnvironmentNamespace(appName, environment))
 				assert.Nil(t, err)
-				equalPvcLists, err := equalPvcLists(&scenario.existingPvcsAfterTestRun, &existingPvcs)
-				assert.Nil(t, err)
-				assert.True(t, equalPvcLists)
-				equalPersistentVolumeLists, err := equalPersistentVolumeLists(&scenario.existingPersistentVolumeAfterTestRun, &existingScs)
-				assert.Nil(t, err)
-				assert.True(t, equalPersistentVolumeLists)
+				assert.True(t, equalPersistentVolumeClaims(&scenario.existingPvcsAfterTestRun, &existingPvcs), "PVC-s are not equal")
+				assert.True(t, equalPersistentVolumes(&scenario.existingPersistentVolumeAfterTestRun, &existingPvs), "PV-s are not equal")
 			}
 		}
 	})
@@ -1296,6 +1292,7 @@ func createExpectedVolumeMount(props expectedPvcScProperties, modify func(pv *co
 		"-o attr_timeout=120",
 		"-o entry_timeout=120",
 		"-o negative_timeout=120",
+		"-o ro",
 	}
 	idOption := getPersistentVolumeIdMountOption(props)
 	if len(idOption) > 0 {
@@ -1330,6 +1327,10 @@ func createExpectedVolumeMount(props expectedPvcScProperties, modify func(pv *co
 						csiVolumeMountAttributePvcNamespace:    props.namespace,
 						csiVolumeMountAttributeSecretNamespace: props.namespace,
 						// skip auto-created by the provisioner "storage.kubernetes.io/csiProvisionerIdentity": "1732528668611-2190-blob.csi.azure.com"
+					},
+					NodeStageSecretRef: &corev1.SecretReference{
+						Name:      props.scSecretName,
+						Namespace: props.namespace,
 					},
 				},
 			},
@@ -1441,9 +1442,9 @@ func createBlobFuse2RadixVolumeMount(props expectedPvcScProperties, modify func(
 	return volumeMount
 }
 
-func equalPersistentVolumeLists(list1, list2 *[]corev1.PersistentVolume) (bool, error) {
+func equalPersistentVolumes(list1, list2 *[]corev1.PersistentVolume) bool {
 	if len(*list1) != len(*list2) {
-		return false, fmt.Errorf("different PersistentVolume list sizes: %v, %v", len(*list1), len(*list2))
+		return false
 	}
 	for _, pv1 := range *list1 {
 		var hasEqualPv bool
@@ -1454,54 +1455,39 @@ func equalPersistentVolumeLists(list1, list2 *[]corev1.PersistentVolume) (bool, 
 			}
 		}
 		if !hasEqualPv {
-			return false, fmt.Errorf("PV %s not found in second list", pv1.Name)
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
 
-func equalPvcLists(pvcList1, pvcList2 *[]corev1.PersistentVolumeClaim) (bool, error) {
+func equalPersistentVolumeClaims(pvcList1, pvcList2 *[]corev1.PersistentVolumeClaim) bool {
 	if len(*pvcList1) != len(*pvcList2) {
-		return false, nil
+		return false
 	}
 	for _, pvc1 := range *pvcList1 {
 		var hasEqualPvc bool
 		for _, pvc2 := range *pvcList2 {
-			if !internal.EqualPersistentVolumeClaims(&pvc1, &pvc2) {
-				continue
+			if equalNamePrefix(pvc1, pvc2) &&
+				equalVolumeNamePrefix(pvc1, pvc2) &&
+				internal.EqualPersistentVolumeClaims(&pvc1, &pvc2) {
+				hasEqualPvc = true
+				break
 			}
-			s := pvc1.Spec.VolumeName[:20]
-			if s != pvc2.Spec.VolumeName[:20] {
-				continue
-			}
-			s2 := pvc1.GetName()[:len(pvc1.GetName())-5]
-			if s2 != pvc2.Spec.VolumeName[:len(pvc2.GetName())-5] {
-				continue
-			}
-			hasEqualPvc = true
-			break
 		}
 		if !hasEqualPvc {
-			return false, fmt.Errorf("PVC %s not found in second list", pvc1.Name)
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
 
-func equalPvcs(pvc1 *corev1.PersistentVolumeClaim, pvc2 *corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) (bool, error) {
-	pvc1Copy, labels1 := getPvcCopyWithLabels(pvc1, ignoreRandomPostfixInName)
-	pvc2Copy, labels2 := getPvcCopyWithLabels(pvc2, ignoreRandomPostfixInName)
-	patchBytes, err := getPvcPatch(pvc1Copy, pvc2Copy)
-	if err != nil {
-		return false, err
-	}
-	if !utils.EqualStringMaps(labels1, labels2) {
-		return false, fmt.Errorf("PVC-s labels are not equal")
-	}
-	if !kube.IsEmptyPatch(patchBytes) {
-		return false, fmt.Errorf("PVC-s are not equal: %s", patchBytes)
-	}
-	return true, nil
+func equalVolumeNamePrefix(pvc1 corev1.PersistentVolumeClaim, pvc2 corev1.PersistentVolumeClaim) bool {
+	return pvc1.Spec.VolumeName[:20] == pvc2.Spec.VolumeName[:20]
+}
+
+func equalNamePrefix(pvc1 corev1.PersistentVolumeClaim, pvc2 corev1.PersistentVolumeClaim) bool {
+	return pvc1.GetName()[:len(pvc1.GetName())-5] == pvc2.GetName()[:len(pvc2.GetName())-5]
 }
 
 func getPvcCopyWithLabels(pvc *corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) (*corev1.PersistentVolumeClaim, map[string]string) {
