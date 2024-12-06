@@ -2370,6 +2370,70 @@
                       "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
+                    "failurePolicy": {
+                      "description": "Specifies the policy of handling failed job replicas. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed job replicas\nis incremented and it is checked against the backoffLimit.",
+                      "properties": {
+                        "rules": {
+                          "description": "A list of failure policy rules. The rules are evaluated in order.\nOnce a rule matches a job replica failure, the remaining of the rules are ignored.\nWhen no rule matches the failure, the default handling applies - the\ncounter of failures is incremented and it is checked against\nthe backoffLimit.",
+                          "items": {
+                            "description": "RadixJobComponentFailurePolicyRule describes how a job replica failure is handled when the onExitCodes rules are met.",
+                            "properties": {
+                              "action": {
+                                "description": "Specifies the action taken on a job replica failure when the onExitCodes requirements are satisfied.",
+                                "enum": [
+                                  "FailJob",
+                                  "Ignore",
+                                  "Count"
+                                ],
+                                "type": "string"
+                              },
+                              "onExitCodes": {
+                                "description": "Represents the requirement on the job replica exit codes.",
+                                "properties": {
+                                  "operator": {
+                                    "description": "Represents the relationship between the job replica's exit code and the\nspecified values. Replicas completed with success (exit code 0) are\nexcluded from the requirement check.",
+                                    "enum": [
+                                      "In",
+                                      "NotIn"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "values": {
+                                    "description": "Specifies the set of values. The job replica's exit code is checked against this set of\nvalues with respect to the operator. The list must not contain duplicates.\nValue '0' cannot be used for the In operator.",
+                                    "items": {
+                                      "format": "int32",
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    },
+                                    "maxItems": 255,
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "x-kubernetes-list-type": "set"
+                                  }
+                                },
+                                "required": [
+                                  "operator",
+                                  "values"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "action",
+                              "onExitCodes"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 20,
+                          "type": "array",
+                          "x-kubernetes-list-type": "atomic"
+                        }
+                      },
+                      "required": [
+                        "rules"
+                      ],
+                      "type": "object"
+                    },
                     "identity": {
                       "description": "Environment specific configuration for workload identity (federated credentials).\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2",
                       "properties": {
@@ -2846,6 +2910,70 @@
                   "environment"
                 ],
                 "x-kubernetes-list-type": "map"
+              },
+              "failurePolicy": {
+                "description": "Specifies the policy of handling failed job replicas. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed job replicas\nis incremented and it is checked against the backoffLimit.",
+                "properties": {
+                  "rules": {
+                    "description": "A list of failure policy rules. The rules are evaluated in order.\nOnce a rule matches a job replica failure, the remaining of the rules are ignored.\nWhen no rule matches the failure, the default handling applies - the\ncounter of failures is incremented and it is checked against\nthe backoffLimit.",
+                    "items": {
+                      "description": "RadixJobComponentFailurePolicyRule describes how a job replica failure is handled when the onExitCodes rules are met.",
+                      "properties": {
+                        "action": {
+                          "description": "Specifies the action taken on a job replica failure when the onExitCodes requirements are satisfied.",
+                          "enum": [
+                            "FailJob",
+                            "Ignore",
+                            "Count"
+                          ],
+                          "type": "string"
+                        },
+                        "onExitCodes": {
+                          "description": "Represents the requirement on the job replica exit codes.",
+                          "properties": {
+                            "operator": {
+                              "description": "Represents the relationship between the job replica's exit code and the\nspecified values. Replicas completed with success (exit code 0) are\nexcluded from the requirement check.",
+                              "enum": [
+                                "In",
+                                "NotIn"
+                              ],
+                              "type": "string"
+                            },
+                            "values": {
+                              "description": "Specifies the set of values. The job replica's exit code is checked against this set of\nvalues with respect to the operator. The list must not contain duplicates.\nValue '0' cannot be used for the In operator.",
+                              "items": {
+                                "format": "int32",
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "maxItems": 255,
+                              "minItems": 1,
+                              "type": "array",
+                              "x-kubernetes-list-type": "set"
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "values"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "action",
+                        "onExitCodes"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 20,
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  }
+                },
+                "required": [
+                  "rules"
+                ],
+                "type": "object"
               },
               "identity": {
                 "description": "Configuration for workload identity (federated credentials).\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2",

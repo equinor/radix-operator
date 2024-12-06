@@ -129,6 +129,11 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		backoffLimit = numbers.Int32Ptr(0)
 	}
 
+	failurePolicy := operatorUtils.GetPodFailurePolicy(jobComponent.FailurePolicy)
+	if batchJob.FailurePolicy != nil {
+		failurePolicy = operatorUtils.GetPodFailurePolicy(batchJob.FailurePolicy)
+	}
+
 	serviceAccountSpec := deployment.NewServiceAccountSpec(rd, jobComponent)
 
 	job := &batchv1.Job{
@@ -139,7 +144,8 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 			Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(rd),
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: backoffLimit,
+			BackoffLimit:     backoffLimit,
+			PodFailurePolicy: failurePolicy,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      podLabels,
