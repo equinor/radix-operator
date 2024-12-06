@@ -1,4 +1,4 @@
-package internal
+package persistentvolume
 
 import (
 	"strings"
@@ -51,64 +51,60 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 }
 
 // EqualPersistentVolumesForTest Compare two PersistentVolumes for test
-func EqualPersistentVolumesForTest(pv1, pv2 *corev1.PersistentVolume) bool {
-	if pv1 == nil || pv2 == nil {
+func EqualPersistentVolumesForTest(expectedPv, actualPv *corev1.PersistentVolume) bool {
+	if expectedPv == nil || actualPv == nil {
 		return false
 	}
 	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner
-	// if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
+	// if !utils.EqualStringMaps(expectedPv.GetLabels(), actualPv.GetLabels()) {
 	// 	return false, nil
 	// }
-	if !utils.EqualStringMaps(getPvAnnotations(pv1), getPvAnnotations(pv2)) {
+	if !utils.EqualStringMaps(getPvAnnotations(expectedPv), getPvAnnotations(actualPv)) {
 		return false
 	}
-	const (
-		pvNameAttrKey  = "csi.storage.k8s.io/pv/name"
-		pvcNameAttrKey = "csi.storage.k8s.io/pvc/name"
-	)
-	pv1Attrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, pvNameAttrKey, pvcNameAttrKey)
-	pv2Attrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, pvNameAttrKey, pvcNameAttrKey)
-	if !utils.EqualStringMaps(pv1Attrs, pv2Attrs) {
+	expectedClonedAttrs := cloneMap(expectedPv.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName)
+	actualClonedAttrs := cloneMap(actualPv.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName)
+	if !utils.EqualStringMaps(expectedClonedAttrs, actualClonedAttrs) {
 		return false
 	}
-	pv1NameAttr := pv1.Spec.CSI.VolumeAttributes[pvNameAttrKey]
-	pv2NameAttr := pv2.Spec.CSI.VolumeAttributes[pvNameAttrKey]
-	if len(pv1NameAttr) == 0 || len(pv2NameAttr) == 0 {
+	expectedNameAttr := expectedPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvName]
+	actualNameAttr := actualPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvName]
+	if len(expectedNameAttr) == 0 || len(actualNameAttr) == 0 {
 		return false
 	}
-	s := pv1NameAttr[:20]
-	if s != pv2NameAttr[:20] {
+	s := expectedNameAttr[:20]
+	if s != actualNameAttr[:20] {
 		return false
 	}
-	pvc1NameAttr := pv1.Spec.CSI.VolumeAttributes[pvcNameAttrKey]
-	pvc2NameAttr := pv2.Spec.CSI.VolumeAttributes[pvcNameAttrKey]
-	s2 := pvc1NameAttr[:len(pvc1NameAttr)-5]
-	if s2 != pvc2NameAttr[:len(pvc1NameAttr)-5] {
+	expectedPvcNameAttr := expectedPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvcName]
+	actualPvcNameAttr := actualPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvcName]
+	s2 := expectedPvcNameAttr[:len(expectedPvcNameAttr)-5]
+	if s2 != actualPvcNameAttr[:len(actualPvcNameAttr)-5] {
 		return false
 	}
 
-	if !utils.EqualStringMaps(getMountOptionsMap(pv1.Spec.MountOptions), getMountOptionsMap(pv2.Spec.MountOptions)) {
+	if !utils.EqualStringMaps(getMountOptionsMap(expectedPv.Spec.MountOptions), getMountOptionsMap(actualPv.Spec.MountOptions)) {
 		return false
 	}
-	// ignore pv1.Spec.StorageClassName != pv2.Spec.StorageClassName for transition period
-	if pv1.Spec.Capacity[corev1.ResourceStorage] != pv2.Spec.Capacity[corev1.ResourceStorage] ||
-		len(pv1.Spec.AccessModes) != len(pv2.Spec.AccessModes) ||
-		(len(pv1.Spec.AccessModes) != 1 && pv1.Spec.AccessModes[0] != pv2.Spec.AccessModes[0]) ||
-		pv1.Spec.CSI.Driver != pv2.Spec.CSI.Driver {
+	// ignore expectedPv.Spec.StorageClassName != actualPv.Spec.StorageClassName for transition period
+	if expectedPv.Spec.Capacity[corev1.ResourceStorage] != actualPv.Spec.Capacity[corev1.ResourceStorage] ||
+		len(expectedPv.Spec.AccessModes) != len(actualPv.Spec.AccessModes) ||
+		(len(expectedPv.Spec.AccessModes) != 1 && expectedPv.Spec.AccessModes[0] != actualPv.Spec.AccessModes[0]) ||
+		expectedPv.Spec.CSI.Driver != actualPv.Spec.CSI.Driver {
 		return false
 	}
-	if pv1.Spec.CSI.NodeStageSecretRef != nil {
-		if pv2.Spec.CSI.NodeStageSecretRef == nil || pv1.Spec.CSI.NodeStageSecretRef.Name != pv2.Spec.CSI.NodeStageSecretRef.Name {
+	if expectedPv.Spec.CSI.NodeStageSecretRef != nil {
+		if actualPv.Spec.CSI.NodeStageSecretRef == nil || expectedPv.Spec.CSI.NodeStageSecretRef.Name != actualPv.Spec.CSI.NodeStageSecretRef.Name {
 			return false
 		}
-	} else if pv2.Spec.CSI.NodeStageSecretRef != nil {
+	} else if actualPv.Spec.CSI.NodeStageSecretRef != nil {
 		return false
 	}
-	if pv1.Spec.ClaimRef != nil {
-		if pv2.Spec.ClaimRef == nil { // ignore  || pv1.Spec.ClaimRef.Name != pv2.Spec.ClaimRef.Name
+	if expectedPv.Spec.ClaimRef != nil {
+		if actualPv.Spec.ClaimRef == nil { // ignore  || expectedPv.Spec.ClaimRef.Name != actualPv.Spec.ClaimRef.Name
 			return false
 		}
-	} else if pv2.Spec.ClaimRef != nil {
+	} else if actualPv.Spec.ClaimRef != nil {
 		return false
 	}
 	return true

@@ -1,4 +1,4 @@
-package internal
+package persistentvolume
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
