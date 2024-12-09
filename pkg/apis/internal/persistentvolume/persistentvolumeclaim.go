@@ -33,7 +33,7 @@ func EqualPersistentVolumeClaims(pvc1, pvc2 *corev1.PersistentVolumeClaim) bool 
 	// ignore pvc1.Spec.StorageClassName != pvc2.Spec.StorageClassName for transition period
 	if pvc1.Spec.Resources.Requests[corev1.ResourceStorage] != pvc2.Spec.Resources.Requests[corev1.ResourceStorage] ||
 		len(pvc1.Spec.AccessModes) != len(pvc2.Spec.AccessModes) ||
-		(len(pvc1.Spec.AccessModes) != 1 && pvc1.Spec.AccessModes[0] != pvc2.Spec.AccessModes[0]) ||
+		(len(pvc1.Spec.AccessModes) == 1 && pvc1.Spec.AccessModes[0] != pvc2.Spec.AccessModes[0]) ||
 		pvc1.Spec.VolumeMode != pvc2.Spec.VolumeMode {
 		return false
 	}
