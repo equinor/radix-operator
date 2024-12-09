@@ -72,14 +72,12 @@ func EqualPersistentVolumesForTest(expectedPv, actualPv *corev1.PersistentVolume
 	if len(expectedNameAttr) == 0 || len(actualNameAttr) == 0 {
 		return false
 	}
-	s := expectedNameAttr[:20]
-	if s != actualNameAttr[:20] {
+	if expectedNameAttr[:20] != actualNameAttr[:20] {
 		return false
 	}
 	expectedPvcNameAttr := expectedPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvcName]
 	actualPvcNameAttr := actualPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvcName]
-	s2 := expectedPvcNameAttr[:len(expectedPvcNameAttr)-5]
-	if s2 != actualPvcNameAttr[:len(actualPvcNameAttr)-5] {
+	if expectedPvcNameAttr[:len(expectedPvcNameAttr)-5] != actualPvcNameAttr[:len(actualPvcNameAttr)-5] {
 		return false
 	}
 
