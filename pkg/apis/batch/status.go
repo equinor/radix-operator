@@ -309,14 +309,6 @@ func getPodStatusMap(status *radixv1.RadixBatchJobStatus) map[string]*radixv1.Ra
 	return podStatusMap
 }
 
-func getJobConditionsSortedDesc(job *batchv1.Job) []batchv1.JobCondition {
-	descSortedJobConditions := job.Status.Conditions
-	sort.Slice(descSortedJobConditions, func(i, j int) bool {
-		return descSortedJobConditions[i].LastTransitionTime.After(descSortedJobConditions[j].LastTransitionTime.Time)
-	})
-	return descSortedJobConditions
-}
-
 func (s *syncer) restoreStatus(ctx context.Context) error {
 	if restoredStatus, ok := s.radixBatch.Annotations[kube.RestoredStatusAnnotation]; ok && len(restoredStatus) > 0 {
 		if reflect.ValueOf(s.radixBatch.Status).IsZero() {
