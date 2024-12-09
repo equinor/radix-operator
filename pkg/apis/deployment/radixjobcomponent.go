@@ -3,7 +3,9 @@ package deployment
 import (
 	"context"
 	stderrors "errors"
+	"fmt"
 
+	"dario.cat/mergo"
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -95,7 +97,11 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 	if err != nil {
 		errs = append(errs, err)
 	}
-	batchStatusRules := getBatchStatusRules(&radixJobComponent, environmentSpecificConfig)
+	failurePolicy, err := getRadixJobComponentFailurePolicy(radixJobComponent, environmentSpecificConfig)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
 	if len(errs) > 0 {
 		return nil, stderrors.Join(errs...)
 	}
@@ -120,9 +126,29 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 		ReadOnlyFileSystem:   getRadixCommonComponentReadOnlyFileSystem(&radixJobComponent, environmentSpecificConfig),
 		VolumeMounts:         volumeMounts,
 		Runtime:              componentImage.Runtime,
-		BatchStatusRules:     batchStatusRules,
+		BatchStatusRules:     getRadixJobComponentBatchStatusRules(&radixJobComponent, environmentSpecificConfig),
+		FailurePolicy:        failurePolicy,
 	}
 	return &deployJob, nil
+}
+
+func getRadixJobComponentFailurePolicy(job v1.RadixJobComponent, jobEnvConfig *v1.RadixJobComponentEnvironmentConfig) (*v1.RadixJobComponentFailurePolicy, error) {
+	var dst *v1.RadixJobComponentFailurePolicy
+	if job.FailurePolicy != nil {
+		dst = job.FailurePolicy.DeepCopy()
+	}
+
+	if jobEnvConfig != nil && jobEnvConfig.FailurePolicy != nil {
+		if dst == nil {
+			dst = &v1.RadixJobComponentFailurePolicy{}
+		}
+
+		if err := mergo.Merge(dst, jobEnvConfig.FailurePolicy, mergo.WithOverride, mergo.WithOverrideEmptySlice, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
+			return nil, fmt.Errorf("failed to merge failurePolicy from environment config: %w", err)
+		}
+	}
+
+	return dst, nil
 }
 
 func getRadixJobComponentTimeLimitSeconds(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *int64 {

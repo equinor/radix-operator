@@ -16,7 +16,9 @@ type SyncerFactory interface {
 		kubeutil *kube.Kube,
 		radixclient radixclient.Interface,
 		radixBatch *radixv1.RadixBatch,
-		config *config.Config) batch.Syncer
+		config *config.Config,
+		options ...batch.SyncerOption,
+	) batch.Syncer
 }
 
 // SyncerFactoryFunc is an adapter that can be used to convert
@@ -27,6 +29,7 @@ type SyncerFactoryFunc func(
 	radixclient radixclient.Interface,
 	radixBatch *radixv1.RadixBatch,
 	config *config.Config,
+	options ...batch.SyncerOption,
 ) batch.Syncer
 
 func (f SyncerFactoryFunc) CreateSyncer(
@@ -35,6 +38,7 @@ func (f SyncerFactoryFunc) CreateSyncer(
 	radixclient radixclient.Interface,
 	radixBatch *radixv1.RadixBatch,
 	config *config.Config,
+	options ...batch.SyncerOption,
 ) batch.Syncer {
-	return f(kubeclient, kubeutil, radixclient, radixBatch, config)
+	return f(kubeclient, kubeutil, radixclient, radixBatch, config, options...)
 }

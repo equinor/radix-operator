@@ -29,6 +29,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithNotifications(*v1.Notifications) RadixApplicationJobComponentBuilder
 	WithReadOnlyFileSystem(*bool) RadixApplicationJobComponentBuilder
 	WithRuntime(*v1.Runtime) RadixApplicationJobComponentBuilder
+	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -57,6 +58,7 @@ type radixApplicationJobComponentBuilder struct {
 	monitoring         *bool
 	imageTagName       string
 	runtime            *v1.Runtime
+	failurePolicy      *v1.RadixJobComponentFailurePolicy
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -202,6 +204,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithRuntime(runtime *v1.Runtime)
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithFailurePolicy(failurePolicy *v1.RadixJobComponentFailurePolicy) RadixApplicationJobComponentBuilder {
+	rcb.failurePolicy = failurePolicy
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -238,6 +245,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		ImageTagName:       rcb.imageTagName,
 		VolumeMounts:       rcb.volumes,
 		Runtime:            rcb.runtime,
+		FailurePolicy:      rcb.failurePolicy,
 	}
 }
 

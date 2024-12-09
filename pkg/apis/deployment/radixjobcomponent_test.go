@@ -508,6 +508,116 @@ func Test_GetRadixJobComponents_Notifications(t *testing.T) {
 	}
 }
 
+func Test_GetRadixJobComponents_FailurePolicy(t *testing.T) {
+
+	tests := map[string]struct {
+		commonConfig         *radixv1.RadixJobComponentFailurePolicy
+		configureEnvironment bool
+		environmentConfig    *radixv1.RadixJobComponentFailurePolicy
+		expected             *radixv1.RadixJobComponentFailurePolicy
+	}{
+		"nil when common and environment is nil": {
+			commonConfig:         nil,
+			configureEnvironment: true,
+			environmentConfig:    nil,
+			expected:             nil,
+		},
+		"nil when common is nil and environment not set": {
+			commonConfig:         nil,
+			configureEnvironment: false,
+			expected:             nil,
+		},
+		"use common when environment is nil": {
+			commonConfig: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionFailJob, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{1, 2, 3}}},
+				},
+			},
+			configureEnvironment: true,
+			environmentConfig:    nil,
+			expected: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionFailJob, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{1, 2, 3}}},
+				},
+			},
+		},
+		"use common when environment not set": {
+			commonConfig: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionFailJob, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{1, 2, 3}}},
+				},
+			},
+			configureEnvironment: false,
+			expected: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionFailJob, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{1, 2, 3}}},
+				},
+			},
+		},
+		"use environment when common is nil": {
+			commonConfig:         nil,
+			configureEnvironment: true,
+			environmentConfig: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionFailJob, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{1, 2, 3}}},
+				},
+			},
+			expected: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionFailJob, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{1, 2, 3}}},
+				},
+			},
+		},
+		"use environment when both common and environment is set": {
+			commonConfig: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionFailJob, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{1, 2, 3}}},
+					{Action: radixv1.RadixJobComponentFailurePolicyActionIgnore, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpNotIn, Values: []int32{4, 5, 6}}},
+				},
+			},
+			configureEnvironment: true,
+			environmentConfig: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionCount, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{7, 8}}},
+				},
+			},
+			expected: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionCount, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{7, 8}}},
+				},
+			},
+		},
+		"use environment when environment empty and common is set": {
+			commonConfig: &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{Action: radixv1.RadixJobComponentFailurePolicyActionFailJob, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{1, 2, 3}}},
+					{Action: radixv1.RadixJobComponentFailurePolicyActionIgnore, OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpNotIn, Values: []int32{4, 5, 6}}},
+				},
+			},
+			configureEnvironment: true,
+			environmentConfig:    &radixv1.RadixJobComponentFailurePolicy{},
+			expected:             &radixv1.RadixJobComponentFailurePolicy{},
+		},
+	}
+
+	for testName, test := range tests {
+		t.Run(testName, func(t *testing.T) {
+			const envName = "anyenv"
+			jobComponent := utils.AnApplicationJobComponent().WithName("anyjob").WithFailurePolicy(test.commonConfig)
+			if test.configureEnvironment {
+				jobComponent = jobComponent.WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithFailurePolicy(test.environmentConfig),
+				)
+			}
+			ra := utils.ARadixApplication().WithJobComponents(jobComponent).BuildRA()
+			sut := jobComponentsBuilder{ra: ra, env: envName, componentImages: make(pipeline.DeployComponentImages)}
+			jobs, err := sut.JobComponents(context.Background())
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, jobs[0].FailurePolicy)
+		})
+	}
+}
+
 func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 	const (
 		dynamicImageName1 = "custom-image-name1:{imageTagName}"
