@@ -753,87 +753,76 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
 	// 	}
 	// }()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-			existingPvc := createExpectedPvc(props, nil)
-			existingPv := createExpectedPv(props, nil)
-			matchPvAndPvc(&existingPv, &existingPvc)
-			return deploymentVolumesTestScenario{
-				name:  "Set ReadOnlyMany volume",
-				props: props,
-				radixVolumeMounts: []v1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
-				},
-				volumes: []corev1.Volume{
-					createTestVolume(props, func(v *corev1.Volume) {}),
-				},
-				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
-					modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
-						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
-					}),
-				},
-				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-					modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
-						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
-					}),
-				},
-				existingPVsBeforeTestRun: []corev1.PersistentVolume{
-					modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
-						pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
-						pv.Spec.MountOptions = getMountOptions(props, false)
-					}),
-				},
-				existingPVsAfterTestRun: []corev1.PersistentVolume{
-					modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
-						pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
-						pv.Spec.MountOptions = getMountOptions(props, true)
-					}),
-				},
-			}
-		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
 	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 	// 	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+	// 		existingPvc := createExpectedPvc(props, nil)
+	// 		existingPv := createExpectedPv(props, nil)
+	// 		matchPvAndPvc(&existingPv, &existingPvc)
 	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Create new BlobFuse2 volume has streaming by default and streaming options not set",
+	// 			name:  "Set ReadOnlyMany volume",
 	// 			props: props,
 	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
+	// 				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
 	// 			},
 	// 			volumes: []corev1.Volume{
 	// 				createTestVolume(props, func(v *corev1.Volume) {}),
 	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+	// 				modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
+	// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+	// 				}),
 	// 			},
-	// 			existingPVsBeforeTestRun: []corev1.PersistentVolume{},
+	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+	// 				modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
+	// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+	// 				}),
+	// 			},
+	// 			existingPVsBeforeTestRun: []corev1.PersistentVolume{
+	// 				modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
+	// 					pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+	// 					pv.Spec.MountOptions = getMountOptions(props, false)
+	// 				}),
+	// 			},
 	// 			existingPVsAfterTestRun: []corev1.PersistentVolume{
-	// 				createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-	// 					pv.Spec.MountOptions = []string{
-	// 						"--file-cache-timeout-in-seconds=120",
-	// 						"--use-attr-cache=true",
-	// 						"--cancel-list-on-mount-seconds=0",
-	// 						"-o allow_other",
-	// 						"-o attr_timeout=120",
-	// 						"-o entry_timeout=120",
-	// 						"-o negative_timeout=120",
-	// 						"-o gid=1000",
-	// 						"--streaming=true",
-	// 						"--use-adls=false",
-	// 					}
+	// 				modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
+	// 					pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+	// 					pv.Spec.MountOptions = getMountOptions(props, true)
 	// 				}),
 	// 			},
 	// 		}
 	// 	}
 	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
+	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
 	// 	}
 	// }()...)
-	//
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Create new BlobFuse2 volume has streaming by default and streaming options not set",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+				},
+				existingPVsBeforeTestRun: []corev1.PersistentVolume{},
+				existingPVsAfterTestRun: []corev1.PersistentVolume{
+					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
+						pv.Spec.MountOptions = getMountOptions(props, false, "--streaming=true", "--use-adls=false")
+					}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
+		}
+	}()...)
+
 	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 	// 	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 	// 		return deploymentVolumesTestScenario{
@@ -1404,7 +1393,7 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *corev1.Pers
 	return pv
 }
 
-func getMountOptions(props expectedPvcPvProperties, readOnly bool) []string {
+func getMountOptions(props expectedPvcPvProperties, readOnly bool, extraOptions ...string) []string {
 	options := []string{
 		"--file-cache-timeout-in-seconds=120",
 		"--use-attr-cache=true",
@@ -1421,7 +1410,7 @@ func getMountOptions(props expectedPvcPvProperties, readOnly bool) []string {
 	if len(idOption) > 0 {
 		options = append(options, idOption)
 	}
-	return options
+	return append(options, extraOptions...)
 }
 
 func setVolumeMountAttribute(pv *corev1.PersistentVolume, radixVolumeMountType v1.MountType, containerName, pvcName string) {
