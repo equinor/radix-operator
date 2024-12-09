@@ -74,26 +74,47 @@ func allowOauthAuxComponentEgressNetworkPolicy(appName string, env string, owner
 	// This is because egress rule must allow traffic to the login.microsoftonline.com FQDN.
 	// This FQDN has IP ranges 20.190.128.0/18 and 40.126.0.0/18 as of April 2022,
 	// but may change at some point in the future.
-	return allowAllHttpsAndDnsEgressNetworkPolicy("radix-allow-oauth-aux-egress", kube.RadixAuxiliaryComponentTypeLabel, defaults.OAuthProxyAuxiliaryComponentType, 443, appName, env, owner)
+	return allowEgressNetworkByPortPolicy("radix-allow-oauth-aux-egress", kube.RadixAuxiliaryComponentTypeLabel, defaults.OAuthProxyAuxiliaryComponentType, appName, env, owner, []egreessPortPolicy{
+		{port: 53, protocol: corev1.ProtocolTCP},
+		{port: 53, protocol: corev1.ProtocolUDP},
+		{port: 443, protocol: corev1.ProtocolTCP},
+		{port: 6379, protocol: corev1.ProtocolTCP}, // Redis Plain
+		{port: 6380, protocol: corev1.ProtocolTCP}, // Redis TLS
+	})
 }
 
 func allowJobSchedulerServerEgressNetworkPolicy(appName string, env string, owner []metav1.OwnerReference, kubernetesApiPort int32) *v1.NetworkPolicy {
 	// We allow outbound to entire Internet from the job scheduler server pods.
 	// This is because egress rule must allow traffic to public IP of k8s API server,
 	// and the public IP is dynamic.
-	return allowAllHttpsAndDnsEgressNetworkPolicy("radix-allow-job-scheduler-egress", kube.RadixPodIsJobSchedulerLabel, "true", kubernetesApiPort, appName, env, owner)
+	return allowEgressNetworkByPortPolicy("radix-allow-job-scheduler-egress", kube.RadixPodIsJobSchedulerLabel, "true", appName, env, owner, []egreessPortPolicy{
+		{port: 53, protocol: corev1.ProtocolTCP},
+		{port: 53, protocol: corev1.ProtocolUDP},
+		{port: kubernetesApiPort, protocol: corev1.ProtocolTCP},
+	})
 }
 
 func allowBatchSchedulerServerEgressNetworkPolicy(appName string, env string, owner []metav1.OwnerReference, kubernetesApiPort int32) *v1.NetworkPolicy {
 	// We allow outbound to entire Internet from the batch scheduler server pods.
 	// This is because egress rule must allow traffic to public IP of k8s API server,
 	// and the public IP is dynamic.
-	return allowAllHttpsAndDnsEgressNetworkPolicy("radix-allow-batch-scheduler-egress", kube.RadixJobTypeLabel, kube.RadixJobTypeBatchSchedule, kubernetesApiPort, appName, env, owner)
+	return allowEgressNetworkByPortPolicy("radix-allow-batch-scheduler-egress", kube.RadixJobTypeLabel, kube.RadixJobTypeBatchSchedule, appName, env, owner, []egreessPortPolicy{
+		{port: 53, protocol: corev1.ProtocolTCP},
+		{port: 53, protocol: corev1.ProtocolUDP},
+		{port: kubernetesApiPort, protocol: corev1.ProtocolTCP},
+	})
 }
 
-func allowAllHttpsAndDnsEgressNetworkPolicy(policyName string, targetLabelKey string, targetLabelValue string, portNumber int32, appName string, env string, owner []metav1.OwnerReference) *v1.NetworkPolicy {
-	var tcp = corev1.ProtocolTCP
-	var udp = corev1.ProtocolUDP
+type egreessPortPolicy struct {
+	port     int32
+	protocol corev1.Protocol
+}
+
+func allowEgressNetworkByPortPolicy(policyName string, targetLabelKey string, targetLabelValue string, appName string, env string, owner []metav1.OwnerReference, egressPorts []egreessPortPolicy) *v1.NetworkPolicy {
+	var egressPortsV1 []v1.NetworkPolicyPort
+	for _, port := range egressPorts {
+		egressPortsV1 = append(egressPortsV1, v1.NetworkPolicyPort{Port: &intstr.IntOrString{IntVal: port.port}, Protocol: &port.protocol})
+	}
 
 	np := v1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
@@ -113,26 +134,7 @@ func allowAllHttpsAndDnsEgressNetworkPolicy(policyName string, targetLabelKey st
 			},
 			Egress: []v1.NetworkPolicyEgressRule{
 				{
-					Ports: []v1.NetworkPolicyPort{
-						{
-							Protocol: &tcp,
-							Port: &intstr.IntOrString{
-								IntVal: portNumber,
-							},
-						},
-						{
-							Protocol: &tcp,
-							Port: &intstr.IntOrString{
-								IntVal: 53,
-							},
-						},
-						{
-							Protocol: &udp,
-							Port: &intstr.IntOrString{
-								IntVal: 53,
-							},
-						},
-					},
+					Ports: egressPortsV1,
 				},
 				{
 					To: []v1.NetworkPolicyPeer{{
