@@ -813,7 +813,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				existingPVsBeforeTestRun: []corev1.PersistentVolume{},
 				existingPVsAfterTestRun: []corev1.PersistentVolume{
 					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-						pv.Spec.MountOptions = getMountOptions(props, false, "--streaming=true", "--use-adls=false")
+						pv.Spec.MountOptions = getMountOptions(props, true, "--streaming=true", "--use-adls=false")
 					}),
 				},
 			}
