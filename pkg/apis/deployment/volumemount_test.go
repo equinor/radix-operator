@@ -795,49 +795,13 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
 	// 	}
 	// }()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-			return deploymentVolumesTestScenario{
-				name:  "Create new BlobFuse2 volume has streaming by default and streaming options not set",
-				props: props,
-				radixVolumeMounts: []v1.RadixVolumeMount{
-					createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
-				},
-				volumes: []corev1.Volume{
-					createTestVolume(props, func(v *corev1.Volume) {}),
-				},
-				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
-				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-				},
-				existingPVsBeforeTestRun: []corev1.PersistentVolume{},
-				existingPVsAfterTestRun: []corev1.PersistentVolume{
-					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-						pv.Spec.MountOptions = getMountOptions(props, true, "--streaming=true", "--use-adls=false")
-					}),
-				},
-			}
-		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
-		}
-	}()...)
-
 	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 	// 	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Create new BlobFuse2 volume has implicit streaming by default and streaming options set",
+	// 			name:  "Create new BlobFuse2 volume has streaming by default and streaming options not set",
 	// 			props: props,
 	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {
-	// 					vm.BlobFuse2.Streaming = &v1.RadixVolumeMountStreaming{
-	// 						StreamCache:      pointers.Ptr(uint64(101)),
-	// 						BlockSize:        pointers.Ptr(uint64(102)),
-	// 						BufferSize:       pointers.Ptr(uint64(103)),
-	// 						MaxBuffers:       pointers.Ptr(uint64(104)),
-	// 						MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-	// 					}
-	// 				}),
+	// 				createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
 	// 			},
 	// 			volumes: []corev1.Volume{
 	// 				createTestVolume(props, func(v *corev1.Volume) {}),
@@ -849,23 +813,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	// 			existingPVsBeforeTestRun: []corev1.PersistentVolume{},
 	// 			existingPVsAfterTestRun: []corev1.PersistentVolume{
 	// 				createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-	// 					pv.Spec.MountOptions = []string{
-	// 						"--file-cache-timeout-in-seconds=120",
-	// 						"--use-attr-cache=true",
-	// 						"--cancel-list-on-mount-seconds=0",
-	// 						"-o allow_other",
-	// 						"-o attr_timeout=120",
-	// 						"-o entry_timeout=120",
-	// 						"-o negative_timeout=120",
-	// 						"-o gid=1000",
-	// 						"--streaming=true",
-	// 						"--stream-cache-mb=101",
-	// 						"--block-size-mb=102",
-	// 						"--buffer-size-mb=103",
-	// 						"--max-buffers=104",
-	// 						"--max-blocks-per-file=105",
-	// 						"--use-adls=false",
-	// 					}
+	// 					pv.Spec.MountOptions = getMountOptions(props, true, "--streaming=true", "--use-adls=false")
 	// 				}),
 	// 			},
 	// 		}
@@ -874,6 +822,48 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	// 		getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
 	// 	}
 	// }()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Create new BlobFuse2 volume has implicit streaming by default and streaming options set",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {
+						vm.BlobFuse2.Streaming = &v1.RadixVolumeMountStreaming{
+							StreamCache:      pointers.Ptr(uint64(101)),
+							BlockSize:        pointers.Ptr(uint64(102)),
+							BufferSize:       pointers.Ptr(uint64(103)),
+							MaxBuffers:       pointers.Ptr(uint64(104)),
+							MaxBlocksPerFile: pointers.Ptr(uint64(105)),
+						}
+					}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+				},
+				existingPVsBeforeTestRun: []corev1.PersistentVolume{},
+				existingPVsAfterTestRun: []corev1.PersistentVolume{
+					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
+						pv.Spec.MountOptions = getMountOptions(props, true,
+							"--streaming=true",
+							"--stream-cache-mb=101",
+							"--block-size-mb=102",
+							"--buffer-size-mb=103",
+							"--max-buffers=104",
+							"--max-blocks-per-file=105",
+							"--use-adls=false")
+					}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
+		}
+	}()...)
 	//
 	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 	// 	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
