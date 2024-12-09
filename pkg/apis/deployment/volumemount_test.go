@@ -679,16 +679,53 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
 	// 	}
 	// }()...)
+	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+	// 	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+	// 		existingPvc := createExpectedPvc(props, nil)
+	// 		existingPv := createExpectedPv(props, nil)
+	// 		matchPvAndPvc(&existingPv, &existingPvc)
+	// 		return deploymentVolumesTestScenario{
+	// 			name:  "Set ReadWriteOnce volume",
+	// 			props: props,
+	// 			radixVolumeMounts: []v1.RadixVolumeMount{
+	// 				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteOnce) }),
+	// 			},
+	// 			volumes: []corev1.Volume{
+	// 				createTestVolume(props, func(v *corev1.Volume) {}),
+	// 			},
+	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+	// 				existingPvc,
+	// 			},
+	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+	// 				modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
+	// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	// 				}),
+	// 			},
+	// 			existingPVsBeforeTestRun: []corev1.PersistentVolume{
+	// 				existingPv,
+	// 			},
+	// 			existingPVsAfterTestRun: []corev1.PersistentVolume{
+	// 				modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
+	// 					pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	// 					pv.Spec.MountOptions = getMountOptions(props, false)
+	// 				}),
+	// 			},
+	// 		}
+	// 	}
+	// 	return []deploymentVolumesTestScenario{
+	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+	// 	}
+	// }()...)
 	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createExpectedPvc(props, nil)
 			existingPv := createExpectedPv(props, nil)
 			matchPvAndPvc(&existingPv, &existingPvc)
 			return deploymentVolumesTestScenario{
-				name:  "Set ReadWriteOnce volume",
+				name:  "Set ReadWriteMany volume",
 				props: props,
 				radixVolumeMounts: []v1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteOnce) }),
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, func(v *corev1.Volume) {}),
@@ -698,7 +735,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
 					modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
-						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
 					}),
 				},
 				existingPVsBeforeTestRun: []corev1.PersistentVolume{
@@ -706,7 +743,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 				existingPVsAfterTestRun: []corev1.PersistentVolume{
 					modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
-						pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+						pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
 						pv.Spec.MountOptions = getMountOptions(props, false)
 					}),
 				},
@@ -716,37 +753,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
 		}
 	}()...)
-	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-	// 	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-	// 		return deploymentVolumesTestScenario{
-	// 			name:  "Set ReadWriteMany volume",
-	// 			props: props,
-	// 			radixVolumeMounts: []v1.RadixVolumeMount{
-	// 				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
-	// 			},
-	// 			volumes: []corev1.Volume{
-	// 				createTestVolume(props, func(v *corev1.Volume) {}),
-	// 			},
-	// 			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
-	// 				createRandomPvc(props, props.namespace, props.componentName),
-	// 			},
-	// 			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-	// 				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-	// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
-	// 				}),
-	// 			},
-	// 			existingPVsBeforeTestRun: []corev1.PersistentVolume{
-	// 				createRandomPv(props, props.namespace, props.componentName),
-	// 			},
-	// 			existingPVsAfterTestRun: []corev1.PersistentVolume{
-	// 				createExpectedPv(props, func(pv *corev1.PersistentVolume) {}),
-	// 			},
-	// 		}
-	// 	}
-	// 	return []deploymentVolumesTestScenario{
-	// 		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-	// 	}
-	// }()...)
 	// scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 	// 	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 	// 		return deploymentVolumesTestScenario{
