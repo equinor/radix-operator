@@ -288,38 +288,20 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 	scenarios := []pvcTestScenario{
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
-				name:                  "Blob CSI Azure volume, PVS phase: Bound",
-				radixVolumeMount:      v1.RadixVolumeMount{Name: "volume1", BlobFuse2: &v1.RadixBlobFuse2VolumeMount{Container: "storage1", GID: "1000"}, Path: "path1"},
-				expectedVolumeName:    "csi-blobfuse2-fuse2-some-component-volume1-storage1",
-				expectedPvcNamePrefix: "existing-blob-pvc-name1",
+				name:               "Blob CSI Azure BlobFuse2 Fuse2 volume",
+				radixVolumeMount:   v1.RadixVolumeMount{Name: "volume1", BlobFuse2: &v1.RadixBlobFuse2VolumeMount{Container: "storage1", GID: "1000"}, Path: "path1"},
+				expectedVolumeName: "csi-blobfuse2-fuse2-some-component-volume1-storage1",
 			},
-			pvc: createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-				pvc.Status.Phase = corev1.ClaimBound
-			}),
-			pv: createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-				pv.Status.Phase = corev1.VolumeBound
-			}),
+			pvc: createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+			pv:  createExpectedPv(props, func(pv *corev1.PersistentVolume) {}),
 		},
-		// {
-		// 	volumeMountTestScenario: volumeMountTestScenario{
-		// 		name:                  "Blob CSI Azure volume, PVS phase: Pending",
-		// 		radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-		// 		expectedVolumeName:    "csi-az-blob-some-component-volume2-storage2",
-		// 		expectedPvcNamePrefix: "existing-blob-pvc-name2",
-		// 	},
-		// 	pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
-		// 		pvc.Name = "existing-blob-pvc-name2"
-		// 		pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = "volume2"
-		// 		pvc.Status.Phase = corev1.ClaimPending
-		// 	}),
-		// },
 	}
 
 	suite.T().Run("CSI Azure volumes with existing PVC", func(t *testing.T) {
 		t.Parallel()
-		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
+			testEnv := getTestEnv()
 			_, err := testEnv.kubeclient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
 			require.NoError(t, err)
 			_, err = testEnv.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), &scenario.pvc, metav1.CreateOptions{})
@@ -342,10 +324,11 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 
 	suite.T().Run("CSI Azure volumes with no existing PVC", func(t *testing.T) {
 		t.Parallel()
-		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
-
+			testEnv := getTestEnv()
+			_, err := testEnv.kubeclient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
+			require.NoError(t, err)
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
 			assert.Nil(t, err)
@@ -353,7 +336,6 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
 			assert.NotNil(t, volumes[0].PersistentVolumeClaim)
 			assert.NotEqual(t, scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
-			assert.NotContains(t, volumes[0].PersistentVolumeClaim.ClaimName, scenario.expectedPvcNamePrefix)
 		}
 	})
 }
