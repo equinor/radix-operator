@@ -4,9 +4,11 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
@@ -52,5 +54,13 @@ func ownerReference(job *radixv1.RadixBatch) []metav1.OwnerReference {
 func isKubeJobForBatchJob(batchJob *radixv1.RadixBatchJob) func(job *batchv1.Job) bool {
 	return func(job *batchv1.Job) bool {
 		return isResourceLabeledWithBatchJobName(batchJob.Name, job)
+	}
+}
+
+func hasOneOfConditionTypes(conditionTypes ...batchv1.JobConditionType) func(batchv1.JobCondition) bool {
+	return func(condition batchv1.JobCondition) bool {
+		return slice.Any(conditionTypes, func(c batchv1.JobConditionType) bool {
+			return condition.Type == c && condition.Status == corev1.ConditionTrue
+		})
 	}
 }

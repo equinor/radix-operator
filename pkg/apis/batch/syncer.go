@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -26,16 +27,31 @@ type Syncer interface {
 	OnSync(ctx context.Context) error
 }
 
+type SyncerOption func(syncer *syncer)
+
+func WithClock(clock commonutils.Clock) SyncerOption {
+	return func(syncer *syncer) {
+		syncer.clock = clock
+	}
+}
+
 // NewSyncer Constructor os RadixBatches Syncer
-func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixBatch *radixv1.RadixBatch, config *config.Config) Syncer {
-	return &syncer{
+func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixBatch *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
+	syncer := &syncer{
 		kubeClient:    kubeclient,
 		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
 		radixBatch:    radixBatch,
 		config:        config,
 		restartedJobs: map[string]radixv1.RadixBatchJob{},
+		clock:         commonutils.RealClock{},
 	}
+
+	for _, opt := range options {
+		opt(syncer)
+	}
+
+	return syncer
 }
 
 type syncer struct {
@@ -45,6 +61,7 @@ type syncer struct {
 	radixBatch    *radixv1.RadixBatch
 	config        *config.Config
 	restartedJobs map[string]radixv1.RadixBatchJob
+	clock         commonutils.Clock
 }
 
 // OnSync Syncs RadixBatches

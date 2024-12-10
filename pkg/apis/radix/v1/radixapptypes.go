@@ -709,6 +709,84 @@ type RadixJobComponent struct {
 	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
 	// +optional
 	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
+
+	// Specifies the policy of handling failed job replicas. In particular, it allows to
+	// specify the set of actions and conditions which need to be
+	// satisfied to take the associated action.
+	// If empty, the default behaviour applies - the counter of failed job replicas
+	// is incremented and it is checked against the backoffLimit.
+	// +optional
+	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+}
+
+// RadixJobComponentFailurePolicyRuleOnExitCodesOperator specifies the relationship between a job replica's exit code
+// and the list of exit codes in the requirement.
+// +kubebuilder:validation:Enum=In;NotIn
+type RadixJobComponentFailurePolicyRuleOnExitCodesOperator string
+
+const (
+	// The requirement is satisfied if the job replica's exit code is in the set of specified values.
+	RadixJobComponentFailurePolicyRuleOnExitCodesOpIn RadixJobComponentFailurePolicyRuleOnExitCodesOperator = "In"
+
+	// The requirement is satisfied if the job replica's exit code is not in the set of specified values.
+	RadixJobComponentFailurePolicyRuleOnExitCodesOpNotIn RadixJobComponentFailurePolicyRuleOnExitCodesOperator = "NotIn"
+)
+
+// RadixJobComponentFailurePolicyRuleOnExitCodes describes the requirement for handling
+// a failed job replica based on its exit code.
+type RadixJobComponentFailurePolicyRuleOnExitCodes struct {
+	// Represents the relationship between the job replica's exit code and the
+	// specified values. Replicas completed with success (exit code 0) are
+	// excluded from the requirement check.
+	Operator RadixJobComponentFailurePolicyRuleOnExitCodesOperator `json:"operator"`
+
+	// Specifies the set of values. The job replica's exit code is checked against this set of
+	// values with respect to the operator. The list must not contain duplicates.
+	// Value '0' cannot be used for the In operator.
+	// +kubebuilder:validation:MinItems:=1
+	// +kubebuilder:validation:MaxItems:=255
+	// +kubebuilder:validation:items:Minimum:=0
+	// +listType=set
+	Values []int32 `json:"values"`
+}
+
+// RadixJobComponentFailurePolicyAction specifies how a job replica failure is handled.
+// +kubebuilder:validation:Enum=FailJob;Ignore;Count
+type RadixJobComponentFailurePolicyAction string
+
+const (
+	// This is an action which might be taken on a job replica failure - mark the
+	// job as Failed and terminate all running pods.
+	RadixJobComponentFailurePolicyActionFailJob RadixJobComponentFailurePolicyAction = "FailJob"
+
+	// This is an action which might be taken on a job replica failure - the counter towards
+	// .backoffLimit is not incremented and a replacement replica is created.
+	RadixJobComponentFailurePolicyActionIgnore RadixJobComponentFailurePolicyAction = "Ignore"
+
+	// This is an action which might be taken on a job replica failure - the replica failure
+	// is handled in the default way - the counter towards .backoffLimit is incremented.
+	RadixJobComponentFailurePolicyActionCount RadixJobComponentFailurePolicyAction = "Count"
+)
+
+// RadixJobComponentFailurePolicyRule describes how a job replica failure is handled when the onExitCodes rules are met.
+type RadixJobComponentFailurePolicyRule struct {
+	// Specifies the action taken on a job replica failure when the onExitCodes requirements are satisfied.
+	Action RadixJobComponentFailurePolicyAction `json:"action"`
+
+	// Represents the requirement on the job replica exit codes.
+	OnExitCodes RadixJobComponentFailurePolicyRuleOnExitCodes `json:"onExitCodes"`
+}
+
+// RadixJobComponentFailurePolicy describes how failed job replicas influence the backoffLimit.
+type RadixJobComponentFailurePolicy struct {
+	// A list of failure policy rules. The rules are evaluated in order.
+	// Once a rule matches a job replica failure, the remaining of the rules are ignored.
+	// When no rule matches the failure, the default handling applies - the
+	// counter of failures is incremented and it is checked against
+	// the backoffLimit.
+	// +kubebuilder:validation:MaxItems:=20
+	// +listType=atomic
+	Rules []RadixJobComponentFailurePolicyRule `json:"rules"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -805,6 +883,14 @@ type RadixJobComponentEnvironmentConfig struct {
 	// BatchStatusRules Rules define how a batch status in an environment is set corresponding to batch job statuses
 	// +optional
 	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
+
+	// Specifies the policy of handling failed job replicas. In particular, it allows to
+	// specify the set of actions and conditions which need to be
+	// satisfied to take the associated action.
+	// If empty, the default behaviour applies - the counter of failed job replicas
+	// is incremented and it is checked against the backoffLimit.
+	// +optional
+	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received

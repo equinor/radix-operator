@@ -437,6 +437,10 @@ type RadixDeployJobComponent struct {
 	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
 	// +optional
 	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
+
+	// FailurePolicy specifies the policy of handling failed job replicas
+	// +optional
+	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {

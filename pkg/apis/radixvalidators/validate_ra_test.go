@@ -712,6 +712,24 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid value network.ingress.public.allow for component environment config", radixvalidators.ErrInvalidIPv4OrCIDR, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("any")}}}}
 		}},
+		{"invalid exit code 0 for In operator in failure policy for job", radixvalidators.ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].FailurePolicy = &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{
+						Action:      radixv1.RadixJobComponentFailurePolicyActionFailJob,
+						OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{0}},
+					},
+				}}
+		}},
+		{"invalid exit code 0 for In operator in failure policy for job environment config", radixvalidators.ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].FailurePolicy = &radixv1.RadixJobComponentFailurePolicy{
+				Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+					{
+						Action:      radixv1.RadixJobComponentFailurePolicyActionFailJob,
+						OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn, Values: []int32{0}},
+					},
+				}}
+		}},
 	}
 
 	_, client := validRASetup()
