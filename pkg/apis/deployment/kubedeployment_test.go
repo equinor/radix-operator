@@ -57,21 +57,21 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	createProbe := func(handler v1.RadixProbeHandler, seconds int32) *v1.RadixProbe {
 		return &v1.RadixProbe{
 			RadixProbeHandler:   handler,
-			InitialDelaySeconds: pointers.Ptr(seconds),
-			TimeoutSeconds:      pointers.Ptr(seconds + 1),
-			PeriodSeconds:       pointers.Ptr(seconds + 2),
-			SuccessThreshold:    pointers.Ptr(seconds + 3),
-			FailureThreshold:    pointers.Ptr(seconds + 4),
+			InitialDelaySeconds: seconds,
+			TimeoutSeconds:      seconds + 1,
+			PeriodSeconds:       seconds + 2,
+			SuccessThreshold:    seconds + 3,
+			FailureThreshold:    seconds + 4,
 			// TerminationGracePeriodSeconds: pointers.Ptr(int64(seconds + 5)),
 		}
 	}
 
 	readynessProbe := createProbe(v1.RadixProbeHandler{HTTPGet: &v1.RadixProbeHTTPGetAction{
-		Port: pointers.Ptr[int32](5000),
+		Port: 5000,
 	}}, 10)
 
 	livenessProbe := createProbe(v1.RadixProbeHandler{TCPSocket: &v1.RadixProbeTCPSocketAction{
-		Port: pointers.Ptr[int32](5000),
+		Port: 5000,
 	}}, 20)
 	startuProbe := createProbe(v1.RadixProbeHandler{Exec: &v1.RadixProbeExecAction{
 		Command: []string{"echo", "hello"},

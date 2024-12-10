@@ -612,13 +612,13 @@ func Test_invalid_ra(t *testing.T) {
 		{"custom healthchecks are valid", nil, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz")}},
+					RadixProbeHandler: radixv1.RadixProbeHandler{HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"}},
 				},
 				ReadinessProbe: &radixv1.RadixProbe{
 					RadixProbeHandler: radixv1.RadixProbeHandler{Exec: &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}}},
 				},
 				StartupProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](5000)}},
+					RadixProbeHandler: radixv1.RadixProbeHandler{TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000}},
 				},
 			}
 		}},
@@ -626,23 +626,23 @@ func Test_invalid_ra(t *testing.T) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
 					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz")},
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
 						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](5000)},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 					},
 				},
 				ReadinessProbe: &radixv1.RadixProbe{
 					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz")},
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
 						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](5000)},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 					},
 				},
 				StartupProbe: &radixv1.RadixProbe{
 					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz")},
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
 						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](5000)},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 					},
 				},
 			}

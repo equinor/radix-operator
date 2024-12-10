@@ -1052,18 +1052,18 @@ func Test_GetRadixComponents_CustomHealthChecks(t *testing.T) {
 	createProbe := func(handler radixv1.RadixProbeHandler, seconds int32) *radixv1.RadixProbe {
 		return &radixv1.RadixProbe{
 			RadixProbeHandler:   handler,
-			InitialDelaySeconds: &seconds,
-			TimeoutSeconds:      pointers.Ptr(seconds + 1),
-			PeriodSeconds:       pointers.Ptr(seconds + 2),
-			SuccessThreshold:    pointers.Ptr(seconds + 3),
-			FailureThreshold:    pointers.Ptr(seconds + 4),
+			InitialDelaySeconds: seconds,
+			TimeoutSeconds:      seconds + 1,
+			PeriodSeconds:       seconds + 2,
+			SuccessThreshold:    seconds + 3,
+			FailureThreshold:    seconds + 4,
 			// TerminationGracePeriodSeconds: pointers.Ptr(int64(seconds + 5)),
 		}
 	}
 
-	httpProbe := radixv1.RadixProbeHandler{HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: pointers.Ptr[int32](5000), Path: pointers.Ptr("/healthz"), Scheme: pointers.Ptr(corev1.URISchemeHTTP)}}
+	httpProbe := radixv1.RadixProbeHandler{HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz", Scheme: corev1.URISchemeHTTP}}
 	execProbe := radixv1.RadixProbeHandler{Exec: &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz /healthz"}}}
-	tcpProbe := radixv1.RadixProbeHandler{TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: pointers.Ptr[int32](8000)}}
+	tcpProbe := radixv1.RadixProbeHandler{TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 8000}}
 
 	testCases := []struct {
 		description      string

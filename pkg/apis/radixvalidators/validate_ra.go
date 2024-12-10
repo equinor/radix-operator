@@ -838,52 +838,42 @@ func validateHealthChecks(app *radixv1.RadixApplication) error {
 			continue
 		}
 
-		if err := validateProbe(component.HealthChecks.StartupProbe, "StartupProbe"); err != nil {
+		if err := validateProbe(component.HealthChecks.StartupProbe); err != nil {
 			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "StartupProbe", err))
 		}
-		if err := validateProbe(component.HealthChecks.ReadinessProbe, "ReadinessProbe"); err != nil {
+		if err := validateProbe(component.HealthChecks.ReadinessProbe); err != nil {
 			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "ReadinessProbe", err))
 		}
-		if err := validateProbe(component.HealthChecks.LivenessProbe, "LivenessProbe"); err != nil {
+		if err := validateProbe(component.HealthChecks.LivenessProbe); err != nil {
 			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "LivenessProbe", err))
+		}
+
+		// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+		if component.HealthChecks.StartupProbe != nil && component.HealthChecks.StartupProbe.SuccessThreshold > 1 {
+			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "StartupProbe", fmt.Errorf("SuccessThreshold must be equal to 1")))
+		}
+
+		// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+		if component.HealthChecks.LivenessProbe != nil && component.HealthChecks.LivenessProbe.SuccessThreshold > 1 {
+			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "LivenessProbe", fmt.Errorf("SuccessThreshold must be equal to 1")))
 		}
 	}
 
 	return errors.Join(errs...)
 }
 
-func validateProbe(probe *radixv1.RadixProbe, name string) error {
+func validateProbe(probe *radixv1.RadixProbe) error {
 	if probe == nil {
 		return nil
 	}
-	var errs []error
 
 	if (probe.HTTPGet != nil && (probe.TCPSocket != nil || probe.Exec != nil)) ||
 		(probe.TCPSocket != nil && (probe.HTTPGet != nil || probe.Exec != nil)) ||
 		(probe.Exec != nil && (probe.HTTPGet != nil || probe.TCPSocket != nil)) {
-		errs = append(errs, fmt.Errorf("HTTPGet, TCPSocket and Exec are mutually exclusive"))
+		return fmt.Errorf("HTTPGet, TCPSocket and Exec are mutually exclusive")
 	}
 
-	if probe.InitialDelaySeconds != nil && *probe.InitialDelaySeconds < 1 {
-		errs = append(errs, fmt.Errorf("InitialDelaySeconds must be equal or greater than 1"))
-	}
-
-	if probe.TimeoutSeconds != nil && *probe.TimeoutSeconds < 1 {
-		errs = append(errs, fmt.Errorf("TimeoutSeconds must be equal or greater than 1"))
-	}
-
-	if probe.PeriodSeconds != nil && *probe.PeriodSeconds < 1 {
-		errs = append(errs, fmt.Errorf("PeriodSeconds must be equal or greater than 1"))
-	}
-
-	if probe.SuccessThreshold != nil && *probe.SuccessThreshold < 1 {
-		errs = append(errs, fmt.Errorf("SuccessThreshold must be equal or greater than 1"))
-	}
-	if (name == "StartupProbe" || name == "LivenessProbe") && probe.SuccessThreshold != nil && *probe.SuccessThreshold != 1 {
-		errs = append(errs, fmt.Errorf("SuccessThreshold must be equal to 1 for Liveness and Startup probes"))
-	}
-
-	return errors.Join(errs...)
+	return nil
 }
 
 func getEnvVarNameMap(componentEnvVarsMap radixv1.EnvVarsMap, envsEnvVarsMap radixv1.EnvVarsMap) map[string]bool {
