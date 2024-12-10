@@ -55,6 +55,7 @@ var (
 		validateHorizontalScalingConfigForRA,
 		validateVolumeMountConfigForRA,
 		ValidateNotificationsForRA,
+		validateHealthChecks,
 	}
 
 	ipOrCidrRegExp = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
@@ -870,6 +871,52 @@ func validateRadixComponentSecrets(component radixv1.RadixCommonComponent, app *
 	}
 
 	return validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap)
+}
+
+func validateHealthChecks(app *radixv1.RadixApplication) error {
+	var errs []error
+
+	for _, component := range app.Spec.Components {
+		if component.HealthChecks == nil {
+			continue
+		}
+
+		if err := validateProbe(component.HealthChecks.StartupProbe); err != nil {
+			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "StartupProbe", err))
+		}
+		if err := validateProbe(component.HealthChecks.ReadinessProbe); err != nil {
+			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "ReadinessProbe", err))
+		}
+		if err := validateProbe(component.HealthChecks.LivenessProbe); err != nil {
+			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "LivenessProbe", err))
+		}
+
+		// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+		if component.HealthChecks.StartupProbe != nil && component.HealthChecks.StartupProbe.SuccessThreshold > 1 {
+			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "StartupProbe", fmt.Errorf("SuccessThreshold must be equal to 1")))
+		}
+
+		// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+		if component.HealthChecks.LivenessProbe != nil && component.HealthChecks.LivenessProbe.SuccessThreshold > 1 {
+			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "LivenessProbe", fmt.Errorf("SuccessThreshold must be equal to 1")))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateProbe(probe *radixv1.RadixProbe) error {
+	if probe == nil {
+		return nil
+	}
+
+	if (probe.HTTPGet != nil && (probe.TCPSocket != nil || probe.Exec != nil)) ||
+		(probe.TCPSocket != nil && (probe.HTTPGet != nil || probe.Exec != nil)) ||
+		(probe.Exec != nil && (probe.HTTPGet != nil || probe.TCPSocket != nil)) {
+		return fmt.Errorf("HTTPGet, TCPSocket and Exec are mutually exclusive")
+	}
+
+	return nil
 }
 
 func getEnvVarNameMap(componentEnvVarsMap radixv1.EnvVarsMap, envsEnvVarsMap radixv1.EnvVarsMap) map[string]bool {
