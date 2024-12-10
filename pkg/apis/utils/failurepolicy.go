@@ -8,6 +8,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 )
 
+// GetPodFailurePolicy converts a RadixJobComponentFailurePolicy into a native Kubernetes batch PodFailurePolicy
 func GetPodFailurePolicy(failurePolicy *radixv1.RadixJobComponentFailurePolicy) *batchv1.PodFailurePolicy {
 	if failurePolicy == nil {
 		return nil
