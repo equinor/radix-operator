@@ -163,6 +163,10 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+      with:
+        platforms: |
+          linux/amd64
+          linux/arm64
 
     - name: Copy image
       run: docker buildx imagetools create -t ${{ steps.metadata.outputs.operator }}  ${{ needs.build-operator.outputs.fullname }}
