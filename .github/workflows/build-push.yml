@@ -33,9 +33,11 @@ jobs:
           sha=${GITHUB_SHA::8}
           ts=$(date +%s)
           tag=${GITHUB_REF_NAME}-${sha}-${ts}
+          tag_latest=${GITHUB_REF_NAME}-latest
           image="radix-operator"
           echo "tag=$tag" >> $GITHUB_OUTPUT
           echo "fullname=ghcr.io/equinor/$image:$tag" >> $GITHUB_OUTPUT
+          echo "fullname_latest=ghcr.io/equinor/$image:$tag_latest" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -49,9 +51,11 @@ jobs:
           platforms: |
             linux/amd64
             linux/arm64
-          tags: "${{ steps.metadata.outputs.fullname }}"
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: |
+            ${{ steps.metadata.outputs.fullname }}
+            ${{ steps.metadata.outputs.fullname_latest }}
+          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
+          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache,mode=max"
 
   build-pipelinerunner:
     runs-on: ubuntu-20.04
@@ -96,9 +100,8 @@ jobs:
           tags: |
             ${{ steps.metadata.outputs.fullname }}
             ${{ steps.metadata.outputs.fullname_latest }}
-
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
+          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache",mode=max"
 
   deploy:
     runs-on: ubuntu-20.04
