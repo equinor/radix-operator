@@ -315,11 +315,17 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	}
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
-	readinessProbe, err := getReadinessProbeForComponent(deployComponent)
-	if err != nil {
-		return err
+	if hc := deployComponent.GetHealthChecks(); hc != nil {
+		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = hc.ReadinessProbe.MapToCoreProbe()
+		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = hc.LivenessProbe.MapToCoreProbe()
+		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = hc.StartupProbe.MapToCoreProbe()
+	} else {
+		readinessProbe, err := getDefaultReadinessProbeForComponent(deployComponent)
+		if err != nil {
+			return err
+		}
+		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 	}
-	desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 
 	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, appName, deploy.radixDeployment, deployComponent)
 	if err != nil {
@@ -449,7 +455,7 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 	return componentType != commonComponent.GetType()
 }
 
-func getReadinessProbeForComponent(component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {
+func getDefaultReadinessProbeForComponent(component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {
 	if len(component.GetPorts()) == 0 {
 		return nil, nil
 	}

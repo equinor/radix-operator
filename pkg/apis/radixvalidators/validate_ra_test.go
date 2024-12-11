@@ -606,6 +606,41 @@ func Test_invalid_ra(t *testing.T) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
 		}},
+		{"invalid healthchecks are invalid", radixvalidators.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
+				LivenessProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
+					},
+				},
+				ReadinessProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
+					},
+				},
+				StartupProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
+					},
+				},
+			}
+		}},
+		{"invalid healthchecks are invalid", radixvalidators.ErrSuccessThresholdMustBeOne, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
+				LivenessProbe: &radixv1.RadixProbe{
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+					},
+					SuccessThreshold: 5,
+				},
+			}
+		}},
 		{"duplicate name in job/component boundary", radixvalidators.DuplicateComponentOrJobNameErrorWithMessage([]string{validRAFirstComponentName}), func(ra *radixv1.RadixApplication) {
 			job := *ra.Spec.Jobs[0].DeepCopy()
 			job.Name = validRAFirstComponentName

@@ -346,6 +346,11 @@ type RadixComponent struct {
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
+	// HealthChecks can tell Radix if your application is ready to receive traffic.
+	// Defaults to a TCP check against your first listed port.
+	// If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
+	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
+
 	// Name of an existing container image to use when running the component.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image
 	// +optional
@@ -488,6 +493,11 @@ type RadixEnvironmentConfig struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image
 	// +optional
 	Image string `json:"image,omitempty"`
+
+	// HealthChecks can tell Radix if your application is ready to receive traffic.
+	// Defaults to a TCP check against your first listed port.
+	// If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
+	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
 
 	// Number of desired replicas.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas

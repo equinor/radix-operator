@@ -31,6 +31,20 @@ spec:
           clientId: 11111111-2222-BBBB-cccc-555555555555
       runtime:
         architecture: arm64
+      healthChecks:
+        startupProbe:
+          tcpSocket:
+            port: 8000
+        livenessProbe:
+          tcpSocket:
+            port: 8000
+          successThreshold: 1
+        readinessProbe:
+          successThreshold: 1
+          periodSeconds: 30
+          httpGet:
+            port: 8000
+            path: /healthz
       network:
         ingress:
           public:
@@ -54,6 +68,20 @@ spec:
                 refresh: 30m
                 expire: 168h
                 sameSite: "strict"
+          healthChecks:
+            startupProbe:
+              tcpSocket:
+                port: 8000
+            livenessProbe:
+              tcpSocket:
+                port: 8000
+              successThreshold: 1
+            readinessProbe:
+              successThreshold: 1
+              periodSeconds: 30
+              httpGet:
+                port: 8000
+                path: /healthz
           resources:
             limits:
               memory: "512Mi"
