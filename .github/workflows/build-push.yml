@@ -54,8 +54,8 @@ jobs:
           tags: |
             ${{ steps.metadata.outputs.fullname }}
             ${{ steps.metadata.outputs.fullname_latest }}
-          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}"
-          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}",mode=max"
+          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
+          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache",mode=max"
 
   build-pipelinerunner:
     runs-on: ubuntu-20.04
@@ -100,8 +100,8 @@ jobs:
           tags: |
             ${{ steps.metadata.outputs.fullname }}
             ${{ steps.metadata.outputs.fullname_latest }}
-          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}"
-          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}",mode=max"
+          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
+          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache",mode=max"
 
   deploy:
     runs-on: ubuntu-20.04
