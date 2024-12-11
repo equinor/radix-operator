@@ -55,7 +55,6 @@ var (
 		validateHorizontalScalingConfigForRA,
 		validateVolumeMountConfigForRA,
 		ValidateNotificationsForRA,
-		validateHealthChecks,
 	}
 
 	ipOrCidrRegExp = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
@@ -332,6 +331,10 @@ func validateComponent(app *radixv1.RadixApplication, component radixv1.RadixCom
 		errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
 	}
 
+	if err := validateHealthChecks(component.HealthChecks); err != nil {
+		errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
+	}
+
 	for _, environment := range component.EnvironmentConfig {
 		if err := validateComponentEnvironment(app, component, environment); err != nil {
 			errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
@@ -371,6 +374,10 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 
 	if err := validateNetwork(environment.Network); err != nil {
 		errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
+	}
+
+	if err := validateHealthChecks(environment.HealthChecks); err != nil {
+		errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
 	}
 
 	return errors.Join(errs...)
@@ -873,33 +880,31 @@ func validateRadixComponentSecrets(component radixv1.RadixCommonComponent, app *
 	return validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap)
 }
 
-func validateHealthChecks(app *radixv1.RadixApplication) error {
+func validateHealthChecks(healthChecks *radixv1.RadixHealthChecks) error {
+	if healthChecks == nil {
+		return nil
+	}
+
 	var errs []error
 
-	for _, component := range app.Spec.Components {
-		if component.HealthChecks == nil {
-			continue
-		}
+	if err := validateProbe(healthChecks.StartupProbe); err != nil {
+		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "StartupProbe", err))
+	}
+	if err := validateProbe(healthChecks.ReadinessProbe); err != nil {
+		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "ReadinessProbe", err))
+	}
+	if err := validateProbe(healthChecks.LivenessProbe); err != nil {
+		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "LivenessProbe", err))
+	}
 
-		if err := validateProbe(component.HealthChecks.StartupProbe); err != nil {
-			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "StartupProbe", err))
-		}
-		if err := validateProbe(component.HealthChecks.ReadinessProbe); err != nil {
-			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "ReadinessProbe", err))
-		}
-		if err := validateProbe(component.HealthChecks.LivenessProbe); err != nil {
-			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "LivenessProbe", err))
-		}
+	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+	if healthChecks.StartupProbe != nil && healthChecks.StartupProbe.SuccessThreshold > 1 {
+		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "StartupProbe", ErrSuccessThresholdMustBeOne))
+	}
 
-		// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
-		if component.HealthChecks.StartupProbe != nil && component.HealthChecks.StartupProbe.SuccessThreshold > 1 {
-			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "StartupProbe", fmt.Errorf("SuccessThreshold must be equal to 1")))
-		}
-
-		// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
-		if component.HealthChecks.LivenessProbe != nil && component.HealthChecks.LivenessProbe.SuccessThreshold > 1 {
-			errs = append(errs, ComponentHasInvalidHealthChecks(component.Name, "LivenessProbe", fmt.Errorf("SuccessThreshold must be equal to 1")))
-		}
+	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+	if healthChecks.LivenessProbe != nil && healthChecks.LivenessProbe.SuccessThreshold > 1 {
+		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "LivenessProbe", ErrSuccessThresholdMustBeOne))
 	}
 
 	return errors.Join(errs...)
@@ -910,10 +915,25 @@ func validateProbe(probe *radixv1.RadixProbe) error {
 		return nil
 	}
 
-	if (probe.HTTPGet != nil && (probe.TCPSocket != nil || probe.Exec != nil)) ||
-		(probe.TCPSocket != nil && (probe.HTTPGet != nil || probe.Exec != nil)) ||
-		(probe.Exec != nil && (probe.HTTPGet != nil || probe.TCPSocket != nil)) {
-		return fmt.Errorf("HTTPGet, TCPSocket and Exec are mutually exclusive")
+	definedProbes := 0
+	if probe.HTTPGet != nil {
+		definedProbes++
+	}
+
+	if probe.TCPSocket != nil {
+		definedProbes++
+	}
+
+	if probe.Exec != nil {
+		definedProbes++
+	}
+
+	if probe.GRPC != nil {
+		definedProbes++
+	}
+
+	if definedProbes > 1 {
+		return ErrInvalidHealthCheckProbe
 	}
 
 	return nil

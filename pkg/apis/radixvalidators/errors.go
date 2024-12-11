@@ -27,6 +27,8 @@ var (
 	ErrMemoryResourceRequirementFormat                                     = errors.New("memory resource requirement format")
 	ErrCPUResourceRequirementFormat                                        = errors.New("cpu resource requirement format")
 	ErrInvalidVerificationType                                             = errors.New("invalid verification")
+	ErrInvalidHealthCheckProbe                                             = errors.New("probe configuration error, only one action allowed")
+	ErrSuccessThresholdMustBeOne                                           = errors.New("success threshold must be equal to one")
 	ErrResourceRequestOverLimit                                            = errors.New("resource request over limit")
 	ErrInvalidResource                                                     = errors.New("invalid resource")
 	ErrDuplicateExternalAlias                                              = errors.New("duplicate external alias")
@@ -180,11 +182,6 @@ func ComponentForDNSExternalAliasNotDefinedErrorWithMessage(component string) er
 // ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage Component is not marked as public
 func ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage(component string) error {
 	return errors.WithMessagef(ErrComponentForDNSExternalAliasIsNotMarkedAsPublic, "component %s referred to by dnsExternalAlias is not marked as public", component)
-}
-
-// ComponentHasInvalidHealthChecks Component has invalid health checks
-func ComponentHasInvalidHealthChecks(component string, probeName string, err error) error {
-	return errors.WithMessagef(ErrComponentHasInvalidHealthCheck, "component %s has invalid health check %s: %s", component, probeName, err.Error())
 }
 
 // EnvironmentReferencedByComponentDoesNotExistErrorWithMessage Environment does not exists

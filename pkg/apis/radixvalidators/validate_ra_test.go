@@ -606,44 +606,38 @@ func Test_invalid_ra(t *testing.T) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
 		}},
-		{"no healthchecks are valid", nil, func(rr *radixv1.RadixApplication) {
-			rr.Spec.Components[0].HealthChecks = nil
-		}},
-		{"custom healthchecks are valid", nil, func(rr *radixv1.RadixApplication) {
+		{"invalid healthchecks are invalid", radixvalidators.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"}},
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
+					},
 				},
 				ReadinessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{Exec: &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}}},
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
+					},
 				},
 				StartupProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000}},
+					RadixProbeHandler: radixv1.RadixProbeHandler{
+						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
+					},
 				},
 			}
 		}},
-		{"invalid healthchecks are invalid", radixvalidators.ErrComponentHasInvalidHealthCheck, func(rr *radixv1.RadixApplication) {
+		{"invalid healthchecks are invalid", radixvalidators.ErrSuccessThresholdMustBeOne, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
 					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
+						HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
 					},
-				},
-				ReadinessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
-					},
-				},
-				StartupProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
-					},
+					SuccessThreshold: 5,
 				},
 			}
 		}},
