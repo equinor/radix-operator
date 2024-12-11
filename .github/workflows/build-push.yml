@@ -55,7 +55,7 @@ jobs:
             ${{ steps.metadata.outputs.fullname }}
             ${{ steps.metadata.outputs.fullname_latest }}
           cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
-          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache",mode=max"
+          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache,mode=max"
 
   build-pipelinerunner:
     runs-on: ubuntu-20.04
