@@ -36,6 +36,8 @@ jobs:
           echo "tag=${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
           echo "fullname=ghcr.io/${{ github.repository }}:${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push radix-operator docker image
         uses: docker/build-push-action@v5
@@ -73,6 +75,9 @@ jobs:
           ts=$(date +%s)
           echo "tag=${GITHUB_REF_NAME}-latest" >> $GITHUB_OUTPUT
           echo "fullname=ghcr.io/${{ github.repository }}:${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push pipeline-runner docker image
         uses: docker/build-push-action@v5
@@ -176,7 +181,6 @@ jobs:
     - name: Pull Pipelinerunner
       run: docker pull ${{ needs.build-pipelinerunner.outputs.fullname }}
 
-
     - name: Re-Tag Operator
       run: docker tag ${{ needs.build-operator.outputs.fullname }} ${{ steps.metadata.outputs.operator }}
 
@@ -185,6 +189,7 @@ jobs:
 
     - name: Push Operator to Target Registry
       run: docker push ${{ steps.metadata.outputs.operator }}
+
     - name: Push Pipeline Runner to Target Registry
       run: docker push ${{ steps.metadata.outputs.pipeline }}
 
