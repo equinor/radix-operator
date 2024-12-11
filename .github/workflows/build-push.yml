@@ -33,8 +33,9 @@ jobs:
           sha=${GITHUB_SHA::8}
           ts=$(date +%s)
           tag=${GITHUB_REF_NAME}-${sha}-${ts}
+          image="radix-operator"
           echo "tag=$tag" >> $GITHUB_OUTPUT
-          echo "fullname=ghcr.io/${{ github.repository }}:$tag" >> $GITHUB_OUTPUT
+          echo "fullname=ghcr.io/equinor/$image:$tag" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -75,9 +76,10 @@ jobs:
           ts=$(date +%s)
           tag_latest=${GITHUB_REF_NAME}-latest
           tag=${GITHUB_REF_NAME}-${sha}-${ts}
+          image="radix-pipeline-runner"
           echo "tag_latest=$tag_latest" >> $GITHUB_OUTPUT
-          echo "fullname=ghcr.io/${{ github.repository }}:$tag" >> $GITHUB_OUTPUT
-          echo "fullname_latest=ghcr.io/${{ github.repository }}:$tag_latest" >> $GITHUB_OUTPUT
+          echo "fullname=ghcr.io/equinor/$image:$tag" >> $GITHUB_OUTPUT
+          echo "fullname_latest=ghcr.io/equinor/$image:$tag_latest" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
