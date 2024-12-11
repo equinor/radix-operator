@@ -888,23 +888,23 @@ func validateHealthChecks(healthChecks *radixv1.RadixHealthChecks) error {
 	var errs []error
 
 	if err := validateProbe(healthChecks.StartupProbe); err != nil {
-		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "StartupProbe", err))
+		errs = append(errs, fmt.Errorf("probe StartupProbe is invalid: %w", err))
 	}
 	if err := validateProbe(healthChecks.ReadinessProbe); err != nil {
-		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "ReadinessProbe", err))
+		errs = append(errs, fmt.Errorf("probe ReadinessProbe is invalid: %w", err))
 	}
 	if err := validateProbe(healthChecks.LivenessProbe); err != nil {
-		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "LivenessProbe", err))
+		errs = append(errs, fmt.Errorf("probe LivenessProbe is invalid: %w", err))
 	}
 
 	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
 	if healthChecks.StartupProbe != nil && healthChecks.StartupProbe.SuccessThreshold > 1 {
-		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "StartupProbe", ErrSuccessThresholdMustBeOne))
+		errs = append(errs, fmt.Errorf("probe StartupProbe is invalid: %w", ErrSuccessThresholdMustBeOne))
 	}
 
 	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
 	if healthChecks.LivenessProbe != nil && healthChecks.LivenessProbe.SuccessThreshold > 1 {
-		errs = append(errs, fmt.Errorf("probe %s is invald: %w", "LivenessProbe", ErrSuccessThresholdMustBeOne))
+		errs = append(errs, fmt.Errorf("probe LivenessProbe is invalid: %w", ErrSuccessThresholdMustBeOne))
 	}
 
 	return errors.Join(errs...)
