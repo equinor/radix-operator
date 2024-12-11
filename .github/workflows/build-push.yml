@@ -75,7 +75,6 @@ jobs:
           ts=$(date +%s)
           tag_latest=${GITHUB_REF_NAME}-latest
           tag=${GITHUB_REF_NAME}-${sha}-${ts}
-          echo "tag=$tag" >> $GITHUB_OUTPUT
           echo "tag_latest=$tag_latest" >> $GITHUB_OUTPUT
           echo "fullname=ghcr.io/${{ github.repository }}:$tag" >> $GITHUB_OUTPUT
           echo "fullname_latest=ghcr.io/${{ github.repository }}:$tag_latest" >> $GITHUB_OUTPUT
