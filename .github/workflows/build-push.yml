@@ -16,8 +16,6 @@ jobs:
     name: Build Operator
     outputs:
       tag: ${{ steps.metadata.outputs.tag }}
-      image: ${{ steps.metadata.outputs.name }}
-      repository: ${{ steps.metadata.outputs.repo }}
       fullname: ${{ steps.metadata.outputs.fullname }}
     steps:
       - uses: actions/checkout@v4
@@ -34,9 +32,7 @@ jobs:
         run: |
           sha=${GITHUB_SHA::8}
           ts=$(date +%s)
-          echo "repo=ghcr.io" >> $GITHUB_OUTPUT
           echo "tag=${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
-          echo "name=${{ github.repository }}" >> $GITHUB_OUTPUT
           echo "fullname=ghcr.io/${{ github.repository }}:${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
 
 
@@ -58,8 +54,6 @@ jobs:
     name: Build Pipeline runner
     outputs:
       tag: ${{ steps.metadata.outputs.tag }}
-      image: ${{ steps.metadata.outputs.name }}
-      repository: ${{ steps.metadata.outputs.repo }}
       fullname: ${{ steps.metadata.outputs.fullname }}
     steps:
       - uses: actions/checkout@v4
@@ -76,9 +70,7 @@ jobs:
         run: |
           sha=${GITHUB_SHA::8}
           ts=$(date +%s)
-          echo "repo=ghcr.io" >> $GITHUB_OUTPUT
           echo "tag=${GITHUB_REF_NAME}-latest" >> $GITHUB_OUTPUT
-          echo "name=ghcr.io/${{ github.repository }}" >> $GITHUB_OUTPUT
           echo "fullname=ghcr.io/${{ github.repository }}:${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
 
       - name: Build and push pipeline-runner docker image
@@ -168,6 +160,12 @@ jobs:
           exit 1
         fi
 
+    - name: Build image tags
+      id: metadata
+      run: |
+        echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
+        echo "pipeline=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag }}" >> $GITHUB_OUTPUT
+
     - name: ACR Login
       run: az acr login --name ${{ matrix.target.acr-name }}
 
@@ -175,59 +173,19 @@ jobs:
       run: docker pull ${{ needs.build-operator.outputs.fullname }}
 
     - name: Pull Pipelinerunner
-      run: docker pull ${{ needs.build-operator.outputs.fullname }} //TODO
+      run: docker pull ${{ needs.build-pipelinerunner.outputs.fullname }}
 
 
-    - name: Tag the Docker Image
-      run: docker tag ${{ needs.build-operator.outputs.fullname }} ${{ github.event.inputs.target_image }}
+    - name: Re-Tag Operator
+      run: docker tag ${{ needs.build-operator.outputs.fullname }} ${{ steps.metadata.outputs.operator }}
 
-    - name: Push the Docker Image to Target Registry
-      run: docker push ${{ github.event.inputs.target_image }}
+    - name: Re-Tag Pipeline Runner
+      run: docker tag ${{ needs.build-pipelinerunner.outputs.fullname }} ${{ steps.metadata.outputs.pipeline }}
 
-
-    - name: Build image tags
-      id: build-tags
-      run: |
-        sha=${GITHUB_SHA::8}
-        ts=$(date +%s)
-        echo "radix-operator-tag=${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
-        echo "pipeline-runner-tag=${GITHUB_REF_NAME}-latest" >> $GITHUB_OUTPUT
-        echo "cache-radix-operator-tag=cache-radix-operator-${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-        echo "cache-pipeline-runner-tag=cache-pipeline-runner-${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-
-    - name: Extract labels from metadata for Docker
-      id: radix-operator-meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ steps.build-image-names.outputs.radix-operator-image-name }}
-
-    - name: Build and push radix-operator docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        file: ./operator.Dockerfile
-        platforms: |
-          linux/amd64
-          linux/arm64
-        tags: "${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
-        labels: ${{ steps.radix-operator-meta.outputs.labels }}
-        cache-from: "type=registry,ref=${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.cache-radix-operator-tag }}"
-        cache-to: "type=registry,ref=${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.cache-radix-operator-tag }},mode=max"
-
-    - name: Build and push pipeline-runner docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        file: ./pipeline.Dockerfile
-        platforms: |
-          linux/amd64
-          linux/arm64
-        tags: "${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.pipeline-runner-tag }}"
-        labels: ${{ steps.pipeline-runner-meta.outputs.labels }}
-        cache-from: "type=registry,ref=${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.cache-pipeline-runner-tag }}"
-        cache-to: "type=registry,ref=${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.cache-pipeline-runner-tag }},mode=max"
+    - name: Push Operator to Target Registry
+      run: docker push ${{ steps.metadata.outputs.operator }}
+    - name: Push Pipeline Runner to Target Registry
+      run: docker push ${{ steps.metadata.outputs.pipeline }}
 
     - name: Revoke GitHub IP on ACR
       if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
