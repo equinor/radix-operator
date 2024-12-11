@@ -160,8 +160,6 @@ jobs:
       run: |
         echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
         echo "pipeline=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag_latest }}" >> $GITHUB_OUTPUT
-        echo "cache-radix-operator-tag=cache-radix-operator-${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-        echo "cache-pipeline-runner-tag=cache-pipeline-runner-${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
 
     - name: ACR Login
       run: az acr login --name ${{ matrix.target.acr-name }}
