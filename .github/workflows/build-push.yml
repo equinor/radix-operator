@@ -151,28 +151,7 @@ jobs:
 
     - name: Wait for 2 minutes while the network rule to take effect
       run: |
-        sleep 120
-
-    - name: Wait for Specific IP in ACR Network Rules
-      run: |
-        MAX_ATTEMPTS=10
-        ATTEMPT=0
-        TARGET_IP="${{ steps.github_public_ip.outputs.ipv4 }}"
-        echo "Waiting for IP $TARGET_IP to be allowed in ACR network rules..."
-        while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-          NETWORK_RULES=$(az acr network-rule list --name ${{matrix.target.acr-name}} --subscription ${{ matrix.target.subscription-id }}   --query "ipRules[]|[?contains(ipAddressOrRange, '$TARGET_IP')]"  --output tsv)
-          if [ -n "$NETWORK_RULES" ]; then
-            echo "IP $TARGET_IP is allowed."
-            break
-          fi
-          echo "Attempt $((ATTEMPT+1)) of $MAX_ATTEMPTS. Retrying in 10 seconds..."
-          ATTEMPT=$((ATTEMPT+1))
-          sleep 10
-        done
-        if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-          echo "IP $TARGET_IP was not allowed after $MAX_ATTEMPTS attempts. Exiting."
-          exit 1
-        fi
+        sleep 30
 
     - name: Build image tags
       id: metadata
@@ -183,23 +162,13 @@ jobs:
     - name: ACR Login
       run: az acr login --name ${{ matrix.target.acr-name }}
 
-    - name: Pull Operator
-      run: docker pull ${{ needs.build-operator.outputs.fullname }}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-    - name: Pull Pipelinerunner
-      run: docker pull ${{ needs.build-pipelinerunner.outputs.fullname }}
-
-    - name: Re-Tag Operator
-      run: docker tag ${{ needs.build-operator.outputs.fullname }} ${{ steps.metadata.outputs.operator }}
-
-    - name: Re-Tag PipelineRunner
-      run: docker tag ${{ needs.build-pipelinerunner.outputs.fullname }} ${{ steps.metadata.outputs.pipeline }}
-
-    - name: Push Operator to Target Registry
-      run: docker push ${{ steps.metadata.outputs.operator }}
-
-    - name: Push Pipeline Runner to Target Registry
-      run: docker push ${{ steps.metadata.outputs.pipeline }}
+    - name: Copy image
+      run: docker buildx imagetools create -t ${{ steps.metadata.outputs.operator }}  ${{ needs.build-operator.outputs.fullname }}
+    - name: Copy image
+      run: docker buildx imagetools create -t ${{ steps.metadata.outputs.pipeline }}  ${{ needs.build-pipelinerunner.outputs.fullname }}
 
     - name: Revoke GitHub IP on ACR
       if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
