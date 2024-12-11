@@ -150,8 +150,7 @@ jobs:
         --ip-address ${{ steps.github_public_ip.outputs.ipv4 }}
 
     - name: Wait for 2 minutes while the network rule to take effect
-      run: |
-        sleep 30
+      run: sleep 120
 
     - name: Build image tags
       id: metadata
