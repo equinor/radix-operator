@@ -62,6 +62,7 @@ jobs:
     name: Build Pipeline runner
     outputs:
       tag_latest: ${{ steps.metadata.outputs.tag_latest }}
+      tag: ${{ steps.metadata.outputs.tag }}
       fullname: ${{ steps.metadata.outputs.fullname }}
     steps:
       - uses: actions/checkout@v4
@@ -159,7 +160,7 @@ jobs:
     - name: Build image tags
       id: metadata
       run: |
-        echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
+        echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $
         echo "pipeline_latest=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag_latest }}" >> $GITHUB_OUTPUT
 
     - name: ACR Login
