@@ -16,7 +16,7 @@ jobs:
     name: Build Operator
     outputs:
       tag: ${{ steps.metadata.outputs.tag }}
-      fullname: ${{ steps.metadata.outputs.fullname }}
+      fullname_latest: ${{ steps.metadata.outputs.fullname_latest }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,8 +62,7 @@ jobs:
     name: Build Pipeline runner
     outputs:
       tag_latest: ${{ steps.metadata.outputs.tag_latest }}
-      tag: ${{ steps.metadata.outputs.tag }}
-      fullname: ${{ steps.metadata.outputs.fullname }}
+      fullname_latest: ${{ steps.metadata.outputs.fullname_latest }}
     steps:
       - uses: actions/checkout@v4
 
@@ -166,6 +165,13 @@ jobs:
     - name: ACR Login
       run: az acr login --name ${{ matrix.target.acr-name }}
 
+    - name: GHCR Login
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -180,8 +186,8 @@ jobs:
           linux/arm64
         tags: |
           ${{ steps.metadata.outputs.operator }}
-        cache-from: "type=registry,ref=${{ needs.build-operator.outputs.fullname }}-buildcache"
-        cache-to: "type=registry,ref=${{ needs.build-operator.outputs.fullname }}-buildcache,mode=max"
+        cache-from: "type=registry,ref=${{ needs.build-operator.outputs.fullname_latest }}-buildcache"
+        cache-to: "type=registry,ref=${{ needs.build-operator.outputs.fullname_latest }}-buildcache,mode=max"
 
     - name: Build and push pipeline-runner docker image
       uses: docker/build-push-action@v5
@@ -194,8 +200,8 @@ jobs:
           linux/arm64
         tags: |
           ${{ steps.metadata.outputs.pipeline_latest }}
-        cache-from: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname }}-buildcache"
-        cache-to: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname }}-buildcache,mode=max"
+        cache-from: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname_latest }}-buildcache"
+        cache-to: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname_latest }}-buildcache,mode=max"
 
     - name: Revoke GitHub IP on ACR
       if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
