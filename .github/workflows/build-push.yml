@@ -181,7 +181,7 @@ jobs:
       run: |
         docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
         tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
-        echo $tags | xargs docker buildx imagetools create --tag $TARGETREPO
+        echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO
 
     - name: Copy Pipeline Runner image
       env:
@@ -190,7 +190,7 @@ jobs:
       run: |
         docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
         tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
-        echo $tags | xargs docker buildx imagetools create --tag $TARGETREPO
+        echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO
 
     - name: Revoke GitHub IP on ACR
       if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
