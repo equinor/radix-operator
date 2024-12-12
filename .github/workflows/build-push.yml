@@ -171,10 +171,26 @@ jobs:
           linux/amd64
           linux/arm64
 
-    - name: Copy image
-      run: docker buildx imagetools create -t ${{ steps.metadata.outputs.operator }}  ${{ needs.build-operator.outputs.fullname }}
-    - name: Copy image
-      run: docker buildx imagetools create -t ${{ steps.metadata.outputs.pipeline }}  ${{ needs.build-pipelinerunner.outputs.fullname }}
+    # This steps reads the original manifest,
+    # fetches all the digests from the manifest,
+    # and builds a new for the target repository
+    - name: Copy Operator image
+      env:
+        TARGETREPO: ${{ steps.metadata.outputs.operator }}
+        SOURCERPO: ${{ needs.build-operator.outputs.fullname }}
+      run: |
+        docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
+        tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
+        echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO
+
+    - name: Copy Pipeline Runner image
+      env:
+        TARGETREPO: ${{ steps.metadata.outputs.pipeline }}
+        SOURCERPO: ${{ needs.build-pipelinerunner.outputs.fullname }}
+      run: |
+        docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
+        tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
+        echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO
 
     - name: Revoke GitHub IP on ACR
       if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
