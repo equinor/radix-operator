@@ -62,7 +62,6 @@ jobs:
     name: Build Pipeline runner
     outputs:
       tag_latest: ${{ steps.metadata.outputs.tag_latest }}
-      tag: ${{ steps.metadata.outputs.tag }}
       fullname: ${{ steps.metadata.outputs.fullname }}
     steps:
       - uses: actions/checkout@v4
@@ -161,7 +160,6 @@ jobs:
       id: metadata
       run: |
         echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
-        echo "pipeline=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag }}" >> $GITHUB_OUTPUT
         echo "pipeline_latest=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag_latest }}" >> $GITHUB_OUTPUT
 
     - name: ACR Login
@@ -169,34 +167,34 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+
+    - name: Build and push pipeline-runner docker image
+      uses: docker/build-push-action@v5
       with:
+        context: .
+        push: true
+        file: ./pipeline.Dockerfile
         platforms: |
           linux/amd64
           linux/arm64
+        tags: |
+          ${{ steps.metadata.outputs.operator }}
+        cache-from: "type=registry,ref=${{ needs.build-operator.outputs.fullname }}-buildcache"
+        cache-to: "type=registry,ref=${{ needs.build-operator.outputs.fullname }}-buildcache,mode=max"
 
-    # This steps reads the original manifest,
-    # fetches all the digests from the manifest,
-    # and builds a new for the target repository
-    - name: Copy Operator image
-      env:
-        TARGETREPO: ${{ steps.metadata.outputs.operator }}
-        SOURCEREPO: ${{ needs.build-operator.outputs.fullname }}
-      run: |
-        docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
-        tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
-        echo $tags | xargs docker buildx imagetools create --dry-run --tag $TARGETREPO
-        echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO
-
-    - name: Copy Pipeline Runner image
-      env:
-        TARGETREPO: ${{ steps.metadata.outputs.pipeline }}
-        TARGETREPO_LATEST: ${{ steps.metadata.outputs.pipeline_latest }}
-        SOURCEREPO: ${{ needs.build-pipelinerunner.outputs.fullname }}
-      run: |
-        docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
-        tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
-        echo $tags | xargs docker buildx imagetools create --dry-run --tag $TARGETREPO --tag $TARGETREPO_LATEST
-        echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO --tag $TARGETREPO_LATEST
+    - name: Build and push pipeline-runner docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        file: ./pipeline.Dockerfile
+        platforms: |
+          linux/amd64
+          linux/arm64
+        tags: |
+          ${{ steps.metadata.outputs.pipeline_latest }}
+        cache-from: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname }}-buildcache"
+        cache-to: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname }}-buildcache,mode=max"
 
     - name: Revoke GitHub IP on ACR
       if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
