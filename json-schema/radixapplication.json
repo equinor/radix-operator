@@ -400,6 +400,459 @@
                       "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
+                    "healthChecks": {
+                      "description": "HealthChecks can tell Radix if your application is ready to receive traffic.\nDefaults to a TCP check against your first listed port.\nIf any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.",
+                      "properties": {
+                        "livenessProbe": {
+                          "description": "Periodic probe of container liveness.\nContainer will be restarted if the probe fails.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                          "properties": {
+                            "exec": {
+                              "description": "Exec specifies the action to take.",
+                              "properties": {
+                                "command": {
+                                  "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array",
+                                  "x-kubernetes-list-type": "atomic"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "failureThreshold": {
+                              "default": 3,
+                              "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "grpc": {
+                              "description": "GRPC specifies an action involving a GRPC port.",
+                              "properties": {
+                                "port": {
+                                  "description": "Port number of the gRPC service.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                },
+                                "service": {
+                                  "default": "",
+                                  "description": "Service is the name of the service to place in the gRPC HealthCheckRequest\n(see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "httpGet": {
+                              "description": "HTTPGet specifies the http request to perform.",
+                              "properties": {
+                                "host": {
+                                  "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
+                                  "type": "string"
+                                },
+                                "httpHeaders": {
+                                  "description": "Custom headers to set in the request. HTTP allows repeated headers.",
+                                  "items": {
+                                    "description": "HTTPHeader describes a custom header to be used in HTTP probes",
+                                    "properties": {
+                                      "name": {
+                                        "description": "The header field name.\nThis will be canonicalized upon output, so case-variant names will be understood as the same header.",
+                                        "type": "string"
+                                      },
+                                      "value": {
+                                        "description": "The header field value",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "name",
+                                      "value"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "type": "array",
+                                  "x-kubernetes-list-type": "atomic"
+                                },
+                                "path": {
+                                  "description": "Path to access on the HTTP server.",
+                                  "type": "string"
+                                },
+                                "port": {
+                                  "description": "port number to access on the container.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                },
+                                "scheme": {
+                                  "description": "Scheme to use for connecting to the host.\nDefaults to HTTP.",
+                                  "enum": [
+                                    "HTTPS",
+                                    "HTTP"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "initialDelaySeconds": {
+                              "description": "Number of seconds after the container has started before liveness probes are initiated.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                              "format": "int32",
+                              "type": "integer"
+                            },
+                            "periodSeconds": {
+                              "default": 10,
+                              "description": "How often (in seconds) to perform the probe.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "successThreshold": {
+                              "default": 1,
+                              "description": "Minimum consecutive successes for the probe to be considered successful after having failed.\nMust be 1 for liveness and startup.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tcpSocket": {
+                              "description": "TCPSocket specifies an action involving a TCP port.",
+                              "properties": {
+                                "host": {
+                                  "description": "Optional: Host name to connect to, defaults to the pod IP.",
+                                  "type": "string"
+                                },
+                                "port": {
+                                  "description": "port number to access on the container.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "timeoutSeconds": {
+                              "default": 1,
+                              "description": "Number of seconds after which the probe times out.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "readinessProbe": {
+                          "description": "Periodic probe of container service readiness.\nContainer will be removed from service endpoints if the probe fails.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes\nDefaults to TCP Probe against the first listed port",
+                          "properties": {
+                            "exec": {
+                              "description": "Exec specifies the action to take.",
+                              "properties": {
+                                "command": {
+                                  "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array",
+                                  "x-kubernetes-list-type": "atomic"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "failureThreshold": {
+                              "default": 3,
+                              "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "grpc": {
+                              "description": "GRPC specifies an action involving a GRPC port.",
+                              "properties": {
+                                "port": {
+                                  "description": "Port number of the gRPC service.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                },
+                                "service": {
+                                  "default": "",
+                                  "description": "Service is the name of the service to place in the gRPC HealthCheckRequest\n(see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "httpGet": {
+                              "description": "HTTPGet specifies the http request to perform.",
+                              "properties": {
+                                "host": {
+                                  "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
+                                  "type": "string"
+                                },
+                                "httpHeaders": {
+                                  "description": "Custom headers to set in the request. HTTP allows repeated headers.",
+                                  "items": {
+                                    "description": "HTTPHeader describes a custom header to be used in HTTP probes",
+                                    "properties": {
+                                      "name": {
+                                        "description": "The header field name.\nThis will be canonicalized upon output, so case-variant names will be understood as the same header.",
+                                        "type": "string"
+                                      },
+                                      "value": {
+                                        "description": "The header field value",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "name",
+                                      "value"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "type": "array",
+                                  "x-kubernetes-list-type": "atomic"
+                                },
+                                "path": {
+                                  "description": "Path to access on the HTTP server.",
+                                  "type": "string"
+                                },
+                                "port": {
+                                  "description": "port number to access on the container.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                },
+                                "scheme": {
+                                  "description": "Scheme to use for connecting to the host.\nDefaults to HTTP.",
+                                  "enum": [
+                                    "HTTPS",
+                                    "HTTP"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "initialDelaySeconds": {
+                              "description": "Number of seconds after the container has started before liveness probes are initiated.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                              "format": "int32",
+                              "type": "integer"
+                            },
+                            "periodSeconds": {
+                              "default": 10,
+                              "description": "How often (in seconds) to perform the probe.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "successThreshold": {
+                              "default": 1,
+                              "description": "Minimum consecutive successes for the probe to be considered successful after having failed.\nMust be 1 for liveness and startup.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tcpSocket": {
+                              "description": "TCPSocket specifies an action involving a TCP port.",
+                              "properties": {
+                                "host": {
+                                  "description": "Optional: Host name to connect to, defaults to the pod IP.",
+                                  "type": "string"
+                                },
+                                "port": {
+                                  "description": "port number to access on the container.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "timeoutSeconds": {
+                              "default": 1,
+                              "description": "Number of seconds after which the probe times out.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "startupProbe": {
+                          "description": "StartupProbe indicates that the Pod has successfully initialized.\nIf specified, no other probes are executed until this completes successfully.\nIf this probe fails, the Pod will be restarted, just as if the livenessProbe failed.\nThis can be used to provide different probe parameters at the beginning of a Pod's lifecycle,\nwhen it might take a long time to load data or warm a cache, than during steady-state operation.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                          "properties": {
+                            "exec": {
+                              "description": "Exec specifies the action to take.",
+                              "properties": {
+                                "command": {
+                                  "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array",
+                                  "x-kubernetes-list-type": "atomic"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "failureThreshold": {
+                              "default": 3,
+                              "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "grpc": {
+                              "description": "GRPC specifies an action involving a GRPC port.",
+                              "properties": {
+                                "port": {
+                                  "description": "Port number of the gRPC service.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                },
+                                "service": {
+                                  "default": "",
+                                  "description": "Service is the name of the service to place in the gRPC HealthCheckRequest\n(see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "httpGet": {
+                              "description": "HTTPGet specifies the http request to perform.",
+                              "properties": {
+                                "host": {
+                                  "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
+                                  "type": "string"
+                                },
+                                "httpHeaders": {
+                                  "description": "Custom headers to set in the request. HTTP allows repeated headers.",
+                                  "items": {
+                                    "description": "HTTPHeader describes a custom header to be used in HTTP probes",
+                                    "properties": {
+                                      "name": {
+                                        "description": "The header field name.\nThis will be canonicalized upon output, so case-variant names will be understood as the same header.",
+                                        "type": "string"
+                                      },
+                                      "value": {
+                                        "description": "The header field value",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "name",
+                                      "value"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "type": "array",
+                                  "x-kubernetes-list-type": "atomic"
+                                },
+                                "path": {
+                                  "description": "Path to access on the HTTP server.",
+                                  "type": "string"
+                                },
+                                "port": {
+                                  "description": "port number to access on the container.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                },
+                                "scheme": {
+                                  "description": "Scheme to use for connecting to the host.\nDefaults to HTTP.",
+                                  "enum": [
+                                    "HTTPS",
+                                    "HTTP"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "initialDelaySeconds": {
+                              "description": "Number of seconds after the container has started before liveness probes are initiated.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                              "format": "int32",
+                              "type": "integer"
+                            },
+                            "periodSeconds": {
+                              "default": 10,
+                              "description": "How often (in seconds) to perform the probe.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "successThreshold": {
+                              "default": 1,
+                              "description": "Minimum consecutive successes for the probe to be considered successful after having failed.\nMust be 1 for liveness and startup.",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "tcpSocket": {
+                              "description": "TCPSocket specifies an action involving a TCP port.",
+                              "properties": {
+                                "host": {
+                                  "description": "Optional: Host name to connect to, defaults to the pod IP.",
+                                  "type": "string"
+                                },
+                                "port": {
+                                  "description": "port number to access on the container.",
+                                  "format": "int32",
+                                  "maximum": 65535,
+                                  "minimum": 1,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "port"
+                              ],
+                              "type": "object"
+                            },
+                            "timeoutSeconds": {
+                              "default": 1,
+                              "description": "Number of seconds after which the probe times out.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                              "format": "int32",
+                              "minimum": 1,
+                              "type": "integer"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "horizontalScaling": {
                       "description": "Configuration for automatic horizontal scaling of replicas.\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling",
                       "properties": {
@@ -1150,6 +1603,459 @@
                   "environment"
                 ],
                 "x-kubernetes-list-type": "map"
+              },
+              "healthChecks": {
+                "description": "HealthChecks can tell Radix if your application is ready to receive traffic.\nDefaults to a TCP check against your first listed port.\nIf any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.",
+                "properties": {
+                  "livenessProbe": {
+                    "description": "Periodic probe of container liveness.\nContainer will be restarted if the probe fails.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                    "properties": {
+                      "exec": {
+                        "description": "Exec specifies the action to take.",
+                        "properties": {
+                          "command": {
+                            "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "failureThreshold": {
+                        "default": 3,
+                        "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "grpc": {
+                        "description": "GRPC specifies an action involving a GRPC port.",
+                        "properties": {
+                          "port": {
+                            "description": "Port number of the gRPC service.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "service": {
+                            "default": "",
+                            "description": "Service is the name of the service to place in the gRPC HealthCheckRequest\n(see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "httpGet": {
+                        "description": "HTTPGet specifies the http request to perform.",
+                        "properties": {
+                          "host": {
+                            "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
+                            "type": "string"
+                          },
+                          "httpHeaders": {
+                            "description": "Custom headers to set in the request. HTTP allows repeated headers.",
+                            "items": {
+                              "description": "HTTPHeader describes a custom header to be used in HTTP probes",
+                              "properties": {
+                                "name": {
+                                  "description": "The header field name.\nThis will be canonicalized upon output, so case-variant names will be understood as the same header.",
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "description": "The header field value",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "value"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                          },
+                          "path": {
+                            "description": "Path to access on the HTTP server.",
+                            "type": "string"
+                          },
+                          "port": {
+                            "description": "port number to access on the container.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "scheme": {
+                            "description": "Scheme to use for connecting to the host.\nDefaults to HTTP.",
+                            "enum": [
+                              "HTTPS",
+                              "HTTP"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "initialDelaySeconds": {
+                        "description": "Number of seconds after the container has started before liveness probes are initiated.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                        "format": "int32",
+                        "type": "integer"
+                      },
+                      "periodSeconds": {
+                        "default": 10,
+                        "description": "How often (in seconds) to perform the probe.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "successThreshold": {
+                        "default": 1,
+                        "description": "Minimum consecutive successes for the probe to be considered successful after having failed.\nMust be 1 for liveness and startup.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "tcpSocket": {
+                        "description": "TCPSocket specifies an action involving a TCP port.",
+                        "properties": {
+                          "host": {
+                            "description": "Optional: Host name to connect to, defaults to the pod IP.",
+                            "type": "string"
+                          },
+                          "port": {
+                            "description": "port number to access on the container.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "timeoutSeconds": {
+                        "default": 1,
+                        "description": "Number of seconds after which the probe times out.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "readinessProbe": {
+                    "description": "Periodic probe of container service readiness.\nContainer will be removed from service endpoints if the probe fails.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes\nDefaults to TCP Probe against the first listed port",
+                    "properties": {
+                      "exec": {
+                        "description": "Exec specifies the action to take.",
+                        "properties": {
+                          "command": {
+                            "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "failureThreshold": {
+                        "default": 3,
+                        "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "grpc": {
+                        "description": "GRPC specifies an action involving a GRPC port.",
+                        "properties": {
+                          "port": {
+                            "description": "Port number of the gRPC service.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "service": {
+                            "default": "",
+                            "description": "Service is the name of the service to place in the gRPC HealthCheckRequest\n(see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "httpGet": {
+                        "description": "HTTPGet specifies the http request to perform.",
+                        "properties": {
+                          "host": {
+                            "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
+                            "type": "string"
+                          },
+                          "httpHeaders": {
+                            "description": "Custom headers to set in the request. HTTP allows repeated headers.",
+                            "items": {
+                              "description": "HTTPHeader describes a custom header to be used in HTTP probes",
+                              "properties": {
+                                "name": {
+                                  "description": "The header field name.\nThis will be canonicalized upon output, so case-variant names will be understood as the same header.",
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "description": "The header field value",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "value"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                          },
+                          "path": {
+                            "description": "Path to access on the HTTP server.",
+                            "type": "string"
+                          },
+                          "port": {
+                            "description": "port number to access on the container.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "scheme": {
+                            "description": "Scheme to use for connecting to the host.\nDefaults to HTTP.",
+                            "enum": [
+                              "HTTPS",
+                              "HTTP"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "initialDelaySeconds": {
+                        "description": "Number of seconds after the container has started before liveness probes are initiated.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                        "format": "int32",
+                        "type": "integer"
+                      },
+                      "periodSeconds": {
+                        "default": 10,
+                        "description": "How often (in seconds) to perform the probe.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "successThreshold": {
+                        "default": 1,
+                        "description": "Minimum consecutive successes for the probe to be considered successful after having failed.\nMust be 1 for liveness and startup.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "tcpSocket": {
+                        "description": "TCPSocket specifies an action involving a TCP port.",
+                        "properties": {
+                          "host": {
+                            "description": "Optional: Host name to connect to, defaults to the pod IP.",
+                            "type": "string"
+                          },
+                          "port": {
+                            "description": "port number to access on the container.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "timeoutSeconds": {
+                        "default": 1,
+                        "description": "Number of seconds after which the probe times out.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "startupProbe": {
+                    "description": "StartupProbe indicates that the Pod has successfully initialized.\nIf specified, no other probes are executed until this completes successfully.\nIf this probe fails, the Pod will be restarted, just as if the livenessProbe failed.\nThis can be used to provide different probe parameters at the beginning of a Pod's lifecycle,\nwhen it might take a long time to load data or warm a cache, than during steady-state operation.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                    "properties": {
+                      "exec": {
+                        "description": "Exec specifies the action to take.",
+                        "properties": {
+                          "command": {
+                            "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "failureThreshold": {
+                        "default": 3,
+                        "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "grpc": {
+                        "description": "GRPC specifies an action involving a GRPC port.",
+                        "properties": {
+                          "port": {
+                            "description": "Port number of the gRPC service.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "service": {
+                            "default": "",
+                            "description": "Service is the name of the service to place in the gRPC HealthCheckRequest\n(see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "httpGet": {
+                        "description": "HTTPGet specifies the http request to perform.",
+                        "properties": {
+                          "host": {
+                            "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
+                            "type": "string"
+                          },
+                          "httpHeaders": {
+                            "description": "Custom headers to set in the request. HTTP allows repeated headers.",
+                            "items": {
+                              "description": "HTTPHeader describes a custom header to be used in HTTP probes",
+                              "properties": {
+                                "name": {
+                                  "description": "The header field name.\nThis will be canonicalized upon output, so case-variant names will be understood as the same header.",
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "description": "The header field value",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "value"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                          },
+                          "path": {
+                            "description": "Path to access on the HTTP server.",
+                            "type": "string"
+                          },
+                          "port": {
+                            "description": "port number to access on the container.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "scheme": {
+                            "description": "Scheme to use for connecting to the host.\nDefaults to HTTP.",
+                            "enum": [
+                              "HTTPS",
+                              "HTTP"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "initialDelaySeconds": {
+                        "description": "Number of seconds after the container has started before liveness probes are initiated.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                        "format": "int32",
+                        "type": "integer"
+                      },
+                      "periodSeconds": {
+                        "default": 10,
+                        "description": "How often (in seconds) to perform the probe.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "successThreshold": {
+                        "default": 1,
+                        "description": "Minimum consecutive successes for the probe to be considered successful after having failed.\nMust be 1 for liveness and startup.",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "tcpSocket": {
+                        "description": "TCPSocket specifies an action involving a TCP port.",
+                        "properties": {
+                          "host": {
+                            "description": "Optional: Host name to connect to, defaults to the pod IP.",
+                            "type": "string"
+                          },
+                          "port": {
+                            "description": "port number to access on the container.",
+                            "format": "int32",
+                            "maximum": 65535,
+                            "minimum": 1,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "port"
+                        ],
+                        "type": "object"
+                      },
+                      "timeoutSeconds": {
+                        "default": 1,
+                        "description": "Number of seconds after which the probe times out.\nMore info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes",
+                        "format": "int32",
+                        "minimum": 1,
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
               },
               "horizontalScaling": {
                 "description": "Configuration for automatic horizontal scaling of replicas.\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling",
@@ -2390,6 +3296,70 @@
                       "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
+                    "failurePolicy": {
+                      "description": "Specifies the policy of handling failed job replicas. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed job replicas\nis incremented and it is checked against the backoffLimit.",
+                      "properties": {
+                        "rules": {
+                          "description": "A list of failure policy rules. The rules are evaluated in order.\nOnce a rule matches a job replica failure, the remaining of the rules are ignored.\nWhen no rule matches the failure, the default handling applies - the\ncounter of failures is incremented and it is checked against\nthe backoffLimit.",
+                          "items": {
+                            "description": "RadixJobComponentFailurePolicyRule describes how a job replica failure is handled when the onExitCodes rules are met.",
+                            "properties": {
+                              "action": {
+                                "description": "Specifies the action taken on a job replica failure when the onExitCodes requirements are satisfied.",
+                                "enum": [
+                                  "FailJob",
+                                  "Ignore",
+                                  "Count"
+                                ],
+                                "type": "string"
+                              },
+                              "onExitCodes": {
+                                "description": "Represents the requirement on the job replica exit codes.",
+                                "properties": {
+                                  "operator": {
+                                    "description": "Represents the relationship between the job replica's exit code and the\nspecified values. Replicas completed with success (exit code 0) are\nexcluded from the requirement check.",
+                                    "enum": [
+                                      "In",
+                                      "NotIn"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "values": {
+                                    "description": "Specifies the set of values. The job replica's exit code is checked against this set of\nvalues with respect to the operator. The list must not contain duplicates.\nValue '0' cannot be used for the In operator.",
+                                    "items": {
+                                      "format": "int32",
+                                      "minimum": 0,
+                                      "type": "integer"
+                                    },
+                                    "maxItems": 255,
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "x-kubernetes-list-type": "set"
+                                  }
+                                },
+                                "required": [
+                                  "operator",
+                                  "values"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "action",
+                              "onExitCodes"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 20,
+                          "type": "array",
+                          "x-kubernetes-list-type": "atomic"
+                        }
+                      },
+                      "required": [
+                        "rules"
+                      ],
+                      "type": "object"
+                    },
                     "identity": {
                       "description": "Environment specific configuration for workload identity (federated credentials).\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2",
                       "properties": {
@@ -2876,6 +3846,70 @@
                   "environment"
                 ],
                 "x-kubernetes-list-type": "map"
+              },
+              "failurePolicy": {
+                "description": "Specifies the policy of handling failed job replicas. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed job replicas\nis incremented and it is checked against the backoffLimit.",
+                "properties": {
+                  "rules": {
+                    "description": "A list of failure policy rules. The rules are evaluated in order.\nOnce a rule matches a job replica failure, the remaining of the rules are ignored.\nWhen no rule matches the failure, the default handling applies - the\ncounter of failures is incremented and it is checked against\nthe backoffLimit.",
+                    "items": {
+                      "description": "RadixJobComponentFailurePolicyRule describes how a job replica failure is handled when the onExitCodes rules are met.",
+                      "properties": {
+                        "action": {
+                          "description": "Specifies the action taken on a job replica failure when the onExitCodes requirements are satisfied.",
+                          "enum": [
+                            "FailJob",
+                            "Ignore",
+                            "Count"
+                          ],
+                          "type": "string"
+                        },
+                        "onExitCodes": {
+                          "description": "Represents the requirement on the job replica exit codes.",
+                          "properties": {
+                            "operator": {
+                              "description": "Represents the relationship between the job replica's exit code and the\nspecified values. Replicas completed with success (exit code 0) are\nexcluded from the requirement check.",
+                              "enum": [
+                                "In",
+                                "NotIn"
+                              ],
+                              "type": "string"
+                            },
+                            "values": {
+                              "description": "Specifies the set of values. The job replica's exit code is checked against this set of\nvalues with respect to the operator. The list must not contain duplicates.\nValue '0' cannot be used for the In operator.",
+                              "items": {
+                                "format": "int32",
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "maxItems": 255,
+                              "minItems": 1,
+                              "type": "array",
+                              "x-kubernetes-list-type": "set"
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "values"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "action",
+                        "onExitCodes"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 20,
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  }
+                },
+                "required": [
+                  "rules"
+                ],
+                "type": "object"
               },
               "identity": {
                 "description": "Configuration for workload identity (federated credentials).\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2",

@@ -44,18 +44,17 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 			currStatus.Condition.ActiveTime = nil
 			currStatus.Condition.CompletionTime = nil
 		case radixv1.BatchConditionTypeActive:
-			now := metav1.Now()
 			if currStatus.Condition.ActiveTime == nil {
-				currStatus.Condition.ActiveTime = &now
+				currStatus.Condition.ActiveTime = &metav1.Time{Time: s.clock.Now()}
 			}
 			currStatus.Condition.CompletionTime = nil
 		case radixv1.BatchConditionTypeCompleted:
-			now := metav1.Now()
+			now := &metav1.Time{Time: s.clock.Now()}
 			if currStatus.Condition.ActiveTime == nil {
-				currStatus.Condition.ActiveTime = &now
+				currStatus.Condition.ActiveTime = now
 			}
 			if currStatus.Condition.CompletionTime == nil {
-				currStatus.Condition.CompletionTime = &now
+				currStatus.Condition.CompletionTime = now
 			}
 		}
 	})
@@ -96,12 +95,6 @@ func (s *syncer) updateStatus(ctx context.Context, changeStatusFunc func(currSta
 		return nil
 	})
 	return err
-}
-
-func isJobStatusCondition(conditionType batchv1.JobConditionType) func(batchv1.JobCondition) bool {
-	return func(condition batchv1.JobCondition) bool {
-		return condition.Type == conditionType && condition.Status == corev1.ConditionTrue
-	}
 }
 
 func (s *syncer) buildJobStatuses(ctx context.Context) ([]radixv1.RadixBatchJobStatus, error) {
@@ -147,13 +140,11 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 
 	if isBatchJobStopRequested(batchJob) {
 		status.Phase = radixv1.BatchJobPhaseStopped
-		now := metav1.Now()
-		status.EndTime = &now
+		status.EndTime = &metav1.Time{Time: s.clock.Now()}
 		if hasCurrentStatus {
 			status.CreationTime = currentStatus.CreationTime
 			status.StartTime = currentStatus.StartTime
-			status.Message = currentStatus.Message
-			status.Reason = currentStatus.Reason
+			status.Failed = currentStatus.Failed
 		}
 		s.updateJobAndPodStatuses(ctx, batchJob.Name, &status)
 		return status
@@ -163,56 +154,30 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 	if !jobFound {
 		return status
 	}
-	jobBackoffLimit := getJobBackoffLimit(job)
+
 	status.CreationTime = &job.CreationTimestamp
+	status.StartTime = job.Status.StartTime
 	status.Failed = job.Status.Failed
 
-	var uncountedSucceeded, uncountedFailed int
-	if uncounted := job.Status.UncountedTerminatedPods; uncounted != nil {
-		uncountedSucceeded, uncountedFailed = len(uncounted.Succeeded), len(uncounted.Failed)
-	}
-	jobConditionsSortedDesc := getJobConditionsSortedDesc(job)
-	if (job.Status.Succeeded+int32(uncountedSucceeded)) > 0 &&
-		s.setJobStatus(ctx, batchJob, &status, job, jobConditionsSortedDesc, radixv1.BatchJobPhaseSucceeded, batchv1.JobComplete) {
-		return status
-	}
-	if (job.Status.Failed+int32(uncountedFailed)) == jobBackoffLimit+1 &&
-		s.setJobStatus(ctx, batchJob, &status, job, jobConditionsSortedDesc, radixv1.BatchJobPhaseFailed, batchv1.JobFailed) {
-		return status
-	}
-	if job.Status.Active > 0 {
+	if condition, ok := slice.FindFirst(job.Status.Conditions, hasOneOfConditionTypes(batchv1.JobComplete, batchv1.JobSuccessCriteriaMet)); ok {
+		status.Phase = radixv1.BatchJobPhaseSucceeded
+		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
+		status.Reason = condition.Reason
+		status.Message = condition.Message
+	} else if condition, ok := slice.FindFirst(job.Status.Conditions, hasOneOfConditionTypes(batchv1.JobFailed)); ok {
+		status.Phase = radixv1.BatchJobPhaseFailed
+		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
+		status.Reason = condition.Reason
+		status.Message = condition.Message
+	} else if job.Status.Active > 0 {
 		status.Phase = radixv1.BatchJobPhaseActive
-		status.StartTime = job.Status.StartTime
-		if job.Status.Ready != nil && job.Status.Active == *job.Status.Ready {
+		if job.Status.Ready != nil && *job.Status.Ready > 0 {
 			status.Phase = radixv1.BatchJobPhaseRunning
 		}
 	}
-	if len(jobConditionsSortedDesc) > 0 {
-		status.Reason = jobConditionsSortedDesc[0].Reason
-		status.Message = jobConditionsSortedDesc[0].Message
-	}
+
 	s.updateJobAndPodStatuses(ctx, batchJob.Name, &status)
 	return status
-}
-
-func (s *syncer) setJobStatus(ctx context.Context, batchJob *radixv1.RadixBatchJob, status *radixv1.RadixBatchJobStatus, job *batchv1.Job, jobConditionsSortedDesc []batchv1.JobCondition, phase radixv1.RadixBatchJobPhase, conditionType batchv1.JobConditionType) bool {
-	if condition, ok := slice.FindFirst(jobConditionsSortedDesc, isJobStatusCondition(conditionType)); ok {
-		status.Phase = phase
-		status.StartTime = job.Status.StartTime
-		status.Reason = condition.Reason
-		status.Message = condition.Message
-		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
-		s.updateJobAndPodStatuses(ctx, batchJob.Name, status)
-		return true
-	}
-	return false
-}
-
-func getJobBackoffLimit(job *batchv1.Job) int32 {
-	if job.Spec.BackoffLimit != nil {
-		return *job.Spec.BackoffLimit
-	}
-	return 0
 }
 
 func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName string, jobStatus *radixv1.RadixBatchJobStatus) {
@@ -342,14 +307,6 @@ func getPodStatusMap(status *radixv1.RadixBatchJobStatus) map[string]*radixv1.Ra
 		podStatusMap[status.RadixBatchJobPodStatuses[i].Name] = &status.RadixBatchJobPodStatuses[i]
 	}
 	return podStatusMap
-}
-
-func getJobConditionsSortedDesc(job *batchv1.Job) []batchv1.JobCondition {
-	descSortedJobConditions := job.Status.Conditions
-	sort.Slice(descSortedJobConditions, func(i, j int) bool {
-		return descSortedJobConditions[i].LastTransitionTime.After(descSortedJobConditions[j].LastTransitionTime.Time)
-	})
-	return descSortedJobConditions
 }
 
 func (s *syncer) restoreStatus(ctx context.Context) error {

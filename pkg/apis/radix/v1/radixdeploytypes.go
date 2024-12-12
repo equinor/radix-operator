@@ -128,6 +128,7 @@ type RadixDeployComponent struct {
 	ExternalDNS          []RadixDeployExternalDNS `json:"externalDNS,omitempty"`
 	// Deprecated: For backward compatibility we must still support this field. New code should use ExternalDNS instead.
 	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty"`
+	HealthChecks            *RadixHealthChecks      `json:"healthChecks,omitempty"`
 	Monitoring              bool                    `json:"monitoring"`
 	MonitoringConfig        MonitoringConfig        `json:"monitoringConfig,omitempty"`
 	Resources               ResourceRequirements    `json:"resources,omitempty"`
@@ -140,6 +141,19 @@ type RadixDeployComponent struct {
 	ReadOnlyFileSystem      *bool                   `json:"readOnlyFileSystem,omitempty"`
 	Runtime                 *Runtime                `json:"runtime,omitempty"`
 	Network                 *Network                `json:"network,omitempty"`
+}
+
+func (deployComponent *RadixDeployComponent) GetHealthChecks() *RadixHealthChecks {
+	if deployComponent.HealthChecks == nil {
+		return nil
+	}
+	if deployComponent.HealthChecks.ReadinessProbe == nil &&
+		deployComponent.HealthChecks.LivenessProbe == nil &&
+		deployComponent.HealthChecks.StartupProbe == nil {
+		return nil
+	}
+
+	return deployComponent.HealthChecks
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -423,6 +437,14 @@ type RadixDeployJobComponent struct {
 	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
 	// +optional
 	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
+
+	// FailurePolicy specifies the policy of handling failed job replicas
+	// +optional
+	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+}
+
+func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
+	return nil
 }
 
 type RadixComponentType string
@@ -463,6 +485,7 @@ type RadixCommonDeployComponent interface {
 	GetReadOnlyFileSystem() *bool
 	GetRuntime() *Runtime
 	GetNetwork() *Network
+	GetHealthChecks() *RadixHealthChecks
 }
 
 // RadixCommonDeployComponentFactory defines a common component factory
