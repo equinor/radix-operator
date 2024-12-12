@@ -1084,8 +1084,8 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, jobName) })[0]
-	s.Require().Len(job.Spec.Template.Spec.Volumes, 2)
-	s.Require().Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 2)
+	s.Require().Len(job.Spec.Template.Spec.Volumes, 1)
+	s.Require().Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 1)
 	s.Equal(job.Spec.Template.Spec.Volumes[0].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name)
 	s.Equal("/azureblob2path", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
 }
@@ -1111,7 +1111,6 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {
 				{
 					Name: componentName,
 					VolumeMounts: []radixv1.RadixVolumeMount{
-						{Type: "blob", Name: "blobname", Container: "blobcontainer", Path: "/blobpath"},
 						{Type: "azure-blob", Name: "azureblobname", Storage: "azureblobcontainer", Path: "/azureblobpath"},
 					},
 				},
@@ -1128,12 +1127,10 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, jobName) })[0]
-	s.Require().Len(job.Spec.Template.Spec.Volumes, 2)
-	s.Require().Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 2)
+	s.Require().Len(job.Spec.Template.Spec.Volumes, 1)
+	s.Require().Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 1)
 	s.Equal(job.Spec.Template.Spec.Volumes[0].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name)
-	s.Equal(job.Spec.Template.Spec.Volumes[1].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[1].Name)
-	s.Equal("/blobpath", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
-	s.Equal("/azureblobpath", job.Spec.Template.Spec.Containers[0].VolumeMounts[1].MountPath)
+	s.Equal("/azureblobpath", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
 }
 
 func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
