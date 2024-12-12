@@ -62,6 +62,7 @@ jobs:
     name: Build Pipeline runner
     outputs:
       tag_latest: ${{ steps.metadata.outputs.tag_latest }}
+      tag: ${{ steps.metadata.outputs.tag }}
       fullname: ${{ steps.metadata.outputs.fullname }}
     steps:
       - uses: actions/checkout@v4
@@ -82,6 +83,7 @@ jobs:
           tag=${GITHUB_REF_NAME}-${sha}-${ts}
           image="radix-pipeline-runner"
           echo "tag_latest=$tag_latest" >> $GITHUB_OUTPUT
+          echo "tag=$tag" >> $GITHUB_OUTPUT
           echo "fullname=ghcr.io/equinor/$image:$tag" >> $GITHUB_OUTPUT
           echo "fullname_latest=ghcr.io/equinor/$image:$tag_latest" >> $GITHUB_OUTPUT
 
@@ -159,7 +161,8 @@ jobs:
       id: metadata
       run: |
         echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
-        echo "pipeline=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag_latest }}" >> $GITHUB_OUTPUT
+        echo "pipeline=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag }}" >> $GITHUB_OUTPUT
+        echo "pipeline_latest=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag_latest }}" >> $GITHUB_OUTPUT
 
     - name: ACR Login
       run: az acr login --name ${{ matrix.target.acr-name }}
@@ -181,16 +184,19 @@ jobs:
       run: |
         docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
         tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
+        echo $tags | xargs docker buildx imagetools create --dry-run --tag $TARGETREPO
         echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO
 
     - name: Copy Pipeline Runner image
       env:
         TARGETREPO: ${{ steps.metadata.outputs.pipeline }}
+        TARGETREPO_LATEST: ${{ steps.metadata.outputs.pipeline_latest }}
         SOURCEREPO: ${{ needs.build-pipelinerunner.outputs.fullname }}
       run: |
         docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
         tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
-        echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO
+        echo $tags | xargs docker buildx imagetools create --dry-run --tag $TARGETREPO --tag $TARGETREPO_LATEST
+        echo $tags | xargs docker buildx imagetools create --progress=plain --tag $TARGETREPO --tag $TARGETREPO_LATEST
 
     - name: Revoke GitHub IP on ACR
       if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
