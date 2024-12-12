@@ -160,7 +160,7 @@ jobs:
     - name: Build image tags
       id: metadata
       run: |
-        echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $
+        echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
         echo "pipeline_latest=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag_latest }}" >> $GITHUB_OUTPUT
 
     - name: ACR Login
