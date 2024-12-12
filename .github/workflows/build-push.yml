@@ -177,7 +177,7 @@ jobs:
     - name: Copy Operator image
       env:
         TARGETREPO: ${{ steps.metadata.outputs.operator }}
-        SOURCERPO: ${{ needs.build-operator.outputs.fullname }}
+        SOURCEREPO: ${{ needs.build-operator.outputs.fullname }}
       run: |
         docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
         tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
@@ -186,7 +186,7 @@ jobs:
     - name: Copy Pipeline Runner image
       env:
         TARGETREPO: ${{ steps.metadata.outputs.pipeline }}
-        SOURCERPO: ${{ needs.build-pipelinerunner.outputs.fullname }}
+        SOURCEREPO: ${{ needs.build-pipelinerunner.outputs.fullname }}
       run: |
         docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
         tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
