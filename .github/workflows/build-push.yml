@@ -180,7 +180,7 @@ jobs:
         SOURCERPO: ${{ needs.build-operator.outputs.fullname }}
       run: |
         docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
-        tags=$(jq --arg SOURCEREPO $SOURCEREPO '[.manifests[] | $SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
+        tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
         echo $tags | xargs docker buildx imagetools create --tag $TARGETREPO
 
     - name: Copy Pipeline Runner image
@@ -189,7 +189,7 @@ jobs:
         SOURCERPO: ${{ needs.build-pipelinerunner.outputs.fullname }}
       run: |
         docker buildx imagetools inspect $SOURCEREPO --raw > manifest.json
-        tags=$(jq --arg SOURCEREPO $SOURCEREPO '[.manifests[] | $SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
+        tags=$(jq '[.manifests[] | env.SOURCEREPO + "@" + .digest] | join(" ")' -r manifest.json)
         echo $tags | xargs docker buildx imagetools create --tag $TARGETREPO
 
     - name: Revoke GitHub IP on ACR
