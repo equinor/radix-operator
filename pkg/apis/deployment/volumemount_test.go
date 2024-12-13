@@ -898,14 +898,50 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	//		getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
 	//	}
 	//}()...)
+	//scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+	//	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+	//		pvForAnotherComponent := createRandomAutoProvisionedPvWithStorageClass(props, props.namespace, anotherComponentName)
+	//		pvcForAnotherComponent := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, anotherComponentName)
+	//		matchPvAndPvc(&pvForAnotherComponent, &pvcForAnotherComponent)
+	//		existingPv := createAutoProvisionedPvWithStorageClass(props, func(pv *corev1.PersistentVolume) {})
+	//		return deploymentVolumesTestScenario{
+	//			name:  "Do not change existing PersistentVolume with class name, when creating new PVC",
+	//			props: props,
+	//			radixVolumeMounts: []v1.RadixVolumeMount{
+	//				createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
+	//			},
+	//			volumes: []corev1.Volume{
+	//				createTestVolume(props, func(v *corev1.Volume) {}),
+	//			},
+	//			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+	//				pvcForAnotherComponent,
+	//			},
+	//			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+	//				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+	//				pvcForAnotherComponent,
+	//			},
+	//			existingPVsBeforeTestRun: []corev1.PersistentVolume{
+	//				existingPv,
+	//				pvForAnotherComponent,
+	//			},
+	//			existingPVsAfterTestRun: []corev1.PersistentVolume{
+	//				existingPv,
+	//				pvForAnotherComponent,
+	//			},
+	//		}
+	//	}
+	//	return []deploymentVolumesTestScenario{
+	//		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+	//	}
+	//}()...)
 	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-			pvForAnotherComponent := createRandomAutoProvisionedPvWithStorageClass(props, props.namespace, anotherComponentName)
-			pvcForAnotherComponent := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, anotherComponentName)
+			pvForAnotherComponent := createRandomPv(props, props.namespace, anotherComponentName)
+			pvcForAnotherComponent := createRandomPvc(props, props.namespace, anotherComponentName)
 			matchPvAndPvc(&pvForAnotherComponent, &pvcForAnotherComponent)
-			existingPv := createAutoProvisionedPvWithStorageClass(props, func(pv *corev1.PersistentVolume) {})
+			existingPv := createExpectedPv(props, func(pv *corev1.PersistentVolume) {})
 			return deploymentVolumesTestScenario{
-				name:  "Do not change existing PersistentVolume, when creating new PVC",
+				name:  "Do not change existing PersistentVolume without class name, when creating new PVC",
 				props: props,
 				radixVolumeMounts: []v1.RadixVolumeMount{
 					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
