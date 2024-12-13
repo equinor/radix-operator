@@ -20,7 +20,7 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	if !utils.EqualStringMaps(getPvAnnotations(pv1), getPvAnnotations(pv2)) {
 		return false
 	}
-	if !utils.EqualStringMaps(pv1.Spec.CSI.VolumeAttributes, pv2.Spec.CSI.VolumeAttributes) {
+	if !utils.EqualStringMaps(getVolumeAttributes(pv1), getVolumeAttributes(pv2)) {
 		return false
 	}
 	if !utils.EqualStringMaps(getMountOptionsMap(pv1.Spec.MountOptions), getMountOptionsMap(pv2.Spec.MountOptions)) {
@@ -62,8 +62,8 @@ func EqualPersistentVolumesForTest(expectedPv, actualPv *corev1.PersistentVolume
 	if !utils.EqualStringMaps(getPvAnnotations(expectedPv), getPvAnnotations(actualPv)) {
 		return false
 	}
-	expectedClonedAttrs := cloneMap(expectedPv.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName)
-	actualClonedAttrs := cloneMap(actualPv.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName)
+	expectedClonedAttrs := cloneMap(expectedPv.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName, CsiVolumeMountAttributeProvisionerIdentity)
+	actualClonedAttrs := cloneMap(actualPv.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName, CsiVolumeMountAttributeProvisionerIdentity)
 	if !utils.EqualStringMaps(expectedClonedAttrs, actualClonedAttrs) {
 		return false
 	}
@@ -135,6 +135,17 @@ func getPvAnnotations(pv *corev1.PersistentVolume) map[string]string {
 		annotations[key] = value
 	}
 	return annotations
+}
+
+func getVolumeAttributes(pv *corev1.PersistentVolume) map[string]string {
+	attributes := make(map[string]string)
+	for key, value := range pv.Spec.CSI.VolumeAttributes {
+		if key == CsiVolumeMountAttributeProvisionerIdentity {
+			continue // ignore automatically added attribute(s)
+		}
+		attributes[key] = value
+	}
+	return attributes
 }
 
 func getMountOptionsMap(mountOptions []string) map[string]string {

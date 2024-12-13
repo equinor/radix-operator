@@ -27,10 +27,11 @@ const (
 	CsiVolumeSourceDriverSecretStore                  = "secrets-store.csi.k8s.io"
 	CsiVolumeSourceVolumeAttributeSecretProviderClass = "secretProviderClass"
 
-	CsiVolumeMountAttributePvName          = "csi.storage.k8s.io/pv/name"
-	CsiVolumeMountAttributePvcName         = "csi.storage.k8s.io/pvc/name"
-	CsiVolumeMountAttributePvcNamespace    = "csi.storage.k8s.io/pvc/namespace"
-	CsiVolumeMountAttributeSecretNamespace = "secretnamespace"
-	CsiVolumeMountAttributeProtocol        = "protocol"      // Protocol
-	CsiVolumeMountAttributeContainerName   = "containerName" // Container name - foc container storages
+	CsiVolumeMountAttributePvName              = "csi.storage.k8s.io/pv/name"
+	CsiVolumeMountAttributePvcName             = "csi.storage.k8s.io/pvc/name"
+	CsiVolumeMountAttributePvcNamespace        = "csi.storage.k8s.io/pvc/namespace"
+	CsiVolumeMountAttributeSecretNamespace     = "secretnamespace"
+	CsiVolumeMountAttributeProtocol            = "protocol"      // Protocol
+	CsiVolumeMountAttributeContainerName       = "containerName" // Container name - foc container storages
+	CsiVolumeMountAttributeProvisionerIdentity = "storage.kubernetes.io/csiProvisionerIdentity"
 )
