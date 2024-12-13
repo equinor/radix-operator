@@ -1622,8 +1622,8 @@ func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
 			return volumeMountDeprecatedSourceValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
 		}
 	}
-	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Storage) == 0 {
-		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
+	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Container) == 0 {
+		return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingContainer)
 	}
 	return nil
 }

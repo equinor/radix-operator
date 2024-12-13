@@ -1334,46 +1334,14 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountMissingType,
 		},
-		"deprecated blob: valid": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type:      "blob",
-						Name:      "some_name",
-						Path:      "some_path",
-						Container: "any-container",
-						// RequestsStorage: "50M",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
-		},
-		"deprecated blob: missing container": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type: "blob",
-						Name: "some_name",
-						Path: "some_path",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
-		},
 		"deprecated azure-blob: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Type:    "azure-blob",
-						Name:    "some_name",
-						Path:    "some_path",
-						Storage: "any-storage",
+						Type:      "azure-blob",
+						Name:      "some_name",
+						Path:      "some_path",
+						Container: "any-storage",
 					},
 				}
 
@@ -1395,23 +1363,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				return volumeMounts
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMissingStorage,
-		},
-		"deprecated azure-file: valid": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type:    "azure-file",
-						Name:    "some_name",
-						Path:    "some_path",
-						Storage: "any-storage",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
+			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
 		},
 		"deprecated common: invalid type": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1427,22 +1379,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountInvalidType,
-		},
-		"deprecated common: invalid requestsStorage": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type:            "blob",
-						Name:            "some_name",
-						Path:            "some_path",
-						RequestsStorage: "50x",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountInvalidRequestsStorage,
 		},
 		"blobfuse2: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {

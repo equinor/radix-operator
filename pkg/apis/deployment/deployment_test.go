@@ -130,7 +130,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			outdatedSecret := "outdatedSecret"
 			remainingSecret := "remainingSecret"
 			addingSecret := "addingSecret"
-			blobVolumeName := "blob_volume_1"
 			blobCsiAzureVolumeName := "blobCsiAzure_volume_1"
 
 			if componentsExist {
@@ -324,8 +323,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.True(t, envVariableByNameExistOnDeployment(addingSecret, componentNameRadixQuote, deployments))
 				}
 
-				volumesExist := len(spec.Template.Spec.Volumes) > 1
-				volumeMountsExist := len(spec.Template.Spec.Containers[0].VolumeMounts) > 1
+				volumesExist := len(spec.Template.Spec.Volumes) > 0
+				volumeMountsExist := len(spec.Template.Spec.Containers[0].VolumeMounts) > 0
 				if !componentsExist {
 					assert.True(t, volumesExist, "expected existing volumes")
 					assert.True(t, volumeMountsExist, "expected existing volume mounts")
@@ -388,20 +387,18 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 
 				if !componentsExist {
-					assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
+					assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
 				} else {
 					assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
 				}
 
 				componentSecretName := utils.GetComponentSecretName(componentNameRadixQuote)
 				assert.True(t, secretByNameExists(componentSecretName, secrets), "Component secret is not as expected")
-				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(componentNameRadixQuote, blobVolumeName), secrets)
 				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureVolumeMountCredsSecretName(componentNameRadixQuote, blobCsiAzureVolumeName), secrets)
 				if !componentsExist {
-					assert.True(t, blobFuseSecretExists, "expected Blobfuse volume mount secret")
 					assert.True(t, blobCsiAzureFuseSecretExists, "expected blob CSI Azure volume mount secret")
 				} else {
-					assert.False(t, blobFuseSecretExists, "unexpected volume mount secrets")
+					assert.False(t, blobCsiAzureFuseSecretExists, "unexpected volume mount secrets")
 				}
 			})
 
@@ -522,7 +519,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			outdatedSecret := "outdatedSecret"
 			remainingSecret := "remainingSecret"
 			addingSecret := "addingSecret"
-			blobVolumeName := "blob_volume_1"
 			blobCsiAzureVolumeName := "blobCsiAzure_volume_1"
 			payloadPath := "payloadpath"
 			if jobsExist {
@@ -711,7 +707,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 
 				if !jobsExist {
-					assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
+					assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
 				} else {
 					assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
 				}
@@ -719,13 +715,11 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				jobSecretName := utils.GetComponentSecretName(jobName)
 				assert.True(t, secretByNameExists(jobSecretName, secrets), "Job secret is not as expected")
 
-				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(jobName, blobVolumeName), secrets)
 				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureVolumeMountCredsSecretName(jobName, blobCsiAzureVolumeName), secrets)
 				if !jobsExist {
-					assert.True(t, blobFuseSecretExists, "expected Blobfuse volume mount secret")
 					assert.True(t, blobCsiAzureFuseSecretExists, "expected blob CSI Azure volume mount secret")
 				} else {
-					assert.False(t, blobFuseSecretExists, "unexpected volume mount secrets")
+					assert.False(t, blobCsiAzureFuseSecretExists, "unexpected volume mount secrets")
 				}
 			})
 
