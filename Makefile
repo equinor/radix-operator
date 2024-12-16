@@ -173,6 +173,7 @@ verify-generate: bootstrap generate
 HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
 HAS_MOCKGEN       := $(shell command -v mockgen;)
 HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
+HAS_YQ := $(shell command -v yq;)
 
 .PHONY: bootstrap
 bootstrap: vendor
@@ -184,4 +185,7 @@ ifndef HAS_MOCKGEN
 endif
 ifndef HAS_CONTROLLER_GEN
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.2
+endif
+ifndef HAS_YQ
+	go install github.com/mikefarah/yq/v4@latest
 endif
