@@ -331,6 +331,10 @@ func validateComponent(app *radixv1.RadixApplication, component radixv1.RadixCom
 		errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
 	}
 
+	if err := validateHealthChecks(component.HealthChecks); err != nil {
+		errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
+	}
+
 	for _, environment := range component.EnvironmentConfig {
 		if err := validateComponentEnvironment(app, component, environment); err != nil {
 			errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
@@ -370,6 +374,10 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 
 	if err := validateNetwork(environment.Network); err != nil {
 		errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
+	}
+
+	if err := validateHealthChecks(environment.HealthChecks); err != nil {
+		errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
 	}
 
 	return errors.Join(errs...)
@@ -428,6 +436,10 @@ func validateJobComponent(app *radixv1.RadixApplication, job radixv1.RadixJobCom
 		errs = append(errs, err)
 	}
 
+	if err := validateFailurePolicy(job.FailurePolicy); err != nil {
+		errs = append(errs, fmt.Errorf("invalid failurePolicy configuration: %w", err))
+	}
+
 	for _, environment := range job.EnvironmentConfig {
 		if err := validateJobComponentEnvironment(app, job, environment); err != nil {
 			errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
@@ -435,6 +447,41 @@ func validateJobComponent(app *radixv1.RadixApplication, job radixv1.RadixJobCom
 	}
 
 	return errors.Join(errs...)
+}
+
+func validateFailurePolicy(failurePolicy *radixv1.RadixJobComponentFailurePolicy) error {
+	if failurePolicy == nil {
+		return nil
+	}
+
+	if len(failurePolicy.Rules) > 0 {
+		var errs []error
+		for _, rule := range failurePolicy.Rules {
+			errs = append(errs, validateFailurePolicyRule(rule))
+		}
+		if err := errors.Join(errs...); err != nil {
+			return fmt.Errorf("invalid rules configuration: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func validateFailurePolicyRule(rule radixv1.RadixJobComponentFailurePolicyRule) error {
+	if err := validateFailurePolicyRuleOnExitCodes(rule.OnExitCodes); err != nil {
+		return fmt.Errorf("invalid onExitCodes configuration: %w", err)
+	}
+
+	return nil
+}
+
+func validateFailurePolicyRuleOnExitCodes(onExitCodes radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes) error {
+	if onExitCodes.Operator == radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn &&
+		slices.Contains(onExitCodes.Values, 0) {
+		return ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator
+	}
+
+	return nil
 }
 
 func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) error {
@@ -459,6 +506,10 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 
 	if err := validateRuntime(environment.Runtime); err != nil {
 		errs = append(errs, err)
+	}
+
+	if err := validateFailurePolicy(environment.FailurePolicy); err != nil {
+		errs = append(errs, fmt.Errorf("invalid failurePolicy configuration: %w", err))
 	}
 
 	return errors.Join(errs...)
@@ -827,6 +878,65 @@ func validateRadixComponentSecrets(component radixv1.RadixCommonComponent, app *
 	}
 
 	return validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap)
+}
+
+func validateHealthChecks(healthChecks *radixv1.RadixHealthChecks) error {
+	if healthChecks == nil {
+		return nil
+	}
+
+	var errs []error
+
+	if err := validateProbe(healthChecks.StartupProbe); err != nil {
+		errs = append(errs, fmt.Errorf("probe StartupProbe is invalid: %w", err))
+	}
+	if err := validateProbe(healthChecks.ReadinessProbe); err != nil {
+		errs = append(errs, fmt.Errorf("probe ReadinessProbe is invalid: %w", err))
+	}
+	if err := validateProbe(healthChecks.LivenessProbe); err != nil {
+		errs = append(errs, fmt.Errorf("probe LivenessProbe is invalid: %w", err))
+	}
+
+	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+	if healthChecks.StartupProbe != nil && healthChecks.StartupProbe.SuccessThreshold > 1 {
+		errs = append(errs, fmt.Errorf("probe StartupProbe is invalid: %w", ErrSuccessThresholdMustBeOne))
+	}
+
+	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+	if healthChecks.LivenessProbe != nil && healthChecks.LivenessProbe.SuccessThreshold > 1 {
+		errs = append(errs, fmt.Errorf("probe LivenessProbe is invalid: %w", ErrSuccessThresholdMustBeOne))
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateProbe(probe *radixv1.RadixProbe) error {
+	if probe == nil {
+		return nil
+	}
+
+	definedProbes := 0
+	if probe.HTTPGet != nil {
+		definedProbes++
+	}
+
+	if probe.TCPSocket != nil {
+		definedProbes++
+	}
+
+	if probe.Exec != nil {
+		definedProbes++
+	}
+
+	if probe.GRPC != nil {
+		definedProbes++
+	}
+
+	if definedProbes > 1 {
+		return ErrInvalidHealthCheckProbe
+	}
+
+	return nil
 }
 
 func getEnvVarNameMap(componentEnvVarsMap radixv1.EnvVarsMap, envsEnvVarsMap radixv1.EnvVarsMap) map[string]bool {

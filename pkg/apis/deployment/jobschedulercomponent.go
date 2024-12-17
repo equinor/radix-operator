@@ -21,6 +21,10 @@ func newJobSchedulerComponent(jobComponent *radixv1.RadixDeployJobComponent, rd 
 	}
 }
 
+func (js *jobSchedulerComponent) GetHealthChecks() *radixv1.RadixHealthChecks {
+	return nil
+}
+
 func (js *jobSchedulerComponent) GetImage() string {
 	containerRegistry := os.Getenv(defaults.ContainerRegistryEnvironmentVariable)
 	radixJobScheduler := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)

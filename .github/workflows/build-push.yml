@@ -8,56 +8,145 @@ on:
 permissions:
   id-token: write
   contents: read
+  packages: write
 
 jobs:
-  build-deploy:
+  build-operator:
     runs-on: ubuntu-20.04
+    name: Build Operator
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      fullname_latest: ${{ steps.metadata.outputs.fullname_latest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image tags
+        id: metadata
+        run: |
+          sha=${GITHUB_SHA::8}
+          ts=$(date +%s)
+          tag=${GITHUB_REF_NAME}-${sha}-${ts}
+          tag_latest=${GITHUB_REF_NAME}-latest
+          image="radix-operator"
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          echo "fullname=ghcr.io/equinor/$image:$tag" >> $GITHUB_OUTPUT
+          echo "fullname_latest=ghcr.io/equinor/$image:$tag_latest" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push radix-operator docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          file: ./operator.Dockerfile
+          platforms: |
+            linux/amd64
+            linux/arm64
+          tags: |
+            ${{ steps.metadata.outputs.fullname }}
+            ${{ steps.metadata.outputs.fullname_latest }}
+          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
+          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache,mode=max"
+
+  build-pipelinerunner:
+    runs-on: ubuntu-20.04
+    name: Build Pipeline runner
+    outputs:
+      tag_latest: ${{ steps.metadata.outputs.tag_latest }}
+      fullname_latest: ${{ steps.metadata.outputs.fullname_latest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image names
+        id: metadata
+        run: |
+          sha=${GITHUB_SHA::8}
+          ts=$(date +%s)
+          tag_latest=${GITHUB_REF_NAME}-latest
+          tag=${GITHUB_REF_NAME}-${sha}-${ts}
+          image="radix-pipeline-runner"
+          echo "tag_latest=$tag_latest" >> $GITHUB_OUTPUT
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          echo "fullname=ghcr.io/equinor/$image:$tag" >> $GITHUB_OUTPUT
+          echo "fullname_latest=ghcr.io/equinor/$image:$tag_latest" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push pipeline-runner docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          file: ./pipeline.Dockerfile
+          platforms: |
+            linux/amd64
+            linux/arm64
+          tags: |
+            ${{ steps.metadata.outputs.fullname }}
+            ${{ steps.metadata.outputs.fullname_latest }}
+          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
+          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache,mode=max"
+
+  deploy:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-pipelinerunner
+      - build-operator
     strategy:
       fail-fast: false
       matrix:
         target:
         - name: "dev"
-          ref: "refs/heads/master"
           acr-name: "radixdev"
           client-id: "2bfe6984-f5e3-4d09-a0b2-4dd96de3f21e"
           subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
 
         - name: "playground"
-          ref: "refs/heads/release"
           acr-name: "radixplayground"
           client-id: "7c000a42-1edb-4491-a241-4ac77bf7dd6d"
           subscription-id: "16ede44b-1f74-40a5-b428-46cca9a5741b"
 
         - name: "platform"
-          ref: "refs/heads/release"
           acr-name: "radixprod"
           client-id: "044f760d-aabb-4d29-a879-e774f16e3bcc"
           subscription-id: "ded7ca41-37c8-4085-862f-b11d21ab341a"
 
         - name: "c2"
-          ref: "refs/heads/release"
           acr-name: "radixc2prod"
           client-id: "581bb747-7b9f-4e80-a843-249eafb0a5fa"
           subscription-id: "ded7ca41-37c8-4085-862f-b11d21ab341a"
 
     steps:
     - uses: actions/checkout@v4
-      if: matrix.target.ref == github.ref
 
     - uses: azure/login@v2
-      if: matrix.target.ref == github.ref
       with:
         client-id: ${{matrix.target.client-id}}
         tenant-id: "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
         subscription-id: ${{matrix.target.subscription-id}}
 
     - name: Get GitHub Public IP
-      if: matrix.target.ref == github.ref
       id: github_public_ip
       run: echo "ipv4=$(curl 'https://ifconfig.me/ip')" >> $GITHUB_OUTPUT
 
     - name: Add GitHub IP to ACR
-      if: matrix.target.ref == github.ref
       id: update_firewall
       run: az acr network-rule add
         --name ${{matrix.target.acr-name}}
@@ -65,86 +154,28 @@ jobs:
         --ip-address ${{ steps.github_public_ip.outputs.ipv4 }}
 
     - name: Wait for 2 minutes while the network rule to take effect
-      if: matrix.target.ref == github.ref
-      run: |
-        sleep 120
-
-    - name: Wait for Specific IP in ACR Network Rules
-      if: matrix.target.ref == github.ref
-      run: |
-        MAX_ATTEMPTS=10
-        ATTEMPT=0
-        TARGET_IP="${{ steps.github_public_ip.outputs.ipv4 }}"
-        echo "Waiting for IP $TARGET_IP to be allowed in ACR network rules..."
-        while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-          NETWORK_RULES=$(az acr network-rule list --name ${{matrix.target.acr-name}} --subscription ${{ matrix.target.subscription-id }}   --query "ipRules[]|[?contains(ipAddressOrRange, '$TARGET_IP')]"  --output tsv)
-          if [ -n "$NETWORK_RULES" ]; then
-            echo "IP $TARGET_IP is allowed."
-            break
-          fi
-          echo "Attempt $((ATTEMPT+1)) of $MAX_ATTEMPTS. Retrying in 10 seconds..."
-          ATTEMPT=$((ATTEMPT+1))
-          sleep 10
-        done
-        if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-          echo "IP $TARGET_IP was not allowed after $MAX_ATTEMPTS attempts. Exiting."
-          exit 1
-        fi
-
-    - name: Get ACR Login Server
-      if: matrix.target.ref == github.ref
-      id: get-acr-login-server
-      run: |
-        echo "login_server=$(az acr show --name ${{ matrix.target.acr-name }} --query loginServer --output tsv)" >> $GITHUB_OUTPUT
-
-    - name: Get ACR Access Token
-      if: matrix.target.ref == github.ref
-      id: get-acr-token
-      run: |
-        echo "Getting ACR access token"
-        access_token=$(az acr login --name ${{ matrix.target.acr-name }} --expose-token --output tsv --query accessToken)
-        echo "::add-mask::$access_token"
-        echo "access_token=$access_token" >> $GITHUB_OUTPUT
-
-    - name: Log in to ACR
-      if: matrix.target.ref == github.ref
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ steps.get-acr-login-server.outputs.login_server }}
-        username: "00000000-0000-0000-0000-000000000000"
-        password: ${{ steps.get-acr-token.outputs.access_token }}
-
-    - name: Set up Docker Buildx
-      if: matrix.target.ref == github.ref
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build image names
-      if: matrix.target.ref == github.ref
-      id: build-image-names
-      run: |
-        echo "radix-operator-image-name=${{ matrix.target.acr-name }}.azurecr.io/radix-operator" >> $GITHUB_OUTPUT
-        echo "pipeline-runner-image-name=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline" >> $GITHUB_OUTPUT
+      run: sleep 120
 
     - name: Build image tags
-      if: matrix.target.ref == github.ref
-      id: build-tags
+      id: metadata
       run: |
-        sha=${GITHUB_SHA::8}
-        ts=$(date +%s)
-        echo "radix-operator-tag=${GITHUB_REF_NAME}-${sha}-${ts}" >> $GITHUB_OUTPUT
-        echo "pipeline-runner-tag=${GITHUB_REF_NAME}-latest" >> $GITHUB_OUTPUT
-        echo "cache-radix-operator-tag=cache-radix-operator-${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-        echo "cache-pipeline-runner-tag=cache-pipeline-runner-${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+        echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
+        echo "pipeline_latest=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag_latest }}" >> $GITHUB_OUTPUT
 
-    - name: Extract labels from metadata for Docker
-      if: matrix.target.ref == github.ref
-      id: radix-operator-meta
-      uses: docker/metadata-action@v5
+    - name: ACR Login
+      run: az acr login --name ${{ matrix.target.acr-name }}
+
+    - name: GHCR Login
+      uses: docker/login-action@v3
       with:
-        images: ${{ steps.build-image-names.outputs.radix-operator-image-name }}
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push radix-operator docker image
-      if: matrix.target.ref == github.ref
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push Operator docker image
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -153,13 +184,12 @@ jobs:
         platforms: |
           linux/amd64
           linux/arm64
-        tags: "${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.radix-operator-tag }}"
-        labels: ${{ steps.radix-operator-meta.outputs.labels }}
-        cache-from: "type=registry,ref=${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.cache-radix-operator-tag }}"
-        cache-to: "type=registry,ref=${{ steps.build-image-names.outputs.radix-operator-image-name }}:${{ steps.build-tags.outputs.cache-radix-operator-tag }},mode=max"
+        tags: |
+          ${{ steps.metadata.outputs.operator }}
+        cache-from: "type=registry,ref=${{ needs.build-operator.outputs.fullname_latest }}-buildcache"
+        cache-to: "type=registry,ref=${{ needs.build-operator.outputs.fullname_latest }}-buildcache,mode=max"
 
     - name: Build and push pipeline-runner docker image
-      if: matrix.target.ref == github.ref
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -168,13 +198,13 @@ jobs:
         platforms: |
           linux/amd64
           linux/arm64
-        tags: "${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.pipeline-runner-tag }}"
-        labels: ${{ steps.pipeline-runner-meta.outputs.labels }}
-        cache-from: "type=registry,ref=${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.cache-pipeline-runner-tag }}"
-        cache-to: "type=registry,ref=${{ steps.build-image-names.outputs.pipeline-runner-image-name }}:${{ steps.build-tags.outputs.cache-pipeline-runner-tag }},mode=max"
+        tags: |
+          ${{ steps.metadata.outputs.pipeline_latest }}
+        cache-from: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname_latest }}-buildcache"
+        cache-to: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname_latest }}-buildcache,mode=max"
 
     - name: Revoke GitHub IP on ACR
-      if: ${{ matrix.target.ref == github.ref && steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
+      if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed
       run: az acr network-rule remove
         --name ${{matrix.target.acr-name}}
         --subscription ${{matrix.target.subscription-id}}

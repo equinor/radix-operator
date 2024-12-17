@@ -77,33 +77,32 @@ const (
 type RadixBuildSpec struct {
 	// Tag of the built image
 	//
-	// required: true
+	// +required
 	ImageTag string `json:"imageTag"`
 
 	// Branch, from which the image to be built
 	//
-	// required: true
+	// +required
 	Branch string `json:"branch"`
 
 	// ToEnvironment the environment to build or build-deploy to
 	//
-	// required: false
-	// example: prod
+	// +optional
 	ToEnvironment string `json:"toEnvironment,omitempty"`
 
 	// CommitID, from which the image to be built
 	//
-	// required: false
+	// +optional
 	CommitID string `json:"commitID,omitempty"`
 
 	// Is the built image need to be pushed to the container registry repository
 	//
-	// required: false
+	// +optional
 	PushImage bool `json:"pushImage,omitempty"`
 
 	// OverrideUseBuildCache override default or configured build cache option
 	//
-	// required: false
+	// +optional
 	OverrideUseBuildCache *bool `json:"overrideUseBuildCache,omitempty"`
 }
 
@@ -111,22 +110,22 @@ type RadixBuildSpec struct {
 type RadixPromoteSpec struct {
 	// Name of the Radix deployment to be promoted
 	//
-	// required: false
+	// +optional
 	DeploymentName string `json:"deploymentName,omitempty"`
 
 	// Environment name, from which the Radix deployment is being promoted
 	//
-	// required: true
+	// +required
 	FromEnvironment string `json:"fromEnvironment"`
 
 	// Environment name, to which the Radix deployment is being promoted
 	//
-	// required: true
+	// +required
 	ToEnvironment string `json:"toEnvironment"`
 
 	// CommitID of the promoted deployment
 	//
-	// required: false
+	// +optional
 	CommitID string `json:"commitID,omitempty"`
 }
 
@@ -134,24 +133,23 @@ type RadixPromoteSpec struct {
 type RadixDeploySpec struct {
 	// Target environment for deploy
 	//
-	// required: true
+	// +required
 	ToEnvironment string `json:"toEnvironment"`
 
 	// Image tags names for components - if empty will use default logic
 	//
-	// required: false
-	// Example: component1: tag1,component2: tag2
+	// +optional
 	ImageTagNames map[string]string `json:"imageTagNames,omitempty"`
 
 	// Commit ID connected to the deployment
 	//
-	// required: false
+	// +optional
 	CommitID string `json:"commitID,omitempty"`
 
 	// ComponentsToDeploy List of components to deploy
 	// OPTIONAL If specified, only these components are deployed
 	//
-	// required: false
+	// +optional
 	ComponentsToDeploy []string `json:"componentsToDeploy,omitempty"`
 }
 
@@ -159,7 +157,7 @@ type RadixDeploySpec struct {
 type RadixApplyConfigSpec struct {
 	// Deploy External DNS configuration
 	//
-	// required: false
+	// +optional
 	DeployExternalDNS bool `json:"deployExternalDNS,omitempty"`
 }
 

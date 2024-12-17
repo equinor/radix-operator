@@ -9,6 +9,7 @@ import (
 	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
+	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
@@ -28,9 +29,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -50,8 +51,8 @@ func TestSyncerTestSuite(t *testing.T) {
 	suite.Run(t, new(syncerTestSuite))
 }
 
-func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, config *config.Config) Syncer {
-	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, forJob, config)
+func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
+	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, forJob, config, options...)
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -82,23 +83,19 @@ func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, 
 }
 
 func (s *syncerTestSuite) SetupTest() {
+	s.setupTest()
+}
+
+func (s *syncerTestSuite) SetupSubTest() {
+	s.setupTest()
+}
+
+func (s *syncerTestSuite) setupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.certClient = certfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, secretproviderfake.NewSimpleClientset())
-	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "any-group")
-}
-
-func (s *syncerTestSuite) SetupSubTest() {
-	s.kubeClient = fake.NewSimpleClientset()
-	s.radixClient = fakeradix.NewSimpleClientset()
-	s.kedaClient = kedafake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, secretproviderfake.NewSimpleClientset())
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
@@ -1293,11 +1290,14 @@ func (s *syncerTestSuite) Test_StopJob() {
 	s.Require().NoError(err)
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
+
+	// Run initial sync to ensure k8s jobs are created
 	sut := s.createSyncer(batch, nil)
 	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 
+	// Stop first job and check that k8s job is deleted
 	batch.Spec.Jobs[0].Stop = pointers.Ptr(true)
 	sut = s.createSyncer(batch, nil)
 	s.Require().NoError(sut.OnSync(context.Background()))
@@ -1469,832 +1469,617 @@ func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 
 }
 
-func (s *syncerTestSuite) Test_BatchStatusCondition() {
-	batchName, namespace, rdName := "any-batch", "any-ns", "any-rd"
-	job1Name, job2Name, job3Name := "job1", "job2", "job3"
-	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
-		Spec: radixv1.RadixBatchSpec{
-			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-				Job:                  "any-job",
-			},
-			Jobs: []radixv1.RadixBatchJob{{Name: job1Name}, {Name: job2Name}, {Name: job3Name}},
-		},
+func (s *syncerTestSuite) Test_BatchJobStatus() {
+	const (
+		namespace        = "any-ns"
+		appName          = "any-app"
+		rdName           = "any-rd"
+		jobComponentName = "any-job"
+		batchName        = "any-rb"
+		batchJobName     = "any-batch-job"
+	)
+
+	var (
+		now time.Time = time.Date(2024, 1, 20, 8, 00, 00, 0, time.Local)
+	)
+
+	type kubeJobSpec struct {
+		creationTimestamp metav1.Time
+		status            batchv1.JobStatus
 	}
-	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
-		Spec: radixv1.RadixDeploymentSpec{
-			AppName: "any-app",
-			Jobs: []radixv1.RadixDeployJobComponent{
-				{
-					Name: "any-job",
-				},
-			},
-		},
+
+	type jobSpec struct {
+		stop             bool
+		kubeJob          *kubeJobSpec
+		currentJobStatus *radixv1.RadixBatchJobStatus
 	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	sut := s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(allJobs.Items, 3)
-	s.Require().ElementsMatch([]string{getKubeJobName(batchName, job1Name), getKubeJobName(batchName, job2Name), getKubeJobName(batchName, job3Name)}, slice.Map(allJobs.Items, func(job batchv1.Job) string { return job.GetName() }))
 
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	// Initial condition is Waiting when all jobs are waiting
-	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
-	s.Nil(batch.Status.Condition.ActiveTime)
-	s.Nil(batch.Status.Condition.CompletionTime)
+	tests := map[string]struct {
+		job            jobSpec
+		expectedStatus radixv1.RadixBatchJobStatus
+	}{
+		"kubejob not active and no current status": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:     5,
+						StartTime:  &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{Type: "any-condition-type", Status: corev1.ConditionTrue, Reason: "any-condition-reason", Message: "any-condition-message", LastTransitionTime: metav1.Now()}},
+					}}},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseWaiting,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				Failed:       5,
+			},
+		},
+		"kubejob not active and current status is set": {
+			job: jobSpec{
+				currentJobStatus: &radixv1.RadixBatchJobStatus{
+					Restart:      "any-current-restart",
+					CreationTime: &metav1.Time{Time: now.Add(-15 * time.Hour)},
+					StartTime:    &metav1.Time{Time: now.Add(-16 * time.Hour)},
+					EndTime:      &metav1.Time{Time: now.Add(-17 * time.Hour)},
+					Phase:        "any-current-phase",
+					Reason:       "any-current-reason",
+					Message:      "any-current-message",
+					Failed:       100,
+				},
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:     5,
+						StartTime:  &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{Type: "any-condition-type", Status: corev1.ConditionTrue, Reason: "any-condition-reason", Message: "any-condition-message", LastTransitionTime: metav1.Now()}},
+					}}},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        "any-current-phase",
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				Failed:       5,
+				Restart:      "any-current-restart",
+			},
+		},
 
-	// Set job1 status.active to 1 => batch condition is Running
-	s.updateKubeJobStatus(getKubeJobName(batchName, job1Name), namespace)(func(status *batchv1.JobStatus) {
-		status.Active = 1
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
-	s.NotNil(batch.Status.Condition.ActiveTime)
-	s.Nil(batch.Status.Condition.CompletionTime)
-
-	// Set job3 to stopped => batch condition is Running
-	batch.Spec.Jobs[2].Stop = pointers.Ptr(true)
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
-	s.NotNil(batch.Status.Condition.ActiveTime)
-	s.Nil(batch.Status.Condition.CompletionTime)
-
-	// Set job2 condition to failed => batch condition is Failing
-	s.updateKubeJobStatus(getKubeJobName(batchName, job2Name), namespace)(func(status *batchv1.JobStatus) {
-		status.Failed = 1
-		status.Conditions = []batchv1.JobCondition{
-			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
-		}
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Equal(radixv1.BatchConditionTypeActive, batch.Status.Condition.Type)
-	s.NotNil(batch.Status.Condition.ActiveTime)
-	s.Nil(batch.Status.Condition.CompletionTime)
-
-	// Set job1 condition to failed => batch condition is Failed
-	s.updateKubeJobStatus(getKubeJobName(batchName, job1Name), namespace)(func(status *batchv1.JobStatus) {
-		status.Active = 0
-		status.Succeeded = 1
-		status.Conditions = []batchv1.JobCondition{
-			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
-		}
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
-	s.NotNil(batch.Status.Condition.ActiveTime)
-	s.NotNil(batch.Status.Condition.CompletionTime)
-}
-
-func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
-	batchName, namespace, rdName := "any-batch", "any-ns", "any-rd"
-	jobName := "myjob"
-	jobStartTime, jobCompletionTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local))
-	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
-		Spec: radixv1.RadixBatchSpec{
-			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-				Job:                  "any-job",
+		"job stop set and no current status": {
+			job: jobSpec{
+				stop: true,
 			},
-			Jobs: []radixv1.RadixBatchJob{{Name: jobName}},
-		},
-	}
-	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
-		Spec: radixv1.RadixDeploymentSpec{
-			AppName: "any-app",
-			Jobs: []radixv1.RadixDeployJobComponent{
-				{
-					Name:         "any-job",
-					BackoffLimit: pointers.Ptr(int32(2)),
-				},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:   radixv1.BatchJobPhaseStopped,
+				EndTime: &metav1.Time{Time: now},
 			},
 		},
-	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	sut := s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(allJobs.Items, 1)
-	s.Equal(getKubeJobName(batchName, jobName), allJobs.Items[0].GetName())
-
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	// Initial phase is Waiting
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseWaiting, batch.Status.JobStatuses[0].Phase)
-	s.Equal(int32(0), batch.Status.JobStatuses[0].Failed)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Nil(batch.Status.JobStatuses[0].StartTime)
-	s.Nil(batch.Status.JobStatuses[0].EndTime)
-
-	// Set job status.active to 1 => phase is Active
-	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
-		status.Active = 1
-		status.StartTime = &jobStartTime
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
-	s.Equal(int32(0), batch.Status.JobStatuses[0].Failed)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-	s.Nil(batch.Status.JobStatuses[0].EndTime)
-
-	// Set job status.failed to 2
-	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
-		status.Active = 1
-		status.Failed = 2
-		status.StartTime = &jobStartTime
-		status.Conditions = []batchv1.JobCondition{
-			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
-		}
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
-	s.Equal(int32(2), batch.Status.JobStatuses[0].Failed)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-	s.Nil(batch.Status.JobStatuses[0].EndTime)
-
-	// Set job status.conditions to complete => phase is Succeeded
-	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
-		status.Active = 0
-		status.Succeeded = 1
-		status.Conditions = []batchv1.JobCondition{
-			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, LastTransitionTime: jobCompletionTime},
-		}
-		status.StartTime = &jobStartTime
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseSucceeded, batch.Status.JobStatuses[0].Phase)
-	s.Equal(int32(2), batch.Status.JobStatuses[0].Failed)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-	s.Equal(&jobCompletionTime, batch.Status.JobStatuses[0].EndTime)
-}
-
-func (s *syncerTestSuite) Test_BatchJobStatusWaitingToFailed() {
-	batchName, namespace, rdName := "any-batch", "any-ns", "any-rd"
-	jobName := "myjob"
-	jobStartTime, jobFailedTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local))
-	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
-		Spec: radixv1.RadixBatchSpec{
-			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-				Job:                  "any-job",
-			},
-			Jobs: []radixv1.RadixBatchJob{{Name: jobName}},
-		},
-	}
-	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
-		Spec: radixv1.RadixDeploymentSpec{
-			AppName: "any-app",
-			Jobs: []radixv1.RadixDeployJobComponent{
-				{
-					Name: "any-job",
+		"job stopped and current status is set": {
+			job: jobSpec{
+				stop: true,
+				currentJobStatus: &radixv1.RadixBatchJobStatus{
+					Restart:      "any-current-restart",
+					CreationTime: &metav1.Time{Time: now.Add(-15 * time.Hour)},
+					StartTime:    &metav1.Time{Time: now.Add(-16 * time.Hour)},
+					EndTime:      &metav1.Time{Time: now.Add(-17 * time.Hour)},
+					Phase:        "any-current-phase",
+					Reason:       "any-current-reason",
+					Message:      "any-current-message",
+					Failed:       100,
 				},
+			},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseStopped,
+				CreationTime: &metav1.Time{Time: now.Add(-15 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-16 * time.Hour)},
+				EndTime:      &metav1.Time{Time: now},
+				Restart:      "any-current-restart",
+				Failed:       100,
 			},
 		},
-	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	sut := s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(allJobs.Items, 1)
-	s.Equal(getKubeJobName(batchName, jobName), allJobs.Items[0].GetName())
-
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	// Initial phase is Waiting
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseWaiting, batch.Status.JobStatuses[0].Phase)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Nil(batch.Status.JobStatuses[0].StartTime)
-	s.Nil(batch.Status.JobStatuses[0].EndTime)
-
-	// Set job status.active to 1 => phase is Active
-	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
-		status.Active = 1
-		status.StartTime = &jobStartTime
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-	s.Nil(batch.Status.JobStatuses[0].EndTime)
-
-	// Set job status.conditions to failed => phase is Failed
-	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
-		status.Active = 0
-		status.Failed = 1
-		status.Conditions = []batchv1.JobCondition{
-			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, LastTransitionTime: jobFailedTime},
-		}
-		status.StartTime = &jobStartTime
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseFailed, batch.Status.JobStatuses[0].Phase)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-}
-
-func (s *syncerTestSuite) Test_BatchJobStatusWaitingToStopped() {
-	batchName, namespace, rdName := "any-batch", "any-ns", "any-rd"
-	jobName := "myjob"
-	jobStartTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local))
-	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
-		Spec: radixv1.RadixBatchSpec{
-			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-				Job:                  "any-job",
-			},
-			Jobs: []radixv1.RadixBatchJob{{Name: jobName}},
-		},
-	}
-	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
-		Spec: radixv1.RadixDeploymentSpec{
-			AppName: "any-app",
-			Jobs: []radixv1.RadixDeployJobComponent{
-				{
-					Name: "any-job",
-				},
+		"kubejob active and no current status": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:     5,
+						Active:     1,
+						StartTime:  &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{Type: "any-condition-type", Status: corev1.ConditionTrue, Reason: "any-condition-reason", Message: "any-condition-message", LastTransitionTime: metav1.Now()}},
+					}}},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseActive,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				Failed:       5,
 			},
 		},
-	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	sut := s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(allJobs.Items, 1)
-	s.Equal(getKubeJobName(batchName, jobName), allJobs.Items[0].GetName())
-
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	// Initial phase is Waiting
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseWaiting, batch.Status.JobStatuses[0].Phase)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Nil(batch.Status.JobStatuses[0].StartTime)
-	s.Nil(batch.Status.JobStatuses[0].EndTime)
-
-	// Set job status.active to 1 => phase is Active
-	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
-		status.Active = 1
-		status.StartTime = &jobStartTime
-	})
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-	s.Nil(batch.Status.JobStatuses[0].EndTime)
-
-	// Set job status.conditions to failed => phase is Failed
-	batch.Spec.Jobs[0].Stop = pointers.Ptr(true)
-	sut = s.createSyncer(batch, nil)
-	s.Require().NoError(sut.OnSync(context.Background()))
-	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(batch.Status.JobStatuses, 1)
-	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
-	s.Equal(radixv1.BatchJobPhaseStopped, batch.Status.JobStatuses[0].Phase)
-	s.Empty(batch.Status.JobStatuses[0].Reason)
-	s.Empty(batch.Status.JobStatuses[0].Message)
-	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
-	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
-	s.NotNil(batch.Status.JobStatuses[0].EndTime)
-}
-
-func (s *syncerTestSuite) Test_BatchStatus() {
-	namespace, rdName := "any-ns", "any-rd"
-	jobStartTime, jobCompletionTime := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local))
-	type expectedJobStatusProps struct {
-		phase radixv1.RadixBatchJobPhase
-	}
-	type expectedBatchStatusProps struct {
-		conditionType radixv1.RadixBatchConditionType
-	}
-	type updateJobStatus struct {
-		updateRadixBatchJobFunc       func(job *radixv1.RadixBatchJob)
-		updateRadixBatchJobStatusFunc func(status *radixv1.RadixBatchJobStatus)
-	}
-	type scenario struct {
-		name                string
-		initialJobStatuses  map[string]func(status *batchv1.JobStatus)
-		updateJobStatuses   map[string]updateJobStatus
-		jobNames            []string
-		expectedJobStatuses map[string]expectedJobStatusProps
-		expectedBatchStatus expectedBatchStatusProps
-	}
-	startJobStatusFunc := func(status *batchv1.JobStatus) {
-		status.Active = 1
-		status.StartTime = &jobStartTime
-	}
-	succeededJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
-		status.Phase = radixv1.BatchJobPhaseSucceeded
-		status.EndTime = &jobCompletionTime
-	}
-	failedJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
-		status.Phase = radixv1.BatchJobPhaseFailed
-		status.EndTime = &jobCompletionTime
-	}
-	stoppedJobStatusFunc := func(status *radixv1.RadixBatchJobStatus) {
-		status.Phase = radixv1.BatchJobPhaseStopped
-		status.EndTime = &jobCompletionTime
-	}
-	scenarios := []scenario{
-		{
-			name:               "all waiting - batch is waiting",
-			jobNames:           []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){},
-			updateJobStatuses:  map[string]updateJobStatus{},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseWaiting},
-				"j2": {phase: radixv1.BatchJobPhaseWaiting},
+		"kubejob active and current status is set": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:     5,
+						Active:     1,
+						StartTime:  &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{Type: "any-condition-type", Status: corev1.ConditionTrue, Reason: "any-condition-reason", Message: "any-condition-message", LastTransitionTime: metav1.Now()}},
+					}},
+				currentJobStatus: &radixv1.RadixBatchJobStatus{
+					Restart:      "any-current-restart",
+					CreationTime: &metav1.Time{Time: now.Add(-15 * time.Hour)},
+					StartTime:    &metav1.Time{Time: now.Add(-16 * time.Hour)},
+					EndTime:      &metav1.Time{Time: now.Add(-17 * time.Hour)},
+					Phase:        "any-current-phase",
+					Reason:       "any-current-reason",
+					Message:      "any-current-message",
+					Failed:       100,
+				},
 			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeWaiting,
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseActive,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				Restart:      "any-current-restart",
+				Failed:       5,
 			},
 		},
-		{
-			name:     "one waiting, one active - batch is active",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseActive},
-				"j2": {phase: radixv1.BatchJobPhaseWaiting},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeActive,
-			},
-		},
-		{
-			name:     "all active - batch is active",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseActive},
-				"j2": {phase: radixv1.BatchJobPhaseActive},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeActive,
+		"kubejob active, ready and no current status": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:     5,
+						Active:     1,
+						Ready:      pointers.Ptr[int32](1),
+						StartTime:  &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{Type: "any-condition-type", Status: corev1.ConditionTrue, Reason: "any-condition-reason", Message: "any-condition-message", LastTransitionTime: metav1.Now()}},
+					}}},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseRunning,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				Failed:       5,
 			},
 		},
-		{
-			name:     "one active, one succeeded - batch is active",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j2": {
-					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+		"kubejob active, ready and current status is set": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:     5,
+						Active:     1,
+						Ready:      pointers.Ptr[int32](1),
+						StartTime:  &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{Type: "any-condition-type", Status: corev1.ConditionTrue, Reason: "any-condition-reason", Message: "any-condition-message", LastTransitionTime: metav1.Now()}},
+					}},
+				currentJobStatus: &radixv1.RadixBatchJobStatus{
+					Restart:      "any-current-restart",
+					CreationTime: &metav1.Time{Time: now.Add(-15 * time.Hour)},
+					StartTime:    &metav1.Time{Time: now.Add(-16 * time.Hour)},
+					EndTime:      &metav1.Time{Time: now.Add(-17 * time.Hour)},
+					Phase:        "any-current-phase",
+					Reason:       "any-current-reason",
+					Message:      "any-current-message",
+					Failed:       100,
 				},
 			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseActive},
-				"j2": {phase: radixv1.BatchJobPhaseSucceeded},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeActive,
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseRunning,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				Restart:      "any-current-restart",
+				Failed:       5,
 			},
 		},
-		{
-			name:     "one waiting, one active, one succeeded - batch is active",
-			jobNames: []string{"j1", "j2", "j3"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j2": startJobStatusFunc,
-				"j3": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j3": {
-					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
-				},
-			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseWaiting},
-				"j2": {phase: radixv1.BatchJobPhaseActive},
-				"j3": {phase: radixv1.BatchJobPhaseSucceeded},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeActive,
-			},
-		},
-		{
-			name:     "all completed - batch is succeeded",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": {
-					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
-				},
-				"j2": {
-					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
-				},
-			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseSucceeded},
-				"j2": {phase: radixv1.BatchJobPhaseSucceeded},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeCompleted,
+		"kubejob Complete condition and no current status": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:    5,
+						Active:    1,
+						Ready:     pointers.Ptr[int32](1),
+						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{
+							Type:               batchv1.JobComplete,
+							Status:             corev1.ConditionTrue,
+							Reason:             "any-condition-reason",
+							Message:            "any-condition-message",
+							LastTransitionTime: metav1.Time{Time: now.Add(-4 * time.Hour)}},
+						},
+					}}},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseSucceeded,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				EndTime:      &metav1.Time{Time: now.Add(-4 * time.Hour)},
+				Reason:       "any-condition-reason",
+				Message:      "any-condition-message",
+				Failed:       5,
 			},
 		},
-		{
-			name:     "all failed - batch is failed",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": {
-					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
+		"kubejob Complete condition and current status is set": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:    5,
+						Active:    1,
+						Ready:     pointers.Ptr[int32](1),
+						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{
+							Type:               batchv1.JobComplete,
+							Status:             corev1.ConditionTrue,
+							Reason:             "any-condition-reason",
+							Message:            "any-condition-message",
+							LastTransitionTime: metav1.Time{Time: now.Add(-4 * time.Hour)}},
+						},
+					}},
+				currentJobStatus: &radixv1.RadixBatchJobStatus{
+					Restart:      "any-current-restart",
+					CreationTime: &metav1.Time{Time: now.Add(-15 * time.Hour)},
+					StartTime:    &metav1.Time{Time: now.Add(-16 * time.Hour)},
+					EndTime:      &metav1.Time{Time: now.Add(-17 * time.Hour)},
+					Phase:        "any-current-phase",
+					Reason:       "any-current-reason",
+					Message:      "any-current-message",
+					Failed:       100,
 				},
-				"j2": {
-					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
-				},
 			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseFailed},
-				"j2": {phase: radixv1.BatchJobPhaseFailed},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeCompleted,
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseSucceeded,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				EndTime:      &metav1.Time{Time: now.Add(-4 * time.Hour)},
+				Reason:       "any-condition-reason",
+				Message:      "any-condition-message",
+				Restart:      "any-current-restart",
+				Failed:       5,
 			},
 		},
-		{
-			name:     "one waiting, one failed - batch is failed",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j2": {
-					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
-				},
-			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseWaiting},
-				"j2": {phase: radixv1.BatchJobPhaseFailed},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeActive,
-			},
-		},
-		{
-			name:     "one active, one failed - batch is failed",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j2": {
-					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
-				},
-			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseActive},
-				"j2": {phase: radixv1.BatchJobPhaseFailed},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeActive,
+		"kubejob SuccessCriteriaMet condition and no current status": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:    5,
+						Active:    1,
+						Ready:     pointers.Ptr[int32](1),
+						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{
+							Type:               batchv1.JobSuccessCriteriaMet,
+							Status:             corev1.ConditionTrue,
+							Reason:             "any-condition-reason",
+							Message:            "any-condition-message",
+							LastTransitionTime: metav1.Time{Time: now.Add(-4 * time.Hour)}},
+						},
+					}}},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseSucceeded,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				EndTime:      &metav1.Time{Time: now.Add(-4 * time.Hour)},
+				Reason:       "any-condition-reason",
+				Message:      "any-condition-message",
+				Failed:       5,
 			},
 		},
-		{
-			name:     "one succeeded, one failed - batch is failed",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": {
-					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
+		"kubejob SuccessCriteriaMet condition and current status is set": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:    5,
+						Active:    1,
+						Ready:     pointers.Ptr[int32](1),
+						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{
+							Type:               batchv1.JobSuccessCriteriaMet,
+							Status:             corev1.ConditionTrue,
+							Reason:             "any-condition-reason",
+							Message:            "any-condition-message",
+							LastTransitionTime: metav1.Time{Time: now.Add(-4 * time.Hour)}},
+						},
+					}},
+				currentJobStatus: &radixv1.RadixBatchJobStatus{
+					Restart:      "any-current-restart",
+					CreationTime: &metav1.Time{Time: now.Add(-15 * time.Hour)},
+					StartTime:    &metav1.Time{Time: now.Add(-16 * time.Hour)},
+					EndTime:      &metav1.Time{Time: now.Add(-17 * time.Hour)},
+					Phase:        "any-current-phase",
+					Reason:       "any-current-reason",
+					Message:      "any-current-message",
+					Failed:       100,
 				},
-				"j2": {
-					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
-				},
 			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseSucceeded},
-				"j2": {phase: radixv1.BatchJobPhaseFailed},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeCompleted,
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseSucceeded,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				EndTime:      &metav1.Time{Time: now.Add(-4 * time.Hour)},
+				Reason:       "any-condition-reason",
+				Message:      "any-condition-message",
+				Restart:      "any-current-restart",
+				Failed:       5,
 			},
 		},
-		{
-			name:     "one stopped, one failed - batch is failed",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": {
-					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
-						job.Stop = pointers.Ptr(true)
-					},
-					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
-				},
-				"j2": {
-					updateRadixBatchJobStatusFunc: failedJobStatusFunc,
-				},
-			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseStopped},
-				"j2": {phase: radixv1.BatchJobPhaseFailed},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeCompleted,
-			},
-		},
-		{
-			name:     "all stopped - batch is stopped",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": {
-					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
-						job.Stop = pointers.Ptr(true)
-					},
-					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
-				},
-				"j2": {
-					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
-						job.Stop = pointers.Ptr(true)
-					},
-					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
-				},
-			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseStopped},
-				"j2": {phase: radixv1.BatchJobPhaseStopped},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeCompleted,
+		"kubejob Failed condition and no current status": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:    5,
+						Active:    1,
+						Ready:     pointers.Ptr[int32](1),
+						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{
+							Type:               batchv1.JobFailed,
+							Status:             corev1.ConditionTrue,
+							Reason:             "any-condition-reason",
+							Message:            "any-condition-message",
+							LastTransitionTime: metav1.Time{Time: now.Add(-4 * time.Hour)}},
+						},
+					}}},
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseFailed,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				EndTime:      &metav1.Time{Time: now.Add(-4 * time.Hour)},
+				Reason:       "any-condition-reason",
+				Message:      "any-condition-message",
+				Failed:       5,
 			},
 		},
-		{
-			name:     "one waiting, one stopped - batch is stopped",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": {
-					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
-						job.Stop = pointers.Ptr(true)
-					},
-					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
+		"kubejob Failed condition and current status is set": {
+			job: jobSpec{
+				kubeJob: &kubeJobSpec{
+					creationTimestamp: metav1.Time{Time: now.Add(-5 * time.Hour)},
+					status: batchv1.JobStatus{
+						Failed:    5,
+						Active:    1,
+						Ready:     pointers.Ptr[int32](1),
+						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
+						Conditions: []batchv1.JobCondition{{
+							Type:               batchv1.JobFailed,
+							Status:             corev1.ConditionTrue,
+							Reason:             "any-condition-reason",
+							Message:            "any-condition-message",
+							LastTransitionTime: metav1.Time{Time: now.Add(-4 * time.Hour)}},
+						},
+					}},
+				currentJobStatus: &radixv1.RadixBatchJobStatus{
+					Restart:      "any-current-restart",
+					CreationTime: &metav1.Time{Time: now.Add(-15 * time.Hour)},
+					StartTime:    &metav1.Time{Time: now.Add(-16 * time.Hour)},
+					EndTime:      &metav1.Time{Time: now.Add(-17 * time.Hour)},
+					Phase:        "any-current-phase",
+					Reason:       "any-current-reason",
+					Message:      "any-current-message",
+					Failed:       100,
 				},
 			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseStopped},
-				"j2": {phase: radixv1.BatchJobPhaseWaiting},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeActive,
-			},
-		},
-		{
-			name:     "one active, one stopped - batch is stopped",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": {
-					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
-						job.Stop = pointers.Ptr(true)
-					},
-					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
-				},
-			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseStopped},
-				"j2": {phase: radixv1.BatchJobPhaseActive},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeActive,
-			},
-		},
-		{
-			name:     "one succeeded, one stopped - batch is stopped",
-			jobNames: []string{"j1", "j2"},
-			initialJobStatuses: map[string]func(status *batchv1.JobStatus){
-				"j1": startJobStatusFunc,
-				"j2": startJobStatusFunc,
-			},
-			updateJobStatuses: map[string]updateJobStatus{
-				"j1": {
-					updateRadixBatchJobFunc: func(job *radixv1.RadixBatchJob) {
-						job.Stop = pointers.Ptr(true)
-					},
-					updateRadixBatchJobStatusFunc: stoppedJobStatusFunc,
-				},
-				"j2": {
-					updateRadixBatchJobStatusFunc: succeededJobStatusFunc,
-				},
-			},
-			expectedJobStatuses: map[string]expectedJobStatusProps{
-				"j1": {phase: radixv1.BatchJobPhaseStopped},
-				"j2": {phase: radixv1.BatchJobPhaseSucceeded},
-			},
-			expectedBatchStatus: expectedBatchStatusProps{
-				conditionType: radixv1.BatchConditionTypeCompleted,
+			expectedStatus: radixv1.RadixBatchJobStatus{
+				Phase:        radixv1.BatchJobPhaseFailed,
+				CreationTime: &metav1.Time{Time: now.Add(-5 * time.Hour)},
+				StartTime:    &metav1.Time{Time: now.Add(-6 * time.Hour)},
+				EndTime:      &metav1.Time{Time: now.Add(-4 * time.Hour)},
+				Reason:       "any-condition-reason",
+				Message:      "any-condition-message",
+				Restart:      "any-current-restart",
+				Failed:       5,
 			},
 		},
 	}
-	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
-		Spec: radixv1.RadixDeploymentSpec{
-			AppName: "any-app",
-			Jobs: []radixv1.RadixDeployJobComponent{
-				{
-					Name: "any-job",
-				},
-			},
-		},
-	}
-	_, err := s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	s.Require().NoError(err)
 
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			batchName := utils.RandString(10)
+	jobLabelsFunc := func(jobName string) labels.Set {
+		return radixlabels.Merge(
+			radixlabels.ForApplicationName(appName),
+			radixlabels.ForComponentName(jobComponentName),
+			radixlabels.ForBatchName(batchName),
+			radixlabels.ForJobScheduleJobType(),
+			radixlabels.ForBatchJobName(jobName),
+		)
+	}
+
+	for testName, test := range tests {
+		s.Run(testName, func() {
+
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Jobs: []radixv1.RadixDeployJobComponent{{Name: jobComponentName}}},
+			}
+			_, err := s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForBatchScheduleJobType()},
+				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
 				Spec: radixv1.RadixBatchSpec{
-					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-						Job:                  "any-job",
-					},
-					Jobs: slice.Reduce(ts.jobNames, make([]radixv1.RadixBatchJob, 0), func(acc []radixv1.RadixBatchJob, jobName string) []radixv1.RadixBatchJob {
-						return append(acc, radixv1.RadixBatchJob{Name: jobName})
-					}),
+					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{LocalObjectReference: radixv1.LocalObjectReference{Name: rdName}, Job: jobComponentName},
+					Jobs:                  []radixv1.RadixBatchJob{{Name: batchJobName, Stop: &test.job.stop}},
 				},
 			}
-			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-			s.Require().NoError(err)
-			sut := s.createSyncer(batch, nil)
-			s.Require().NoError(sut.OnSync(context.Background()))
-			allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{
-				LabelSelector: radixlabels.ForBatchName(batchName).String(),
-			})
-			s.Require().NoError(err)
-			s.Require().Len(allJobs.Items, len(ts.jobNames))
-
-			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
-			s.Require().NoError(err)
-			// Initial phase is Waiting
-			s.Require().Len(batch.Status.JobStatuses, len(ts.jobNames))
-			for _, jobStatus := range batch.Status.JobStatuses {
-				s.Equal(radixv1.BatchJobPhaseWaiting, jobStatus.Phase)
-				s.Equal(&allJobs.Items[0].CreationTimestamp, jobStatus.CreationTime)
-				s.Empty(jobStatus.Reason)
-				s.Empty(jobStatus.Message)
-				s.Nil(jobStatus.StartTime)
-				s.Nil(jobStatus.EndTime)
+			if currentStatus := test.job.currentJobStatus; currentStatus != nil {
+				batch.Status.JobStatuses = []radixv1.RadixBatchJobStatus{*currentStatus}
+				batch.Status.JobStatuses[0].Name = batchJobName
 			}
-
-			for jobName, setStatusFunc := range ts.initialJobStatuses {
-				s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(setStatusFunc)
-			}
-			sut = s.createSyncer(batch, nil)
-			s.Require().NoError(sut.OnSync(context.Background()))
-			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			jobMap := getRadixBatchJobsMap(batch)
-			jobStatusMap := getRadixBatchJobStatusesMap(batch)
-			for jobName, update := range ts.updateJobStatuses {
-				job, ok := jobMap[jobName]
-				s.Require().True(ok, "Not found expected job %s", jobName)
-				if update.updateRadixBatchJobFunc != nil {
-					update.updateRadixBatchJobFunc(job)
+			// Create k8s jobs required for building batch status
+			if kubeJob := test.job.kubeJob; kubeJob != nil {
+				j := &batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              getKubeJobName(batchName, batchJobName),
+						Namespace:         namespace,
+						Labels:            jobLabelsFunc(batchJobName),
+						CreationTimestamp: kubeJob.creationTimestamp,
+					},
+					Status: kubeJob.status,
 				}
-				if update.updateRadixBatchJobStatusFunc != nil {
-					status, ok := jobStatusMap[jobName]
-					s.Require().True(ok, "Not found expected status for the job  %s", jobName)
-					update.updateRadixBatchJobStatusFunc(status)
-				}
+				_, err = s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), j, metav1.CreateOptions{})
+				s.Require().NoError(err)
 			}
-			sut = s.createSyncer(batch, nil)
+
+			// Run test
+			sut := s.createSyncer(batch, nil, WithClock(commonutils.NewFakeClock(now)))
 			s.Require().NoError(sut.OnSync(context.Background()))
-			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
+			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			jobStatusMap = getRadixBatchJobStatusesMap(batch)
-			s.Require().Len(jobStatusMap, len(ts.expectedJobStatuses), "expectedJobStatuses does not match jobStatusMap")
-			for _, jobStatus := range batch.Status.JobStatuses {
-				jobStatusProps, ok := ts.expectedJobStatuses[jobStatus.Name]
-				s.Require().True(ok, "Not found expected job status %s", jobStatus.Name)
-				s.Equal(jobStatusProps.phase, jobStatus.Phase, "unexpected job status phase")
+
+			expectedStatus := test.expectedStatus
+			expectedStatus.Name = batchJobName
+			s.Equal([]radixv1.RadixBatchJobStatus{expectedStatus}, batch.Status.JobStatuses)
+		})
+	}
+}
+
+func (s *syncerTestSuite) Test_BatchStatusCondition() {
+	const (
+		namespace        = "any-ns"
+		appName          = "any-app"
+		rdName           = "any-rd"
+		jobComponentName = "any-job"
+		batchName        = "any-rb"
+	)
+
+	var (
+		now time.Time = time.Date(2024, 1, 20, 8, 00, 00, 0, time.Local)
+	)
+
+	type jobSpec struct {
+		stop          bool
+		kubeJobStatus batchv1.JobStatus
+	}
+
+	type partialBatchStatus struct {
+		jobPhases []radixv1.RadixBatchJobPhase
+		condition radixv1.RadixBatchCondition
+	}
+
+	waitingJob := jobSpec{kubeJobStatus: batchv1.JobStatus{}}
+	activeJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Active: 1}}
+	runningJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Active: 1, Ready: pointers.Ptr[int32](1)}}
+	succeededJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue}}}}
+	failedJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}}}}
+	stoppedJob := jobSpec{stop: true}
+
+	tests := map[string]struct {
+		jobs           map[string]jobSpec
+		expectedStatus partialBatchStatus
+	}{
+		"Waiting condition when all jobs Waiting": {
+			jobs: map[string]jobSpec{
+				"job1": waitingJob,
+				"job2": waitingJob,
+			},
+			expectedStatus: partialBatchStatus{
+				jobPhases: []radixv1.RadixBatchJobPhase{radixv1.BatchJobPhaseWaiting, radixv1.BatchJobPhaseWaiting},
+				condition: radixv1.RadixBatchCondition{
+					Type: radixv1.BatchConditionTypeWaiting,
+				},
+			},
+		},
+		"Completed condition when all jobs in done phase": {
+			jobs: map[string]jobSpec{
+				"job1": stoppedJob,
+				"job2": succeededJob,
+				"job3": failedJob,
+			},
+			expectedStatus: partialBatchStatus{
+				jobPhases: []radixv1.RadixBatchJobPhase{radixv1.BatchJobPhaseStopped, radixv1.BatchJobPhaseSucceeded, radixv1.BatchJobPhaseFailed},
+				condition: radixv1.RadixBatchCondition{
+					Type:           radixv1.BatchConditionTypeCompleted,
+					ActiveTime:     &metav1.Time{Time: now},
+					CompletionTime: &metav1.Time{Time: now},
+				},
+			},
+		},
+	}
+
+	// Build test spec for all job status phases that will lead to an Active condition
+	activeJobsMap := map[radixv1.RadixBatchJobPhase]jobSpec{
+		radixv1.BatchJobPhaseActive:  activeJob,
+		radixv1.BatchJobPhaseRunning: runningJob,
+	}
+	allJobsMap := map[radixv1.RadixBatchJobPhase]jobSpec{
+		radixv1.BatchJobPhaseWaiting:   waitingJob,
+		radixv1.BatchJobPhaseActive:    activeJob,
+		radixv1.BatchJobPhaseRunning:   runningJob,
+		radixv1.BatchJobPhaseStopped:   stoppedJob,
+		radixv1.BatchJobPhaseSucceeded: succeededJob,
+		radixv1.BatchJobPhaseFailed:    failedJob,
+	}
+	for activeStatus, activeJob := range activeJobsMap {
+		for anyStatus, anyJob := range allJobsMap {
+			tests[fmt.Sprintf("Completed condition when jobs %s and %s", activeStatus, anyStatus)] = struct {
+				jobs           map[string]jobSpec
+				expectedStatus partialBatchStatus
+			}{
+				jobs: map[string]jobSpec{
+					"job1": activeJob,
+					"job2": anyJob,
+				},
+				expectedStatus: partialBatchStatus{
+					jobPhases: []radixv1.RadixBatchJobPhase{activeStatus, anyStatus},
+					condition: radixv1.RadixBatchCondition{
+						Type:       radixv1.BatchConditionTypeActive,
+						ActiveTime: &metav1.Time{Time: now},
+					},
+				},
 			}
-			s.Require().Equal(ts.expectedBatchStatus.conditionType, batch.Status.Condition.Type, "unexpected batch status condition type")
+		}
+	}
+
+	jobLabelsFunc := func(jobName string) labels.Set {
+		return radixlabels.Merge(
+			radixlabels.ForApplicationName(appName),
+			radixlabels.ForComponentName(jobComponentName),
+			radixlabels.ForBatchName(batchName),
+			radixlabels.ForJobScheduleJobType(),
+			radixlabels.ForBatchJobName(jobName),
+		)
+	}
+
+	for testName, test := range tests {
+		s.Run(testName, func() {
+
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Jobs: []radixv1.RadixDeployJobComponent{{Name: jobComponentName}}},
+			}
+			_, err := s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			batch := &radixv1.RadixBatch{
+				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Spec: radixv1.RadixBatchSpec{
+					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{LocalObjectReference: radixv1.LocalObjectReference{Name: rdName}, Job: jobComponentName},
+					Jobs:                  []radixv1.RadixBatchJob{},
+				},
+			}
+			for batchJobName, job := range test.jobs {
+				batch.Spec.Jobs = append(batch.Spec.Jobs, radixv1.RadixBatchJob{Name: batchJobName, Stop: &job.stop})
+
+				j := &batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      getKubeJobName(batchName, batchJobName),
+						Namespace: namespace,
+						Labels:    jobLabelsFunc(batchJobName),
+					},
+					Status: job.kubeJobStatus,
+				}
+				_, err = s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), j, metav1.CreateOptions{})
+				s.Require().NoError(err)
+			}
+			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			// Run test
+			sut := s.createSyncer(batch, nil, WithClock(commonutils.NewFakeClock(now)))
+			s.Require().NoError(sut.OnSync(context.Background()))
+			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
+			s.Require().NoError(err)
+
+			actualJobPhases := slice.Map(batch.Status.JobStatuses, func(s radixv1.RadixBatchJobStatus) radixv1.RadixBatchJobPhase { return s.Phase })
+			s.ElementsMatch(test.expectedStatus.jobPhases, actualJobPhases)
+			s.Equal(test.expectedStatus.condition, batch.Status.Condition)
 		})
 	}
 }
@@ -2618,35 +2403,77 @@ func (s *syncerTestSuite) Test_RestartCorrectlyHandledWithIntermediateStatusUpda
 	s.Equal(getKubeJobName(batchName, batchJobName), jobs.Items[0].GetName())
 }
 
-func getRadixBatchJobsMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJob {
-	batchJobsMap := make(map[string]*radixv1.RadixBatchJob)
-	for i := 0; i < len(batch.Spec.Jobs); i++ {
-		batchJobsMap[batch.Spec.Jobs[i].Name] = &batch.Spec.Jobs[i]
+func (s *syncerTestSuite) Test_FailurePolicy() {
+	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	jobName1, jobName2 := "any-job1", "any-job2"
+	rdFailurePolicy := &radixv1.RadixJobComponentFailurePolicy{
+		Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+			{
+				Action: radixv1.RadixJobComponentFailurePolicyActionFailJob,
+				OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{
+					Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn,
+					Values:   []int32{5, 3, 4},
+				},
+			},
+		},
 	}
-	return batchJobsMap
-}
+	batchJobFailurePolicy := &radixv1.RadixJobComponentFailurePolicy{
+		Rules: []radixv1.RadixJobComponentFailurePolicyRule{
+			{
+				Action: radixv1.RadixJobComponentFailurePolicyActionIgnore,
+				OnExitCodes: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes{
+					Operator: radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpNotIn,
+					Values:   []int32{4, 2, 3},
+				},
+			},
+		},
+	}
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: jobName1},
+				{Name: jobName2, FailurePolicy: batchJobFailurePolicy},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:          componentName,
+					FailurePolicy: rdFailurePolicy,
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
 
-func getRadixBatchJobStatusesMap(batch *radixv1.RadixBatch) map[string]*radixv1.RadixBatchJobStatus {
-	jobStatusMap := make(map[string]*radixv1.RadixBatchJobStatus)
-	for i := 0; i < len(batch.Status.JobStatuses); i++ {
-		jobStatusMap[batch.Status.JobStatuses[i].Name] = &batch.Status.JobStatuses[i]
-	}
-	return jobStatusMap
-}
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 2)
 
-func (s *syncerTestSuite) updateKubeJobStatus(jobName, namespace string) func(updater func(status *batchv1.JobStatus)) {
-	job, err := s.kubeClient.BatchV1().Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return func(updater func(status *batchv1.JobStatus)) {}
-		}
-		s.FailNow(err.Error())
+	findJobByName := func(name string) func(j batchv1.Job) bool {
+		return func(j batchv1.Job) bool { return j.ObjectMeta.Name == getKubeJobName(batchName, name) }
 	}
-	return func(updater func(status *batchv1.JobStatus)) {
-		updater(&job.Status)
-		_, err := s.kubeClient.BatchV1().Jobs(namespace).Update(context.Background(), job, metav1.UpdateOptions{})
-		if err != nil {
-			s.FailNow(err.Error())
-		}
-	}
+
+	job1, found := slice.FindFirst(jobs.Items, findJobByName(jobName1))
+	s.Require().True(found)
+	expectedPodFailurePolicy := utils.GetPodFailurePolicy(rd.Spec.Jobs[0].FailurePolicy)
+	s.Equal(expectedPodFailurePolicy, job1.Spec.PodFailurePolicy)
+
+	job2, found := slice.FindFirst(jobs.Items, findJobByName(jobName2))
+	s.Require().True(found)
+	expectedPodFailurePolicy = utils.GetPodFailurePolicy(batch.Spec.Jobs[1].FailurePolicy)
+	s.Equal(expectedPodFailurePolicy, job2.Spec.PodFailurePolicy)
 }

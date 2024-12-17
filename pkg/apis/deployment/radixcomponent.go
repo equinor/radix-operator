@@ -74,6 +74,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
 		deployComponent.ExternalDNS = getExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
+		deployComponent.HealthChecks = getRadixCommonComponentHealthChecks(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 		deployComponent.Authentication = auth
 		deployComponent.Identity = identity
@@ -91,6 +92,34 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 	}
 
 	return deployComponents, nil
+}
+
+func getRadixCommonComponentHealthChecks(r *radixv1.RadixComponent, config *radixv1.RadixEnvironmentConfig) *radixv1.RadixHealthChecks {
+	if r.HealthChecks == nil && (config == nil || config.HealthChecks == nil) {
+		return nil
+	}
+	hc := &radixv1.RadixHealthChecks{}
+	if r.HealthChecks != nil {
+		hc.StartupProbe = r.HealthChecks.StartupProbe.DeepCopy()
+		hc.ReadinessProbe = r.HealthChecks.ReadinessProbe.DeepCopy()
+		hc.LivenessProbe = r.HealthChecks.LivenessProbe.DeepCopy()
+	}
+
+	if config == nil || config.HealthChecks == nil {
+		return hc
+	}
+
+	if config.HealthChecks.ReadinessProbe != nil {
+		hc.ReadinessProbe = config.HealthChecks.ReadinessProbe.DeepCopy()
+	}
+	if config.HealthChecks.LivenessProbe != nil {
+		hc.LivenessProbe = config.HealthChecks.LivenessProbe.DeepCopy()
+	}
+	if config.HealthChecks.StartupProbe != nil {
+		hc.StartupProbe = config.HealthChecks.StartupProbe.DeepCopy()
+	}
+
+	return hc
 }
 
 func getRadixComponentNetwork(component *radixv1.RadixComponent, environmentConfig *radixv1.RadixEnvironmentConfig) (*radixv1.Network, error) {
@@ -197,7 +226,7 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 	return finalVolumeMounts, nil
 }
 
-func getBatchStatusRules(radixJobComponent *radixv1.RadixJobComponent, environmentSpecificConfig *radixv1.RadixJobComponentEnvironmentConfig) []radixv1.BatchStatusRule {
+func getRadixJobComponentBatchStatusRules(radixJobComponent *radixv1.RadixJobComponent, environmentSpecificConfig *radixv1.RadixJobComponentEnvironmentConfig) []radixv1.BatchStatusRule {
 	batchStatusRules := radixJobComponent.GetBatchStatusRules()
 	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.BatchStatusRules == nil {
 		return batchStatusRules

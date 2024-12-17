@@ -16,6 +16,7 @@ var (
 	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dns external alias not defined")
 	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dns external alias not defined")
 	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
+	ErrComponentHasInvalidHealthCheck                                      = errors.New("component has invalid health check")
 	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
 	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
 	ErrPortNameIsRequiredForPublicComponent                                = errors.New("port name is required for public component")
@@ -26,6 +27,8 @@ var (
 	ErrMemoryResourceRequirementFormat                                     = errors.New("memory resource requirement format")
 	ErrCPUResourceRequirementFormat                                        = errors.New("cpu resource requirement format")
 	ErrInvalidVerificationType                                             = errors.New("invalid verification")
+	ErrInvalidHealthCheckProbe                                             = errors.New("probe configuration error, only one action allowed")
+	ErrSuccessThresholdMustBeOne                                           = errors.New("success threshold must be equal to one")
 	ErrResourceRequestOverLimit                                            = errors.New("resource request over limit")
 	ErrInvalidResource                                                     = errors.New("invalid resource")
 	ErrDuplicateExternalAlias                                              = errors.New("duplicate external alias")
@@ -108,6 +111,7 @@ var (
 	ErrMissingAzureIdentity                                                = errors.New("missing identity")
 	ErrInvalidRuntimeArchitecture                                          = errors.New("invalid runtime architecture")
 	ErrInvalidIPv4OrCIDR                                                   = errors.New("invalid IPv4 or CIDR")
+	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator                = errors.New("value 0 cannot be used for the In operator")
 )
 
 // DuplicateAliasForDNSAliasError Error when aliases are duplicate
