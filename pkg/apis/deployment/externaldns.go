@@ -82,7 +82,7 @@ func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec(ctx con
 			continue
 		}
 
-		if err := deploy.deleteSecret(ctx, &secret); err != nil {
+		if err := deleteSecret(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment.Namespace, &secret); err != nil {
 			return nil
 		}
 	}

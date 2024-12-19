@@ -1019,7 +1019,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				desiredDeployment := getDesiredDeployment(componentName, scenario.volumes)
 
 				deployComponent := deployment.radixDeployment.Spec.Components[0]
-				err := deployment.createOrUpdateCsiAzureVolumeResources(context.Background(), &deployComponent, desiredDeployment)
+				err := createOrUpdateCsiAzureVolumeResources(context.Background(), testEnv.kubeUtil.KubeClient(), deployment.radixDeployment, environment, &deployComponent, desiredDeployment)
 				assert.Nil(t, err)
 
 				existingPvcs, existingPvs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(deployment)

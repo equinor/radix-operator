@@ -37,7 +37,7 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 			return err
 		}
 	}
-	if err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, deployComponent, desiredDeployment); err != nil {
+	if err = createOrUpdateCsiAzureVolumeResources(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment); err != nil {
 		return err
 	}
 	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment); err != nil {
