@@ -464,6 +464,7 @@ func buildPersistentVolumeClaim(appName, namespace, componentName, pvName string
 			},
 			VolumeName:       pvName,
 			StorageClassName: pointers.Ptr(""), // use "" to avoid to use the "default" storage class
+			VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
 		},
 	}, nil
 }
@@ -566,7 +567,8 @@ func getCsiAzurePersistentVolumeAttributes(namespace string, radixVolumeMount *r
 		attributes[persistentvolume.CsiVolumeMountAttributeSecretNamespace] = namespace
 	}
 	// Do not specify the key storage.kubernetes.io/csiProvisionerIdentity in csi.volumeAttributes in PV specification. This key indicates dynamically provisioned PVs
-	// It looks like: storage.kubernetes.io/csiProvisionerIdentity: 1731647415428-2825-blob.csi.azure.com
+	// https://github.com/kubernetes-csi/external-provisioner/blob/master/pkg/controller/controller.go#L289C5-L289C21
+	// It looks like this: storage.kubernetes.io/csiProvisionerIdentity: 1731647415428-2825-blob.csi.azure.com
 	return attributes
 }
 
