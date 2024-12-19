@@ -1,4 +1,4 @@
-package deployment
+package volumemount
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/internal/persistentvolume"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -70,7 +71,7 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 }
 
 func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
-	if isDeployComponentJobSchedulerDeployment(deployComponent) {
+	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil, nil
 	}
 
@@ -398,7 +399,16 @@ func garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Con
 	if err != nil {
 		return err
 	}
-	return GarbageCollectSecrets(ctx, kubeUtil.KubeClient(), namespace, secrets, excludeSecretNames)
+	for _, secret := range secrets {
+		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
+			continue
+		}
+		if err := kubeUtil.DeleteSecret(ctx, namespace, secret.Name); err != nil && !k8serrors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return garbageCollectSecrets(ctx, kubeUtil.KubeClient(), namespace, secrets, excludeSecretNames)
 }
 
 func getCsiPersistentVolumesForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string, onlyFunctional bool) ([]corev1.PersistentVolume, error) {
@@ -976,12 +986,49 @@ func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, 
 
 func getCsiAzureVolumeMountCredsSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, componentName, volumeMountName string) (string, []byte, []byte) {
 	secretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, volumeMountName)
-	accountKey := []byte(secretDefaultData)
-	accountName := []byte(secretDefaultData)
+	accountKey := []byte(defaults.SecretDefaultData)
+	accountName := []byte(defaults.SecretDefaultData)
 	if kubeUtil.SecretExists(ctx, namespace, secretName) {
 		oldSecret, _ := kubeUtil.GetSecret(ctx, namespace, secretName)
 		accountKey = oldSecret.Data[defaults.CsiAzureCredsAccountKeyPart]
 		accountName = oldSecret.Data[defaults.CsiAzureCredsAccountNamePart]
 	}
 	return secretName, accountKey, accountName
+}
+
+func getLabelSelectorForCsiAzureVolumeMountSecret(component radixv1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure))
+}
+
+func listSecretsForVolumeMounts(ctx context.Context, kubeUtil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent) ([]*corev1.Secret, error) {
+	csiAzureVolumeMountSecret := getLabelSelectorForCsiAzureVolumeMountSecret(component)
+	csiSecrets, err := kubeUtil.ListSecretsWithSelector(ctx, namespace, csiAzureVolumeMountSecret)
+	if err != nil {
+		return nil, err
+	}
+	return csiSecrets, nil
+}
+
+// garbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
+func garbageCollectSecrets(ctx context.Context, kubeClient kubernetes.Interface, namespace string, secrets []*corev1.Secret, excludeSecretNames []string) error {
+	for _, secret := range secrets {
+		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
+			continue
+		}
+		err := DeleteSecret(ctx, kubeClient, namespace, secret)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func DeleteSecret(ctx context.Context, kubeClient kubernetes.Interface, namespace string, secret *corev1.Secret) error {
+	log.Ctx(ctx).Debug().Msgf("Delete secret %s", secret.Name)
+	err := kubeClient.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	log.Ctx(ctx).Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), namespace)
+	return nil
 }

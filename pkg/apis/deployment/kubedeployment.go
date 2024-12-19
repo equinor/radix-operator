@@ -2,6 +2,8 @@ package deployment
 
 import (
 	"context"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
@@ -37,7 +39,7 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 			return err
 		}
 	}
-	if err = createOrUpdateCsiAzureVolumeResources(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment); err != nil {
+	if err = volumemount.createOrUpdateCsiAzureVolumeResources(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment); err != nil {
 		return err
 	}
 	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment); err != nil {
@@ -47,7 +49,7 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 }
 
 func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
-	if !isDeployComponentJobSchedulerDeployment(deployComponent) {
+	if !internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil
 	}
 	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
@@ -192,7 +194,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
 	)
 
-	if isDeployComponentJobSchedulerDeployment(deployComponent) {
+	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		labels = radixlabels.Merge(labels, radixlabels.ForPodIsJobScheduler())
 	}
 
@@ -286,7 +288,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
 
-	volumes, err := GetVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent, deploy.radixDeployment.GetName(), desiredDeployment.Spec.Template.Spec.Volumes)
+	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent, deploy.radixDeployment.GetName(), desiredDeployment.Spec.Template.Spec.Volumes)
 	if err != nil {
 		return err
 	}
@@ -302,7 +304,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		return err
 	}
 
-	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
+	volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {
 		return err
 	}

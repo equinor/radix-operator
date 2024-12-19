@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/numbers"
@@ -180,7 +181,7 @@ func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1
 }
 
 func (s *syncer) getVolumes(ctx context.Context, namespace, environment string, batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, radixDeploymentName string) ([]corev1.Volume, error) {
-	volumes, err := deployment.GetVolumes(ctx, s.kubeUtil, namespace, radixJobComponent, radixDeploymentName, nil)
+	volumes, err := volumemount.GetVolumes(ctx, s.kubeUtil, namespace, radixJobComponent, radixDeploymentName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +277,7 @@ func getContainerPorts(radixJobComponent *radixv1.RadixDeployJobComponent) []cor
 }
 
 func (s *syncer) getContainerVolumeMounts(batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, radixDeploymentName string) ([]corev1.VolumeMount, error) {
-	volumeMounts, err := deployment.GetRadixDeployComponentVolumeMounts(radixJobComponent, radixDeploymentName)
+	volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(radixJobComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}

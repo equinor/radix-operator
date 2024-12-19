@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"sort"
 	"strings"
 	"time"
@@ -233,7 +234,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
-		jobSchedulerComponent := newJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
+		jobSchedulerComponent := internal.NewJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
 		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
 			errs = append(errs, err)
 		}
@@ -473,10 +474,6 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources(ctx context.Context) 
 
 func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {
 	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
-}
-
-func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobFuse2FuseCsiAzure), string(v1.MountTypeBlobFuse2Fuse2CsiAzure))
 }
 
 func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHistoryLimit int) {

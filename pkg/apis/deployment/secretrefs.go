@@ -45,7 +45,7 @@ func (deploy *Deployment) getOrCreateSecretProviderClass(ctx context.Context, na
 	secretProviderClass, err := deploy.kubeutil.GetSecretProviderClass(ctx, namespace, className)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(ctx, namespace, appName, radixDeployComponentName, radixAzureKeyVault)
+			return deploy.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(ctx, namespace, appName, radixDeployComponentName, radixAzureKeyVault)
 		}
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (deploy *Deployment) getAzureKeyVaultCredsSecret(ctx context.Context, names
 	return deploy.getOrCreateAzureKeyVaultCredsSecret(ctx, namespace, appName, radixDeployComponentName, azureKeyVault.Name)
 }
 
-func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployment(ctx context.Context, namespace string, appName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
+func (deploy *Deployment) CreateAzureKeyVaultSecretProviderClassForRadixDeployment(ctx context.Context, namespace string, appName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
 	radixDeploymentName := deploy.radixDeployment.GetName()
 	tenantId := deploy.config.DeploymentSyncer.TenantID
 	identity := deploy.getIdentityFromRadixCommonDeployComponent(radixDeployComponentName)

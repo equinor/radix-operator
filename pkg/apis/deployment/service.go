@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -59,7 +60,7 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 	}
 
 	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
-	if isDeployComponentJobSchedulerDeployment(component) {
+	if internal.IsDeployComponentJobSchedulerDeployment(component) {
 		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
 	}
 

@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	deployment2 "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -40,7 +41,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Components[1].Name), spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
+		spec = NewServiceAccountSpec(rd, deployment2.newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
@@ -48,7 +49,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
+		spec = NewServiceAccountSpec(rd, deployment2.newJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
@@ -71,7 +72,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixAPIServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
+		spec = NewServiceAccountSpec(rd, deployment2.newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
@@ -95,7 +96,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
+		spec = NewServiceAccountSpec(rd, deployment2.newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
