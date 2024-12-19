@@ -52,13 +52,22 @@ func correctRadixApplication(ctx context.Context, ra *radixv1.RadixApplication) 
 func buildResource(component radixv1.RadixCommonComponent) radixv1.ResourceRequirements {
 	memoryReqName := corev1.ResourceMemory.String()
 	resources := component.GetResources()
-	delete(resources.Limits, memoryReqName)
 
-	if requestsMemory, ok := resources.Requests[memoryReqName]; ok {
+	memReq, hasMemReq := resources.Requests[memoryReqName]
+	memLimit, hasMemLimit := resources.Limits[memoryReqName]
+
+	if hasMemReq && !hasMemLimit {
 		if resources.Limits == nil {
 			resources.Limits = radixv1.ResourceList{}
 		}
-		resources.Limits[memoryReqName] = requestsMemory
+		resources.Limits[memoryReqName] = memReq
+	}
+
+	if !hasMemReq && hasMemLimit {
+		if resources.Requests == nil {
+			resources.Requests = radixv1.ResourceList{}
+		}
+		resources.Requests[memoryReqName] = memLimit
 	}
 	return resources
 }

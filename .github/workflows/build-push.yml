@@ -175,12 +175,12 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Build and push pipeline-runner docker image
+    - name: Build and push Operator docker image
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
-        file: ./pipeline.Dockerfile
+        file: ./operator.Dockerfile
         platforms: |
           linux/amd64
           linux/arm64
