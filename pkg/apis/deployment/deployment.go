@@ -588,8 +588,8 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, desiredDeployment)
+func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, deploymentName string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, namespace, deploymentName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -598,12 +598,9 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, de
 	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
 	desiredJobAuxDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForJobAPIAuxComponent()
-	// Copy volumes and volume mounts from desired deployment to job aux deployment
-	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
-	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
-	// Remove volumes and volume mounts from job scheduler deployment
-	desiredDeployment.Spec.Template.Spec.Volumes = nil
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
+	// Move volumes and volume mounts from desired deployment to job aux deployment
+	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = volumes
+	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
 	syncRadixRestartEnvironmentVariable(deployComponent, desiredJobAuxDeployment)
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
@@ -622,8 +619,8 @@ func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployCom
 	}
 }
 
-func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, desiredDeployment.Namespace, getJobAuxObjectName(desiredDeployment.Name))
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, deploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, deploymentName)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			return nil, deploy.createJobAuxDeployment(deployComponent), nil

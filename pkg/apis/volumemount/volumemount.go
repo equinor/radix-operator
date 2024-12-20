@@ -18,7 +18,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -62,7 +61,7 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 }
 
 // GetVolumes Get volumes of a component by RadixVolumeMounts
-func GetVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string, existingVolumes []corev1.Volume) ([]corev1.Volume, error) {
+func GetVolumes(ctx context.Context, kubeUtil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string, existingVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	var volumes []corev1.Volume
 	volumeMountVolumes, err := getComponentVolumeMountVolumes(deployComponent, existingVolumes)
 	if err != nil {
@@ -70,7 +69,7 @@ func GetVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, depl
 	}
 	volumes = append(volumes, volumeMountVolumes...)
 
-	storageRefsVolumes, err := getComponentSecretRefsVolumes(ctx, kubeutil, namespace, deployComponent, radixDeploymentName)
+	storageRefsVolumes, err := getComponentSecretRefsVolumes(ctx, kubeUtil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -98,19 +97,21 @@ func GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Con
 }
 
 // CreateOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
-func CreateOrUpdateCsiAzureVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string, deployComponent radixv1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+// Returns actual volumes, with existing relevant PersistentVolumeClaimName and PersistentVolumeName
+func CreateOrUpdateCsiAzureVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string, deployComponent radixv1.RadixCommonDeployComponent, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	componentName := deployComponent.GetName()
-	if err := createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx, kubeClient, radixDeployment, namespace, componentName, deployComponent.GetIdentity(), desiredDeployment); err != nil {
-		return err
-	}
-	currentlyUsedPvcNames, err := getCurrentlyUsedPersistentVolumeClaims(ctx, kubeClient, radixDeployment, desiredDeployment)
+	actualVolumes, err := createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx, kubeClient, radixDeployment, namespace, componentName, deployComponent.GetIdentity(), desiredVolumes)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	currentlyUsedPvcNames, err := getCurrentlyUsedPersistentVolumeClaims(ctx, kubeClient, radixDeployment, actualVolumes)
+	if err != nil {
+		return nil, err
 	}
 	if err = garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx, kubeClient, namespace, componentName, currentlyUsedPvcNames); err != nil {
-		return err
+		return nil, err
 	}
-	return garbageCollectOrphanedCsiAzurePersistentVolumes(ctx, kubeClient, currentlyUsedPvcNames)
+	return actualVolumes, garbageCollectOrphanedCsiAzurePersistentVolumes(ctx, kubeClient, currentlyUsedPvcNames)
 }
 
 // CreateOrUpdateVolumeMountSecrets creates or updates secrets for volume mounts
@@ -784,19 +785,19 @@ func knownCSIDriver(driver string) bool {
 	return ok
 }
 
-func createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace, componentName string, identity *radixv1.Identity, desiredDeployment *appsv1.Deployment) error {
+func createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace, componentName string, identity *radixv1.Identity, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	functionalPvList, err := getCsiPersistentVolumesForNamespace(ctx, kubeClient, namespace, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	pvcByNameMap, err := getPvcByNameMap(ctx, kubeClient, namespace, componentName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	radixVolumeMountsByNameMap := getRadixVolumeMountsByNameMap(radixDeployment, componentName)
 	var errs []error
 	var volumes []corev1.Volume
-	for _, volume := range desiredDeployment.Spec.Template.Spec.Volumes {
+	for _, volume := range desiredVolumes {
 		if volume.PersistentVolumeClaim == nil {
 			volumes = append(volumes, volume)
 			continue
@@ -815,10 +816,9 @@ func createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx context.Context, kubeCl
 		}
 	}
 	if len(errs) > 0 {
-		return errors.Join(errs...)
+		return nil, errors.Join(errs...)
 	}
-	desiredDeployment.Spec.Template.Spec.Volumes = volumes
-	return nil
+	return volumes, nil
 }
 
 func createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string, componentName string, identity *radixv1.Identity, volume corev1.Volume, radixVolumeMount *radixv1.RadixVolumeMount, functionalPvList []corev1.PersistentVolume, pvcByNameMap map[string]*corev1.PersistentVolumeClaim) (*corev1.Volume, error) {
@@ -865,7 +865,7 @@ func getPvcByNameMap(ctx context.Context, kubeClient kubernetes.Interface, names
 	return persistentvolume.GetPersistentVolumeClaimMap(&pvcList.Items), nil
 }
 
-func getCurrentlyUsedPersistentVolumeClaims(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, desiredDeployment *appsv1.Deployment) (map[string]any, error) {
+func getCurrentlyUsedPersistentVolumeClaims(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, volumes []corev1.Volume) (map[string]any, error) {
 	namespace := radixDeployment.GetNamespace()
 	pvcNames := make(map[string]any)
 	deploymentList, err := kubeClient.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
@@ -882,8 +882,8 @@ func getCurrentlyUsedPersistentVolumeClaims(ctx context.Context, kubeClient kube
 	for _, job := range jobsList.Items {
 		pvcNames = appendUsedPersistenceVolumeClaimsFrom(pvcNames, job.Spec.Template.Spec.Volumes)
 	}
-	// TODD add from RadixDeployments, connected to existing scheduled jobs and batches
-	return appendUsedPersistenceVolumeClaimsFrom(pvcNames, desiredDeployment.Spec.Template.Spec.Volumes), nil
+	// TODO add from RadixDeployments, connected to existing scheduled jobs and batches
+	return appendUsedPersistenceVolumeClaimsFrom(pvcNames, volumes), nil
 }
 
 func appendUsedPersistenceVolumeClaimsFrom(pvcMap map[string]any, volumes []corev1.Volume) map[string]any {

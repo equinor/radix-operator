@@ -28,7 +28,7 @@ const (
 	jobPayloadVolumeName = "job-payload"
 )
 
-func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
+func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job, volumes []corev1.Volume) error {
 	batchJobKubeJobs := slice.FindAll(existingJobs, isKubeJobForBatchJob(batchJob))
 
 	if isBatchJobStopRequested(batchJob) {
@@ -52,7 +52,7 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 		return err
 	}
 
-	job, err := s.buildJob(ctx, batchJob, jobComponent, rd)
+	job, err := s.buildJob(ctx, batchJob, jobComponent, rd, volumes)
 	if err != nil {
 		return err
 	}
@@ -93,18 +93,13 @@ func (s *syncer) deleteJobs(ctx context.Context, jobsToDelete []*batchv1.Job) er
 	return nil
 }
 
-func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) (*batchv1.Job, error) {
+func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment, volumes []corev1.Volume) (*batchv1.Job, error) {
 	jobLabels := s.batchJobIdentifierLabel(batchJob.Name, rd.Spec.AppName)
 	podLabels := radixlabels.Merge(
 		jobLabels,
 		radixlabels.ForPodWithRadixIdentity(jobComponent.Identity),
 	)
 	podAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
-
-	volumes, err := s.getVolumes(ctx, rd.GetNamespace(), rd.Spec.Environment, batchJob, jobComponent, rd.Name)
-	if err != nil {
-		return nil, err
-	}
 
 	kubeJobName := getKubeJobName(s.radixBatch.GetName(), batchJob.Name)
 	containers, err := s.getContainers(ctx, rd, jobComponent, batchJob, kubeJobName)
@@ -136,6 +131,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	}
 
 	serviceAccountSpec := deployment.NewServiceAccountSpec(rd, jobComponent)
+	volumes = s.appendPayloadSecretVolumes(batchJob, jobComponent, volumes)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -180,27 +176,21 @@ func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1
 	return imagePullSecrets
 }
 
-func (s *syncer) getVolumes(ctx context.Context, namespace, environment string, batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, radixDeploymentName string) ([]corev1.Volume, error) {
-	volumes, err := volumemount.GetVolumes(ctx, s.kubeUtil, namespace, radixJobComponent, radixDeploymentName, nil)
-	if err != nil {
-		return nil, err
+func (s *syncer) appendPayloadSecretVolumes(batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, volumes []corev1.Volume) []corev1.Volume {
+	if radixJobComponent.Payload == nil || batchJob.PayloadSecretRef == nil {
+		return nil
 	}
-
-	if radixJobComponent.Payload != nil && batchJob.PayloadSecretRef != nil {
-		volumes = append(volumes, corev1.Volume{
-			Name: jobPayloadVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: batchJob.PayloadSecretRef.Name,
-					Items: []corev1.KeyToPath{
-						{Key: batchJob.PayloadSecretRef.Key, Path: "payload"},
-					},
+	return append(volumes, corev1.Volume{
+		Name: jobPayloadVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: batchJob.PayloadSecretRef.Name,
+				Items: []corev1.KeyToPath{
+					{Key: batchJob.PayloadSecretRef.Key, Path: "payload"},
 				},
 			},
-		})
-	}
-
-	return volumes, nil
+		},
+	})
 }
 
 func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob, kubeJobName string) ([]corev1.Container, error) {

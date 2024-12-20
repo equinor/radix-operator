@@ -999,11 +999,12 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				testEnv := getTestEnv()
 				radixDeployment := buildRd(appName, environment, componentName, scenario.radixVolumeMounts)
 				putExistingDeploymentVolumesScenarioDataToFakeCluster(testEnv.kubeclient, &scenario)
-				desiredDeployment := getDesiredDeployment(componentName, scenario.volumes)
+				desiredVolumes := getDesiredDeployment(componentName, scenario.volumes).Spec.Template.Spec.Volumes
 
 				deployComponent := radixDeployment.Spec.Components[0]
-				err := CreateOrUpdateCsiAzureVolumeResources(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, environment, &deployComponent, desiredDeployment)
+				actualVolumes, err := CreateOrUpdateCsiAzureVolumeResources(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, environment, &deployComponent, desiredVolumes)
 				assert.Nil(t, err)
+				assert.Equal(t, len(scenario.volumes), len(actualVolumes), "Number of volumes is not equal")
 
 				existingPvcs, existingPvs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(testEnv.kubeUtil.KubeClient())
 				assert.Nil(t, err)

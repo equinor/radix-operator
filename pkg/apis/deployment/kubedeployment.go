@@ -39,20 +39,25 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 			return err
 		}
 	}
-	if err = volumemount.CreateOrUpdateCsiAzureVolumeResources(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment); err != nil {
+	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResources(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment.Spec.Template.Spec.Volumes)
+	if err != nil {
 		return err
 	}
-	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment); err != nil {
+	desiredDeployment.Spec.Template.Spec.Volumes = actualVolumes
+	desiredVolumeMounts := desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
+	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
 		return err
 	}
 	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 
-func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
 	if !internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil
 	}
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
+	namespace := desiredDeployment.GetNamespace()
+	deploymentName := desiredDeployment.GetName()
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, deploymentName, volumes, volumeMounts)
 	if err != nil {
 		return err
 	}
@@ -65,11 +70,14 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 			return err
 		}
 
-		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
+		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, deploymentName, volumes, volumeMounts)
 		if err != nil {
 			return err
 		}
 	}
+	// Remove volumes and volume mounts from job scheduler deployment, they are set to aux deployment
+	desiredDeployment.Spec.Template.Spec.Volumes = nil
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
 
 	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
