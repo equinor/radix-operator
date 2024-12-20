@@ -47,15 +47,6 @@ var (
 	functionalPersistentVolumeClaimPhases = []corev1.PersistentVolumeClaimPhase{corev1.ClaimPending, corev1.ClaimBound}
 )
 
-// isKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
-func isKnownCsiAzureVolumeMount(volumeMount string) bool {
-	switch volumeMount {
-	case string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure):
-		return true
-	}
-	return false
-}
-
 // GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
 func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.VolumeMount, error) {
 	componentName := deployComponent.GetName()
@@ -68,6 +59,103 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 	secretRefsVolumeMounts := getRadixComponentSecretRefsVolumeMounts(deployComponent, componentName, radixDeploymentName)
 	volumeMounts = append(volumeMounts, secretRefsVolumeMounts...)
 	return volumeMounts, nil
+}
+
+// GetVolumes Get volumes of a component by RadixVolumeMounts
+func GetVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string, existingVolumes []corev1.Volume) ([]corev1.Volume, error) {
+	var volumes []corev1.Volume
+	volumeMountVolumes, err := getComponentVolumeMountVolumes(deployComponent, existingVolumes)
+	if err != nil {
+		return nil, err
+	}
+	volumes = append(volumes, volumeMountVolumes...)
+
+	storageRefsVolumes, err := getComponentSecretRefsVolumes(ctx, kubeutil, namespace, deployComponent, radixDeploymentName)
+	if err != nil {
+		return nil, err
+	}
+	volumes = append(volumes, storageRefsVolumes...)
+
+	return volumes, nil
+}
+
+// GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent Garbage collect volume-mount related secrets that are no longer in the spec
+func GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Context, kubeUtil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent, excludeSecretNames []string) error {
+	secrets, err := listSecretsForVolumeMounts(ctx, kubeUtil, namespace, component)
+	if err != nil {
+		return err
+	}
+	for _, secret := range secrets {
+		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
+			continue
+		}
+		if err := kubeUtil.DeleteSecret(ctx, namespace, secret.Name); err != nil && !k8serrors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return garbageCollectSecrets(ctx, kubeUtil, namespace, secrets, excludeSecretNames)
+}
+
+// CreateOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
+func CreateOrUpdateCsiAzureVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string, deployComponent radixv1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+	componentName := deployComponent.GetName()
+	if err := createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx, kubeClient, radixDeployment, namespace, componentName, deployComponent.GetIdentity(), desiredDeployment); err != nil {
+		return err
+	}
+	currentlyUsedPvcNames, err := getCurrentlyUsedPersistentVolumeClaims(ctx, kubeClient, radixDeployment, desiredDeployment)
+	if err != nil {
+		return err
+	}
+	if err = garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx, kubeClient, namespace, componentName, currentlyUsedPvcNames); err != nil {
+		return err
+	}
+	return garbageCollectOrphanedCsiAzurePersistentVolumes(ctx, kubeClient, currentlyUsedPvcNames)
+}
+
+// CreateOrUpdateVolumeMountSecrets creates or updates secrets for volume mounts
+func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
+	var volumeMountSecretsToManage []string
+	for _, volumeMount := range volumeMounts {
+		secretName, accountKey, accountName := getCsiAzureVolumeMountCredsSecrets(ctx, kubeUtil, namespace, componentName, volumeMount.Name)
+		volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
+		err := createOrUpdateCsiAzureVolumeMountsSecrets(ctx, kubeUtil, appName, namespace, componentName, &volumeMount, secretName, accountName, accountKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return volumeMountSecretsToManage, nil
+}
+
+// GetCsiAzureVolumeMountType Gets the CSI Azure volume mount type
+func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radixv1.MountType {
+	if radixVolumeMount.BlobFuse2 == nil {
+		return radixVolumeMount.Type
+	}
+	switch radixVolumeMount.BlobFuse2.Protocol {
+	case radixv1.BlobFuse2ProtocolFuse2, "": // default protocol if not set
+		return radixv1.MountTypeBlobFuse2Fuse2CsiAzure
+	default:
+		return "unsupported"
+	}
+}
+
+func getCsiPersistentVolumesForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string, onlyFunctional bool) ([]corev1.PersistentVolume, error) {
+	pvList, err := kubeClient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return slice.FindAll(pvList.Items, func(pv corev1.PersistentVolume) bool {
+		return pvIsForCsiDriver(pv) && pvIsForNamespace(pv, namespace) && (!onlyFunctional || pvIsFunctional(pv))
+	}), nil
+}
+
+func isKnownCsiAzureVolumeMount(volumeMount string) bool {
+	switch volumeMount {
+	case string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure):
+		return true
+	}
+	return false
 }
 
 func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
@@ -116,8 +204,8 @@ func getCsiAzureKeyVaultSecretMountPath(azureKeyVault radixv1.RadixAzureKeyVault
 	return *azureKeyVault.Path
 }
 
-// volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 func getCsiAzureVolumeMountName(componentName string, volumeMount *radixv1.RadixVolumeMount) (string, error) {
+	// volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 	csiVolumeType, err := getCsiRadixVolumeTypeId(volumeMount)
 	if err != nil {
 		return "", err
@@ -135,19 +223,6 @@ func getCsiAzureVolumeMountName(componentName string, volumeMount *radixv1.Radix
 	return trimVolumeNameToValidLength(fmt.Sprintf(csiVolumeNameTemplate, csiVolumeType, componentName, volumeMount.Name, csiAzureVolumeStorageName)), nil
 }
 
-// GetCsiAzureVolumeMountType Gets the CSI Azure volume mount type
-func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radixv1.MountType {
-	if radixVolumeMount.BlobFuse2 == nil {
-		return radixVolumeMount.Type
-	}
-	switch radixVolumeMount.BlobFuse2.Protocol {
-	case radixv1.BlobFuse2ProtocolFuse2, "": // default protocol if not set
-		return radixv1.MountTypeBlobFuse2Fuse2CsiAzure
-	default:
-		return "unsupported"
-	}
-}
-
 func getCsiRadixVolumeTypeId(radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
 	if radixVolumeMount.BlobFuse2 != nil {
 		switch radixVolumeMount.BlobFuse2.Protocol {
@@ -161,24 +236,6 @@ func getCsiRadixVolumeTypeId(radixVolumeMount *radixv1.RadixVolumeMount) (string
 		return csiVolumeTypeBlobFuse2ProtocolFuse, nil
 	}
 	return "", fmt.Errorf("unknown volume mount type %s", radixVolumeMount.Type)
-}
-
-// GetVolumes Get volumes of a component by RadixVolumeMounts
-func GetVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string, existingVolumes []corev1.Volume) ([]corev1.Volume, error) {
-	var volumes []corev1.Volume
-	volumeMountVolumes, err := getComponentVolumeMountVolumes(deployComponent, existingVolumes)
-	if err != nil {
-		return nil, err
-	}
-	volumes = append(volumes, volumeMountVolumes...)
-
-	storageRefsVolumes, err := getComponentSecretRefsVolumes(ctx, kubeutil, namespace, deployComponent, radixDeploymentName)
-	if err != nil {
-		return nil, err
-	}
-	volumes = append(volumes, storageRefsVolumes...)
-
-	return volumes, nil
 }
 
 func getComponentSecretRefsVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
@@ -394,33 +451,6 @@ func createOrUpdateCsiAzureVolumeMountsSecrets(ctx context.Context, kubeUtil *ku
 	return nil
 }
 
-func garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Context, kubeUtil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent, excludeSecretNames []string) error {
-	secrets, err := listSecretsForVolumeMounts(ctx, kubeUtil, namespace, component)
-	if err != nil {
-		return err
-	}
-	for _, secret := range secrets {
-		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
-			continue
-		}
-		if err := kubeUtil.DeleteSecret(ctx, namespace, secret.Name); err != nil && !k8serrors.IsNotFound(err) {
-			return err
-		}
-	}
-
-	return garbageCollectSecrets(ctx, kubeUtil.KubeClient(), namespace, secrets, excludeSecretNames)
-}
-
-func getCsiPersistentVolumesForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string, onlyFunctional bool) ([]corev1.PersistentVolume, error) {
-	pvList, err := kubeClient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return slice.FindAll(pvList.Items, func(pv corev1.PersistentVolume) bool {
-		return pvIsForCsiDriver(pv) && pvIsForNamespace(pv, namespace) && (!onlyFunctional || pvIsFunctional(pv))
-	}), nil
-}
-
 func pvIsForCsiDriver(pv corev1.PersistentVolume) bool {
 	return pv.Spec.CSI != nil
 }
@@ -512,9 +542,9 @@ func populateCsiAzurePersistentVolume(persistentVolume *corev1.PersistentVolume,
 	return persistentVolume
 }
 
-// Specify a value the driver can use to uniquely identify the share in the cluster.
-// https://github.com/kubernetes-csi/csi-driver-smb/blob/master/docs/driver-parameters.md#pvpvc-usage
 func getVolumeHandle(namespace, componentName, pvName, storageName string) string {
+	// Specify a value the driver can use to uniquely identify the share in the cluster.
+	// https://github.com/kubernetes-csi/csi-driver-smb/blob/master/docs/driver-parameters.md#pvpvc-usage
 	return fmt.Sprintf("%s#%s#%s#%s", namespace, componentName, pvName, storageName)
 }
 
@@ -754,22 +784,6 @@ func knownCSIDriver(driver string) bool {
 	return ok
 }
 
-// createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
-func createOrUpdateCsiAzureVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string, deployComponent radixv1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
-	componentName := deployComponent.GetName()
-	if err := createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx, kubeClient, radixDeployment, namespace, componentName, deployComponent.GetIdentity(), desiredDeployment); err != nil {
-		return err
-	}
-	currentlyUsedPvcNames, err := getCurrentlyUsedPersistentVolumeClaims(ctx, kubeClient, radixDeployment, desiredDeployment)
-	if err != nil {
-		return err
-	}
-	if err = garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx, kubeClient, namespace, componentName, currentlyUsedPvcNames); err != nil {
-		return err
-	}
-	return garbageCollectOrphanedCsiAzurePersistentVolumes(ctx, kubeClient, currentlyUsedPvcNames)
-}
-
 func createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace, componentName string, identity *radixv1.Identity, desiredDeployment *appsv1.Deployment) error {
 	functionalPvList, err := getCsiPersistentVolumesForNamespace(ctx, kubeClient, namespace, true)
 	if err != nil {
@@ -970,20 +984,6 @@ func trimVolumeNameToValidLength(volumeName string) string {
 	return fmt.Sprintf("%s-%s", volumeName[:63-randSize-1], randString)
 }
 
-// CreateOrUpdateVolumeMountSecrets creates or updates secrets for volume mounts
-func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
-	var volumeMountSecretsToManage []string
-	for _, volumeMount := range volumeMounts {
-		secretName, accountKey, accountName := getCsiAzureVolumeMountCredsSecrets(ctx, kubeUtil, namespace, componentName, volumeMount.Name)
-		volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
-		err := createOrUpdateCsiAzureVolumeMountsSecrets(ctx, kubeUtil, appName, namespace, componentName, &volumeMount, secretName, accountName, accountKey)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return volumeMountSecretsToManage, nil
-}
-
 func getCsiAzureVolumeMountCredsSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, componentName, volumeMountName string) (string, []byte, []byte) {
 	secretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, volumeMountName)
 	accountKey := []byte(defaults.SecretDefaultData)
@@ -1009,26 +1009,14 @@ func listSecretsForVolumeMounts(ctx context.Context, kubeUtil *kube.Kube, namesp
 	return csiSecrets, nil
 }
 
-// garbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
-func garbageCollectSecrets(ctx context.Context, kubeClient kubernetes.Interface, namespace string, secrets []*corev1.Secret, excludeSecretNames []string) error {
+func garbageCollectSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace string, secrets []*corev1.Secret, excludeSecretNames []string) error {
 	for _, secret := range secrets {
 		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
 			continue
 		}
-		err := DeleteSecret(ctx, kubeClient, namespace, secret)
-		if err != nil {
+		if err := kubeUtil.DeleteSecret(ctx, namespace, secret.GetName()); err != nil && !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
-	return nil
-}
-
-func DeleteSecret(ctx context.Context, kubeClient kubernetes.Interface, namespace string, secret *corev1.Secret) error {
-	log.Ctx(ctx).Debug().Msgf("Delete secret %s", secret.Name)
-	err := kubeClient.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-	log.Ctx(ctx).Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), namespace)
 	return nil
 }

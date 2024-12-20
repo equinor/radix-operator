@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/google/uuid"
 	"k8s.io/apimachinery/pkg/types"
 	"strings"
@@ -13,7 +13,6 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/internal/persistentvolume"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -100,16 +99,6 @@ func getTestEnv() TestEnv {
 	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, testEnv.kedaClient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
-}
-
-func getDeployment(testEnv TestEnv) *deployment.Deployment {
-	return &deployment.Deployment{
-		kubeclient:              testEnv.kubeclient,
-		radixclient:             testEnv.radixclient,
-		kubeutil:                testEnv.kubeUtil,
-		prometheusperatorclient: testEnv.prometheusclient,
-		config:                  &config.Config{},
-	}
 }
 
 func (suite *VolumeMountTestSuite) Test_NoVolumeMounts() {
@@ -373,7 +362,6 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 	suite.T().Run("No volumes", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		deployment := getDeployment(testEnv)
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			t.Logf("Test case for component %s", factory.GetTargetType())
 
@@ -389,7 +377,6 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 	suite.T().Run("Exists volume", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		deployment := getDeployment(testEnv)
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
@@ -1010,16 +997,15 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s, volume type %s, component %s", scenario.name, scenario.props.radixVolumeMountType, factory.GetTargetType())
 				testEnv := getTestEnv()
-				deployment := getDeployment(testEnv)
 				radixDeployment := buildRd(appName, environment, componentName, scenario.radixVolumeMounts)
-				putExistingDeploymentVolumesScenarioDataToFakeCluster(testEnv.kubeclient, &scenario, deployment)
+				putExistingDeploymentVolumesScenarioDataToFakeCluster(testEnv.kubeclient, &scenario)
 				desiredDeployment := getDesiredDeployment(componentName, scenario.volumes)
 
 				deployComponent := radixDeployment.Spec.Components[0]
-				err := createOrUpdateCsiAzureVolumeResources(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, environment, &deployComponent, desiredDeployment)
+				err := CreateOrUpdateCsiAzureVolumeResources(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, environment, &deployComponent, desiredDeployment)
 				assert.Nil(t, err)
 
-				existingPvcs, existingPvs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(testEnv.kubeUtil.KubeClient(), deployment)
+				existingPvcs, existingPvs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(testEnv.kubeUtil.KubeClient())
 				assert.Nil(t, err)
 				assert.True(t, equalPersistentVolumeClaims(&scenario.existingPvcsAfterTestRun, &existingPvcs), "PVC-s are not equal")
 				assert.True(t, equalPersistentVolumes(&scenario.existingPVsAfterTestRun, &existingPvs), "PV-s are not equal")
@@ -1031,194 +1017,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 func matchPvAndPvc(pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) {
 	pv.Spec.CSI.VolumeAttributes[persistentvolume.CsiVolumeMountAttributePvcName] = pvc.Name
 	pvc.Spec.VolumeName = pv.Name
-}
-
-func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources() {
-	appName := "app"
-	namespace := "some-namespace"
-	environment := "some-env"
-	componentName1, componentNameLong := "component1", "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit"
-	type expectedVolumeProps struct {
-		expectedVolumeNamePrefix         string
-		expectedVolumeMountPath          string
-		expectedNodePublishSecretRefName string
-		expectedVolumeAttributePrefixes  map[string]string
-	}
-	scenarios := []struct {
-		name                    string
-		deployComponentBuilders []utils.DeployCommonComponentBuilder
-		componentName           string
-		azureKeyVaults          []v1.RadixAzureKeyVault
-		expectedVolumeProps     []expectedVolumeProps
-		radixVolumeMounts       []v1.RadixVolumeMount
-	}{
-		{
-			name:                "No Azure Key volumes as no RadixAzureKeyVault-s",
-			componentName:       componentName1,
-			azureKeyVaults:      []v1.RadixAzureKeyVault{},
-			expectedVolumeProps: []expectedVolumeProps{},
-		},
-		{
-			name:           "No Azure Key volumes as no secret names in secret object",
-			componentName:  componentName1,
-			azureKeyVaults: []v1.RadixAzureKeyVault{{Name: "kv1"}},
-		},
-		{
-			name:          "One Azure Key volume for one secret objects secret name",
-			componentName: componentName1,
-			azureKeyVaults: []v1.RadixAzureKeyVault{{
-				Name:  "kv1",
-				Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
-			}},
-			expectedVolumeProps: []expectedVolumeProps{
-				{
-					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
-					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
-					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
-					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "component1-az-keyvault-kv1-",
-					},
-				},
-			},
-		},
-		{
-			name:          "Multiple Azure Key volumes for each RadixAzureKeyVault",
-			componentName: componentName1,
-			azureKeyVaults: []v1.RadixAzureKeyVault{
-				{
-					Name:  "kv1",
-					Path:  utils.StringPtr("/mnt/customPath"),
-					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
-				},
-				{
-					Name:  "kv2",
-					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2", EnvVar: "SECRET_REF2"}},
-				},
-			},
-			expectedVolumeProps: []expectedVolumeProps{
-				{
-					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
-					expectedVolumeMountPath:          "/mnt/customPath",
-					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
-					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "component1-az-keyvault-kv1-",
-					},
-				},
-				{
-					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv2-",
-					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv2",
-					expectedNodePublishSecretRefName: "component1-kv2-csiazkvcreds",
-					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "component1-az-keyvault-kv2-",
-					},
-				},
-			},
-		},
-		{
-			name:          "Volume name should be trimmed when exceeding 63 chars",
-			componentName: componentNameLong,
-			azureKeyVaults: []v1.RadixAzureKeyVault{{
-				Name:  "kv1",
-				Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
-			}},
-			expectedVolumeProps: []expectedVolumeProps{
-				{
-					expectedVolumeNamePrefix:         "a-very-long-component-name-that-exceeds-63-kubernetes-vol",
-					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
-					expectedNodePublishSecretRefName: "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-kv1-csiazkvcreds",
-					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-az-keyvault-kv1-",
-					},
-				},
-			},
-		},
-	}
-	suite.T().Run("CSI Azure Key vault volumes", func(t *testing.T) {
-		t.Parallel()
-		for _, scenario := range scenarios {
-			testEnv := getTestEnv()
-			deployment := getDeployment(testEnv)
-			radixDeployment := buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
-				var builders []utils.DeployComponentBuilder
-				builders = append(builders, utils.NewDeployComponentBuilder().
-					WithName(scenario.componentName).
-					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
-				return builders
-			})
-			radixDeployComponent := radixDeployment.GetComponentByName(scenario.componentName)
-			for _, azureKeyVault := range scenario.azureKeyVaults {
-				spc, err := deployment.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
-				if err != nil {
-					t.Log(err.Error())
-				} else {
-					t.Logf("created secret provider class %s", spc.Name)
-				}
-			}
-			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, radixDeployComponent, radixDeployment.GetName(), nil)
-			assert.Nil(t, err)
-			assert.Len(t, volumes, len(scenario.expectedVolumeProps))
-			if len(scenario.expectedVolumeProps) == 0 {
-				continue
-			}
-
-			for i := 0; i < len(volumes); i++ {
-				volume := volumes[i]
-				assert.Less(t, len(volume.Name), 64, "volume name is too long")
-				assert.NotNil(t, volume.CSI)
-				assert.NotNil(t, volume.CSI.VolumeAttributes)
-				assert.NotNil(t, volume.CSI.NodePublishSecretRef)
-				assert.Equal(t, "secrets-store.csi.k8s.io", volume.CSI.Driver)
-
-				volumeProp := scenario.expectedVolumeProps[i]
-				for attrKey, attrValue := range volumeProp.expectedVolumeAttributePrefixes {
-					spcValue, exists := volume.CSI.VolumeAttributes[attrKey]
-					assert.True(t, exists)
-					assert.True(t, strings.HasPrefix(spcValue, attrValue))
-				}
-				assert.True(t, strings.Contains(volume.Name, volumeProp.expectedVolumeNamePrefix))
-				assert.Equal(t, volumeProp.expectedNodePublishSecretRefName, volume.CSI.NodePublishSecretRef.Name)
-			}
-		}
-	})
-
-	suite.T().Run("CSI Azure Key vault volume mounts", func(t *testing.T) {
-		t.Parallel()
-		for _, scenario := range scenarios {
-			testEnv := getTestEnv()
-			deployment := getDeployment(testEnv)
-			radixDeployment := buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
-				var builders []utils.DeployComponentBuilder
-				builders = append(builders, utils.NewDeployComponentBuilder().
-					WithName(scenario.componentName).
-					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
-				return builders
-			})
-			radixDeployComponent := radixDeployment.GetComponentByName(scenario.componentName)
-			for _, azureKeyVault := range scenario.azureKeyVaults {
-				spc, err := deployment.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
-				if err != nil {
-					t.Log(err.Error())
-				} else {
-					t.Logf("created secret provider class %s", spc.Name)
-				}
-			}
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(radixDeployComponent, radixDeployment.GetName())
-			assert.Nil(t, err)
-			assert.Len(t, volumeMounts, len(scenario.expectedVolumeProps))
-			if len(scenario.expectedVolumeProps) == 0 {
-				continue
-			}
-
-			for i := 0; i < len(volumeMounts); i++ {
-				volumeMount := volumeMounts[i]
-				volumeProp := scenario.expectedVolumeProps[i]
-				assert.Less(t, len(volumeMount.Name), 64, "volumemount name is too long")
-				assert.True(t, strings.Contains(volumeMount.Name, volumeProp.expectedVolumeNamePrefix))
-				assert.Equal(t, volumeProp.expectedVolumeMountPath, volumeMount.MountPath)
-				assert.True(t, volumeMount.ReadOnly)
-			}
-		}
-	})
 }
 
 func createRandomPv(props expectedPvcPvProperties, namespace, componentName string) corev1.PersistentVolume {
@@ -1323,7 +1121,7 @@ func getPropsCsiBlobFuse2Volume1Storage1(modify func(*expectedPvcPvProperties)) 
 	return props
 }
 
-func putExistingDeploymentVolumesScenarioDataToFakeCluster(kubeClient kubernetes.Interface, scenario *deploymentVolumesTestScenario, deployment *deployment.Deployment) {
+func putExistingDeploymentVolumesScenarioDataToFakeCluster(kubeClient kubernetes.Interface, scenario *deploymentVolumesTestScenario) {
 	for _, pvc := range scenario.existingPvcsBeforeTestRun {
 		_, _ = kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.Background(), &pvc, metav1.CreateOptions{})
 	}
@@ -1332,7 +1130,7 @@ func putExistingDeploymentVolumesScenarioDataToFakeCluster(kubeClient kubernetes
 	}
 }
 
-func getExistingPvcsAndPersistentVolumeFromFakeCluster(kubeClient kubernetes.Interface, deployment *deployment.Deployment) ([]corev1.PersistentVolumeClaim, []corev1.PersistentVolume, error) {
+func getExistingPvcsAndPersistentVolumeFromFakeCluster(kubeClient kubernetes.Interface) ([]corev1.PersistentVolumeClaim, []corev1.PersistentVolume, error) {
 	var pvcItems []corev1.PersistentVolumeClaim
 	var pvItems []corev1.PersistentVolume
 	pvcList, err := kubeClient.CoreV1().PersistentVolumeClaims("").List(context.Background(), metav1.ListOptions{})
@@ -1362,7 +1160,7 @@ func getDesiredDeployment(componentName string, volumes []corev1.Volume) *appsv1
 			Annotations: make(map[string]string),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr(deployment.DefaultReplicas),
+			Replicas: pointers.Ptr(defaults.DefaultReplicas),
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -1624,8 +1422,8 @@ func createExpectedAutoProvisionedPvcWithStorageClass(props expectedPvcPvPropert
 	annotations := map[string]string{
 		"pv.kubernetes.io/bind-completed":               "yes",
 		"pv.kubernetes.io/bound-by-controller":          "yes",
-		"volume.beta.kubernetes.io/storage-provisioner": "blob.csi.azure.com",
-		"volume.kubernetes.io/storage-provisioner":      "blob.csi.azure.com",
+		"volume.beta.kubernetes.io/storage-provisioner": provisionerBlobCsiAzure,
+		"volume.kubernetes.io/storage-provisioner":      provisionerBlobCsiAzure,
 	}
 	pvc := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{

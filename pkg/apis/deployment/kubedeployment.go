@@ -39,7 +39,7 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 			return err
 		}
 	}
-	if err = volumemount.createOrUpdateCsiAzureVolumeResources(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment); err != nil {
+	if err = volumemount.CreateOrUpdateCsiAzureVolumeResources(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment); err != nil {
 		return err
 	}
 	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment); err != nil {
@@ -115,7 +115,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr(DefaultReplicas),
+			Replicas: pointers.Ptr(defaults.DefaultReplicas),
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -187,7 +187,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context,
 
 func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	commitID := getDeployComponentCommitId(deployComponent)
-	labels := radixlabels.Merge(
+	lbs := radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForCommitId(commitID),
@@ -195,10 +195,10 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 	)
 
 	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
-		labels = radixlabels.Merge(labels, radixlabels.ForPodIsJobScheduler())
+		lbs = radixlabels.Merge(lbs, radixlabels.ForPodIsJobScheduler())
 	}
 
-	return labels
+	return lbs
 }
 
 func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
@@ -354,7 +354,7 @@ func getDeployComponentReplicas(deployComponent v1.RadixCommonDeployComponent) i
 		return int32(*override)
 	}
 
-	componentReplicas := DefaultReplicas
+	componentReplicas := defaults.DefaultReplicas
 	if replicas := deployComponent.GetReplicas(); replicas != nil {
 		componentReplicas = int32(*replicas)
 	}

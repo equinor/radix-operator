@@ -69,7 +69,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 	}
 	secretsToManage = append(secretsToManage, volumeMountSecretsToManage...)
 
-	err = volumemount.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx, deploy.kubeutil, namespace, component, secretsToManage)
+	err = volumemount.GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx, deploy.kubeutil, namespace, component, secretsToManage)
 	if err != nil {
 		return err
 	}

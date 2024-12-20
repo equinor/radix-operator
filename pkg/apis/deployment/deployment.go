@@ -31,9 +31,7 @@ import (
 )
 
 const (
-	// DefaultReplicas Hold the default replicas for the deployment if nothing is stated in the radix config
-	DefaultReplicas         int32 = 1
-	prometheusInstanceLabel       = "LABEL_PROMETHEUS_INSTANCE"
+	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 )
 
 // DeploymentSyncer defines interface for syncing a RadixDeployment
