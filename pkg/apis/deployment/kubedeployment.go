@@ -25,7 +25,8 @@ import (
 )
 
 func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
-	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, deployComponent)
+	namespace := deploy.radixDeployment.Namespace
+	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, namespace, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -45,17 +46,17 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 	}
 	desiredDeployment.Spec.Template.Spec.Volumes = actualVolumes
 	desiredVolumeMounts := desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
-	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
+	if err = deploy.handleJobAuxDeployment(ctx, namespace, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
+		//!!!! error "failed to create Deployment object: deployments.apps \"job1-aux\" already exists"
 		return err
 	}
-	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
+	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment)
 }
 
-func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
+func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
 	if !internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil
 	}
-	namespace := desiredDeployment.GetNamespace()
 	deploymentName := desiredDeployment.GetName()
 	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, deploymentName, volumes, volumeMounts)
 	if err != nil {
@@ -82,14 +83,11 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
 
-func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	namespace := deploy.radixDeployment.Namespace
-
+func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(ctx, namespace, deployComponent)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return currentDeployment, desiredDeployment, err
 }
 
@@ -136,9 +134,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	return desiredDeployment, err
 }
 
-func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent) *appsv1.Deployment {
-	jobName := deployComponent.GetName()
-	jobAuxDeploymentName := getJobAuxObjectName(jobName)
+func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName string) *appsv1.Deployment {
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            jobAuxDeploymentName,
@@ -504,7 +500,7 @@ func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.C
 	for _, v := range componentPorts {
 		containerPort := corev1.ContainerPort{
 			Name:          v.Name,
-			ContainerPort: int32(v.Port),
+			ContainerPort: v.Port,
 			Protocol:      corev1.ProtocolTCP,
 		}
 		ports = append(ports, containerPort)

@@ -589,7 +589,10 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 }
 
 func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, deploymentName string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, namespace, deploymentName)
+	jobDeploymentName := deployComponent.GetName()
+	jobAuxDeploymentName := getJobAuxObjectName(jobDeploymentName)
+
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, namespace, jobDeploymentName, jobAuxDeploymentName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -619,11 +622,11 @@ func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployCom
 	}
 }
 
-func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, deploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, deploymentName)
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, jobDeploymentName, jobAuxDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, jobAuxDeploymentName)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			return nil, deploy.createJobAuxDeployment(deployComponent), nil
+			return nil, deploy.createJobAuxDeployment(jobDeploymentName, jobAuxDeploymentName), nil
 		}
 		return nil, nil, err
 	}
