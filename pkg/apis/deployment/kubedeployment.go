@@ -150,7 +150,7 @@ func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName s
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:      jobAuxDeploymentName,
-						Resources: resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(10)),
+						Resources: resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(20)),
 					}},
 				},
 			},

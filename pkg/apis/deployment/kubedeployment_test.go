@@ -260,7 +260,7 @@ func TestDeployment_createJobAuxDeployment(t *testing.T) {
 	resources := jobAuxDeployment.Spec.Template.Spec.Containers[0].Resources
 	s := resources.Requests.Cpu().String()
 	assert.Equal(t, "1m", s)
-	assert.Equal(t, "10M", resources.Requests.Memory().String())
+	assert.Equal(t, "20M", resources.Requests.Memory().String())
 	assert.Equal(t, "0", resources.Limits.Cpu().String())
-	assert.Equal(t, "10M", resources.Limits.Memory().String())
+	assert.Equal(t, "20M", resources.Limits.Memory().String())
 }
