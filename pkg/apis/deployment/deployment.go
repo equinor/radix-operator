@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"sort"
 	"strings"
 	"time"
