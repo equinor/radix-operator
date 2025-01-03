@@ -164,7 +164,6 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 			TTLSecondsAfterFinished: pointers.Ptr(int32(86400)), // delete completed job after 24 hours
 		},
 	}
-
 	return job, nil
 }
 
@@ -178,7 +177,7 @@ func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1
 
 func (s *syncer) appendPayloadSecretVolumes(batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, volumes []corev1.Volume) []corev1.Volume {
 	if radixJobComponent.Payload == nil || batchJob.PayloadSecretRef == nil {
-		return nil
+		return volumes
 	}
 	return append(volumes, corev1.Volume{
 		Name: jobPayloadVolumeName,
