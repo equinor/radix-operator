@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"sort"
 	"strings"
 	"time"
@@ -639,7 +640,9 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 		}
 		return nil, nil, err
 	}
-	return currentJobAuxDeployment, currentJobAuxDeployment.DeepCopy(), nil
+	desiredJobAuxDeployment := currentJobAuxDeployment.DeepCopy()
+	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Resources = resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(20))
+	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
 }
 
 func getJobAuxObjectName(jobName string) string {
