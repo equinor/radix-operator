@@ -57,8 +57,8 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, namespace 
 	if !internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil
 	}
-	deploymentName := desiredDeployment.GetName()
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, deploymentName, volumes, volumeMounts)
+	jobKubeDeploymentName := desiredDeployment.GetName()
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, jobKubeDeploymentName, volumes, volumeMounts)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, namespace 
 			return err
 		}
 
-		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, deploymentName, volumes, volumeMounts)
+		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, jobKubeDeploymentName, volumes, volumeMounts)
 		if err != nil {
 			return err
 		}

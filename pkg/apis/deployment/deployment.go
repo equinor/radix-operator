@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"sort"
 	"strings"
 	"time"
@@ -15,10 +14,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
@@ -588,11 +589,10 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, deploymentName string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	jobDeploymentName := deployComponent.GetName()
-	jobAuxDeploymentName := getJobAuxObjectName(jobDeploymentName)
+func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, jobKubeDeploymentName string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	jobAuxKubeDeploymentName := getJobAuxObjectName(jobKubeDeploymentName)
 
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, namespace, jobDeploymentName, jobAuxDeploymentName)
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, namespace, jobKubeDeploymentName, jobAuxKubeDeploymentName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -622,15 +622,17 @@ func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployCom
 	}
 }
 
-func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, jobDeploymentName, jobAuxDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, jobAuxDeploymentName)
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, namespace, jobKubeDeploymentName, jobAuxKubeDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, jobAuxKubeDeploymentName)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			return nil, deploy.createJobAuxDeployment(jobDeploymentName, jobAuxDeploymentName), nil
+			return nil, deploy.createJobAuxDeployment(jobKubeDeploymentName, jobAuxKubeDeploymentName), nil
 		}
 		return nil, nil, err
 	}
-	return currentJobAuxDeployment, currentJobAuxDeployment.DeepCopy(), nil
+	desiredJobAuxDeployment := currentJobAuxDeployment.DeepCopy()
+	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Resources = resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(20))
+	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
 }
 
 func getJobAuxObjectName(jobName string) string {
