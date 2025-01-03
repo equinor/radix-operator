@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"sort"
 	"strings"
 	"time"
@@ -20,7 +19,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
@@ -632,7 +630,7 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 		return nil, nil, err
 	}
 	desiredJobAuxDeployment := currentJobAuxDeployment.DeepCopy()
-	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Resources = resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(20))
+	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Resources = getJobAuxResources()
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
 }
 
