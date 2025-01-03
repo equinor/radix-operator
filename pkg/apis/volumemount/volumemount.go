@@ -166,7 +166,7 @@ func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComp
 
 	var volumeMounts []corev1.VolumeMount
 	for _, volumeMount := range deployComponent.GetVolumeMounts() {
-		name, err := getVolumeMountVolumeName(&volumeMount, deployComponent.GetName())
+		name, err := GetVolumeMountVolumeName(&volumeMount, deployComponent.GetName())
 		if err != nil {
 			return nil, err
 		}
@@ -309,7 +309,7 @@ func getComponentVolumeMountVolumes(deployComponent radixv1.RadixCommonDeployCom
 }
 
 func createVolume(radixVolumeMount radixv1.RadixVolumeMount, componentName string, existingVolumeSourcesMap map[string]corev1.VolumeSource) (*corev1.Volume, error) {
-	volumeName, err := getVolumeMountVolumeName(&radixVolumeMount, componentName)
+	volumeName, err := GetVolumeMountVolumeName(&radixVolumeMount, componentName)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +378,8 @@ func getComponentVolumeMountEmptyDirVolumeSource(spec *radixv1.RadixEmptyDirVolu
 	}
 }
 
-func getVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
+// GetVolumeMountVolumeName Gets the volume name for a volume mount
+func GetVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
 	switch {
 	case volumeMount.HasDeprecatedVolume():
 		return getVolumeMountDeprecatedVolumeName(volumeMount, componentName)
@@ -853,7 +854,7 @@ func createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, kubeCli
 			return nil, err
 		}
 	}
-	volume.PersistentVolumeClaim.ClaimName = pvcName
+	volume.PersistentVolumeClaim.ClaimName = pvcName // in case it was updated with new name
 	return &volume, nil
 }
 

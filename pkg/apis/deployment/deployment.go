@@ -589,9 +589,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 }
 
 func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, jobKubeDeploymentName string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	jobAuxKubeDeploymentName := getJobAuxObjectName(jobKubeDeploymentName)
-
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, namespace, jobKubeDeploymentName, jobAuxKubeDeploymentName)
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, namespace, jobKubeDeploymentName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -621,7 +619,8 @@ func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployCom
 	}
 }
 
-func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, namespace, jobKubeDeploymentName, jobAuxKubeDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, namespace, jobKubeDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(jobKubeDeploymentName)
 	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, jobAuxKubeDeploymentName)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
@@ -632,8 +631,4 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 	desiredJobAuxDeployment := currentJobAuxDeployment.DeepCopy()
 	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Resources = getJobAuxResources()
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
-}
-
-func getJobAuxObjectName(jobName string) string {
-	return fmt.Sprintf("%s-aux", jobName)
 }

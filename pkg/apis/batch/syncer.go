@@ -6,12 +6,14 @@ import (
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -96,8 +98,11 @@ func (s *syncer) reconcile(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	desiredVolumes, err := volumemount.GetVolumes(ctx, s.kubeUtil, namespace, jobComponent, rd.Name, nil)
+	existingVolumes, err := getExistingVolumes(ctx, s.kubeUtil, namespace, jobComponent)
+	if err != nil {
+		return err
+	}
+	desiredVolumes, err := volumemount.GetVolumes(ctx, s.kubeUtil, namespace, jobComponent, rd.Name, existingVolumes)
 	if err != nil {
 		return err
 	}
@@ -123,6 +128,18 @@ func (s *syncer) reconcile(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func getExistingVolumes(ctx context.Context, kubeUtil *kube.Kube, namespace string, jobComponent *radixv1.RadixDeployJobComponent) ([]corev1.Volume, error) {
+	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(jobComponent.GetName())
+	jobAuxKubeDeployment, err := kubeUtil.GetDeployment(ctx, namespace, jobAuxKubeDeploymentName)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return jobAuxKubeDeployment.Spec.Template.Spec.Volumes, nil
 }
 
 func (s *syncer) getRadixDeploymentAndJobComponent(ctx context.Context) (*radixv1.RadixDeployment, *radixv1.RadixDeployJobComponent, error) {
