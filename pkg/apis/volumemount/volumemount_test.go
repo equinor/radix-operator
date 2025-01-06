@@ -1002,7 +1002,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				desiredVolumes := getDesiredDeployment(componentName, scenario.volumes).Spec.Template.Spec.Volumes
 
 				deployComponent := radixDeployment.Spec.Components[0]
-				actualVolumes, err := CreateOrUpdateCsiAzureVolumeResources(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, environment, &deployComponent, desiredVolumes)
+				actualVolumes, err := CreateOrUpdateCsiAzureVolumeResources(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, utils.GetEnvironmentNamespace(appName, environment), &deployComponent, desiredVolumes)
 				assert.Nil(t, err)
 				assert.Equal(t, len(scenario.volumes), len(actualVolumes), "Number of volumes is not equal")
 
@@ -1073,7 +1073,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcPvProperties)) expec
 	props := expectedPvcPvProperties{
 		appName:                 appName,
 		environment:             environment,
-		namespace:               fmt.Sprintf("%s-%s", appName, environment),
+		namespace:               utils.GetEnvironmentNamespace(appName, environment),
 		componentName:           componentName,
 		radixVolumeMountName:    "volume1",
 		radixStorageName:        "storage1",
@@ -1404,6 +1404,7 @@ func createExpectedPvc(props expectedPvcPvProperties, modify func(*corev1.Persis
 				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(props.requestsVolumeMountSize)}, // it seems correct number is not needed for CSI driver
 			},
 			VolumeName: props.persistentVolumeName,
+			VolumeMode: pointers.Ptr(corev1.PersistentVolumeFilesystem),
 		},
 		Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound},
 	}
@@ -1538,11 +1539,15 @@ func equalPersistentVolumeClaims(pvcList1, pvcList2 *[]corev1.PersistentVolumeCl
 }
 
 func equalVolumeNamePrefix(pvc1 corev1.PersistentVolumeClaim, pvc2 corev1.PersistentVolumeClaim) bool {
-	return pvc1.Spec.VolumeName[:20] == pvc2.Spec.VolumeName[:20]
+	prefix1 := pvc1.Spec.VolumeName[:20]
+	prefix2 := pvc2.Spec.VolumeName[:20]
+	return prefix1 == prefix2
 }
 
 func equalNamePrefix(pvc1 corev1.PersistentVolumeClaim, pvc2 corev1.PersistentVolumeClaim) bool {
-	return pvc1.GetName()[:len(pvc1.GetName())-5] == pvc2.GetName()[:len(pvc2.GetName())-5]
+	prefix1 := pvc1.GetName()[:len(pvc1.GetName())-5]
+	prefix2 := pvc2.GetName()[:len(pvc2.GetName())-5]
+	return prefix1 == prefix2
 }
 
 func getPvcCopyWithLabels(pvc *corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) (*corev1.PersistentVolumeClaim, map[string]string) {
