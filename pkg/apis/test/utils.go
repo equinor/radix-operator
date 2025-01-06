@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"errors"
+	commonUtils "github.com/equinor/radix-common/utils"
 	"os"
 	"time"
 
@@ -170,8 +171,9 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 // ApplyDeployment Will help persist a deployment
 func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	envs := make(map[string]struct{})
-	if deploymentBuilder.GetApplicationBuilder() != nil {
-		ra, _ := tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
+	applicationBuilder := deploymentBuilder.GetApplicationBuilder()
+	if !commonUtils.IsNil(applicationBuilder) {
+		ra, _ := tu.ApplyApplication(applicationBuilder)
 		for _, env := range ra.Spec.Environments {
 			envs[env.Name] = struct{}{}
 		}

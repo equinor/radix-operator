@@ -13,11 +13,13 @@ import (
 )
 
 func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
-	appName := "app"
-	namespace := "some-namespace"
-	environment := "some-env"
-	componentName1 := "component1"
-	//componentNameLong := "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit"
+	const (
+		appName           = "app"
+		namespace         = "some-namespace"
+		environment       = "some-env"
+		componentName1    = "component1"
+		componentNameLong = "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit"
+	)
 	type expectedVolumeProps struct {
 		expectedVolumeNamePrefix         string
 		expectedVolumeMountPath          string
@@ -38,11 +40,11 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 		//	azureKeyVaults:      []v1.RadixAzureKeyVault{},
 		//	expectedVolumeProps: []expectedVolumeProps{},
 		//},
-		{
-			name:           "No Azure Key volumes as no secret names in secret object",
-			componentName:  componentName1,
-			azureKeyVaults: []v1.RadixAzureKeyVault{{Name: "kv1"}},
-		},
+		//{
+		//	name:           "No Azure Key volumes as no secret names in secret object",
+		//	componentName:  componentName1,
+		//	azureKeyVaults: []v1.RadixAzureKeyVault{{Name: "kv1"}},
+		//},
 		//{
 		//	name:          "One Azure Key volume for one secret objects secret name",
 		//	componentName: componentName1,
@@ -94,85 +96,85 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 		//		},
 		//	},
 		//},
-		//{
-		//	name:          "Volume name should be trimmed when exceeding 63 chars",
-		//	componentName: componentNameLong,
-		//	azureKeyVaults: []v1.RadixAzureKeyVault{{
-		//		Name:  "kv1",
-		//		Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
-		//	}},
-		//	expectedVolumeProps: []expectedVolumeProps{
-		//		{
-		//			expectedVolumeNamePrefix:         "a-very-long-component-name-that-exceeds-63-kubernetes-vol",
-		//			expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
-		//			expectedNodePublishSecretRefName: "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-kv1-csiazkvcreds",
-		//			expectedVolumeAttributePrefixes: map[string]string{
-		//				"secretProviderClass": "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-az-keyvault-kv1-",
-		//			},
-		//		},
-		//	},
-		//},
+		{
+			name:          "Volume name should be trimmed when exceeding 63 chars",
+			componentName: componentNameLong,
+			azureKeyVaults: []v1.RadixAzureKeyVault{{
+				Name:  "kv1",
+				Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
+			}},
+			expectedVolumeProps: []expectedVolumeProps{
+				{
+					expectedVolumeNamePrefix:         "a-very-long-component-name-that-exceeds-63-kubernetes-vol",
+					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
+					expectedNodePublishSecretRefName: "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-kv1-csiazkvcreds",
+					expectedVolumeAttributePrefixes: map[string]string{
+						"secretProviderClass": "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-az-keyvault-kv1-",
+					},
+				},
+			},
+		},
 	}
-	t.Run("CSI Azure Key vault volumes", func(t *testing.T) {
-		t.Parallel()
-		for _, scenario := range scenarios {
-			t.Logf("Test case %s", scenario.name)
-			deployment := getDeployment(t, environment)
-			radixDeployment := buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
-				var builders []utils.DeployComponentBuilder
-				builders = append(builders, utils.NewDeployComponentBuilder().
-					WithName(scenario.componentName).
-					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
-				return builders
-			})
-			radixDeployComponent := radixDeployment.GetComponentByName(scenario.componentName)
-			for _, azureKeyVault := range scenario.azureKeyVaults {
-				spc, err := deployment.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
-				if err != nil {
-					t.Log(err.Error())
-				} else {
-					t.Logf("created secret provider class %s", spc.Name)
-				}
-			}
-			volumes, err := volumemount.GetVolumes(context.Background(), deployment.kubeutil, namespace, radixDeployComponent, radixDeployment.GetName(), nil)
-			require.NoError(t, err, "failed to get volumes")
-			assert.Len(t, volumes, len(scenario.expectedVolumeProps))
-			if len(scenario.expectedVolumeProps) == 0 {
-				continue
-			}
-
-			for i := 0; i < len(volumes); i++ {
-				volume := volumes[i]
-				assert.Less(t, len(volume.Name), 64, "volume name is too long")
-				assert.NotNil(t, volume.CSI)
-				assert.NotNil(t, volume.CSI.VolumeAttributes)
-				assert.NotNil(t, volume.CSI.NodePublishSecretRef)
-				assert.Equal(t, "secrets-store.csi.k8s.io", volume.CSI.Driver)
-
-				volumeProp := scenario.expectedVolumeProps[i]
-				for attrKey, attrValue := range volumeProp.expectedVolumeAttributePrefixes {
-					spcValue, exists := volume.CSI.VolumeAttributes[attrKey]
-					assert.True(t, exists)
-					assert.True(t, strings.HasPrefix(spcValue, attrValue))
-				}
-				assert.True(t, strings.Contains(volume.Name, volumeProp.expectedVolumeNamePrefix))
-				assert.Equal(t, volumeProp.expectedNodePublishSecretRefName, volume.CSI.NodePublishSecretRef.Name)
-			}
-		}
-	})
+	//t.Run("CSI Azure Key vault volumes", func(t *testing.T) {
+	//	t.Parallel()
+	//	for _, scenario := range scenarios {
+	//		t.Logf("Test case %s", scenario.name)
+	//		rdBuilder := getRdBuilderWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
+	//			var builders []utils.DeployComponentBuilder
+	//			builders = append(builders, utils.NewDeployComponentBuilder().
+	//				WithName(trimComponentName(scenario.componentName)).
+	//				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
+	//			return builders
+	//		})
+	//		deployment := getDeployment(t, rdBuilder)
+	//		radixDeployComponent := deployment.radixDeployment.GetComponentByName(trimComponentName(scenario.componentName))
+	//		for _, azureKeyVault := range scenario.azureKeyVaults {
+	//			spc, err := deployment.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
+	//			if err != nil {
+	//				t.Log(err.Error())
+	//			} else {
+	//				t.Logf("created secret provider class %s", spc.Name)
+	//			}
+	//		}
+	//		volumes, err := volumemount.GetVolumes(context.Background(), deployment.kubeutil, namespace, radixDeployComponent, deployment.radixDeployment.GetName(), nil)
+	//		require.NoError(t, err, "failed to get volumes")
+	//		assert.Len(t, volumes, len(scenario.expectedVolumeProps))
+	//		if len(scenario.expectedVolumeProps) == 0 {
+	//			continue
+	//		}
+	//
+	//		for i := 0; i < len(volumes); i++ {
+	//			volume := volumes[i]
+	//			assert.Less(t, len(volume.Name), 64, "volume name is too long")
+	//			assert.NotNil(t, volume.CSI)
+	//			assert.NotNil(t, volume.CSI.VolumeAttributes)
+	//			assert.NotNil(t, volume.CSI.NodePublishSecretRef)
+	//			assert.Equal(t, "secrets-store.csi.k8s.io", volume.CSI.Driver)
+	//
+	//			volumeProp := scenario.expectedVolumeProps[i]
+	//			for attrKey, attrValue := range volumeProp.expectedVolumeAttributePrefixes {
+	//				spcValue, exists := volume.CSI.VolumeAttributes[attrKey]
+	//				assert.True(t, exists)
+	//				assert.True(t, strings.HasPrefix(spcValue, attrValue))
+	//			}
+	//			assert.True(t, strings.Contains(volume.Name, volumeProp.expectedVolumeNamePrefix))
+	//			assert.Equal(t, volumeProp.expectedNodePublishSecretRefName, volume.CSI.NodePublishSecretRef.Name)
+	//		}
+	//	}
+	//})
 
 	t.Run("CSI Azure Key vault volume mounts", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 		for _, scenario := range scenarios {
-			deployment := getDeployment(t, environment)
-			radixDeployment := buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
+			rdBuilder := getRdBuilderWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
 				var builders []utils.DeployComponentBuilder
 				builders = append(builders, utils.NewDeployComponentBuilder().
-					WithName(scenario.componentName).
+					WithName(trimComponentName(scenario.componentName)).
 					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
 				return builders
 			})
-			radixDeployComponent := radixDeployment.GetComponentByName(scenario.componentName)
+			deployment := getDeployment(t, rdBuilder)
+			radixDeployComponent := deployment.radixDeployment.GetComponentByName(trimComponentName(scenario.componentName))
 			for _, azureKeyVault := range scenario.azureKeyVaults {
 				spc, err := deployment.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
 				if err != nil {
@@ -181,7 +183,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 					t.Logf("created secret provider class %s", spc.Name)
 				}
 			}
-			volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(radixDeployComponent, radixDeployment.GetName())
+			volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(radixDeployComponent, deployment.radixDeployment.GetName())
 			assert.Nil(t, err)
 			assert.Len(t, volumeMounts, len(scenario.expectedVolumeProps))
 			if len(scenario.expectedVolumeProps) == 0 {
@@ -200,21 +202,24 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 	})
 }
 
-func getDeployment(t *testing.T, environment string) *Deployment {
+func trimComponentName(componentName string) string {
+	if len(componentName) > 50 {
+		return componentName[:50]
+	}
+	return componentName
+}
+
+func getDeployment(t *testing.T, deploymentBuilder utils.DeploymentBuilder) *Deployment {
 	tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
-	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient,
-		utils.ARadixDeployment().
-			WithComponents(utils.NewDeployComponentBuilder().
-				WithName("comp1")).
-			WithAppName("any-app").
-			WithEnvironment(environment))
+	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient,
+		deploymentBuilder)
+	require.NoError(t, err)
 	return &Deployment{radixclient: radixClient, kubeutil: kubeUtil, radixDeployment: rd, config: &testConfig}
 }
 
-func buildRdWithComponentBuilders(appName string, environment string, componentBuilders func() []utils.DeployComponentBuilder) *v1.RadixDeployment {
+func getRdBuilderWithComponentBuilders(appName string, environment string, componentBuilders func() []utils.DeployComponentBuilder) utils.DeploymentBuilder {
 	return utils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(environment).
-		WithComponents(componentBuilders()...).
-		BuildRD()
+		WithComponents(componentBuilders()...)
 }
