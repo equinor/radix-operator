@@ -117,7 +117,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
 			t.Logf("Test case %s", scenario.name)
-			deployment := getDeployment(t)
+			deployment := getDeployment(t, environment)
 			radixDeployment := buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
 				var builders []utils.DeployComponentBuilder
 				builders = append(builders, utils.NewDeployComponentBuilder().
@@ -164,7 +164,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 	t.Run("CSI Azure Key vault volume mounts", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
-			deployment := getDeployment(t)
+			deployment := getDeployment(t, environment)
 			radixDeployment := buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
 				var builders []utils.DeployComponentBuilder
 				builders = append(builders, utils.NewDeployComponentBuilder().
@@ -200,14 +200,14 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 	})
 }
 
-func getDeployment(t *testing.T) *Deployment {
+func getDeployment(t *testing.T, environment string) *Deployment {
 	tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
 	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient,
 		utils.ARadixDeployment().
 			WithComponents(utils.NewDeployComponentBuilder().
 				WithName("comp1")).
 			WithAppName("any-app").
-			WithEnvironment("test"))
+			WithEnvironment(environment))
 	return &Deployment{radixclient: radixClient, kubeutil: kubeUtil, radixDeployment: rd, config: &testConfig}
 }
 
