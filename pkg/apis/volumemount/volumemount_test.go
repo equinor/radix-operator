@@ -993,7 +993,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	}()...)
 
 	suite.T().Run("CSI Azure volume PVCs and PersistentVolume", func(t *testing.T) {
-		for _, factory := range suite.radixCommonDeployComponentFactories[:1] {
+		for _, factory := range suite.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s, volume type %s, component %s", scenario.name, scenario.props.radixVolumeMountType, factory.GetTargetType())
 				testEnv := getTestEnv()

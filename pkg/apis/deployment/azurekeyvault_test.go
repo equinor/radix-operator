@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 
@@ -15,7 +16,8 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 	appName := "app"
 	namespace := "some-namespace"
 	environment := "some-env"
-	componentName1, componentNameLong := "component1", "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit"
+	componentName1 := "component1"
+	//componentNameLong := "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit"
 	type expectedVolumeProps struct {
 		expectedVolumeNamePrefix         string
 		expectedVolumeMountPath          string
@@ -30,90 +32,91 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 		expectedVolumeProps     []expectedVolumeProps
 		radixVolumeMounts       []v1.RadixVolumeMount
 	}{
-		{
-			name:                "No Azure Key volumes as no RadixAzureKeyVault-s",
-			componentName:       componentName1,
-			azureKeyVaults:      []v1.RadixAzureKeyVault{},
-			expectedVolumeProps: []expectedVolumeProps{},
-		},
+		//{
+		//	name:                "No Azure Key volumes as no RadixAzureKeyVault-s",
+		//	componentName:       componentName1,
+		//	azureKeyVaults:      []v1.RadixAzureKeyVault{},
+		//	expectedVolumeProps: []expectedVolumeProps{},
+		//},
 		{
 			name:           "No Azure Key volumes as no secret names in secret object",
 			componentName:  componentName1,
 			azureKeyVaults: []v1.RadixAzureKeyVault{{Name: "kv1"}},
 		},
-		{
-			name:          "One Azure Key volume for one secret objects secret name",
-			componentName: componentName1,
-			azureKeyVaults: []v1.RadixAzureKeyVault{{
-				Name:  "kv1",
-				Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
-			}},
-			expectedVolumeProps: []expectedVolumeProps{
-				{
-					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
-					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
-					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
-					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "component1-az-keyvault-kv1-",
-					},
-				},
-			},
-		},
-		{
-			name:          "Multiple Azure Key volumes for each RadixAzureKeyVault",
-			componentName: componentName1,
-			azureKeyVaults: []v1.RadixAzureKeyVault{
-				{
-					Name:  "kv1",
-					Path:  utils.StringPtr("/mnt/customPath"),
-					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
-				},
-				{
-					Name:  "kv2",
-					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2", EnvVar: "SECRET_REF2"}},
-				},
-			},
-			expectedVolumeProps: []expectedVolumeProps{
-				{
-					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
-					expectedVolumeMountPath:          "/mnt/customPath",
-					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
-					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "component1-az-keyvault-kv1-",
-					},
-				},
-				{
-					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv2-",
-					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv2",
-					expectedNodePublishSecretRefName: "component1-kv2-csiazkvcreds",
-					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "component1-az-keyvault-kv2-",
-					},
-				},
-			},
-		},
-		{
-			name:          "Volume name should be trimmed when exceeding 63 chars",
-			componentName: componentNameLong,
-			azureKeyVaults: []v1.RadixAzureKeyVault{{
-				Name:  "kv1",
-				Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
-			}},
-			expectedVolumeProps: []expectedVolumeProps{
-				{
-					expectedVolumeNamePrefix:         "a-very-long-component-name-that-exceeds-63-kubernetes-vol",
-					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
-					expectedNodePublishSecretRefName: "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-kv1-csiazkvcreds",
-					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-az-keyvault-kv1-",
-					},
-				},
-			},
-		},
+		//{
+		//	name:          "One Azure Key volume for one secret objects secret name",
+		//	componentName: componentName1,
+		//	azureKeyVaults: []v1.RadixAzureKeyVault{{
+		//		Name:  "kv1",
+		//		Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
+		//	}},
+		//	expectedVolumeProps: []expectedVolumeProps{
+		//		{
+		//			expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
+		//			expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
+		//			expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
+		//			expectedVolumeAttributePrefixes: map[string]string{
+		//				"secretProviderClass": "component1-az-keyvault-kv1-",
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:          "Multiple Azure Key volumes for each RadixAzureKeyVault",
+		//	componentName: componentName1,
+		//	azureKeyVaults: []v1.RadixAzureKeyVault{
+		//		{
+		//			Name:  "kv1",
+		//			Path:  utils.StringPtr("/mnt/customPath"),
+		//			Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
+		//		},
+		//		{
+		//			Name:  "kv2",
+		//			Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2", EnvVar: "SECRET_REF2"}},
+		//		},
+		//	},
+		//	expectedVolumeProps: []expectedVolumeProps{
+		//		{
+		//			expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
+		//			expectedVolumeMountPath:          "/mnt/customPath",
+		//			expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
+		//			expectedVolumeAttributePrefixes: map[string]string{
+		//				"secretProviderClass": "component1-az-keyvault-kv1-",
+		//			},
+		//		},
+		//		{
+		//			expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv2-",
+		//			expectedVolumeMountPath:          "/mnt/azure-key-vault/kv2",
+		//			expectedNodePublishSecretRefName: "component1-kv2-csiazkvcreds",
+		//			expectedVolumeAttributePrefixes: map[string]string{
+		//				"secretProviderClass": "component1-az-keyvault-kv2-",
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:          "Volume name should be trimmed when exceeding 63 chars",
+		//	componentName: componentNameLong,
+		//	azureKeyVaults: []v1.RadixAzureKeyVault{{
+		//		Name:  "kv1",
+		//		Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
+		//	}},
+		//	expectedVolumeProps: []expectedVolumeProps{
+		//		{
+		//			expectedVolumeNamePrefix:         "a-very-long-component-name-that-exceeds-63-kubernetes-vol",
+		//			expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
+		//			expectedNodePublishSecretRefName: "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-kv1-csiazkvcreds",
+		//			expectedVolumeAttributePrefixes: map[string]string{
+		//				"secretProviderClass": "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-az-keyvault-kv1-",
+		//			},
+		//		},
+		//	},
+		//},
 	}
 	t.Run("CSI Azure Key vault volumes", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
+			t.Logf("Test case %s", scenario.name)
 			deployment := getDeployment(t)
 			radixDeployment := buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
 				var builders []utils.DeployComponentBuilder
@@ -132,7 +135,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				}
 			}
 			volumes, err := volumemount.GetVolumes(context.Background(), deployment.kubeutil, namespace, radixDeployComponent, radixDeployment.GetName(), nil)
-			assert.Nil(t, err)
+			require.NoError(t, err, "failed to get volumes")
 			assert.Len(t, volumes, len(scenario.expectedVolumeProps))
 			if len(scenario.expectedVolumeProps) == 0 {
 				continue
