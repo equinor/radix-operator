@@ -17,8 +17,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 		appName           = "app"
 		namespace         = "some-namespace"
 		environment       = "some-env"
-		componentName1    = "component1"
-		componentNameLong = "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit"
+		componentNameLong = "max-long-component-name-0123456789012345678901234"
 	)
 	type expectedVolumeProps struct {
 		expectedVolumeNamePrefix         string
@@ -105,11 +104,11 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 			}},
 			expectedVolumeProps: []expectedVolumeProps{
 				{
-					expectedVolumeNamePrefix:         "a-very-long-component-name-that-exceeds-63-kubernetes-vol",
+					expectedVolumeNamePrefix:         "max-long-component-name-0123456789012345678901234-az-keyv",
 					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
-					expectedNodePublishSecretRefName: "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-kv1-csiazkvcreds",
+					expectedNodePublishSecretRefName: "max-long-component-name-0123456789012345678901234-kv1-csiazkvcreds",
 					expectedVolumeAttributePrefixes: map[string]string{
-						"secretProviderClass": "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-az-keyvault-kv1-",
+						"secretProviderClass": "max-long-component-name-0123456789012345678901234-az-keyvault-kv1-",
 					},
 				},
 			},
@@ -169,12 +168,12 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 			rdBuilder := getRdBuilderWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
 				var builders []utils.DeployComponentBuilder
 				builders = append(builders, utils.NewDeployComponentBuilder().
-					WithName(trimComponentName(scenario.componentName)).
+					WithName(scenario.componentName).
 					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
 				return builders
 			})
 			deployment := getDeployment(t, rdBuilder)
-			radixDeployComponent := deployment.radixDeployment.GetComponentByName(trimComponentName(scenario.componentName))
+			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
 			for _, azureKeyVault := range scenario.azureKeyVaults {
 				spc, err := deployment.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
 				if err != nil {
@@ -183,8 +182,10 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 					t.Logf("created secret provider class %s", spc.Name)
 				}
 			}
+
 			volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(radixDeployComponent, deployment.radixDeployment.GetName())
-			assert.Nil(t, err)
+			require.Nil(t, err)
+
 			assert.Len(t, volumeMounts, len(scenario.expectedVolumeProps))
 			if len(scenario.expectedVolumeProps) == 0 {
 				continue
@@ -194,19 +195,13 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				volumeMount := volumeMounts[i]
 				volumeProp := scenario.expectedVolumeProps[i]
 				assert.Less(t, len(volumeMount.Name), 64, "volumemount name is too long")
-				assert.True(t, strings.Contains(volumeMount.Name, volumeProp.expectedVolumeNamePrefix))
-				assert.Equal(t, volumeProp.expectedVolumeMountPath, volumeMount.MountPath)
-				assert.True(t, volumeMount.ReadOnly)
+				assert.True(t, strings.Contains(volumeMount.Name, volumeProp.expectedVolumeNamePrefix),
+					"VolumeMount name should have prefix %s, but it is  %s", volumeProp.expectedVolumeNamePrefix, volumeMount.Name)
+				assert.Equal(t, volumeProp.expectedVolumeMountPath, volumeMount.MountPath, "VolumeMount mount path should be %s, but it is %s", volumeProp.expectedVolumeMountPath, volumeMount.MountPath)
+				assert.True(t, volumeMount.ReadOnly, "VolumeMount should be read only")
 			}
 		}
 	})
-}
-
-func trimComponentName(componentName string) string {
-	if len(componentName) > 50 {
-		return componentName[:50]
-	}
-	return componentName
 }
 
 func getDeployment(t *testing.T, deploymentBuilder utils.DeploymentBuilder) *Deployment {

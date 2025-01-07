@@ -239,8 +239,8 @@ func getCsiRadixVolumeTypeId(radixVolumeMount *radixv1.RadixVolumeMount) (string
 	return "", fmt.Errorf("unknown volume mount type %s", radixVolumeMount.Type)
 }
 
-func getComponentSecretRefsVolumes(ctx context.Context, kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
-	azureKeyVaultVolumes, err := getComponentSecretRefsAzureKeyVaultVolumes(ctx, kubeutil, namespace, deployComponent, radixDeploymentName)
+func getComponentSecretRefsVolumes(ctx context.Context, kubeUtil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
+	azureKeyVaultVolumes, err := getComponentSecretRefsAzureKeyVaultVolumes(ctx, kubeUtil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -982,7 +982,8 @@ func trimVolumeNameToValidLength(volumeName string) string {
 	}
 
 	randString := strings.ToLower(commonUtils.RandStringStrSeed(randSize, volumeName))
-	return fmt.Sprintf("%s-%s", volumeName[:63-randSize-1], randString)
+	sprintf := fmt.Sprintf("%s-%s", volumeName[:63-randSize-1], randString)
+	return sprintf
 }
 
 func getCsiAzureVolumeMountCredsSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, componentName, volumeMountName string) (string, []byte, []byte) {
