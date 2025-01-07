@@ -291,7 +291,11 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
 
-	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent, deploy.radixDeployment.GetName(), desiredDeployment.Spec.Template.Spec.Volumes)
+	existingVolumes, err := deploy.getDeployComponentExistingVolumes(ctx, deployComponent, desiredDeployment)
+	if err != nil {
+		return err
+	}
+	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent, deploy.radixDeployment.GetName(), existingVolumes)
 	if err != nil {
 		return err
 	}
@@ -332,6 +336,17 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 
 	return nil
+}
+
+func (deploy *Deployment) getDeployComponentExistingVolumes(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, deployment *appsv1.Deployment) ([]corev1.Volume, error) {
+	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
+		volumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent.GetName())
+		if err != nil {
+			return nil, err
+		}
+		return volumes, nil
+	}
+	return deployment.Spec.Template.Spec.Volumes, nil
 }
 
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
