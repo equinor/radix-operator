@@ -8,6 +8,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+var (
+	ignoreVolumeAttributeKeys = map[string]any{CsiVolumeMountAttributePvName: struct{}{}, CsiVolumeMountAttributePvcName: struct{}{}, CsiVolumeMountAttributePvcNamespace: struct{}{}, CsiVolumeMountAttributeProvisionerIdentity: struct{}{}}
+)
+
 // EqualPersistentVolumes Compare two PersistentVolumes
 func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	if pv1 == nil || pv2 == nil {
@@ -140,8 +144,8 @@ func getPvAnnotations(pv *corev1.PersistentVolume) map[string]string {
 func getVolumeAttributes(pv *corev1.PersistentVolume) map[string]string {
 	attributes := make(map[string]string)
 	for key, value := range pv.Spec.CSI.VolumeAttributes {
-		if key == CsiVolumeMountAttributeProvisionerIdentity {
-			continue // ignore automatically added attribute(s)
+		if _, ok := ignoreVolumeAttributeKeys[key]; ok {
+			continue // ignore automatically added and name specific attribute(s)
 		}
 		attributes[key] = value
 	}
