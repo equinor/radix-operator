@@ -924,19 +924,38 @@ func garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(ctx contex
 }
 
 func getActualExistingCsiAzurePvName(appName, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, persistentVolumes []corev1.PersistentVolume, pvcName string, identity *radixv1.Identity) (string, bool, bool) {
+	if pvName, ok := getActualCsiAzurePvNameByPvcName(appName, namespace, componentName, radixVolumeMount, persistentVolumes, pvcName, identity); ok {
+		return pvName, true, true
+	}
+	if pvName, ok := getFirstActualCsiAzurePvName(appName, namespace, componentName, radixVolumeMount, persistentVolumes, pvcName, identity); ok {
+		return pvName, false, true
+	}
+	return "", false, false
+}
+
+func getFirstActualCsiAzurePvName(appName string, namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, persistentVolumes []corev1.PersistentVolume, pvcName string, identity *radixv1.Identity) (string, bool) {
 	for _, pv := range persistentVolumes {
 		if pv.Spec.ClaimRef == nil {
 			continue
 		}
-		if pv.Spec.ClaimRef.Name == pvcName {
-			return pv.GetName(), true, false
-		}
 		desiredPv := populateCsiAzurePersistentVolume(pv.DeepCopy(), appName, namespace, componentName, pv.GetName(), pvcName, radixVolumeMount, identity)
 		if persistentvolume.EqualPersistentVolumes(&pv, desiredPv) {
-			return pv.GetName(), false, true
+			return pv.GetName(), true
 		}
 	}
-	return "", false, false
+	return "", false
+}
+
+func getActualCsiAzurePvNameByPvcName(appName string, namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, persistentVolumes []corev1.PersistentVolume, pvcName string, identity *radixv1.Identity) (string, bool) {
+	if pv, ok := slice.FindFirst(persistentVolumes, func(pv corev1.PersistentVolume) bool {
+		return pv.Spec.ClaimRef != nil && pv.Spec.ClaimRef.Name == pvcName
+	}); ok {
+		desiredPv := populateCsiAzurePersistentVolume(pv.DeepCopy(), appName, namespace, componentName, pv.GetName(), pvcName, radixVolumeMount, identity)
+		if persistentvolume.EqualPersistentVolumes(&pv, desiredPv) {
+			return pv.GetName(), true
+		}
+	}
+	return "", false
 }
 
 func getRadixVolumeMountsByNameMap(radixDeployment *radixv1.RadixDeployment, componentName string) map[string]*radixv1.RadixVolumeMount {
