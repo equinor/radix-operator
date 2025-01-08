@@ -837,7 +837,8 @@ func createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, kubeCli
 	if err != nil {
 		return nil, err
 	}
-	if pvcExist && !persistentvolume.EqualPersistentVolumeClaims(existingPvc, newPvc) {
+	if pvcExist &&
+		(!persistentvolume.EqualPersistentVolumeClaims(existingPvc, newPvc) || existingPvc.Spec.VolumeName != pvName) {
 		pvcName = newPvc.GetName()
 	}
 	if !existsPvByPvcName && !existsPvByVolumeContent {

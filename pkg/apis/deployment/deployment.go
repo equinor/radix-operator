@@ -621,7 +621,8 @@ func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployCom
 
 func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, namespace, jobKubeDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(jobKubeDeploymentName)
-	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, jobAuxKubeDeploymentName)
+	currentJobAuxDeployment, err := deploy.kubeutil.KubeClient().AppsV1().Deployments(namespace).Get(ctx, jobAuxKubeDeploymentName, metav1.GetOptions{})
+	//currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, jobAuxKubeDeploymentName)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			return nil, deploy.createJobAuxDeployment(jobKubeDeploymentName, jobAuxKubeDeploymentName), nil

@@ -46,7 +46,6 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 	desiredDeployment.Spec.Template.Spec.Volumes = actualVolumes
 	desiredVolumeMounts := desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
 	if err = deploy.handleJobAuxDeployment(ctx, namespace, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
-		//!!!! error "failed to create Deployment object: deployments.apps \"job1-aux\" already exists"
 		return err
 	}
 	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment)
