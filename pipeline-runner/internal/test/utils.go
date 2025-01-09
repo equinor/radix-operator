@@ -8,7 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	hash2 "github.com/equinor/radix-operator/pkg/apis/utils/hash"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,18 +64,18 @@ func CreateBuildSecret(kubeClient kubernetes.Interface, appName string, data map
 
 func GetRadixApplicationHash(ra *radixv1.RadixApplication) string {
 	if ra == nil {
-		hash, _ := hash2.ToHashString(hash2.SHA256, "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7")
+		hash, _ := hash.ToHashString(hash.SHA256, "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7")
 		return hash
 	}
-	hash, _ := hash2.ToHashString(hash2.SHA256, ra.Spec)
+	hash, _ := hash.ToHashString(hash.SHA256, ra.Spec)
 	return hash
 }
 
 func GetBuildSecretHash(secret *corev1.Secret) string {
 	if secret == nil {
-		hash, _ := hash2.ToHashString(hash2.SHA256, "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj")
+		hash, _ := hash.ToHashString(hash.SHA256, "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj")
 		return hash
 	}
-	hash, _ := hash2.ToHashString(hash2.SHA256, secret.Data)
+	hash, _ := hash.ToHashString(hash.SHA256, secret.Data)
 	return hash
 }
