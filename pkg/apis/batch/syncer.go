@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 	"fmt"
+
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"

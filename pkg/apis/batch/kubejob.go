@@ -3,7 +3,6 @@ package batch
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/numbers"
@@ -16,6 +15,7 @@ import (
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
