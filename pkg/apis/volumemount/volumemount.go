@@ -802,8 +802,8 @@ func createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, kubeCli
 	if err != nil {
 		return nil, err
 	}
-	if pvcExist &&
-		(!persistentvolume.EqualPersistentVolumeClaims(existingPvc, newPvc) || existingPvc.Spec.VolumeName != pvName) {
+	needToReCreatePvc := !persistentvolume.EqualPersistentVolumeClaims(existingPvc, newPvc) || existingPvc.Spec.VolumeName != pvName
+	if pvcExist && needToReCreatePvc {
 		pvcName = newPvc.GetName()
 	}
 	if !existsPvByPvcName && !existsPvByVolumeContent {
@@ -813,7 +813,7 @@ func createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, kubeCli
 			return nil, err
 		}
 	}
-	if !pvcExist || !persistentvolume.EqualPersistentVolumeClaims(existingPvc, newPvc) {
+	if !pvcExist || needToReCreatePvc {
 		newPvc.SetName(pvcName)
 		log.Ctx(ctx).Debug().Msgf("Create PersistentVolumeClaim %s in namespace %s for PersistentVolume %s", newPvc.GetName(), namespace, pvName)
 		if _, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Create(ctx, newPvc, metav1.CreateOptions{}); err != nil {

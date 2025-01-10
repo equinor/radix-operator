@@ -1,6 +1,7 @@
 package persistentvolume
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/internal"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -8,35 +9,35 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var (
-	ignoreVolumeAttributeKeys = map[string]any{CsiVolumeMountAttributePvName: struct{}{}, CsiVolumeMountAttributePvcName: struct{}{}, CsiVolumeMountAttributePvcNamespace: struct{}{}, CsiVolumeMountAttributeProvisionerIdentity: struct{}{}}
-)
-
 // EqualPersistentVolumes Compare two PersistentVolumes
 func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	if pv1 == nil || pv2 == nil {
 		return false
 	}
-	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner
+	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner. When all volume mounts gets labels, uncomment these lines
 	// if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
 	// 	return false, nil
 	// }
 	if !utils.EqualStringMaps(getPvAnnotations(pv1), getPvAnnotations(pv2)) {
 		return false
 	}
-	if !utils.EqualStringMaps(getVolumeAttributes(pv1), getVolumeAttributes(pv2)) {
+	expectedClonedVolumeAttrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName, CsiVolumeMountAttributeProvisionerIdentity)
+	actualClonedVolumeAttrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName, CsiVolumeMountAttributeProvisionerIdentity)
+	if !utils.EqualStringMaps(expectedClonedVolumeAttrs, actualClonedVolumeAttrs) {
 		return false
 	}
 	if !utils.EqualStringMaps(getMountOptionsMap(pv1.Spec.MountOptions), getMountOptionsMap(pv2.Spec.MountOptions)) {
 		return false
 	}
-	// ignore pv1.Spec.StorageClassName != pv2.Spec.StorageClassName for transition period
+
+	// ignore pv1.Spec.StorageClassName != pv2.Spec.StorageClassName for transition period. When there is no volumeMounts with storage class exists - uncomment this line
 	if pv1.Spec.Capacity[corev1.ResourceStorage] != pv2.Spec.Capacity[corev1.ResourceStorage] ||
 		len(pv1.Spec.AccessModes) != len(pv2.Spec.AccessModes) ||
 		(len(pv1.Spec.AccessModes) != 1 && pv1.Spec.AccessModes[0] != pv2.Spec.AccessModes[0]) ||
 		pv1.Spec.CSI.Driver != pv2.Spec.CSI.Driver {
 		return false
 	}
+
 	if pv1.Spec.CSI.NodeStageSecretRef != nil {
 		if pv2.Spec.CSI.NodeStageSecretRef == nil || pv1.Spec.CSI.NodeStageSecretRef.Name != pv2.Spec.CSI.NodeStageSecretRef.Name {
 			return false
@@ -44,9 +45,12 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	} else if pv2.Spec.CSI.NodeStageSecretRef != nil {
 		return false
 	}
+
 	if pv1.Spec.ClaimRef != nil {
-		if pv2.Spec.ClaimRef == nil || len(pv1.Spec.ClaimRef.Name) < 5 || len(pv2.Spec.ClaimRef.Name) < 5 ||
-			pv1.Spec.ClaimRef.Name[:len(pv1.Spec.ClaimRef.Name)-5] != pv2.Spec.ClaimRef.Name[:len(pv2.Spec.ClaimRef.Name)-5] {
+		if pv2.Spec.ClaimRef == nil ||
+			!internal.EqualTillPostfix(pv1.Spec.ClaimRef.Name, pv2.Spec.ClaimRef.Name, 5) ||
+			pv1.Spec.ClaimRef.Namespace != pv2.Spec.ClaimRef.Namespace ||
+			pv1.Spec.ClaimRef.Kind != pv2.Spec.ClaimRef.Kind {
 			return false
 		}
 	} else if pv2.Spec.ClaimRef != nil {
@@ -55,73 +59,15 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	return true
 }
 
-// EqualPersistentVolumesForTest Compare two PersistentVolumes for test
-func EqualPersistentVolumesForTest(expectedPv, actualPv *corev1.PersistentVolume) bool {
-	if expectedPv == nil || actualPv == nil {
-		return false
-	}
-	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner
-	// if !utils.EqualStringMaps(expectedPv.GetLabels(), actualPv.GetLabels()) {
-	// 	return false, nil
-	// }
-	if !utils.EqualStringMaps(getPvAnnotations(expectedPv), getPvAnnotations(actualPv)) {
-		return false
-	}
-	expectedClonedAttrs := cloneMap(expectedPv.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName, CsiVolumeMountAttributeProvisionerIdentity)
-	actualClonedAttrs := cloneMap(actualPv.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName, CsiVolumeMountAttributeProvisionerIdentity)
-	if !utils.EqualStringMaps(expectedClonedAttrs, actualClonedAttrs) {
-		return false
-	}
-	expectedNameAttr := expectedPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvName]
-	actualNameAttr := actualPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvName]
-	if len(expectedNameAttr) == 0 || len(actualNameAttr) == 0 {
-		return false
-	}
-	if expectedNameAttr[:20] != actualNameAttr[:20] {
-		return false
-	}
-	expectedPvcNameAttr := expectedPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvcName]
-	actualPvcNameAttr := actualPv.Spec.CSI.VolumeAttributes[CsiVolumeMountAttributePvcName]
-	if expectedPvcNameAttr[:len(expectedPvcNameAttr)-5] != actualPvcNameAttr[:len(actualPvcNameAttr)-5] {
-		return false
-	}
-
-	if !utils.EqualStringMaps(getMountOptionsMap(expectedPv.Spec.MountOptions), getMountOptionsMap(actualPv.Spec.MountOptions)) {
-		return false
-	}
-	// ignore expectedPv.Spec.StorageClassName != actualPv.Spec.StorageClassName for transition period
-	if expectedPv.Spec.Capacity[corev1.ResourceStorage] != actualPv.Spec.Capacity[corev1.ResourceStorage] ||
-		len(expectedPv.Spec.AccessModes) != len(actualPv.Spec.AccessModes) ||
-		(len(expectedPv.Spec.AccessModes) != 1 && expectedPv.Spec.AccessModes[0] != actualPv.Spec.AccessModes[0]) ||
-		expectedPv.Spec.CSI.Driver != actualPv.Spec.CSI.Driver {
-		return false
-	}
-	if expectedPv.Spec.CSI.NodeStageSecretRef != nil {
-		if actualPv.Spec.CSI.NodeStageSecretRef == nil || expectedPv.Spec.CSI.NodeStageSecretRef.Name != actualPv.Spec.CSI.NodeStageSecretRef.Name {
-			return false
-		}
-	} else if actualPv.Spec.CSI.NodeStageSecretRef != nil {
-		return false
-	}
-	if expectedPv.Spec.ClaimRef != nil {
-		if actualPv.Spec.ClaimRef == nil { // ignore  || expectedPv.Spec.ClaimRef.Name != actualPv.Spec.ClaimRef.Name
-			return false
-		}
-	} else if actualPv.Spec.ClaimRef != nil {
-		return false
-	}
-	return true
-}
-
 func cloneMap(original map[string]string, ignoreKeys ...string) map[string]string {
-	copy := make(map[string]string, len(original))
+	clonedMap := make(map[string]string, len(original))
 	ignoreKeysMap := convertToSet(ignoreKeys)
 	for key, value := range original {
 		if _, ok := ignoreKeysMap[key]; !ok {
-			copy[key] = value
+			clonedMap[key] = value
 		}
 	}
-	return copy
+	return clonedMap
 }
 
 func convertToSet(ignoreKeys []string) map[string]struct{} {
@@ -140,17 +86,6 @@ func getPvAnnotations(pv *corev1.PersistentVolume) map[string]string {
 		annotations[key] = value
 	}
 	return annotations
-}
-
-func getVolumeAttributes(pv *corev1.PersistentVolume) map[string]string {
-	attributes := make(map[string]string)
-	for key, value := range pv.Spec.CSI.VolumeAttributes {
-		if _, ok := ignoreVolumeAttributeKeys[key]; ok {
-			continue // ignore automatically added and name specific attribute(s)
-		}
-		attributes[key] = value
-	}
-	return attributes
 }
 
 func getMountOptionsMap(mountOptions []string) map[string]string {
