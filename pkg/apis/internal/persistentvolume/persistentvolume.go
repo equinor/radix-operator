@@ -45,7 +45,8 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 		return false
 	}
 	if pv1.Spec.ClaimRef != nil {
-		if pv2.Spec.ClaimRef == nil || pv1.Spec.ClaimRef.Name != pv2.Spec.ClaimRef.Name {
+		if pv2.Spec.ClaimRef == nil || len(pv1.Spec.ClaimRef.Name) < 5 || len(pv2.Spec.ClaimRef.Name) < 5 ||
+			pv1.Spec.ClaimRef.Name[:len(pv1.Spec.ClaimRef.Name)-5] != pv2.Spec.ClaimRef.Name[:len(pv2.Spec.ClaimRef.Name)-5] {
 			return false
 		}
 	} else if pv2.Spec.ClaimRef != nil {

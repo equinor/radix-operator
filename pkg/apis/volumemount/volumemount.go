@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -41,9 +40,8 @@ const (
 )
 
 var (
-	csiVolumeProvisioners                 = map[string]any{provisionerBlobCsiAzure: struct{}{}}
-	functionalPersistentVolumePhases      = []corev1.PersistentVolumePhase{corev1.VolumePending, corev1.VolumeBound, corev1.VolumeAvailable}
-	functionalPersistentVolumeClaimPhases = []corev1.PersistentVolumeClaimPhase{corev1.ClaimPending, corev1.ClaimBound}
+	csiVolumeProvisioners            = map[string]any{provisionerBlobCsiAzure: struct{}{}}
+	functionalPersistentVolumePhases = []corev1.PersistentVolumePhase{corev1.VolumePending, corev1.VolumeBound, corev1.VolumeAvailable}
 )
 
 // GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
@@ -397,21 +395,6 @@ func getVolumeMountDeprecatedVolumeName(volumeMount *radixv1.RadixVolumeMount, c
 	return "", fmt.Errorf("unsupported volume type %s", volumeMount.Type)
 }
 
-func getFunctionalPvcList(ctx context.Context, kubeclient kubernetes.Interface, namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) ([]corev1.PersistentVolumeClaim, error) {
-	pvcList, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentVolumeMount(componentName, radixVolumeMount.Name),
-	})
-	if err != nil {
-		return nil, err
-	}
-	existingPvcs := sortPvcsByCreatedTimestampDesc(pvcList.Items)
-	return slice.FindAll(existingPvcs, func(pvc corev1.PersistentVolumeClaim) bool { return pvcIsFunctional(pvc) }), nil
-}
-
-func pvcIsFunctional(pvc corev1.PersistentVolumeClaim) bool {
-	return slice.Any(functionalPersistentVolumeClaimPhases, func(phase corev1.PersistentVolumeClaimPhase) bool { return pvc.Status.Phase == phase })
-}
-
 func getCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
 	volumeName, err := getCsiAzureVolumeMountName(componentName, radixVolumeMount)
 	if err != nil {
@@ -473,10 +456,6 @@ func getCsiAzurePersistentVolumeClaims(ctx context.Context, kubeClient kubernete
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaim(componentName string) string {
 	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure))
-}
-
-func getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentVolumeMount(componentName, radixVolumeMountName string) string {
-	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, componentName, kube.RadixVolumeMountNameLabel, radixVolumeMountName)
 }
 
 func buildPersistentVolumeClaim(appName, namespace, componentName, pvName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
@@ -696,13 +675,6 @@ func getRadixBlobFuse2VolumeMountGid(radixVolumeMount *radixv1.RadixVolumeMount)
 	return radixVolumeMount.GID
 }
 
-func getRadixBlobFuse2VolumeMountSkuName(radixVolumeMount *radixv1.RadixVolumeMount) string {
-	if radixVolumeMount.BlobFuse2 != nil {
-		return radixVolumeMount.BlobFuse2.SkuName
-	}
-	return radixVolumeMount.SkuName
-}
-
 func getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount *radixv1.RadixVolumeMount) string {
 	if radixVolumeMount.BlobFuse2 != nil {
 		return radixVolumeMount.BlobFuse2.Container
@@ -715,13 +687,6 @@ func getRadixBlobFuse2VolumeMountRequestsStorage(radixVolumeMount *radixv1.Radix
 		return radixVolumeMount.BlobFuse2.RequestsStorage
 	}
 	return radixVolumeMount.RequestsStorage
-}
-
-func getRadixBlobFuse2VolumeMountBindingMode(radixVolumeMount *radixv1.RadixVolumeMount) string {
-	if radixVolumeMount.BlobFuse2 != nil {
-		return radixVolumeMount.BlobFuse2.BindingMode
-	}
-	return radixVolumeMount.BindingMode
 }
 
 func deletePersistentVolumeClaim(ctx context.Context, kubeClient kubernetes.Interface, namespace, pvcName string) error {
@@ -990,13 +955,6 @@ func findCsiAzureVolumeForComponent(volumeMountsByNameMap map[string]*radixv1.Ra
 		volumeMountsByNameMap[volumeMountName] = &radixVolumeMount
 	}
 	return true
-}
-
-func sortPvcsByCreatedTimestampDesc(persistentVolumeClaims []corev1.PersistentVolumeClaim) []corev1.PersistentVolumeClaim {
-	sort.SliceStable(persistentVolumeClaims, func(i, j int) bool {
-		return (persistentVolumeClaims)[j].ObjectMeta.CreationTimestamp.Before(&(persistentVolumeClaims)[i].ObjectMeta.CreationTimestamp)
-	})
-	return persistentVolumeClaims
 }
 
 func trimVolumeNameToValidLength(volumeName string) string {

@@ -46,10 +46,7 @@ func EqualPersistentVolumeClaims(pvc1, pvc2 *corev1.PersistentVolumeClaim) bool 
 	}
 	volumeMode1 := pointers.Val(pvc1.Spec.VolumeMode)
 	volumeMode2 := pointers.Val(pvc2.Spec.VolumeMode)
-	if volumeMode1 != volumeMode2 {
-		return false
-	}
-	return true
+	return volumeMode1 == volumeMode2
 }
 
 func getAnnotations(pvc *corev1.PersistentVolumeClaim) map[string]string {

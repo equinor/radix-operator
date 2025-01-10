@@ -109,18 +109,6 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 	return nil
 }
 
-func (deploy *Deployment) getBlobFuseCredsSecrets(ctx context.Context, ns, componentName, volumeMountName string) (string, []byte, []byte) {
-	secretName := defaults.GetBlobFuseCredsSecretName(componentName, volumeMountName)
-	accountKey := []byte(defaults.SecretDefaultData)
-	accountName := []byte(defaults.SecretDefaultData)
-	if deploy.kubeutil.SecretExists(ctx, ns, secretName) {
-		oldSecret, _ := deploy.kubeutil.GetSecret(ctx, ns, secretName)
-		accountKey = oldSecret.Data[defaults.BlobFuseCredsAccountKeyPart]
-		accountName = oldSecret.Data[defaults.BlobFuseCredsAccountNamePart]
-	}
-	return secretName, accountKey, accountName
-}
-
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec(ctx context.Context) error {
 	secrets, err := deploy.kubeutil.ListSecrets(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
