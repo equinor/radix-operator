@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, namespace, deployComponent)
 	if err != nil {
@@ -39,7 +39,7 @@ func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployCompone
 			return err
 		}
 	}
-	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResources(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment.Spec.Template.Spec.Volumes)
+	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment.Spec.Template.Spec.Volumes)
 	if err != nil {
 		return err
 	}

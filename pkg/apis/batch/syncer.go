@@ -105,7 +105,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResources(ctx, s.kubeUtil.KubeClient(), rd, namespace, jobComponent, desiredVolumes)
+	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx, s.kubeUtil.KubeClient(), rd, namespace, jobComponent, desiredVolumes)
 	if err != nil {
 		return fmt.Errorf("failed to create or update csi azure volume resources: %w", err)
 	}

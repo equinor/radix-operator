@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"sort"
 	"strings"
 	"time"
@@ -531,7 +532,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	err = deploy.reconcileDeployment(ctx, component)
+	err = deploy.reconcileDeployComponent(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
@@ -583,6 +584,10 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		if err != nil {
 			return fmt.Errorf("failed to delete servicemonitor: %w", err)
 		}
+	}
+
+	if err = volumemount.GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace()); err != nil {
+		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
 	}
 
 	return nil
