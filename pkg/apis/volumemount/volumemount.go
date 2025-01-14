@@ -25,12 +25,13 @@ import (
 )
 
 const (
+	// ReadOnlyMountOption The readonly volume mount option for CSI fuse driver
+	ReadOnlyMountOption                     = "-o ro"
 	csiVolumeTypeBlobFuse2ProtocolFuse      = "csi-az-blob"
 	csiVolumeTypeBlobFuse2ProtocolFuse2     = "csi-blobfuse2-fuse2"
 	csiVolumeNameTemplate                   = "%s-%s-%s-%s" // <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
 	csiAzureKeyVaultSecretMountPathTemplate = "/mnt/azure-key-vault/%s"
-
-	volumeNameMaxLength = 63
+	volumeNameMaxLength                     = 63
 )
 
 // These are valid volume mount provisioners
@@ -627,7 +628,7 @@ func getCsiAzurePvMountOptionsForAzureBlob(radixVolumeMount *radixv1.RadixVolume
 		}
 	}
 	if getVolumeMountAccessMode(radixVolumeMount) == corev1.ReadOnlyMany {
-		mountOptions = append(mountOptions, "-o ro")
+		mountOptions = append(mountOptions, ReadOnlyMountOption)
 	}
 	if radixVolumeMount.BlobFuse2 != nil {
 		mountOptions = append(mountOptions, getStreamingMountOptions(radixVolumeMount.BlobFuse2.Streaming)...)
