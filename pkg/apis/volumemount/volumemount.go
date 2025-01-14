@@ -469,10 +469,6 @@ func getCsiAzurePvcs(ctx context.Context, kubeClient kubernetes.Interface, names
 	return kubeClient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 }
 
-func getLabelSelectorForCsiAzurePvc(componentName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure))
-}
-
 func buildPvc(appName, namespace, componentName, pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount) *corev1.PersistentVolumeClaim {
 	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{

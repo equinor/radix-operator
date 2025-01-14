@@ -84,7 +84,6 @@ const (
 )
 
 var (
-	anotherNamespace       = strings.ToLower(commonUtils.RandString(10))
 	anotherComponentName   = strings.ToLower(commonUtils.RandString(10))
 	anotherVolumeMountName = strings.ToLower(commonUtils.RandString(10))
 )
@@ -1483,19 +1482,6 @@ func createTestVolume(pvcProps expectedPvcPvProperties, modify func(v *corev1.Vo
 	return volume
 }
 
-func createRandomVolume(modify func(*corev1.Volume)) corev1.Volume {
-	volume := corev1.Volume{
-		Name: strings.ToLower(utils.RandString(10)),
-		VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-			ClaimName: strings.ToLower(utils.RandString(10)),
-		}},
-	}
-	if modify != nil {
-		modify(&volume)
-	}
-	return volume
-}
-
 func createRadixVolumeMount(props expectedPvcPvProperties, modify func(mount *radixv1.RadixVolumeMount)) radixv1.RadixVolumeMount {
 	volumeMount := radixv1.RadixVolumeMount{
 		Type:    props.radixVolumeMountType,
@@ -1509,6 +1495,7 @@ func createRadixVolumeMount(props expectedPvcPvProperties, modify func(mount *ra
 	}
 	return volumeMount
 }
+
 func createBlobFuse2RadixVolumeMount(props expectedPvcPvProperties, modify func(mount *radixv1.RadixVolumeMount)) radixv1.RadixVolumeMount {
 	volumeMount := radixv1.RadixVolumeMount{
 		Name: props.radixVolumeMountName,
