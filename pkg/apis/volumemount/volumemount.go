@@ -911,7 +911,7 @@ func appendPvcNamesFromVolumes(pvcMap map[string]any, volumes []corev1.Volume) m
 }
 
 func garbageCollectCsiAzurePvs(ctx context.Context, kubeClient kubernetes.Interface, namespace string, excludePvcNames map[string]any) error {
-	pvs, err := getCsiAzurePvsForNamespace(ctx, kubeClient, namespace, true)
+	pvs, err := getCsiAzurePvsForNamespace(ctx, kubeClient, namespace, false)
 	if err != nil {
 		return err
 	}
