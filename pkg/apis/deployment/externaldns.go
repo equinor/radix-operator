@@ -81,8 +81,7 @@ func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec(ctx con
 		if slice.Any(externalDnsAliases, func(rded radixv1.RadixDeployExternalDNS) bool { return rded.FQDN == fqdn }) {
 			continue
 		}
-
-		if err := deploy.deleteSecret(ctx, &secret); err != nil {
+		if err := deploy.kubeutil.DeleteSecret(ctx, deploy.radixDeployment.Namespace, secret.Name); err != nil {
 			return nil
 		}
 	}
