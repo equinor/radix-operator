@@ -1,12 +1,12 @@
 package deployment
 
 import (
-	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )

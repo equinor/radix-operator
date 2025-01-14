@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v2 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type Algorithm string
@@ -68,7 +68,6 @@ func extractAlgorithmFromHashString(hashString string) Algorithm {
 const (
 	magicValueForNilRadixApplication = "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7"
 	magicValueForNilBuildSecretData  = "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj"
-	magicValueForNilVolumeMountData  = "50gfDfg6h65fGfdVfs4r5dhnGFF4D35f"
 )
 
 func CreateRadixApplicationHash(ra *v1.RadixApplication) (string, error) {
@@ -79,11 +78,11 @@ func CompareRadixApplicationHash(targetHash string, ra *v1.RadixApplication) (bo
 	return CompareWithHashString(getRadixApplicationOrMagicValue(ra), targetHash)
 }
 
-func CreateBuildSecretHash(secret *v2.Secret) (string, error) {
+func CreateBuildSecretHash(secret *corev1.Secret) (string, error) {
 	return ToHashString(SHA256, getBuildSecretOrMagicValue(secret))
 }
 
-func CompareBuildSecretHash(targetHash string, secret *v2.Secret) (bool, error) {
+func CompareBuildSecretHash(targetHash string, secret *corev1.Secret) (bool, error) {
 	return CompareWithHashString(getBuildSecretOrMagicValue(secret), targetHash)
 }
 
@@ -94,7 +93,7 @@ func getRadixApplicationOrMagicValue(ra *v1.RadixApplication) any {
 	return ra.Spec
 }
 
-func getBuildSecretOrMagicValue(secret *v2.Secret) any {
+func getBuildSecretOrMagicValue(secret *corev1.Secret) any {
 	if secret == nil || len(secret.Data) == 0 {
 		return magicValueForNilBuildSecretData
 	}

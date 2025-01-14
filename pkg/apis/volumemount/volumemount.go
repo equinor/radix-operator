@@ -91,7 +91,6 @@ func GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Con
 			return err
 		}
 	}
-
 	return garbageCollectSecrets(ctx, kubeUtil, namespace, secrets, excludeSecretNames)
 }
 

@@ -3,10 +3,10 @@ package test
 import (
 	"context"
 	"errors"
-	commonUtils "github.com/equinor/radix-common/utils"
 	"os"
 	"time"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
