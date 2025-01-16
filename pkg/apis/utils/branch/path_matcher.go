@@ -12,7 +12,7 @@ const (
 )
 
 var (
-	patternReplacer = strings.NewReplacer("/**/", "/.*", "*", "[^/]*", "?", ".")
+	patternReplacer = strings.NewReplacer("/**/", "/.*", "*", ".*", "?", ".")
 )
 
 // IsValidPattern Checks that the path is a branch pattern
