@@ -30,7 +30,6 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 		return false
 	}
 
-	// ignore pv1.Spec.StorageClassName != pv2.Spec.StorageClassName for transition period. When there is no volumeMounts with storage class exists - uncomment this line
 	if pv1.Spec.Capacity[corev1.ResourceStorage] != pv2.Spec.Capacity[corev1.ResourceStorage] ||
 		len(pv1.Spec.AccessModes) != len(pv2.Spec.AccessModes) ||
 		(len(pv1.Spec.AccessModes) != 1 && pv1.Spec.AccessModes[0] != pv2.Spec.AccessModes[0]) ||

@@ -13,7 +13,8 @@ type RadixApplicationComponentBuilder interface {
 	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *radixv1.RadixProbe) RadixApplicationComponentBuilder
 	WithImage(string) RadixApplicationComponentBuilder
 	WithImageTagName(imageTagName string) RadixApplicationComponentBuilder
-	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
+	// Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
+	WithPublic(bool) RadixApplicationComponentBuilder
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithPorts([]radixv1.ComponentPort) RadixApplicationComponentBuilder
@@ -44,28 +45,29 @@ type radixApplicationComponentBuilder struct {
 	dockerfileName          string
 	image                   string
 	alwaysPullImageOnDeploy *bool
-	public                  bool // Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
-	publicPort              string
-	monitoringConfig        radixv1.MonitoringConfig
-	ports                   []radixv1.ComponentPort
-	secrets                 []string
-	secretRefs              radixv1.RadixSecretRefs
-	ingressConfiguration    []string
-	environmentConfig       []RadixEnvironmentConfigBuilder
-	variables               radixv1.EnvVarsMap
-	resources               radixv1.ResourceRequirements
-	node                    radixv1.RadixNode
-	authentication          *radixv1.Authentication
-	volumeMounts            []radixv1.RadixVolumeMount
-	enabled                 *bool
-	identity                *radixv1.Identity
-	readOnlyFileSystem      *bool
-	monitoring              *bool
-	imageTagName            string
-	horizontalScaling       *radixv1.RadixHorizontalScaling
-	runtime                 *radixv1.Runtime
-	network                 *radixv1.Network
-	healtChecks             *radixv1.RadixHealthChecks
+	// Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
+	public               bool
+	publicPort           string
+	monitoringConfig     radixv1.MonitoringConfig
+	ports                []radixv1.ComponentPort
+	secrets              []string
+	secretRefs           radixv1.RadixSecretRefs
+	ingressConfiguration []string
+	environmentConfig    []RadixEnvironmentConfigBuilder
+	variables            radixv1.EnvVarsMap
+	resources            radixv1.ResourceRequirements
+	node                 radixv1.RadixNode
+	authentication       *radixv1.Authentication
+	volumeMounts         []radixv1.RadixVolumeMount
+	enabled              *bool
+	identity             *radixv1.Identity
+	readOnlyFileSystem   *bool
+	monitoring           *bool
+	imageTagName         string
+	horizontalScaling    *radixv1.RadixHorizontalScaling
+	runtime              *radixv1.Runtime
+	network              *radixv1.Network
+	healtChecks          *radixv1.RadixHealthChecks
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
