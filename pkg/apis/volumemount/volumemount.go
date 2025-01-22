@@ -144,6 +144,7 @@ func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, 
 // GetCsiAzureVolumeMountType Gets the CSI Azure volume mount type
 func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radixv1.MountType {
 	if radixVolumeMount.BlobFuse2 == nil {
+		//nolint:staticcheck
 		return radixVolumeMount.Type
 	}
 	switch radixVolumeMount.BlobFuse2.Protocol {
@@ -246,9 +247,11 @@ func getCsiRadixVolumeTypeId(radixVolumeMount *radixv1.RadixVolumeMount) (string
 			return "", fmt.Errorf("unknown blobfuse2 protocol %s", radixVolumeMount.BlobFuse2.Protocol)
 		}
 	}
+	//nolint:staticcheck
 	if radixVolumeMount.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure {
 		return csiVolumeTypeBlobFuse2ProtocolFuse, nil
 	}
+	//nolint:staticcheck
 	return "", fmt.Errorf("unknown volume mount type %s", radixVolumeMount.Type)
 }
 
@@ -377,9 +380,11 @@ func getCsiAzureVolumeSource(componentName string, radixVolumeMount *radixv1.Rad
 }
 
 func getComponentVolumeMountDeprecatedVolumeSource(componentName string, volumeMount *radixv1.RadixVolumeMount) (*corev1.VolumeSource, error) {
+	//nolint:staticcheck
 	if volumeMount.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure {
 		return getCsiAzureVolumeSource(componentName, volumeMount)
 	}
+	//nolint:staticcheck
 	return nil, fmt.Errorf("unsupported volume type %s", volumeMount.Type)
 }
 
@@ -403,10 +408,12 @@ func GetVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentNa
 }
 
 func getVolumeMountDeprecatedVolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
+	//nolint:staticcheck
 	switch volumeMount.Type {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		return getCsiAzureVolumeMountName(componentName, volumeMount)
 	}
+	//nolint:staticcheck
 	return "", fmt.Errorf("unsupported volume type %s", volumeMount.Type)
 }
 
@@ -660,6 +667,7 @@ func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []st
 }
 
 func getVolumeMountAccessMode(radixVolumeMount *radixv1.RadixVolumeMount) corev1.PersistentVolumeAccessMode {
+	//nolint:staticcheck
 	accessMode := radixVolumeMount.AccessMode
 	if radixVolumeMount.BlobFuse2 != nil {
 		accessMode = radixVolumeMount.BlobFuse2.AccessMode
@@ -679,6 +687,7 @@ func getRadixBlobFuse2VolumeMountUid(radixVolumeMount *radixv1.RadixVolumeMount)
 	if radixVolumeMount.BlobFuse2 != nil {
 		return radixVolumeMount.BlobFuse2.UID
 	}
+	//nolint:staticcheck
 	return radixVolumeMount.UID
 }
 
@@ -686,6 +695,7 @@ func getRadixBlobFuse2VolumeMountGid(radixVolumeMount *radixv1.RadixVolumeMount)
 	if radixVolumeMount.BlobFuse2 != nil {
 		return radixVolumeMount.BlobFuse2.GID
 	}
+	//nolint:staticcheck
 	return radixVolumeMount.GID
 }
 
@@ -693,6 +703,7 @@ func getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount *radixv1.RadixVo
 	if radixVolumeMount.BlobFuse2 != nil {
 		return radixVolumeMount.BlobFuse2.Container
 	}
+	//nolint:staticcheck
 	return radixVolumeMount.Storage
 }
 
@@ -700,6 +711,7 @@ func getRadixBlobFuse2VolumeMountRequestsStorage(radixVolumeMount *radixv1.Radix
 	if radixVolumeMount.BlobFuse2 != nil {
 		return radixVolumeMount.BlobFuse2.RequestsStorage
 	}
+	//nolint:staticcheck
 	return radixVolumeMount.RequestsStorage
 }
 
@@ -730,6 +742,7 @@ func getRadixVolumeMountStorage(radixVolumeMount *radixv1.RadixVolumeMount) stri
 	if len(blobFuse2VolumeMountContainer) != 0 {
 		return blobFuse2VolumeMountContainer
 	}
+	//nolint:staticcheck
 	return radixVolumeMount.Storage
 }
 

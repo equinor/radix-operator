@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package radixvalidators_test
 
 import (

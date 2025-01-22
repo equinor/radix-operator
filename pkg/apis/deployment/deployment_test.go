@@ -1,4 +1,6 @@
 // file deepcode ignore HardcodedPassword/test: unit tests
+//
+//nolint:staticcheck
 package deployment
 
 import (
@@ -2317,7 +2319,6 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 	assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
 }
 
-//nolint:staticcheck
 func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
@@ -2330,7 +2331,6 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
-			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2350,7 +2350,6 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
-			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2374,7 +2373,6 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
-			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2391,7 +2389,6 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
-			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).

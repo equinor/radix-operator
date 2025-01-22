@@ -137,6 +137,7 @@ func validatePrivateImageHubs(app *radixv1.RadixApplication) error {
 // RAContainsOldPublic Checks to see if the radix config is using the deprecated config for public port
 func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 	for _, component := range app.Spec.Components {
+		//nolint:staticcheck
 		if component.Public {
 			return true
 		}
@@ -580,6 +581,7 @@ func validateVerificationType(verificationType *radixv1.VerificationType) error 
 func componentHasPublicPort(component *radixv1.RadixComponent) bool {
 	return slice.Any(component.GetPorts(),
 		func(p radixv1.ComponentPort) bool {
+			//nolint:staticcheck
 			return len(p.Name) > 0 && (p.Name == component.PublicPort || component.Public)
 		})
 }
@@ -1614,14 +1616,18 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 }
 
 func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
+	//nolint:staticcheck
 	if v.Type != radixv1.MountTypeBlobFuse2FuseCsiAzure {
 		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountInvalidType)
 	}
+	//nolint:staticcheck
 	if len(v.RequestsStorage) > 0 {
+		//nolint:staticcheck
 		if _, err := resource.ParseQuantity(v.RequestsStorage); err != nil {
 			return volumeMountDeprecatedSourceValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
 		}
 	}
+	//nolint:staticcheck
 	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Container) == 0 {
 		return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingContainer)
 	}
@@ -1717,6 +1723,7 @@ func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
 	for _, component := range app.Spec.Components {
 		if component.Name == name {
+			//nolint:staticcheck
 			return component.Public || component.PublicPort != ""
 		}
 	}
