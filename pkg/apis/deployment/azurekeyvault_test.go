@@ -2,8 +2,6 @@ package deployment
 
 import (
 	"context"
-	"github.com/equinor/radix-operator/pkg/apis/internal/persistentvolume"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 
@@ -11,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
@@ -148,9 +147,9 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				volume := volumes[i]
 				assert.Less(t, len(volume.Name), 64, "volume name is too long")
 				assert.NotNil(t, volume.CSI, "CSI should ne not nil")
-				assert.NotEmpty(t, volume.CSI.VolumeAttributes[persistentvolume.CsiVolumeSourceVolumeAttributeSecretProviderClass], "VolumeAttributes should not be empty")
+				assert.NotEmpty(t, volume.CSI.VolumeAttributes[volumemount.CsiVolumeSourceVolumeAttributeSecretProviderClass], "VolumeAttributes should not be empty")
 				assert.NotNil(t, volume.CSI.NodePublishSecretRef, "NodePublishSecretRef should not be nil")
-				assert.Equal(t, persistentvolume.CsiVolumeSourceDriverSecretStore, volume.CSI.Driver, "Volume driver should be %s, but it is %s", persistentvolume.CsiVolumeSourceDriverSecretStore, volume.CSI.Driver)
+				assert.Equal(t, volumemount.CsiVolumeSourceDriverSecretStore, volume.CSI.Driver, "Volume driver should be %s, but it is %s", volumemount.CsiVolumeSourceDriverSecretStore, volume.CSI.Driver)
 
 				volumeProp := scenario.expectedVolumeProps[i]
 				for attrKey, attrValue := range volumeProp.expectedVolumeAttributePrefixes {

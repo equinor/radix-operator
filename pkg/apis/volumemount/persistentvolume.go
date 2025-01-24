@@ -1,4 +1,4 @@
-package persistentvolume
+package volumemount
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/internal"
@@ -18,11 +18,8 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	// if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
 	// 	return false, nil
 	// }
-	if !utils.EqualStringMaps(getPvAnnotations(pv1), getPvAnnotations(pv2)) {
-		return false
-	}
-	expectedClonedVolumeAttrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName, CsiVolumeMountAttributeProvisionerIdentity)
-	actualClonedVolumeAttrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, CsiVolumeMountAttributePvName, CsiVolumeMountAttributePvcName, CsiVolumeMountAttributeProvisionerIdentity)
+	expectedClonedVolumeAttrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributeProvisionerIdentity)
+	actualClonedVolumeAttrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributeProvisionerIdentity)
 	if !utils.EqualStringMaps(expectedClonedVolumeAttrs, actualClonedVolumeAttrs) {
 		return false
 	}
@@ -74,17 +71,6 @@ func convertToSet(ignoreKeys []string) map[string]struct{} {
 		acc[item] = struct{}{}
 		return acc
 	})
-}
-
-func getPvAnnotations(pv *corev1.PersistentVolume) map[string]string {
-	annotations := make(map[string]string)
-	for key, value := range pv.GetAnnotations() {
-		if key == "kubectl.kubernetes.io/last-applied-configuration" {
-			continue // ignore automatically added annotation(s)
-		}
-		annotations[key] = value
-	}
-	return annotations
 }
 
 func getMountOptionsMap(mountOptions []string) map[string]string {
