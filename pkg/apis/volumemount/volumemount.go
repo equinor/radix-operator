@@ -31,6 +31,7 @@ const (
 	csiVolumeNameTemplate                   = "%s-%s-%s-%s" // <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
 	csiAzureKeyVaultSecretMountPathTemplate = "/mnt/azure-key-vault/%s"
 	volumeNameMaxLength                     = 63
+	randNamePartLength                      = 5
 )
 
 // These are valid volume mount provisioners
@@ -421,7 +422,7 @@ func getCsiAzurePvcName(componentName string, radixVolumeMount *radixv1.RadixVol
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(5))), nil
+	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(randNamePartLength))), nil
 }
 
 func getCsiAzurePvName() string {
@@ -1031,14 +1032,12 @@ func findCsiAzureVolumeForComponent(volumeMountsByNameMap map[string]*radixv1.Ra
 }
 
 func trimVolumeNameToValidLength(volumeName string) string {
-	const randSize = 5
 	if len(volumeName) <= volumeNameMaxLength {
 		return volumeName
 	}
 
-	randString := strings.ToLower(commonUtils.RandStringStrSeed(randSize, volumeName))
-	sprintf := fmt.Sprintf("%s-%s", volumeName[:63-randSize-1], randString)
-	return sprintf
+	randString := strings.ToLower(commonUtils.RandStringStrSeed(randNamePartLength, volumeName))
+	return fmt.Sprintf("%s-%s", volumeName[:63-randNamePartLength-1], randString)
 }
 
 func getCsiAzureVolumeMountCredsSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, componentName, volumeMountName string) (string, []byte, []byte) {

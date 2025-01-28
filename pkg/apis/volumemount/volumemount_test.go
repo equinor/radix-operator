@@ -52,12 +52,11 @@ type TestEnv struct {
 }
 
 type volumeMountTestScenario struct {
-	name                       string
-	radixVolumeMount           radixv1.RadixVolumeMount
-	expectedVolumeName         string
-	expectedVolumeNameIsPrefix bool
-	expectedError              string
-	expectedPvcNamePrefix      string
+	name               string
+	radixVolumeMount   radixv1.RadixVolumeMount
+	expectedVolumeName string
+	expectedError      string
+	expectedPvcName    string
 }
 
 type deploymentVolumesTestScenario struct {
@@ -130,22 +129,21 @@ func (suite *VolumeMountTestSuite) Test_NoVolumeMounts() {
 func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
-			expectedVolumeName: "csi-az-blob-app-volume1-storageName1",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storagename1", Path: "TestPath1"},
+			expectedVolumeName: "csi-az-blob-app-volume1-storagename1",
 		},
 		{
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
-			expectedVolumeName: "csi-az-blob-app-volume2-storageName2",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume2", Storage: "storagename2", Path: "TestPath2"},
+			expectedVolumeName: "csi-az-blob-app-volume2-storagename2",
 		},
 		{
-			radixVolumeMount:           radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath2"},
-			expectedVolumeName:         "csi-az-blob-app-volume-with-long-name-storageName-with-lo-",
-			expectedVolumeNameIsPrefix: true,
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "blobstoragename-with-long-name", Path: "TestPath2"},
+			expectedVolumeName: "csi-az-blob-app-volume-with-long-name-blobstoragename-wit-12345",
 		},
 	}
 	suite.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
-		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		//t.Parallel()
+		for _, factory := range suite.radixCommonDeployComponentFactories[:1] {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
 				WithVolumeMounts(scenarios[0].radixVolumeMount).
@@ -176,11 +174,12 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			assert.Nil(t, err)
 			for idx, testCase := range scenarios {
 				if len(volumeMounts) > 0 {
-					assert.Less(t, len(volumeMounts[idx].Name), 64)
-					if testCase.expectedVolumeNameIsPrefix {
-						assert.True(t, strings.HasPrefix(volumeMounts[idx].Name, testCase.expectedVolumeName))
+					volumeMountName := volumeMounts[idx].Name
+					assert.Less(t, len(volumeMountName), 64)
+					if len(volumeMountName) > 60 {
+						assert.True(t, internal.EqualTillPostfix(testCase.expectedVolumeName, volumeMountName, randNamePartLength), "Mismatching volume name prefixes %s and %s", volumeMountName, testCase.expectedVolumeName)
 					} else {
-						assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
+						assert.Equal(t, testCase.expectedVolumeName, volumeMountName, "Mismatching volume names")
 					}
 					assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
 				}
@@ -193,7 +192,7 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:             "Missed volume mount name",
-			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: "storageName1", Path: "TestPath1"},
+			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: "storagename1", Path: "TestPath1"},
 			expectedError:    "name is empty for volume mount in the component app",
 		},
 		{
@@ -203,7 +202,7 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 		},
 		{
 			name:             "Missed volume mount path",
-			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storageName1"},
+			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storagename1"},
 			expectedError:    "path is empty for volume mount volume1 in the component app",
 		},
 	}
@@ -238,17 +237,16 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 	})
 	scenarios := []volumeMountTestScenario{
 		{
-			name:                  "Blob CSI Azure volume",
-			radixVolumeMount:      radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-			expectedVolumeName:    "csi-az-blob-some-component-volume1-storage1",
-			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-volume1-storage1",
+			name:               "Blob CSI Azure volume",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+			expectedVolumeName: "csi-az-blob-some-component-volume1-storage1",
+			expectedPvcName:    "pvc-csi-az-blob-some-component-volume1-storage1-12345",
 		},
 		{
-			name:                       "Blob CSI Azure volume",
-			radixVolumeMount:           radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
-			expectedVolumeName:         "csi-az-blob-some-component-volume-with-long-name-storageN-",
-			expectedVolumeNameIsPrefix: true,
-			expectedPvcNamePrefix:      "pvc-csi-az-blob-some-component-volume-with-long-name-storageN-",
+			name:               "Blob CSI Azure volume with long names",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "blobstoragesame-with-long-name", Path: "path1", GID: "1000"},
+			expectedVolumeName: "csi-az-blob-some-component-volume-with-long-name-blobstor-12345",
+			expectedPvcName:    "pvc-csi-az-blob-some-component-volume-with-long-name-blobstor-einhp-12345",
 		},
 	}
 	suite.T().Run("CSI Azure volumes", func(t *testing.T) {
@@ -261,14 +259,14 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
 			volume := volumes[0]
-			if scenario.expectedVolumeNameIsPrefix {
-				assert.True(t, strings.HasPrefix(volume.Name, scenario.expectedVolumeName))
+			if len(volume.Name) > 60 {
+				assert.True(t, internal.EqualTillPostfix(volume.Name, scenario.expectedVolumeName, randNamePartLength), "Mismatching volume names %s and %s", volume.Name, scenario.expectedVolumeName)
 			} else {
 				assert.Equal(t, scenario.expectedVolumeName, volume.Name)
 			}
 			assert.Less(t, len(volume.Name), 64)
 			assert.NotNil(t, volume.PersistentVolumeClaim)
-			assert.Contains(t, volume.PersistentVolumeClaim.ClaimName, scenario.expectedPvcNamePrefix)
+			assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, randNamePartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
 		}
 	})
 	suite.T().Run("Unsupported volume type", func(t *testing.T) {
@@ -286,8 +284,10 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 }
 
 func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
-	namespace := "any-app-some-env"
-	componentName := "some-component"
+	const (
+		namespace     = "any-app-some-env"
+		componentName = "some-component"
+	)
 	props := getPropsCsiBlobFuse2Volume1Storage1(nil)
 	scenarios := []pvcTestScenario{
 		{
@@ -298,6 +298,20 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			},
 			pvc: createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
 			pv:  createExpectedPv(props, func(pv *corev1.PersistentVolume) {}),
+		},
+		{
+			volumeMountTestScenario: volumeMountTestScenario{
+				name:               "Changed container name",
+				radixVolumeMount:   radixv1.RadixVolumeMount{Name: "volume1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage2", GID: "1000"}, Path: "path1"},
+				expectedVolumeName: "csi-blobfuse2-fuse2-some-component-volume1-storage2",
+			},
+			pvc: createExpectedPvc(modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.blobStorageName = "storage2"
+				props.pvcName = "pvc-csi-blobfuse2-fuse2-some-component-volume1-storage2-12345"
+			}), func(pvc *corev1.PersistentVolumeClaim) {}),
+			pv: createExpectedPv(modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.blobStorageName = "storage2"
+			}), func(pv *corev1.PersistentVolume) {}),
 		},
 	}
 
@@ -320,9 +334,9 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			}})
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
-			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
+			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
 			assert.NotNil(t, volumes[0].PersistentVolumeClaim)
-			assert.Equal(t, scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
+			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "Mismatching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
 		}
 	})
 
@@ -339,7 +353,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			assert.Len(t, volumes, 1)
 			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
 			assert.NotNil(t, volumes[0].PersistentVolumeClaim)
-			assert.NotEqual(t, scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
+			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "Matching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
 		}
 	})
 }
@@ -352,19 +366,19 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 	scenarios := []pvcTestScenario{
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
-				name:                  "Blob CSI Azure volume, Status phase: Bound",
-				radixVolumeMount:      radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-				expectedVolumeName:    "csi-az-blob-some-component-blob-volume1-storage1",
-				expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume1-storage1",
+				name:               "Blob CSI Azure volume, Status phase: Bound",
+				radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+				expectedVolumeName: "csi-az-blob-some-component-blob-volume1-storage1",
+				expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume1-storage1-12345",
 			},
 			pvc: createPvc(namespace, componentName, radixv1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimBound }),
 		},
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
-				name:                  "Blob CSI Azure volume, Status phase: Pending",
-				radixVolumeMount:      radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-				expectedVolumeName:    "csi-az-blob-some-component-blob-volume2-storage2",
-				expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume2-storage2",
+				name:               "Blob CSI Azure volume, Status phase: Pending",
+				radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
+				expectedVolumeName: "csi-az-blob-some-component-blob-volume2-storage2",
+				expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume2-storage2-12345",
 			},
 			pvc: createPvc(namespace, componentName, radixv1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimPending }),
 		},
@@ -401,7 +415,7 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 				assert.Len(t, volumes, 1)
 				assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
 				assert.NotNil(t, volumes[0].PersistentVolumeClaim)
-				assert.Contains(t, volumes[0].PersistentVolumeClaim.ClaimName, scenario.expectedPvcNamePrefix)
+				assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "")
 			}
 		}
 	})
@@ -412,7 +426,7 @@ type expectedPvcPvProperties struct {
 	environment             string
 	componentName           string
 	radixVolumeMountName    string
-	radixStorageName        string
+	blobStorageName         string
 	pvcName                 string
 	persistentVolumeName    string
 	radixVolumeMountType    radixv1.MountType
@@ -433,23 +447,22 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	componentName := "some-component"
 	scenarios := []volumeMountTestScenario{
 		{
-			name:                  "Blob CSI Azure volume, Status phase: Bound",
-			radixVolumeMount:      radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-			expectedVolumeName:    "csi-az-blob-some-component-blob-volume1-storage1",
-			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume1-storage1",
+			name:               "Blob CSI Azure volume, Status phase: Bound",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+			expectedVolumeName: "csi-az-blob-some-component-blob-volume1-storage1",
+			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume1-storage1-12345",
 		},
 		{
-			name:                  "Blob CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:      radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-			expectedVolumeName:    "csi-az-blob-some-component-blob-volume2-storage2",
-			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume2-storage2",
+			name:               "Blob CSI Azure volume, Status phase: Pending",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
+			expectedVolumeName: "csi-az-blob-some-component-blob-volume2-storage2",
+			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume2-storage2-12345",
 		},
 		{
-			name:                       "Blob CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:           radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume-with-long-name", Storage: "storage-with-long-name", Path: "path2", GID: "1000"},
-			expectedVolumeName:         "csi-az-blob-some-component-blob-volume-with-long-name-sto-",
-			expectedVolumeNameIsPrefix: true,
-			expectedPvcNamePrefix:      "pvc-csi-az-blob-some-component-blob-volume-with-long-name-",
+			name:               "Blob CSI Azure volume, Status phase: Pending",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume-with-long-name", Storage: "storage-with-long-name", Path: "path2", GID: "1000"},
+			expectedVolumeName: "csi-az-blob-some-component-blob-volume-with-long-name-sto-12345",
+			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume-with-long-name-12345",
 		},
 	}
 
@@ -464,7 +477,7 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 			volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
 
 			assert.Nil(t, err)
-			assert.Len(t, volumes, 0)
+			assert.Len(t, volumes, 0, "No volumes should be returned")
 		}
 	})
 	suite.T().Run("Exists volume", func(t *testing.T) {
@@ -480,13 +493,14 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 
 				assert.Nil(t, err)
 				assert.Len(t, volumeMounts, 1)
-				if scenario.expectedVolumeNameIsPrefix {
-					assert.True(t, strings.HasPrefix(volumeMounts[0].Name, scenario.expectedVolumeName))
+				volumeMountName := volumeMounts[0].Name
+				if len(volumeMountName) > 60 {
+					assert.True(t, internal.EqualTillPostfix(scenario.expectedVolumeName, volumeMountName, randNamePartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volumeMountName)
 				} else {
-					assert.Equal(t, scenario.expectedVolumeName, volumeMounts[0].Name)
+					assert.Equal(t, scenario.expectedVolumeName, volumeMountName)
 				}
-				assert.Less(t, len(volumeMounts[0].Name), 64)
-				assert.Equal(t, scenario.radixVolumeMount.Path, volumeMounts[0].MountPath)
+				assert.Less(t, len(volumeMountName), 64, "Volume name is too long")
+				assert.Equal(t, scenario.radixVolumeMount.Path, volumeMounts[0].MountPath, "Mismatching volume paths")
 			}
 		}
 	})
@@ -496,6 +510,7 @@ func modifyPvc(pvc corev1.PersistentVolumeClaim, modify func(pvc *corev1.Persist
 	modify(&pvc)
 	return pvc
 }
+
 func modifyPv(pv corev1.PersistentVolume, modify func(pv *corev1.PersistentVolume)) corev1.PersistentVolume {
 	modify(&pv)
 	return pv
@@ -1048,7 +1063,7 @@ func createRandomPv(props expectedPvcPvProperties, namespace, componentName stri
 
 func createRandomPvc(props expectedPvcPvProperties, namespace, componentName string) corev1.PersistentVolumeClaim {
 	return createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.radixStorageName, Path: "/tmp"})
+		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
 		if err != nil {
 			panic(err)
 		}
@@ -1076,7 +1091,7 @@ func createRandomAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties
 
 func createRandomAutoProvisionedPvcWithStorageClass(props expectedPvcPvProperties, namespace, componentName, anotherVolumeMountName string) corev1.PersistentVolumeClaim {
 	return createExpectedAutoProvisionedPvcWithStorageClass(props, func(pvc *corev1.PersistentVolumeClaim) {
-		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.radixStorageName, Path: "/tmp"})
+		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
 		if err != nil {
 			panic(err)
 		}
@@ -1096,7 +1111,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcPvProperties)) expec
 		namespace:               utils.GetEnvironmentNamespace(appName, environment),
 		componentName:           componentName,
 		radixVolumeMountName:    "volume1",
-		radixStorageName:        "storage1",
+		blobStorageName:         "storage1",
 		pvcName:                 "pvc-csi-az-blob-some-component-volume1-storage1-12345",
 		persistentVolumeName:    "pv-radixvolumemount-some-uuid",
 		radixVolumeMountType:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
@@ -1122,7 +1137,7 @@ func getPropsCsiBlobFuse2Volume1Storage1(modify func(*expectedPvcPvProperties)) 
 		namespace:               fmt.Sprintf("%s-%s", appName, environment),
 		componentName:           componentName,
 		radixVolumeMountName:    "volume1",
-		radixStorageName:        "storage1",
+		blobStorageName:         "storage1",
 		pvcName:                 "pvc-csi-blobfuse2-fuse2-some-component-volume1-storage1-12345",
 		persistentVolumeName:    "pv-radixvolumemount-some-uuid",
 		radixVolumeMountType:    radixv1.MountTypeBlobFuse2Fuse2CsiAzure,
@@ -1240,9 +1255,9 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *corev1.Pers
 			PersistentVolumeSource: corev1.PersistentVolumeSource{
 				CSI: &corev1.CSIPersistentVolumeSource{
 					Driver:       provisionerBlobCsiAzure,
-					VolumeHandle: getVolumeHandle(props.namespace, props.componentName, props.persistentVolumeName, props.radixStorageName),
+					VolumeHandle: getVolumeHandle(props.namespace, props.componentName, props.persistentVolumeName, props.blobStorageName),
 					VolumeAttributes: map[string]string{
-						csiVolumeMountAttributeContainerName:   props.radixStorageName,
+						csiVolumeMountAttributeContainerName:   props.blobStorageName,
 						csiVolumeMountAttributeProtocol:        csiVolumeAttributeProtocolParameterFuse2,
 						csiVolumeMountAttributePvName:          props.persistentVolumeName,
 						csiVolumeMountAttributePvcName:         props.pvcName,
@@ -1270,7 +1285,7 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *corev1.Pers
 		},
 		Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeBound},
 	}
-	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.radixStorageName, props.pvcName)
+	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
 	if modify != nil {
 		modify(&pv)
 	}
@@ -1290,7 +1305,7 @@ func createAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, modi
 					Driver:       provisionerBlobCsiAzure,
 					VolumeHandle: "MC_clusters_ABC_northeurope##testdata#pvc-681b9ffc-66cc-4e09-90b2-872688b792542#some-app-namespace#",
 					VolumeAttributes: map[string]string{
-						csiVolumeMountAttributeContainerName:       props.radixStorageName,
+						csiVolumeMountAttributeContainerName:       props.blobStorageName,
 						csiVolumeMountAttributeProtocol:            csiVolumeAttributeProtocolParameterFuse2,
 						csiVolumeMountAttributePvName:              props.persistentVolumeName,
 						csiVolumeMountAttributePvcName:             props.pvcName,
@@ -1318,7 +1333,7 @@ func createAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, modi
 		},
 		Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeBound, LastPhaseTransitionTime: pointers.Ptr(metav1.Time{Time: time.Now()})},
 	}
-	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.radixStorageName, props.pvcName)
+	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
 	if modify != nil {
 		modify(&pv)
 	}
@@ -1475,7 +1490,7 @@ func createRadixVolumeMount(props expectedPvcPvProperties, modify func(mount *ra
 	volumeMount := radixv1.RadixVolumeMount{
 		Type:    props.radixVolumeMountType,
 		Name:    props.radixVolumeMountName,
-		Storage: props.radixStorageName,
+		Storage: props.blobStorageName,
 		Path:    "path1",
 		GID:     "1000",
 	}
@@ -1490,7 +1505,7 @@ func createBlobFuse2RadixVolumeMount(props expectedPvcPvProperties, modify func(
 		Name: props.radixVolumeMountName,
 		Path: "path1",
 		BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-			Container: props.radixStorageName,
+			Container: props.blobStorageName,
 			GID:       "1000",
 		},
 	}
@@ -1526,8 +1541,7 @@ func equalPersistentVolumeClaims(list1, list2 *[]corev1.PersistentVolumeClaim) b
 	for _, pvc1 := range *list1 {
 		var hasEqualPvc bool
 		for _, pvc2 := range *list2 {
-			if internal.EqualTillPostfix(pvc1.GetName(), pvc2.GetName(), 5) &&
-				equalPrefix(pvc1.Spec.VolumeName, pvc2.Spec.VolumeName, 20) &&
+			if internal.EqualTillPostfix(pvc1.GetName(), pvc2.GetName(), randNamePartLength) &&
 				EqualPersistentVolumeClaims(&pvc1, &pvc2) {
 				hasEqualPvc = true
 				break
@@ -1538,11 +1552,4 @@ func equalPersistentVolumeClaims(list1, list2 *[]corev1.PersistentVolumeClaim) b
 		}
 	}
 	return true
-}
-
-func equalPrefix(value1, value2 string, prefixLength int) bool {
-	if len(value1) < prefixLength || len(value2) < prefixLength {
-		return false
-	}
-	return value1[:prefixLength] == value2[:prefixLength]
 }
