@@ -11,6 +11,10 @@ func Test_EqualPersistentVolumes(t *testing.T) {
 		pv := createExpectedPv(getPropsCsiBlobVolume1Storage1(nil), modify)
 		return &pv
 	}
+	createPvWithProps := func(modify func(*expectedPvcPvProperties)) *v1.PersistentVolume {
+		pv := createExpectedPv(getPropsCsiBlobVolume1Storage1(modify), nil)
+		return &pv
+	}
 	tests := []struct {
 		name     string
 		pv1      *v1.PersistentVolume
@@ -174,6 +178,68 @@ func Test_EqualPersistentVolumes(t *testing.T) {
 			pv1:  createPv(nil),
 			pv2: createPv(func(pv *v1.PersistentVolume) {
 				pv.Spec.CSI.NodeStageSecretRef.Name = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "different namespace",
+			pv1:  createPv(nil),
+			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.namespace = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "different blobStorageName",
+			pv1:  createPv(nil),
+			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.blobStorageName = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "different pvGid",
+			pv1:  createPv(nil),
+			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.pvGid = "7779"
+			}),
+			expected: false,
+		},
+		{
+			name: "different pvUid",
+			pv1: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.pvGid = ""
+				props.pvUid = "7779"
+			}),
+			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.pvGid = ""
+				props.pvUid = "8889"
+			}),
+			expected: false,
+		},
+		{
+			name: "different pvProvisioner",
+			pv1:  createPv(nil),
+			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.pvProvisioner = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "different pvSecretName",
+			pv1:  createPv(nil),
+			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.pvSecretName = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "different readOnly",
+			pv1: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.readOnly = true
+			}),
+			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
+				props.readOnly = false
 			}),
 			expected: false,
 		},

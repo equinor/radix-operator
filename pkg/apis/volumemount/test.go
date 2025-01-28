@@ -371,7 +371,7 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.Persiste
 			Capacity: v1.ResourceList{v1.ResourceStorage: resource.MustParse(props.requestsVolumeMountSize)},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				CSI: &v1.CSIPersistentVolumeSource{
-					Driver:       provisionerBlobCsiAzure,
+					Driver:       props.pvProvisioner,
 					VolumeHandle: getVolumeHandle(props.namespace, props.componentName, props.persistentVolumeName, props.blobStorageName),
 					VolumeAttributes: map[string]string{
 						csiVolumeMountAttributeContainerName:   props.blobStorageName,
@@ -419,7 +419,7 @@ func createAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, modi
 			Capacity: v1.ResourceList{v1.ResourceStorage: resource.MustParse(props.requestsVolumeMountSize)},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				CSI: &v1.CSIPersistentVolumeSource{
-					Driver:       provisionerBlobCsiAzure,
+					Driver:       props.pvProvisioner,
 					VolumeHandle: "MC_clusters_ABC_northeurope##testdata#pvc-681b9ffc-66cc-4e09-90b2-872688b792542#some-app-namespace#",
 					VolumeAttributes: map[string]string{
 						csiVolumeMountAttributeContainerName:       props.blobStorageName,
@@ -513,7 +513,7 @@ func getPersistentVolumeIdMountOption(props expectedPvcPvProperties) string {
 		return fmt.Sprintf("-o gid=%s", props.pvGid)
 	}
 	if len(props.pvUid) > 0 {
-		return fmt.Sprintf("-o uid=%s", props.pvGid)
+		return fmt.Sprintf("-o uid=%s", props.pvUid)
 	}
 	return ""
 }
@@ -557,8 +557,8 @@ func createExpectedAutoProvisionedPvcWithStorageClass(props expectedPvcPvPropert
 	annotations := map[string]string{
 		"pv.kubernetes.io/bind-completed":               "yes",
 		"pv.kubernetes.io/bound-by-controller":          "yes",
-		"volume.beta.kubernetes.io/storage-provisioner": provisionerBlobCsiAzure,
-		"volume.kubernetes.io/storage-provisioner":      provisionerBlobCsiAzure,
+		"volume.beta.kubernetes.io/storage-provisioner": props.pvProvisioner,
+		"volume.kubernetes.io/storage-provisioner":      props.pvProvisioner,
 	}
 	pvc := v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
