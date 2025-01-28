@@ -43,8 +43,8 @@ type VolumeMountTestSuite struct {
 }
 
 type TestEnv struct {
-	kubeclient           kubernetes.Interface
-	radixclient          radixclient.Interface
+	KubeClient           kubernetes.Interface
+	RadixClient          radixclient.Interface
 	secretproviderclient secretProviderClient.Interface
 	prometheusclient     prometheusclient.Interface
 	kubeUtil             *kube.Kube
@@ -100,13 +100,13 @@ func (suite *VolumeMountTestSuite) SetupSuite() {
 
 func getTestEnv() TestEnv {
 	testEnv := TestEnv{
-		kubeclient:           kubefake.NewSimpleClientset(),
-		radixclient:          radixfake.NewSimpleClientset(),
+		KubeClient:           kubefake.NewSimpleClientset(),
+		RadixClient:          radixfake.NewSimpleClientset(),
 		kedaClient:           kedafake.NewSimpleClientset(),
 		secretproviderclient: secretproviderfake.NewSimpleClientset(),
 		prometheusclient:     prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, testEnv.kedaClient, testEnv.secretproviderclient)
+	kubeUtil, _ := kube.New(testEnv.KubeClient, testEnv.RadixClient, testEnv.kedaClient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }
@@ -320,11 +320,11 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
 			testEnv := getTestEnv()
-			_, err := testEnv.kubeclient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
+			_, err := testEnv.KubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
 			require.NoError(t, err)
-			_, err = testEnv.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), &scenario.pvc, metav1.CreateOptions{})
+			_, err = testEnv.KubeClient.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), &scenario.pvc, metav1.CreateOptions{})
 			require.NoError(t, err)
-			_, err = testEnv.kubeclient.CoreV1().PersistentVolumes().Create(context.Background(), &scenario.pv, metav1.CreateOptions{})
+			_, err = testEnv.KubeClient.CoreV1().PersistentVolumes().Create(context.Background(), &scenario.pv, metav1.CreateOptions{})
 			require.NoError(t, err)
 
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
@@ -345,7 +345,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
 			testEnv := getTestEnv()
-			_, err := testEnv.kubeclient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
+			_, err := testEnv.KubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
 			require.NoError(t, err)
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
@@ -508,16 +508,6 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 			}
 		}
 	})
-}
-
-func modifyPvc(pvc corev1.PersistentVolumeClaim, modify func(pvc *corev1.PersistentVolumeClaim)) corev1.PersistentVolumeClaim {
-	modify(&pvc)
-	return pvc
-}
-
-func modifyPv(pv corev1.PersistentVolume, modify func(pv *corev1.PersistentVolume)) corev1.PersistentVolume {
-	modify(&pv)
-	return pv
 }
 
 func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
@@ -1023,6 +1013,56 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			}
 		}
 	})
+}
+
+func TestEqualPersistentVolumes(t *testing.T) {
+	createPv := func(modify func(pv *corev1.PersistentVolume)) *corev1.PersistentVolume {
+		pv := createExpectedPv(getPropsCsiBlobVolume1Storage1(nil), modify)
+		return &pv
+	}
+	tests := []struct {
+		name     string
+		pv1      *corev1.PersistentVolume
+		pv2      *corev1.PersistentVolume
+		expected bool
+	}{
+		{
+			name:     "both nil",
+			pv1:      nil,
+			pv2:      nil,
+			expected: false,
+		},
+		{
+			name:     "one nil",
+			pv1:      createPv(nil),
+			pv2:      nil,
+			expected: false,
+		},
+		{
+			name:     "equal",
+			pv1:      createPv(nil),
+			pv2:      createPv(nil),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := EqualPersistentVolumes(tt.pv1, tt.pv2); got != tt.expected {
+				t.Errorf("EqualPersistentVolumes() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func modifyPvc(pvc corev1.PersistentVolumeClaim, modify func(pvc *corev1.PersistentVolumeClaim)) corev1.PersistentVolumeClaim {
+	modify(&pvc)
+	return pvc
+}
+
+func modifyPv(pv corev1.PersistentVolume, modify func(pv *corev1.PersistentVolume)) corev1.PersistentVolume {
+	modify(&pv)
+	return pv
 }
 
 func createRandomVolumeMount(modify func(mount *radixv1.RadixVolumeMount)) radixv1.RadixVolumeMount {
