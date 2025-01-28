@@ -142,8 +142,8 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 		},
 	}
 	suite.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
-		//t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories[:1] {
+		t.Parallel()
+		for _, factory := range suite.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
 				WithVolumeMounts(scenarios[0].radixVolumeMount).
@@ -151,12 +151,12 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
-			assert.Equal(t, 1, len(volumeMounts))
+			assert.Equal(t, 1, len(volumeMounts), "Unexpected volume count")
 			if len(volumeMounts) > 0 {
 				mount := volumeMounts[0]
-				assert.Less(t, len(volumeMounts[0].Name), 64)
-				assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
-				assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+				assert.Less(t, len(volumeMounts[0].Name), 64, "Volume name is too long")
+				assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name, "Mismatching volume names")
+				assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath, "Mismatching volume paths")
 			}
 		}
 	})
@@ -170,7 +170,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 				BuildComponent()
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
-			assert.Equal(t, 3, len(volumeMounts))
+			assert.Equal(t, 3, len(volumeMounts), "Unexpected volume count")
 			assert.Nil(t, err)
 			for idx, testCase := range scenarios {
 				if len(volumeMounts) > 0 {
@@ -181,7 +181,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 					} else {
 						assert.Equal(t, testCase.expectedVolumeName, volumeMountName, "Mismatching volume names")
 					}
-					assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+					assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath, "Mismatching volume paths")
 				}
 			}
 		}
@@ -257,15 +257,15 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
 			assert.Nil(t, err)
-			assert.Len(t, volumes, 1)
+			assert.Len(t, volumes, 1, "Unexpected volume count")
 			volume := volumes[0]
 			if len(volume.Name) > 60 {
-				assert.True(t, internal.EqualTillPostfix(volume.Name, scenario.expectedVolumeName, randNamePartLength), "Mismatching volume names %s and %s", volume.Name, scenario.expectedVolumeName)
+				assert.True(t, internal.EqualTillPostfix(scenario.expectedVolumeName, volume.Name, randNamePartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volume.Name)
 			} else {
-				assert.Equal(t, scenario.expectedVolumeName, volume.Name)
+				assert.Equal(t, scenario.expectedVolumeName, volume.Name, "Mismatching volume names")
 			}
-			assert.Less(t, len(volume.Name), 64)
-			assert.NotNil(t, volume.PersistentVolumeClaim)
+			assert.Less(t, len(volume.Name), 64, "Volume name is too long")
+			assert.NotNil(t, volume.PersistentVolumeClaim, "PVC is nil")
 			assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, randNamePartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
 		}
 	})
@@ -277,7 +277,7 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		}
 		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(mounts...).BuildComponent()
 		volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
-		assert.Len(t, volumes, 0)
+		assert.Len(t, volumes, 0, "Unexpected volume count")
 		assert.NotNil(t, err)
 		assert.Equal(t, "unsupported volume type unsupported-type", err.Error())
 	})
@@ -335,7 +335,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
 			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
-			assert.NotNil(t, volumes[0].PersistentVolumeClaim)
+			assert.NotNil(t, volumes[0].PersistentVolumeClaim, "PVC is nil")
 			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "Mismatching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
 		}
 	})
@@ -350,19 +350,21 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
 			assert.Nil(t, err)
-			assert.Len(t, volumes, 1)
-			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
-			assert.NotNil(t, volumes[0].PersistentVolumeClaim)
+			assert.Len(t, volumes, 1, "Unexpected volume count")
+			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
+			assert.NotNil(t, volumes[0].PersistentVolumeClaim, "Unexpected PVC")
 			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "Matching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
 		}
 	})
 }
 
 func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
-	appName := "any-app"
-	environment := "some-env"
+	const (
+		appName       = "any-app"
+		environment   = "some-env"
+		componentName = "some-component"
+	)
 	namespace := fmt.Sprintf("%s-%s", appName, environment)
-	componentName := "some-component"
 	scenarios := []pvcTestScenario{
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
@@ -396,7 +398,7 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
 
 			assert.Nil(t, err)
-			assert.Len(t, volumes, 0)
+			assert.Len(t, volumes, 0, "No volumes should be returned")
 		}
 	})
 	suite.T().Run("Exists volume", func(t *testing.T) {
@@ -412,10 +414,10 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 				volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
 
 				assert.Nil(t, err)
-				assert.Len(t, volumes, 1)
-				assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
-				assert.NotNil(t, volumes[0].PersistentVolumeClaim)
-				assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "")
+				assert.Len(t, volumes, 1, "Unexpected volume count")
+				assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
+				assert.NotNil(t, volumes[0].PersistentVolumeClaim, "PVC is nil")
+				assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName)
 			}
 		}
 	})
@@ -442,9 +444,11 @@ type expectedPvcPvProperties struct {
 }
 
 func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
-	appName := "any-app"
-	environment := "some-env"
-	componentName := "some-component"
+	const (
+		appName       = "any-app"
+		environment   = "some-env"
+		componentName = "some-component"
+	)
 	scenarios := []volumeMountTestScenario{
 		{
 			name:               "Blob CSI Azure volume, Status phase: Bound",
