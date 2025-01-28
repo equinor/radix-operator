@@ -1044,6 +1044,124 @@ func TestEqualPersistentVolumes(t *testing.T) {
 			pv2:      createPv(nil),
 			expected: true,
 		},
+		{
+			name: "different access mode",
+			pv1: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+			}),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+			}),
+			expected: false,
+		},
+		{
+			name: "no access mode",
+			pv1:  createPv(func(pv *corev1.PersistentVolume) { pv.Spec.AccessModes = nil }),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+			}),
+			expected: false,
+		},
+		{
+			name:     "no ClaimRef",
+			pv1:      createPv(nil),
+			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef = nil }),
+			expected: false,
+		},
+		{
+			name:     "different ClaimRef name",
+			pv1:      createPv(nil),
+			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Name = utils.RandString(10) }),
+			expected: false,
+		},
+		{
+			name:     "different ClaimRef namespace",
+			pv1:      createPv(nil),
+			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Namespace = utils.RandString(10) }),
+			expected: false,
+		},
+		{
+			name:     "different ClaimRef kind",
+			pv1:      createPv(nil),
+			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Kind = "secret" }),
+			expected: false,
+		},
+		{
+			name:     "no CSI",
+			pv1:      createPv(nil),
+			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.CSI = nil }),
+			expected: false,
+		},
+		{
+			name:     "no CSI VolumeAttributes",
+			pv1:      createPv(nil),
+			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.CSI.VolumeAttributes = nil }),
+			expected: false,
+		},
+		{
+			name: "different CSI VolumeAttribute csiVolumeMountAttributeContainerName",
+			pv1:  createPv(nil),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeContainerName] = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "different CSI VolumeAttribute csiVolumeMountAttributeProtocol",
+			pv1:  createPv(nil),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProtocol] = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributePvName",
+			pv1:  createPv(nil),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvName] = utils.RandString(10)
+			}),
+			expected: true,
+		},
+		{
+			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributePvcName",
+			pv1:  createPv(nil),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcName] = utils.RandString(10)
+			}),
+			expected: true,
+		},
+		{
+			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributeProvisionerIdentity",
+			pv1:  createPv(nil),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProvisionerIdentity] = utils.RandString(10)
+			}),
+			expected: true,
+		},
+		{
+			name: "different CSI VolumeAttribute csiVolumeMountAttributePvcNamespace",
+			pv1:  createPv(nil),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcNamespace] = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "different CSI VolumeAttribute csiVolumeMountAttributeSecretNamespace",
+			pv1:  createPv(nil),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeSecretNamespace] = utils.RandString(10)
+			}),
+			expected: false,
+		},
+		{
+			name: "extra CSI VolumeAttribute",
+			pv1:  createPv(nil),
+			pv2: createPv(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes["some-extra-attribute"] = utils.RandString(10)
+			}),
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {

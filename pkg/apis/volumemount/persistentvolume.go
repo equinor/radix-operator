@@ -11,7 +11,7 @@ import (
 
 // EqualPersistentVolumes Compare two PersistentVolumes
 func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
-	if pv1 == nil || pv2 == nil {
+	if pv1 == nil || pv2 == nil || pv1.Spec.CSI == nil || pv2.Spec.CSI == nil {
 		return false
 	}
 	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner. When all volume mounts gets labels, uncomment these lines
@@ -29,7 +29,7 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 
 	if pv1.Spec.Capacity[corev1.ResourceStorage] != pv2.Spec.Capacity[corev1.ResourceStorage] ||
 		len(pv1.Spec.AccessModes) != len(pv2.Spec.AccessModes) ||
-		(len(pv1.Spec.AccessModes) != 1 && pv1.Spec.AccessModes[0] != pv2.Spec.AccessModes[0]) ||
+		(len(pv1.Spec.AccessModes) == 1 && pv1.Spec.AccessModes[0] != pv2.Spec.AccessModes[0]) ||
 		pv1.Spec.CSI.Driver != pv2.Spec.CSI.Driver {
 		return false
 	}
@@ -44,7 +44,8 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 
 	if pv1.Spec.ClaimRef != nil {
 		if pv2.Spec.ClaimRef == nil ||
-			!internal.EqualTillPostfix(pv1.Spec.ClaimRef.Name, pv2.Spec.ClaimRef.Name, 5) ||
+			!internal.EqualTillPostfix(pv1.Spec.ClaimRef.Name, pv2.Spec.ClaimRef.Name, randNamePartLength) ||
+			!internal.EqualTillPostfix(pv1.Spec.ClaimRef.Name, pv2.Spec.ClaimRef.Name, randNamePartLength) ||
 			pv1.Spec.ClaimRef.Namespace != pv2.Spec.ClaimRef.Namespace ||
 			pv1.Spec.ClaimRef.Kind != pv2.Spec.ClaimRef.Kind {
 			return false
