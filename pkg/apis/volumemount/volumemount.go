@@ -1071,7 +1071,7 @@ func garbageCollectSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace s
 // GetExistingJobAuxComponentVolumes Get existing job aux component volumes
 func GetExistingJobAuxComponentVolumes(ctx context.Context, kubeUtil *kube.Kube, namespace, jobComponentName string) ([]corev1.Volume, error) {
 	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(jobComponentName)
-	jobAuxKubeDeployment, err := kubeUtil.GetDeployment(ctx, namespace, jobAuxKubeDeploymentName)
+	jobAuxKubeDeployment, err := kubeUtil.KubeClient().AppsV1().Deployments(namespace).Get(ctx, jobAuxKubeDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return nil, nil

@@ -15,9 +15,9 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 		return false
 	}
 	// Ignore for now, due to during transition period this would affect existing volume mounts, managed by a provisioner. When all volume mounts gets labels, uncomment these lines
-	if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
-		return false
-	}
+	//if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
+	//	return false
+	//}
 	expectedClonedVolumeAttrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributeProvisionerIdentity)
 	actualClonedVolumeAttrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributeProvisionerIdentity)
 	if !utils.EqualStringMaps(expectedClonedVolumeAttrs, actualClonedVolumeAttrs) {
