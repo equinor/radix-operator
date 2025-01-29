@@ -11,8 +11,7 @@ func GetPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim) map[st
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	for _, pvc := range *pvcList {
 		pvc := pvc
-		name := pvc.Name
-		pvcMap[name] = &pvc
+		pvcMap[pvc.Name] = &pvc
 	}
 	return pvcMap
 }

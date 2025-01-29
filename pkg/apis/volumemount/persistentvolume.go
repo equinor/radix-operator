@@ -1,11 +1,11 @@
 package volumemount
 
 import (
-	"github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-operator/pkg/apis/internal"
 	"strings"
 
+	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/internal"
 	corev1 "k8s.io/api/core/v1"
 )
 
