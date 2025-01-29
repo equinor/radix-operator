@@ -5,6 +5,8 @@ const (
 	CsiVolumeSourceDriverSecretStore = "secrets-store.csi.k8s.io"
 	// CsiVolumeSourceVolumeAttributeSecretProviderClass Secret provider class volume attribute
 	CsiVolumeSourceVolumeAttributeSecretProviderClass = "secretProviderClass"
+	// ReadOnlyMountOption The readonly volume mount option for CSI fuse driver
+	ReadOnlyMountOption = "-o ro"
 
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<randomstring5>
 	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-<guid>
@@ -32,4 +34,8 @@ const (
 	csiVolumeMountAttributeProtocol            = "protocol"      // Protocol
 	csiVolumeMountAttributeContainerName       = "containerName" // Container name - foc container storages
 	csiVolumeMountAttributeProvisionerIdentity = "storage.kubernetes.io/csiProvisionerIdentity"
+
+	nameRandPartLength = 5 // The length of a trailing random part in names
+
+	provisionerBlobCsiAzure string = "blob.csi.azure.com" // Use of azure/csi driver for blob in Azure storage account
 )

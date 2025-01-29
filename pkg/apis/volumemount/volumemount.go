@@ -24,20 +24,11 @@ import (
 )
 
 const (
-	// ReadOnlyMountOption The readonly volume mount option for CSI fuse driver
-	ReadOnlyMountOption                     = "-o ro"
 	csiVolumeTypeBlobFuse2ProtocolFuse      = "csi-az-blob"
 	csiVolumeTypeBlobFuse2ProtocolFuse2     = "csi-blobfuse2-fuse2"
 	csiVolumeNameTemplate                   = "%s-%s-%s-%s" // <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
 	csiAzureKeyVaultSecretMountPathTemplate = "/mnt/azure-key-vault/%s"
 	volumeNameMaxLength                     = 63
-	randNamePartLength                      = 5
-)
-
-// These are valid volume mount provisioners
-const (
-	// provisionerBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
-	provisionerBlobCsiAzure string = "blob.csi.azure.com"
 )
 
 var (
@@ -422,7 +413,7 @@ func getCsiAzurePvcName(componentName string, radixVolumeMount *radixv1.RadixVol
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(randNamePartLength))), nil
+	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(nameRandPartLength))), nil
 }
 
 func getCsiAzurePvName() string {
@@ -1036,8 +1027,8 @@ func trimVolumeNameToValidLength(volumeName string) string {
 		return volumeName
 	}
 
-	randString := strings.ToLower(commonUtils.RandStringStrSeed(randNamePartLength, volumeName))
-	return fmt.Sprintf("%s-%s", volumeName[:63-randNamePartLength-1], randString)
+	randString := strings.ToLower(commonUtils.RandStringStrSeed(nameRandPartLength, volumeName))
+	return fmt.Sprintf("%s-%s", volumeName[:63-nameRandPartLength-1], randString)
 }
 
 func getCsiAzureVolumeMountCredsSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, componentName, volumeMountName string) (string, []byte, []byte) {

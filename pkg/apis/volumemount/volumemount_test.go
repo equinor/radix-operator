@@ -82,7 +82,7 @@ func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 					volumeMountName := volumeMounts[idx].Name
 					assert.Less(t, len(volumeMountName), 64)
 					if len(volumeMountName) > 60 {
-						assert.True(t, internal.EqualTillPostfix(testCase.expectedVolumeName, volumeMountName, randNamePartLength), "Mismatching volume name prefixes %s and %s", volumeMountName, testCase.expectedVolumeName)
+						assert.True(t, internal.EqualTillPostfix(testCase.expectedVolumeName, volumeMountName, nameRandPartLength), "Mismatching volume name prefixes %s and %s", volumeMountName, testCase.expectedVolumeName)
 					} else {
 						assert.Equal(t, testCase.expectedVolumeName, volumeMountName, "Mismatching volume names")
 					}
@@ -165,13 +165,13 @@ func (suite *TestSuite) Test_GetNewVolumes() {
 			assert.Len(t, volumes, 1, "Unexpected volume count")
 			volume := volumes[0]
 			if len(volume.Name) > 60 {
-				assert.True(t, internal.EqualTillPostfix(scenario.expectedVolumeName, volume.Name, randNamePartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volume.Name)
+				assert.True(t, internal.EqualTillPostfix(scenario.expectedVolumeName, volume.Name, nameRandPartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volume.Name)
 			} else {
 				assert.Equal(t, scenario.expectedVolumeName, volume.Name, "Mismatching volume names")
 			}
 			assert.Less(t, len(volume.Name), 64, "Volume name is too long")
 			assert.NotNil(t, volume.PersistentVolumeClaim, "PVC is nil")
-			assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, randNamePartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
+			assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
 		}
 	})
 	suite.T().Run("Unsupported volume type", func(t *testing.T) {
@@ -241,7 +241,7 @@ func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			assert.Len(t, volumes, 1)
 			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
 			assert.NotNil(t, volumes[0].PersistentVolumeClaim, "PVC is nil")
-			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "Mismatching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
+			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
 		}
 	})
 
@@ -258,7 +258,7 @@ func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			assert.Len(t, volumes, 1, "Unexpected volume count")
 			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
 			assert.NotNil(t, volumes[0].PersistentVolumeClaim, "Unexpected PVC")
-			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "Matching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
+			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, nameRandPartLength), "Matching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
 		}
 	})
 }
@@ -322,7 +322,7 @@ func (suite *TestSuite) Test_GetVolumesForComponent() {
 				assert.Len(t, volumes, 1, "Unexpected volume count")
 				assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
 				assert.NotNil(t, volumes[0].PersistentVolumeClaim, "PVC is nil")
-				assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, randNamePartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName)
+				assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName)
 			}
 		}
 	})
@@ -384,7 +384,7 @@ func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 				assert.Len(t, volumeMounts, 1)
 				volumeMountName := volumeMounts[0].Name
 				if len(volumeMountName) > 60 {
-					assert.True(t, internal.EqualTillPostfix(scenario.expectedVolumeName, volumeMountName, randNamePartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volumeMountName)
+					assert.True(t, internal.EqualTillPostfix(scenario.expectedVolumeName, volumeMountName, nameRandPartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volumeMountName)
 				} else {
 					assert.Equal(t, scenario.expectedVolumeName, volumeMountName)
 				}
@@ -841,8 +841,8 @@ func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			pvcForAnotherComponent := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
 			matchPvAndPvc(&pvForAnotherComponent, &pvcForAnotherComponent)
 			existingPvc := createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {})
-			expectedPvc := createRandomPvc(props, props.namespace, componentName)
-			expectedPv := createRandomPv(props, props.namespace, componentName)
+			expectedPvc := createRandomPvc(props, props.namespace, componentName1)
+			expectedPv := createRandomPv(props, props.namespace, componentName1)
 			matchPvAndPvc(&expectedPv, &expectedPvc)
 			return deploymentVolumesTestScenario{
 				name:  "Do not change existing PVC with class name, when creating new PersistentVolume",
@@ -880,12 +880,12 @@ func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s, volume type %s, component %s", scenario.name, scenario.props.radixVolumeMountType, factory.GetTargetType())
 				testEnv := getTestEnv()
-				radixDeployment := buildRd(appName, environment, componentName, scenario.radixVolumeMounts)
+				radixDeployment := buildRd(appName1, envName1, componentName1, scenario.radixVolumeMounts)
 				putExistingDeploymentVolumesScenarioDataToFakeCluster(testEnv.kubeUtil.KubeClient(), &scenario)
-				desiredVolumes := getDesiredDeployment(componentName, scenario.volumes).Spec.Template.Spec.Volumes
+				desiredVolumes := getDesiredDeployment(componentName1, scenario.volumes).Spec.Template.Spec.Volumes
 
 				deployComponent := radixDeployment.Spec.Components[0]
-				actualVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, utils.GetEnvironmentNamespace(appName, environment), &deployComponent, desiredVolumes)
+				actualVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, utils.GetEnvironmentNamespace(appName1, envName1), &deployComponent, desiredVolumes)
 				require.NoError(t, err)
 				assert.Equal(t, len(scenario.volumes), len(actualVolumes), "Number of volumes is not equal")
 

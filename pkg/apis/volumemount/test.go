@@ -79,9 +79,9 @@ type pvcTestScenario struct {
 }
 
 const (
-	appName       = "any-app"
-	environment   = "some-env"
-	componentName = "some-component"
+	appName1       = "any-app"
+	envName1       = "some-env"
+	componentName1 = "some-component"
 )
 
 var (
@@ -223,10 +223,10 @@ func createRandomAutoProvisionedPvcWithStorageClass(props expectedPvcPvPropertie
 
 func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcPvProperties)) expectedPvcPvProperties {
 	props := expectedPvcPvProperties{
-		appName:                 appName,
-		environment:             environment,
-		namespace:               operatorUtils.GetEnvironmentNamespace(appName, environment),
-		componentName:           componentName,
+		appName:                 appName1,
+		environment:             envName1,
+		namespace:               operatorUtils.GetEnvironmentNamespace(appName1, envName1),
+		componentName:           componentName1,
 		radixVolumeMountName:    "volume1",
 		blobStorageName:         "storage1",
 		pvcName:                 "pvc-csi-az-blob-some-component-volume1-storage1-12345",
@@ -249,10 +249,10 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcPvProperties)) expec
 
 func getPropsCsiBlobFuse2Volume1Storage1(modify func(*expectedPvcPvProperties)) expectedPvcPvProperties {
 	props := expectedPvcPvProperties{
-		appName:                 appName,
-		environment:             environment,
-		namespace:               fmt.Sprintf("%s-%s", appName, environment),
-		componentName:           componentName,
+		appName:                 appName1,
+		environment:             envName1,
+		namespace:               fmt.Sprintf("%s-%s", appName1, envName1),
+		componentName:           componentName1,
 		radixVolumeMountName:    "volume1",
 		blobStorageName:         "storage1",
 		pvcName:                 "pvc-csi-blobfuse2-fuse2-some-component-volume1-storage1-12345",
@@ -658,7 +658,7 @@ func equalPersistentVolumeClaims(list1, list2 *[]v1.PersistentVolumeClaim) bool 
 	for _, pvc1 := range *list1 {
 		var hasEqualPvc bool
 		for _, pvc2 := range *list2 {
-			if internal.EqualTillPostfix(pvc1.GetName(), pvc2.GetName(), randNamePartLength) &&
+			if internal.EqualTillPostfix(pvc1.GetName(), pvc2.GetName(), nameRandPartLength) &&
 				EqualPersistentVolumeClaims(&pvc1, &pvc2) {
 				hasEqualPvc = true
 				break
