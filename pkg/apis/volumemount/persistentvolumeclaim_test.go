@@ -1,6 +1,8 @@
 package volumemount
 
 import (
+	"github.com/equinor/radix-common/utils/pointers"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -37,6 +39,44 @@ func Test_EqualPersistentVolumeClaims(t *testing.T) {
 			expected: true,
 		},
 		{
+			name: "different namespaces",
+			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.ObjectMeta.Namespace = "namespace1"
+			}),
+			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.ObjectMeta.Namespace = "namespace2"
+			}),
+			expected: false,
+		},
+		{
+			name: "no storage resource",
+			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.Spec.Resources.Requests = map[corev1.ResourceName]resource.Quantity{}
+			}),
+			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("1M")
+			}),
+			expected: false,
+		},
+		{
+			name: "different storage resource",
+			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("1M")
+			}),
+			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("2M")
+			}),
+			expected: false,
+		},
+		{
+			name: "no access mode",
+			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.Spec.AccessModes = nil }),
+			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+			}),
+			expected: false,
+		},
+		{
 			name: "different access mode",
 			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
 				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
@@ -47,10 +87,20 @@ func Test_EqualPersistentVolumeClaims(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "no access mode",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.Spec.AccessModes = nil }),
+			name: "no volume mode",
+			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.Spec.VolumeMode = nil }),
 			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+				pv.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeBlock)
+			}),
+			expected: false,
+		},
+		{
+			name: "different volume mode",
+			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeFilesystem)
+			}),
+			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
+				pv.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeBlock)
 			}),
 			expected: false,
 		},
