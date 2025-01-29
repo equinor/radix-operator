@@ -78,7 +78,7 @@ spec:
                         clientCertificate:
                           description: |-
                             Configuration for TLS client certificate authentication.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#clientcertificate
+                            More info: https://www.radix.equinor.com/radix-config#clientcertificate
                           properties:
                             passCertificateToUpstream:
                               description: |-
@@ -98,7 +98,7 @@ spec:
                         oauth2:
                           description: |-
                             Configuration for OAuth2 authentication.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#oauth2
+                            More info: https://www.radix.equinor.com/radix-config#oauth2
                           properties:
                             clientId:
                               description: Client ID of the application.
@@ -992,7 +992,7 @@ spec:
                         gpu:
                           description: |-
                             Defines rules for allowed GPU types.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+                            More info: https://www.radix.equinor.com/radix-config#gpu
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
@@ -1034,7 +1034,7 @@ spec:
                     resources:
                       description: |-
                         ResourceRequirements describes the compute resource requirements.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+                        More info: https://www.radix.equinor.com/radix-config#resources-common
                       properties:
                         limits:
                           additionalProperties:
@@ -1371,9 +1371,8 @@ spec:
                             type: string
                           useAzureIdentity:
                             description: UseAzureIdentity defines that credentials
-                              for accessing Azure Key Vault will be acquired using
-                              Azure Workload Identity instead of using a ClientID
-                              and Secret.
+                              for accessing Azure Storage will be acquired using Azure
+                              Workload Identity instead of using a ClientID and Secret.
                             type: boolean
                         required:
                         - name
@@ -1587,7 +1586,7 @@ spec:
                         gpu:
                           description: |-
                             Defines rules for allowed GPU types.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+                            More info: https://www.radix.equinor.com/radix-config#gpu
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
@@ -1643,7 +1642,7 @@ spec:
                     resources:
                       description: |-
                         ResourceRequirements describes the compute resource requirements.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+                        More info: https://www.radix.equinor.com/radix-config#resources-common
                       properties:
                         limits:
                           additionalProperties:
@@ -1986,9 +1985,8 @@ spec:
                             type: string
                           useAzureIdentity:
                             description: UseAzureIdentity defines that credentials
-                              for accessing Azure Key Vault will be acquired using
-                              Azure Workload Identity instead of using a ClientID
-                              and Secret.
+                              for accessing Azure Storage will be acquired using Azure
+                              Workload Identity instead of using a ClientID and Secret.
                             type: boolean
                         required:
                         - name
