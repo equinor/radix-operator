@@ -569,12 +569,12 @@ func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVo
 	case radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
 		attributes[csiVolumeMountAttributeContainerName] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
 		attributes[csiVolumeMountAttributeProtocol] = csiVolumeAttributeProtocolParameterFuse2
-		if len(radixVolumeMount.BlobFuse2.StorageAccount) > 0 {
-			attributes[csiVolumeAttributeStorageAccount] = radixVolumeMount.BlobFuse2.StorageAccount
+		if len(radixVolumeMount.StorageAccount) > 0 {
+			attributes[csiVolumeAttributeStorageAccount] = radixVolumeMount.StorageAccount
 		}
 		if useAzureIdentity {
 			attributes[csiVolumeAttributeClientID] = clientId
-			attributes[csiVolumeAttributeResourceGroup] = radixVolumeMount.BlobFuse2.ResourceGroup
+			attributes[csiVolumeAttributeResourceGroup] = radixVolumeMount.ResourceGroup
 		}
 	}
 	attributes[csiVolumeMountAttributePvName] = pvName
