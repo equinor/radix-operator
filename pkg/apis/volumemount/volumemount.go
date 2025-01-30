@@ -122,7 +122,7 @@ func GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx context.Context
 func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
 	var volumeMountSecretsToManage []string
 	for _, volumeMount := range volumeMounts {
-		if volumeMount.UseAzureIdentity != nil && *volumeMount.UseAzureIdentity {
+		if useAzureIdentityForVolumeMount(&volumeMount) {
 			continue
 		}
 		secretName, accountKey, accountName := getCsiAzureVolumeMountCredsSecrets(ctx, kubeUtil, namespace, componentName, volumeMount.Name)
@@ -503,7 +503,6 @@ func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quan
 func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) *corev1.PersistentVolume {
 	identityClientId := getIdentityClientId(identity)
 	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount)
-	csiVolumeCredSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
 	pv := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pvName,
@@ -547,6 +546,10 @@ func getUseAzureIdentity(identity *radixv1.Identity, radixVolumeMount *radixv1.R
 	if len(getIdentityClientId(identity)) == 0 {
 		return false
 	}
+	return useAzureIdentityForVolumeMount(radixVolumeMount)
+}
+
+func useAzureIdentityForVolumeMount(radixVolumeMount *radixv1.RadixVolumeMount) bool {
 	return radixVolumeMount != nil && radixVolumeMount.BlobFuse2 != nil &&
 		radixVolumeMount.BlobFuse2.UseAzureIdentity != nil && *radixVolumeMount.BlobFuse2.UseAzureIdentity
 }
@@ -576,20 +579,27 @@ func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVo
 	case radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
 		attributes[csiVolumeMountAttributeContainerName] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
 		attributes[csiVolumeMountAttributeProtocol] = csiVolumeAttributeProtocolParameterFuse2
-		if len(radixVolumeMount.StorageAccount) > 0 {
-			attributes[csiVolumeAttributeStorageAccount] = radixVolumeMount.StorageAccount
-		}
-		if useAzureIdentity {
-			attributes[csiVolumeAttributeClientID] = clientId
-			attributes[csiVolumeAttributeResourceGroup] = radixVolumeMount.ResourceGroup
+		if radixVolumeMount.BlobFuse2 != nil {
+			if len(radixVolumeMount.BlobFuse2.StorageAccount) > 0 {
+				attributes[csiVolumeAttributeStorageAccount] = radixVolumeMount.BlobFuse2.StorageAccount
+			}
+			if useAzureIdentity {
+				attributes[csiVolumeAttributeClientID] = clientId
+				attributes[csiVolumeAttributeResourceGroup] = radixVolumeMount.BlobFuse2.ResourceGroup
+				if len(radixVolumeMount.BlobFuse2.SubscriptionId) > 0 {
+					attributes[csiVolumeAttributeSubscriptionId] = radixVolumeMount.BlobFuse2.SubscriptionId
+				}
+				if len(radixVolumeMount.BlobFuse2.TenantId) > 0 {
+					attributes[csiVolumeAttributeTenantId] = radixVolumeMount.BlobFuse2.TenantId
+				}
+			} else {
+				attributes[csiVolumeMountAttributeSecretNamespace] = namespace
+			}
 		}
 	}
 	attributes[csiVolumeMountAttributePvName] = pvName
 	attributes[csiVolumeMountAttributePvcName] = pvcName
 	attributes[csiVolumeMountAttributePvcNamespace] = namespace
-	if !useAzureIdentity {
-		attributes[csiVolumeMountAttributeSecretNamespace] = namespace
-	}
 	// Do not specify the key storage.kubernetes.io/csiProvisionerIdentity in csi.volumeAttributes in PV specification. This key indicates dynamically provisioned PVs
 	// https://github.com/kubernetes-csi/external-provisioner/blob/master/pkg/controller/controller.go#L289C5-L289C21
 	// It looks like this: storage.kubernetes.io/csiProvisionerIdentity: 1731647415428-2825-blob.csi.azure.com
