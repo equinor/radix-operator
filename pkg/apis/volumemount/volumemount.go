@@ -500,7 +500,7 @@ func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quan
 
 func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) *corev1.PersistentVolume {
 	identityClientId := getIdentityClientId(identity)
-	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount.UseAzureIdentity)
+	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount)
 	csiVolumeCredSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
 	pv := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -540,8 +540,12 @@ func getVolumeHandle(namespace, componentName, pvName, storageName string) strin
 	return fmt.Sprintf("%s#%s#%s#%s", namespace, componentName, pvName, storageName)
 }
 
-func getUseAzureIdentity(identity *radixv1.Identity, useAzureIdentity *bool) bool {
-	return len(getIdentityClientId(identity)) > 0 && useAzureIdentity != nil && *useAzureIdentity
+func getUseAzureIdentity(identity *radixv1.Identity, radixVolumeMount *radixv1.RadixVolumeMount) bool {
+	if len(getIdentityClientId(identity)) == 0 {
+		return false
+	}
+	return radixVolumeMount != nil && radixVolumeMount.BlobFuse2 != nil &&
+		radixVolumeMount.BlobFuse2.UseAzureIdentity != nil && *radixVolumeMount.BlobFuse2.UseAzureIdentity
 }
 
 func getIdentityClientId(identity *radixv1.Identity) string {

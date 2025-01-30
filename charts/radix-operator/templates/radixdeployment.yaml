@@ -1233,6 +1233,10 @@ spec:
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
                                 type: string
+                              resourceGroup:
+                                description: ResourceGroup of a storage account. Applicable
+                                  when using a workload identity.
+                                type: string
                               skuName:
                                 description: |-
                                   SKU Type of Azure storage.
@@ -1243,6 +1247,12 @@ spec:
                                 - Standard_GRS
                                 - Standard_RAGRS
                                 - ""
+                                type: string
+                              storageAccount:
+                                description: Name of a storage account. It is mandatory
+                                  when using a workload identity. It is optional when
+                                  using Access Key, if it is not defined, it will
+                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -1284,6 +1294,14 @@ spec:
                                     minimum: 1
                                     type: integer
                                 type: object
+                              subscriptionId:
+                                description: SubscriptionId of a storage account.
+                                  Applicable when using a workload identity.
+                                type: string
+                              tenantId:
+                                description: TenantId of a storage account. Applicable
+                                  when using a workload identity.
+                                type: string
                               uid:
                                 description: UID defines the user ID (number) which
                                   will be set as owner of the mounted volume.
@@ -1292,6 +1310,12 @@ spec:
                                 description: |-
                                   Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
                                   Default false. This must be turned on when HNS enabled account is mounted.
+                                type: boolean
+                              useAzureIdentity:
+                                description: UseAzureIdentity defines that credentials
+                                  for accessing Azure Storage will be acquired using
+                                  Azure Workload Identity instead of using a ClientID
+                                  and Secret.
                                 type: boolean
                             required:
                             - container
@@ -1369,12 +1393,6 @@ spec:
                               Deprecated: use BlobFuse2 instead.
                               UID defines the user ID (number) which will be set as owner of the mounted volume.
                             type: string
-                          useAzureIdentity:
-                            description: UseAzureIdentity defines that credentials
-                              for accessing Azure Key Vault will be acquired using
-                              Azure Workload Identity instead of using a ClientID
-                              and Secret.
-                            type: boolean
                         required:
                         - name
                         - path
@@ -1848,6 +1866,10 @@ spec:
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
                                 type: string
+                              resourceGroup:
+                                description: ResourceGroup of a storage account. Applicable
+                                  when using a workload identity.
+                                type: string
                               skuName:
                                 description: |-
                                   SKU Type of Azure storage.
@@ -1858,6 +1880,12 @@ spec:
                                 - Standard_GRS
                                 - Standard_RAGRS
                                 - ""
+                                type: string
+                              storageAccount:
+                                description: Name of a storage account. It is mandatory
+                                  when using a workload identity. It is optional when
+                                  using Access Key, if it is not defined, it will
+                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -1899,6 +1927,14 @@ spec:
                                     minimum: 1
                                     type: integer
                                 type: object
+                              subscriptionId:
+                                description: SubscriptionId of a storage account.
+                                  Applicable when using a workload identity.
+                                type: string
+                              tenantId:
+                                description: TenantId of a storage account. Applicable
+                                  when using a workload identity.
+                                type: string
                               uid:
                                 description: UID defines the user ID (number) which
                                   will be set as owner of the mounted volume.
@@ -1907,6 +1943,12 @@ spec:
                                 description: |-
                                   Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
                                   Default false. This must be turned on when HNS enabled account is mounted.
+                                type: boolean
+                              useAzureIdentity:
+                                description: UseAzureIdentity defines that credentials
+                                  for accessing Azure Storage will be acquired using
+                                  Azure Workload Identity instead of using a ClientID
+                                  and Secret.
                                 type: boolean
                             required:
                             - container
@@ -1984,12 +2026,6 @@ spec:
                               Deprecated: use BlobFuse2 instead.
                               UID defines the user ID (number) which will be set as owner of the mounted volume.
                             type: string
-                          useAzureIdentity:
-                            description: UseAzureIdentity defines that credentials
-                              for accessing Azure Key Vault will be acquired using
-                              Azure Workload Identity instead of using a ClientID
-                              and Secret.
-                            type: boolean
                         required:
                         - name
                         - path
