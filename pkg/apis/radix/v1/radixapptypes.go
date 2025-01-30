@@ -982,6 +982,14 @@ type RadixVolumeMount struct {
 	// +optional
 	UseAzureIdentity *bool `json:"useAzureIdentity,omitempty"`
 
+	// Name of a storage account. It is mandatory when using a workload identity. It is optional when using Access Key, if it is not defined, it will be configured in a secret.
+	// +optional
+	StorageAccount string `json:"storageAccount,omitempty"`
+
+	// ResourceGroup of a storage account. Applicable when using a workload identity.
+	// +optional
+	ResourceGroup string `json:"resourceGroup,omitempty"`
+
 	// BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2
 	BlobFuse2 *RadixBlobFuse2VolumeMount `json:"blobFuse2,omitempty"`
 
@@ -1067,14 +1075,6 @@ type RadixBlobFuse2VolumeMount struct {
 	// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
 	// +optional
 	Streaming *RadixVolumeMountStreaming `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
-
-	// Name of a storage account. It is mandatory when using a workload identity. It is optional when using Access Key, if it is not defined, it will be configured in a secret.
-	// +optional
-	StorageAccount string `json:"storageAccount,omitempty"`
-
-	// ResourceGroup of a storage account. Applicable when using a workload identity.
-	// +optional
-	ResourceGroup string `json:"resourceGroup,omitempty"`
 }
 
 // RadixVolumeMountStreaming configure streaming to read and write large files that will not fit in the file cache on the local disk. Used for blobfuse2.

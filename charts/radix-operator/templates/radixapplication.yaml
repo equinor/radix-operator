@@ -1432,10 +1432,6 @@ spec:
                                         Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                         More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
                                       type: string
-                                    resourceGroup:
-                                      description: ResourceGroup of a storage account.
-                                        Applicable when using a workload identity.
-                                      type: string
                                     skuName:
                                       description: |-
                                         SKU Type of Azure storage.
@@ -1446,13 +1442,6 @@ spec:
                                       - Standard_GRS
                                       - Standard_RAGRS
                                       - ""
-                                      type: string
-                                    storageAccount:
-                                      description: Name of a storage account. It is
-                                        mandatory when using a workload identity.
-                                        It is optional when using Access Key, if it
-                                        is not defined, it will be configured in a
-                                        secret.
                                       type: string
                                     streaming:
                                       description: |-
@@ -1549,6 +1538,10 @@ spec:
                                     Deprecated: use BlobFuse2 instead.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                                   type: string
+                                resourceGroup:
+                                  description: ResourceGroup of a storage account.
+                                    Applicable when using a workload identity.
+                                  type: string
                                 skuName:
                                   description: |-
                                     Deprecated: use BlobFuse2 instead.
@@ -1558,6 +1551,12 @@ spec:
                                   description: |-
                                     Deprecated: use BlobFuse2 instead.
                                     Storage defines the name of the container in the external storage resource.
+                                  type: string
+                                storageAccount:
+                                  description: Name of a storage account. It is mandatory
+                                    when using a workload identity. It is optional
+                                    when using Access Key, if it is not defined, it
+                                    will be configured in a secret.
                                   type: string
                                 type:
                                   description: |-
@@ -2636,10 +2635,6 @@ spec:
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
                                 type: string
-                              resourceGroup:
-                                description: ResourceGroup of a storage account. Applicable
-                                  when using a workload identity.
-                                type: string
                               skuName:
                                 description: |-
                                   SKU Type of Azure storage.
@@ -2650,12 +2645,6 @@ spec:
                                 - Standard_GRS
                                 - Standard_RAGRS
                                 - ""
-                                type: string
-                              storageAccount:
-                                description: Name of a storage account. It is mandatory
-                                  when using a workload identity. It is optional when
-                                  using Access Key, if it is not defined, it will
-                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -2749,6 +2738,10 @@ spec:
                               Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                             type: string
+                          resourceGroup:
+                            description: ResourceGroup of a storage account. Applicable
+                              when using a workload identity.
+                            type: string
                           skuName:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
@@ -2758,6 +2751,12 @@ spec:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
                               Storage defines the name of the container in the external storage resource.
+                            type: string
+                          storageAccount:
+                            description: Name of a storage account. It is mandatory
+                              when using a workload identity. It is optional when
+                              using Access Key, if it is not defined, it will be configured
+                              in a secret.
                             type: string
                           type:
                             description: |-
@@ -3525,10 +3524,6 @@ spec:
                                         Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                         More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
                                       type: string
-                                    resourceGroup:
-                                      description: ResourceGroup of a storage account.
-                                        Applicable when using a workload identity.
-                                      type: string
                                     skuName:
                                       description: |-
                                         SKU Type of Azure storage.
@@ -3539,13 +3534,6 @@ spec:
                                       - Standard_GRS
                                       - Standard_RAGRS
                                       - ""
-                                      type: string
-                                    storageAccount:
-                                      description: Name of a storage account. It is
-                                        mandatory when using a workload identity.
-                                        It is optional when using Access Key, if it
-                                        is not defined, it will be configured in a
-                                        secret.
                                       type: string
                                     streaming:
                                       description: |-
@@ -3642,6 +3630,10 @@ spec:
                                     Deprecated: use BlobFuse2 instead.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                                   type: string
+                                resourceGroup:
+                                  description: ResourceGroup of a storage account.
+                                    Applicable when using a workload identity.
+                                  type: string
                                 skuName:
                                   description: |-
                                     Deprecated: use BlobFuse2 instead.
@@ -3651,6 +3643,12 @@ spec:
                                   description: |-
                                     Deprecated: use BlobFuse2 instead.
                                     Storage defines the name of the container in the external storage resource.
+                                  type: string
+                                storageAccount:
+                                  description: Name of a storage account. It is mandatory
+                                    when using a workload identity. It is optional
+                                    when using Access Key, if it is not defined, it
+                                    will be configured in a secret.
                                   type: string
                                 type:
                                   description: |-
@@ -4109,10 +4107,6 @@ spec:
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
                                 type: string
-                              resourceGroup:
-                                description: ResourceGroup of a storage account. Applicable
-                                  when using a workload identity.
-                                type: string
                               skuName:
                                 description: |-
                                   SKU Type of Azure storage.
@@ -4123,12 +4117,6 @@ spec:
                                 - Standard_GRS
                                 - Standard_RAGRS
                                 - ""
-                                type: string
-                              storageAccount:
-                                description: Name of a storage account. It is mandatory
-                                  when using a workload identity. It is optional when
-                                  using Access Key, if it is not defined, it will
-                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -4222,6 +4210,10 @@ spec:
                               Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                             type: string
+                          resourceGroup:
+                            description: ResourceGroup of a storage account. Applicable
+                              when using a workload identity.
+                            type: string
                           skuName:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
@@ -4231,6 +4223,12 @@ spec:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
                               Storage defines the name of the container in the external storage resource.
+                            type: string
+                          storageAccount:
+                            description: Name of a storage account. It is mandatory
+                              when using a workload identity. It is optional when
+                              using Access Key, if it is not defined, it will be configured
+                              in a secret.
                             type: string
                           type:
                             description: |-
