@@ -122,7 +122,7 @@ func GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx context.Context
 func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
 	var volumeMountSecretsToManage []string
 	for _, volumeMount := range volumeMounts {
-		if useAzureIdentityForVolumeMount(&volumeMount) {
+		if UseAzureIdentityForVolumeMount(&volumeMount) {
 			continue
 		}
 		secretName, accountKey, accountName := getCsiAzureVolumeMountCredsSecrets(ctx, kubeUtil, namespace, componentName, volumeMount.Name)
@@ -546,10 +546,11 @@ func getUseAzureIdentity(identity *radixv1.Identity, radixVolumeMount *radixv1.R
 	if len(getIdentityClientId(identity)) == 0 {
 		return false
 	}
-	return useAzureIdentityForVolumeMount(radixVolumeMount)
+	return UseAzureIdentityForVolumeMount(radixVolumeMount)
 }
 
-func useAzureIdentityForVolumeMount(radixVolumeMount *radixv1.RadixVolumeMount) bool {
+// UseAzureIdentityForVolumeMount Returns true if the volume mount should use Azure Identity
+func UseAzureIdentityForVolumeMount(radixVolumeMount *radixv1.RadixVolumeMount) bool {
 	return radixVolumeMount != nil && radixVolumeMount.BlobFuse2 != nil &&
 		radixVolumeMount.BlobFuse2.UseAzureIdentity != nil && *radixVolumeMount.BlobFuse2.UseAzureIdentity
 }
