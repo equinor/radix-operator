@@ -122,6 +122,9 @@ func GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx context.Context
 func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
 	var volumeMountSecretsToManage []string
 	for _, volumeMount := range volumeMounts {
+		if volumeMount.UseAzureIdentity != nil && *volumeMount.UseAzureIdentity {
+			continue
+		}
 		secretName, accountKey, accountName := getCsiAzureVolumeMountCredsSecrets(ctx, kubeUtil, namespace, componentName, volumeMount.Name)
 		volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
 		err := createOrUpdateCsiAzureVolumeMountsSecrets(ctx, kubeUtil, appName, namespace, componentName, &volumeMount, secretName, accountName, accountKey)
