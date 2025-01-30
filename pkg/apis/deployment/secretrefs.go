@@ -30,9 +30,9 @@ func (deploy *Deployment) createSecretRefs(ctx context.Context, namespace string
 			return nil, err
 		}
 		if credsSecret != nil && !isOwnerReference(credsSecret.ObjectMeta, secretProviderClass.ObjectMeta) {
-			credsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
-			_, err = deploy.kubeutil.ApplySecret(ctx, namespace, credsSecret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
-			if err != nil {
+			updatedCredsSecret := credsSecret.DeepCopy()
+			updatedCredsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
+			if _, err = deploy.kubeutil.UpdateSecret(ctx, credsSecret, updatedCredsSecret); err != nil {
 				return nil, err
 			}
 		}
@@ -45,7 +45,7 @@ func (deploy *Deployment) getOrCreateSecretProviderClass(ctx context.Context, na
 	secretProviderClass, err := deploy.kubeutil.GetSecretProviderClass(ctx, namespace, className)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(ctx, namespace, appName, radixDeployComponentName, radixAzureKeyVault)
+			return deploy.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(ctx, namespace, appName, radixDeployComponentName, radixAzureKeyVault)
 		}
 		return nil, err
 	}
@@ -59,10 +59,10 @@ func (deploy *Deployment) getAzureKeyVaultCredsSecret(ctx context.Context, names
 	return deploy.getOrCreateAzureKeyVaultCredsSecret(ctx, namespace, appName, radixDeployComponentName, azureKeyVault.Name)
 }
 
-func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployment(ctx context.Context, namespace string, appName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
+func (deploy *Deployment) CreateAzureKeyVaultSecretProviderClassForRadixDeployment(ctx context.Context, namespace string, appName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
 	radixDeploymentName := deploy.radixDeployment.GetName()
 	tenantId := deploy.config.DeploymentSyncer.TenantID
-	identity := getIdentityFromRadixCommonDeployComponent(deploy, radixDeployComponentName)
+	identity := deploy.getIdentityFromRadixCommonDeployComponent(radixDeployComponentName)
 	secretProviderClass, err := kube.BuildAzureKeyVaultSecretProviderClass(tenantId, appName, radixDeploymentName, radixDeployComponentName, azureKeyVault, identity)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployme
 	return deploy.kubeutil.CreateSecretProviderClass(ctx, namespace, secretProviderClass)
 }
 
-func getIdentityFromRadixCommonDeployComponent(deploy *Deployment, radixDeployComponentName string) *radixv1.Identity {
+func (deploy *Deployment) getIdentityFromRadixCommonDeployComponent(radixDeployComponentName string) *radixv1.Identity {
 	if radixDeployComponent := deploy.radixDeployment.GetComponentByName(radixDeployComponentName); radixDeployComponent != nil {
 		return radixDeployComponent.GetIdentity()
 	}
@@ -89,7 +89,7 @@ func (deploy *Deployment) getOrCreateAzureKeyVaultCredsSecret(ctx context.Contex
 	if err != nil {
 		if errors.IsNotFound(err) {
 			secret = buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName)
-			return deploy.kubeutil.ApplySecret(ctx, namespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
+			return deploy.kubeutil.CreateSecret(ctx, namespace, secret)
 		}
 		return nil, err
 	}

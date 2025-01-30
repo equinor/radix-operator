@@ -300,6 +300,7 @@ func getEnvironmentSpecificConfigForComponent(component radixv1.RadixComponent, 
 }
 
 func getRadixComponentPort(radixComponent *radixv1.RadixComponent) string {
+	//nolint:staticcheck
 	if radixComponent.PublicPort == "" && radixComponent.Public {
 		return radixComponent.Ports[0].Name
 	}

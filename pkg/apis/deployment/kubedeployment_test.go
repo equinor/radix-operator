@@ -255,10 +255,7 @@ func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, o
 
 func TestDeployment_createJobAuxDeployment(t *testing.T) {
 	deploy := &Deployment{radixDeployment: &v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "deployment1", UID: "uid1"}}}
-	jobDeployComponent := &v1.RadixDeployComponent{
-		Name: "job1",
-	}
-	jobAuxDeployment := deploy.createJobAuxDeployment(jobDeployComponent)
+	jobAuxDeployment := deploy.createJobAuxDeployment("job1", "job1-aux")
 	assert.Equal(t, "job1-aux", jobAuxDeployment.GetName())
 	resources := jobAuxDeployment.Spec.Template.Spec.Containers[0].Resources
 	s := resources.Requests.Cpu().String()
