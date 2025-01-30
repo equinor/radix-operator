@@ -26,6 +26,8 @@ const (
 	csiVolumeAttributeStorageAccount         = "storageAccount"
 	csiVolumeAttributeClientID               = "clientID"
 	csiVolumeAttributeResourceGroup          = "resourcegroup"
+	csiVolumeAttributeSubscriptionId         = "subscriptionid"
+	csiVolumeAttributeTenantId               = "tenantID"
 
 	csiVolumeMountAttributePvName              = "csi.storage.k8s.io/pv/name"
 	csiVolumeMountAttributePvcName             = "csi.storage.k8s.io/pvc/name"
