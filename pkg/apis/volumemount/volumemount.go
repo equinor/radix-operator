@@ -11,7 +11,8 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/internal"
+	internalDeployment "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/google/uuid"
@@ -167,7 +168,7 @@ func isKnownCsiAzureVolumeMount(volumeMount string) bool {
 }
 
 func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
-	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
+	if internalDeployment.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil, nil
 	}
 
@@ -503,7 +504,7 @@ func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quan
 }
 
 func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) *corev1.PersistentVolume {
-	identityClientId := getIdentityClientId(identity)
+	identityClientId := internal.GetIdentityClientId(identity)
 	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount)
 	pv := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -545,7 +546,7 @@ func getVolumeHandle(namespace, componentName, pvName, storageName string) strin
 }
 
 func getUseAzureIdentity(identity *radixv1.Identity, radixVolumeMount *radixv1.RadixVolumeMount) bool {
-	if len(getIdentityClientId(identity)) == 0 {
+	if len(internal.GetIdentityClientId(identity)) == 0 {
 		return false
 	}
 	return UseAzureIdentityForVolumeMount(radixVolumeMount)
@@ -555,13 +556,6 @@ func getUseAzureIdentity(identity *radixv1.Identity, radixVolumeMount *radixv1.R
 func UseAzureIdentityForVolumeMount(radixVolumeMount *radixv1.RadixVolumeMount) bool {
 	return radixVolumeMount != nil && radixVolumeMount.BlobFuse2 != nil &&
 		radixVolumeMount.BlobFuse2.UseAzureIdentity != nil && *radixVolumeMount.BlobFuse2.UseAzureIdentity
-}
-
-func getIdentityClientId(identity *radixv1.Identity) string {
-	if identity != nil && identity.Azure != nil && len(identity.Azure.ClientId) > 0 {
-		return identity.Azure.ClientId
-	}
-	return ""
 }
 
 func getCsiAzurePvLabels(appName, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) map[string]string {
