@@ -439,7 +439,9 @@ func createOrUpdateCsiAzureVolumeMountsSecrets(ctx context.Context, kubeUtil *ku
 	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
 	data := make(map[string][]byte)
 	data[defaults.CsiAzureCredsAccountKeyPart] = accountKey
-	data[defaults.CsiAzureCredsAccountNamePart] = accountName
+	if radixVolumeMount.BlobFuse2 == nil || len(radixVolumeMount.BlobFuse2.StorageAccount) == 0 {
+		data[defaults.CsiAzureCredsAccountNamePart] = accountName
+	}
 
 	secret.Data = data
 
