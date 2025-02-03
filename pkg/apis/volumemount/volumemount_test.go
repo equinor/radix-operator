@@ -540,7 +540,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			matchPvAndPvc(&existingPv, &existingPvc)
 			expectedPv := modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
 				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-				pv.Spec.MountOptions = getMountOptions(props)
+				pv.Spec.MountOptions = getMountOptions(modifyProps(props, func(props *expectedPvcPvProperties) { props.readOnly = false }))
 			})
 			expectedPvc := modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
 				pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
@@ -650,6 +650,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 					existingPv,
 					modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
 						pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+						pv.Spec.MountOptions = getMountOptions(modifyProps(props, func(props *expectedPvcPvProperties) { props.readOnly = true }))
 					}),
 				},
 			}
@@ -970,7 +971,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	}()...)
 
 	s.T().Run("CSI Azure volume PVCs and PersistentVolume", func(t *testing.T) {
-		for _, factory := range s.radixCommonDeployComponentFactories[:1] {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s, volume type %s, component %s", scenario.name, scenario.props.radixVolumeMountType, factory.GetTargetType())
 				testEnv := getTestEnv()
@@ -989,7 +990,6 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				assert.True(t, equalPersistentVolumeClaims(&scenario.expectedPvcs, &existingPvcs), "PVC-s are not equal")
 				assert.Len(t, existingPvs, len(scenario.expectedPvs), "PV-s count is not equal")
 				assert.True(t, equalPersistentVolumes(&scenario.expectedPvs, &existingPvs), "PV-s are not equal")
-
 			}
 		}
 	})

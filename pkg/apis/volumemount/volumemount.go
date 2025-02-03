@@ -573,6 +573,7 @@ func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVo
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		attributes[csiVolumeMountAttributeContainerName] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
 		attributes[csiVolumeMountAttributeProtocol] = csiVolumeAttributeProtocolParameterFuse
+		attributes[csiVolumeMountAttributeSecretNamespace] = namespace
 	case radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
 		attributes[csiVolumeMountAttributeContainerName] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
 		attributes[csiVolumeMountAttributeProtocol] = csiVolumeAttributeProtocolParameterFuse2
