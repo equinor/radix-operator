@@ -1,10 +1,10 @@
 package volumemount
 
 import (
-	"github.com/stretchr/testify/suite"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 )
 

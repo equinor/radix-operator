@@ -4,6 +4,8 @@ package volumemount
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -14,7 +16,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 type volumeMountTestSuite struct {
@@ -1158,6 +1159,52 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
 				setPropsForBlob2Fuse2AzureIdentity(props)
 				props.tenantId = testTenantId
+			})),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomPvc(props, props.namespace, componentName1)
+			existingPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&existingPv, &existingPvc)
+			changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.tenantId = testChangedTenantId
+			})
+			expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
+			expectedPv := createExpectedPv(changedProps, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Changed PV and PVC from useAzureIdentity to use a Client Secret",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{
+					existingPv,
+				},
+				expectedPvs: []corev1.PersistentVolume{
+					existingPv,
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
 			})),
 		}
 	}()...)

@@ -201,20 +201,6 @@ func createRandomPvc(props expectedPvcPvProperties, namespace, componentName str
 	})
 }
 
-func createRandomPvcBlobFuse2(props expectedPvcPvProperties, namespace, componentName string) v1.PersistentVolumeClaim {
-	return createExpectedPvc(props, func(pvc *v1.PersistentVolumeClaim) {
-		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
-		if err != nil {
-			panic(err)
-		}
-		pvName := getCsiAzurePvName()
-		pvc.ObjectMeta.Name = pvcName
-		pvc.ObjectMeta.Namespace = namespace
-		pvc.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-		pvc.Spec.VolumeName = pvName
-	})
-}
-
 func createRandomAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, namespace, componentName, anotherVolumeMountName string) v1.PersistentVolume {
 	return createAutoProvisionedPvWithStorageClass(props, func(pv *v1.PersistentVolume) {
 		pvName := "pvc-" + uuid.NewString()
