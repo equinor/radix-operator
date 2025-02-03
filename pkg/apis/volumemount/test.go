@@ -87,6 +87,9 @@ const (
 	testResourceGroup             = "some-resource-group"
 	testStorageAccountName        = "somestorageaccountname"
 	testChangedStorageAccountName = "changedstorageaccountname"
+	testChangedResourceGroup      = "changed-resource-group"
+	testChangedSubscriptionId     = "changed-subscription-id"
+	testChangedTenantId           = "changed-tenant-id"
 )
 
 var (
