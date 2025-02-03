@@ -78,13 +78,14 @@ type pvcTestScenario struct {
 }
 
 const (
-	appName1           = "any-app"
-	envName1           = "some-env"
-	componentName1     = "some-component"
-	testClientId       = "some-client-id"
-	testTenantId       = "some-tenant-id"
-	testSubscriptionId = "some-subscription-id"
-	testResourceGroup  = "some-resource-group"
+	appName1               = "any-app"
+	envName1               = "some-env"
+	componentName1         = "some-component"
+	testClientId           = "some-client-id"
+	testTenantId           = "some-tenant-id"
+	testSubscriptionId     = "some-subscription-id"
+	testResourceGroup      = "some-resource-group"
+	testStorageAccountName = "somestorageaccountname"
 )
 
 var (
@@ -134,6 +135,7 @@ type expectedPvcPvProperties struct {
 	resourceGroup           string
 	subscriptionId          string
 	tenantId                string
+	storageAccountName      string
 }
 
 func modifyPv(pv v1.PersistentVolume, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
@@ -182,6 +184,20 @@ func createRandomPv(props expectedPvcPvProperties, namespace, componentName stri
 }
 
 func createRandomPvc(props expectedPvcPvProperties, namespace, componentName string) v1.PersistentVolumeClaim {
+	return createExpectedPvc(props, func(pvc *v1.PersistentVolumeClaim) {
+		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
+		if err != nil {
+			panic(err)
+		}
+		pvName := getCsiAzurePvName()
+		pvc.ObjectMeta.Name = pvcName
+		pvc.ObjectMeta.Namespace = namespace
+		pvc.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+		pvc.Spec.VolumeName = pvName
+	})
+}
+
+func createRandomPvcBlobFuse2(props expectedPvcPvProperties, namespace, componentName string) v1.PersistentVolumeClaim {
 	return createExpectedPvc(props, func(pvc *v1.PersistentVolumeClaim) {
 		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
 		if err != nil {
@@ -328,12 +344,13 @@ func getDesiredDeployment(componentName string, volumes []v1.Volume) *appsv1.Dep
 	}
 }
 
-func buildRd(appName string, environment string, componentName string, radixVolumeMounts []radixv1.RadixVolumeMount) *radixv1.RadixDeployment {
+func buildRd(appName string, environment string, componentName string, identityAzureClientId string, radixVolumeMounts []radixv1.RadixVolumeMount) *radixv1.RadixDeployment {
 	return operatorUtils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(environment).
 		WithComponents(operatorUtils.NewDeployComponentBuilder().
 			WithName(componentName).
+			WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: identityAzureClientId}}).
 			WithVolumeMounts(radixVolumeMounts...)).
 		BuildRD()
 }
@@ -365,6 +382,10 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.Persiste
 		Namespace: props.namespace,
 	}
 	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeMountAttributeSecretNamespace] = props.namespace
+	pv.Spec.PersistentVolumeSource.CSI.NodeStageSecretRef = &v1.SecretReference{
+		Name:      props.pvSecretName,
+		Namespace: props.namespace,
+	}
 
 	if modify != nil {
 		modify(pv)
@@ -375,6 +396,7 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.Persiste
 func createExpectedPvWithIdentity(props expectedPvcPvProperties, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
 	pv := createPv(props)
 
+	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeStorageAccount] = props.storageAccountName
 	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeClientID] = props.clientId
 	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeResourceGroup] = props.resourceGroup
 	if props.subscriptionId != "" {
@@ -415,10 +437,6 @@ func createPv(props expectedPvcPvProperties) *v1.PersistentVolume {
 						csiVolumeMountAttributePvcName:       props.pvcName,
 						csiVolumeMountAttributePvcNamespace:  props.namespace,
 						// skip auto-created by the provisioner "storage.kubernetes.io/csiProvisionerIdentity": "1732528668611-2190-blob.csi.azure.com"
-					},
-					NodeStageSecretRef: &v1.SecretReference{
-						Name:      props.pvSecretName,
-						Namespace: props.namespace,
 					},
 				},
 			},
@@ -504,6 +522,9 @@ func getMountOptions(props expectedPvcPvProperties, extraOptions ...string) []st
 	idOption := getPersistentVolumeIdMountOption(props)
 	if len(idOption) > 0 {
 		options = append(options, idOption)
+	}
+	if props.radixVolumeMountType == radixv1.MountTypeBlobFuse2Fuse2CsiAzure {
+		options = append(options, fmt.Sprintf("--%s=%v", csiMountOptionUseAdls, false))
 	}
 	return append(options, extraOptions...)
 }
