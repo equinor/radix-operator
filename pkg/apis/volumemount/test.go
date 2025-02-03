@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/equinor/radix-common/utils"
@@ -39,7 +38,7 @@ func modifyPvc(pvc v1.PersistentVolumeClaim, modify func(pvc *v1.PersistentVolum
 	return pvc
 }
 
-type TestSuite struct {
+type testSuite struct {
 	suite.Suite
 	radixCommonDeployComponentFactories []radixv1.RadixCommonDeployComponentFactory
 }
@@ -93,12 +92,8 @@ var (
 	anotherVolumeMountName = strings.ToLower(utils.RandString(10))
 )
 
-func TestVolumeMountTestSuite(t *testing.T) {
-	suite.Run(t, new(TestSuite))
-}
-
-func (suite *TestSuite) SetupSuite() {
-	suite.radixCommonDeployComponentFactories = []radixv1.RadixCommonDeployComponentFactory{
+func (s *testSuite) SetupSuite() {
+	s.radixCommonDeployComponentFactories = []radixv1.RadixCommonDeployComponentFactory{
 		radixv1.RadixDeployComponentFactory{},
 		radixv1.RadixDeployJobComponentFactory{},
 	}

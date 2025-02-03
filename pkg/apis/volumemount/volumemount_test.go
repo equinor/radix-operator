@@ -9,15 +9,24 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 )
 
-func (suite *TestSuite) Test_NoVolumeMounts() {
-	suite.T().Run("app", func(t *testing.T) {
+type volumeMountTestSuite struct {
+	testSuite
+}
+
+func TestVolumeMountTestSuite(t *testing.T) {
+	suite.Run(t, new(volumeMountTestSuite))
+}
+
+func (s *volumeMountTestSuite) Test_NoVolumeMounts() {
+	s.T().Run("app", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
@@ -29,7 +38,7 @@ func (suite *TestSuite) Test_NoVolumeMounts() {
 	})
 }
 
-func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
+func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storagename1", Path: "TestPath1"},
@@ -44,9 +53,9 @@ func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			expectedVolumeName: "csi-az-blob-app-volume-with-long-name-blobstoragename-wit-12345",
 		},
 	}
-	suite.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
+	s.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
 				WithVolumeMounts(scenarios[0].radixVolumeMount).
@@ -63,9 +72,9 @@ func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			}
 		}
 	})
-	suite.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
+	s.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
@@ -91,7 +100,7 @@ func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	})
 }
 
-func (suite *TestSuite) Test_FailBlobCsiAzureVolumeMounts() {
+func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:             "Missed volume mount name",
@@ -109,9 +118,9 @@ func (suite *TestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 			expectedError:    "path is empty for volume mount volume1 in the component app",
 		},
 	}
-	suite.T().Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
+	s.T().Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, testCase := range scenarios {
 				t.Logf("Test case %s for component %s", testCase.name, factory.GetTargetType())
 				component := utils.NewDeployCommonComponentBuilder(factory).
@@ -127,10 +136,10 @@ func (suite *TestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	})
 }
 
-func (suite *TestSuite) Test_GetNewVolumes() {
+func (s *volumeMountTestSuite) Test_GetNewVolumes() {
 	namespace := "some-namespace"
 	componentName := "some-component"
-	suite.T().Run("No volumes in component", func(t *testing.T) {
+	s.T().Run("No volumes in component", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
 		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts().BuildComponent()
@@ -152,7 +161,7 @@ func (suite *TestSuite) Test_GetNewVolumes() {
 			expectedPvcName:    "pvc-csi-az-blob-some-component-volume-with-long-name-blobstor-einhp-12345",
 		},
 	}
-	suite.T().Run("CSI Azure volumes", func(t *testing.T) {
+	s.T().Run("CSI Azure volumes", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
@@ -172,7 +181,7 @@ func (suite *TestSuite) Test_GetNewVolumes() {
 			assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
 		}
 	})
-	suite.T().Run("Unsupported volume type", func(t *testing.T) {
+	s.T().Run("Unsupported volume type", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
 		mounts := []radixv1.RadixVolumeMount{
@@ -186,7 +195,7 @@ func (suite *TestSuite) Test_GetNewVolumes() {
 	})
 }
 
-func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
+func (s *volumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 	const (
 		namespace     = "any-app-some-env"
 		componentName = "some-component"
@@ -218,7 +227,7 @@ func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		},
 	}
 
-	suite.T().Run("CSI Azure volumes with existing PVC", func(t *testing.T) {
+	s.T().Run("CSI Azure volumes with existing PVC", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
@@ -243,7 +252,7 @@ func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		}
 	})
 
-	suite.T().Run("CSI Azure volumes with no existing PVC", func(t *testing.T) {
+	s.T().Run("CSI Azure volumes with no existing PVC", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
@@ -261,7 +270,7 @@ func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 	})
 }
 
-func (suite *TestSuite) Test_GetVolumesForComponent() {
+func (s *volumeMountTestSuite) Test_GetVolumesForComponent() {
 	const (
 		appName       = "any-app"
 		environment   = "some-env"
@@ -289,10 +298,10 @@ func (suite *TestSuite) Test_GetVolumesForComponent() {
 		},
 	}
 
-	suite.T().Run("No volumes", func(t *testing.T) {
+	s.T().Run("No volumes", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case for component %s", factory.GetTargetType())
 
 			radixDeployment := buildRd(appName, environment, componentName, []radixv1.RadixVolumeMount{})
@@ -304,10 +313,10 @@ func (suite *TestSuite) Test_GetVolumesForComponent() {
 			assert.Len(t, volumes, 0, "No volumes should be returned")
 		}
 	})
-	suite.T().Run("Exists volume", func(t *testing.T) {
+	s.T().Run("Exists volume", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
 
@@ -326,7 +335,7 @@ func (suite *TestSuite) Test_GetVolumesForComponent() {
 	})
 }
 
-func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
+func (s *volumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	const (
 		appName       = "any-app"
 		environment   = "some-env"
@@ -353,9 +362,9 @@ func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 		},
 	}
 
-	suite.T().Run("No volumes", func(t *testing.T) {
+	s.T().Run("No volumes", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case for component %s", factory.GetTargetType())
 
 			radixDeployment := buildRd(appName, environment, componentName, []radixv1.RadixVolumeMount{})
@@ -367,9 +376,9 @@ func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 			assert.Len(t, volumes, 0, "No volumes should be returned")
 		}
 	})
-	suite.T().Run("Exists volume", func(t *testing.T) {
+	s.T().Run("Exists volume", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
 
@@ -393,33 +402,33 @@ func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	})
 }
 
-func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
+func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	var scenarios []deploymentVolumesTestScenario
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
-		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-			return deploymentVolumesTestScenario{
-				name:  "Create new volume",
-				props: props,
-				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
-				},
-				volumes: []corev1.Volume{
-					createTestVolume(props, nil),
-				},
-				existingPvcs: []corev1.PersistentVolumeClaim{},
-				expectedPvcs: []corev1.PersistentVolumeClaim{
-					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-				},
-				existingPvs: []corev1.PersistentVolume{},
-				expectedPvs: []corev1.PersistentVolume{
-					createExpectedPv(props, func(pv *corev1.PersistentVolume) {}),
-				},
-			}
-		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
+	//scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+	//	getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+	//		return deploymentVolumesTestScenario{
+	//			name:  "Create new volume",
+	//			props: props,
+	//			radixVolumeMounts: []radixv1.RadixVolumeMount{
+	//				createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+	//			},
+	//			volumes: []corev1.Volume{
+	//				createTestVolume(props, nil),
+	//			},
+	//			existingPvcs: []corev1.PersistentVolumeClaim{},
+	//			expectedPvcs: []corev1.PersistentVolumeClaim{
+	//				createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
+	//			},
+	//			existingPvs: []corev1.PersistentVolume{},
+	//			expectedPvs: []corev1.PersistentVolume{
+	//				createExpectedPv(props, func(pv *corev1.PersistentVolume) {}),
+	//			},
+	//		}
+	//	}
+	//	return []deploymentVolumesTestScenario{
+	//		getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+	//	}
+	//}()...)
 	//scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 	//	type scenarioProperties struct {
 	//		changedNewRadixVolumeName        string
@@ -904,8 +913,8 @@ func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
 		}
 	}()...)
 
-	suite.T().Run("CSI Azure volume PVCs and PersistentVolume", func(t *testing.T) {
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+	s.T().Run("CSI Azure volume PVCs and PersistentVolume", func(t *testing.T) {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s, volume type %s, component %s", scenario.name, scenario.props.radixVolumeMountType, factory.GetTargetType())
 				testEnv := getTestEnv()

@@ -1,13 +1,22 @@
 package volumemount
 
 import (
+	"github.com/stretchr/testify/suite"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func Test_EqualPersistentVolumes(t *testing.T) {
+type pvTestSuite struct {
+	testSuite
+}
+
+func TestPvTestSuite(t *testing.T) {
+	suite.Run(t, new(pvTestSuite))
+}
+
+func (s *pvTestSuite) Test_EqualPersistentVolumes() {
 	createPv := func(modify func(pv *corev1.PersistentVolume)) *corev1.PersistentVolume {
 		pv := createExpectedPv(getPropsCsiBlobVolume1Storage1(nil), modify)
 		return &pv
@@ -247,9 +256,9 @@ func Test_EqualPersistentVolumes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		s.T().Run(tt.name, func(t *testing.T) {
 			if got := EqualPersistentVolumes(tt.pv1, tt.pv2); got != tt.expected {
-				t.Errorf("EqualPersistentVolumes() = %v, want %v", got, tt.expected)
+				s.T().Errorf("EqualPersistentVolumes() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
