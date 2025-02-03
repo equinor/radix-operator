@@ -79,9 +79,13 @@ type pvcTestScenario struct {
 }
 
 const (
-	appName1       = "any-app"
-	envName1       = "some-env"
-	componentName1 = "some-component"
+	appName1           = "any-app"
+	envName1           = "some-env"
+	componentName1     = "some-component"
+	testClientId       = "some-client-id"
+	testTenantId       = "some-tenant-id"
+	testSubscriptionId = "some-subscription-id"
+	testResourceGroup  = "some-resource-group"
 )
 
 var (
@@ -131,6 +135,10 @@ type expectedPvcPvProperties struct {
 	pvUid                   string
 	namespace               string
 	readOnly                bool
+	clientId                string
+	resourceGroup           string
+	subscriptionId          string
+	tenantId                string
 }
 
 func modifyPv(pv v1.PersistentVolume, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
@@ -356,8 +364,40 @@ func createPvc(namespace, componentName string, mountType radixv1.MountType, mod
 }
 
 func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
+	pv := createPv(props)
+	pv.Spec.PersistentVolumeSource.CSI.NodeStageSecretRef = &v1.SecretReference{
+		Name:      props.pvSecretName,
+		Namespace: props.namespace,
+	}
+	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeMountAttributeSecretNamespace] = props.namespace
+
+	if modify != nil {
+		modify(pv)
+	}
+	return *pv
+}
+
+func createExpectedPvWithIdentity(props expectedPvcPvProperties, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
+	pv := createPv(props)
+
+	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeClientID] = props.clientId
+	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeResourceGroup] = props.resourceGroup
+	if props.subscriptionId != "" {
+		pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeSubscriptionId] = props.subscriptionId
+	}
+	if props.tenantId != "" {
+		pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeTenantId] = props.tenantId
+	}
+	setVolumeMountAttribute(pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
+	if modify != nil {
+		modify(pv)
+	}
+	return *pv
+}
+
+func createPv(props expectedPvcPvProperties) *v1.PersistentVolume {
 	mountOptions := getMountOptions(props)
-	pv := v1.PersistentVolume{
+	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: props.persistentVolumeName,
 			Labels: map[string]string{
@@ -374,12 +414,11 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.Persiste
 					Driver:       props.pvProvisioner,
 					VolumeHandle: getVolumeHandle(props.namespace, props.componentName, props.persistentVolumeName, props.blobStorageName),
 					VolumeAttributes: map[string]string{
-						csiVolumeMountAttributeContainerName:   props.blobStorageName,
-						csiVolumeMountAttributeProtocol:        csiVolumeAttributeProtocolParameterFuse2,
-						csiVolumeMountAttributePvName:          props.persistentVolumeName,
-						csiVolumeMountAttributePvcName:         props.pvcName,
-						csiVolumeMountAttributePvcNamespace:    props.namespace,
-						csiVolumeMountAttributeSecretNamespace: props.namespace,
+						csiVolumeMountAttributeContainerName: props.blobStorageName,
+						csiVolumeMountAttributeProtocol:      csiVolumeAttributeProtocolParameterFuse2,
+						csiVolumeMountAttributePvName:        props.persistentVolumeName,
+						csiVolumeMountAttributePvcName:       props.pvcName,
+						csiVolumeMountAttributePvcNamespace:  props.namespace,
 						// skip auto-created by the provisioner "storage.kubernetes.io/csiProvisionerIdentity": "1732528668611-2190-blob.csi.azure.com"
 					},
 					NodeStageSecretRef: &v1.SecretReference{
@@ -402,10 +441,7 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.Persiste
 		},
 		Status: v1.PersistentVolumeStatus{Phase: v1.VolumeBound},
 	}
-	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
-	if modify != nil {
-		modify(&pv)
-	}
+	setVolumeMountAttribute(pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
 	return pv
 }
 
