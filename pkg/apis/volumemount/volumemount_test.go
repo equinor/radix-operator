@@ -934,12 +934,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
 					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-						vm.BlobFuse2.UseAzureIdentity = pointers.Ptr(true)
-						vm.BlobFuse2.StorageAccount = props.storageAccountName
-						vm.BlobFuse2.SubscriptionId = props.subscriptionId
-						vm.BlobFuse2.ResourceGroup = props.resourceGroup
-						vm.BlobFuse2.UseAdls = nil
-						vm.BlobFuse2.Streaming = &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false)}
+						setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
 					}),
 				},
 				volumes: []corev1.Volume{
@@ -959,6 +954,55 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 					existingPv,
 				},
 				expectedPvs: []corev1.PersistentVolume{
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
+			})),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomPvc(props, props.namespace, componentName1)
+			existingPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&existingPv, &existingPvc)
+			changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.storageAccountName = testChangedStorageAccountName
+			})
+			expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
+			expectedPv := createExpectedPvWithIdentity(changedProps, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Created PV and PVC with useAzureIdentity on changed storage account",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
+						setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
+						vm.BlobFuse2.StorageAccount = testChangedStorageAccountName
+					}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{
+					existingPv,
+				},
+				expectedPvs: []corev1.PersistentVolume{
+					existingPv,
 					expectedPv,
 				},
 			}
@@ -993,6 +1037,15 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			}
 		}
 	})
+}
+
+func setVolumeMountPropsForBlob2Fuse2AzureIdentity(props expectedPvcPvProperties, vm *radixv1.RadixVolumeMount) {
+	vm.BlobFuse2.UseAzureIdentity = pointers.Ptr(true)
+	vm.BlobFuse2.StorageAccount = props.storageAccountName
+	vm.BlobFuse2.SubscriptionId = props.subscriptionId
+	vm.BlobFuse2.ResourceGroup = props.resourceGroup
+	vm.BlobFuse2.UseAdls = nil
+	vm.BlobFuse2.Streaming = &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false)}
 }
 
 func setPropsForBlob2Fuse2AzureIdentity(props *expectedPvcPvProperties) {

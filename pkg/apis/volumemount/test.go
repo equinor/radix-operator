@@ -78,14 +78,15 @@ type pvcTestScenario struct {
 }
 
 const (
-	appName1               = "any-app"
-	envName1               = "some-env"
-	componentName1         = "some-component"
-	testClientId           = "some-client-id"
-	testTenantId           = "some-tenant-id"
-	testSubscriptionId     = "some-subscription-id"
-	testResourceGroup      = "some-resource-group"
-	testStorageAccountName = "somestorageaccountname"
+	appName1                      = "any-app"
+	envName1                      = "some-env"
+	componentName1                = "some-component"
+	testClientId                  = "some-client-id"
+	testTenantId                  = "some-tenant-id"
+	testSubscriptionId            = "some-subscription-id"
+	testResourceGroup             = "some-resource-group"
+	testStorageAccountName        = "somestorageaccountname"
+	testChangedStorageAccountName = "changedstorageaccountname"
 )
 
 var (
@@ -689,18 +690,13 @@ func equalPersistentVolumes(expectedPvs, actualPvs *[]v1.PersistentVolume) bool 
 		return false
 	}
 	for _, expectedPv := range *expectedPvs {
-		var hasEqualPv bool
 		for _, actualPv := range *actualPvs {
 			if EqualPersistentVolumes(&expectedPv, &actualPv) {
-				hasEqualPv = true
-				break
+				return true
 			}
 		}
-		if !hasEqualPv {
-			return false
-		}
 	}
-	return true
+	return false
 }
 
 func equalPersistentVolumeClaims(list1, list2 *[]v1.PersistentVolumeClaim) bool {
