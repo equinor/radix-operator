@@ -595,9 +595,6 @@ func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVo
 			}
 		}
 	}
-	attributes[csiVolumeMountAttributePvName] = pvName
-	attributes[csiVolumeMountAttributePvcName] = pvcName
-	attributes[csiVolumeMountAttributePvcNamespace] = namespace
 	// Do not specify the key storage.kubernetes.io/csiProvisionerIdentity in csi.volumeAttributes in PV specification. This key indicates dynamically provisioned PVs
 	// https://github.com/kubernetes-csi/external-provisioner/blob/master/pkg/controller/controller.go#L289C5-L289C21
 	// It looks like this: storage.kubernetes.io/csiProvisionerIdentity: 1731647415428-2825-blob.csi.azure.com
@@ -840,6 +837,9 @@ func createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, kubeCli
 	existingPvc, pvcExists := pvcByNameMap[pvcName]
 	if !pvExists && pvcExists {
 		pvName = existingPvc.Spec.VolumeName
+		if len(pvName) == 0 {
+			pvName = getCsiAzurePvName()
+		}
 	}
 	needToCreatePvc := !pvcExists
 	needToReCreatePv := pvExists && !pvcExists && len(existingPv.Spec.StorageClassName) > 0 // HACK: always re-create PV if it uses SC and PVC is missing

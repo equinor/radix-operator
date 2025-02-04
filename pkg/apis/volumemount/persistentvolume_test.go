@@ -120,36 +120,12 @@ func (s *pvTestSuite) Test_EqualPersistentVolumes() {
 			expected: false,
 		},
 		{
-			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributePvName",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvName] = utils.RandString(10)
-			}),
-			expected: true,
-		},
-		{
-			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributePvcName",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcName] = utils.RandString(10)
-			}),
-			expected: true,
-		},
-		{
 			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributeProvisionerIdentity",
 			pv1:  createPv(nil),
 			pv2: createPv(func(pv *corev1.PersistentVolume) {
 				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProvisionerIdentity] = utils.RandString(10)
 			}),
 			expected: true,
-		},
-		{
-			name: "different CSI VolumeAttribute csiVolumeMountAttributePvcNamespace",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcNamespace] = utils.RandString(10)
-			}),
-			expected: false,
 		},
 		{
 			name: "different CSI VolumeAttribute csiVolumeMountAttributeSecretNamespace",

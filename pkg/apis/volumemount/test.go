@@ -161,8 +161,6 @@ func createRandomVolumeMount(modify func(mount *radixv1.RadixVolumeMount)) radix
 }
 
 func matchPvAndPvc(pv *v1.PersistentVolume, pvc *v1.PersistentVolumeClaim) {
-	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcName] = pvc.GetName()
-	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcNamespace] = pvc.GetNamespace()
 	pv.Spec.ClaimRef = &v1.ObjectReference{
 		APIVersion: "radixv1",
 		Kind:       k8s.KindPersistentVolumeClaim,
@@ -183,7 +181,6 @@ func createRandomPv(props expectedPvcPvProperties, namespace, componentName stri
 		pv.ObjectMeta.Name = pvName
 		pv.ObjectMeta.Labels[kube.RadixNamespace] = namespace
 		pv.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-		pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvName] = pvName
 	})
 }
 
@@ -211,7 +208,6 @@ func createRandomAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties
 		pv.ObjectMeta.Labels[kube.RadixNamespace] = namespace
 		pv.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
 		pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = anotherVolumeMountName
-		pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvName] = pvName
 	})
 }
 
@@ -423,9 +419,6 @@ func createPv(props expectedPvcPvProperties) *v1.PersistentVolume {
 					VolumeAttributes: map[string]string{
 						csiVolumeMountAttributeContainerName: props.blobStorageName,
 						csiVolumeMountAttributeProtocol:      csiVolumeAttributeProtocolParameterFuse2,
-						csiVolumeMountAttributePvName:        props.persistentVolumeName,
-						csiVolumeMountAttributePvcName:       props.pvcName,
-						csiVolumeMountAttributePvcNamespace:  props.namespace,
 						// skip auto-created by the provisioner "storage.kubernetes.io/csiProvisionerIdentity": "1732528668611-2190-blob.csi.azure.com"
 					},
 				},
@@ -463,9 +456,6 @@ func createAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, modi
 					VolumeAttributes: map[string]string{
 						csiVolumeMountAttributeContainerName:       props.blobStorageName,
 						csiVolumeMountAttributeProtocol:            csiVolumeAttributeProtocolParameterFuse2,
-						csiVolumeMountAttributePvName:              props.persistentVolumeName,
-						csiVolumeMountAttributePvcName:             props.pvcName,
-						csiVolumeMountAttributePvcNamespace:        props.namespace,
 						csiVolumeMountAttributeSecretNamespace:     props.namespace,
 						csiVolumeMountAttributeProvisionerIdentity: "6540128941979-5154-blob.csi.azure.com",
 					},
@@ -541,7 +531,6 @@ func getMountOptionsInRandomOrder(props expectedPvcPvProperties, extraOptions ..
 
 func setVolumeMountAttribute(pv *v1.PersistentVolume, radixVolumeMountType radixv1.MountType, containerName, pvcName string) {
 	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeContainerName] = containerName
-	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcName] = pvcName
 	switch radixVolumeMountType {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProtocol] = csiVolumeAttributeProtocolParameterFuse
