@@ -1563,10 +1563,6 @@ spec:
                                     Deprecated: use BlobFuse2 instead.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                                   type: string
-                                resourceGroup:
-                                  description: ResourceGroup of a storage account.
-                                    Applicable when using a workload identity.
-                                  type: string
                                 skuName:
                                   description: |-
                                     Deprecated: use BlobFuse2 instead.
@@ -1576,12 +1572,6 @@ spec:
                                   description: |-
                                     Deprecated: use BlobFuse2 instead.
                                     Storage defines the name of the container in the external storage resource.
-                                  type: string
-                                storageAccount:
-                                  description: Name of a storage account. It is mandatory
-                                    when using a workload identity. It is optional
-                                    when using Access Key, if it is not defined, it
-                                    will be configured in a secret.
                                   type: string
                                 type:
                                   description: |-
@@ -2781,10 +2771,6 @@ spec:
                               Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                             type: string
-                          resourceGroup:
-                            description: ResourceGroup of a storage account. Applicable
-                              when using a workload identity.
-                            type: string
                           skuName:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
@@ -2794,12 +2780,6 @@ spec:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
                               Storage defines the name of the container in the external storage resource.
-                            type: string
-                          storageAccount:
-                            description: Name of a storage account. It is mandatory
-                              when using a workload identity. It is optional when
-                              using Access Key, if it is not defined, it will be configured
-                              in a secret.
                             type: string
                           type:
                             description: |-
@@ -3693,10 +3673,6 @@ spec:
                                     Deprecated: use BlobFuse2 instead.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                                   type: string
-                                resourceGroup:
-                                  description: ResourceGroup of a storage account.
-                                    Applicable when using a workload identity.
-                                  type: string
                                 skuName:
                                   description: |-
                                     Deprecated: use BlobFuse2 instead.
@@ -3706,12 +3682,6 @@ spec:
                                   description: |-
                                     Deprecated: use BlobFuse2 instead.
                                     Storage defines the name of the container in the external storage resource.
-                                  type: string
-                                storageAccount:
-                                  description: Name of a storage account. It is mandatory
-                                    when using a workload identity. It is optional
-                                    when using Access Key, if it is not defined, it
-                                    will be configured in a secret.
                                   type: string
                                 type:
                                   description: |-
@@ -4291,10 +4261,6 @@ spec:
                               Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
                             type: string
-                          resourceGroup:
-                            description: ResourceGroup of a storage account. Applicable
-                              when using a workload identity.
-                            type: string
                           skuName:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
@@ -4304,12 +4270,6 @@ spec:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
                               Storage defines the name of the container in the external storage resource.
-                            type: string
-                          storageAccount:
-                            description: Name of a storage account. It is mandatory
-                              when using a workload identity. It is optional when
-                              using Access Key, if it is not defined, it will be configured
-                              in a secret.
                             type: string
                           type:
                             description: |-

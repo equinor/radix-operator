@@ -570,23 +570,31 @@ func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVo
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		attributes[csiVolumeMountAttributeContainerName] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
 		attributes[csiVolumeMountAttributeProtocol] = csiVolumeAttributeProtocolParameterFuse
+		attributes[csiVolumeMountAttributeSecretNamespace] = namespace
 	case radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
 		attributes[csiVolumeMountAttributeContainerName] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
 		attributes[csiVolumeMountAttributeProtocol] = csiVolumeAttributeProtocolParameterFuse2
-		if len(radixVolumeMount.StorageAccount) > 0 {
-			attributes[csiVolumeAttributeStorageAccount] = radixVolumeMount.StorageAccount
-		}
-		if useAzureIdentity {
-			attributes[csiVolumeAttributeClientID] = clientId
-			attributes[csiVolumeAttributeResourceGroup] = radixVolumeMount.ResourceGroup
+		if radixVolumeMount.BlobFuse2 != nil {
+			if len(radixVolumeMount.BlobFuse2.StorageAccount) > 0 {
+				attributes[csiVolumeAttributeStorageAccount] = radixVolumeMount.BlobFuse2.StorageAccount
+			}
+			if useAzureIdentity {
+				attributes[csiVolumeAttributeClientID] = clientId
+				attributes[csiVolumeAttributeResourceGroup] = radixVolumeMount.BlobFuse2.ResourceGroup
+				if len(radixVolumeMount.BlobFuse2.SubscriptionId) > 0 {
+					attributes[csiVolumeAttributeSubscriptionId] = radixVolumeMount.BlobFuse2.SubscriptionId
+				}
+				if len(radixVolumeMount.BlobFuse2.TenantId) > 0 {
+					attributes[csiVolumeAttributeTenantId] = radixVolumeMount.BlobFuse2.TenantId
+				}
+			} else {
+				attributes[csiVolumeMountAttributeSecretNamespace] = namespace
+			}
 		}
 	}
 	attributes[csiVolumeMountAttributePvName] = pvName
 	attributes[csiVolumeMountAttributePvcName] = pvcName
 	attributes[csiVolumeMountAttributePvcNamespace] = namespace
-	if !useAzureIdentity {
-		attributes[csiVolumeMountAttributeSecretNamespace] = namespace
-	}
 	// Do not specify the key storage.kubernetes.io/csiProvisionerIdentity in csi.volumeAttributes in PV specification. This key indicates dynamically provisioned PVs
 	// https://github.com/kubernetes-csi/external-provisioner/blob/master/pkg/controller/controller.go#L289C5-L289C21
 	// It looks like this: storage.kubernetes.io/csiProvisionerIdentity: 1731647415428-2825-blob.csi.azure.com
