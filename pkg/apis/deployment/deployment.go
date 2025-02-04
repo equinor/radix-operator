@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"sort"
 	"strings"
 	"time"
@@ -15,10 +14,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
@@ -31,9 +32,7 @@ import (
 )
 
 const (
-	// DefaultReplicas Hold the default replicas for the deployment if nothing is stated in the radix config
-	DefaultReplicas         int32 = 1
-	prometheusInstanceLabel       = "LABEL_PROMETHEUS_INSTANCE"
+	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 )
 
 // DeploymentSyncer defines interface for syncing a RadixDeployment
@@ -234,7 +233,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
-		jobSchedulerComponent := newJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
+		jobSchedulerComponent := internal.NewJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
 		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
 			errs = append(errs, err)
 		}
@@ -476,14 +475,6 @@ func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) strin
 	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
 }
 
-func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlob))
-}
-
-func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobFuse2FuseCsiAzure), string(v1.MountTypeBlobFuse2Fuse2CsiAzure), string(v1.MountTypeBlobFuse2NfsCsiAzure), string(v1.MountTypeAzureFileCsiAzure))
-}
-
 func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHistoryLimit int) {
 	if deploymentHistoryLimit <= 0 {
 		return
@@ -541,7 +532,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	err = deploy.reconcileDeployment(ctx, component)
+	err = deploy.reconcileDeployComponent(ctx, component)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
@@ -595,11 +586,15 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		}
 	}
 
+	if err = volumemount.GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace()); err != nil {
+		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
+	}
+
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, desiredDeployment)
+func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, jobKubeDeploymentName string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, namespace, jobKubeDeploymentName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -608,12 +603,9 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, de
 	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
 	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
 	desiredJobAuxDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForJobAPIAuxComponent()
-	// Copy volumes and volume mounts from desired deployment to job aux deployment
-	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
-	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
-	// Remove volumes and volume mounts from job scheduler deployment
-	desiredDeployment.Spec.Template.Spec.Volumes = nil
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
+	// Move volumes and volume mounts from desired deployment to job aux deployment
+	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = volumes
+	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
 	syncRadixRestartEnvironmentVariable(deployComponent, desiredJobAuxDeployment)
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
@@ -632,19 +624,14 @@ func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployCom
 	}
 }
 
-func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(ctx, desiredDeployment.Namespace, getJobAuxObjectName(desiredDeployment.Name))
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, namespace, jobKubeDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(jobKubeDeploymentName)
+	currentJobAuxDeployment, err := deploy.kubeutil.KubeClient().AppsV1().Deployments(namespace).Get(ctx, jobAuxKubeDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			return nil, deploy.createJobAuxDeployment(deployComponent), nil
+			return nil, deploy.createJobAuxDeployment(jobKubeDeploymentName, jobAuxKubeDeploymentName), nil
 		}
 		return nil, nil, err
 	}
-	desiredJobAuxDeployment := currentJobAuxDeployment.DeepCopy()
-	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Resources = resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(20))
-	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
-}
-
-func getJobAuxObjectName(jobName string) string {
-	return fmt.Sprintf("%s-aux", jobName)
+	return currentJobAuxDeployment, currentJobAuxDeployment.DeepCopy(), nil
 }

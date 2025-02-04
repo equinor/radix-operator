@@ -21,6 +21,7 @@ import (
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -401,7 +402,7 @@ func isRadixConfigNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.
 	if len(currentRdConfigHash) == 0 {
 		return true, nil
 	}
-	hashEqual, err := internal.CompareRadixApplicationHash(currentRdConfigHash, ra)
+	hashEqual, err := hash.CompareRadixApplicationHash(currentRdConfigHash, ra)
 	if !hashEqual && err == nil {
 		log.Ctx(ctx).Info().Msgf("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
 	}
@@ -416,7 +417,7 @@ func isBuildSecretNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.
 	if len(targetHash) == 0 {
 		return true, nil
 	}
-	hashEqual, err := internal.CompareBuildSecretHash(targetHash, buildSecret)
+	hashEqual, err := hash.CompareBuildSecretHash(targetHash, buildSecret)
 	if !hashEqual && err == nil {
 		log.Ctx(ctx).Info().Msgf("Build secrets updated since last deployment to environment %s", rd.Spec.Environment)
 	}

@@ -93,7 +93,7 @@ spec:
             azure:
               clientId: 11111111-2222-3333-4444-555555555555
           volumeMounts:
-            - type: blob
+            - type: azure-blob
               name: blobvol
               container: blobcontainer
               path: /path/to/mount
@@ -202,7 +202,7 @@ spec:
             azure:
               clientId: 11111111-2222-3333-4444-555555555555
           volumeMounts:
-            - type: blob
+            - type: azure-blob
               name: blobvol
               container: blobcontainer
               path: /path/to/mount

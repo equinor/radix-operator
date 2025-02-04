@@ -170,9 +170,19 @@ generate: bootstrap code-gen crds mocks
 verify-generate: bootstrap generate
 	git diff --exit-code
 
+.PHONY: apply-ra
+apply-ra: bootstrap
+	kubectl apply -f ./charts/radix-operator/templates/radixapplication.yaml
+
+.PHONY: apply-rd
+apply-rd: bootstrap
+	kubectl apply -f ./charts/radix-operator/templates/radixdeployment.yaml
+
 HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
 HAS_MOCKGEN       := $(shell command -v mockgen;)
 HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
+HAS_YQ := $(shell command -v yq;)
+HAS_KUBECTL := $(shell command -v kubectl;)
 
 .PHONY: bootstrap
 bootstrap: vendor
@@ -184,4 +194,10 @@ ifndef HAS_MOCKGEN
 endif
 ifndef HAS_CONTROLLER_GEN
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.2
+endif
+ifndef HAS_YQ
+	go install github.com/mikefarah/yq/v4@latest
+endif
+ifndef HAS_KUBECTL
+	go install k8s.io/kubernetes/cmd/kubectl@latest
 endif

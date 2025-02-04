@@ -1,7 +1,6 @@
 package branch
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,12 +39,13 @@ func TestMatchesPattern(t *testing.T) {
 	assert.False(t, MatchesPattern("release", "release/q3/0.1.3"))
 	assert.False(t, MatchesPattern("release/*", "release"))
 	assert.False(t, MatchesPattern("release/**/*", "release"))
-	assert.False(t, MatchesPattern("(test)|(main)/*", "release/t"))
+	assert.False(t, MatchesPattern("(test)|(main)/.*", "release/t"))
 	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1q.0.2"))
 	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1..2"))
 	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1.2"))
 	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+\\.*", "v1.2.20-asdf"))
 
+	assert.True(t, MatchesPattern("test/*/tull", "test/test1/test2/tull"))
 	assert.True(t, MatchesPattern("release/*", "release/q3/0.1.3"))
 	assert.True(t, MatchesPattern("test/*/tull", "test/test1/test2/tull"))
 	assert.True(t, MatchesPattern("**", "test"))
@@ -75,12 +75,10 @@ func TestMatchesPattern(t *testing.T) {
 	assert.True(t, MatchesPattern("release/**/*", "release/q3/0.1.3"))
 	assert.True(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1.0.2"))
 	assert.True(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v123.033.2112"))
+	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1q.0.2"))
+	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1..2"))
+	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1.2"))
+	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+\\.*", "v1.2.20-asdf"))
 	assert.True(t, MatchesPattern("(test)|(main)/*", "test/t"))
 	assert.True(t, MatchesPattern("(test)|(main)/*", "main/t"))
-}
-
-func TestMatchesPattern2(t *testing.T) {
-	replace := strings.NewReplacer("**", "*", ".**", ".*", "*", ".*", "..*", ".*").Replace("*/w*f**f*.***.**.*")
-	assert.NotEmpty(t, replace)
-	//assert.True(t, MatchesPattern(".**", "test/test-test"))
 }

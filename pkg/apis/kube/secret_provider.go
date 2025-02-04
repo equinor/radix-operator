@@ -61,8 +61,7 @@ func GetComponentSecretProviderClassName(radixDeploymentName, radixDeployCompone
 	// by naming component the same as secret-ref object
 	hash := strings.ToLower(commonUtils.RandStringStrSeed(5, strings.ToLower(fmt.Sprintf("%s-%s-%s-%s",
 		radixDeployComponentName, radixDeploymentName, radixSecretRefType, secretRefName))))
-	return strings.ToLower(fmt.Sprintf("%s-%s-%s-%s", radixDeployComponentName, radixSecretRefType, secretRefName,
-		hash))
+	return strings.ToLower(fmt.Sprintf("%s-%s-%s-%s", radixDeployComponentName, radixSecretRefType, secretRefName, hash))
 }
 
 // BuildAzureKeyVaultSecretProviderClass Build a SecretProviderClass for Azure Key vault secret-ref

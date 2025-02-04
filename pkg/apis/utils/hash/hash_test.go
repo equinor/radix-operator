@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pipeline-runner/internal/hash"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

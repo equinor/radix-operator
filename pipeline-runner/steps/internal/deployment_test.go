@@ -50,7 +50,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 						}).
 						WithVolumeMounts([]radixv1.RadixVolumeMount{
 							{
-								Type:      radixv1.MountTypeBlob,
+								Type:      radixv1.MountTypeBlobFuse2FuseCsiAzure,
 								Container: "some-container",
 								Path:      "some-path",
 							},

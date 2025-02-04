@@ -1171,65 +1171,20 @@ spec:
                         properties:
                           accessMode:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
                             - ReadOnlyMany
                             - ReadWriteOnce
                             - ReadWriteMany
                             - ""
                             type: string
-                          azureFile:
-                            description: AzureFile settings for Azure File CSI driver
-                            properties:
-                              accessMode:
-                                description: |-
-                                  Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - ReadOnlyMany
-                                - ReadWriteOnce
-                                - ReadWriteMany
-                                - ""
-                                type: string
-                              bindingMode:
-                                description: |-
-                                  Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - Immediate
-                                - WaitForFirstConsumer
-                                - ""
-                                type: string
-                              gid:
-                                description: GID defines the group ID (number) which
-                                  will be set as owner of the mounted volume.
-                                type: string
-                              requestsStorage:
-                                description: |-
-                                  Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
-                                  More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-                                type: string
-                              share:
-                                description: Share. Name of the file share in the
-                                  external storage resource.
-                                type: string
-                              skuName:
-                                description: |-
-                                  SKU Type of Azure storage.
-                                  More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-                                type: string
-                              uid:
-                                description: UID defines the user ID (number) which
-                                  will be set as owner of the mounted volume.
-                                type: string
-                            type: object
                           bindingMode:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
                             - Immediate
                             - WaitForFirstConsumer
@@ -1237,7 +1192,7 @@ spec:
                             type: string
                           blobFuse2:
                             description: BlobFuse2 settings for Azure Storage FUSE
-                              CSI driver
+                              CSI driver with the protocol fuse2
                             properties:
                               accessMode:
                                 description: |-
@@ -1271,13 +1226,16 @@ spec:
                                   FUSE driver. Default is fuse2.
                                 enum:
                                 - fuse2
-                                - nfs
                                 - ""
                                 type: string
                               requestsStorage:
                                 description: |-
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+                                type: string
+                              resourceGroup:
+                                description: ResourceGroup of a storage account. Applicable
+                                  when using a workload identity.
                                 type: string
                               skuName:
                                 description: |-
@@ -1289,6 +1247,12 @@ spec:
                                 - Standard_GRS
                                 - Standard_RAGRS
                                 - ""
+                                type: string
+                              storageAccount:
+                                description: Name of a storage account. It is mandatory
+                                  when using a workload identity. It is optional when
+                                  using Access Key, if it is not defined, it will
+                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -1330,6 +1294,14 @@ spec:
                                     minimum: 1
                                     type: integer
                                 type: object
+                              subscriptionId:
+                                description: SubscriptionId of a storage account.
+                                  Applicable when using a workload identity.
+                                type: string
+                              tenantId:
+                                description: TenantId of a storage account. Applicable
+                                  when using a workload identity.
+                                type: string
                               uid:
                                 description: UID defines the user ID (number) which
                                   will be set as owner of the mounted volume.
@@ -1339,11 +1311,17 @@ spec:
                                   Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
                                   Default false. This must be turned on when HNS enabled account is mounted.
                                 type: boolean
+                              useAzureIdentity:
+                                description: UseAzureIdentity defines that credentials
+                                  for accessing Azure Storage will be acquired using
+                                  Azure Workload Identity instead of using a ClientID
+                                  and Secret.
+                                type: boolean
                             required:
                             - container
                             type: object
                           container:
-                            description: 'Deprecated. Only required by the deprecated
+                            description: 'Deprecated: Only required by the deprecated
                               type: blob.'
                             type: string
                           emptyDir:
@@ -1362,8 +1340,8 @@ spec:
                             type: object
                           gid:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               GID defines the group ID (number) which will be set as owner of the mounted volume.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           name:
                             description: |-
@@ -1379,33 +1357,31 @@ spec:
                             type: string
                           requestsStorage:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           skuName:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           storage:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Storage defines the name of the container in the external storage resource.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           type:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Type defines the storage type.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
-                            - blob
                             - azure-blob
-                            - azure-file
                             - ""
                             type: string
                           uid:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               UID defines the user ID (number) which will be set as owner of the mounted volume.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                         required:
                         - name
@@ -1818,65 +1794,20 @@ spec:
                         properties:
                           accessMode:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
                             - ReadOnlyMany
                             - ReadWriteOnce
                             - ReadWriteMany
                             - ""
                             type: string
-                          azureFile:
-                            description: AzureFile settings for Azure File CSI driver
-                            properties:
-                              accessMode:
-                                description: |-
-                                  Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - ReadOnlyMany
-                                - ReadWriteOnce
-                                - ReadWriteMany
-                                - ""
-                                type: string
-                              bindingMode:
-                                description: |-
-                                  Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - Immediate
-                                - WaitForFirstConsumer
-                                - ""
-                                type: string
-                              gid:
-                                description: GID defines the group ID (number) which
-                                  will be set as owner of the mounted volume.
-                                type: string
-                              requestsStorage:
-                                description: |-
-                                  Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
-                                  More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-                                type: string
-                              share:
-                                description: Share. Name of the file share in the
-                                  external storage resource.
-                                type: string
-                              skuName:
-                                description: |-
-                                  SKU Type of Azure storage.
-                                  More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-                                type: string
-                              uid:
-                                description: UID defines the user ID (number) which
-                                  will be set as owner of the mounted volume.
-                                type: string
-                            type: object
                           bindingMode:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
                             - Immediate
                             - WaitForFirstConsumer
@@ -1884,7 +1815,7 @@ spec:
                             type: string
                           blobFuse2:
                             description: BlobFuse2 settings for Azure Storage FUSE
-                              CSI driver
+                              CSI driver with the protocol fuse2
                             properties:
                               accessMode:
                                 description: |-
@@ -1918,13 +1849,16 @@ spec:
                                   FUSE driver. Default is fuse2.
                                 enum:
                                 - fuse2
-                                - nfs
                                 - ""
                                 type: string
                               requestsStorage:
                                 description: |-
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+                                type: string
+                              resourceGroup:
+                                description: ResourceGroup of a storage account. Applicable
+                                  when using a workload identity.
                                 type: string
                               skuName:
                                 description: |-
@@ -1936,6 +1870,12 @@ spec:
                                 - Standard_GRS
                                 - Standard_RAGRS
                                 - ""
+                                type: string
+                              storageAccount:
+                                description: Name of a storage account. It is mandatory
+                                  when using a workload identity. It is optional when
+                                  using Access Key, if it is not defined, it will
+                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -1977,6 +1917,14 @@ spec:
                                     minimum: 1
                                     type: integer
                                 type: object
+                              subscriptionId:
+                                description: SubscriptionId of a storage account.
+                                  Applicable when using a workload identity.
+                                type: string
+                              tenantId:
+                                description: TenantId of a storage account. Applicable
+                                  when using a workload identity.
+                                type: string
                               uid:
                                 description: UID defines the user ID (number) which
                                   will be set as owner of the mounted volume.
@@ -1986,11 +1934,17 @@ spec:
                                   Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
                                   Default false. This must be turned on when HNS enabled account is mounted.
                                 type: boolean
+                              useAzureIdentity:
+                                description: UseAzureIdentity defines that credentials
+                                  for accessing Azure Storage will be acquired using
+                                  Azure Workload Identity instead of using a ClientID
+                                  and Secret.
+                                type: boolean
                             required:
                             - container
                             type: object
                           container:
-                            description: 'Deprecated. Only required by the deprecated
+                            description: 'Deprecated: Only required by the deprecated
                               type: blob.'
                             type: string
                           emptyDir:
@@ -2009,8 +1963,8 @@ spec:
                             type: object
                           gid:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               GID defines the group ID (number) which will be set as owner of the mounted volume.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           name:
                             description: |-
@@ -2026,33 +1980,31 @@ spec:
                             type: string
                           requestsStorage:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           skuName:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           storage:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Storage defines the name of the container in the external storage resource.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           type:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Type defines the storage type.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
-                            - blob
                             - azure-blob
-                            - azure-file
                             - ""
                             type: string
                           uid:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               UID defines the user ID (number) which will be set as owner of the mounted volume.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                         required:
                         - name

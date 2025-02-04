@@ -137,6 +137,7 @@ func validatePrivateImageHubs(app *radixv1.RadixApplication) error {
 // RAContainsOldPublic Checks to see if the radix config is using the deprecated config for public port
 func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 	for _, component := range app.Spec.Components {
+		//nolint:staticcheck
 		if component.Public {
 			return true
 		}
@@ -580,6 +581,7 @@ func validateVerificationType(verificationType *radixv1.VerificationType) error 
 func componentHasPublicPort(component *radixv1.RadixComponent) bool {
 	return slice.Any(component.GetPorts(),
 		func(p radixv1.ComponentPort) bool {
+			//nolint:staticcheck
 			return len(p.Name) > 0 && (p.Name == component.PublicPort || component.Public)
 		})
 }
@@ -1584,7 +1586,7 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 		}
 
 		volumeSourceCount := len(slice.FindAll(
-			[]bool{v.HasDeprecatedVolume(), v.HasBlobFuse2(), v.HasAzureFile(), v.HasEmptyDir()},
+			[]bool{v.HasDeprecatedVolume(), v.HasBlobFuse2(), v.HasEmptyDir()},
 			func(b bool) bool { return b }),
 		)
 		if volumeSourceCount > 1 {
@@ -1603,10 +1605,6 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 			if err := validateVolumeMountBlobFuse2(v.BlobFuse2); err != nil {
 				return volumeMountValidationError(v.Name, err)
 			}
-		case v.HasAzureFile():
-			if err := validateVolumeMountAzureFile(v.AzureFile); err != nil {
-				return volumeMountValidationError(v.Name, err)
-			}
 		case v.HasEmptyDir():
 			if err := validateVolumeMountEmptyDir(v.EmptyDir); err != nil {
 				return volumeMountValidationError(v.Name, err)
@@ -1618,32 +1616,26 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 }
 
 func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
-	if !slices.Contains([]radixv1.MountType{radixv1.MountTypeBlob, radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure}, v.Type) {
+	//nolint:staticcheck
+	if v.Type != radixv1.MountTypeBlobFuse2FuseCsiAzure {
 		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountInvalidType)
 	}
-
+	//nolint:staticcheck
 	if len(v.RequestsStorage) > 0 {
+		//nolint:staticcheck
 		if _, err := resource.ParseQuantity(v.RequestsStorage); err != nil {
 			return volumeMountDeprecatedSourceValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
 		}
 	}
-
-	switch v.Type {
-	case radixv1.MountTypeBlob:
-		if len(v.Container) == 0 {
-			return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingContainer)
-		}
-	case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure:
-		if len(v.Storage) == 0 {
-			return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
-		}
+	//nolint:staticcheck
+	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Container) == 0 {
+		return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingContainer)
 	}
-
 	return nil
 }
 
 func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) error {
-	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, radixv1.BlobFuse2ProtocolNfs, ""}, fuse2.Protocol) {
+	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, ""}, fuse2.Protocol) {
 		return volumeMountBlobFuse2ValidationError(ErrVolumeMountInvalidProtocol)
 	}
 
@@ -1657,10 +1649,6 @@ func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) erro
 		}
 	}
 	return nil
-}
-
-func validateVolumeMountAzureFile(_ *radixv1.RadixAzureFileVolumeMount) error {
-	return volumeMountAzureFileValidationError(ErrVolumeMountTypeNotImplemented)
 }
 
 func validateVolumeMountEmptyDir(emptyDir *radixv1.RadixEmptyDirVolumeMount) error {
@@ -1735,6 +1723,7 @@ func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
 	for _, component := range app.Spec.Components {
 		if component.Name == name {
+			//nolint:staticcheck
 			return component.Public || component.PublicPort != ""
 		}
 	}
