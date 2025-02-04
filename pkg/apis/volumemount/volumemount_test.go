@@ -4,11 +4,11 @@ package volumemount
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/internal"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"

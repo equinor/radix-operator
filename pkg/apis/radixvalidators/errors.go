@@ -9,35 +9,32 @@ import (
 )
 
 var (
-	ErrMissingPrivateImageHubUsername                  = errors.New("missing private image hub username")
-	ErrEnvForDNSAppAliasNotDefined                     = errors.New("env for dns app alias not defined")
-	ErrComponentForDNSAppAliasNotDefined               = errors.New("component for dns app alias not defined")
-	ErrExternalAliasCannotBeEmpty                      = errors.New("external alias cannot be empty")
-	ErrEnvForDNSExternalAliasNotDefined                = errors.New("env for dns external alias not defined")
-	ErrComponentForDNSExternalAliasNotDefined          = errors.New("component for dns external alias not defined")
-	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic = errors.New("component for dns external alias is not marked as public")
-	ErrComponentHasInvalidHealthCheck                  = errors.New("component has invalid health check")
-	ErrEnvironmentReferencedByComponentDoesNotExist    = errors.New("environment referenced by component does not exist")
-	ErrInvalidPortNameLength                           = errors.New("invalid port name length")
-	ErrPortNameIsRequiredForPublicComponent            = errors.New("port name is required for public component")
-	ErrMonitoringPortNameIsNotFoundComponent           = errors.New("monitoring port name is not found component")
-	ErrMultipleMatchingPortNames                       = errors.New("multiple matching port names")
-	ErrSchedulerPortCannotBeEmptyForJob                = errors.New("scheduler port cannot be empty for job")
-	ErrPayloadPathCannotBeEmptyForJob                  = errors.New("payload path cannot be empty for job")
-	ErrMemoryResourceRequirementFormat                 = errors.New("memory resource requirement format")
-	ErrCPUResourceRequirementFormat                    = errors.New("cpu resource requirement format")
-	ErrInvalidVerificationType                         = errors.New("invalid verification")
-	ErrInvalidHealthCheckProbe                         = errors.New("probe configuration error, only one action allowed")
-	ErrSuccessThresholdMustBeOne                       = errors.New("success threshold must be equal to one")
-	ErrResourceRequestOverLimit                        = errors.New("resource request over limit")
-	ErrInvalidResource                                 = errors.New("invalid resource")
-	ErrDuplicateExternalAlias                          = errors.New("duplicate external alias")
-	ErrInvalidBranchName                               = errors.New("invalid branch name")
-	ErrCombiningTriggersWithResourcesIsIllegal         = errors.New("combining triggers with resources is invalid")
-	ErrMaxReplicasForHPANotSetOrZero                   = errors.New("max replicas for hpa not set or zero")
-	ErrMinReplicasGreaterThanMaxReplicas               = errors.New("min replicas greater than max replicas")
-	// Deprecated: Replaced by ErrInvalidTriggerDefinition
-	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set")
+	ErrMissingPrivateImageHubUsername                                      = errors.New("missing private image hub username")
+	ErrEnvForDNSAppAliasNotDefined                                         = errors.New("env for dns app alias not defined")
+	ErrComponentForDNSAppAliasNotDefined                                   = errors.New("component for dns app alias not defined")
+	ErrExternalAliasCannotBeEmpty                                          = errors.New("external alias cannot be empty")
+	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dns external alias not defined")
+	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dns external alias not defined")
+	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
+	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
+	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
+	ErrPortNameIsRequiredForPublicComponent                                = errors.New("port name is required for public component")
+	ErrMonitoringPortNameIsNotFoundComponent                               = errors.New("monitoring port name is not found component")
+	ErrMultipleMatchingPortNames                                           = errors.New("multiple matching port names")
+	ErrSchedulerPortCannotBeEmptyForJob                                    = errors.New("scheduler port cannot be empty for job")
+	ErrPayloadPathCannotBeEmptyForJob                                      = errors.New("payload path cannot be empty for job")
+	ErrMemoryResourceRequirementFormat                                     = errors.New("memory resource requirement format")
+	ErrCPUResourceRequirementFormat                                        = errors.New("cpu resource requirement format")
+	ErrInvalidVerificationType                                             = errors.New("invalid verification")
+	ErrInvalidHealthCheckProbe                                             = errors.New("probe configuration error, only one action allowed")
+	ErrSuccessThresholdMustBeOne                                           = errors.New("success threshold must be equal to one")
+	ErrResourceRequestOverLimit                                            = errors.New("resource request over limit")
+	ErrInvalidResource                                                     = errors.New("invalid resource")
+	ErrDuplicateExternalAlias                                              = errors.New("duplicate external alias")
+	ErrInvalidBranchName                                                   = errors.New("invalid branch name")
+	ErrCombiningTriggersWithResourcesIsIllegal                             = errors.New("combining triggers with resources is invalid")
+	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpa not set or zero")
+	ErrMinReplicasGreaterThanMaxReplicas                                   = errors.New("min replicas greater than max replicas")
 	ErrNoDefinitionInTrigger                                               = errors.New("no definition in trigger")
 	ErrMoreThanOneDefinitionInTrigger                                      = errors.New("each trigger must contain only one definition")
 	ErrInvalidTriggerDefinition                                            = errors.New("invalid trigger definition")
@@ -50,7 +47,6 @@ var (
 	ErrVolumeMountDuplicateName                                            = errors.New("duplicate name")
 	ErrVolumeMountMissingPath                                              = errors.New("path not set")
 	ErrVolumeMountDuplicatePath                                            = errors.New("duplicate path")
-	ErrVolumeMountMissingStorage                                           = errors.New("storage not set")
 	ErrVolumeMountMissingContainer                                         = errors.New("container not set")
 	ErrVolumeMountInvalidProtocol                                          = errors.New("invalid protocol")
 	ErrVolumeMountInvalidRequestsStorage                                   = errors.New("requestsStorage is invalid")
@@ -66,10 +62,8 @@ var (
 	ErrComponentNameReservedSuffix                                         = errors.New("component name reserved suffix")
 	ErrSecretNameConflictsWithEnvironmentVariable                          = errors.New("secret name conflicts with environment")
 	ErrInvalidStringValueMaxLength                                         = errors.New("invalid string value max length")
-	ErrInvalidStringValueMinLength                                         = errors.New("invalid string value min length")
 	ErrResourceNameCannotBeEmpty                                           = errors.New("resource name cannot be empty")
 	ErrInvalidUUID                                                         = errors.New("invalid")
-	ErrInvalidEmail                                                        = errors.New("invalid email")
 	ErrInvalidResourceName                                                 = errors.New("invalid resource name")
 	ErrInvalidLowerCaseAlphaNumericDashResourceName                        = errors.New("invalid lower case alpha numeric dash resource name")
 	ErrNoRegistrationExistsForApplication                                  = errors.New("no registration exists for application")
@@ -86,7 +80,7 @@ var (
 	ErrOAuthOidcEmpty                                                      = errors.Wrap(ErrOauth, "oauth oidc empty")
 	ErrOAuthOidcSkipDiscoveryEmpty                                         = errors.Wrap(ErrOauth, "oauth oidc skip discovery empty")
 	ErrOAuthRedisStoreEmpty                                                = errors.Wrap(ErrOauth, "oauth redis store empty")
-	ErrOAuthRedisStoreConnectionURLEmpty                                   = errors.Wrap(ErrOauth, "oauth redis store connection urlempty")
+	ErrOAuthRedisStoreConnectionURLEmpty                                   = errors.Wrap(ErrOauth, "oauth redis store connection url empty")
 	ErrOAuthCookieStoreMinimalIncorrectSetXAuthRequestHeaders              = errors.Wrap(ErrOauth, "oauth cookie store minimal incorrect set xauth request headers")
 	ErrOAuthCookieStoreMinimalIncorrectSetAuthorizationHeader              = errors.Wrap(ErrOauth, "oauth cookie store minimal incorrect set authorization header")
 	ErrOAuthCookieStoreMinimalIncorrectCookieRefreshInterval               = errors.Wrap(ErrOauth, "oauth cookie store minimal incorrect cookie refresh interval")
@@ -315,7 +309,7 @@ func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMess
 	return errors.WithMessagef(ErrComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag, "component %s with image tag set on environment config for environment %s requires %s on image setting", componentName, environment, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
-// ComponentWithDynamicTagRequiresTagInEnvironmentConfigWithMessage Error if image is set with dynamic tag and tag is missing
+// ComponentNameReservedSuffixErrorWithMessage Component uses a reserved suffix
 func ComponentNameReservedSuffixErrorWithMessage(componentName, componentType, suffix string) error {
 	return errors.WithMessagef(ErrComponentNameReservedSuffix, "%s %s using reserved suffix %s", componentType, componentName, suffix)
 }
@@ -328,11 +322,6 @@ func SecretNameConflictsWithEnvironmentVariableWithMessage(componentName, secret
 // InvalidAppNameLengthErrorWithMessage Invalid app length
 func InvalidAppNameLengthErrorWithMessage(value string) error {
 	return InvalidStringValueMaxLengthErrorWithMessage("app name", value, 253)
-}
-
-// InvalidStringValueMinLengthErrorWithMessage Invalid string value min length
-func InvalidStringValueMinLengthErrorWithMessage(resourceName, value string, minValue int) error {
-	return errors.WithMessagef(ErrInvalidStringValueMinLength, "%s (\"%s\") min length is %d", resourceName, value, minValue)
 }
 
 // InvalidStringValueMaxLengthErrorWithMessage Invalid string value max length
@@ -348,11 +337,6 @@ func ResourceNameCannotBeEmptyErrorWithMessage(resourceName string) error {
 // InvalidUUIDErrorWithMessage Invalid UUID
 func InvalidUUIDErrorWithMessage(resourceName string, uuid string) error {
 	return errors.WithMessagef(ErrInvalidUUID, "field %s does not contain a valid UUID (value: %s)", resourceName, uuid)
-}
-
-// InvalidEmailErrorWithMessage Invalid email
-func InvalidEmailErrorWithMessage(resourceName, email string) error {
-	return errors.WithMessagef(ErrInvalidEmail, "field %s does not contain a valid email (value: %s)", resourceName, email)
 }
 
 // InvalidResourceNameErrorWithMessage Invalid resource name
