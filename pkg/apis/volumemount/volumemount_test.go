@@ -4,11 +4,11 @@ package volumemount
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/internal"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -877,6 +877,43 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 				expectedPvs: []corev1.PersistentVolume{
 					pvForAnotherComponent,
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, props.componentName, props.radixVolumeMountName)
+			existingPvc.Spec.VolumeName = "" //auto-provisioned PVCs have empty volume name
+			expectedPvc := createRandomPvc(props, props.namespace, componentName1)
+			expectedPv := createRandomPv(props, props.namespace, componentName1)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Create PV for existing PVC without PV name",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{},
+				expectedPvs: []corev1.PersistentVolume{
 					expectedPv,
 				},
 			}

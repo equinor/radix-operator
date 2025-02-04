@@ -838,7 +838,7 @@ func createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, kubeCli
 	if !pvExists && pvcExists {
 		pvName = existingPvc.Spec.VolumeName
 		if len(pvName) == 0 {
-			pvName = getCsiAzurePvName()
+			pvName = getCsiAzurePvName() // for auto-provisioned persistent volume
 		}
 	}
 	needToCreatePvc := !pvcExists

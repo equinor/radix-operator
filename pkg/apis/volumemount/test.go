@@ -608,6 +608,7 @@ func createExpectedAutoProvisionedPvcWithStorageClass(props expectedPvcPvPropert
 			},
 			VolumeName:       props.persistentVolumeName,
 			StorageClassName: pointers.Ptr("some-storage-class"),
+			VolumeMode:       pointers.Ptr(v1.PersistentVolumeFilesystem),
 		},
 		Status: v1.PersistentVolumeClaimStatus{
 			Phase:       v1.ClaimBound,
