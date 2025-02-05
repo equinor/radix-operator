@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	"github.com/equinor/radix-operator/pkg/apis/internal"
 	internalDeployment "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -123,7 +122,7 @@ func GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx context.Context
 func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
 	var volumeMountSecretsToManage []string
 	for _, volumeMount := range volumeMounts {
-		if UseAzureIdentityForVolumeMount(&volumeMount) {
+		if volumeMount.HasEmptyDir() || volumeMount.UseAzureIdentity() {
 			continue
 		}
 		secretName, accountKey, accountName := getCsiAzureVolumeMountCredsSecrets(ctx, kubeUtil, namespace, componentName, volumeMount.Name)
@@ -504,8 +503,8 @@ func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quan
 }
 
 func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) *corev1.PersistentVolume {
-	identityClientId := internal.GetIdentityClientId(identity)
-	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount)
+	identityClientId := identity.GetAzure().GetClientId()
+	useAzureIdentity := radixVolumeMount.UseAzureIdentity()
 	pv := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pvName,
@@ -526,7 +525,7 @@ func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, 
 				CSI: &corev1.CSIPersistentVolumeSource{
 					Driver:           provisionerBlobCsiAzure,
 					VolumeHandle:     getVolumeHandle(namespace, componentName, pvName, getRadixVolumeMountStorage(radixVolumeMount)),
-					VolumeAttributes: getCsiAzurePvAttributes(namespace, radixVolumeMount, pvName, pvcName, useAzureIdentity, identityClientId),
+					VolumeAttributes: getCsiAzurePvAttributes(namespace, radixVolumeMount, useAzureIdentity, identityClientId),
 				},
 			},
 		},
@@ -545,19 +544,6 @@ func getVolumeHandle(namespace, componentName, pvName, storageName string) strin
 	return fmt.Sprintf("%s#%s#%s#%s", namespace, componentName, pvName, storageName)
 }
 
-func getUseAzureIdentity(identity *radixv1.Identity, radixVolumeMount *radixv1.RadixVolumeMount) bool {
-	if len(internal.GetIdentityClientId(identity)) == 0 {
-		return false
-	}
-	return UseAzureIdentityForVolumeMount(radixVolumeMount)
-}
-
-// UseAzureIdentityForVolumeMount Returns true if the volume mount should use Azure Identity
-func UseAzureIdentityForVolumeMount(radixVolumeMount *radixv1.RadixVolumeMount) bool {
-	return radixVolumeMount != nil && radixVolumeMount.BlobFuse2 != nil &&
-		radixVolumeMount.BlobFuse2.UseAzureIdentity != nil && *radixVolumeMount.BlobFuse2.UseAzureIdentity
-}
-
 func getCsiAzurePvLabels(appName, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) map[string]string {
 	return map[string]string{
 		kube.RadixAppLabel:             appName,
@@ -567,7 +553,7 @@ func getCsiAzurePvLabels(appName, namespace, componentName string, radixVolumeMo
 	}
 }
 
-func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVolumeMount, pvName, pvcName string, useAzureIdentity bool, clientId string) map[string]string {
+func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVolumeMount, useAzureIdentity bool, clientId string) map[string]string {
 	attributes := make(map[string]string)
 	switch GetCsiAzureVolumeMountType(radixVolumeMount) {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:

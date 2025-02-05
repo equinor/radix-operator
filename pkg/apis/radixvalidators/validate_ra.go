@@ -18,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -1466,24 +1465,24 @@ func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, component := range app.Spec.Components {
-		hasComponentIdentityAzureClientId := len(internal.GetIdentityClientId(component.Identity)) > 0
+		hasComponentIdentityAzureClientId := len(component.Identity.GetAzure().GetClientId()) > 0
 		if err := validateVolumeMounts(component.VolumeMounts, hasComponentIdentityAzureClientId); err != nil {
 			errs = append(errs, volumeMountValidationFailedForComponent(component.Name, err))
 		}
 		for _, envConfig := range component.EnvironmentConfig {
-			hasEnvIdentityAzureClientId := len(internal.GetIdentityClientId(envConfig.GetIdentity())) > 0
+			hasEnvIdentityAzureClientId := hasComponentIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
 			if err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId); err != nil {
 				errs = append(errs, volumeMountValidationFailedForComponentInEnvironment(component.Name, envConfig.Environment, err))
 			}
 		}
 	}
 	for _, job := range app.Spec.Jobs {
-		hasJobIdentityAzureClientId := len(internal.GetIdentityClientId(job.Identity)) > 0
+		hasJobIdentityAzureClientId := len(job.Identity.GetAzure().GetClientId()) > 0
 		if err := validateVolumeMounts(job.VolumeMounts, hasJobIdentityAzureClientId); err != nil {
 			errs = append(errs, volumeMountValidationFailedForJobComponent(job.Name, err))
 		}
 		for _, envConfig := range job.EnvironmentConfig {
-			hasEnvIdentityAzureClientId := len(internal.GetIdentityClientId(envConfig.GetIdentity())) > 0
+			hasEnvIdentityAzureClientId := hasJobIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
 			if err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId); err != nil {
 				errs = append(errs, volumeMountValidationFailedForJobComponentInEnvironment(job.Name, envConfig.Environment, err))
 			}

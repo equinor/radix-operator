@@ -985,16 +985,24 @@ type RadixVolumeMount struct {
 	EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
 }
 
+// HasDeprecatedVolume returns true if the volume mount is configured to use the deprecated volume type
 func (v *RadixVolumeMount) HasDeprecatedVolume() bool {
 	return len(v.Type) > 0
 }
 
+// HasBlobFuse2 returns true if the volume mount is configured to use BlobFuse2
 func (v *RadixVolumeMount) HasBlobFuse2() bool {
 	return v.BlobFuse2 != nil
 }
 
+// HasEmptyDir returns true if the volume mount is configured to use EmptyDir
 func (v *RadixVolumeMount) HasEmptyDir() bool {
 	return v.EmptyDir != nil
+}
+
+// UseAzureIdentity returns true if the volume mount is configured to use Azure Identity
+func (v *RadixVolumeMount) UseAzureIdentity() bool {
+	return v.HasBlobFuse2() && v.BlobFuse2.UseAzureIdentity != nil && *v.BlobFuse2.UseAzureIdentity
 }
 
 type RadixEmptyDirVolumeMount struct {
@@ -1935,4 +1943,20 @@ func getSourceForEnvironment(component RadixCommonComponent, environment string)
 		}
 	}
 	return source
+}
+
+// GetAzure Get component Azure identity configuration
+func (identity *Identity) GetAzure() *AzureIdentity {
+	if identity == nil {
+		return nil
+	}
+	return identity.Azure
+}
+
+// GetClientId Get Azure identity client ID
+func (azureIdentity *AzureIdentity) GetClientId() string {
+	if azureIdentity == nil {
+		return ""
+	}
+	return azureIdentity.ClientId
 }
