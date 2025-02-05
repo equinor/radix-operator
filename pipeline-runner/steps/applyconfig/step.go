@@ -59,8 +59,9 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	appName := cli.GetAppName()
 	// Get pipeline info from configmap created by prepare pipeline step
-	namespace := operatorutils.GetAppNamespace(cli.GetAppName())
+	namespace := operatorutils.GetAppNamespace(appName)
 	configMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.RadixConfigMapName)
 	if err != nil {
 		return err
@@ -77,7 +78,7 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
-	ra, err := pipelineApplication.CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
+	ra, err := pipelineApplication.CreateRadixApplication(ctx, cli.GetRadixclient(), appName, pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
 	if err != nil {
 		return err
 	}
