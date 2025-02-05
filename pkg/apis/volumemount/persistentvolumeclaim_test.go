@@ -1,15 +1,24 @@
 package volumemount
 
 import (
-	"github.com/equinor/radix-common/utils/pointers"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func Test_EqualPersistentVolumeClaims(t *testing.T) {
+type pvcTestSuite struct {
+	testSuite
+}
+
+func TestPvcTestSuite(t *testing.T) {
+	suite.Run(t, new(pvcTestSuite))
+}
+
+func (s *pvcTestSuite) Test_EqualPersistentVolumeClaims() {
 	createPvc := func(modify func(pv *corev1.PersistentVolumeClaim)) *corev1.PersistentVolumeClaim {
 		pv := createExpectedPvc(getPropsCsiBlobVolume1Storage1(nil), modify)
 		return &pv
@@ -147,9 +156,9 @@ func Test_EqualPersistentVolumeClaims(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		s.T().Run(tt.name, func(t *testing.T) {
 			if got := EqualPersistentVolumeClaims(tt.pvc1, tt.pvc2); got != tt.expected {
-				t.Errorf("EqualPersistentVolumeClaims() = %v, want %v", got, tt.expected)
+				s.T().Errorf("EqualPersistentVolumeClaims() = %v, want %v", got, tt.expected)
 			}
 		})
 	}

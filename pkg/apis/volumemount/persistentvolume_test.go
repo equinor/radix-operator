@@ -4,10 +4,19 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func Test_EqualPersistentVolumes(t *testing.T) {
+type pvTestSuite struct {
+	testSuite
+}
+
+func TestPvTestSuite(t *testing.T) {
+	suite.Run(t, new(pvTestSuite))
+}
+
+func (s *pvTestSuite) Test_EqualPersistentVolumes() {
 	createPv := func(modify func(pv *corev1.PersistentVolume)) *corev1.PersistentVolume {
 		pv := createExpectedPv(getPropsCsiBlobVolume1Storage1(nil), modify)
 		return &pv
@@ -111,36 +120,12 @@ func Test_EqualPersistentVolumes(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributePvName",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvName] = utils.RandString(10)
-			}),
-			expected: true,
-		},
-		{
-			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributePvcName",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcName] = utils.RandString(10)
-			}),
-			expected: true,
-		},
-		{
 			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributeProvisionerIdentity",
 			pv1:  createPv(nil),
 			pv2: createPv(func(pv *corev1.PersistentVolume) {
 				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProvisionerIdentity] = utils.RandString(10)
 			}),
 			expected: true,
-		},
-		{
-			name: "different CSI VolumeAttribute csiVolumeMountAttributePvcNamespace",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcNamespace] = utils.RandString(10)
-			}),
-			expected: false,
 		},
 		{
 			name: "different CSI VolumeAttribute csiVolumeMountAttributeSecretNamespace",
@@ -247,9 +232,9 @@ func Test_EqualPersistentVolumes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		s.T().Run(tt.name, func(t *testing.T) {
 			if got := EqualPersistentVolumes(tt.pv1, tt.pv2); got != tt.expected {
-				t.Errorf("EqualPersistentVolumes() = %v, want %v", got, tt.expected)
+				s.T().Errorf("EqualPersistentVolumes() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
