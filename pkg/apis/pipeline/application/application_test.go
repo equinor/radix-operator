@@ -21,12 +21,13 @@ func Test_CreateRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing
 	)
 
 	radixClient := radixfake.NewSimpleClientset()
-	rr := utils.NewRegistrationBuilder().WithName("testapp").BuildRR()
+	appName := "testapp"
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 	configFileContent, err := os.ReadFile(sampleApp)
 	require.NoError(t, err)
-	ra, err := application.CreateRadixApplication(context.Background(), radixClient, &dnsalias.DNSConfig{}, string(configFileContent))
+	ra, err := application.CreateRadixApplication(context.Background(), radixClient, appName, &dnsalias.DNSConfig{}, string(configFileContent))
 	require.NoError(t, err)
 	assert.Equal(t, "100Mi", ra.Spec.Components[0].Resources.Requests["memory"], "server1 invalid resource requests memory")
 	assert.Equal(t, "100Mi", ra.Spec.Components[0].Resources.Limits["memory"], "server1 invalid resource limits memory")
@@ -39,4 +40,42 @@ func Test_CreateRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing
 
 	err = validate.CanRadixApplicationBeInserted(context.Background(), radixClient, ra, nil)
 	assert.NoError(t, err)
+}
+
+func Test_CreateRadixApplication_MismatchAppName(t *testing.T) {
+	const (
+		sampleApp = "./testdata/radixconfig.yaml"
+	)
+
+	radixClient := radixfake.NewSimpleClientset()
+	const (
+		registeredAppName  = "mismatching-app-name"
+		radixconfigAppName = "testapp"
+	)
+	rr := utils.NewRegistrationBuilder().WithName(registeredAppName).BuildRR()
+	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	require.NoError(t, err)
+	configFileContent, err := os.ReadFile(sampleApp)
+	require.NoError(t, err)
+	_, err = application.CreateRadixApplication(context.Background(), radixClient, registeredAppName, &dnsalias.DNSConfig{}, string(configFileContent))
+	require.EqualError(t, err, "the application name testapp in the radixconfig file does not match the registered application name mismatching-app-name")
+}
+
+func Test_CreateRadixApplication_MatchAppName(t *testing.T) {
+	const (
+		sampleApp = "./testdata/radixconfig.yaml"
+	)
+
+	radixClient := radixfake.NewSimpleClientset()
+	const (
+		radixconfigAppName = "testapp"
+	)
+	rr := utils.NewRegistrationBuilder().WithName(radixconfigAppName).BuildRR()
+	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	require.NoError(t, err)
+	configFileContent, err := os.ReadFile(sampleApp)
+	require.NoError(t, err)
+	ra, err := application.CreateRadixApplication(context.Background(), radixClient, radixconfigAppName, &dnsalias.DNSConfig{}, string(configFileContent))
+	require.NoError(t, err)
+	require.Equal(t, radixconfigAppName, ra.GetName(), "Application name should be the same as in the radixconfig file")
 }

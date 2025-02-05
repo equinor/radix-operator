@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
@@ -14,7 +15,7 @@ import (
 )
 
 // CreateRadixApplication Create RadixApplication from radixconfig.yaml content
-func CreateRadixApplication(ctx context.Context, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
+func CreateRadixApplication(ctx context.Context, radixClient radixclient.Interface, appName string, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
 	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
@@ -22,6 +23,9 @@ func CreateRadixApplication(ctx context.Context, radixClient radixclient.Interfa
 	// The gopkg.in/yaml.v3 package requires the yaml tag.
 	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
+	}
+	if ra.GetName() != appName {
+		return nil, fmt.Errorf("the application name %s in the radixconfig file does not match the registered application name %s", ra.GetName(), appName)
 	}
 	correctRadixApplication(ctx, ra)
 
