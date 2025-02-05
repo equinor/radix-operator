@@ -8,8 +8,14 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
+)
+
+const (
+	externalDnsAdminRoleName  = "radix-app-externaldns-adm"
+	externalDnsReaderRoleName = "radix-app-externaldns-reader"
 )
 
 func getComponentSecretRbaclabels(appName, componentName string) kubelabels.Set {
@@ -17,14 +23,29 @@ func getComponentSecretRbaclabels(appName, componentName string) kubelabels.Set 
 }
 
 func (deploy *Deployment) grantAccessToExternalDnsSecrets(ctx context.Context, secretNames []string) error {
-	adminRoleName := "radix-app-externaldns-adm"
-	readerRoleName := "radix-app-externaldns-reader"
-
-	if err := deploy.grantAdminAccessToSecrets(ctx, adminRoleName, secretNames, nil); err != nil {
-		return err
+	if len(secretNames) == 0 {
+		for _, roleName := range []string{externalDnsAdminRoleName, externalDnsReaderRoleName} {
+			err := deploy.kubeclient.RbacV1().Roles(deploy.radixDeployment.Namespace).Delete(ctx, roleName, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("failed to delete external dns secret role: %w", err)
+			}
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.Namespace).Delete(ctx, roleName, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("failed to delete external dns secret rolebinding: %w", err)
+			}
+		}
+		return nil
 	}
 
-	return deploy.grantReaderAccessToSecrets(ctx, readerRoleName, secretNames, nil)
+	if err := deploy.grantAdminAccessToSecrets(ctx, externalDnsAdminRoleName, secretNames, nil); err != nil {
+		return fmt.Errorf("failed to grant admin access to external dns secrets: %w", err)
+	}
+
+	if err := deploy.grantReaderAccessToSecrets(ctx, externalDnsReaderRoleName, secretNames, nil); err != nil {
+		return fmt.Errorf("failed to grant reader access to external dns secrets: %w", err)
+	}
+
+	return nil
 }
 
 func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(ctx context.Context, component radixv1.RadixCommonDeployComponent, secretNames []string) error {
