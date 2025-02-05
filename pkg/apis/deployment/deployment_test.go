@@ -2248,13 +2248,13 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate roles", func(t *testing.T) {
 		t.Parallel()
 		roles, _ := client.RbacV1().Roles(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName", "radix-app-externaldns-adm", "radix-app-externaldns-reader"}, getRoleNames(roles))
+		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleNames(roles))
 	})
 
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName", "radix-app-externaldns-adm", "radix-app-externaldns-reader"}, getRoleBindingNames(rolebindings))
+		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleBindingNames(rolebindings))
 	})
 }
 
@@ -4298,6 +4298,59 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 		},
 		getRoleBindingByName("radix-app-externaldns-reader", roleBindings).Subjects,
 	)
+}
+
+func Test_ExternalDNS_RolesAndBinding_Lifecycle(t *testing.T) {
+	appName, envName := "anyapp", "anyenv"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"any"}).WithAdUsers([]string{"any"}).WithReaderAdGroups([]string{"any"}).WithReaderAdUsers([]string{"any"})
+	raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(rrBuilder)
+	rdBuilder := utils.NewDeploymentBuilder().WithRadixApplication(raBuilder).WithAppName(appName).WithEnvironment(envName).WithJobComponents()
+
+	// Initial sync without external DNS should not create roles and bindings
+	rdBuilder = rdBuilder.WithComponents(utils.NewDeployComponentBuilder().WithName("comp"))
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	roles, _ := kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	roleBindings, _ := kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+
+	// Sync with external DNS and cert automation should not create roles and bindings
+	rdBuilder = rdBuilder.WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "example.com", UseCertificateAutomation: true}))
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	roles, _ = kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	roleBindings, _ = kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+
+	// Sync with external DNS and manual tls secret should create roles and bindings
+	rdBuilder = rdBuilder.WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "example.com", UseCertificateAutomation: false}))
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	roles, _ = kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	assert.Subset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	roleBindings, _ = kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	assert.Subset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+
+	// Sync with external DNS removed should delete roles and bindings
+	rdBuilder = rdBuilder.WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS())
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	roles, _ = kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	roleBindings, _ = kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+
 }
 
 func Test_ExternalDNS_RetainSecretData(t *testing.T) {
