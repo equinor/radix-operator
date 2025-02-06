@@ -47,18 +47,19 @@ const (
 
 // RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
-	AppName             string               `json:"appName"`
-	CloneURL            string               `json:"cloneURL"`
-	TektonImage         string               `json:"tektonImage"`
-	PipeLineType        RadixPipelineType    `json:"pipeLineType"`
-	PipelineImage       string               `json:"pipelineImage"`
-	Build               RadixBuildSpec       `json:"build"`
-	Promote             RadixPromoteSpec     `json:"promote"`
-	Deploy              RadixDeploySpec      `json:"deploy"`
-	ApplyConfig         RadixApplyConfigSpec `json:"applyConfig"`
-	Stop                bool                 `json:"stop"`
-	TriggeredBy         string               `json:"triggeredBy"`
-	RadixConfigFullName string               `json:"radixConfigFullName"`
+	AppName              string               `json:"appName"`
+	CloneURL             string               `json:"cloneURL"`
+	TektonImage          string               `json:"tektonImage"`
+	PipeLineType         RadixPipelineType    `json:"pipeLineType"`
+	PipelineImage        string               `json:"pipelineImage"`
+	Build                RadixBuildSpec       `json:"build"`
+	Promote              RadixPromoteSpec     `json:"promote"`
+	Deploy               RadixDeploySpec      `json:"deploy"`
+	ApplyConfig          RadixApplyConfigSpec `json:"applyConfig"`
+	Stop                 bool                 `json:"stop"`
+	TriggeredFromWebhook bool                 `json:"triggeredFromWebhook"`
+	TriggeredBy          string               `json:"triggeredBy"`
+	RadixConfigFullName  string               `json:"radixConfigFullName"`
 }
 
 // RadixPipelineType Holds the different type of pipeline

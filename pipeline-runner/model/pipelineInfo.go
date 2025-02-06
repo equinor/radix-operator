@@ -74,6 +74,7 @@ type PipelineArguments struct {
 	FromEnvironment       string
 	ToEnvironment         string
 	ComponentsToDeploy    []string
+	TriggeredFromWebhook  bool
 
 	RadixConfigFile string
 
@@ -180,7 +181,7 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	info.RadixApplication = applicationConfig.GetRadixApplicationConfig()
 
 	// Obtain metadata for rest of pipeline
-	targetEnvironments := application.GetTargetEnvironments(info.PipelineArguments.Branch, info.RadixApplication)
+	targetEnvironments := application.GetTargetEnvironments(info.PipelineArguments.Branch, info.RadixApplication, false)
 
 	// For deploy-only pipeline
 	if info.IsPipelineType(radixv1.Deploy) &&

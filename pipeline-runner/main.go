@@ -134,6 +134,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.GitCloneGitImage, defaults.RadixGitCloneGitImageEnvironmentVariable, "alpine/git:latest", "Container image with git used by git clone init containers")
 	cmd.Flags().StringVar(&pipelineArgs.GitCloneBashImage, defaults.RadixGitCloneBashImageEnvironmentVariable, "bash:latest", "Container image with bash used by git clone init containers")
 	cmd.Flags().BoolVar(&pipelineArgs.ApplyConfigOptions.DeployExternalDNS, defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, false, "Deploy changes to External DNS configuration with the 'apply-config' pipeline")
+	cmd.Flags().BoolVar(&pipelineArgs.TriggeredFromWebhook, defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, false, "Indicates if the pipeline was triggered from a webhook")
 	// TODO: Remove when both pipeline and operator is released. This flag is only to prevent errors when deprecated flag is passed
 	cmd.Flags().String("USE_CACHE", "0", "Use cache")
 
