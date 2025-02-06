@@ -2919,6 +2919,10 @@
               "build": {
                 "description": "Build configuration for the environment.\nMore info: https://www.radix.equinor.com/references/reference-radix-config/#build-2",
                 "properties": {
+                  "disableWebhook": {
+                    "description": "DisableWebhook indicates whether the webhook should be disabled for the environment.\nIf set to true, the webhook will not be triggered for this environment.",
+                    "type": "boolean"
+                  },
                   "from": {
                     "description": "Name of the Github branch to build from",
                     "maxLength": 255,
