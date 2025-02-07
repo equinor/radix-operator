@@ -391,7 +391,7 @@ func createExpectedPvWithIdentity(props expectedPvcPvProperties, modify func(pv 
 	if props.tenantId != "" {
 		pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeTenantId] = props.tenantId
 	}
-	setVolumeMountAttribute(pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
+	setVolumeMountAttribute(pv, props.radixVolumeMountType, props.blobStorageName)
 	if modify != nil {
 		modify(pv)
 	}
@@ -437,7 +437,7 @@ func createPv(props expectedPvcPvProperties) *v1.PersistentVolume {
 		},
 		Status: v1.PersistentVolumeStatus{Phase: v1.VolumeBound},
 	}
-	setVolumeMountAttribute(pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
+	setVolumeMountAttribute(pv, props.radixVolumeMountType, props.blobStorageName)
 	return pv
 }
 
@@ -479,7 +479,7 @@ func createAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, modi
 		},
 		Status: v1.PersistentVolumeStatus{Phase: v1.VolumeBound, LastPhaseTransitionTime: pointers.Ptr(metav1.Time{Time: time.Now()})},
 	}
-	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
+	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.blobStorageName)
 	if modify != nil {
 		modify(&pv)
 	}
@@ -529,7 +529,7 @@ func getMountOptionsInRandomOrder(props expectedPvcPvProperties, extraOptions ..
 	return append(options, extraOptions...)
 }
 
-func setVolumeMountAttribute(pv *v1.PersistentVolume, radixVolumeMountType radixv1.MountType, containerName, pvcName string) {
+func setVolumeMountAttribute(pv *v1.PersistentVolume, radixVolumeMountType radixv1.MountType, containerName string) {
 	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeContainerName] = containerName
 	switch radixVolumeMountType {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:

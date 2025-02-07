@@ -477,7 +477,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
 						pv.ObjectMeta.Name = scenarioProps.expectedNewPvName
 						pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
-						setVolumeMountAttribute(pv, props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName, scenarioProps.expectedNewPvcName)
+						setVolumeMountAttribute(pv, props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName)
 						pv.Spec.ClaimRef.Name = scenarioProps.expectedNewPvcName
 						pv.Spec.CSI.NodeStageSecretRef.Name = scenarioProps.expectedNewSecretName
 					}),

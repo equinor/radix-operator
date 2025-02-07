@@ -504,7 +504,6 @@ func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quan
 
 func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) *corev1.PersistentVolume {
 	identityClientId := identity.GetAzure().GetClientId()
-	useAzureIdentity := radixVolumeMount.UseAzureIdentity()
 	pv := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pvName,
@@ -525,12 +524,12 @@ func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, 
 				CSI: &corev1.CSIPersistentVolumeSource{
 					Driver:           provisionerBlobCsiAzure,
 					VolumeHandle:     getVolumeHandle(namespace, componentName, pvName, getRadixVolumeMountStorage(radixVolumeMount)),
-					VolumeAttributes: getCsiAzurePvAttributes(namespace, radixVolumeMount, useAzureIdentity, identityClientId),
+					VolumeAttributes: getCsiAzurePvAttributes(namespace, radixVolumeMount, identityClientId),
 				},
 			},
 		},
 	}
-	if !useAzureIdentity {
+	if !radixVolumeMount.UseAzureIdentity() {
 		csiVolumeCredSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
 		pv.Spec.CSI.NodeStageSecretRef = &corev1.SecretReference{Name: csiVolumeCredSecretName, Namespace: namespace}
 	}
@@ -553,7 +552,7 @@ func getCsiAzurePvLabels(appName, namespace, componentName string, radixVolumeMo
 	}
 }
 
-func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVolumeMount, useAzureIdentity bool, clientId string) map[string]string {
+func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVolumeMount, clientId string) map[string]string {
 	attributes := make(map[string]string)
 	switch GetCsiAzureVolumeMountType(radixVolumeMount) {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
@@ -567,7 +566,7 @@ func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVo
 			if len(radixVolumeMount.BlobFuse2.StorageAccount) > 0 {
 				attributes[csiVolumeAttributeStorageAccount] = radixVolumeMount.BlobFuse2.StorageAccount
 			}
-			if useAzureIdentity {
+			if radixVolumeMount.UseAzureIdentity() {
 				attributes[csiVolumeAttributeClientID] = clientId
 				attributes[csiVolumeAttributeResourceGroup] = radixVolumeMount.BlobFuse2.ResourceGroup
 				if len(radixVolumeMount.BlobFuse2.SubscriptionId) > 0 {
