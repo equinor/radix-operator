@@ -701,7 +701,13 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 			},
 		},
 	}
-
+	if component.GetAuthentication().GetOAuth2().GetUseAzureIdentity() {
+		desiredDeployment.Spec.Template.Labels = radixlabels.Merge(
+			desiredDeployment.Spec.Template.GetLabels(),
+			radixlabels.ForPodWithRadixIdentity(component.GetIdentity()),
+		)
+		desiredDeployment.Spec.Template.Spec.ServiceAccountName = utils.GetAuxOAuthServiceAccountName(component.GetName())
+	}
 	oauthutil.MergeAuxComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
 	return desiredDeployment, nil
 }
