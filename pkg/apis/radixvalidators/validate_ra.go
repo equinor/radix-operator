@@ -624,6 +624,12 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 			errors = append(errors, OAuthRedisStoreConnectionURLEmptyErrorWithMessage(componentName, environmentName))
 		}
 	}
+	useAzureIdentity := oauthWithDefaults.UseAzureIdentity
+	if useAzureIdentity != nil && *useAzureIdentity {
+		if !azureIdentityIsSet(component) {
+			errors = append(errors, MissingAzureIdentityForOAuth2ErrorWithMessage(component.GetName()))
+		}
+	}
 
 	// Validate OIDC config
 	if oidc := oauthWithDefaults.OIDC; oidc == nil {
@@ -1000,7 +1006,7 @@ func validateSecretRefs(commonComponent radixv1.RadixCommonComponent, secretRefs
 		useAzureIdentity := azureKeyVault.UseAzureIdentity
 		if useAzureIdentity != nil && *useAzureIdentity {
 			if !azureIdentityIsSet(commonComponent) {
-				return MissingAzureIdentityErrorWithMessage(azureKeyVault.Name, commonComponent.GetName())
+				return MissingAzureIdentityForAzureKeyVaultErrorWithMessage(azureKeyVault.Name, commonComponent.GetName())
 			}
 			// TODO: validate for env-chain
 		}
