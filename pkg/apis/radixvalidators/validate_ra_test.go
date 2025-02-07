@@ -607,6 +607,9 @@ func Test_invalid_ra(t *testing.T) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
 		}},
+		{"oauth missing component identity", radixvalidators.MissingAzureIdentityForOAuth2ErrorWithMessage("app3"), func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[6].Authentication.OAuth2.UseAzureIdentity = pointers.Ptr(true)
+		}},
 		{"invalid healthchecks are invalid", radixvalidators.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{

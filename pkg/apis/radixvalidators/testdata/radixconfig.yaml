@@ -152,6 +152,15 @@ spec:
         - environment: dev
         - environment: prod
           imageTagName: "1.0.0"
+    - name: app3
+      src: .
+      ports:
+        - name: http
+          port: 8080
+      publicPort: http
+      authentication:
+        oauth2:
+          clientId: 7ef841f8-a263-45ea-8993-683cc6817ae2
   jobs:
     - name: job
       src: job/
