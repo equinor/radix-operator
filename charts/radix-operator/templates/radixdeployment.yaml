@@ -203,6 +203,11 @@ spec:
                                 X-Auth-Request-Email and X-Auth-Request-Preferred-Username request headers.
                                 The access token is passed in the X-Auth-Request-Access-Token header.
                               type: boolean
+                            useAzureIdentity:
+                              description: UseAzureIdentity defines that credentials
+                                for authenticating using Azure Workload Identity instead
+                                of using a ClientSecret.
+                              type: boolean
                           type: object
                       type: object
                     dnsAppAlias:

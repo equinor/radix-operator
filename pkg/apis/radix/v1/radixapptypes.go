@@ -1370,6 +1370,10 @@ type OAuth2 struct {
 	// Settings for Redis store when SessionStoreType is redis.
 	// +optional
 	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty"`
+
+	// UseAzureIdentity defines that credentials for authenticating using Azure Workload Identity instead of using a ClientSecret.
+	// +optional
+	UseAzureIdentity *bool `json:"useAzureIdentity,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie.
