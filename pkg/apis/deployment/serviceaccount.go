@@ -4,18 +4,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
 
 func (deploy *Deployment) createOrUpdateServiceAccount(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	if deploy.isServiceAccountForComponentPreinstalled(component) {
+	if isServiceAccountForComponentPreinstalled(deploy.radixDeployment, component) {
 		return nil
 	}
 
@@ -23,9 +24,9 @@ func (deploy *Deployment) createOrUpdateServiceAccount(ctx context.Context, comp
 		return nil
 	}
 
-	sa := deploy.buildServiceAccountForComponent(component)
+	sa := buildServiceAccountForComponent(deploy.radixDeployment.Namespace, component)
 
-	if err := deploy.verifyServiceAccountForComponentCanBeApplied(ctx, sa, component); err != nil {
+	if err := verifyServiceAccountForComponentCanBeApplied(ctx, deploy.kubeutil, sa, component); err != nil {
 		return err
 	}
 
@@ -33,8 +34,27 @@ func (deploy *Deployment) createOrUpdateServiceAccount(ctx context.Context, comp
 	return err
 }
 
-func (deploy *Deployment) verifyServiceAccountForComponentCanBeApplied(ctx context.Context, sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) error {
-	existingSa, err := deploy.kubeutil.GetServiceAccount(ctx, sa.GetNamespace(), sa.GetName())
+func createOrUpdateAuxOAuthServiceAccount(ctx context.Context, kubeUtil *kube.Kube, radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) error {
+	if isServiceAccountForComponentPreinstalled(radixDeployment, component) {
+		return nil
+	}
+
+	if !component.GetAuthentication().GetOAuth2().GetUseAzureIdentity() {
+		return nil
+	}
+
+	sa := buildServiceAccountForAuxOAuthComponent(radixDeployment.Namespace, component)
+
+	if err := verifyServiceAccountForAuxOAuthComponentCanBeApplied(ctx, kubeUtil, sa, component); err != nil {
+		return err
+	}
+
+	_, err := kubeUtil.ApplyServiceAccount(ctx, sa)
+	return err
+}
+
+func verifyServiceAccountForComponentCanBeApplied(ctx context.Context, kubeUtil *kube.Kube, sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) error {
+	existingSa, err := kubeUtil.GetServiceAccount(ctx, sa.GetNamespace(), sa.GetName())
 	if err != nil {
 		// If service account does not already exist we return nil to indicate that it can be applied
 		if errors.IsNotFound(err) {
@@ -50,14 +70,47 @@ func (deploy *Deployment) verifyServiceAccountForComponentCanBeApplied(ctx conte
 	return nil
 }
 
-func (deploy *Deployment) buildServiceAccountForComponent(component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
+func verifyServiceAccountForAuxOAuthComponentCanBeApplied(ctx context.Context, kubeUtil *kube.Kube, sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) error {
+	existingSa, err := kubeUtil.GetServiceAccount(ctx, sa.GetNamespace(), sa.GetName())
+	if err != nil {
+		// If service account does not already exist we return nil to indicate that it can be applied
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if !isServiceAccountForAuxOAuthComponent(existingSa, component) {
+		return fmt.Errorf("existing service account does not belong to aux OAuth proxy of the component %s", component.GetName())
+	}
+
+	return nil
+}
+
+func buildServiceAccountForComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
 	labels := getComponentServiceAccountLabels(component)
 	annotations := getComponentServiceAccountAnnotations(component)
 
 	sa := corev1.ServiceAccount{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        utils.GetComponentServiceAccountName(component.GetName()),
-			Namespace:   deploy.radixDeployment.Namespace,
+			Namespace:   namespace,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+	}
+
+	return &sa
+}
+
+func buildServiceAccountForAuxOAuthComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
+	labels := radixlabels.ForAuxOAuthComponentServiceAccountWithIdentity(component)
+	annotations := getComponentServiceAccountAnnotations(component)
+
+	sa := corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        utils.GetAuxOAuthServiceAccountName(component.GetName()),
+			Namespace:   namespace,
 			Labels:      labels,
 			Annotations: annotations,
 		},
@@ -67,7 +120,7 @@ func (deploy *Deployment) buildServiceAccountForComponent(component radixv1.Radi
 }
 
 func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	if deploy.isServiceAccountForComponentPreinstalled(component) {
+	if isServiceAccountForComponentPreinstalled(deploy.radixDeployment, component) {
 		return nil
 	}
 
@@ -82,6 +135,29 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 
 	for _, sa := range serviceAccountList {
 		if err := deploy.kubeutil.DeleteServiceAccount(ctx, sa.Namespace, sa.Name); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func garbageCollectServiceAccountNoLongerInSpecForAuxOAuthComponent(ctx context.Context, kubeUtil *kube.Kube, radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) error {
+	if isServiceAccountForComponentPreinstalled(radixDeployment, component) {
+		return nil
+	}
+
+	if component.GetAuthentication().GetOAuth2().GetUseAzureIdentity() {
+		return nil
+	}
+
+	serviceAccountList, err := kubeUtil.ListServiceAccountsWithSelector(ctx, radixDeployment.Namespace, radixlabels.ForAuxOAuthComponentServiceAccount(component).AsSelector().String())
+	if err != nil {
+		return err
+	}
+
+	for _, sa := range serviceAccountList {
+		if err := kubeUtil.DeleteServiceAccount(ctx, sa.Namespace, sa.Name); err != nil {
 			return err
 		}
 	}
@@ -107,7 +183,7 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec(ctx context
 				continue
 			}
 
-			if err := deploy.kubeclient.CoreV1().ServiceAccounts(deploy.radixDeployment.GetNamespace()).Delete(ctx, serviceAccount.GetName(), v1.DeleteOptions{}); err != nil {
+			if err := deploy.kubeclient.CoreV1().ServiceAccounts(deploy.radixDeployment.GetNamespace()).Delete(ctx, serviceAccount.GetName(), metav1.DeleteOptions{}); err != nil {
 				return err
 			}
 		}
@@ -118,9 +194,9 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec(ctx context
 
 // Is this a component/deployment where the service account is handled elsewhere,
 // e.g. radix-api and radix-github-webhook
-func (deploy *Deployment) isServiceAccountForComponentPreinstalled(component radixv1.RadixCommonDeployComponent) bool {
+func isServiceAccountForComponentPreinstalled(radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) bool {
 	isComponent := component.GetType() == radixv1.RadixComponentTypeComponent
-	return isComponent && (isRadixAPI(deploy.radixDeployment) || isRadixWebHook(deploy.radixDeployment))
+	return isComponent && (isRadixAPI(radixDeployment) || isRadixWebHook(radixDeployment))
 }
 
 func componentRequiresServiceAccount(component radixv1.RadixCommonDeployComponent) bool {
@@ -146,7 +222,11 @@ func getComponentServiceAccountAnnotations(component radixv1.RadixCommonDeployCo
 	return radixannotations.ForServiceAccountWithRadixIdentity(component.GetIdentity())
 }
 
-// isServiceAccountForComponent checks if service account has labels matching labels returned by getComponentServiceAccountIdentifier
 func isServiceAccountForComponent(sa *corev1.ServiceAccount, componentName string) bool {
 	return getComponentServiceAccountIdentifier(componentName).AsSelector().Matches(kubelabels.Set(sa.Labels))
+}
+
+func isServiceAccountForAuxOAuthComponent(sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) bool {
+	// TODO - check if it will match existing service account, when component identity has added/edited/removed
+	return radixlabels.ForAuxOAuthComponentServiceAccountWithIdentity(component).AsSelector().Matches(kubelabels.Set(sa.Labels))
 }

@@ -117,11 +117,32 @@ func ForServiceAccountIsForComponent() kubelabels.Set {
 	return kubelabels.Set{
 		kube.IsServiceAccountForComponent: "true",
 	}
-} // ForServiceAccountIsForComponent returns labels indicating that a service account is used by a component or job
+}
+
+// ForServiceAccountIsForSubPipeline returns labels indicating that a service account is used by a subpipeline
 func ForServiceAccountIsForSubPipeline() kubelabels.Set {
 	return kubelabels.Set{
 		kube.IsServiceAccountForSubPipelineLabel: "true",
 	}
+}
+
+// ForAuxOAuthComponentServiceAccount returns labels for configuring a ServiceAccount for an aux OAuth2 proxy
+func ForAuxOAuthComponentServiceAccount(component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return Merge(
+		kubelabels.Set{
+			kube.RadixAuxiliaryComponentLabel:     component.GetName(),
+			kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+			kube.IsServiceAccountForAuxOAuthLabel: "true",
+		},
+	)
+}
+
+// ForAuxOAuthComponentServiceAccountWithIdentity returns labels for configuring a ServiceAccount for an aux OAuth2 proxy with component identity clientId
+func ForAuxOAuthComponentServiceAccountWithIdentity(component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return Merge(
+		ForAuxOAuthComponentServiceAccount(component),
+		ForServiceAccountWithRadixIdentity(component.GetIdentity()),
+	)
 }
 
 // ForServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
