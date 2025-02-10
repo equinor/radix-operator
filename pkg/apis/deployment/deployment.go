@@ -522,55 +522,71 @@ func (deploy *Deployment) getRadixDeploymentsReferencedByJobs(ctx context.Contex
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	if err := deploy.createOrUpdateEnvironmentVariableConfigMaps(ctx, component); err != nil {
+	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(ctx, component)
+	if err != nil {
 		return err
 	}
 
-	if err := deploy.createOrUpdateServiceAccount(ctx, component); err != nil {
+	err = deploy.createOrUpdateServiceAccount(ctx, component)
+	if err != nil {
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	if err := deploy.reconcileDeployComponent(ctx, component); err != nil {
+	err = deploy.reconcileDeployComponent(ctx, component)
+	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	if err := deploy.createOrUpdateScaledObject(ctx, component); err != nil {
+	err = deploy.createOrUpdateScaledObject(ctx, component)
+	if err != nil {
 		return fmt.Errorf("failed to create hpa: %w", err)
 	}
 
-	if err := deploy.createOrUpdateService(ctx, component); err != nil {
+	err = deploy.createOrUpdateService(ctx, component)
+	if err != nil {
 		return fmt.Errorf("failed to create service: %w", err)
 	}
 
-	if err := deploy.createOrUpdatePodDisruptionBudget(ctx, component); err != nil {
+	err = deploy.createOrUpdatePodDisruptionBudget(ctx, component)
+	if err != nil {
 		return fmt.Errorf("failed to create PDB: %w", err)
 	}
 
-	if err := deploy.garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(ctx, component); err != nil {
+	err = deploy.garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(ctx, component)
+	if err != nil {
 		return fmt.Errorf("failed to garbage collect PDB: %w", err)
 	}
 
-	if err := deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(ctx, component); err != nil {
+	err = deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(ctx, component)
+	if err != nil {
 		return fmt.Errorf("failed to garbage collect service account: %w", err)
 	}
 
 	if component.IsPublic() {
-		if err := deploy.createOrUpdateIngress(ctx, component); err != nil {
+		err = deploy.createOrUpdateIngress(ctx, component)
+		if err != nil {
 			return fmt.Errorf("failed to create ingress: %w", err)
 		}
-	} else if err := deploy.garbageCollectIngressNoLongerInSpecForComponent(ctx, component); err != nil {
-		return fmt.Errorf("failed to delete ingress: %w", err)
+	} else {
+		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(ctx, component)
+		if err != nil {
+			return fmt.Errorf("failed to delete ingress: %w", err)
+		}
 	}
 
 	if component.GetMonitoring() {
-		if err := deploy.createOrUpdateServiceMonitor(ctx, component); err != nil {
+		err = deploy.createOrUpdateServiceMonitor(ctx, component)
+		if err != nil {
 			return fmt.Errorf("failed to create service monitor: %w", err)
 		}
-	} else if err := deploy.deleteServiceMonitorForComponent(ctx, component); err != nil {
-		return fmt.Errorf("failed to delete servicemonitor: %w", err)
+	} else {
+		err = deploy.deleteServiceMonitorForComponent(ctx, component)
+		if err != nil {
+			return fmt.Errorf("failed to delete servicemonitor: %w", err)
+		}
 	}
 
-	if err := volumemount.GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace()); err != nil {
+	if err = volumemount.GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace()); err != nil {
 		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
 	}
 

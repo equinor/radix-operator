@@ -169,6 +169,45 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	}
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseSecretOrIdentity() {
+	appName := "anyapp"
+	type scenarioDef struct {
+		name string
+		rd   *v1.RadixDeployment
+	}
+	const (
+		azureClientId  = "some-azure-client-id"
+		componentName1 = "comp1"
+	)
+	scenarios := []scenarioDef{
+		{name: "", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}})).
+			BuildRD()},
+		{rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}).
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}})).BuildRD()},
+		{rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}).
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}})).BuildRD()},
+	}
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+
+	for _, scenario := range scenarios {
+		sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
+		err := sut.Sync(context.Background())
+		s.Nil(err)
+		deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(deploys.Items, 0)
+		services, _ := s.kubeClient.CoreV1().Services(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(services.Items, 0)
+		ingresses, _ := s.kubeClient.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(ingresses.Items, 0)
+		secrets, _ := s.kubeClient.CoreV1().Secrets(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(secrets.Items, 0)
+		roles, _ := s.kubeClient.RbacV1().Roles(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(roles.Items, 0)
+		rolebindings, _ := s.kubeClient.RbacV1().RoleBindings(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(rolebindings.Items, 0)
+	}
+}
+
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas() {
 	auth := &v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}}
 	appName := "anyapp"
