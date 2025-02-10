@@ -18,8 +18,8 @@ func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	//if !utils.EqualStringMaps(pv1.GetLabels(), pv2.GetLabels()) {
 	//	return false
 	//}
-	expectedClonedVolumeAttrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributeProvisionerIdentity)
-	actualClonedVolumeAttrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributeProvisionerIdentity)
+	expectedClonedVolumeAttrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributePvcNamespace, csiVolumeMountAttributeProvisionerIdentity)
+	actualClonedVolumeAttrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributePvcNamespace, csiVolumeMountAttributeProvisionerIdentity)
 	if !utils.EqualStringMaps(expectedClonedVolumeAttrs, actualClonedVolumeAttrs) {
 		return false
 	}
