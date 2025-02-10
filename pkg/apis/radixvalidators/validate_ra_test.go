@@ -1244,6 +1244,12 @@ func Test_Variables(t *testing.T) {
 }
 
 func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
+	const (
+		storageAccountName1 = "anystorageaccount"
+		resourceGroup1      = "any-resource-group"
+		subscriptionId1     = "any-subscription-id"
+		tenantId1           = "any-tenant-id"
+	)
 	type volumeMountsFunc func() []radixv1.RadixVolumeMount
 	type setVolumeMountsFunc func(*radixv1.RadixApplication, []radixv1.RadixVolumeMount)
 
@@ -1487,6 +1493,190 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountInvalidRequestsStorage,
+		},
+		"blobfuse2: has optional storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: storageAccountName1,
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2: has invalid short storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: "st",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2: has invalid long storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: strings.Repeat("a", 25),
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2: has invalid chars in storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: "name._-123",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2 with useAzureIdentity: missing subscription": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							ResourceGroup:    resourceGroup1,
+							TenantId:         tenantId1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingSubscriptionId,
+		},
+		"blobfuse2 with useAzureIdentity: missing storage account name": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+							TenantId:         tenantId1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingStorageAccount,
+		},
+		"blobfuse2 with useAzureIdentity: missing resource group": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							TenantId:         tenantId1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingResourceGroup,
+		},
+		"blobfuse2 with useAzureIdentity: Tenant id is optional": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2 with useAzureIdentity: component or job identity azure clientId is required": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA: []setVolumeMountsFunc{
+				func(ra *radixv1.RadixApplication, volumeMounts []radixv1.RadixVolumeMount) {
+					ra.Spec.Components[0].Identity.Azure = nil
+					ra.Spec.Components[0].EnvironmentConfig[0].Identity.Azure = nil
+					ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				},
+				func(ra *radixv1.RadixApplication, volumeMounts []radixv1.RadixVolumeMount) {
+					ra.Spec.Jobs[0].Identity.Azure = nil
+					ra.Spec.Jobs[0].EnvironmentConfig[0].Identity.Azure = nil
+					ra.Spec.Jobs[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				},
+			},
+			expectedError: radixvalidators.ErrVolumeMountMissingAzureIdentity,
 		},
 		"emptyDir: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {

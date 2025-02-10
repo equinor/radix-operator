@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/equinor/radix-common/utils"
@@ -39,7 +38,7 @@ func modifyPvc(pvc v1.PersistentVolumeClaim, modify func(pvc *v1.PersistentVolum
 	return pvc
 }
 
-type TestSuite struct {
+type testSuite struct {
 	suite.Suite
 	radixCommonDeployComponentFactories []radixv1.RadixCommonDeployComponentFactory
 }
@@ -79,9 +78,18 @@ type pvcTestScenario struct {
 }
 
 const (
-	appName1       = "any-app"
-	envName1       = "some-env"
-	componentName1 = "some-component"
+	appName1                      = "any-app"
+	envName1                      = "some-env"
+	componentName1                = "some-component"
+	testClientId                  = "some-client-id"
+	testTenantId                  = "some-tenant-id"
+	testSubscriptionId            = "some-subscription-id"
+	testResourceGroup             = "some-resource-group"
+	testStorageAccountName        = "somestorageaccountname"
+	testChangedStorageAccountName = "changedstorageaccountname"
+	testChangedResourceGroup      = "changed-resource-group"
+	testChangedSubscriptionId     = "changed-subscription-id"
+	testChangedTenantId           = "changed-tenant-id"
 )
 
 var (
@@ -89,12 +97,8 @@ var (
 	anotherVolumeMountName = strings.ToLower(utils.RandString(10))
 )
 
-func TestVolumeMountTestSuite(t *testing.T) {
-	suite.Run(t, new(TestSuite))
-}
-
-func (suite *TestSuite) SetupSuite() {
-	suite.radixCommonDeployComponentFactories = []radixv1.RadixCommonDeployComponentFactory{
+func (s *testSuite) SetupSuite() {
+	s.radixCommonDeployComponentFactories = []radixv1.RadixCommonDeployComponentFactory{
 		radixv1.RadixDeployComponentFactory{},
 		radixv1.RadixDeployJobComponentFactory{},
 	}
@@ -131,6 +135,11 @@ type expectedPvcPvProperties struct {
 	pvUid                   string
 	namespace               string
 	readOnly                bool
+	clientId                string
+	resourceGroup           string
+	subscriptionId          string
+	tenantId                string
+	storageAccountName      string
 }
 
 func modifyPv(pv v1.PersistentVolume, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
@@ -152,8 +161,6 @@ func createRandomVolumeMount(modify func(mount *radixv1.RadixVolumeMount)) radix
 }
 
 func matchPvAndPvc(pv *v1.PersistentVolume, pvc *v1.PersistentVolumeClaim) {
-	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcName] = pvc.GetName()
-	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcNamespace] = pvc.GetNamespace()
 	pv.Spec.ClaimRef = &v1.ObjectReference{
 		APIVersion: "radixv1",
 		Kind:       k8s.KindPersistentVolumeClaim,
@@ -174,7 +181,6 @@ func createRandomPv(props expectedPvcPvProperties, namespace, componentName stri
 		pv.ObjectMeta.Name = pvName
 		pv.ObjectMeta.Labels[kube.RadixNamespace] = namespace
 		pv.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-		pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvName] = pvName
 	})
 }
 
@@ -202,7 +208,6 @@ func createRandomAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties
 		pv.ObjectMeta.Labels[kube.RadixNamespace] = namespace
 		pv.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
 		pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = anotherVolumeMountName
-		pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvName] = pvName
 	})
 }
 
@@ -325,12 +330,13 @@ func getDesiredDeployment(componentName string, volumes []v1.Volume) *appsv1.Dep
 	}
 }
 
-func buildRd(appName string, environment string, componentName string, radixVolumeMounts []radixv1.RadixVolumeMount) *radixv1.RadixDeployment {
+func buildRd(appName string, environment string, componentName string, identityAzureClientId string, radixVolumeMounts []radixv1.RadixVolumeMount) *radixv1.RadixDeployment {
 	return operatorUtils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(environment).
 		WithComponents(operatorUtils.NewDeployComponentBuilder().
 			WithName(componentName).
+			WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: identityAzureClientId}}).
 			WithVolumeMounts(radixVolumeMounts...)).
 		BuildRD()
 }
@@ -356,8 +362,45 @@ func createPvc(namespace, componentName string, mountType radixv1.MountType, mod
 }
 
 func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
+	pv := createPv(props)
+	pv.Spec.PersistentVolumeSource.CSI.NodeStageSecretRef = &v1.SecretReference{
+		Name:      props.pvSecretName,
+		Namespace: props.namespace,
+	}
+	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeMountAttributeSecretNamespace] = props.namespace
+	pv.Spec.PersistentVolumeSource.CSI.NodeStageSecretRef = &v1.SecretReference{
+		Name:      props.pvSecretName,
+		Namespace: props.namespace,
+	}
+
+	if modify != nil {
+		modify(pv)
+	}
+	return *pv
+}
+
+func createExpectedPvWithIdentity(props expectedPvcPvProperties, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
+	pv := createPv(props)
+
+	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeStorageAccount] = props.storageAccountName
+	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeClientID] = props.clientId
+	pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeResourceGroup] = props.resourceGroup
+	if props.subscriptionId != "" {
+		pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeSubscriptionId] = props.subscriptionId
+	}
+	if props.tenantId != "" {
+		pv.Spec.PersistentVolumeSource.CSI.VolumeAttributes[csiVolumeAttributeTenantId] = props.tenantId
+	}
+	setVolumeMountAttribute(pv, props.radixVolumeMountType, props.blobStorageName)
+	if modify != nil {
+		modify(pv)
+	}
+	return *pv
+}
+
+func createPv(props expectedPvcPvProperties) *v1.PersistentVolume {
 	mountOptions := getMountOptions(props)
-	pv := v1.PersistentVolume{
+	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: props.persistentVolumeName,
 			Labels: map[string]string{
@@ -374,17 +417,9 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.Persiste
 					Driver:       props.pvProvisioner,
 					VolumeHandle: getVolumeHandle(props.namespace, props.componentName, props.persistentVolumeName, props.blobStorageName),
 					VolumeAttributes: map[string]string{
-						csiVolumeMountAttributeContainerName:   props.blobStorageName,
-						csiVolumeMountAttributeProtocol:        csiVolumeAttributeProtocolParameterFuse2,
-						csiVolumeMountAttributePvName:          props.persistentVolumeName,
-						csiVolumeMountAttributePvcName:         props.pvcName,
-						csiVolumeMountAttributePvcNamespace:    props.namespace,
-						csiVolumeMountAttributeSecretNamespace: props.namespace,
+						csiVolumeMountAttributeContainerName: props.blobStorageName,
+						csiVolumeMountAttributeProtocol:      csiVolumeAttributeProtocolParameterFuse2,
 						// skip auto-created by the provisioner "storage.kubernetes.io/csiProvisionerIdentity": "1732528668611-2190-blob.csi.azure.com"
-					},
-					NodeStageSecretRef: &v1.SecretReference{
-						Name:      props.pvSecretName,
-						Namespace: props.namespace,
 					},
 				},
 			},
@@ -402,10 +437,7 @@ func createExpectedPv(props expectedPvcPvProperties, modify func(pv *v1.Persiste
 		},
 		Status: v1.PersistentVolumeStatus{Phase: v1.VolumeBound},
 	}
-	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
-	if modify != nil {
-		modify(&pv)
-	}
+	setVolumeMountAttribute(pv, props.radixVolumeMountType, props.blobStorageName)
 	return pv
 }
 
@@ -424,9 +456,6 @@ func createAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, modi
 					VolumeAttributes: map[string]string{
 						csiVolumeMountAttributeContainerName:       props.blobStorageName,
 						csiVolumeMountAttributeProtocol:            csiVolumeAttributeProtocolParameterFuse2,
-						csiVolumeMountAttributePvName:              props.persistentVolumeName,
-						csiVolumeMountAttributePvcName:             props.pvcName,
-						csiVolumeMountAttributePvcNamespace:        props.namespace,
 						csiVolumeMountAttributeSecretNamespace:     props.namespace,
 						csiVolumeMountAttributeProvisionerIdentity: "6540128941979-5154-blob.csi.azure.com",
 					},
@@ -450,7 +479,7 @@ func createAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, modi
 		},
 		Status: v1.PersistentVolumeStatus{Phase: v1.VolumeBound, LastPhaseTransitionTime: pointers.Ptr(metav1.Time{Time: time.Now()})},
 	}
-	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.blobStorageName, props.pvcName)
+	setVolumeMountAttribute(&pv, props.radixVolumeMountType, props.blobStorageName)
 	if modify != nil {
 		modify(&pv)
 	}
@@ -473,6 +502,9 @@ func getMountOptions(props expectedPvcPvProperties, extraOptions ...string) []st
 	idOption := getPersistentVolumeIdMountOption(props)
 	if len(idOption) > 0 {
 		options = append(options, idOption)
+	}
+	if props.radixVolumeMountType == radixv1.MountTypeBlobFuse2Fuse2CsiAzure {
+		options = append(options, fmt.Sprintf("--%s=%v", csiMountOptionUseAdls, false))
 	}
 	return append(options, extraOptions...)
 }
@@ -497,9 +529,8 @@ func getMountOptionsInRandomOrder(props expectedPvcPvProperties, extraOptions ..
 	return append(options, extraOptions...)
 }
 
-func setVolumeMountAttribute(pv *v1.PersistentVolume, radixVolumeMountType radixv1.MountType, containerName, pvcName string) {
+func setVolumeMountAttribute(pv *v1.PersistentVolume, radixVolumeMountType radixv1.MountType, containerName string) {
 	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeContainerName] = containerName
-	pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvcName] = pvcName
 	switch radixVolumeMountType {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProtocol] = csiVolumeAttributeProtocolParameterFuse
@@ -577,6 +608,7 @@ func createExpectedAutoProvisionedPvcWithStorageClass(props expectedPvcPvPropert
 			},
 			VolumeName:       props.persistentVolumeName,
 			StorageClassName: pointers.Ptr("some-storage-class"),
+			VolumeMode:       pointers.Ptr(v1.PersistentVolumeFilesystem),
 		},
 		Status: v1.PersistentVolumeClaimStatus{
 			Phase:       v1.ClaimBound,
@@ -637,18 +669,13 @@ func equalPersistentVolumes(expectedPvs, actualPvs *[]v1.PersistentVolume) bool 
 		return false
 	}
 	for _, expectedPv := range *expectedPvs {
-		var hasEqualPv bool
 		for _, actualPv := range *actualPvs {
 			if EqualPersistentVolumes(&expectedPv, &actualPv) {
-				hasEqualPv = true
-				break
+				return true
 			}
 		}
-		if !hasEqualPv {
-			return false
-		}
 	}
-	return true
+	return false
 }
 
 func equalPersistentVolumeClaims(list1, list2 *[]v1.PersistentVolumeClaim) bool {

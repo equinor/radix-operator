@@ -4,6 +4,8 @@ package volumemount
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -11,15 +13,23 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
-func (suite *TestSuite) Test_NoVolumeMounts() {
-	suite.T().Run("app", func(t *testing.T) {
+type volumeMountTestSuite struct {
+	testSuite
+}
+
+func TestVolumeMountTestSuite(t *testing.T) {
+	suite.Run(t, new(volumeMountTestSuite))
+}
+
+func (s *volumeMountTestSuite) Test_NoVolumeMounts() {
+	s.T().Run("app", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
@@ -31,7 +41,7 @@ func (suite *TestSuite) Test_NoVolumeMounts() {
 	})
 }
 
-func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
+func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storagename1", Path: "TestPath1"},
@@ -46,9 +56,9 @@ func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			expectedVolumeName: "csi-az-blob-app-volume-with-long-name-blobstoragename-wit-12345",
 		},
 	}
-	suite.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
+	s.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
 				WithVolumeMounts(scenarios[0].radixVolumeMount).
@@ -65,9 +75,9 @@ func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			}
 		}
 	})
-	suite.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
+	s.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
@@ -93,7 +103,7 @@ func (suite *TestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	})
 }
 
-func (suite *TestSuite) Test_FailBlobCsiAzureVolumeMounts() {
+func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:             "Missed volume mount name",
@@ -111,9 +121,9 @@ func (suite *TestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 			expectedError:    "path is empty for volume mount volume1 in the component app",
 		},
 	}
-	suite.T().Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
+	s.T().Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, testCase := range scenarios {
 				t.Logf("Test case %s for component %s", testCase.name, factory.GetTargetType())
 				component := utils.NewDeployCommonComponentBuilder(factory).
@@ -129,10 +139,10 @@ func (suite *TestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	})
 }
 
-func (suite *TestSuite) Test_GetNewVolumes() {
+func (s *volumeMountTestSuite) Test_GetNewVolumes() {
 	namespace := "some-namespace"
 	componentName := "some-component"
-	suite.T().Run("No volumes in component", func(t *testing.T) {
+	s.T().Run("No volumes in component", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
 		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts().BuildComponent()
@@ -154,7 +164,7 @@ func (suite *TestSuite) Test_GetNewVolumes() {
 			expectedPvcName:    "pvc-csi-az-blob-some-component-volume-with-long-name-blobstor-einhp-12345",
 		},
 	}
-	suite.T().Run("CSI Azure volumes", func(t *testing.T) {
+	s.T().Run("CSI Azure volumes", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
@@ -174,7 +184,7 @@ func (suite *TestSuite) Test_GetNewVolumes() {
 			assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
 		}
 	})
-	suite.T().Run("Unsupported volume type", func(t *testing.T) {
+	s.T().Run("Unsupported volume type", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
 		mounts := []radixv1.RadixVolumeMount{
@@ -188,7 +198,7 @@ func (suite *TestSuite) Test_GetNewVolumes() {
 	})
 }
 
-func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
+func (s *volumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 	const (
 		namespace     = "any-app-some-env"
 		componentName = "some-component"
@@ -220,7 +230,7 @@ func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		},
 	}
 
-	suite.T().Run("CSI Azure volumes with existing PVC", func(t *testing.T) {
+	s.T().Run("CSI Azure volumes with existing PVC", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
@@ -245,7 +255,7 @@ func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		}
 	})
 
-	suite.T().Run("CSI Azure volumes with no existing PVC", func(t *testing.T) {
+	s.T().Run("CSI Azure volumes with no existing PVC", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
@@ -263,7 +273,7 @@ func (suite *TestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 	})
 }
 
-func (suite *TestSuite) Test_GetVolumesForComponent() {
+func (s *volumeMountTestSuite) Test_GetVolumesForComponent() {
 	const (
 		appName       = "any-app"
 		environment   = "some-env"
@@ -291,13 +301,13 @@ func (suite *TestSuite) Test_GetVolumesForComponent() {
 		},
 	}
 
-	suite.T().Run("No volumes", func(t *testing.T) {
+	s.T().Run("No volumes", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case for component %s", factory.GetTargetType())
 
-			radixDeployment := buildRd(appName, environment, componentName, []radixv1.RadixVolumeMount{})
+			radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{})
 			deployComponent := radixDeployment.Spec.Components[0]
 
 			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
@@ -306,14 +316,14 @@ func (suite *TestSuite) Test_GetVolumesForComponent() {
 			assert.Len(t, volumes, 0, "No volumes should be returned")
 		}
 	})
-	suite.T().Run("Exists volume", func(t *testing.T) {
+	s.T().Run("Exists volume", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
 
-				radixDeployment := buildRd(appName, environment, componentName, []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
+				radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
 				deployComponent := radixDeployment.Spec.Components[0]
 
 				volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
@@ -328,7 +338,7 @@ func (suite *TestSuite) Test_GetVolumesForComponent() {
 	})
 }
 
-func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
+func (s *volumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	const (
 		appName       = "any-app"
 		environment   = "some-env"
@@ -355,12 +365,12 @@ func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 		},
 	}
 
-	suite.T().Run("No volumes", func(t *testing.T) {
+	s.T().Run("No volumes", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case for component %s", factory.GetTargetType())
 
-			radixDeployment := buildRd(appName, environment, componentName, []radixv1.RadixVolumeMount{})
+			radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{})
 			deployComponent := radixDeployment.Spec.Components[0]
 
 			volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
@@ -369,13 +379,13 @@ func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 			assert.Len(t, volumes, 0, "No volumes should be returned")
 		}
 	})
-	suite.T().Run("Exists volume", func(t *testing.T) {
+	s.T().Run("Exists volume", func(t *testing.T) {
 		t.Parallel()
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
 
-				radixDeployment := buildRd(appName, environment, componentName, []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
+				radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
 				deployComponent := radixDeployment.Spec.Components[0]
 
 				volumeMounts, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
@@ -395,7 +405,7 @@ func (suite *TestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	})
 }
 
-func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
+func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	var scenarios []deploymentVolumesTestScenario
 	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
@@ -467,7 +477,7 @@ func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
 					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
 						pv.ObjectMeta.Name = scenarioProps.expectedNewPvName
 						pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
-						setVolumeMountAttribute(pv, props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName, scenarioProps.expectedNewPvcName)
+						setVolumeMountAttribute(pv, props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName)
 						pv.Spec.ClaimRef.Name = scenarioProps.expectedNewPvcName
 						pv.Spec.CSI.NodeStageSecretRef.Name = scenarioProps.expectedNewSecretName
 					}),
@@ -531,7 +541,7 @@ func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			matchPvAndPvc(&existingPv, &existingPvc)
 			expectedPv := modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
 				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-				pv.Spec.MountOptions = getMountOptions(props)
+				pv.Spec.MountOptions = getMountOptions(modifyProps(props, func(props *expectedPvcPvProperties) { props.readOnly = false }))
 			})
 			expectedPvc := modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
 				pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
@@ -641,6 +651,7 @@ func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
 					existingPv,
 					modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
 						pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+						pv.Spec.MountOptions = getMountOptions(modifyProps(props, func(props *expectedPvcPvProperties) { props.readOnly = true }))
 					}),
 				},
 			}
@@ -874,13 +885,373 @@ func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
 		}
 	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, props.componentName, props.radixVolumeMountName)
+			existingPvc.Spec.VolumeName = "" //auto-provisioned PVCs have empty volume name
+			expectedPvc := createRandomPvc(props, props.namespace, componentName1)
+			expectedPv := createRandomPv(props, props.namespace, componentName1)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Create PV for existing PVC without PV name",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{},
+				expectedPvs: []corev1.PersistentVolume{
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			expectedPvc := createRandomPvc(props, props.namespace, componentName1)
+			expectedPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Create PV and PVC with useAzureIdentity",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
+						vm.BlobFuse2.UseAzureIdentity = pointers.Ptr(true)
+						vm.BlobFuse2.StorageAccount = props.storageAccountName
+						vm.BlobFuse2.SubscriptionId = props.subscriptionId
+						vm.BlobFuse2.ResourceGroup = props.resourceGroup
+						vm.BlobFuse2.UseAdls = nil
+						vm.BlobFuse2.Streaming = &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false)}
+					}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{},
+				expectedPvs: []corev1.PersistentVolume{
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
+			})),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomPvc(props, props.namespace, componentName1)
+			existingPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&existingPv, &existingPvc)
+			expectedPvc := createRandomPvc(props, props.namespace, componentName1)
+			expectedPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Not changed PV and PVC with useAzureIdentity",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
+						setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
+					}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{
+					existingPv,
+				},
+				expectedPvs: []corev1.PersistentVolume{
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
+			})),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomPvc(props, props.namespace, componentName1)
+			existingPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&existingPv, &existingPvc)
+			changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.storageAccountName = testChangedStorageAccountName
+			})
+			expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
+			expectedPv := createExpectedPvWithIdentity(changedProps, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Created PV and PVC with useAzureIdentity on changed storage account",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
+						setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
+						vm.BlobFuse2.StorageAccount = testChangedStorageAccountName
+					}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{
+					existingPv,
+				},
+				expectedPvs: []corev1.PersistentVolume{
+					existingPv,
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
+			})),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomPvc(props, props.namespace, componentName1)
+			existingPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&existingPv, &existingPvc)
+			changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.resourceGroup = testChangedResourceGroup
+			})
+			expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
+			expectedPv := createExpectedPvWithIdentity(changedProps, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Created PV and PVC with useAzureIdentity on changed resource group",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
+						setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
+						vm.BlobFuse2.ResourceGroup = testChangedResourceGroup
+					}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{
+					existingPv,
+				},
+				expectedPvs: []corev1.PersistentVolume{
+					existingPv,
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
+			})),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomPvc(props, props.namespace, componentName1)
+			existingPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&existingPv, &existingPvc)
+			changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.subscriptionId = testChangedSubscriptionId
+			})
+			expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
+			expectedPv := createExpectedPvWithIdentity(changedProps, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Created PV and PVC with useAzureIdentity on changed subscription id",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
+						setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
+						vm.BlobFuse2.SubscriptionId = testChangedSubscriptionId
+					}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{
+					existingPv,
+				},
+				expectedPvs: []corev1.PersistentVolume{
+					existingPv,
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
+			})),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomPvc(props, props.namespace, componentName1)
+			existingPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&existingPv, &existingPvc)
+			changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.tenantId = testChangedTenantId
+			})
+			expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
+			expectedPv := createExpectedPvWithIdentity(changedProps, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Created PV and PVC with useAzureIdentity on changed tenant id",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
+						setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
+						vm.BlobFuse2.TenantId = testChangedTenantId
+					}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{
+					existingPv,
+				},
+				expectedPvs: []corev1.PersistentVolume{
+					existingPv,
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
+				props.tenantId = testTenantId
+			})),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
+			existingPvc := createRandomPvc(props, props.namespace, componentName1)
+			existingPv := createExpectedPvWithIdentity(props, nil)
+			matchPvAndPvc(&existingPv, &existingPvc)
+			changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
+				props.tenantId = testChangedTenantId
+			})
+			expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
+			expectedPv := createExpectedPv(changedProps, nil)
+			matchPvAndPvc(&expectedPv, &expectedPvc)
+			return deploymentVolumesTestScenario{
+				name:  "Changed PV and PVC from useAzureIdentity to use a Client Secret",
+				props: props,
+				radixVolumeMounts: []radixv1.RadixVolumeMount{
+					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createTestVolume(props, func(v *corev1.Volume) {
+						v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: existingPvc.Name,
+						}
+					}),
+				},
+				existingPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+				},
+				expectedPvcs: []corev1.PersistentVolumeClaim{
+					existingPvc,
+					expectedPvc,
+				},
+				existingPvs: []corev1.PersistentVolume{
+					existingPv,
+				},
+				expectedPvs: []corev1.PersistentVolume{
+					existingPv,
+					expectedPv,
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+				setPropsForBlob2Fuse2AzureIdentity(props)
+			})),
+		}
+	}()...)
 
-	suite.T().Run("CSI Azure volume PVCs and PersistentVolume", func(t *testing.T) {
-		for _, factory := range suite.radixCommonDeployComponentFactories {
+	s.T().Run("CSI Azure volume PVCs and PersistentVolume", func(t *testing.T) {
+		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
 				t.Logf("Test case %s, volume type %s, component %s", scenario.name, scenario.props.radixVolumeMountType, factory.GetTargetType())
 				testEnv := getTestEnv()
-				radixDeployment := buildRd(appName1, envName1, componentName1, scenario.radixVolumeMounts)
+				radixDeployment := buildRd(appName1, envName1, componentName1, testClientId, scenario.radixVolumeMounts)
 				putExistingDeploymentVolumesScenarioDataToFakeCluster(testEnv.kubeUtil.KubeClient(), &scenario)
 				desiredVolumes := getDesiredDeployment(componentName1, scenario.volumes).Spec.Template.Spec.Volumes
 
@@ -898,4 +1269,22 @@ func (suite *TestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			}
 		}
 	})
+}
+
+func setVolumeMountPropsForBlob2Fuse2AzureIdentity(props expectedPvcPvProperties, vm *radixv1.RadixVolumeMount) {
+	vm.BlobFuse2.UseAzureIdentity = pointers.Ptr(true)
+	vm.BlobFuse2.StorageAccount = props.storageAccountName
+	vm.BlobFuse2.SubscriptionId = props.subscriptionId
+	vm.BlobFuse2.ResourceGroup = props.resourceGroup
+	vm.BlobFuse2.UseAdls = nil
+	vm.BlobFuse2.Streaming = &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false)}
+}
+
+func setPropsForBlob2Fuse2AzureIdentity(props *expectedPvcPvProperties) {
+	props.radixVolumeMountType = radixv1.MountTypeBlobFuse2Fuse2CsiAzure
+	props.volumeName = "csi-blobfuse2-fuse2-some-component-volume1-storage1"
+	props.clientId = testClientId
+	props.subscriptionId = testSubscriptionId
+	props.resourceGroup = testResourceGroup
+	props.storageAccountName = testStorageAccountName
 }
