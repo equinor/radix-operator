@@ -11,7 +11,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
+	internalDeployment "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/google/uuid"
@@ -122,10 +122,12 @@ func GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx context.Context
 func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
 	var volumeMountSecretsToManage []string
 	for _, volumeMount := range volumeMounts {
+		if volumeMount.HasEmptyDir() || volumeMount.UseAzureIdentity() {
+			continue
+		}
 		secretName, accountKey, accountName := getCsiAzureVolumeMountCredsSecrets(ctx, kubeUtil, namespace, componentName, volumeMount.Name)
 		volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
-		err := createOrUpdateCsiAzureVolumeMountsSecrets(ctx, kubeUtil, appName, namespace, componentName, &volumeMount, secretName, accountName, accountKey)
-		if err != nil {
+		if err := createOrUpdateCsiAzureVolumeMountsSecrets(ctx, kubeUtil, appName, namespace, componentName, &volumeMount, secretName, accountName, accountKey); err != nil {
 			return nil, err
 		}
 	}
@@ -165,7 +167,7 @@ func isKnownCsiAzureVolumeMount(volumeMount string) bool {
 }
 
 func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
-	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
+	if internalDeployment.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil, nil
 	}
 
@@ -437,7 +439,9 @@ func createOrUpdateCsiAzureVolumeMountsSecrets(ctx context.Context, kubeUtil *ku
 	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
 	data := make(map[string][]byte)
 	data[defaults.CsiAzureCredsAccountKeyPart] = accountKey
-	data[defaults.CsiAzureCredsAccountNamePart] = accountName
+	if radixVolumeMount.BlobFuse2 == nil || len(radixVolumeMount.BlobFuse2.StorageAccount) == 0 {
+		data[defaults.CsiAzureCredsAccountNamePart] = accountName
+	}
 
 	secret.Data = data
 
@@ -499,9 +503,7 @@ func getVolumeCapacity(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quan
 }
 
 func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount, identity *radixv1.Identity) *corev1.PersistentVolume {
-	identityClientId := getIdentityClientId(identity)
-	useAzureIdentity := getUseAzureIdentity(identity, radixVolumeMount)
-	csiVolumeCredSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
+	identityClientId := identity.GetAzure().GetClientId()
 	pv := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pvName,
@@ -522,12 +524,13 @@ func buildCsiAzurePv(appName, namespace, componentName, pvName, pvcName string, 
 				CSI: &corev1.CSIPersistentVolumeSource{
 					Driver:           provisionerBlobCsiAzure,
 					VolumeHandle:     getVolumeHandle(namespace, componentName, pvName, getRadixVolumeMountStorage(radixVolumeMount)),
-					VolumeAttributes: getCsiAzurePvAttributes(namespace, radixVolumeMount, pvName, pvcName, useAzureIdentity, identityClientId),
+					VolumeAttributes: getCsiAzurePvAttributes(namespace, radixVolumeMount, identityClientId),
 				},
 			},
 		},
 	}
-	if !useAzureIdentity {
+	if !radixVolumeMount.UseAzureIdentity() {
+		csiVolumeCredSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
 		pv.Spec.CSI.NodeStageSecretRef = &corev1.SecretReference{Name: csiVolumeCredSecretName, Namespace: namespace}
 	}
 	pv.Spec.PersistentVolumeReclaimPolicy = corev1.PersistentVolumeReclaimRetain // Using only PersistentVolumeReclaimRetain. PersistentVolumeReclaimPolicy deletes volume on unmount.
@@ -540,21 +543,6 @@ func getVolumeHandle(namespace, componentName, pvName, storageName string) strin
 	return fmt.Sprintf("%s#%s#%s#%s", namespace, componentName, pvName, storageName)
 }
 
-func getUseAzureIdentity(identity *radixv1.Identity, radixVolumeMount *radixv1.RadixVolumeMount) bool {
-	if len(getIdentityClientId(identity)) == 0 {
-		return false
-	}
-	return radixVolumeMount != nil && radixVolumeMount.BlobFuse2 != nil &&
-		radixVolumeMount.BlobFuse2.UseAzureIdentity != nil && *radixVolumeMount.BlobFuse2.UseAzureIdentity
-}
-
-func getIdentityClientId(identity *radixv1.Identity) string {
-	if identity != nil && identity.Azure != nil && len(identity.Azure.ClientId) > 0 {
-		return identity.Azure.ClientId
-	}
-	return ""
-}
-
 func getCsiAzurePvLabels(appName, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) map[string]string {
 	return map[string]string{
 		kube.RadixAppLabel:             appName,
@@ -564,7 +552,7 @@ func getCsiAzurePvLabels(appName, namespace, componentName string, radixVolumeMo
 	}
 }
 
-func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVolumeMount, pvName, pvcName string, useAzureIdentity bool, clientId string) map[string]string {
+func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVolumeMount, clientId string) map[string]string {
 	attributes := make(map[string]string)
 	switch GetCsiAzureVolumeMountType(radixVolumeMount) {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
@@ -578,7 +566,7 @@ func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVo
 			if len(radixVolumeMount.BlobFuse2.StorageAccount) > 0 {
 				attributes[csiVolumeAttributeStorageAccount] = radixVolumeMount.BlobFuse2.StorageAccount
 			}
-			if useAzureIdentity {
+			if radixVolumeMount.UseAzureIdentity() {
 				attributes[csiVolumeAttributeClientID] = clientId
 				attributes[csiVolumeAttributeResourceGroup] = radixVolumeMount.BlobFuse2.ResourceGroup
 				if len(radixVolumeMount.BlobFuse2.SubscriptionId) > 0 {
@@ -592,9 +580,6 @@ func getCsiAzurePvAttributes(namespace string, radixVolumeMount *radixv1.RadixVo
 			}
 		}
 	}
-	attributes[csiVolumeMountAttributePvName] = pvName
-	attributes[csiVolumeMountAttributePvcName] = pvcName
-	attributes[csiVolumeMountAttributePvcNamespace] = namespace
 	// Do not specify the key storage.kubernetes.io/csiProvisionerIdentity in csi.volumeAttributes in PV specification. This key indicates dynamically provisioned PVs
 	// https://github.com/kubernetes-csi/external-provisioner/blob/master/pkg/controller/controller.go#L289C5-L289C21
 	// It looks like this: storage.kubernetes.io/csiProvisionerIdentity: 1731647415428-2825-blob.csi.azure.com
@@ -837,6 +822,9 @@ func createOrUpdateCsiAzureVolumeResourcesForVolume(ctx context.Context, kubeCli
 	existingPvc, pvcExists := pvcByNameMap[pvcName]
 	if !pvExists && pvcExists {
 		pvName = existingPvc.Spec.VolumeName
+		if len(pvName) == 0 {
+			pvName = getCsiAzurePvName() // for auto-provisioned persistent volume
+		}
 	}
 	needToCreatePvc := !pvcExists
 	needToReCreatePv := pvExists && !pvcExists && len(existingPv.Spec.StorageClassName) > 0 // HACK: always re-create PV if it uses SC and PVC is missing

@@ -58,52 +58,52 @@ func (ra *RadixApplication) GetCommonComponentByName(name string) RadixCommonCom
 // RadixApplicationSpec is the specification for an application.
 type RadixApplicationSpec struct {
 	// Build contains configuration used by pipeline jobs.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#build
+	// More info: https://www.radix.equinor.com/radix-config#build
 	// +optional
 	Build *BuildSpec `json:"build,omitempty"`
 
 	// List of environments belonging to the application.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#environments
+	// More info: https://www.radix.equinor.com/radix-config#environments
 	// +listType=map
 	// +listMapKey=name
 	// +kubebuilder:validation:MinItems=1
 	Environments []Environment `json:"environments"`
 
 	// List of job specification for the application.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#jobs
+	// More info: https://www.radix.equinor.com/radix-config#jobs
 	// +listType=map
 	// +listMapKey=name
 	// +optional
 	Jobs []RadixJobComponent `json:"jobs,omitempty"`
 
 	// List of component specification for the application.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#components
+	// More info: https://www.radix.equinor.com/radix-config#components
 	// +listType=map
 	// +listMapKey=name
 	// +optional
 	Components []RadixComponent `json:"components,omitempty"`
 
 	// Configure a component and environment to be linked to the app alias DNS record.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsappalias
+	// More info: https://www.radix.equinor.com/radix-config#dnsappalias
 	// +optional
 	DNSAppAlias AppAlias `json:"dnsAppAlias,omitempty"`
 
 	// List of external DNS names and which component and environment incoming requests shall be routed to.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsexternalalias
+	// More info: https://www.radix.equinor.com/radix-config#dnsexternalalias
 	// +listType=map
 	// +listMapKey=alias
 	// +optional
 	DNSExternalAlias []ExternalAlias `json:"dnsExternalAlias,omitempty"`
 
 	// List of DNS names and which component and environment incoming requests shall be routed to.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias
+	// More info: https://www.radix.equinor.com/radix-config#dnsalias
 	// +listType=map
 	// +listMapKey=alias
 	// +optional
 	DNSAlias []DNSAlias `json:"dnsAlias,omitempty"`
 
 	// Defines protected container registries used by components or jobs.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#privateimagehubs
+	// More info: https://www.radix.equinor.com/radix-config#privateimagehubs
 	// +optional
 	PrivateImageHubs PrivateImageHubEntries `json:"privateImageHubs,omitempty"`
 }
@@ -156,12 +156,12 @@ type Environment struct {
 	Name string `json:"name"`
 
 	// Build configuration for the environment.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#build-2
+	// More info: https://www.radix.equinor.com/radix-config#build-2
 	// +optional
 	Build EnvBuild `json:"build,omitempty"`
 
 	// Configure egress traffic rules for components and jobs.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#egress
+	// More info: https://www.radix.equinor.com/radix-config#egress
 	// +optional
 	Egress EgressConfig `json:"egress,omitempty"`
 
@@ -202,7 +202,7 @@ type SubPipeline struct {
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
 	// Configuration for workload identity (federated credentials).
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
+	// More info: https://www.radix.equinor.com/radix-config#identity
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 }
@@ -315,7 +315,7 @@ type ComponentPort struct {
 type ResourceList map[string]string
 
 // ResourceRequirements describes the compute resource requirements.
-// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+// More info: https://www.radix.equinor.com/radix-config#resources-common
 type ResourceRequirements struct {
 	// Limits describes the maximum amount of compute resources allowed.
 	// +optional
@@ -337,12 +337,12 @@ type RadixComponent struct {
 	Name string `json:"name"`
 
 	// Path to the Dockerfile that builds the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src
+	// More info: https://www.radix.equinor.com/radix-config#src
 	// +optional
 	SourceFolder string `json:"src,omitempty"`
 
 	// Name of the Dockerfile that builds the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
+	// More info: https://www.radix.equinor.com/radix-config#dockerfilename
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
@@ -352,13 +352,13 @@ type RadixComponent struct {
 	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
 
 	// Name of an existing container image to use when running the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image
+	// More info: https://www.radix.equinor.com/radix-config#image
 	// +optional
 	Image string `json:"image,omitempty"`
 
 	// The imageTagName allows for flexible configuration of fixed images,
 	// built outside of Radix, it can be also configured with separate tag for each environment.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+	// More info: https://www.radix.equinor.com/radix-config#imagetagname
 	// +optional
 	ImageTagName string `json:"imageTagName,omitempty"`
 
@@ -371,12 +371,12 @@ type RadixComponent struct {
 	// Configures the monitoring endpoint exposed by the component.
 	// This endpoint is used by Prometheus to collect custom metrics.
 	// environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig
+	// More info: https://www.radix.equinor.com/radix-config#monitoringconfig
 	// +optional
 	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
 
 	// Enabled or disables collection of custom Prometheus metrics.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+	// More info: https://www.radix.equinor.com/radix-config#monitoring
 	// +optional
 	Monitoring *bool `json:"monitoring"`
 
@@ -385,66 +385,66 @@ type RadixComponent struct {
 	Public bool `json:"public,omitempty"`
 
 	// Defines which port (name) from the ports list that shall be accessible from the internet.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport
+	// More info: https://www.radix.equinor.com/radix-config#publicport
 	// +kubebuilder:validation:MaxLength=15
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	// +optional
 	PublicPort string `json:"publicPort,omitempty"`
 
 	// List of secret environment variable names.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets
+	// More info: https://www.radix.equinor.com/radix-config#secrets
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
 	// Configuration for external secret stores, like Azure KeyVault.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
+	// More info: https://www.radix.equinor.com/radix-config#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
 	// Additional configuration settings for ingress traffic.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#ingressconfiguration
+	// More info: https://www.radix.equinor.com/radix-config#ingressconfiguration
 	// +optional
 	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
 
 	// Configure environment specific settings for the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig
+	// More info: https://www.radix.equinor.com/radix-config#environmentconfig
 	// +listType=map
 	// +listMapKey=environment
 	// +optional
 	EnvironmentConfig []RadixEnvironmentConfig `json:"environmentConfig,omitempty"`
 
 	// List of environment variables and values.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-common
+	// More info: https://www.radix.equinor.com/radix-config#variables-common
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
 	// Configures CPU and memory resources for the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+	// More info: https://www.radix.equinor.com/radix-config#resources-common
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
 	// Forces check/pull of images using static tags, e.g. myimage:latest, when deploying using deploy-only.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#alwayspullimageondeploy
+	// More info: https://www.radix.equinor.com/radix-config#alwayspullimageondeploy
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
 	// Defines GPU requirements for the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
+	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
 
 	// Configuration for TLS client certificate or OAuth2 authentication.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#authentication
+	// More info: https://www.radix.equinor.com/radix-config#authentication
 	// +optional
 	Authentication *Authentication `json:"authentication,omitempty"`
 
 	// Configuration for workload identity (federated credentials).
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
+	// More info: https://www.radix.equinor.com/radix-config#identity
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 
 	// Controls if the component shall be deployed.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
+	// More info: https://www.radix.equinor.com/radix-config#enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -453,12 +453,12 @@ type RadixComponent struct {
 	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
 
 	// Configuration for automatic horizontal scaling of replicas.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
+	// More info: https://www.radix.equinor.com/radix-config#horizontalscaling
 	// +optional
 	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
 
 	// Configuration for mounting cloud storage into the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+	// More info: https://www.radix.equinor.com/radix-config#volumemounts
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
@@ -480,17 +480,17 @@ type RadixEnvironmentConfig struct {
 	Environment string `json:"environment"`
 
 	// Path to the Dockerfile that builds the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src
+	// More info: https://www.radix.equinor.com/radix-config#src
 	// +optional
 	SourceFolder string `json:"src,omitempty"`
 
 	// Name of the Dockerfile that builds the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
+	// More info: https://www.radix.equinor.com/radix-config#dockerfilename
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
 	// Name of an existing container image to use when running the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image
+	// More info: https://www.radix.equinor.com/radix-config#image
 	// +optional
 	Image string `json:"image,omitempty"`
 
@@ -500,18 +500,18 @@ type RadixEnvironmentConfig struct {
 	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
 
 	// Number of desired replicas.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas
+	// More info: https://www.radix.equinor.com/radix-config#replicas
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Replicas *int `json:"replicas,omitempty"`
 
 	// Enabled or disables collection of custom Prometheus metrics.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+	// More info: https://www.radix.equinor.com/radix-config#monitoring
 	// +optional
 	Monitoring *bool `json:"monitoring,omitempty"`
 
 	// Environment specific configuration for CPU and memory resources.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources
+	// More info: https://www.radix.equinor.com/radix-config#resources
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
@@ -521,13 +521,13 @@ type RadixEnvironmentConfig struct {
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
 	// Configuration for automatic horizontal scaling of replicas.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
+	// More info: https://www.radix.equinor.com/radix-config#horizontalscaling
 	// +optional
 	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
 
 	// The imageTagName allows for flexible configuration of fixed images,
 	// built outside of Radix, to be configured with separate tag for each environment.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+	// More info: https://www.radix.equinor.com/radix-config#imagetagname
 	// +optional
 	ImageTagName string `json:"imageTagName,omitempty"`
 
@@ -536,32 +536,32 @@ type RadixEnvironmentConfig struct {
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
 	// Environment specific GPU requirements for the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
+	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
 
 	// Environment specific configuration for TLS client certificate or OAuth2 authentication.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#authentication
+	// More info: https://www.radix.equinor.com/radix-config#authentication
 	// +optional
 	Authentication *Authentication `json:"authentication,omitempty"`
 
 	// Environment specific configuration for external secret stores, like Azure KeyVault.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
+	// More info: https://www.radix.equinor.com/radix-config#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
 	// Configuration for mounting cloud storage into the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+	// More info: https://www.radix.equinor.com/radix-config#volumemounts
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
 	// Environment specific configuration for workload identity (federated credentials).
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
+	// More info: https://www.radix.equinor.com/radix-config#identity
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 
 	// Controls if the component shall be deployed to this environment.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
+	// More info: https://www.radix.equinor.com/radix-config#enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -587,35 +587,35 @@ type RadixJobComponent struct {
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 	// Path to the Dockerfile that builds the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src-2
+	// More info: https://www.radix.equinor.com/radix-config#src-2
 	// +optional
 	SourceFolder string `json:"src,omitempty"`
 
 	// Name of the Dockerfile that builds the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename-2
+	// More info: https://www.radix.equinor.com/radix-config#dockerfilename-2
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
 	// Name of an existing container image to use when running the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2
+	// More info: https://www.radix.equinor.com/radix-config#image-2
 	// +optional
 	Image string `json:"image,omitempty"`
 
 	// The imageTagName allows for flexible configuration of fixed images,
 	// built outside of Radix, it can be also configured with separate tag for each environment.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+	// More info: https://www.radix.equinor.com/radix-config#imagetagname
 	// +optional
 	ImageTagName string `json:"imageTagName,omitempty"`
 
 	// Defines the port number that the job-scheduler API server will listen to.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#schedulerport
+	// More info: https://www.radix.equinor.com/radix-config#schedulerport
 	// +kubebuilder:validation:Minimum=1024
 	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	SchedulerPort *int32 `json:"schedulerPort,omitempty"`
 
 	// Defines the path where the job payload is mounted.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#payload
+	// More info: https://www.radix.equinor.com/radix-config#payload
 	// +optional
 	Payload *RadixJobComponentPayload `json:"payload,omitempty"`
 
@@ -628,65 +628,65 @@ type RadixJobComponent struct {
 	// Configures the monitoring endpoint exposed by the job.
 	// This endpoint is used by Prometheus to collect custom metrics.
 	// environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig-2
+	// More info: https://www.radix.equinor.com/radix-config#monitoringconfig-2
 	// +optional
 	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
 
 	// Enabled or disables collection of custom Prometheus metrics.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+	// More info: https://www.radix.equinor.com/radix-config#monitoring
 	// +optional
 	Monitoring *bool `json:"monitoring,omitempty"`
 
 	// List of secret environment variable names.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets-2
+	// More info: https://www.radix.equinor.com/radix-config#secrets-2
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
 	// Configuration for external secret stores, like Azure KeyVault.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
+	// More info: https://www.radix.equinor.com/radix-config#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
 	// Configuration for mounting cloud storage into the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+	// More info: https://www.radix.equinor.com/radix-config#volumemounts
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
 	// Configure environment specific settings for the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig-2
+	// More info: https://www.radix.equinor.com/radix-config#environmentconfig-2
 	// +listType=map
 	// +listMapKey=environment
 	// +optional
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty"`
 
 	// List of environment variables and values.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-common-2
+	// More info: https://www.radix.equinor.com/radix-config#variables-common-2
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
 	// Configures CPU and memory resources for the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common-2
+	// More info: https://www.radix.equinor.com/radix-config#resources-common-2
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
 	// Defines GPU requirements for the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
+	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
 
 	// The maximum number of seconds the job can run.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds
+	// More info: https://www.radix.equinor.com/radix-config#timelimitseconds
 	// +optional
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
 
 	// Specifies the number of retries before marking this job failed.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit
+	// More info: https://www.radix.equinor.com/radix-config#backofflimit
 	// +optional
 	// +kubebuilder:validation:Minimum:=0
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
 	// Configuration for workload identity (federated credentials).
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
+	// More info: https://www.radix.equinor.com/radix-config#identity-2
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 
@@ -799,68 +799,68 @@ type RadixJobComponentEnvironmentConfig struct {
 	Environment string `json:"environment"`
 
 	// Name of an existing container image to use when running the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2
+	// More info: https://www.radix.equinor.com/radix-config#image-2
 	// +optional
 	Image string `json:"image,omitempty"`
 
 	// Path to the Dockerfile that builds the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src
+	// More info: https://www.radix.equinor.com/radix-config#src
 	// +optional
 	SourceFolder string `json:"src,omitempty"`
 
 	// Name of the Dockerfile that builds the component.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
+	// More info: https://www.radix.equinor.com/radix-config#dockerfilename
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 	// Enabled or disables collection of custom Prometheus metrics.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring-2
+	// More info: https://www.radix.equinor.com/radix-config#monitoring-2
 	// +optional
 	Monitoring *bool `json:"monitoring,omitempty"`
 
 	// Environment specific configuration for CPU and memory resources.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3
+	// More info: https://www.radix.equinor.com/radix-config#resources-3
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
 	// Environment specific environment variables.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-2
+	// More info: https://www.radix.equinor.com/radix-config#variables-2
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
 	// The imageTagName allows for flexible configuration of fixed images,
 	// built outside of Radix, to be configured with separate tag for each environment.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname-2
+	// More info: https://www.radix.equinor.com/radix-config#imagetagname-2
 	// +optional
 	ImageTagName string `json:"imageTagName,omitempty"`
 
 	// Configuration for mounting cloud storage into the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts-2
+	// More info: https://www.radix.equinor.com/radix-config#volumemounts-2
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
 	// Environment specific GPU requirements for the job.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
+	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
 
 	// Environment specific configuration for external secret stores, like Azure KeyVault.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
+	// More info: https://www.radix.equinor.com/radix-config#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
 	// Environment specific value for the maximum number of seconds the job can run.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2
+	// More info: https://www.radix.equinor.com/radix-config#timelimitseconds-2
 	// +optional
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
 
 	// Environment specific value for the number of retries before marking this job failed.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit-2
+	// More info: https://www.radix.equinor.com/radix-config#backofflimit-2
 	// +optional
 	// +kubebuilder:validation:Minimum:=0
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
 	// Environment specific configuration for workload identity (federated credentials).
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
+	// More info: https://www.radix.equinor.com/radix-config#identity-2
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 
@@ -985,16 +985,24 @@ type RadixVolumeMount struct {
 	EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
 }
 
+// HasDeprecatedVolume returns true if the volume mount is configured to use the deprecated volume type
 func (v *RadixVolumeMount) HasDeprecatedVolume() bool {
 	return len(v.Type) > 0
 }
 
+// HasBlobFuse2 returns true if the volume mount is configured to use BlobFuse2
 func (v *RadixVolumeMount) HasBlobFuse2() bool {
 	return v.BlobFuse2 != nil
 }
 
+// HasEmptyDir returns true if the volume mount is configured to use EmptyDir
 func (v *RadixVolumeMount) HasEmptyDir() bool {
 	return v.EmptyDir != nil
+}
+
+// UseAzureIdentity returns true if the volume mount is configured to use Azure Identity
+func (v *RadixVolumeMount) UseAzureIdentity() bool {
+	return v.HasBlobFuse2() && v.BlobFuse2.UseAzureIdentity != nil && *v.BlobFuse2.UseAzureIdentity
 }
 
 type RadixEmptyDirVolumeMount struct {
@@ -1127,7 +1135,7 @@ const (
 // RadixNode defines node attributes, where container should be scheduled
 type RadixNode struct {
 	// Defines rules for allowed GPU types.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+	// More info: https://www.radix.equinor.com/radix-config#gpu
 	// +optional
 	Gpu string `json:"gpu,omitempty"`
 
@@ -1255,12 +1263,12 @@ type RadixAzureKeyVaultItem struct {
 // Authentication describes authentication options.
 type Authentication struct {
 	// Configuration for TLS client certificate authentication.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#clientcertificate
+	// More info: https://www.radix.equinor.com/radix-config#clientcertificate
 	// +optional
 	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty"`
 
 	// Configuration for OAuth2 authentication.
-	// More info: https://www.radix.equinor.com/references/reference-radix-config/#oauth2
+	// More info: https://www.radix.equinor.com/radix-config#oauth2
 	// +optional
 	OAuth2 *OAuth2 `json:"oauth2,omitempty"`
 }
@@ -1935,4 +1943,20 @@ func getSourceForEnvironment(component RadixCommonComponent, environment string)
 		}
 	}
 	return source
+}
+
+// GetAzure Get component Azure identity configuration
+func (identity *Identity) GetAzure() *AzureIdentity {
+	if identity == nil {
+		return nil
+	}
+	return identity.Azure
+}
+
+// GetClientId Get Azure identity client ID
+func (azureIdentity *AzureIdentity) GetClientId() string {
+	if azureIdentity == nil {
+		return ""
+	}
+	return azureIdentity.ClientId
 }
