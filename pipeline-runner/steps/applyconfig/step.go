@@ -360,7 +360,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 func getLengthLimitedName(name string) string {
 	validatedName := strings.ToLower(name)
 	if len(validatedName) > 10 {
-		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandString(4)))
+		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandStringStrSeed(4, validatedName)))
 	}
 	return validatedName
 }
