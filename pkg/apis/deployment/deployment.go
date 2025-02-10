@@ -558,20 +558,16 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		if err := deploy.createOrUpdateIngress(ctx, component); err != nil {
 			return fmt.Errorf("failed to create ingress: %w", err)
 		}
-	} else {
-		if err := deploy.garbageCollectIngressNoLongerInSpecForComponent(ctx, component); err != nil {
-			return fmt.Errorf("failed to delete ingress: %w", err)
-		}
+	} else if err := deploy.garbageCollectIngressNoLongerInSpecForComponent(ctx, component); err != nil {
+		return fmt.Errorf("failed to delete ingress: %w", err)
 	}
 
 	if component.GetMonitoring() {
 		if err := deploy.createOrUpdateServiceMonitor(ctx, component); err != nil {
 			return fmt.Errorf("failed to create service monitor: %w", err)
 		}
-	} else {
-		if err := deploy.deleteServiceMonitorForComponent(ctx, component); err != nil {
-			return fmt.Errorf("failed to delete servicemonitor: %w", err)
-		}
+	} else if err := deploy.deleteServiceMonitorForComponent(ctx, component); err != nil {
+		return fmt.Errorf("failed to delete servicemonitor: %w", err)
 	}
 
 	if err := volumemount.GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace()); err != nil {

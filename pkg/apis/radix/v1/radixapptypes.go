@@ -1903,7 +1903,7 @@ func (oauth2 *OAuth2) GetUseAzureIdentity() bool {
 	if oauth2 == nil {
 		return false
 	}
-	return oauth2.UseAzureIdentity == nil && *oauth2.UseAzureIdentity
+	return oauth2.UseAzureIdentity != nil && *oauth2.UseAzureIdentity
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {

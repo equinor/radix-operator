@@ -278,7 +278,7 @@ func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.
 		return err
 	}
 
-	if err := o.deleteServiceAccounts(ctx, component); err != nil {
+	if err := deleteAuxOAuthServiceAccounts(ctx, o.kubeutil, o.rd.Namespace, component); err != nil {
 		return err
 	}
 
@@ -345,23 +345,6 @@ func (o *oauthProxyResourceManager) deleteSecrets(ctx context.Context, component
 			return err
 		}
 		o.logger.Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
-	}
-
-	return nil
-}
-
-func (o *oauthProxyResourceManager) deleteServiceAccounts(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthComponentServiceAccount(component)).String()
-	serviceAccounts, err := o.kubeutil.ListSecretsWithSelector(ctx, o.rd.Namespace, selector)
-	if err != nil {
-		return err
-	}
-
-	for _, serviceAccount := range serviceAccounts {
-		if err := o.kubeutil.DeleteServiceAccount(ctx, serviceAccount.Namespace, serviceAccount.Name); err != nil {
-			return err
-		}
-		o.logger.Info().Msgf("Deleted serviceAccount: %s in namespace %s", serviceAccount.GetName(), serviceAccount.Namespace)
 	}
 
 	return nil

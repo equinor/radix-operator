@@ -137,14 +137,6 @@ func ForAuxOAuthComponentServiceAccount(component v1.RadixCommonDeployComponent)
 	)
 }
 
-// ForAuxOAuthComponentServiceAccountWithIdentity returns labels for configuring a ServiceAccount for an aux OAuth2 proxy with component identity clientId
-func ForAuxOAuthComponentServiceAccountWithIdentity(component v1.RadixCommonDeployComponent) kubelabels.Set {
-	return Merge(
-		ForAuxOAuthComponentServiceAccount(component),
-		ForServiceAccountWithRadixIdentity(component.GetIdentity()),
-	)
-}
-
 // ForServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
 // e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
 func ForServiceAccountWithRadixIdentity(identity *v1.Identity) kubelabels.Set {

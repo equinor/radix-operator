@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,34 +90,25 @@ func verifyServiceAccountForAuxOAuthComponentCanBeApplied(ctx context.Context, k
 
 func buildServiceAccountForComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
 	labels := getComponentServiceAccountLabels(component)
-	annotations := getComponentServiceAccountAnnotations(component)
-
-	sa := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        utils.GetComponentServiceAccountName(component.GetName()),
-			Namespace:   namespace,
-			Labels:      labels,
-			Annotations: annotations,
-		},
-	}
-
-	return &sa
+	name := utils.GetComponentServiceAccountName(component.GetName())
+	return buildServiceAccount(namespace, name, labels, component)
 }
 
 func buildServiceAccountForAuxOAuthComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
-	labels := radixlabels.ForAuxOAuthComponentServiceAccountWithIdentity(component)
-	annotations := getComponentServiceAccountAnnotations(component)
+	labels := getAuxOAuthComponentServiceAccountLabels(component)
+	name := utils.GetAuxOAuthServiceAccountName(component.GetName())
+	return buildServiceAccount(namespace, name, labels, component)
+}
 
-	sa := corev1.ServiceAccount{
+func buildServiceAccount(namespace, name string, labels kubelabels.Set, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        utils.GetAuxOAuthServiceAccountName(component.GetName()),
+			Name:        name,
 			Namespace:   namespace,
 			Labels:      labels,
-			Annotations: annotations,
+			Annotations: getComponentServiceAccountAnnotations(component),
 		},
 	}
-
-	return &sa
 }
 
 func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
@@ -151,15 +143,21 @@ func garbageCollectServiceAccountNoLongerInSpecForAuxOAuthComponent(ctx context.
 		return nil
 	}
 
-	serviceAccountList, err := kubeUtil.ListServiceAccountsWithSelector(ctx, radixDeployment.Namespace, radixlabels.ForAuxOAuthComponentServiceAccount(component).AsSelector().String())
+	return deleteAuxOAuthServiceAccounts(ctx, kubeUtil, radixDeployment.Namespace, component)
+}
+
+func deleteAuxOAuthServiceAccounts(ctx context.Context, kubeUtil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent) error {
+	selector := radixlabels.ForAuxOAuthComponentServiceAccount(component).AsSelector().String()
+	serviceAccountList, err := kubeUtil.ListServiceAccountsWithSelector(ctx, namespace, selector)
 	if err != nil {
 		return err
 	}
 
 	for _, sa := range serviceAccountList {
-		if err := kubeUtil.DeleteServiceAccount(ctx, sa.Namespace, sa.Name); err != nil {
+		if err := kubeUtil.DeleteServiceAccount(ctx, namespace, sa.Name); err != nil {
 			return err
 		}
+		log.Ctx(ctx).Info().Msgf("Deleted serviceAccount: %s in namespace %s", sa.Name, namespace)
 	}
 
 	return nil
@@ -211,6 +209,13 @@ func getComponentServiceAccountLabels(component radixv1.RadixCommonDeployCompone
 	)
 }
 
+func getAuxOAuthComponentServiceAccountLabels(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+	return radixlabels.Merge(
+		radixlabels.ForAuxOAuthComponentServiceAccount(component),
+		radixlabels.ForServiceAccountWithRadixIdentity(component.GetIdentity()),
+	)
+}
+
 func getComponentServiceAccountIdentifier(componentName string) kubelabels.Set {
 	return radixlabels.Merge(
 		radixlabels.ForComponentName(componentName),
@@ -227,6 +232,5 @@ func isServiceAccountForComponent(sa *corev1.ServiceAccount, componentName strin
 }
 
 func isServiceAccountForAuxOAuthComponent(sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) bool {
-	// TODO - check if it will match existing service account, when component identity has added/edited/removed
-	return radixlabels.ForAuxOAuthComponentServiceAccountWithIdentity(component).AsSelector().Matches(kubelabels.Set(sa.Labels))
+	return radixlabels.ForAuxOAuthComponentServiceAccount(component).AsSelector().Matches(kubelabels.Set(sa.Labels))
 }
