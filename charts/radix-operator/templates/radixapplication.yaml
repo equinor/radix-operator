@@ -46,7 +46,7 @@ spec:
               build:
                 description: |-
                   Build contains configuration used by pipeline jobs.
-                  More info: https://www.radix.equinor.com/references/reference-radix-config/#build
+                  More info: https://www.radix.equinor.com/radix-config#build
                 properties:
                   secrets:
                     description: |-
@@ -61,7 +61,7 @@ spec:
                       identity:
                         description: |-
                           Configuration for workload identity (federated credentials).
-                          More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
+                          More info: https://www.radix.equinor.com/radix-config#identity
                         properties:
                           azure:
                             description: Azure identity configuration
@@ -101,24 +101,24 @@ spec:
               components:
                 description: |-
                   List of component specification for the application.
-                  More info: https://www.radix.equinor.com/references/reference-radix-config/#components
+                  More info: https://www.radix.equinor.com/radix-config#components
                 items:
                   description: RadixComponent defines a component.
                   properties:
                     alwaysPullImageOnDeploy:
                       description: |-
                         Forces check/pull of images using static tags, e.g. myimage:latest, when deploying using deploy-only.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#alwayspullimageondeploy
+                        More info: https://www.radix.equinor.com/radix-config#alwayspullimageondeploy
                       type: boolean
                     authentication:
                       description: |-
                         Configuration for TLS client certificate or OAuth2 authentication.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#authentication
+                        More info: https://www.radix.equinor.com/radix-config#authentication
                       properties:
                         clientCertificate:
                           description: |-
                             Configuration for TLS client certificate authentication.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#clientcertificate
+                            More info: https://www.radix.equinor.com/radix-config#clientcertificate
                           properties:
                             passCertificateToUpstream:
                               description: |-
@@ -138,7 +138,7 @@ spec:
                         oauth2:
                           description: |-
                             Configuration for OAuth2 authentication.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#oauth2
+                            More info: https://www.radix.equinor.com/radix-config#oauth2
                           properties:
                             clientId:
                               description: Client ID of the application.
@@ -248,17 +248,17 @@ spec:
                     dockerfileName:
                       description: |-
                         Name of the Dockerfile that builds the component.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
+                        More info: https://www.radix.equinor.com/radix-config#dockerfilename
                       type: string
                     enabled:
                       description: |-
                         Controls if the component shall be deployed.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
+                        More info: https://www.radix.equinor.com/radix-config#enabled
                       type: boolean
                     environmentConfig:
                       description: |-
                         Configure environment specific settings for the component.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig
+                        More info: https://www.radix.equinor.com/radix-config#environmentconfig
                       items:
                         description: RadixEnvironmentConfig defines environment specific
                           settings for component.
@@ -270,12 +270,12 @@ spec:
                           authentication:
                             description: |-
                               Environment specific configuration for TLS client certificate or OAuth2 authentication.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#authentication
+                              More info: https://www.radix.equinor.com/radix-config#authentication
                             properties:
                               clientCertificate:
                                 description: |-
                                   Configuration for TLS client certificate authentication.
-                                  More info: https://www.radix.equinor.com/references/reference-radix-config/#clientcertificate
+                                  More info: https://www.radix.equinor.com/radix-config#clientcertificate
                                 properties:
                                   passCertificateToUpstream:
                                     description: |-
@@ -295,7 +295,7 @@ spec:
                               oauth2:
                                 description: |-
                                   Configuration for OAuth2 authentication.
-                                  More info: https://www.radix.equinor.com/references/reference-radix-config/#oauth2
+                                  More info: https://www.radix.equinor.com/radix-config#oauth2
                                 properties:
                                   clientId:
                                     description: Client ID of the application.
@@ -407,12 +407,12 @@ spec:
                           dockerfileName:
                             description: |-
                               Name of the Dockerfile that builds the component.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
+                              More info: https://www.radix.equinor.com/radix-config#dockerfilename
                             type: string
                           enabled:
                             description: |-
                               Controls if the component shall be deployed to this environment.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
+                              More info: https://www.radix.equinor.com/radix-config#enabled
                             type: boolean
                           environment:
                             description: Name of the environment which the settings
@@ -882,7 +882,7 @@ spec:
                           horizontalScaling:
                             description: |-
                               Configuration for automatic horizontal scaling of replicas.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
+                              More info: https://www.radix.equinor.com/radix-config#horizontalscaling
                             properties:
                               cooldownPeriod:
                                 description: CooldownPeriod to wait after the last
@@ -1115,7 +1115,7 @@ spec:
                           identity:
                             description: |-
                               Environment specific configuration for workload identity (federated credentials).
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
+                              More info: https://www.radix.equinor.com/radix-config#identity
                             properties:
                               azure:
                                 description: Azure identity configuration
@@ -1132,18 +1132,18 @@ spec:
                           image:
                             description: |-
                               Name of an existing container image to use when running the component.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#image
+                              More info: https://www.radix.equinor.com/radix-config#image
                             type: string
                           imageTagName:
                             description: |-
                               The imageTagName allows for flexible configuration of fixed images,
                               built outside of Radix, to be configured with separate tag for each environment.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+                              More info: https://www.radix.equinor.com/radix-config#imagetagname
                             type: string
                           monitoring:
                             description: |-
                               Enabled or disables collection of custom Prometheus metrics.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+                              More info: https://www.radix.equinor.com/radix-config#monitoring
                             type: boolean
                           network:
                             description: Environment specific network settings.
@@ -1193,12 +1193,12 @@ spec:
                           node:
                             description: |-
                               Environment specific GPU requirements for the component.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#node
+                              More info: https://www.radix.equinor.com/radix-config#node
                             properties:
                               gpu:
                                 description: |-
                                   Defines rules for allowed GPU types.
-                                  More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+                                  More info: https://www.radix.equinor.com/radix-config#gpu
                                 type: string
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
@@ -1210,13 +1210,13 @@ spec:
                           replicas:
                             description: |-
                               Number of desired replicas.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas
+                              More info: https://www.radix.equinor.com/radix-config#replicas
                             minimum: 0
                             type: integer
                           resources:
                             description: |-
                               Environment specific configuration for CPU and memory resources.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#resources
+                              More info: https://www.radix.equinor.com/radix-config#resources
                             properties:
                               limits:
                                 additionalProperties:
@@ -1249,7 +1249,7 @@ spec:
                           secretRefs:
                             description: |-
                               Environment specific configuration for external secret stores, like Azure KeyVault.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
+                              More info: https://www.radix.equinor.com/radix-config#secretrefs
                             properties:
                               azureKeyVaults:
                                 description: List of Azure Key Vaults to get secrets
@@ -1350,7 +1350,7 @@ spec:
                           src:
                             description: |-
                               Path to the Dockerfile that builds the component.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#src
+                              More info: https://www.radix.equinor.com/radix-config#src
                             type: string
                           variables:
                             additionalProperties:
@@ -1362,75 +1362,27 @@ spec:
                           volumeMounts:
                             description: |-
                               Configuration for mounting cloud storage into the component.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+                              More info: https://www.radix.equinor.com/radix-config#volumemounts
                             items:
                               description: RadixVolumeMount defines an external storage
                                 resource.
                               properties:
                                 accessMode:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   enum:
                                   - ReadOnlyMany
                                   - ReadWriteOnce
                                   - ReadWriteMany
                                   - ""
                                   type: string
-                                azureFile:
-                                  description: AzureFile settings for Azure File CSI
-                                    driver
-                                  properties:
-                                    accessMode:
-                                      description: |-
-                                        Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
-                                        More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                      enum:
-                                      - ReadOnlyMany
-                                      - ReadWriteOnce
-                                      - ReadWriteMany
-                                      - ""
-                                      type: string
-                                    bindingMode:
-                                      description: |-
-                                        Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                        More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                      enum:
-                                      - Immediate
-                                      - WaitForFirstConsumer
-                                      - ""
-                                      type: string
-                                    gid:
-                                      description: GID defines the group ID (number)
-                                        which will be set as owner of the mounted
-                                        volume.
-                                      type: string
-                                    requestsStorage:
-                                      description: |-
-                                        Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
-                                        More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-                                      type: string
-                                    share:
-                                      description: Share. Name of the file share in
-                                        the external storage resource.
-                                      type: string
-                                    skuName:
-                                      description: |-
-                                        SKU Type of Azure storage.
-                                        More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-                                      type: string
-                                    uid:
-                                      description: UID defines the user ID (number)
-                                        which will be set as owner of the mounted
-                                        volume.
-                                      type: string
-                                  type: object
                                 bindingMode:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   enum:
                                   - Immediate
                                   - WaitForFirstConsumer
@@ -1438,7 +1390,7 @@ spec:
                                   type: string
                                 blobFuse2:
                                   description: BlobFuse2 settings for Azure Storage
-                                    FUSE CSI driver
+                                    FUSE CSI driver with the protocol fuse2
                                   properties:
                                     accessMode:
                                       description: |-
@@ -1473,13 +1425,16 @@ spec:
                                         Storage FUSE driver. Default is fuse2.
                                       enum:
                                       - fuse2
-                                      - nfs
                                       - ""
                                       type: string
                                     requestsStorage:
                                       description: |-
                                         Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                         More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+                                      type: string
+                                    resourceGroup:
+                                      description: ResourceGroup of a storage account.
+                                        Applicable when using a workload identity.
                                       type: string
                                     skuName:
                                       description: |-
@@ -1491,6 +1446,13 @@ spec:
                                       - Standard_GRS
                                       - Standard_RAGRS
                                       - ""
+                                      type: string
+                                    storageAccount:
+                                      description: Name of a storage account. It is
+                                        mandatory when using a workload identity.
+                                        It is optional when using Access Key, if it
+                                        is not defined, it will be configured in a
+                                        secret.
                                       type: string
                                     streaming:
                                       description: |-
@@ -1534,6 +1496,14 @@ spec:
                                           minimum: 1
                                           type: integer
                                       type: object
+                                    subscriptionId:
+                                      description: SubscriptionId of a storage account.
+                                        Applicable when using a workload identity.
+                                      type: string
+                                    tenantId:
+                                      description: TenantId of a storage account.
+                                        Applicable when using a workload identity.
+                                      type: string
                                     uid:
                                       description: UID defines the user ID (number)
                                         which will be set as owner of the mounted
@@ -1544,11 +1514,17 @@ spec:
                                         Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
                                         Default false. This must be turned on when HNS enabled account is mounted.
                                       type: boolean
+                                    useAzureIdentity:
+                                      description: UseAzureIdentity defines that credentials
+                                        for accessing Azure Storage will be acquired
+                                        using Azure Workload Identity instead of using
+                                        a ClientID and Secret.
+                                      type: boolean
                                   required:
                                   - container
                                   type: object
                                 container:
-                                  description: 'Deprecated. Only required by the deprecated
+                                  description: 'Deprecated: Only required by the deprecated
                                     type: blob.'
                                   type: string
                                 emptyDir:
@@ -1567,8 +1543,8 @@ spec:
                                   type: object
                                 gid:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     GID defines the group ID (number) which will be set as owner of the mounted volume.
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 name:
                                   description: |-
@@ -1584,33 +1560,31 @@ spec:
                                   type: string
                                 requestsStorage:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 skuName:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 storage:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     Storage defines the name of the container in the external storage resource.
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 type:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     Type defines the storage type.
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   enum:
-                                  - blob
                                   - azure-blob
-                                  - azure-file
                                   - ""
                                   type: string
                                 uid:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     UID defines the user ID (number) which will be set as owner of the mounted volume.
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                               required:
                               - name
@@ -2070,7 +2044,7 @@ spec:
                     horizontalScaling:
                       description: |-
                         Configuration for automatic horizontal scaling of replicas.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
+                        More info: https://www.radix.equinor.com/radix-config#horizontalscaling
                       properties:
                         cooldownPeriod:
                           description: CooldownPeriod to wait after the last trigger
@@ -2292,7 +2266,7 @@ spec:
                     identity:
                       description: |-
                         Configuration for workload identity (federated credentials).
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
+                        More info: https://www.radix.equinor.com/radix-config#identity
                       properties:
                         azure:
                           description: Azure identity configuration
@@ -2309,32 +2283,32 @@ spec:
                     image:
                       description: |-
                         Name of an existing container image to use when running the component.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#image
+                        More info: https://www.radix.equinor.com/radix-config#image
                       type: string
                     imageTagName:
                       description: |-
                         The imageTagName allows for flexible configuration of fixed images,
                         built outside of Radix, it can be also configured with separate tag for each environment.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+                        More info: https://www.radix.equinor.com/radix-config#imagetagname
                       type: string
                     ingressConfiguration:
                       description: |-
                         Additional configuration settings for ingress traffic.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#ingressconfiguration
+                        More info: https://www.radix.equinor.com/radix-config#ingressconfiguration
                       items:
                         type: string
                       type: array
                     monitoring:
                       description: |-
                         Enabled or disables collection of custom Prometheus metrics.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+                        More info: https://www.radix.equinor.com/radix-config#monitoring
                       type: boolean
                     monitoringConfig:
                       description: |-
                         Configures the monitoring endpoint exposed by the component.
                         This endpoint is used by Prometheus to collect custom metrics.
                         environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig
+                        More info: https://www.radix.equinor.com/radix-config#monitoringconfig
                       properties:
                         path:
                           description: Defines the path where metrics is served.
@@ -2398,12 +2372,12 @@ spec:
                     node:
                       description: |-
                         Defines GPU requirements for the component.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#node
+                        More info: https://www.radix.equinor.com/radix-config#node
                       properties:
                         gpu:
                           description: |-
                             Defines rules for allowed GPU types.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+                            More info: https://www.radix.equinor.com/radix-config#gpu
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
@@ -2435,12 +2409,13 @@ spec:
                       - name
                       x-kubernetes-list-type: map
                     public:
-                      description: Deprecated, use publicPort instead.
+                      description: 'Deprecated: For backwards compatibility Public
+                        is still supported, new code should use PublicPort instead'
                       type: boolean
                     publicPort:
                       description: |-
                         Defines which port (name) from the ports list that shall be accessible from the internet.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport
+                        More info: https://www.radix.equinor.com/radix-config#publicport
                       maxLength: 15
                       pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
@@ -2450,7 +2425,7 @@ spec:
                     resources:
                       description: |-
                         Configures CPU and memory resources for the component.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+                        More info: https://www.radix.equinor.com/radix-config#resources-common
                       properties:
                         limits:
                           additionalProperties:
@@ -2483,7 +2458,7 @@ spec:
                     secretRefs:
                       description: |-
                         Configuration for external secret stores, like Azure KeyVault.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
+                        More info: https://www.radix.equinor.com/radix-config#secretrefs
                       properties:
                         azureKeyVaults:
                           description: List of Azure Key Vaults to get secrets from.
@@ -2581,91 +2556,46 @@ spec:
                     secrets:
                       description: |-
                         List of secret environment variable names.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets
+                        More info: https://www.radix.equinor.com/radix-config#secrets
                       items:
                         type: string
                       type: array
                     src:
                       description: |-
                         Path to the Dockerfile that builds the component.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#src
+                        More info: https://www.radix.equinor.com/radix-config#src
                       type: string
                     variables:
                       additionalProperties:
                         type: string
                       description: |-
                         List of environment variables and values.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-common
+                        More info: https://www.radix.equinor.com/radix-config#variables-common
                       type: object
                     volumeMounts:
                       description: |-
                         Configuration for mounting cloud storage into the component.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+                        More info: https://www.radix.equinor.com/radix-config#volumemounts
                       items:
                         description: RadixVolumeMount defines an external storage
                           resource.
                         properties:
                           accessMode:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
                             - ReadOnlyMany
                             - ReadWriteOnce
                             - ReadWriteMany
                             - ""
                             type: string
-                          azureFile:
-                            description: AzureFile settings for Azure File CSI driver
-                            properties:
-                              accessMode:
-                                description: |-
-                                  Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - ReadOnlyMany
-                                - ReadWriteOnce
-                                - ReadWriteMany
-                                - ""
-                                type: string
-                              bindingMode:
-                                description: |-
-                                  Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - Immediate
-                                - WaitForFirstConsumer
-                                - ""
-                                type: string
-                              gid:
-                                description: GID defines the group ID (number) which
-                                  will be set as owner of the mounted volume.
-                                type: string
-                              requestsStorage:
-                                description: |-
-                                  Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
-                                  More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-                                type: string
-                              share:
-                                description: Share. Name of the file share in the
-                                  external storage resource.
-                                type: string
-                              skuName:
-                                description: |-
-                                  SKU Type of Azure storage.
-                                  More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-                                type: string
-                              uid:
-                                description: UID defines the user ID (number) which
-                                  will be set as owner of the mounted volume.
-                                type: string
-                            type: object
                           bindingMode:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
                             - Immediate
                             - WaitForFirstConsumer
@@ -2673,7 +2603,7 @@ spec:
                             type: string
                           blobFuse2:
                             description: BlobFuse2 settings for Azure Storage FUSE
-                              CSI driver
+                              CSI driver with the protocol fuse2
                             properties:
                               accessMode:
                                 description: |-
@@ -2707,13 +2637,16 @@ spec:
                                   FUSE driver. Default is fuse2.
                                 enum:
                                 - fuse2
-                                - nfs
                                 - ""
                                 type: string
                               requestsStorage:
                                 description: |-
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+                                type: string
+                              resourceGroup:
+                                description: ResourceGroup of a storage account. Applicable
+                                  when using a workload identity.
                                 type: string
                               skuName:
                                 description: |-
@@ -2725,6 +2658,12 @@ spec:
                                 - Standard_GRS
                                 - Standard_RAGRS
                                 - ""
+                                type: string
+                              storageAccount:
+                                description: Name of a storage account. It is mandatory
+                                  when using a workload identity. It is optional when
+                                  using Access Key, if it is not defined, it will
+                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -2766,6 +2705,14 @@ spec:
                                     minimum: 1
                                     type: integer
                                 type: object
+                              subscriptionId:
+                                description: SubscriptionId of a storage account.
+                                  Applicable when using a workload identity.
+                                type: string
+                              tenantId:
+                                description: TenantId of a storage account. Applicable
+                                  when using a workload identity.
+                                type: string
                               uid:
                                 description: UID defines the user ID (number) which
                                   will be set as owner of the mounted volume.
@@ -2775,11 +2722,17 @@ spec:
                                   Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
                                   Default false. This must be turned on when HNS enabled account is mounted.
                                 type: boolean
+                              useAzureIdentity:
+                                description: UseAzureIdentity defines that credentials
+                                  for accessing Azure Storage will be acquired using
+                                  Azure Workload Identity instead of using a ClientID
+                                  and Secret.
+                                type: boolean
                             required:
                             - container
                             type: object
                           container:
-                            description: 'Deprecated. Only required by the deprecated
+                            description: 'Deprecated: Only required by the deprecated
                               type: blob.'
                             type: string
                           emptyDir:
@@ -2798,8 +2751,8 @@ spec:
                             type: object
                           gid:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               GID defines the group ID (number) which will be set as owner of the mounted volume.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           name:
                             description: |-
@@ -2815,33 +2768,31 @@ spec:
                             type: string
                           requestsStorage:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           skuName:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           storage:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Storage defines the name of the container in the external storage resource.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           type:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Type defines the storage type.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
-                            - blob
                             - azure-blob
-                            - azure-file
                             - ""
                             type: string
                           uid:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               UID defines the user ID (number) which will be set as owner of the mounted volume.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                         required:
                         - name
@@ -2858,7 +2809,7 @@ spec:
               dnsAlias:
                 description: |-
                   List of DNS names and which component and environment incoming requests shall be routed to.
-                  More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsalias
+                  More info: https://www.radix.equinor.com/radix-config#dnsalias
                 items:
                   description: DNSAlias defines mapping between an DNS alias and a
                     component and environment.
@@ -2895,7 +2846,7 @@ spec:
               dnsAppAlias:
                 description: |-
                   Configure a component and environment to be linked to the app alias DNS record.
-                  More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsappalias
+                  More info: https://www.radix.equinor.com/radix-config#dnsappalias
                 properties:
                   component:
                     description: Name of the component that shall receive the incoming
@@ -2914,7 +2865,7 @@ spec:
               dnsExternalAlias:
                 description: |-
                   List of external DNS names and which component and environment incoming requests shall be routed to.
-                  More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsexternalalias
+                  More info: https://www.radix.equinor.com/radix-config#dnsexternalalias
                 items:
                   description: ExternalAlias defines mapping between an external DNS
                     name and a component and environment.
@@ -2954,14 +2905,14 @@ spec:
               environments:
                 description: |-
                   List of environments belonging to the application.
-                  More info: https://www.radix.equinor.com/references/reference-radix-config/#environments
+                  More info: https://www.radix.equinor.com/radix-config#environments
                 items:
                   description: Environment contains environment specific configuration.
                   properties:
                     build:
                       description: |-
                         Build configuration for the environment.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#build-2
+                        More info: https://www.radix.equinor.com/radix-config#build-2
                       properties:
                         from:
                           description: Name of the Github branch to build from
@@ -2978,7 +2929,7 @@ spec:
                     egress:
                       description: |-
                         Configure egress traffic rules for components and jobs.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#egress
+                        More info: https://www.radix.equinor.com/radix-config#egress
                       properties:
                         allowRadix:
                           description: Allow or deny outgoing traffic to the public
@@ -3041,7 +2992,7 @@ spec:
                         identity:
                           description: |-
                             Configuration for workload identity (federated credentials).
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
+                            More info: https://www.radix.equinor.com/radix-config#identity
                           properties:
                             azure:
                               description: Azure identity configuration
@@ -3073,7 +3024,7 @@ spec:
               jobs:
                 description: |-
                   List of job specification for the application.
-                  More info: https://www.radix.equinor.com/references/reference-radix-config/#jobs
+                  More info: https://www.radix.equinor.com/radix-config#jobs
                 items:
                   description: |-
                     RadixJobComponent defines a single job component within a RadixApplication
@@ -3082,7 +3033,7 @@ spec:
                     backoffLimit:
                       description: |-
                         Specifies the number of retries before marking this job failed.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit
+                        More info: https://www.radix.equinor.com/radix-config#backofflimit
                       format: int32
                       minimum: 0
                       type: integer
@@ -3143,7 +3094,7 @@ spec:
                     dockerfileName:
                       description: |-
                         Name of the Dockerfile that builds the job.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename-2
+                        More info: https://www.radix.equinor.com/radix-config#dockerfilename-2
                       type: string
                     enabled:
                       description: Controls if the job shall be deployed.
@@ -3151,7 +3102,7 @@ spec:
                     environmentConfig:
                       description: |-
                         Configure environment specific settings for the job.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig-2
+                        More info: https://www.radix.equinor.com/radix-config#environmentconfig-2
                       items:
                         description: |-
                           RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -3160,7 +3111,7 @@ spec:
                           backoffLimit:
                             description: |-
                               Environment specific value for the number of retries before marking this job failed.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit-2
+                              More info: https://www.radix.equinor.com/radix-config#backofflimit-2
                             format: int32
                             minimum: 0
                             type: integer
@@ -3222,7 +3173,7 @@ spec:
                           dockerfileName:
                             description: |-
                               Name of the Dockerfile that builds the component.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
+                              More info: https://www.radix.equinor.com/radix-config#dockerfilename
                             type: string
                           enabled:
                             description: Controls if the job shall be deployed to
@@ -3307,7 +3258,7 @@ spec:
                           identity:
                             description: |-
                               Environment specific configuration for workload identity (federated credentials).
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
+                              More info: https://www.radix.equinor.com/radix-config#identity-2
                             properties:
                               azure:
                                 description: Azure identity configuration
@@ -3324,28 +3275,28 @@ spec:
                           image:
                             description: |-
                               Name of an existing container image to use when running the job.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2
+                              More info: https://www.radix.equinor.com/radix-config#image-2
                             type: string
                           imageTagName:
                             description: |-
                               The imageTagName allows for flexible configuration of fixed images,
                               built outside of Radix, to be configured with separate tag for each environment.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname-2
+                              More info: https://www.radix.equinor.com/radix-config#imagetagname-2
                             type: string
                           monitoring:
                             description: |-
                               Enabled or disables collection of custom Prometheus metrics.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring-2
+                              More info: https://www.radix.equinor.com/radix-config#monitoring-2
                             type: boolean
                           node:
                             description: |-
                               Environment specific GPU requirements for the job.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#node
+                              More info: https://www.radix.equinor.com/radix-config#node
                             properties:
                               gpu:
                                 description: |-
                                   Defines rules for allowed GPU types.
-                                  More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+                                  More info: https://www.radix.equinor.com/radix-config#gpu
                                 type: string
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
@@ -3369,7 +3320,7 @@ spec:
                           resources:
                             description: |-
                               Environment specific configuration for CPU and memory resources.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3
+                              More info: https://www.radix.equinor.com/radix-config#resources-3
                             properties:
                               limits:
                                 additionalProperties:
@@ -3402,7 +3353,7 @@ spec:
                           secretRefs:
                             description: |-
                               Environment specific configuration for external secret stores, like Azure KeyVault.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
+                              More info: https://www.radix.equinor.com/radix-config#secretrefs
                             properties:
                               azureKeyVaults:
                                 description: List of Azure Key Vaults to get secrets
@@ -3503,12 +3454,12 @@ spec:
                           src:
                             description: |-
                               Path to the Dockerfile that builds the component.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#src
+                              More info: https://www.radix.equinor.com/radix-config#src
                             type: string
                           timeLimitSeconds:
                             description: |-
                               Environment specific value for the maximum number of seconds the job can run.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2
+                              More info: https://www.radix.equinor.com/radix-config#timelimitseconds-2
                             format: int64
                             type: integer
                           variables:
@@ -3516,80 +3467,32 @@ spec:
                               type: string
                             description: |-
                               Environment specific environment variables.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-2
+                              More info: https://www.radix.equinor.com/radix-config#variables-2
                             type: object
                           volumeMounts:
                             description: |-
                               Configuration for mounting cloud storage into the job.
-                              More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts-2
+                              More info: https://www.radix.equinor.com/radix-config#volumemounts-2
                             items:
                               description: RadixVolumeMount defines an external storage
                                 resource.
                               properties:
                                 accessMode:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   enum:
                                   - ReadOnlyMany
                                   - ReadWriteOnce
                                   - ReadWriteMany
                                   - ""
                                   type: string
-                                azureFile:
-                                  description: AzureFile settings for Azure File CSI
-                                    driver
-                                  properties:
-                                    accessMode:
-                                      description: |-
-                                        Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
-                                        More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                      enum:
-                                      - ReadOnlyMany
-                                      - ReadWriteOnce
-                                      - ReadWriteMany
-                                      - ""
-                                      type: string
-                                    bindingMode:
-                                      description: |-
-                                        Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                        More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                      enum:
-                                      - Immediate
-                                      - WaitForFirstConsumer
-                                      - ""
-                                      type: string
-                                    gid:
-                                      description: GID defines the group ID (number)
-                                        which will be set as owner of the mounted
-                                        volume.
-                                      type: string
-                                    requestsStorage:
-                                      description: |-
-                                        Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
-                                        More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-                                      type: string
-                                    share:
-                                      description: Share. Name of the file share in
-                                        the external storage resource.
-                                      type: string
-                                    skuName:
-                                      description: |-
-                                        SKU Type of Azure storage.
-                                        More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-                                      type: string
-                                    uid:
-                                      description: UID defines the user ID (number)
-                                        which will be set as owner of the mounted
-                                        volume.
-                                      type: string
-                                  type: object
                                 bindingMode:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   enum:
                                   - Immediate
                                   - WaitForFirstConsumer
@@ -3597,7 +3500,7 @@ spec:
                                   type: string
                                 blobFuse2:
                                   description: BlobFuse2 settings for Azure Storage
-                                    FUSE CSI driver
+                                    FUSE CSI driver with the protocol fuse2
                                   properties:
                                     accessMode:
                                       description: |-
@@ -3632,13 +3535,16 @@ spec:
                                         Storage FUSE driver. Default is fuse2.
                                       enum:
                                       - fuse2
-                                      - nfs
                                       - ""
                                       type: string
                                     requestsStorage:
                                       description: |-
                                         Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                         More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+                                      type: string
+                                    resourceGroup:
+                                      description: ResourceGroup of a storage account.
+                                        Applicable when using a workload identity.
                                       type: string
                                     skuName:
                                       description: |-
@@ -3650,6 +3556,13 @@ spec:
                                       - Standard_GRS
                                       - Standard_RAGRS
                                       - ""
+                                      type: string
+                                    storageAccount:
+                                      description: Name of a storage account. It is
+                                        mandatory when using a workload identity.
+                                        It is optional when using Access Key, if it
+                                        is not defined, it will be configured in a
+                                        secret.
                                       type: string
                                     streaming:
                                       description: |-
@@ -3693,6 +3606,14 @@ spec:
                                           minimum: 1
                                           type: integer
                                       type: object
+                                    subscriptionId:
+                                      description: SubscriptionId of a storage account.
+                                        Applicable when using a workload identity.
+                                      type: string
+                                    tenantId:
+                                      description: TenantId of a storage account.
+                                        Applicable when using a workload identity.
+                                      type: string
                                     uid:
                                       description: UID defines the user ID (number)
                                         which will be set as owner of the mounted
@@ -3703,11 +3624,17 @@ spec:
                                         Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
                                         Default false. This must be turned on when HNS enabled account is mounted.
                                       type: boolean
+                                    useAzureIdentity:
+                                      description: UseAzureIdentity defines that credentials
+                                        for accessing Azure Storage will be acquired
+                                        using Azure Workload Identity instead of using
+                                        a ClientID and Secret.
+                                      type: boolean
                                   required:
                                   - container
                                   type: object
                                 container:
-                                  description: 'Deprecated. Only required by the deprecated
+                                  description: 'Deprecated: Only required by the deprecated
                                     type: blob.'
                                   type: string
                                 emptyDir:
@@ -3726,8 +3653,8 @@ spec:
                                   type: object
                                 gid:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     GID defines the group ID (number) which will be set as owner of the mounted volume.
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 name:
                                   description: |-
@@ -3743,33 +3670,31 @@ spec:
                                   type: string
                                 requestsStorage:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 skuName:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 storage:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     Storage defines the name of the container in the external storage resource.
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                                 type:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     Type defines the storage type.
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   enum:
-                                  - blob
                                   - azure-blob
-                                  - azure-file
                                   - ""
                                   type: string
                                 uid:
                                   description: |-
+                                    Deprecated: use BlobFuse2 instead.
                                     UID defines the user ID (number) which will be set as owner of the mounted volume.
-                                    Deprecated, use BlobFuse2 or AzureFile instead.
                                   type: string
                               required:
                               - name
@@ -3854,7 +3779,7 @@ spec:
                     identity:
                       description: |-
                         Configuration for workload identity (federated credentials).
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
+                        More info: https://www.radix.equinor.com/radix-config#identity-2
                       properties:
                         azure:
                           description: Azure identity configuration
@@ -3871,25 +3796,25 @@ spec:
                     image:
                       description: |-
                         Name of an existing container image to use when running the job.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2
+                        More info: https://www.radix.equinor.com/radix-config#image-2
                       type: string
                     imageTagName:
                       description: |-
                         The imageTagName allows for flexible configuration of fixed images,
                         built outside of Radix, it can be also configured with separate tag for each environment.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
+                        More info: https://www.radix.equinor.com/radix-config#imagetagname
                       type: string
                     monitoring:
                       description: |-
                         Enabled or disables collection of custom Prometheus metrics.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
+                        More info: https://www.radix.equinor.com/radix-config#monitoring
                       type: boolean
                     monitoringConfig:
                       description: |-
                         Configures the monitoring endpoint exposed by the job.
                         This endpoint is used by Prometheus to collect custom metrics.
                         environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig-2
+                        More info: https://www.radix.equinor.com/radix-config#monitoringconfig-2
                       properties:
                         path:
                           description: Defines the path where metrics is served.
@@ -3911,12 +3836,12 @@ spec:
                     node:
                       description: |-
                         Defines GPU requirements for the job.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#node
+                        More info: https://www.radix.equinor.com/radix-config#node
                       properties:
                         gpu:
                           description: |-
                             Defines rules for allowed GPU types.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+                            More info: https://www.radix.equinor.com/radix-config#gpu
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
@@ -3936,7 +3861,7 @@ spec:
                     payload:
                       description: |-
                         Defines the path where the job payload is mounted.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#payload
+                        More info: https://www.radix.equinor.com/radix-config#payload
                       properties:
                         path:
                           description: Path to the folder where payload is mounted
@@ -3976,7 +3901,7 @@ spec:
                     resources:
                       description: |-
                         Configures CPU and memory resources for the job.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common-2
+                        More info: https://www.radix.equinor.com/radix-config#resources-common-2
                       properties:
                         limits:
                           additionalProperties:
@@ -4009,7 +3934,7 @@ spec:
                     schedulerPort:
                       description: |-
                         Defines the port number that the job-scheduler API server will listen to.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#schedulerport
+                        More info: https://www.radix.equinor.com/radix-config#schedulerport
                       format: int32
                       maximum: 65535
                       minimum: 1024
@@ -4017,7 +3942,7 @@ spec:
                     secretRefs:
                       description: |-
                         Configuration for external secret stores, like Azure KeyVault.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
+                        More info: https://www.radix.equinor.com/radix-config#secretrefs
                       properties:
                         azureKeyVaults:
                           description: List of Azure Key Vaults to get secrets from.
@@ -4115,19 +4040,19 @@ spec:
                     secrets:
                       description: |-
                         List of secret environment variable names.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets-2
+                        More info: https://www.radix.equinor.com/radix-config#secrets-2
                       items:
                         type: string
                       type: array
                     src:
                       description: |-
                         Path to the Dockerfile that builds the job.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#src-2
+                        More info: https://www.radix.equinor.com/radix-config#src-2
                       type: string
                     timeLimitSeconds:
                       description: |-
                         The maximum number of seconds the job can run.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds
+                        More info: https://www.radix.equinor.com/radix-config#timelimitseconds
                       format: int64
                       type: integer
                     variables:
@@ -4135,77 +4060,32 @@ spec:
                         type: string
                       description: |-
                         List of environment variables and values.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-common-2
+                        More info: https://www.radix.equinor.com/radix-config#variables-common-2
                       type: object
                     volumeMounts:
                       description: |-
                         Configuration for mounting cloud storage into the component.
-                        More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
+                        More info: https://www.radix.equinor.com/radix-config#volumemounts
                       items:
                         description: RadixVolumeMount defines an external storage
                           resource.
                         properties:
                           accessMode:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
                             - ReadOnlyMany
                             - ReadWriteOnce
                             - ReadWriteMany
                             - ""
                             type: string
-                          azureFile:
-                            description: AzureFile settings for Azure File CSI driver
-                            properties:
-                              accessMode:
-                                description: |-
-                                  Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - ReadOnlyMany
-                                - ReadWriteOnce
-                                - ReadWriteMany
-                                - ""
-                                type: string
-                              bindingMode:
-                                description: |-
-                                  Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - Immediate
-                                - WaitForFirstConsumer
-                                - ""
-                                type: string
-                              gid:
-                                description: GID defines the group ID (number) which
-                                  will be set as owner of the mounted volume.
-                                type: string
-                              requestsStorage:
-                                description: |-
-                                  Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
-                                  More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-                                type: string
-                              share:
-                                description: Share. Name of the file share in the
-                                  external storage resource.
-                                type: string
-                              skuName:
-                                description: |-
-                                  SKU Type of Azure storage.
-                                  More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-                                type: string
-                              uid:
-                                description: UID defines the user ID (number) which
-                                  will be set as owner of the mounted volume.
-                                type: string
-                            type: object
                           bindingMode:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
                             - Immediate
                             - WaitForFirstConsumer
@@ -4213,7 +4093,7 @@ spec:
                             type: string
                           blobFuse2:
                             description: BlobFuse2 settings for Azure Storage FUSE
-                              CSI driver
+                              CSI driver with the protocol fuse2
                             properties:
                               accessMode:
                                 description: |-
@@ -4247,13 +4127,16 @@ spec:
                                   FUSE driver. Default is fuse2.
                                 enum:
                                 - fuse2
-                                - nfs
                                 - ""
                                 type: string
                               requestsStorage:
                                 description: |-
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+                                type: string
+                              resourceGroup:
+                                description: ResourceGroup of a storage account. Applicable
+                                  when using a workload identity.
                                 type: string
                               skuName:
                                 description: |-
@@ -4265,6 +4148,12 @@ spec:
                                 - Standard_GRS
                                 - Standard_RAGRS
                                 - ""
+                                type: string
+                              storageAccount:
+                                description: Name of a storage account. It is mandatory
+                                  when using a workload identity. It is optional when
+                                  using Access Key, if it is not defined, it will
+                                  be configured in a secret.
                                 type: string
                               streaming:
                                 description: |-
@@ -4306,6 +4195,14 @@ spec:
                                     minimum: 1
                                     type: integer
                                 type: object
+                              subscriptionId:
+                                description: SubscriptionId of a storage account.
+                                  Applicable when using a workload identity.
+                                type: string
+                              tenantId:
+                                description: TenantId of a storage account. Applicable
+                                  when using a workload identity.
+                                type: string
                               uid:
                                 description: UID defines the user ID (number) which
                                   will be set as owner of the mounted volume.
@@ -4315,11 +4212,17 @@ spec:
                                   Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
                                   Default false. This must be turned on when HNS enabled account is mounted.
                                 type: boolean
+                              useAzureIdentity:
+                                description: UseAzureIdentity defines that credentials
+                                  for accessing Azure Storage will be acquired using
+                                  Azure Workload Identity instead of using a ClientID
+                                  and Secret.
+                                type: boolean
                             required:
                             - container
                             type: object
                           container:
-                            description: 'Deprecated. Only required by the deprecated
+                            description: 'Deprecated: Only required by the deprecated
                               type: blob.'
                             type: string
                           emptyDir:
@@ -4338,8 +4241,8 @@ spec:
                             type: object
                           gid:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               GID defines the group ID (number) which will be set as owner of the mounted volume.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           name:
                             description: |-
@@ -4355,33 +4258,31 @@ spec:
                             type: string
                           requestsStorage:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           skuName:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           storage:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Storage defines the name of the container in the external storage resource.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                           type:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               Type defines the storage type.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             enum:
-                            - blob
                             - azure-blob
-                            - azure-file
                             - ""
                             type: string
                           uid:
                             description: |-
+                              Deprecated: use BlobFuse2 instead.
                               UID defines the user ID (number) which will be set as owner of the mounted volume.
-                              Deprecated, use BlobFuse2 or AzureFile instead.
                             type: string
                         required:
                         - name
@@ -4415,7 +4316,7 @@ spec:
                   type: object
                 description: |-
                   Defines protected container registries used by components or jobs.
-                  More info: https://www.radix.equinor.com/references/reference-radix-config/#privateimagehubs
+                  More info: https://www.radix.equinor.com/radix-config#privateimagehubs
                 type: object
             required:
             - environments

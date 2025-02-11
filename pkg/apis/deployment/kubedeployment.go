@@ -6,13 +6,14 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,42 +23,40 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) reconcileDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
-	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, deployComponent)
+func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
+	namespace := deploy.radixDeployment.Namespace
+	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, namespace, deployComponent)
 	if err != nil {
 		return err
 	}
 
 	// If component has manual override or HorizontalScaling is nil then delete hpa if exists before updating deployment
 	if deployComponent.GetReplicasOverride() != nil || deployComponent.GetHorizontalScaling() == nil {
-		err = deploy.deleteScaledObjectIfExists(ctx, deployComponent.GetName())
-		if err != nil {
+		if err = deploy.deleteScaledObjectIfExists(ctx, deployComponent.GetName()); err != nil {
 			return err
 		}
-
-		err = deploy.deleteTargetAuthenticationIfExists(ctx, deployComponent.GetName())
-		if err != nil {
+		if err = deploy.deleteTargetAuthenticationIfExists(ctx, deployComponent.GetName()); err != nil {
 			return err
 		}
 	}
-
-	err = deploy.createOrUpdateCsiAzureVolumeResources(ctx, desiredDeployment)
+	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment.Spec.Template.Spec.Volumes)
 	if err != nil {
 		return err
 	}
-	err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment)
-	if err != nil {
+	desiredDeployment.Spec.Template.Spec.Volumes = actualVolumes
+	desiredVolumeMounts := desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
+	if err = deploy.handleJobAuxDeployment(ctx, namespace, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
 		return err
 	}
-
-	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
+	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment)
 }
 
-func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
-	if !isDeployComponentJobSchedulerDeployment(deployComponent) {
+func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
+	if !internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil
 	}
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
+	jobKubeDeploymentName := desiredDeployment.GetName()
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, jobKubeDeploymentName, volumes, volumeMounts)
 	if err != nil {
 		return err
 	}
@@ -66,28 +65,27 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 	selector := labels.Set(desiredJobAuxDeployment.Spec.Selector.MatchLabels).AsSelector()
 	if currentJobAuxDeployment != nil && !selector.Matches(labels.Set(currentJobAuxDeployment.Spec.Template.Labels)) {
 		log.Ctx(ctx).Info().Msgf("Deleting outdated deployment (label selector does not match) %s", currentJobAuxDeployment.GetName())
-		err = deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment.Name)
-		if err != nil {
+		if err = deploy.kubeutil.DeleteDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment.Name); err != nil {
 			return err
 		}
 
-		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, desiredDeployment)
+		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.createOrUpdateJobAuxDeployment(ctx, deployComponent, namespace, jobKubeDeploymentName, volumes, volumeMounts)
 		if err != nil {
 			return err
 		}
 	}
+	// Remove volumes and volume mounts from job scheduler deployment, they are set to aux deployment
+	desiredDeployment.Spec.Template.Spec.Volumes = nil
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
 
 	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
 
-func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	namespace := deploy.radixDeployment.Namespace
-
+func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(ctx, namespace, deployComponent)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return currentDeployment, desiredDeployment, err
 }
 
@@ -121,7 +119,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr(DefaultReplicas),
+			Replicas: pointers.Ptr(defaults.DefaultReplicas),
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -133,9 +131,8 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
 	return desiredDeployment, err
 }
-func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent) *appsv1.Deployment {
-	jobName := deployComponent.GetName()
-	jobAuxDeploymentName := getJobAuxObjectName(jobName)
+
+func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName string) *appsv1.Deployment {
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            jobAuxDeploymentName,
@@ -151,7 +148,7 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:      jobAuxDeploymentName,
-						Resources: resources.New(resources.WithCPUMilli(1), resources.WithMemoryMega(20)),
+						Resources: getJobAuxResources(),
 					}},
 				},
 			},
@@ -192,18 +189,18 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context,
 
 func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	commitID := getDeployComponentCommitId(deployComponent)
-	labels := radixlabels.Merge(
+	lbs := radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForCommitId(commitID),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
 	)
 
-	if isDeployComponentJobSchedulerDeployment(deployComponent) {
-		labels = radixlabels.Merge(labels, radixlabels.ForPodIsJobScheduler())
+	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
+		lbs = radixlabels.Merge(lbs, radixlabels.ForPodIsJobScheduler())
 	}
 
-	return labels
+	return lbs
 }
 
 func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
@@ -293,7 +290,11 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
 
-	volumes, err := deploy.GetVolumesForComponent(ctx, deployComponent)
+	existingVolumes, err := deploy.getDeployComponentExistingVolumes(ctx, deployComponent, desiredDeployment)
+	if err != nil {
+		return err
+	}
+	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent, deploy.radixDeployment.GetName(), existingVolumes)
 	if err != nil {
 		return err
 	}
@@ -309,7 +310,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		return err
 	}
 
-	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
+	volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {
 		return err
 	}
@@ -336,6 +337,17 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	return nil
 }
 
+func (deploy *Deployment) getDeployComponentExistingVolumes(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, deployment *appsv1.Deployment) ([]corev1.Volume, error) {
+	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
+		volumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent.GetName())
+		if err != nil {
+			return nil, err
+		}
+		return volumes, nil
+	}
+	return deployment.Spec.Template.Spec.Volumes, nil
+}
+
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 	const branchKey, commitIDKey = "radix-branch", "radix-commit"
 	rdLabels := deploy.radixDeployment.Labels
@@ -359,7 +371,7 @@ func getDeployComponentReplicas(deployComponent v1.RadixCommonDeployComponent) i
 		return int32(*override)
 	}
 
-	componentReplicas := DefaultReplicas
+	componentReplicas := defaults.DefaultReplicas
 	if replicas := deployComponent.GetReplicas(); replicas != nil {
 		componentReplicas = int32(*replicas)
 	}
@@ -501,7 +513,7 @@ func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.C
 	for _, v := range componentPorts {
 		containerPort := corev1.ContainerPort{
 			Name:          v.Name,
-			ContainerPort: int32(v.Port),
+			ContainerPort: v.Port,
 			Protocol:      corev1.ProtocolTCP,
 		}
 		ports = append(ports, containerPort)

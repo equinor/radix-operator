@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package radixvalidators_test
 
 import (
@@ -1240,6 +1241,12 @@ func Test_Variables(t *testing.T) {
 }
 
 func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
+	const (
+		storageAccountName1 = "anystorageaccount"
+		resourceGroup1      = "any-resource-group"
+		subscriptionId1     = "any-subscription-id"
+		tenantId1           = "any-tenant-id"
+	)
 	type volumeMountsFunc func() []radixv1.RadixVolumeMount
 	type setVolumeMountsFunc func(*radixv1.RadixApplication, []radixv1.RadixVolumeMount)
 
@@ -1334,79 +1341,14 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountMissingType,
 		},
-		"multiple types: deprecated source and blobfuse2": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name:      "anyname",
-						Path:      "/path",
-						Type:      radixv1.MountTypeBlob,
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMultipleTypes,
-		},
-		"multiple types: blobfuse2 and emptyDir": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name:      "anyname",
-						Path:      "/path",
-						Type:      radixv1.MountTypeBlob,
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{},
-						EmptyDir:  &radixv1.RadixEmptyDirVolumeMount{},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMultipleTypes,
-		},
-		"deprecated blob: valid": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type:      "blob",
-						Name:      "some_name",
-						Path:      "some_path",
-						Container: "any-container",
-						// RequestsStorage: "50M",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
-		},
-		"deprecated blob: missing container": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type: "blob",
-						Name: "some_name",
-						Path: "some_path",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
-		},
 		"deprecated azure-blob: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Type:    "azure-blob",
-						Name:    "some_name",
-						Path:    "some_path",
-						Storage: "any-storage",
+						Type:      "azure-blob",
+						Name:      "some_name",
+						Path:      "some_path",
+						Container: "any-storage",
 					},
 				}
 
@@ -1428,23 +1370,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				return volumeMounts
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMissingStorage,
-		},
-		"deprecated azure-file: valid": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type:    "azure-file",
-						Name:    "some_name",
-						Path:    "some_path",
-						Storage: "any-storage",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
+			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
 		},
 		"deprecated common: invalid type": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1460,22 +1386,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountInvalidType,
-		},
-		"deprecated common: invalid requestsStorage": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type:            "blob",
-						Name:            "some_name",
-						Path:            "some_path",
-						RequestsStorage: "50x",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountInvalidRequestsStorage,
 		},
 		"blobfuse2: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1502,24 +1412,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Protocol:  radixv1.BlobFuse2ProtocolFuse2,
-							Container: "any-container",
-						},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
-		},
-		"blobfuse2: valid protocol nfs": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-							Protocol:  radixv1.BlobFuse2ProtocolNfs,
 							Container: "any-container",
 						},
 					},
@@ -1599,20 +1491,189 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountInvalidRequestsStorage,
 		},
-		"azureFile: not implemented": {
+		"blobfuse2: has optional storage account": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name:      "some_name",
-						Path:      "some_path",
-						AzureFile: &radixv1.RadixAzureFileVolumeMount{},
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: storageAccountName1,
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2: has invalid short storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: "st",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2: has invalid long storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: strings.Repeat("a", 25),
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2: has invalid chars in storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: "name._-123",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2 with useAzureIdentity: missing subscription": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							ResourceGroup:    resourceGroup1,
+							TenantId:         tenantId1,
+						},
 					},
 				}
 
 				return volumeMounts
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountTypeNotImplemented,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingSubscriptionId,
+		},
+		"blobfuse2 with useAzureIdentity: missing storage account name": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+							TenantId:         tenantId1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingStorageAccount,
+		},
+		"blobfuse2 with useAzureIdentity: missing resource group": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							TenantId:         tenantId1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingResourceGroup,
+		},
+		"blobfuse2 with useAzureIdentity: Tenant id is optional": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2 with useAzureIdentity: component or job identity azure clientId is required": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA: []setVolumeMountsFunc{
+				func(ra *radixv1.RadixApplication, volumeMounts []radixv1.RadixVolumeMount) {
+					ra.Spec.Components[0].Identity.Azure = nil
+					ra.Spec.Components[0].EnvironmentConfig[0].Identity.Azure = nil
+					ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				},
+				func(ra *radixv1.RadixApplication, volumeMounts []radixv1.RadixVolumeMount) {
+					ra.Spec.Jobs[0].Identity.Azure = nil
+					ra.Spec.Jobs[0].EnvironmentConfig[0].Identity.Azure = nil
+					ra.Spec.Jobs[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				},
+			},
+			expectedError: radixvalidators.ErrVolumeMountMissingAzureIdentity,
 		},
 		"emptyDir: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -2290,10 +2351,8 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		otherAppName      = "anyapp2"
 		raEnv             = "test"
 		raComponentName   = "app"
-		raPublicPort      = 8080
 		someEnv           = "dev"
 		someComponentName = "component-abc"
-		somePort          = 9090
 		alias1            = "alias1"
 		alias2            = "alias2"
 	)

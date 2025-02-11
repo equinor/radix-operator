@@ -70,6 +70,12 @@ const (
 
 	// TLSSecretName Secret name for the Radix wildcard TLS cert
 	TLSSecretName = "radix-wildcard-tls-cert"
+
+	// SecretDefaultData default secret content
+	SecretDefaultData = "xx"
+
+	// SecretUsedBySecretStoreDriverLabel Label used to mark secrets used by secret store driver
+	SecretUsedBySecretStoreDriverLabel = "secrets-store.csi.k8s.io/used"
 )
 
 // GetBlobFuseCredsSecretName Helper method

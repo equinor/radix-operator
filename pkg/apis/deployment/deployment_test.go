@@ -1,4 +1,6 @@
 // file deepcode ignore HardcodedPassword/test: unit tests
+//
+//nolint:staticcheck
 package deployment
 
 import (
@@ -130,7 +132,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			outdatedSecret := "outdatedSecret"
 			remainingSecret := "remainingSecret"
 			addingSecret := "addingSecret"
-			blobVolumeName := "blob_volume_1"
 			blobCsiAzureVolumeName := "blobCsiAzure_volume_1"
 
 			if componentsExist {
@@ -211,12 +212,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPort("http", 3000).
 							WithPublicPort("http").
 							WithVolumeMounts(
-								radixv1.RadixVolumeMount{
-									Type:      radixv1.MountTypeBlob,
-									Name:      blobVolumeName,
-									Container: "some-container",
-									Path:      "some-path",
-								},
 								radixv1.RadixVolumeMount{
 									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 									Name:    blobCsiAzureVolumeName,
@@ -310,7 +305,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 				assert.True(t, deploymentByNameExists(componentNameRadixQuote, deployments), "radixquote deployment not there")
 				spec := getDeploymentByName(componentNameRadixQuote, deployments).Spec
-				assert.Equal(t, DefaultReplicas, *spec.Replicas, "number of replicas was unexpected")
+				assert.Equal(t, defaults.DefaultReplicas, *spec.Replicas, "number of replicas was unexpected")
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRadixQuote, deployments))
@@ -330,8 +325,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.True(t, envVariableByNameExistOnDeployment(addingSecret, componentNameRadixQuote, deployments))
 				}
 
-				volumesExist := len(spec.Template.Spec.Volumes) > 1
-				volumeMountsExist := len(spec.Template.Spec.Containers[0].VolumeMounts) > 1
+				volumesExist := len(spec.Template.Spec.Volumes) > 0
+				volumeMountsExist := len(spec.Template.Spec.Containers[0].VolumeMounts) > 0
 				if !componentsExist {
 					assert.True(t, volumesExist, "expected existing volumes")
 					assert.True(t, volumeMountsExist, "expected existing volume mounts")
@@ -394,20 +389,18 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 
 				if !componentsExist {
-					assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
+					assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
 				} else {
 					assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
 				}
 
 				componentSecretName := utils.GetComponentSecretName(componentNameRadixQuote)
 				assert.True(t, secretByNameExists(componentSecretName, secrets), "Component secret is not as expected")
-				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(componentNameRadixQuote, blobVolumeName), secrets)
 				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureVolumeMountCredsSecretName(componentNameRadixQuote, blobCsiAzureVolumeName), secrets)
 				if !componentsExist {
-					assert.True(t, blobFuseSecretExists, "expected Blobfuse volume mount secret")
 					assert.True(t, blobCsiAzureFuseSecretExists, "expected blob CSI Azure volume mount secret")
 				} else {
-					assert.False(t, blobFuseSecretExists, "unexpected volume mount secrets")
+					assert.False(t, blobCsiAzureFuseSecretExists, "unexpected volume mount secrets")
 				}
 			})
 
@@ -528,7 +521,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			outdatedSecret := "outdatedSecret"
 			remainingSecret := "remainingSecret"
 			addingSecret := "addingSecret"
-			blobVolumeName := "blob_volume_1"
 			blobCsiAzureVolumeName := "blobCsiAzure_volume_1"
 			payloadPath := "payloadpath"
 			if jobsExist {
@@ -587,12 +579,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 								"cpu":    "501m",
 							}).
 							WithVolumeMounts(
-								radixv1.RadixVolumeMount{
-									Type:      radixv1.MountTypeBlob,
-									Name:      blobVolumeName,
-									Container: "some-container",
-									Path:      "some-path",
-								},
 								radixv1.RadixVolumeMount{
 									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 									Name:    blobCsiAzureVolumeName,
@@ -723,7 +709,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 
 				if !jobsExist {
-					assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
+					assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
 				} else {
 					assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
 				}
@@ -731,13 +717,11 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				jobSecretName := utils.GetComponentSecretName(jobName)
 				assert.True(t, secretByNameExists(jobSecretName, secrets), "Job secret is not as expected")
 
-				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(jobName, blobVolumeName), secrets)
 				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureVolumeMountCredsSecretName(jobName, blobCsiAzureVolumeName), secrets)
 				if !jobsExist {
-					assert.True(t, blobFuseSecretExists, "expected Blobfuse volume mount secret")
 					assert.True(t, blobCsiAzureFuseSecretExists, "expected blob CSI Azure volume mount secret")
 				} else {
-					assert.False(t, blobFuseSecretExists, "unexpected volume mount secrets")
+					assert.False(t, blobCsiAzureFuseSecretExists, "unexpected volume mount secrets")
 				}
 			})
 
@@ -2264,13 +2248,13 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate roles", func(t *testing.T) {
 		t.Parallel()
 		roles, _ := client.RbacV1().Roles(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName", "radix-app-externaldns-adm", "radix-app-externaldns-reader"}, getRoleNames(roles))
+		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleNames(roles))
 	})
 
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName", "radix-app-externaldns-adm", "radix-app-externaldns-reader"}, getRoleBindingNames(rolebindings))
+		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleBindingNames(rolebindings))
 	})
 }
 
@@ -2335,7 +2319,6 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 	assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
 }
 
-//nolint:staticcheck
 func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
@@ -2348,7 +2331,6 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
-			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2368,7 +2350,6 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
-			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2392,7 +2373,6 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
-			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -2409,7 +2389,6 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
-			//lint:ignore SA1019 backward compatilibity test
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("https", 443).
@@ -3858,9 +3837,7 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(compName).
 					WithVolumeMounts(
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
 						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
 					),
 			),
 	)
@@ -3869,8 +3846,8 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
 	deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), compName, metav1.GetOptions{})
 	require.NotNil(t, deployment)
-	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")
-	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 3, "incorrect number of volumemounts")
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 1, "incorrect number of volumes")
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 1, "incorrect number of volumemounts")
 }
 
 func Test_JobSynced_VolumeAndMounts(t *testing.T) {
@@ -3891,9 +3868,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployJobComponentBuilder().
 					WithName(jobName).
 					WithVolumeMounts(
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
 						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
 					),
 			),
 	)
@@ -3903,7 +3878,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux).String()})
 	require.Len(t, deploymentList.Items, 1)
 	deployment := deploymentList.Items[0]
-	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 1, "incorrect number of volumes")
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 0, "incorrect number of volumemounts")
 }
 
@@ -4323,6 +4298,59 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 		},
 		getRoleBindingByName("radix-app-externaldns-reader", roleBindings).Subjects,
 	)
+}
+
+func Test_ExternalDNS_RolesAndBinding_Lifecycle(t *testing.T) {
+	appName, envName := "anyapp", "anyenv"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"any"}).WithAdUsers([]string{"any"}).WithReaderAdGroups([]string{"any"}).WithReaderAdUsers([]string{"any"})
+	raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(rrBuilder)
+	rdBuilder := utils.NewDeploymentBuilder().WithRadixApplication(raBuilder).WithAppName(appName).WithEnvironment(envName).WithJobComponents()
+
+	// Initial sync without external DNS should not create roles and bindings
+	rdBuilder = rdBuilder.WithComponents(utils.NewDeployComponentBuilder().WithName("comp"))
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	roles, _ := kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	roleBindings, _ := kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+
+	// Sync with external DNS and cert automation should not create roles and bindings
+	rdBuilder = rdBuilder.WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "example.com", UseCertificateAutomation: true}))
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	roles, _ = kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	roleBindings, _ = kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+
+	// Sync with external DNS and manual tls secret should create roles and bindings
+	rdBuilder = rdBuilder.WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "example.com", UseCertificateAutomation: false}))
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	roles, _ = kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	assert.Subset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	roleBindings, _ = kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	assert.Subset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+
+	// Sync with external DNS removed should delete roles and bindings
+	rdBuilder = rdBuilder.WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithExternalDNS())
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+
+	roles, _ = kubeclient.RbacV1().Roles(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleNames(roles), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+	roleBindings, _ = kubeclient.RbacV1().RoleBindings(ns).List(context.Background(), metav1.ListOptions{})
+	assert.NotSubset(t, getRoleBindingNames(roleBindings), []string{"radix-app-externaldns-adm", "radix-app-externaldns-reader"})
+
 }
 
 func Test_ExternalDNS_RetainSecretData(t *testing.T) {

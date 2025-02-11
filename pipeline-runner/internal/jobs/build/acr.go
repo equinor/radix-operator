@@ -34,7 +34,7 @@ func NewACR() JobsBuilder {
 
 type acr struct{}
 
-func (c *acr) BuildJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+func (c *acr) BuildJobs(_ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
 	props := &acrKubeJobProps{
 		pipelineArgs:    pipelineArgs,
 		componentImages: componentImages,

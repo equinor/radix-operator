@@ -3,7 +3,8 @@ package deployment
 import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 )
 
@@ -67,7 +68,7 @@ func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bo
 // NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent
 func NewServiceAccountSpec(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
 	isComponent := deployComponent.GetType() == v1.RadixComponentTypeComponent
-	isJobScheduler := isDeployComponentJobSchedulerDeployment(deployComponent)
+	isJobScheduler := internal.IsDeployComponentJobSchedulerDeployment(deployComponent)
 
 	if isComponent && isRadixAPI(radixDeploy) {
 		return &radixAPIServiceAccountSpec{}

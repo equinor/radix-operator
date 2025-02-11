@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -86,14 +87,27 @@ func (s *syncer) reconcile(ctx context.Context) error {
 		return err
 	}
 
-	existingJobs, err := s.kubeUtil.ListJobsWithSelector(ctx, s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
+	namespace := s.radixBatch.GetNamespace()
+	existingJobs, err := s.kubeUtil.ListJobsWithSelector(ctx, namespace, s.batchIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
 
-	existingServices, err := s.kubeUtil.ListServicesWithSelector(ctx, s.radixBatch.GetNamespace(), s.batchIdentifierLabel().String())
+	existingServices, err := s.kubeUtil.ListServicesWithSelector(ctx, namespace, s.batchIdentifierLabel().String())
 	if err != nil {
 		return err
+	}
+	existingVolumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, s.kubeUtil, namespace, jobComponent.GetName())
+	if err != nil {
+		return err
+	}
+	desiredVolumes, err := volumemount.GetVolumes(ctx, s.kubeUtil, namespace, jobComponent, rd.Name, existingVolumes)
+	if err != nil {
+		return err
+	}
+	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx, s.kubeUtil.KubeClient(), rd, namespace, jobComponent, desiredVolumes)
+	if err != nil {
+		return fmt.Errorf("failed to create or update csi azure volume resources: %w", err)
 	}
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
@@ -101,7 +115,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
-		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs); err != nil {
+		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs, actualVolumes); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile kubejob: %w", batchJob.Name, err)
 		}
 

@@ -16,7 +16,6 @@ var (
 	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dns external alias not defined")
 	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dns external alias not defined")
 	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
-	ErrComponentHasInvalidHealthCheck                                      = errors.New("component has invalid health check")
 	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
 	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
 	ErrPortNameIsRequiredForPublicComponent                                = errors.New("port name is required for public component")
@@ -36,7 +35,6 @@ var (
 	ErrCombiningTriggersWithResourcesIsIllegal                             = errors.New("combining triggers with resources is invalid")
 	ErrMaxReplicasForHPANotSetOrZero                                       = errors.New("max replicas for hpa not set or zero")
 	ErrMinReplicasGreaterThanMaxReplicas                                   = errors.New("min replicas greater than max replicas")
-	ErrNoScalingResourceSet                                                = errors.New("no scaling resource set") // Deprecated: Replaaced by ErrInvalidTriggerDefinition
 	ErrNoDefinitionInTrigger                                               = errors.New("no definition in trigger")
 	ErrMoreThanOneDefinitionInTrigger                                      = errors.New("each trigger must contain only one definition")
 	ErrInvalidTriggerDefinition                                            = errors.New("invalid trigger definition")
@@ -49,22 +47,23 @@ var (
 	ErrVolumeMountDuplicateName                                            = errors.New("duplicate name")
 	ErrVolumeMountMissingPath                                              = errors.New("path not set")
 	ErrVolumeMountDuplicatePath                                            = errors.New("duplicate path")
-	ErrVolumeMountMissingStorage                                           = errors.New("storage not set")
 	ErrVolumeMountMissingContainer                                         = errors.New("container not set")
 	ErrVolumeMountInvalidProtocol                                          = errors.New("invalid protocol")
 	ErrVolumeMountInvalidRequestsStorage                                   = errors.New("requestsStorage is invalid")
+	ErrVolumeMountInvalidStorageAccount                                    = errors.New("storage account is invalid")
+	ErrVolumeMountMissingAzureIdentity                                     = errors.New("missing component Azure identity")
 	ErrVolumeMountMissingSizeLimit                                         = errors.New("sizeLimit is not set")
-	ErrVolumeMountTypeNotImplemented                                       = errors.New("type not implemented")
+	ErrVolumeMountWithUseAzureIdentityMissingSubscriptionId                = errors.New("missing subscription Id")
+	ErrVolumeMountWithUseAzureIdentityMissingStorageAccount                = errors.New("missing storage account")
+	ErrVolumeMountWithUseAzureIdentityMissingResourceGroup                 = errors.New("missing resource group")
 	ErrApplicationNameNotLowercase                                         = errors.New("application name not lowercase")
 	ErrPublicImageComponentCannotHaveSourceOrDockerfileSet                 = errors.New("public image component cannot have source or dockerfile")
 	ErrComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag = errors.New("component with tag in environment config for environment requires dynamic")
 	ErrComponentNameReservedSuffix                                         = errors.New("component name reserved suffix")
 	ErrSecretNameConflictsWithEnvironmentVariable                          = errors.New("secret name conflicts with environment")
 	ErrInvalidStringValueMaxLength                                         = errors.New("invalid string value max length")
-	ErrInvalidStringValueMinLength                                         = errors.New("invalid string value min length")
 	ErrResourceNameCannotBeEmpty                                           = errors.New("resource name cannot be empty")
 	ErrInvalidUUID                                                         = errors.New("invalid")
-	ErrInvalidEmail                                                        = errors.New("invalid email")
 	ErrInvalidResourceName                                                 = errors.New("invalid resource name")
 	ErrInvalidLowerCaseAlphaNumericDashResourceName                        = errors.New("invalid lower case alpha numeric dash resource name")
 	ErrNoRegistrationExistsForApplication                                  = errors.New("no registration exists for application")
@@ -81,7 +80,7 @@ var (
 	ErrOAuthOidcEmpty                                                      = errors.Wrap(ErrOauth, "oauth oidc empty")
 	ErrOAuthOidcSkipDiscoveryEmpty                                         = errors.Wrap(ErrOauth, "oauth oidc skip discovery empty")
 	ErrOAuthRedisStoreEmpty                                                = errors.Wrap(ErrOauth, "oauth redis store empty")
-	ErrOAuthRedisStoreConnectionURLEmpty                                   = errors.Wrap(ErrOauth, "oauth redis store connection urlempty")
+	ErrOAuthRedisStoreConnectionURLEmpty                                   = errors.Wrap(ErrOauth, "oauth redis store connection url empty")
 	ErrOAuthCookieStoreMinimalIncorrectSetXAuthRequestHeaders              = errors.Wrap(ErrOauth, "oauth cookie store minimal incorrect set xauth request headers")
 	ErrOAuthCookieStoreMinimalIncorrectSetAuthorizationHeader              = errors.Wrap(ErrOauth, "oauth cookie store minimal incorrect set authorization header")
 	ErrOAuthCookieStoreMinimalIncorrectCookieRefreshInterval               = errors.Wrap(ErrOauth, "oauth cookie store minimal incorrect cookie refresh interval")
@@ -291,10 +290,6 @@ func volumeMountBlobFuse2ValidationError(cause error) error {
 	return fmt.Errorf("blobFuse2 failed validation. %w", cause)
 }
 
-func volumeMountAzureFileValidationError(cause error) error {
-	return fmt.Errorf("azureFile failed validation. %w", cause)
-}
-
 func volumeMountEmptyDirValidationError(cause error) error {
 	return fmt.Errorf("emptyDir failed validation. %w", cause)
 }
@@ -314,7 +309,7 @@ func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMess
 	return errors.WithMessagef(ErrComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag, "component %s with image tag set on environment config for environment %s requires %s on image setting", componentName, environment, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
-// ComponentWithDynamicTagRequiresTagInEnvironmentConfigWithMessage Error if image is set with dynamic tag and tag is missing
+// ComponentNameReservedSuffixErrorWithMessage Component uses a reserved suffix
 func ComponentNameReservedSuffixErrorWithMessage(componentName, componentType, suffix string) error {
 	return errors.WithMessagef(ErrComponentNameReservedSuffix, "%s %s using reserved suffix %s", componentType, componentName, suffix)
 }
@@ -327,11 +322,6 @@ func SecretNameConflictsWithEnvironmentVariableWithMessage(componentName, secret
 // InvalidAppNameLengthErrorWithMessage Invalid app length
 func InvalidAppNameLengthErrorWithMessage(value string) error {
 	return InvalidStringValueMaxLengthErrorWithMessage("app name", value, 253)
-}
-
-// InvalidStringValueMinLengthErrorWithMessage Invalid string value min length
-func InvalidStringValueMinLengthErrorWithMessage(resourceName, value string, minValue int) error {
-	return errors.WithMessagef(ErrInvalidStringValueMinLength, "%s (\"%s\") min length is %d", resourceName, value, minValue)
 }
 
 // InvalidStringValueMaxLengthErrorWithMessage Invalid string value max length
@@ -347,11 +337,6 @@ func ResourceNameCannotBeEmptyErrorWithMessage(resourceName string) error {
 // InvalidUUIDErrorWithMessage Invalid UUID
 func InvalidUUIDErrorWithMessage(resourceName string, uuid string) error {
 	return errors.WithMessagef(ErrInvalidUUID, "field %s does not contain a valid UUID (value: %s)", resourceName, uuid)
-}
-
-// InvalidEmailErrorWithMessage Invalid email
-func InvalidEmailErrorWithMessage(resourceName, email string) error {
-	return errors.WithMessagef(ErrInvalidEmail, "field %s does not contain a valid email (value: %s)", resourceName, email)
 }
 
 // InvalidResourceNameErrorWithMessage Invalid resource name

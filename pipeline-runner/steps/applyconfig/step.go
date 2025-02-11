@@ -21,6 +21,7 @@ import (
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -58,8 +59,9 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	appName := cli.GetAppName()
 	// Get pipeline info from configmap created by prepare pipeline step
-	namespace := operatorutils.GetAppNamespace(cli.GetAppName())
+	namespace := operatorutils.GetAppNamespace(appName)
 	configMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.RadixConfigMapName)
 	if err != nil {
 		return err
@@ -76,7 +78,7 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
-	ra, err := pipelineApplication.CreateRadixApplication(ctx, cli.GetRadixclient(), pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
+	ra, err := pipelineApplication.CreateRadixApplication(ctx, cli.GetRadixclient(), appName, pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
 	if err != nil {
 		return err
 	}
@@ -358,7 +360,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 func getLengthLimitedName(name string) string {
 	validatedName := strings.ToLower(name)
 	if len(validatedName) > 10 {
-		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandString(4)))
+		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandStringStrSeed(4, validatedName)))
 	}
 	return validatedName
 }
@@ -401,7 +403,7 @@ func isRadixConfigNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.
 	if len(currentRdConfigHash) == 0 {
 		return true, nil
 	}
-	hashEqual, err := internal.CompareRadixApplicationHash(currentRdConfigHash, ra)
+	hashEqual, err := hash.CompareRadixApplicationHash(currentRdConfigHash, ra)
 	if !hashEqual && err == nil {
 		log.Ctx(ctx).Info().Msgf("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
 	}
@@ -416,7 +418,7 @@ func isBuildSecretNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.
 	if len(targetHash) == 0 {
 		return true, nil
 	}
-	hashEqual, err := internal.CompareBuildSecretHash(targetHash, buildSecret)
+	hashEqual, err := hash.CompareBuildSecretHash(targetHash, buildSecret)
 	if !hashEqual && err == nil {
 		log.Ctx(ctx).Info().Msgf("Build secrets updated since last deployment to environment %s", rd.Spec.Environment)
 	}

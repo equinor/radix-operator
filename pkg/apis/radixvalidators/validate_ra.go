@@ -57,7 +57,8 @@ var (
 		ValidateNotificationsForRA,
 	}
 
-	ipOrCidrRegExp = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
+	ipOrCidrRegExp           = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
+	storageAccountNameRegExp = regexp.MustCompile(`^[a-z0-9]{3,24}$`)
 )
 
 // RadixApplicationValidator defines a validator function for a RadixApplication
@@ -137,6 +138,7 @@ func validatePrivateImageHubs(app *radixv1.RadixApplication) error {
 // RAContainsOldPublic Checks to see if the radix config is using the deprecated config for public port
 func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 	for _, component := range app.Spec.Components {
+		//nolint:staticcheck
 		if component.Public {
 			return true
 		}
@@ -580,6 +582,7 @@ func validateVerificationType(verificationType *radixv1.VerificationType) error 
 func componentHasPublicPort(component *radixv1.RadixComponent) bool {
 	return slice.Any(component.GetPorts(),
 		func(p radixv1.ComponentPort) bool {
+			//nolint:staticcheck
 			return len(p.Name) > 0 && (p.Name == component.PublicPort || component.Public)
 		})
 }
@@ -1462,21 +1465,25 @@ func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, component := range app.Spec.Components {
-		if err := validateVolumeMounts(component.VolumeMounts); err != nil {
+		hasComponentIdentityAzureClientId := len(component.Identity.GetAzure().GetClientId()) > 0
+		if err := validateVolumeMounts(component.VolumeMounts, hasComponentIdentityAzureClientId); err != nil {
 			errs = append(errs, volumeMountValidationFailedForComponent(component.Name, err))
 		}
 		for _, envConfig := range component.EnvironmentConfig {
-			if err := validateVolumeMounts(envConfig.VolumeMounts); err != nil {
+			hasEnvIdentityAzureClientId := hasComponentIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
+			if err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId); err != nil {
 				errs = append(errs, volumeMountValidationFailedForComponentInEnvironment(component.Name, envConfig.Environment, err))
 			}
 		}
 	}
 	for _, job := range app.Spec.Jobs {
-		if err := validateVolumeMounts(job.VolumeMounts); err != nil {
+		hasJobIdentityAzureClientId := len(job.Identity.GetAzure().GetClientId()) > 0
+		if err := validateVolumeMounts(job.VolumeMounts, hasJobIdentityAzureClientId); err != nil {
 			errs = append(errs, volumeMountValidationFailedForJobComponent(job.Name, err))
 		}
 		for _, envConfig := range job.EnvironmentConfig {
-			if err := validateVolumeMounts(envConfig.VolumeMounts); err != nil {
+			hasEnvIdentityAzureClientId := hasJobIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
+			if err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId); err != nil {
 				errs = append(errs, volumeMountValidationFailedForJobComponentInEnvironment(job.Name, envConfig.Environment, err))
 			}
 		}
@@ -1561,7 +1568,7 @@ func getRadixCommonComponentByName(app *radixv1.RadixApplication, componentName 
 	return nil, nil
 }
 
-func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
+func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAzureClientId bool) error {
 	if len(volumeMounts) == 0 {
 		return nil
 	}
@@ -1584,7 +1591,7 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 		}
 
 		volumeSourceCount := len(slice.FindAll(
-			[]bool{v.HasDeprecatedVolume(), v.HasBlobFuse2(), v.HasAzureFile(), v.HasEmptyDir()},
+			[]bool{v.HasDeprecatedVolume(), v.HasBlobFuse2(), v.HasEmptyDir()},
 			func(b bool) bool { return b }),
 		)
 		if volumeSourceCount > 1 {
@@ -1600,11 +1607,7 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 				return volumeMountValidationError(v.Name, err)
 			}
 		case v.HasBlobFuse2():
-			if err := validateVolumeMountBlobFuse2(v.BlobFuse2); err != nil {
-				return volumeMountValidationError(v.Name, err)
-			}
-		case v.HasAzureFile():
-			if err := validateVolumeMountAzureFile(v.AzureFile); err != nil {
+			if err := validateVolumeMountBlobFuse2(v.BlobFuse2, hasIdentityAzureClientId); err != nil {
 				return volumeMountValidationError(v.Name, err)
 			}
 		case v.HasEmptyDir():
@@ -1618,32 +1621,26 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 }
 
 func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
-	if !slices.Contains([]radixv1.MountType{radixv1.MountTypeBlob, radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure}, v.Type) {
+	//nolint:staticcheck
+	if v.Type != radixv1.MountTypeBlobFuse2FuseCsiAzure {
 		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountInvalidType)
 	}
-
+	//nolint:staticcheck
 	if len(v.RequestsStorage) > 0 {
+		//nolint:staticcheck
 		if _, err := resource.ParseQuantity(v.RequestsStorage); err != nil {
 			return volumeMountDeprecatedSourceValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
 		}
 	}
-
-	switch v.Type {
-	case radixv1.MountTypeBlob:
-		if len(v.Container) == 0 {
-			return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingContainer)
-		}
-	case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeAzureFileCsiAzure:
-		if len(v.Storage) == 0 {
-			return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
-		}
+	//nolint:staticcheck
+	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Container) == 0 {
+		return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingContainer)
 	}
-
 	return nil
 }
 
-func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) error {
-	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, radixv1.BlobFuse2ProtocolNfs, ""}, fuse2.Protocol) {
+func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount, hasIdentityAzureClientId bool) error {
+	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, ""}, fuse2.Protocol) {
 		return volumeMountBlobFuse2ValidationError(ErrVolumeMountInvalidProtocol)
 	}
 
@@ -1656,11 +1653,24 @@ func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) erro
 			return volumeMountBlobFuse2ValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
 		}
 	}
+	if len(fuse2.StorageAccount) > 0 && !storageAccountNameRegExp.Match([]byte(fuse2.StorageAccount)) {
+		return volumeMountBlobFuse2ValidationError(ErrVolumeMountInvalidStorageAccount)
+	}
+	if fuse2.UseAzureIdentity != nil && *fuse2.UseAzureIdentity {
+		if !hasIdentityAzureClientId {
+			return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingAzureIdentity)
+		}
+		if fuse2.SubscriptionId == "" {
+			return volumeMountBlobFuse2ValidationError(ErrVolumeMountWithUseAzureIdentityMissingSubscriptionId)
+		}
+		if fuse2.ResourceGroup == "" {
+			return volumeMountBlobFuse2ValidationError(ErrVolumeMountWithUseAzureIdentityMissingResourceGroup)
+		}
+		if fuse2.StorageAccount == "" {
+			return volumeMountBlobFuse2ValidationError(ErrVolumeMountWithUseAzureIdentityMissingStorageAccount)
+		}
+	}
 	return nil
-}
-
-func validateVolumeMountAzureFile(_ *radixv1.RadixAzureFileVolumeMount) error {
-	return volumeMountAzureFileValidationError(ErrVolumeMountTypeNotImplemented)
 }
 
 func validateVolumeMountEmptyDir(emptyDir *radixv1.RadixEmptyDirVolumeMount) error {
@@ -1735,6 +1745,7 @@ func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
 	for _, component := range app.Spec.Components {
 		if component.Name == name {
+			//nolint:staticcheck
 			return component.Public || component.PublicPort != ""
 		}
 	}

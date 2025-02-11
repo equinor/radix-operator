@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/rs/zerolog/log"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,12 +77,12 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		commitID = pipelineInfo.PipelineArguments.CommitID // Commit ID specified by job arguments
 	}
 
-	radixApplicationHash, err := internal.CreateRadixApplicationHash(pipelineInfo.RadixApplication)
+	radixApplicationHash, err := hash.CreateRadixApplicationHash(pipelineInfo.RadixApplication)
 	if err != nil {
 		return err
 	}
 
-	buildSecretHash, err := internal.CreateBuildSecretHash(pipelineInfo.BuildSecret)
+	buildSecretHash, err := hash.CreateBuildSecretHash(pipelineInfo.BuildSecret)
 	if err != nil {
 		return err
 	}
