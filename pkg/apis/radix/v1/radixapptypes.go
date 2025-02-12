@@ -1906,6 +1906,14 @@ func (oauth2 *OAuth2) GetUseAzureIdentity() bool {
 	return oauth2.UseAzureIdentity != nil && *oauth2.UseAzureIdentity
 }
 
+// GetSessionStoreType Returns the session store type
+func (oauth2 *OAuth2) GetSessionStoreType() SessionStoreType {
+	if oauth2 == nil {
+		return SessionStoreCookie
+	}
+	return oauth2.SessionStoreType
+}
+
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
 	for _, environmentConfig := range environmentConfigs {
 		if strings.EqualFold(environment, environmentConfig.GetEnvironment()) {
