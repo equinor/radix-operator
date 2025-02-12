@@ -246,7 +246,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseSecretOrIdentity() {
 				s.Len(saList.Items, 1, fmt.Sprintf("Expected service account %s", scenario.expectedSa.GetName()))
 				s.Equal(scenario.expectedSa, &saList.Items[0], fmt.Sprintf("Expected service account %s", scenario.expectedSa.GetName()))
 			} else {
-				s.Len(saList.Items, 0, fmt.Sprintf("Expected no service account"))
+				s.Len(saList.Items, 0, "Expected no service account")
 			}
 		})
 	}
