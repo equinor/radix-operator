@@ -467,14 +467,12 @@ func (o *oauthProxyResourceManager) createOrUpdateService(ctx context.Context, c
 
 func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	secret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
-	origSecret := secret.DeepCopy()
-
+	existingSecret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
 			return err
 		}
-		secret, err = o.buildSecretSpec(component)
+		secret, err := o.buildSecretSpec(component)
 		if err != nil {
 			return err
 		}
@@ -482,6 +480,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, co
 		return err
 	}
 
+	secret := existingSecret.DeepCopy()
 	oauthutil.MergeAuxComponentResourceLabels(secret, o.rd.Spec.AppName, component)
 	if _, ok := secret.Data[defaults.OAuthRedisPasswordKeyName]; ok && component.GetAuthentication().GetOAuth2().GetSessionStoreType() != v1.SessionStoreRedis {
 		delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
@@ -489,7 +488,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, co
 	if _, ok := secret.Data[defaults.OAuthClientSecretKeyName]; ok && component.GetAuthentication().GetOAuth2().GetUseAzureIdentity() {
 		delete(secret.Data, defaults.OAuthClientSecretKeyName)
 	}
-	_, err = o.kubeutil.UpdateSecret(ctx, origSecret, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
+	_, err = o.kubeutil.UpdateSecret(ctx, existingSecret, secret)
 	return err
 }
 
