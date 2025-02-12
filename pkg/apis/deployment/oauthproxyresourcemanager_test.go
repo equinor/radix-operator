@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"fmt"
-	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"reflect"
 	"testing"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -173,9 +173,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseSecretOrIdentity() {
 	appName := "anyapp"
 	type scenarioDef struct {
-		name       string
-		rd         *v1.RadixDeployment
-		expectedSa *corev1.ServiceAccount
+		name                        string
+		rd                          *v1.RadixDeployment
+		expectedSa                  *corev1.ServiceAccount
+		expectedAuxOauthDeployCount int
 	}
 	const (
 		azureClientId              = "some-azure-client-id"
@@ -184,18 +185,17 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseSecretOrIdentity() {
 	)
 	scenarios := []scenarioDef{
 		{name: "No Authentication", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}})).
-			BuildRD()},
+			BuildRD(),
+			expectedAuxOauthDeployCount: 0},
 		{name: "Authentication, no OAuth2 useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}).
-			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}})).BuildRD()},
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1},
 		{name: "Authentication, OAuth2 useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}).
 			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234", UseAzureIdentity: pointers.Ptr(true)}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
 			expectedSa: buildServiceAccount(appName, expectedServiceAccountName,
 				radixlabels.Merge(
-					labels.Set{
-						kube.RadixAuxiliaryComponentLabel:     componentName1,
-						kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
-						kube.IsServiceAccountForAuxOAuthLabel: "true",
-					},
+					getLabelsForAuxOAuthComponentServiceAccount(componentName1),
 					radixlabels.ForServiceAccountWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}),
 				),
 				&v1.RadixDeployComponent{Name: componentName1})},
@@ -204,12 +204,13 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseSecretOrIdentity() {
 
 	for _, scenario := range scenarios {
 		s.Run(scenario.name, func() {
-			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
+			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()), "", zerolog.Nop()}
 			err := sut.Sync(context.Background())
 			s.Nil(err)
-			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
-			s.Len(deploys.Items, 0)
-			saList, _ := s.kubeClient.CoreV1().ServiceAccounts(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+			deploys, err := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+			s.NoError(err, "Failed to list deployments")
+			s.Len(deploys.Items, scenario.expectedAuxOauthDeployCount, "Expected aux oauth deployment count")
+			saList, _ := s.kubeClient.CoreV1().ServiceAccounts(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: getLabelsForAuxOAuthComponentServiceAccount(componentName1).String()})
 			if scenario.expectedSa != nil {
 				s.Len(saList.Items, 1, fmt.Sprintf("Expected service account %s", scenario.expectedSa.GetName()))
 			} else {
@@ -217,6 +218,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseSecretOrIdentity() {
 			}
 		})
 	}
+}
+
+func getLabelsForAuxOAuthComponentServiceAccount(componentName string) labels.Set {
+	return radixlabels.ForAuxOAuthComponentServiceAccount(&v1.RadixDeployComponent{Name: componentName})
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas() {
