@@ -70,11 +70,7 @@ See table 1.3 for complete listing of permissions
 
 See table 1.3 for complete listing of permissions
 
-### Clusterrole bindings
-
-- radix-cluster-admins
-  - Purpose: Grants full access to administer cluster through the cluster-admin clusterrole for the platform developer
-  - Lives in: default namespace
+Two cluster roles are created for administrative purposes: `radix-operator-view` and `radix-operator-edit`. Rules defined in these roles are aggregated to the built-in cluster roles `view` and `edit`. These cluster roles are intended to be used for granting cluster administrators access to all Radix custom resources. The Helm chart does not define any cluster role bindings to these roles.
 
 ## System User (Service Account) perspective
 
@@ -204,8 +200,6 @@ application|`application`-machine-user|`application`-machine-user-token|role|app
 ||AD-groups|radix-private-image-hubs|role|application|radix-private-image-hubs|rolebinding
 ||AD-groups|radix-app-admin-build-secrets|role|application|radix-app-admin-build-secrets|rolebinding
 ||AD-groups|`application`-machine-user-token|role|application|`application`-machine-user-token|rolebinding
-||radixGroups.clusterAdmin|cluster-admin|clusterrole|global|radix-cluster-admins|clusterrolebinding
-||radixGroups.playground|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
 ||radixGroups.user|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
 environment|radix-api|radix-api|clusterrole|global|`environment`-radix-api|clusterrolebinding
 application|radix-tekton|radix-tekton|role|application|radix-tekton|rolebinding
@@ -225,7 +219,6 @@ Source|Type|Resource Name
 charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-platform-user
 charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-app-admin
 charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-app-admin-envs
-charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrolebinding|radix-cluster-admins
 charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrolebinding|radix-platform-user-binding
 charts/radix-operator/templates/radix-pipeline-rbac.yaml|clusterrole|radix-pipeline-app
 charts/radix-operator/templates/radix-pipeline-rbac.yaml|clusterrole|radix-pipeline-env
@@ -234,6 +227,8 @@ charts/radix-operator/templates/radix-operator-rbac.yaml|clusterrole|radix-opera
 charts/radix-operator/templates/radix-operator-rbac.yaml|clusterrolebinding|radix-operator-new
 charts/radix-operator/templates/radix-apps-rbac.yaml|clusterrole|radix-webhook
 charts/radix-operator/templates/radix-apps-rbac.yaml|clusterrole|radix-api
+charts/radix-operator/templates/aggregate-rbac.yaml|clusterrole|radix-operator-view
+charts/radix-operator/templates/aggregate-rbac.yaml|clusterrole|radix-operator-edit
 pkg/apis/application/serviceaccount.go:applyPipelineServiceAccount|serviceaccount|radix-pipeline
 pkg/apis/application/serviceaccount.go:applyRadixTektonServiceAccount|serviceaccount|radix-tekton
 pkg/apis/application/roles.go:rrUserClusterRole|clusterrole|radix-platform-user-rr-`application`
