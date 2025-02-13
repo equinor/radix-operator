@@ -472,7 +472,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, co
 		if !kubeerrors.IsNotFound(err) {
 			return err
 		}
-		secret, err := o.buildSecretSpec(component)
+		secret, err := buildAuxOAuthSecret(o.rd.Spec.AppName, component)
 		if err != nil {
 			return err
 		}
@@ -556,7 +556,7 @@ func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(prefix, componentN
 	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
-func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
+func buildAuxOAuthSecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	secret := &corev1.Secret{
@@ -566,8 +566,8 @@ func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDepl
 		},
 		Data: make(map[string][]byte),
 	}
-	oauthutil.MergeAuxComponentResourceLabels(secret, o.rd.Spec.AppName, component)
-	cookieSecret, err := o.generateRandomCookieSecret()
+	oauthutil.MergeAuxComponentResourceLabels(secret, appName, component)
+	cookieSecret, err := generateRandomCookieSecret()
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +599,7 @@ func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDep
 	return service
 }
 
-func (o *oauthProxyResourceManager) generateRandomCookieSecret() ([]byte, error) {
+func generateRandomCookieSecret() ([]byte, error) {
 	randomBytes := commonutils.GenerateRandomKey(32)
 	// Extra check to make sure correct number of bytes are returned for the random key
 	if len(randomBytes) != 32 {
