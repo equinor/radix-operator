@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 )
 
@@ -15,7 +16,7 @@ func GetSubPipelineServiceAccountName(environmentName string) string {
 	return fmt.Sprintf("subpipeline-%s-sa", environmentName)
 }
 
-// GetAuxOAuthServiceAccountName Gets unique name for aux oauth component or job service account
-func GetAuxOAuthServiceAccountName(componentName string) string {
+// GetOAuthProxyServiceAccountName Gets unique name for OAuth2 proxy service account
+func GetOAuthProxyServiceAccountName(componentName string) string {
 	return fmt.Sprintf("%s-%s-sa", componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
 }

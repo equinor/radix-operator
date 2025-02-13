@@ -262,11 +262,11 @@ func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.Ra
 		return err
 	}
 
-	if err := createOrUpdateAuxOAuthServiceAccount(ctx, o.kubeutil, o.rd, component); err != nil {
-		return fmt.Errorf("failed to create aux OAuth service account: %w", err)
+	if err := createOrUpdateOAuthProxyServiceAccount(ctx, o.kubeutil, o.rd, component); err != nil {
+		return fmt.Errorf("failed to create OAuth proxy service account: %w", err)
 	}
-	if err := garbageCollectServiceAccountNoLongerInSpecForAuxOAuthComponent(ctx, o.kubeutil, o.rd, component); err != nil {
-		return fmt.Errorf("failed to garbage collect service account no longer in spec for aux OAuth component: %w", err)
+	if err := garbageCollectServiceAccountNoLongerInSpecForOAuthProxyComponent(ctx, o.kubeutil, o.rd, component); err != nil {
+		return fmt.Errorf("failed to garbage collect service account no longer in spec for OAuth proxy component: %w", err)
 	}
 	return o.createOrUpdateDeployment(ctx, component)
 }
@@ -285,7 +285,7 @@ func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.
 		return err
 	}
 
-	if err := deleteAuxOAuthServiceAccounts(ctx, o.kubeutil, o.rd.Namespace, component); err != nil {
+	if err := deleteOAuthProxyServiceAccounts(ctx, o.kubeutil, o.rd.Namespace, component); err != nil {
 		return err
 	}
 
@@ -472,7 +472,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, co
 		if !kubeerrors.IsNotFound(err) {
 			return err
 		}
-		secret, err := buildAuxOAuthSecret(o.rd.Spec.AppName, component)
+		secret, err := buildOAuthProxySecret(o.rd.Spec.AppName, component)
 		if err != nil {
 			return err
 		}
@@ -556,7 +556,7 @@ func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(prefix, componentN
 	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
-func buildAuxOAuthSecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
+func buildOAuthProxySecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	secret := &corev1.Secret{
@@ -698,7 +698,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 			desiredDeployment.Spec.Template.GetLabels(),
 			radixlabels.ForPodWithRadixIdentity(component.GetIdentity()),
 		)
-		desiredDeployment.Spec.Template.Spec.ServiceAccountName = utils.GetAuxOAuthServiceAccountName(component.GetName())
+		desiredDeployment.Spec.Template.Spec.ServiceAccountName = utils.GetOAuthProxyServiceAccountName(component.GetName())
 	}
 	oauthutil.MergeAuxComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
 	return desiredDeployment, nil

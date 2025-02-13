@@ -618,15 +618,14 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 	}
 
 	// Validate RedisStore
-	if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreRedis {
+	if oauthWithDefaults.GetSessionStoreType() == radixv1.SessionStoreRedis {
 		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
 			errors = append(errors, OAuthRedisStoreEmptyErrorWithMessage(componentName, environmentName))
 		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {
 			errors = append(errors, OAuthRedisStoreConnectionURLEmptyErrorWithMessage(componentName, environmentName))
 		}
 	}
-	useAzureIdentity := oauthWithDefaults.UseAzureIdentity
-	if useAzureIdentity != nil && *useAzureIdentity {
+	if oauthWithDefaults.GetUseAzureIdentity() {
 		if !azureIdentityIsSet(component) {
 			errors = append(errors, MissingAzureIdentityForOAuth2ErrorWithMessage(component.GetName()))
 		}

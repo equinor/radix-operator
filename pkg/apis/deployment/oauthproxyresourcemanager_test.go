@@ -237,7 +237,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 				_, err := sut.kubeutil.KubeClient().CoreV1().ServiceAccounts(scenario.existingSa.Namespace).Create(context.Background(), scenario.existingSa, metav1.CreateOptions{})
 				s.NoError(err, "Failed to create service account")
 			}
-			auxOAuthSecret, err := buildAuxOAuthSecret(appName, &scenario.rd.Spec.Components[0])
+			auxOAuthSecret, err := buildOAuthProxySecret(appName, &scenario.rd.Spec.Components[0])
 			auxOAuthSecret.SetNamespace(scenario.rd.Namespace)
 			s.NoError(err, "Failed to build secret")
 			auxOAuthSecret.Data[defaults.OAuthClientSecretKeyName] = []byte("some-client-secret")
@@ -289,7 +289,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 }
 
 func getLabelsForAuxOAuthComponentServiceAccount(componentName string) labels.Set {
-	return radixlabels.ForAuxOAuthComponentServiceAccount(&v1.RadixDeployComponent{Name: componentName})
+	return radixlabels.ForOAuthProxyComponentServiceAccount(&v1.RadixDeployComponent{Name: componentName})
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas() {

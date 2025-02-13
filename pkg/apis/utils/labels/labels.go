@@ -126,13 +126,13 @@ func ForServiceAccountIsForSubPipeline() kubelabels.Set {
 	}
 }
 
-// ForAuxOAuthComponentServiceAccount returns labels for configuring a ServiceAccount for an aux OAuth2 proxy
-func ForAuxOAuthComponentServiceAccount(component v1.RadixCommonDeployComponent) kubelabels.Set {
+// ForOAuthProxyComponentServiceAccount returns labels for configuring a ServiceAccount for an aux OAuth2 proxy
+func ForOAuthProxyComponentServiceAccount(component v1.RadixCommonDeployComponent) kubelabels.Set {
 	return Merge(
 		kubelabels.Set{
-			kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-			kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
-			kube.IsServiceAccountForAuxOAuthLabel: "true",
+			kube.RadixAuxiliaryComponentLabel:       component.GetName(),
+			kube.RadixAuxiliaryComponentTypeLabel:   defaults.OAuthProxyAuxiliaryComponentType,
+			kube.IsServiceAccountForOAuthProxyLabel: "true",
 		},
 	)
 }

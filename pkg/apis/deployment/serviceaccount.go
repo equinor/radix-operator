@@ -35,7 +35,7 @@ func (deploy *Deployment) createOrUpdateServiceAccount(ctx context.Context, comp
 	return err
 }
 
-func createOrUpdateAuxOAuthServiceAccount(ctx context.Context, kubeUtil *kube.Kube, radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) error {
+func createOrUpdateOAuthProxyServiceAccount(ctx context.Context, kubeUtil *kube.Kube, radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) error {
 	if isServiceAccountForComponentPreinstalled(radixDeployment, component) {
 		return nil
 	}
@@ -44,9 +44,9 @@ func createOrUpdateAuxOAuthServiceAccount(ctx context.Context, kubeUtil *kube.Ku
 		return nil
 	}
 
-	sa := buildServiceAccountForAuxOAuthComponent(radixDeployment.Namespace, component)
+	sa := buildServiceAccountForOAuthProxyComponent(radixDeployment.Namespace, component)
 
-	if err := verifyServiceAccountForAuxOAuthComponentCanBeApplied(ctx, kubeUtil, sa, component); err != nil {
+	if err := verifyServiceAccountForOAuthProxyComponentCanBeApplied(ctx, kubeUtil, sa, component); err != nil {
 		return err
 	}
 
@@ -71,7 +71,7 @@ func verifyServiceAccountForComponentCanBeApplied(ctx context.Context, kubeUtil 
 	return nil
 }
 
-func verifyServiceAccountForAuxOAuthComponentCanBeApplied(ctx context.Context, kubeUtil *kube.Kube, sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) error {
+func verifyServiceAccountForOAuthProxyComponentCanBeApplied(ctx context.Context, kubeUtil *kube.Kube, sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) error {
 	existingSa, err := kubeUtil.GetServiceAccount(ctx, sa.GetNamespace(), sa.GetName())
 	if err != nil {
 		// If service account does not already exist we return nil to indicate that it can be applied
@@ -81,7 +81,7 @@ func verifyServiceAccountForAuxOAuthComponentCanBeApplied(ctx context.Context, k
 		return err
 	}
 
-	if !isServiceAccountForAuxOAuthComponent(existingSa, component) {
+	if !isServiceAccountForOAuthProxyComponent(existingSa, component) {
 		return fmt.Errorf("existing service account does not belong to aux OAuth proxy of the component %s", component.GetName())
 	}
 
@@ -94,9 +94,9 @@ func buildServiceAccountForComponent(namespace string, component radixv1.RadixCo
 	return buildServiceAccount(namespace, name, labels, component)
 }
 
-func buildServiceAccountForAuxOAuthComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
-	labels := getAuxOAuthComponentServiceAccountLabels(component)
-	name := utils.GetAuxOAuthServiceAccountName(component.GetName())
+func buildServiceAccountForOAuthProxyComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
+	labels := getOAuthProxyComponentServiceAccountLabels(component)
+	name := utils.GetOAuthProxyServiceAccountName(component.GetName())
 	return buildServiceAccount(namespace, name, labels, component)
 }
 
@@ -134,7 +134,7 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 	return nil
 }
 
-func garbageCollectServiceAccountNoLongerInSpecForAuxOAuthComponent(ctx context.Context, kubeUtil *kube.Kube, radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) error {
+func garbageCollectServiceAccountNoLongerInSpecForOAuthProxyComponent(ctx context.Context, kubeUtil *kube.Kube, radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) error {
 	if isServiceAccountForComponentPreinstalled(radixDeployment, component) {
 		return nil
 	}
@@ -143,11 +143,11 @@ func garbageCollectServiceAccountNoLongerInSpecForAuxOAuthComponent(ctx context.
 		return nil
 	}
 
-	return deleteAuxOAuthServiceAccounts(ctx, kubeUtil, radixDeployment.Namespace, component)
+	return deleteOAuthProxyServiceAccounts(ctx, kubeUtil, radixDeployment.Namespace, component)
 }
 
-func deleteAuxOAuthServiceAccounts(ctx context.Context, kubeUtil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent) error {
-	selector := radixlabels.ForAuxOAuthComponentServiceAccount(component).AsSelector().String()
+func deleteOAuthProxyServiceAccounts(ctx context.Context, kubeUtil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent) error {
+	selector := radixlabels.ForOAuthProxyComponentServiceAccount(component).AsSelector().String()
 	serviceAccountList, err := kubeUtil.ListServiceAccountsWithSelector(ctx, namespace, selector)
 	if err != nil {
 		return err
@@ -209,9 +209,9 @@ func getComponentServiceAccountLabels(component radixv1.RadixCommonDeployCompone
 	)
 }
 
-func getAuxOAuthComponentServiceAccountLabels(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+func getOAuthProxyComponentServiceAccountLabels(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
 	return radixlabels.Merge(
-		radixlabels.ForAuxOAuthComponentServiceAccount(component),
+		radixlabels.ForOAuthProxyComponentServiceAccount(component),
 		radixlabels.ForServiceAccountWithRadixIdentity(component.GetIdentity()),
 	)
 }
@@ -231,6 +231,6 @@ func isServiceAccountForComponent(sa *corev1.ServiceAccount, componentName strin
 	return getComponentServiceAccountIdentifier(componentName).AsSelector().Matches(kubelabels.Set(sa.Labels))
 }
 
-func isServiceAccountForAuxOAuthComponent(sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) bool {
-	return radixlabels.ForAuxOAuthComponentServiceAccount(component).AsSelector().Matches(kubelabels.Set(sa.Labels))
+func isServiceAccountForOAuthProxyComponent(sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) bool {
+	return radixlabels.ForOAuthProxyComponentServiceAccount(component).AsSelector().Matches(kubelabels.Set(sa.Labels))
 }

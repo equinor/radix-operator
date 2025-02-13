@@ -83,7 +83,7 @@ const (
 	RadixPodIsJobAuxObjectLabel         = "is-job-aux-object"
 	IsServiceAccountForComponent        = "is-service-account-for-component"
 	IsServiceAccountForSubPipelineLabel = "is-service-account-for-subpipeline"
-	IsServiceAccountForAuxOAuthLabel    = "is-service-account-for-aux-oauth"
+	IsServiceAccountForOAuthProxyLabel  = "is-service-account-for-oauth-proxy"
 	RadixBatchNameLabel                 = "radix-batch-name"
 	RadixBatchJobNameLabel              = "radix-batch-job-name"
 	RadixBatchTypeLabel                 = "radix-batch-type"
