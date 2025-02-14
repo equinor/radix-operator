@@ -153,6 +153,15 @@ func ForServiceAccountWithRadixIdentity(identity *v1.Identity) kubelabels.Set {
 	return labels
 }
 
+// ForOauthProxyServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
+// e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
+func ForOauthProxyServiceAccountWithRadixIdentity(oauth2 *v1.OAuth2) kubelabels.Set {
+	if !oauth2.GetUseAzureIdentity() {
+		return nil
+	}
+	return forAzureWorkloadUseIdentity()
+}
+
 // ForPodWithRadixIdentity returns labels for configuring a Pod with external identities,
 // e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
 func ForPodWithRadixIdentity(identity *v1.Identity) kubelabels.Set {

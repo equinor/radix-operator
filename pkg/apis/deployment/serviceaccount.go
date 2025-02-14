@@ -91,22 +91,22 @@ func verifyServiceAccountForOAuthProxyComponentCanBeApplied(ctx context.Context,
 func buildServiceAccountForComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
 	labels := getComponentServiceAccountLabels(component)
 	name := utils.GetComponentServiceAccountName(component.GetName())
-	return buildServiceAccount(namespace, name, labels, component)
+	return buildServiceAccount(namespace, name, labels, component.GetIdentity().GetAzure().GetClientId())
 }
 
 func buildServiceAccountForOAuthProxyComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
 	labels := getOAuthProxyComponentServiceAccountLabels(component)
 	name := utils.GetOAuthProxyServiceAccountName(component.GetName())
-	return buildServiceAccount(namespace, name, labels, component)
+	return buildServiceAccount(namespace, name, labels, component.GetAuthentication().GetOAuth2().GetClientID())
 }
 
-func buildServiceAccount(namespace, name string, labels kubelabels.Set, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
+func buildServiceAccount(namespace, name string, labels kubelabels.Set, identityClientId string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Namespace:   namespace,
 			Labels:      labels,
-			Annotations: getComponentServiceAccountAnnotations(component),
+			Annotations: getComponentServiceAccountAnnotations(identityClientId),
 		},
 	}
 }
@@ -212,7 +212,7 @@ func getComponentServiceAccountLabels(component radixv1.RadixCommonDeployCompone
 func getOAuthProxyComponentServiceAccountLabels(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
 	return radixlabels.Merge(
 		radixlabels.ForOAuthProxyComponentServiceAccount(component),
-		radixlabels.ForServiceAccountWithRadixIdentity(component.GetIdentity()),
+		radixlabels.ForOauthProxyServiceAccountWithRadixIdentity(component.GetAuthentication().GetOAuth2()),
 	)
 }
 
@@ -223,8 +223,8 @@ func getComponentServiceAccountIdentifier(componentName string) kubelabels.Set {
 	)
 }
 
-func getComponentServiceAccountAnnotations(component radixv1.RadixCommonDeployComponent) map[string]string {
-	return radixannotations.ForServiceAccountWithRadixIdentity(component.GetIdentity())
+func getComponentServiceAccountAnnotations(identityClientId string) map[string]string {
+	return radixannotations.ForServiceAccountWithRadixIdentityClientId(identityClientId)
 }
 
 func isServiceAccountForComponent(sa *corev1.ServiceAccount, componentName string) bool {

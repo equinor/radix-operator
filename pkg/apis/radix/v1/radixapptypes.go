@@ -1914,6 +1914,14 @@ func (oauth2 *OAuth2) GetSessionStoreType() SessionStoreType {
 	return oauth2.SessionStoreType
 }
 
+// GetClientID Returns the client ID
+func (oauth2 *OAuth2) GetClientID() string {
+	if oauth2 == nil {
+		return ""
+	}
+	return oauth2.ClientID
+}
+
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
 	for _, environmentConfig := range environmentConfigs {
 		if strings.EqualFold(environment, environmentConfig.GetEnvironment()) {

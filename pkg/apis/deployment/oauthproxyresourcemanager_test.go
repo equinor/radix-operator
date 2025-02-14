@@ -184,44 +184,44 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 	}
 	const (
 		appName                    = "anyapp"
-		azureClientId              = "some-azure-client-id"
+		componentAzureClientId     = "some-azure-client-id"
+		oauth2ClientId             = "oauth2-client-id"
 		componentName1             = "comp1"
 		expectedServiceAccountName = "comp1-aux-oauth-sa"
 		envName                    = "qa"
 	)
 
-	identity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}
+	identity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}
 	auxOAuthServiceAccount := buildServiceAccount(utils.GetEnvironmentNamespace(appName, envName), expectedServiceAccountName,
 		radixlabels.Merge(
 			getLabelsForAuxOAuthComponentServiceAccount(componentName1),
-			radixlabels.ForServiceAccountWithRadixIdentity(identity),
-		),
-		&v1.RadixDeployComponent{Name: componentName1, Identity: identity})
+			radixlabels.ForServiceAccountWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: oauth2ClientId}}),
+		), oauth2ClientId)
 	scenarios := []scenarioDef{
-		{name: "Not created service account without Authentication", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}})).
+		{name: "Not created service account without Authentication", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}})).
 			BuildRD(),
 			expectedAuxOauthDeployCount: 0},
-		{name: "Not created service account with Authentication, no OAuth2", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}).
+		{name: "Not created service account with Authentication, no OAuth2", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
 			WithAuthentication(&v1.Authentication{})).BuildRD(),
 			expectedAuxOauthDeployCount: 0},
-		{name: "Not created service account with Authentication, OAuth2, false useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}).
-			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}})).BuildRD(),
+		{name: "Not created service account with Authentication, OAuth2, false useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId}})).BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 		},
 		{name: "Created the service account with Authentication, OAuth2, true useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
 			WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).
-				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234", UseAzureIdentity: pointers.Ptr(true)}})).BuildRD(),
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, UseAzureIdentity: pointers.Ptr(true)}})).BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 			expectedSa:                  auxOAuthServiceAccount,
 		},
-		{name: "Delete existing service account, with Authentication, OAuth2, no useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: azureClientId}}).
-			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}})).BuildRD(),
+		{name: "Delete existing service account, with Authentication, OAuth2, no useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId}})).BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 			existingSa:                  auxOAuthServiceAccount,
 		},
 		{name: "Not overridden the existing service account with Authentication, OAuth2, true useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
 			WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).
-				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234", UseAzureIdentity: pointers.Ptr(true)}})).BuildRD(),
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, UseAzureIdentity: pointers.Ptr(true)}})).BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 			existingSa:                  auxOAuthServiceAccount,
 			expectedSa:                  auxOAuthServiceAccount,
