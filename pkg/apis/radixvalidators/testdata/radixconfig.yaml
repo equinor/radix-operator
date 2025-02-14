@@ -95,7 +95,7 @@ spec:
           volumeMounts:
             - type: azure-blob
               name: blobvol
-              container: blobcontainer
+              storage: blobcontainer
               path: /path/to/mount
           runtime:
             architecture: amd64
@@ -204,7 +204,7 @@ spec:
           volumeMounts:
             - type: azure-blob
               name: blobvol
-              container: blobcontainer
+              storage: blobcontainer
               path: /path/to/mount
           runtime:
             architecture: amd64

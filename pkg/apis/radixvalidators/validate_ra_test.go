@@ -1345,10 +1345,10 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Type:      "azure-blob",
-						Name:      "some_name",
-						Path:      "some_path",
-						Container: "any-storage",
+						Type:    "azure-blob",
+						Name:    "some_name",
+						Path:    "some_path",
+						Storage: "any-storage",
 					},
 				}
 
@@ -1370,7 +1370,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				return volumeMounts
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
+			expectedError: radixvalidators.ErrVolumeMountMissingStorage,
 		},
 		"deprecated common: invalid type": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
