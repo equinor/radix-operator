@@ -1939,7 +1939,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
-			"Copmonent with Trigger config and Resource config should fail",
+			"Component with Trigger config and Resource config should fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
 					MinReplicas: pointers.Ptr(int32(2)),
@@ -1957,7 +1957,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrCombiningTriggersWithResourcesIsIllegal},
 		},
 		{
-			"Copmonent with 0 replicas is correct when combined with atleast 1 non-resource trigger",
+			"Component with 0 replicas is correct when combined with atleast 1 non-resource trigger",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(0).
@@ -1971,7 +1971,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			nil,
 		},
 		{
-			"Copmonent with 0 replicas is invalid with only resource triggers",
+			"Component with 0 replicas is invalid with only resource triggers",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(0).
@@ -1983,7 +1983,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
 		},
 		{
-			"Copmonent with multiple definitions in same trigger must fail",
+			"Component with multiple definitions in same trigger must fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
@@ -1994,7 +1994,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrMoreThanOneDefinitionInTrigger},
 		},
 		{
-			"Copmonent with multiple definitions of same type is allowed",
+			"Component with multiple definitions of same type is allowed",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
@@ -2006,7 +2006,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			nil,
 		},
 		{
-			"Copmonent must have unique name",
+			"Component must have unique name",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).

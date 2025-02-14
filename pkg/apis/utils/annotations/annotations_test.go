@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,13 +29,10 @@ func Test_ForRadixDeploymentName(t *testing.T) {
 }
 
 func Test_ForServiceAccountWithRadixIdentity(t *testing.T) {
-	actual := ForServiceAccountWithRadixIdentity(nil)
+	actual := ForServiceAccountWithRadixIdentityClientId("")
 	assert.Equal(t, map[string]string(nil), actual)
 
-	actual = ForServiceAccountWithRadixIdentity(&v1.Identity{})
-	assert.Equal(t, map[string]string(nil), actual)
-
-	actual = ForServiceAccountWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "anyclientid"}})
+	actual = ForServiceAccountWithRadixIdentityClientId("anyclientid")
 	expected := map[string]string{"azure.workload.identity/client-id": "anyclientid"}
 	assert.Equal(t, expected, actual)
 }

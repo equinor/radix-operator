@@ -13,6 +13,8 @@ const (
 	AuthUrlAnnotation                   = "nginx.ingress.kubernetes.io/auth-url"
 	AuthSigninAnnotation                = "nginx.ingress.kubernetes.io/auth-signin"
 	AuthResponseHeadersAnnotation       = "nginx.ingress.kubernetes.io/auth-response-headers"
+	OAuthProxyProviderOIDC              = "oidc"
+	OAuthProxyProviderEntraId           = "entra-id"
 )
 
 // OAuth2Config is implemented by any value that has as MergeWith method

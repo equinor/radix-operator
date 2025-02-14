@@ -588,6 +588,11 @@ func (in *OAuth2) DeepCopyInto(out *OAuth2) {
 		*out = new(OAuth2RedisStore)
 		**out = **in
 	}
+	if in.UseAzureIdentity != nil {
+		in, out := &in.UseAzureIdentity, &out.UseAzureIdentity
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

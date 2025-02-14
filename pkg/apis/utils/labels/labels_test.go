@@ -3,6 +3,7 @@ package labels
 import (
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
@@ -52,6 +53,21 @@ func Test_ForServiceAccountWithRadixIdentity(t *testing.T) {
 	actual = ForServiceAccountWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "any"}})
 	expected := kubelabels.Set{"azure.workload.identity/use": "true"}
 	assert.Equal(t, expected, actual)
+}
+
+func Test_ForOAuthProxyServiceAccountWithWorkloadIdentity(t *testing.T) {
+	actual := ForOauthProxyServiceAccountWithRadixIdentity(nil)
+	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when there is no OAuth2")
+
+	actual = ForOauthProxyServiceAccountWithRadixIdentity(&v1.OAuth2{})
+	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when there is no UseAzureIdentity")
+
+	actual = ForOauthProxyServiceAccountWithRadixIdentity(&v1.OAuth2{UseAzureIdentity: pointers.Ptr(false), ClientID: "any-client-id"})
+	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when UseAzureIdentity is false")
+
+	actual = ForOauthProxyServiceAccountWithRadixIdentity(&v1.OAuth2{UseAzureIdentity: pointers.Ptr(true), ClientID: "any-client-id"})
+	expected := kubelabels.Set{"azure.workload.identity/use": "true"}
+	assert.Equal(t, expected, actual, "Expected labels when UseAzureIdentity is true")
 }
 
 func Test_ForPodWithRadixIdentity(t *testing.T) {
