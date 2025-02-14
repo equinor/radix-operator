@@ -625,11 +625,6 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 			errors = append(errors, OAuthRedisStoreConnectionURLEmptyErrorWithMessage(componentName, environmentName))
 		}
 	}
-	if oauthWithDefaults.GetUseAzureIdentity() {
-		if !azureIdentityIsSet(component) {
-			errors = append(errors, MissingAzureIdentityForOAuth2ErrorWithMessage(component.GetName()))
-		}
-	}
 
 	// Validate OIDC config
 	if oidc := oauthWithDefaults.OIDC; oidc == nil {
