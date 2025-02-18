@@ -1633,8 +1633,8 @@ func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
 		}
 	}
 	//nolint:staticcheck
-	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Container) == 0 {
-		return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingContainer)
+	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Storage) == 0 {
+		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
 	}
 	return nil
 }
