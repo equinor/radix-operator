@@ -47,6 +47,7 @@ var (
 	ErrVolumeMountDuplicateName                                            = errors.New("duplicate name")
 	ErrVolumeMountMissingPath                                              = errors.New("path not set")
 	ErrVolumeMountDuplicatePath                                            = errors.New("duplicate path")
+	ErrVolumeMountMissingStorage                                           = errors.New("storage not set")
 	ErrVolumeMountMissingContainer                                         = errors.New("container not set")
 	ErrVolumeMountInvalidProtocol                                          = errors.New("invalid protocol")
 	ErrVolumeMountInvalidRequestsStorage                                   = errors.New("requestsStorage is invalid")
