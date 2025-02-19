@@ -917,6 +917,16 @@ type RadixPrivateImageHubCredential struct {
 	Email string `json:"email"`
 }
 
+// CredentialsType defines the type of credentials
+type CredentialsType string
+
+const (
+	// Secret defines the client secret as a type of credentials
+	Secret CredentialsType = "secret"
+	// AzureWorkloadIdentity defines the Azure workload identity as a type of credentials
+	AzureWorkloadIdentity CredentialsType = "azureWorkloadIdentity"
+)
+
 // RadixVolumeMount defines an external storage resource.
 type RadixVolumeMount struct {
 	// Deprecated: use BlobFuse2 instead.
@@ -1379,9 +1389,11 @@ type OAuth2 struct {
 	// +optional
 	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty"`
 
-	// UseAzureIdentity defines that credentials for authenticating using Azure Workload Identity instead of using a ClientSecret.
+	// Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.
+	// +kubebuilder:validation:Enum=secret;azureWorkloadIdentity
+	// +kubebuilder:default:=secret
 	// +optional
-	UseAzureIdentity *bool `json:"useAzureIdentity,omitempty"`
+	Credentials CredentialsType `json:"credentials,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie.
@@ -1903,7 +1915,7 @@ func (oauth2 *OAuth2) GetUseAzureIdentity() bool {
 	if oauth2 == nil {
 		return false
 	}
-	return oauth2.UseAzureIdentity != nil && *oauth2.UseAzureIdentity
+	return oauth2.Credentials == AzureWorkloadIdentity
 }
 
 // GetSessionStoreType Returns the session store type

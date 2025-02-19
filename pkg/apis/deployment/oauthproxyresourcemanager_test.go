@@ -210,7 +210,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 		},
 		{name: "Created the service account with Authentication, OAuth2, true useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
 			WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).
-				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, UseAzureIdentity: pointers.Ptr(true)}})).BuildRD(),
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, Credentials: v1.AzureWorkloadIdentity}})).BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 			expectedSa:                  auxOAuthServiceAccount,
 		},
@@ -221,7 +221,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 		},
 		{name: "Not overridden the existing service account with Authentication, OAuth2, true useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
 			WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).
-				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, UseAzureIdentity: pointers.Ptr(true)}})).BuildRD(),
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, Credentials: v1.AzureWorkloadIdentity}})).BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 			existingSa:                  auxOAuthServiceAccount,
 			expectedSa:                  auxOAuthServiceAccount,
