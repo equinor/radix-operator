@@ -178,6 +178,15 @@ spec:
                                     Cookie.Refresh must be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader must be false if this setting is true.
                                   type: boolean
                               type: object
+                            credentials:
+                              default: secret
+                              description: Credentials defines credentials type for
+                                authenticating. Default is a Secret, which represents
+                                a client secret.
+                              enum:
+                              - secret
+                              - azureWorkloadIdentity
+                              type: string
                             loginUrl:
                               description: |-
                                 Defines the authentication endpoint of the identity provider.
@@ -335,6 +344,15 @@ spec:
                                           Cookie.Refresh must be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader must be false if this setting is true.
                                         type: boolean
                                     type: object
+                                  credentials:
+                                    default: secret
+                                    description: Credentials defines credentials type
+                                      for authenticating. Default is a Secret, which
+                                      represents a client secret.
+                                    enum:
+                                    - secret
+                                    - azureWorkloadIdentity
+                                    type: string
                                   loginUrl:
                                     description: |-
                                       Defines the authentication endpoint of the identity provider.

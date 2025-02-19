@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -67,6 +68,10 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
+	s.setupTest()
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
@@ -169,6 +174,124 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	}
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity() {
+	type scenarioDef struct {
+		name                        string
+		rd                          *v1.RadixDeployment
+		expectedSa                  *corev1.ServiceAccount
+		expectedAuxOauthDeployCount int
+		existingSa                  *corev1.ServiceAccount
+	}
+	const (
+		appName                    = "anyapp"
+		componentAzureClientId     = "some-azure-client-id"
+		oauth2ClientId             = "oauth2-client-id"
+		componentName1             = "comp1"
+		expectedServiceAccountName = "comp1-aux-oauth-sa"
+		envName                    = "qa"
+	)
+
+	identity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}
+	auxOAuthServiceAccount := buildServiceAccount(utils.GetEnvironmentNamespace(appName, envName), expectedServiceAccountName,
+		radixlabels.Merge(
+			getLabelsForAuxOAuthComponentServiceAccount(componentName1),
+			radixlabels.ForServiceAccountWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: oauth2ClientId}}),
+		), oauth2ClientId)
+	scenarios := []scenarioDef{
+		{name: "Not created service account without Authentication", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}})).
+			BuildRD(),
+			expectedAuxOauthDeployCount: 0},
+		{name: "Not created service account with Authentication, no OAuth2", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
+			WithAuthentication(&v1.Authentication{})).BuildRD(),
+			expectedAuxOauthDeployCount: 0},
+		{name: "Not created service account with Authentication, OAuth2, false useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
+		},
+		{name: "Created the service account with Authentication, OAuth2, true useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
+			WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, Credentials: v1.AzureWorkloadIdentity}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
+			expectedSa:                  auxOAuthServiceAccount,
+		},
+		{name: "Delete existing service account, with Authentication, OAuth2, no useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
+			existingSa:                  auxOAuthServiceAccount,
+		},
+		{name: "Not overridden the existing service account with Authentication, OAuth2, true useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
+			WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, Credentials: v1.AzureWorkloadIdentity}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
+			existingSa:                  auxOAuthServiceAccount,
+			expectedSa:                  auxOAuthServiceAccount,
+		},
+	}
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+
+	for _, scenario := range scenarios {
+		s.Run(scenario.name, func() {
+			s.setupTest()
+			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()), "", zerolog.Nop()}
+			if scenario.existingSa != nil {
+				_, err := sut.kubeutil.KubeClient().CoreV1().ServiceAccounts(scenario.existingSa.Namespace).Create(context.Background(), scenario.existingSa, metav1.CreateOptions{})
+				s.NoError(err, "Failed to create service account")
+			}
+			auxOAuthSecret, err := buildOAuthProxySecret(appName, &scenario.rd.Spec.Components[0])
+			auxOAuthSecret.SetNamespace(scenario.rd.Namespace)
+			s.NoError(err, "Failed to build secret")
+			auxOAuthSecret.Data[defaults.OAuthClientSecretKeyName] = []byte("some-client-secret")
+			_, err = s.kubeUtil.KubeClient().CoreV1().Secrets(scenario.rd.Namespace).Create(context.Background(), auxOAuthSecret, metav1.CreateOptions{})
+			s.NoError(err, "Failed to create secret")
+
+			err = sut.Sync(context.Background())
+			s.Nil(err)
+
+			deploys, err := sut.kubeutil.KubeClient().AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+			s.NoError(err, "Failed to list deployments")
+			s.Len(deploys.Items, scenario.expectedAuxOauthDeployCount, "Expected aux oauth deployment count")
+			saList, err := sut.kubeutil.KubeClient().CoreV1().ServiceAccounts(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: getLabelsForAuxOAuthComponentServiceAccount(componentName1).String()})
+			s.NoError(err, "Failed to list service accounts")
+			existsClientSecretEnvVar := false
+			existsAuxOAuthDeployment := len(deploys.Items) > 0
+			if existsAuxOAuthDeployment {
+				auxOAuthDeployment := deploys.Items[0]
+				auxOAuthContainer := auxOAuthDeployment.Spec.Template.Spec.Containers[0]
+				secretName := utils.GetAuxiliaryComponentSecretName(scenario.rd.Spec.Components[0].GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+				existsClientSecretEnvVar = slice.Any(auxOAuthContainer.Env, func(ev corev1.EnvVar) bool {
+					return ev.Name == oauth2ProxyClientSecretEnvironmentVariable && ev.ValueFrom != nil && ev.ValueFrom.SecretKeyRef != nil &&
+						ev.ValueFrom.SecretKeyRef.Key == defaults.OAuthClientSecretKeyName &&
+						ev.ValueFrom.SecretKeyRef.LocalObjectReference.Name == secretName
+				})
+				actualSecret, err := sut.kubeutil.KubeClient().CoreV1().Secrets(scenario.rd.Namespace).Get(context.Background(), auxOAuthSecret.GetName(), metav1.GetOptions{})
+				s.NoError(err, "Failed to get aux OAuth secret")
+				_, existsOAuthClientSecret := actualSecret.Data[defaults.OAuthClientSecretKeyName]
+				if scenario.expectedSa != nil {
+					s.False(existsOAuthClientSecret, "Unexpected client secret")
+				} else {
+					s.True(existsOAuthClientSecret, "Expected client secret")
+				}
+			}
+			if scenario.expectedSa != nil {
+				s.Len(saList.Items, 1, fmt.Sprintf("Expected service account %s", scenario.expectedSa.GetName()))
+				s.Equal(scenario.expectedSa, &saList.Items[0], fmt.Sprintf("Expected service account %s", scenario.expectedSa.GetName()))
+				if existsAuxOAuthDeployment {
+					s.False(existsClientSecretEnvVar, "Unexpected client secret env var")
+				}
+			} else {
+				s.Len(saList.Items, 0, "Expected no service account")
+				if existsAuxOAuthDeployment {
+					s.True(existsClientSecretEnvVar, "Expected client secret env var")
+				}
+			}
+		})
+	}
+}
+
+func getLabelsForAuxOAuthComponentServiceAccount(componentName string) labels.Set {
+	return radixlabels.ForOAuthProxyComponentServiceAccount(&v1.RadixDeployComponent{Name: componentName})
+}
+
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas() {
 	auth := &v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}}
 	appName := "anyapp"
@@ -246,7 +369,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
 			err := sut.Sync(context.Background())
 			s.Nil(err)
-			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+			deploys, _ := sut.kubeutil.KubeClient().AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
 			s.Equal(test.expectedReplicas, *deploys.Items[0].Spec.Replicas)
 		})
 	}
@@ -354,9 +477,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", defaultContainer.Env))
 	s.Equal(returnOAuth.RedisStore.ConnectionURL, s.getEnvVarValueByName("OAUTH2_PROXY_REDIS_CONNECTION_URL", defaultContainer.Env))
 	secretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_COOKIE_SECRET", defaultContainer.Env))
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_CLIENT_SECRET", defaultContainer.Env))
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthRedisPasswordKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_REDIS_PASSWORD", defaultContainer.Env))
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyCookieSecretEnvironmentVariable, defaultContainer.Env))
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyClientSecretEnvironmentVariable, defaultContainer.Env))
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthRedisPasswordKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyRedisPasswordEnvironmentVariable, defaultContainer.Env))
 
 	// Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie
 	returnOAuth.SessionStoreType = "cookie"
@@ -365,7 +488,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 29)
-	s.False(s.getEnvVarExist("OAUTH2_PROXY_REDIS_PASSWORD", actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env))
+	s.False(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env))
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCreated() {
@@ -1040,14 +1163,14 @@ func (s *OAuthProxyResourceManagerTestSuite) addRole(name, namespace, appName, a
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) addRoleBinding(name, namespace, appName, auxComponentName, auxComponentType string) {
-	rolebinding := &rbacv1.RoleBinding{
+	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rolebinding, metav1.CreateOptions{})
+	_, err := s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), roleBinding, metav1.CreateOptions{})
 
 	s.Require().NoError(err)
 }

@@ -917,6 +917,16 @@ type RadixPrivateImageHubCredential struct {
 	Email string `json:"email"`
 }
 
+// CredentialsType defines the type of credentials
+type CredentialsType string
+
+const (
+	// Secret defines the client secret as a type of credentials
+	Secret CredentialsType = "secret"
+	// AzureWorkloadIdentity defines the Azure workload identity as a type of credentials
+	AzureWorkloadIdentity CredentialsType = "azureWorkloadIdentity"
+)
+
 // RadixVolumeMount defines an external storage resource.
 type RadixVolumeMount struct {
 	// Deprecated: use BlobFuse2 instead.
@@ -1378,6 +1388,12 @@ type OAuth2 struct {
 	// Settings for Redis store when SessionStoreType is redis.
 	// +optional
 	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty"`
+
+	// Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.
+	// +kubebuilder:validation:Enum=secret;azureWorkloadIdentity
+	// +kubebuilder:default:=secret
+	// +optional
+	Credentials CredentialsType `json:"credentials,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie.
@@ -1884,6 +1900,38 @@ func (component *RadixJobComponent) GetReadOnlyFileSystem() *bool {
 
 func (component *RadixJobComponent) GetHorizontalScaling() *RadixHorizontalScaling {
 	return nil
+}
+
+// GetOAuth2 Returns OAuth2 if exist
+func (authentication *Authentication) GetOAuth2() *OAuth2 {
+	if authentication == nil {
+		return nil
+	}
+	return authentication.OAuth2
+}
+
+// GetUseAzureIdentity Indicates if the OAuth2 uses the azure identity
+func (oauth2 *OAuth2) GetUseAzureIdentity() bool {
+	if oauth2 == nil {
+		return false
+	}
+	return oauth2.Credentials == AzureWorkloadIdentity
+}
+
+// GetSessionStoreType Returns the session store type
+func (oauth2 *OAuth2) GetSessionStoreType() SessionStoreType {
+	if oauth2 == nil {
+		return SessionStoreCookie
+	}
+	return oauth2.SessionStoreType
+}
+
+// GetClientID Returns the client ID
+func (oauth2 *OAuth2) GetClientID() string {
+	if oauth2 == nil {
+		return ""
+	}
+	return oauth2.ClientID
 }
 
 func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {

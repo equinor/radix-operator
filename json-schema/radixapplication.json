@@ -152,6 +152,15 @@
                         },
                         "type": "object"
                       },
+                      "credentials": {
+                        "default": "secret",
+                        "description": "Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.",
+                        "enum": [
+                          "secret",
+                          "azureWorkloadIdentity"
+                        ],
+                        "type": "string"
+                      },
                       "loginUrl": {
                         "description": "Defines the authentication endpoint of the identity provider.\nMust be set if OIDC.SkipDiscovery is true",
                         "type": "string"
@@ -310,6 +319,15 @@
                                 }
                               },
                               "type": "object"
+                            },
+                            "credentials": {
+                              "default": "secret",
+                              "description": "Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.",
+                              "enum": [
+                                "secret",
+                                "azureWorkloadIdentity"
+                              ],
+                              "type": "string"
                             },
                             "loginUrl": {
                               "description": "Defines the authentication endpoint of the identity provider.\nMust be set if OIDC.SkipDiscovery is true",
