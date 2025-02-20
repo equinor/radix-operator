@@ -117,11 +117,24 @@ func ForServiceAccountIsForComponent() kubelabels.Set {
 	return kubelabels.Set{
 		kube.IsServiceAccountForComponent: "true",
 	}
-} // ForServiceAccountIsForComponent returns labels indicating that a service account is used by a component or job
+}
+
+// ForServiceAccountIsForSubPipeline returns labels indicating that a service account is used by a subpipeline
 func ForServiceAccountIsForSubPipeline() kubelabels.Set {
 	return kubelabels.Set{
 		kube.IsServiceAccountForSubPipelineLabel: "true",
 	}
+}
+
+// ForOAuthProxyComponentServiceAccount returns labels for configuring a ServiceAccount for an aux OAuth2 proxy
+func ForOAuthProxyComponentServiceAccount(component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return Merge(
+		kubelabels.Set{
+			kube.RadixAuxiliaryComponentLabel:       component.GetName(),
+			kube.RadixAuxiliaryComponentTypeLabel:   defaults.OAuthProxyAuxiliaryComponentType,
+			kube.IsServiceAccountForOAuthProxyLabel: "true",
+		},
+	)
 }
 
 // ForServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
@@ -138,6 +151,15 @@ func ForServiceAccountWithRadixIdentity(identity *v1.Identity) kubelabels.Set {
 	}
 
 	return labels
+}
+
+// ForOauthProxyServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
+// e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
+func ForOauthProxyServiceAccountWithRadixIdentity(oauth2 *v1.OAuth2) kubelabels.Set {
+	if !oauth2.GetUseAzureIdentity() {
+		return nil
+	}
+	return forAzureWorkloadUseIdentity()
 }
 
 // ForPodWithRadixIdentity returns labels for configuring a Pod with external identities,

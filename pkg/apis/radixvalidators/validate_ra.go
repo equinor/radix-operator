@@ -618,7 +618,7 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 	}
 
 	// Validate RedisStore
-	if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreRedis {
+	if oauthWithDefaults.GetSessionStoreType() == radixv1.SessionStoreRedis {
 		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
 			errors = append(errors, OAuthRedisStoreEmptyErrorWithMessage(componentName, environmentName))
 		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {
@@ -1001,7 +1001,7 @@ func validateSecretRefs(commonComponent radixv1.RadixCommonComponent, secretRefs
 		useAzureIdentity := azureKeyVault.UseAzureIdentity
 		if useAzureIdentity != nil && *useAzureIdentity {
 			if !azureIdentityIsSet(commonComponent) {
-				return MissingAzureIdentityErrorWithMessage(azureKeyVault.Name, commonComponent.GetName())
+				return MissingAzureIdentityForAzureKeyVaultErrorWithMessage(azureKeyVault.Name, commonComponent.GetName())
 			}
 			// TODO: validate for env-chain
 		}

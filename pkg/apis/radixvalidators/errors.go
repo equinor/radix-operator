@@ -544,6 +544,6 @@ func getWebhookErrorWithMessage(err error, message, jobComponentName, environmen
 	return errors.WithMessagef(err, "%s %s in environment %s", message, componentAndEnvironmentNames, environment)
 }
 
-func MissingAzureIdentityErrorWithMessage(keyVaultName, componentName string) error {
+func MissingAzureIdentityForAzureKeyVaultErrorWithMessage(keyVaultName, componentName string) error {
 	return errors.WithMessagef(ErrMissingAzureIdentity, "missing Azure identity for Azure Key Vault %s in the component %s", keyVaultName, componentName)
 }

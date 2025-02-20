@@ -38,20 +38,13 @@ func ForKubernetesDeploymentObservedGeneration(rd *radixv1.RadixDeployment) map[
 	return map[string]string{kube.RadixDeploymentObservedGeneration: strconv.Itoa(int(rd.ObjectMeta.Generation))}
 }
 
-// ForServiceAccountWithRadixIdentity returns annotations for configuring a ServiceAccount with external identities,
+// ForServiceAccountWithRadixIdentityClientId returns annotations for configuring a ServiceAccount with external identities,
 // e.g. for Azure Workload Identity: "azure.workload.identity/client-id": "11111111-2222-3333-4444-555555555555"
-func ForServiceAccountWithRadixIdentity(identity *radixv1.Identity) map[string]string {
-	if identity == nil {
+func ForServiceAccountWithRadixIdentityClientId(identityClientId string) map[string]string {
+	if len(identityClientId) == 0 {
 		return nil
 	}
-
-	var annotations map[string]string
-
-	if identity.Azure != nil {
-		annotations = Merge(annotations, forAzureWorkloadIdentityClientId(identity.Azure.ClientId))
-	}
-
-	return annotations
+	return forAzureWorkloadIdentityClientId(identityClientId)
 }
 
 // ForClusterAutoscalerSafeToEvict returns annotation used by cluster autoscaler to determine if a Pod
