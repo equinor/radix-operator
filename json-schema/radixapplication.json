@@ -153,13 +153,12 @@
                         "type": "object"
                       },
                       "credentials": {
-                        "default": "Secret",
+                        "default": "secret",
                         "description": "Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.",
                         "enum": [
                           "secret",
                           "azureWorkloadIdentity",
-                          "Secret",
-                          "AzureWorkloadIdentity"
+                          ""
                         ],
                         "type": "string"
                       },
@@ -323,13 +322,12 @@
                               "type": "object"
                             },
                             "credentials": {
-                              "default": "Secret",
+                              "default": "secret",
                               "description": "Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.",
                               "enum": [
                                 "secret",
                                 "azureWorkloadIdentity",
-                                "Secret",
-                                "AzureWorkloadIdentity"
+                                ""
                               ],
                               "type": "string"
                             },
