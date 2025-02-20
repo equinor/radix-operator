@@ -922,9 +922,9 @@ type CredentialsType string
 
 const (
 	// Secret defines the client secret as a type of credentials
-	Secret CredentialsType = "Secret"
+	Secret CredentialsType = "secret"
 	// AzureWorkloadIdentity defines the Azure workload identity as a type of credentials
-	AzureWorkloadIdentity CredentialsType = "AzureWorkloadIdentity"
+	AzureWorkloadIdentity CredentialsType = "azureWorkloadIdentity"
 )
 
 // RadixVolumeMount defines an external storage resource.
@@ -1390,8 +1390,8 @@ type OAuth2 struct {
 	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty"`
 
 	// Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.
-	// +kubebuilder:validation:Enum=Secret;AzureWorkloadIdentity
-	// +kubebuilder:default:=Secret
+	// +kubebuilder:validation:Enum=secret;azureWorkloadIdentity
+	// +kubebuilder:default:=secret
 	// +optional
 	Credentials CredentialsType `json:"credentials,omitempty"`
 }
