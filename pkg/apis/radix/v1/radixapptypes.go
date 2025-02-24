@@ -924,7 +924,7 @@ const (
 	// Secret defines the client secret as a type of credentials
 	Secret CredentialsType = "Secret"
 	// AzureWorkloadIdentity defines the Azure workload identity as a type of credentials
-	AzureWorkloadIdentity CredentialsType = "AzureWorkloadIdentity"
+	AzureWorkloadIdentity CredentialsType = "azureWorkloadIdentity"
 )
 
 // RadixVolumeMount defines an external storage resource.
