@@ -627,18 +627,6 @@ func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []st
 		streamCache = *streaming.StreamCache
 	}
 	mountOptions = append(mountOptions, fmt.Sprintf("--block-cache-pool-size=%v", streamCache))
-	// if streaming.BlockSize != nil {
-	// 	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiMountOptionStreamingBlockSize, *streaming.BlockSize))
-	// }
-	// if streaming.BufferSize != nil {
-	// 	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiMountOptionStreamingBufferSize, *streaming.BufferSize))
-	// }
-	// if streaming.MaxBuffers != nil {
-	// 	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiMountOptionStreamingMaxBuffers, *streaming.MaxBuffers))
-	// }
-	// if streaming.MaxBlocksPerFile != nil {
-	// 	mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiMountOptionStreamingMaxBlocksPerFile, *streaming.MaxBlocksPerFile))
-	// }
 	return mountOptions
 }
 

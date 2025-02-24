@@ -716,10 +716,6 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						pv.Spec.MountOptions = getMountOptions(props,
 							"--streaming=true",
 							"--block-cache-pool-size=101",
-							// "--block-size-mb=102",
-							// "--buffer-size-mb=103",
-							// "--max-buffers=104",
-							// "--max-blocks-per-file=105",
 							"--use-adls=false",
 						)
 					}),
