@@ -678,7 +678,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				existingPvs: []corev1.PersistentVolume{},
 				expectedPvs: []corev1.PersistentVolume{
 					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-						pv.Spec.MountOptions = getMountOptions(props, "--streaming=true", "--use-adls=false")
+						pv.Spec.MountOptions = getMountOptions(props, "--streaming=true", "--block-cache-pool-size=250", "--use-adls=false")
 					}),
 				},
 			}
@@ -715,12 +715,13 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
 						pv.Spec.MountOptions = getMountOptions(props,
 							"--streaming=true",
-							"--stream-cache-mb=101",
-							"--block-size-mb=102",
-							"--buffer-size-mb=103",
-							"--max-buffers=104",
-							"--max-blocks-per-file=105",
-							"--use-adls=false")
+							"--block-cache-pool-size=101",
+							// "--block-size-mb=102",
+							// "--buffer-size-mb=103",
+							// "--max-buffers=104",
+							// "--max-blocks-per-file=105",
+							"--use-adls=false",
+						)
 					}),
 				},
 			}
