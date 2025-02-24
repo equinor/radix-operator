@@ -922,7 +922,7 @@ type CredentialsType string
 
 const (
 	// Secret defines the client secret as a type of credentials
-	Secret CredentialsType = "Secret"
+	Secret CredentialsType = "secret"
 	// AzureWorkloadIdentity defines the Azure workload identity as a type of credentials
 	AzureWorkloadIdentity CredentialsType = "azureWorkloadIdentity"
 )
