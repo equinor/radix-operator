@@ -146,6 +146,7 @@ spec:
                               enum:
                               - secret
                               - azureWorkloadIdentity
+                              - ""
                               type: string
                             loginUrl:
                               description: |-

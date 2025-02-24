@@ -186,6 +186,7 @@ spec:
                               enum:
                               - secret
                               - azureWorkloadIdentity
+                              - ""
                               type: string
                             loginUrl:
                               description: |-
@@ -352,6 +353,7 @@ spec:
                                     enum:
                                     - secret
                                     - azureWorkloadIdentity
+                                    - ""
                                     type: string
                                   loginUrl:
                                     description: |-
