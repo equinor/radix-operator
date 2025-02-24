@@ -3,8 +3,6 @@ package promote_test
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"strings"
 	"testing"
 
@@ -23,6 +21,8 @@ import (
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -859,117 +859,75 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 
 func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 	const (
-		anyApp                     = "any-app"
-		anySourceDeploymentName    = "deployment-1"
-		anySourceImageTag          = "abcdef"
-		anyBuildDeployJobName      = "any-build-deploy-job"
-		anyPromotePipeleineJobName = "any-promote-job"
-		anyTargetEnvironment       = "prod"
-		anySourceEnvironment       = "dev"
-		anyComponentName           = "any-component"
-		anyJobComponentName        = "any-job-component"
+		anyApp                    = "any-app"
+		anySourceDeploymentName   = "deployment-1"
+		anySourceImageTag         = "abcdef"
+		anyBuildDeployJobName     = "any-build-deploy-job"
+		anyPromotePipelineJobName = "any-promote-job"
+		anyTargetEnvironment      = "prod"
+		anySourceEnvironment      = "dev"
+		anyComponentName          = "any-component"
+		anyJobComponentName       = "any-job-component"
 	)
 
 	type scenarioSpec struct {
-		name                     string
-		configureEnvironment     bool
-		appVolumeMounts          []v1.RadixVolumeMount
-		componentVolumeMounts    []v1.RadixVolumeMount
-		jobComponentVolumeMounts []v1.RadixVolumeMount
+		name                          string
+		configureEnvironment          bool
+		appVolumeMounts               []v1.RadixVolumeMount
+		componentVolumeMounts         []v1.RadixVolumeMount
+		jobComponentVolumeMounts      []v1.RadixVolumeMount
+		activeRdComponentVolumeMounts []v1.RadixVolumeMount
+		existsActiveRdComponent       bool
 	}
-	vm1 := v1.RadixVolumeMount{
-		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-			Protocol:        v1.BlobFuse2ProtocolFuse2,
-			Container:       "container1",
-			GID:             "1008",
-			UID:             "1007",
-			SkuName:         "Standard_abc",
-			RequestsStorage: "10Mi",
-			AccessMode:      string(corev1.ReadWriteOnce),
-			BindingMode:     string(storagev1.VolumeBindingWaitForFirstConsumer),
-			UseAdls:         pointers.Ptr(false),
-			Streaming: &v1.RadixVolumeMountStreaming{
-				Enabled:          pointers.Ptr(true),
-				BlockSize:        pointers.Ptr[uint64](1024),
-				MaxBuffers:       pointers.Ptr[uint64](10),
-				BufferSize:       pointers.Ptr[uint64](2048),
-				StreamCache:      pointers.Ptr[uint64](4096),
-				MaxBlocksPerFile: pointers.Ptr[uint64](100),
-			},
-			UseAzureIdentity: pointers.Ptr(true),
-			StorageAccount:   "some-storage-account1",
-			ResourceGroup:    "some-resource-group1",
-			SubscriptionId:   "some-subscription-id1",
-			TenantId:         "some-tenant-id1",
-		}}
-	vm2 := v1.RadixVolumeMount{
-		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-			Protocol:        v1.BlobFuse2ProtocolFuse2,
-			Container:       "container2",
-			GID:             "1012",
-			UID:             "1015",
-			SkuName:         "Standard_sdf",
-			RequestsStorage: "12Mi",
-			AccessMode:      string(corev1.ReadWriteMany),
-			BindingMode:     string(storagev1.VolumeBindingImmediate),
-			UseAdls:         pointers.Ptr(true),
-			Streaming: &v1.RadixVolumeMountStreaming{
-				Enabled:          pointers.Ptr(false),
-				BlockSize:        pointers.Ptr[uint64](1022),
-				MaxBuffers:       pointers.Ptr[uint64](12),
-				BufferSize:       pointers.Ptr[uint64](2046),
-				StreamCache:      pointers.Ptr[uint64](4094),
-				MaxBlocksPerFile: pointers.Ptr[uint64](102),
-			},
-			UseAzureIdentity: pointers.Ptr(false),
-			StorageAccount:   "some-storage-account2",
-			ResourceGroup:    "some-resource-group2",
-			SubscriptionId:   "some-subscription-id2",
-			TenantId:         "some-tenant-id2",
-		},
-	}
-	vm3 := v1.RadixVolumeMount{
-		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-			Protocol:        v1.BlobFuse2ProtocolFuse2,
-			Container:       "container3",
-			GID:             "1015",
-			UID:             "1017",
-			SkuName:         "Standard_qwe",
-			RequestsStorage: "15Mi",
-			AccessMode:      string(corev1.ReadWriteOnce),
-			BindingMode:     string(storagev1.VolumeBindingImmediate),
-			UseAdls:         pointers.Ptr(true),
-			Streaming: &v1.RadixVolumeMountStreaming{
-				Enabled:          pointers.Ptr(true),
-				BlockSize:        pointers.Ptr[uint64](1023),
-				MaxBuffers:       pointers.Ptr[uint64](14),
-				BufferSize:       pointers.Ptr[uint64](2047),
-				StreamCache:      pointers.Ptr[uint64](4095),
-				MaxBlocksPerFile: pointers.Ptr[uint64](103),
-			},
-			UseAzureIdentity: pointers.Ptr(true),
-			StorageAccount:   "some-storage-account3",
-			ResourceGroup:    "some-resource-group3",
-			SubscriptionId:   "some-subscription-id3",
-			TenantId:         "some-tenant-id3",
-		},
-	}
+	targetRaVm := getTargetRaVm()
+	targetActiveRdVm := getTargetActiveRdVm()
+	sourceComponentVm := getSourceComponentVm()
+	sourceJobComponentVm := getSourceJobComponentVm()
 	scenarios := []scenarioSpec{
-		{name: "No volume mounts",
+		{name: "No active RD, No volume mounts",
 			componentVolumeMounts:    nil,
 			jobComponentVolumeMounts: nil,
 		},
-		{name: "Exists app volume mounts, exists RD volume mounts",
-			appVolumeMounts:          []v1.RadixVolumeMount{vm1},
-			componentVolumeMounts:    []v1.RadixVolumeMount{vm2},
-			jobComponentVolumeMounts: []v1.RadixVolumeMount{vm3},
+		{name: "No active RD, Exists app volume mounts, exists RD volume mounts",
+			appVolumeMounts:          []v1.RadixVolumeMount{targetRaVm},
+			componentVolumeMounts:    []v1.RadixVolumeMount{sourceComponentVm},
+			jobComponentVolumeMounts: []v1.RadixVolumeMount{sourceJobComponentVm},
 		},
-		{name: "No app volume mounts, exists RD volume mounts",
-			componentVolumeMounts:    []v1.RadixVolumeMount{vm2},
-			jobComponentVolumeMounts: []v1.RadixVolumeMount{vm3},
+		{name: "No active RD, No app volume mounts, exists RD volume mounts",
+			componentVolumeMounts:    []v1.RadixVolumeMount{sourceComponentVm},
+			jobComponentVolumeMounts: []v1.RadixVolumeMount{sourceJobComponentVm},
 		},
-		{name: "Exists app volume mounts, no RD volume mounts",
-			appVolumeMounts: []v1.RadixVolumeMount{vm1},
+		{name: "No active RD, Exists app volume mounts, no RD volume mounts",
+			appVolumeMounts: []v1.RadixVolumeMount{targetRaVm},
+		},
+		{name: "Exists active RD, No volume mounts",
+			existsActiveRdComponent:  true,
+			componentVolumeMounts:    nil,
+			jobComponentVolumeMounts: nil,
+		},
+		{name: "Exists active RD, Exists app volume mounts, exists RD volume mounts",
+			appVolumeMounts:          []v1.RadixVolumeMount{targetRaVm},
+			existsActiveRdComponent:  true,
+			componentVolumeMounts:    []v1.RadixVolumeMount{sourceComponentVm},
+			jobComponentVolumeMounts: []v1.RadixVolumeMount{sourceJobComponentVm},
+		},
+		{name: "Exists active RD, Exists app volume mounts, exists RD volume mounts",
+			activeRdComponentVolumeMounts: []v1.RadixVolumeMount{targetActiveRdVm},
+			componentVolumeMounts:         []v1.RadixVolumeMount{sourceComponentVm},
+			jobComponentVolumeMounts:      []v1.RadixVolumeMount{sourceJobComponentVm},
+		},
+		{name: "Exists active RD, No app volume mounts, exists RD volume mounts",
+			existsActiveRdComponent:  true,
+			componentVolumeMounts:    []v1.RadixVolumeMount{sourceComponentVm},
+			jobComponentVolumeMounts: []v1.RadixVolumeMount{sourceJobComponentVm},
+		},
+		{name: "Exists active RD, Exists app volume mounts, no RD volume mounts",
+			appVolumeMounts:         []v1.RadixVolumeMount{targetRaVm},
+			existsActiveRdComponent: true,
+		},
+		{name: "Exists active RD, Exists app volume mounts, no RD volume mounts",
+			appVolumeMounts:               []v1.RadixVolumeMount{targetRaVm},
+			activeRdComponentVolumeMounts: []v1.RadixVolumeMount{targetActiveRdVm},
 		},
 	}
 
@@ -998,7 +956,7 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 
 	rdComponentBuilder := utils.NewDeployComponentBuilder().WithName(anyComponentName)
 	rdJobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName)
-	rdBuilder := utils.NewDeploymentBuilder().
+	sourceRdBuilder := utils.NewDeploymentBuilder().
 		WithAppName(anyApp).
 		WithComponents(rdComponentBuilder).
 		WithJobComponents(rdJobComponentBuilder).
@@ -1007,16 +965,33 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 		WithImageTag(anySourceImageTag).WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
 		WithRadixApplication(raBuilder)
 
+	targetRdComponentBuilder := utils.NewDeployComponentBuilder().WithName(anyComponentName)
+	targetRdJobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName)
+	targetActiveRdBuilder := utils.NewDeploymentBuilder().
+		WithAppName(anyApp).
+		WithComponents(targetRdComponentBuilder).
+		WithJobComponents(targetRdJobComponentBuilder).
+		WithDeploymentName(utils.RandString(10)).
+		WithEnvironment(anyTargetEnvironment).
+		WithImageTag(utils.RandString(5)).WithLabel(kube.RadixJobNameLabel, utils.RandString(10)).
+		WithRadixApplication(raBuilder)
+
 	raComponentBuilder.WithVolumeMounts(scenario.appVolumeMounts)
 	raJobComponentBuilder.WithVolumeMounts(scenario.appVolumeMounts)
 	rdComponentBuilder.WithVolumeMounts(scenario.componentVolumeMounts...)
 	rdJobComponentBuilder.WithVolumeMounts(scenario.jobComponentVolumeMounts...)
+	targetRdComponentBuilder.WithVolumeMounts(scenario.activeRdComponentVolumeMounts...)
+	targetRdJobComponentBuilder.WithVolumeMounts(scenario.activeRdComponentVolumeMounts...)
 
 	commonTest.CreateAppNamespace(kubeClient, anyApp)
 	commonTest.CreateEnvNamespace(kubeClient, anyApp, anySourceEnvironment)
 	commonTest.CreateEnvNamespace(kubeClient, anyApp, anyTargetEnvironment)
 
-	_, err := commonTestUtils.ApplyDeployment(context.Background(), rdBuilder)
+	if scenario.existsActiveRdComponent || len(scenario.activeRdComponentVolumeMounts) > 0 {
+		_, err := commonTestUtils.ApplyDeployment(context.Background(), targetActiveRdBuilder)
+		require.NoError(t, err)
+	}
+	_, err := commonTestUtils.ApplyDeployment(context.Background(), sourceRdBuilder)
 	require.NoError(t, err)
 	rr, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
 	require.NoError(t, err)
@@ -1031,7 +1006,7 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 			FromEnvironment: anySourceEnvironment,
 			ToEnvironment:   anyTargetEnvironment,
 			DeploymentName:  anySourceDeploymentName,
-			JobName:         anyPromotePipeleineJobName,
+			JobName:         anyPromotePipelineJobName,
 			ImageTag:        anySourceImageTag,
 			CommitID:        anySourceCommitID,
 		},
@@ -1047,6 +1022,121 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 	assert.Equal(t, scenario.jobComponentVolumeMounts, rds.Items[0].Spec.Jobs[0].VolumeMounts)
 	//})
 	//}
+}
+
+func getTargetRaVm() v1.RadixVolumeMount {
+	return v1.RadixVolumeMount{
+		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+			Protocol:        v1.BlobFuse2ProtocolFuse2,
+			Container:       "container1",
+			GID:             "1008",
+			UID:             "1007",
+			SkuName:         "Standard_abc",
+			RequestsStorage: "10Mi",
+			AccessMode:      string(corev1.ReadWriteOnce),
+			BindingMode:     string(storagev1.VolumeBindingWaitForFirstConsumer),
+			UseAdls:         pointers.Ptr(false),
+			Streaming: &v1.RadixVolumeMountStreaming{
+				Enabled:          pointers.Ptr(true),
+				BlockSize:        pointers.Ptr[uint64](1024),
+				MaxBuffers:       pointers.Ptr[uint64](10),
+				BufferSize:       pointers.Ptr[uint64](2048),
+				StreamCache:      pointers.Ptr[uint64](4096),
+				MaxBlocksPerFile: pointers.Ptr[uint64](100),
+			},
+			UseAzureIdentity: pointers.Ptr(true),
+			StorageAccount:   "some-storage-account1",
+			ResourceGroup:    "some-resource-group1",
+			SubscriptionId:   "some-subscription-id1",
+			TenantId:         "some-tenant-id1",
+		}}
+}
+
+func getSourceComponentVm() v1.RadixVolumeMount {
+	return v1.RadixVolumeMount{
+		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+			Protocol:        v1.BlobFuse2ProtocolFuse2,
+			Container:       "container2",
+			GID:             "1012",
+			UID:             "1015",
+			SkuName:         "Standard_sdf",
+			RequestsStorage: "12Mi",
+			AccessMode:      string(corev1.ReadWriteMany),
+			BindingMode:     string(storagev1.VolumeBindingImmediate),
+			UseAdls:         pointers.Ptr(true),
+			Streaming: &v1.RadixVolumeMountStreaming{
+				Enabled:          pointers.Ptr(false),
+				BlockSize:        pointers.Ptr[uint64](1022),
+				MaxBuffers:       pointers.Ptr[uint64](12),
+				BufferSize:       pointers.Ptr[uint64](2046),
+				StreamCache:      pointers.Ptr[uint64](4094),
+				MaxBlocksPerFile: pointers.Ptr[uint64](102),
+			},
+			UseAzureIdentity: pointers.Ptr(false),
+			StorageAccount:   "some-storage-account2",
+			ResourceGroup:    "some-resource-group2",
+			SubscriptionId:   "some-subscription-id2",
+			TenantId:         "some-tenant-id2",
+		},
+	}
+}
+
+func getSourceJobComponentVm() v1.RadixVolumeMount {
+	return v1.RadixVolumeMount{
+		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+			Protocol:        v1.BlobFuse2ProtocolFuse2,
+			Container:       "container3",
+			GID:             "1015",
+			UID:             "1017",
+			SkuName:         "Standard_qwe",
+			RequestsStorage: "15Mi",
+			AccessMode:      string(corev1.ReadWriteOnce),
+			BindingMode:     string(storagev1.VolumeBindingImmediate),
+			UseAdls:         pointers.Ptr(true),
+			Streaming: &v1.RadixVolumeMountStreaming{
+				Enabled:          pointers.Ptr(true),
+				BlockSize:        pointers.Ptr[uint64](1023),
+				MaxBuffers:       pointers.Ptr[uint64](14),
+				BufferSize:       pointers.Ptr[uint64](2047),
+				StreamCache:      pointers.Ptr[uint64](4095),
+				MaxBlocksPerFile: pointers.Ptr[uint64](103),
+			},
+			UseAzureIdentity: pointers.Ptr(true),
+			StorageAccount:   "some-storage-account3",
+			ResourceGroup:    "some-resource-group3",
+			SubscriptionId:   "some-subscription-id3",
+			TenantId:         "some-tenant-id3",
+		},
+	}
+}
+
+func getTargetActiveRdVm() v1.RadixVolumeMount {
+	return v1.RadixVolumeMount{
+		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+			Protocol:        v1.BlobFuse2ProtocolFuse2,
+			Container:       "container4",
+			GID:             "1016",
+			UID:             "1018",
+			SkuName:         "Standard_tyu",
+			RequestsStorage: "16Mi",
+			AccessMode:      string(corev1.ReadOnlyMany),
+			BindingMode:     string(storagev1.VolumeBindingWaitForFirstConsumer),
+			UseAdls:         pointers.Ptr(false),
+			Streaming: &v1.RadixVolumeMountStreaming{
+				Enabled:          pointers.Ptr(true),
+				BlockSize:        pointers.Ptr[uint64](1027),
+				MaxBuffers:       pointers.Ptr[uint64](17),
+				BufferSize:       pointers.Ptr[uint64](2048),
+				StreamCache:      pointers.Ptr[uint64](4098),
+				MaxBlocksPerFile: pointers.Ptr[uint64](108),
+			},
+			UseAzureIdentity: pointers.Ptr(true),
+			StorageAccount:   "some-storage-account4",
+			ResourceGroup:    "some-resource-group4",
+			SubscriptionId:   "some-subscription-id4",
+			TenantId:         "some-tenant-id4",
+		},
+	}
 }
 
 func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
