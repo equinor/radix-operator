@@ -622,7 +622,7 @@ func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []st
 	}
 	mountOptions = append(mountOptions, "--streaming=true")
 
-	var streamCache uint64 = 250
+	var streamCache uint64 = 750
 	if streaming != nil && streaming.StreamCache != nil {
 		streamCache = *streaming.StreamCache
 	}
