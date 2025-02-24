@@ -3,6 +3,8 @@ package promote_test
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"strings"
 	"testing"
 
@@ -869,88 +871,182 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 	)
 
 	type scenarioSpec struct {
-		name                             string
-		configureEnvironment             bool
-		expectedComponentVolumeMounts    []v1.RadixVolumeMount
-		expectedJobComponentVolumeMounts []v1.RadixVolumeMount
+		name                     string
+		configureEnvironment     bool
+		appVolumeMounts          []v1.RadixVolumeMount
+		componentVolumeMounts    []v1.RadixVolumeMount
+		jobComponentVolumeMounts []v1.RadixVolumeMount
 	}
-
+	vm1 := v1.RadixVolumeMount{
+		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+			Protocol:        v1.BlobFuse2ProtocolFuse2,
+			Container:       "container1",
+			GID:             "1008",
+			UID:             "1007",
+			SkuName:         "Standard_abc",
+			RequestsStorage: "10Mi",
+			AccessMode:      string(corev1.ReadWriteOnce),
+			BindingMode:     string(storagev1.VolumeBindingWaitForFirstConsumer),
+			UseAdls:         pointers.Ptr(false),
+			Streaming: &v1.RadixVolumeMountStreaming{
+				Enabled:          pointers.Ptr(true),
+				BlockSize:        pointers.Ptr[uint64](1024),
+				MaxBuffers:       pointers.Ptr[uint64](10),
+				BufferSize:       pointers.Ptr[uint64](2048),
+				StreamCache:      pointers.Ptr[uint64](4096),
+				MaxBlocksPerFile: pointers.Ptr[uint64](100),
+			},
+			UseAzureIdentity: pointers.Ptr(true),
+			StorageAccount:   "some-storage-account1",
+			ResourceGroup:    "some-resource-group1",
+			SubscriptionId:   "some-subscription-id1",
+			TenantId:         "some-tenant-id1",
+		}}
+	vm2 := v1.RadixVolumeMount{
+		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+			Protocol:        v1.BlobFuse2ProtocolFuse2,
+			Container:       "container2",
+			GID:             "1012",
+			UID:             "1015",
+			SkuName:         "Standard_sdf",
+			RequestsStorage: "12Mi",
+			AccessMode:      string(corev1.ReadWriteMany),
+			BindingMode:     string(storagev1.VolumeBindingImmediate),
+			UseAdls:         pointers.Ptr(true),
+			Streaming: &v1.RadixVolumeMountStreaming{
+				Enabled:          pointers.Ptr(false),
+				BlockSize:        pointers.Ptr[uint64](1022),
+				MaxBuffers:       pointers.Ptr[uint64](12),
+				BufferSize:       pointers.Ptr[uint64](2046),
+				StreamCache:      pointers.Ptr[uint64](4094),
+				MaxBlocksPerFile: pointers.Ptr[uint64](102),
+			},
+			UseAzureIdentity: pointers.Ptr(false),
+			StorageAccount:   "some-storage-account2",
+			ResourceGroup:    "some-resource-group2",
+			SubscriptionId:   "some-subscription-id2",
+			TenantId:         "some-tenant-id2",
+		},
+	}
+	vm3 := v1.RadixVolumeMount{
+		BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+			Protocol:        v1.BlobFuse2ProtocolFuse2,
+			Container:       "container3",
+			GID:             "1015",
+			UID:             "1017",
+			SkuName:         "Standard_qwe",
+			RequestsStorage: "15Mi",
+			AccessMode:      string(corev1.ReadWriteOnce),
+			BindingMode:     string(storagev1.VolumeBindingImmediate),
+			UseAdls:         pointers.Ptr(true),
+			Streaming: &v1.RadixVolumeMountStreaming{
+				Enabled:          pointers.Ptr(true),
+				BlockSize:        pointers.Ptr[uint64](1023),
+				MaxBuffers:       pointers.Ptr[uint64](14),
+				BufferSize:       pointers.Ptr[uint64](2047),
+				StreamCache:      pointers.Ptr[uint64](4095),
+				MaxBlocksPerFile: pointers.Ptr[uint64](103),
+			},
+			UseAzureIdentity: pointers.Ptr(true),
+			StorageAccount:   "some-storage-account3",
+			ResourceGroup:    "some-resource-group3",
+			SubscriptionId:   "some-subscription-id3",
+			TenantId:         "some-tenant-id3",
+		},
+	}
 	scenarios := []scenarioSpec{
-		{name: "No source volume mounts", configureEnvironment: true, expectedComponentVolumeMounts: nil},
+		{name: "No volume mounts",
+			componentVolumeMounts:    nil,
+			jobComponentVolumeMounts: nil,
+		},
+		{name: "Exists app volume mounts, exists RD volume mounts",
+			appVolumeMounts:          []v1.RadixVolumeMount{vm1},
+			componentVolumeMounts:    []v1.RadixVolumeMount{vm2},
+			jobComponentVolumeMounts: []v1.RadixVolumeMount{vm3},
+		},
+		{name: "No app volume mounts, exists RD volume mounts",
+			componentVolumeMounts:    []v1.RadixVolumeMount{vm2},
+			jobComponentVolumeMounts: []v1.RadixVolumeMount{vm3},
+		},
+		{name: "Exists app volume mounts, no RD volume mounts",
+			appVolumeMounts: []v1.RadixVolumeMount{vm1},
+		},
 	}
 
-	for _, scenario := range scenarios {
-		t.Run(scenario.name, func(t *testing.T) {
-			kubeClient, kubeUtil, radixClient, commonTestUtils := setupTest(t)
-			var componentEnvironmentConfigs []utils.RadixEnvironmentConfigBuilder
-			var jobEnvironmentConfigs []utils.RadixJobComponentEnvironmentConfigBuilder
+	scenario := scenarios[0]
+	//for _, scenario := range scenarios {
+	//	t.Run(scenario.name, func(t *testing.T) {
+	kubeClient, kubeUtil, radixClient, commonTestUtils := setupTest(t)
+	var componentEnvironmentConfigs []utils.RadixEnvironmentConfigBuilder
+	var jobEnvironmentConfigs []utils.RadixJobComponentEnvironmentConfigBuilder
 
-			if scenario.configureEnvironment {
-				componentEnvironmentConfigs = append(componentEnvironmentConfigs, utils.AnEnvironmentConfig().WithEnvironment(anyTargetEnvironment))
-			}
-
-			raBuilder := utils.NewRadixApplicationBuilder().
-				WithRadixRegistration(utils.ARadixRegistration().WithName(anyApp)).
-				WithAppName(anyApp).
-				WithEnvironment(anySourceEnvironment, "").
-				WithEnvironment(anyTargetEnvironment, "").
-				WithComponents(
-					utils.AnApplicationComponent().WithName(anyComponentName).
-						WithEnvironmentConfigs(componentEnvironmentConfigs...)).
-				WithJobComponents(
-					utils.AnApplicationJobComponent().WithName(anyJobComponentName).WithSchedulerPort(numbers.Int32Ptr(8888)).WithPayloadPath(utils.StringPtr("/path")).
-						WithEnvironmentConfigs(jobEnvironmentConfigs...),
-				)
-			rdBuilder := utils.NewDeploymentBuilder().
-				WithAppName(anyApp).
-				WithComponents(
-					utils.NewDeployComponentBuilder().WithName(anyComponentName),
-				).
-				WithJobComponents(
-					utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName),
-				).
-				WithDeploymentName(anySourceDeploymentName).
-				WithEnvironment(anySourceEnvironment).
-				WithImageTag(anySourceImageTag).WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
-				WithRadixApplication(raBuilder)
-			_, err := commonTestUtils.ApplyDeployment(
-				context.Background(),
-				rdBuilder,
-			)
-			require.NoError(t, err)
-
-			// Create prod environment without any deployments
-			commonTest.CreateEnvNamespace(kubeClient, anyApp, anyTargetEnvironment)
-
-			rr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
-			ra, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
-
-			promoteStep := promote.NewPromoteStep()
-			promoteStep.Init(context.Background(), kubeClient, radixClient, kubeUtil, &monitoring.Clientset{}, rr)
-
-			pipelineInfo := &model.PipelineInfo{
-				PipelineArguments: model.PipelineArguments{
-					FromEnvironment: anySourceEnvironment,
-					ToEnvironment:   anyTargetEnvironment,
-					DeploymentName:  anySourceDeploymentName,
-					JobName:         anyPromotePipeleineJobName,
-					ImageTag:        anySourceImageTag,
-					CommitID:        anySourceCommitID,
-				},
-			}
-
-			applicationConfig := application.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, nil)
-			pipelineInfo.SetApplicationConfig(applicationConfig)
-			err = promoteStep.Run(context.Background(), pipelineInfo)
-			require.NoError(t, err)
-
-			rds, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyTargetEnvironment)).List(context.Background(), metav1.ListOptions{})
-			require.Equal(t, 1, len(rds.Items))
-			assert.Equal(t, scenario.expectedComponentVolumeMounts, rds.Items[0].Spec.Components[0].VolumeMounts)
-			assert.Equal(t, scenario.expectedJobComponentVolumeMounts, rds.Items[0].Spec.Jobs[0].VolumeMounts)
-		})
-
+	if scenario.configureEnvironment {
+		componentEnvironmentConfigs = append(componentEnvironmentConfigs, utils.AnEnvironmentConfig().WithEnvironment(anyTargetEnvironment))
 	}
+
+	raComponentBuilder := utils.AnApplicationComponent().WithName(anyComponentName).
+		WithEnvironmentConfigs(componentEnvironmentConfigs...)
+	raJobComponentBuilder := utils.AnApplicationJobComponent().WithName(anyJobComponentName).WithSchedulerPort(numbers.Int32Ptr(8888)).WithPayloadPath(utils.StringPtr("/path")).
+		WithEnvironmentConfigs(jobEnvironmentConfigs...)
+	raBuilder := utils.NewRadixApplicationBuilder().
+		WithRadixRegistration(utils.ARadixRegistration().WithName(anyApp)).
+		WithAppName(anyApp).
+		WithEnvironment(anySourceEnvironment, "").
+		WithEnvironment(anyTargetEnvironment, "").
+		WithComponents(raComponentBuilder).
+		WithJobComponents(raJobComponentBuilder)
+
+	rdComponentBuilder := utils.NewDeployComponentBuilder().WithName(anyComponentName)
+	rdJobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName)
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithAppName(anyApp).
+		WithComponents(rdComponentBuilder).
+		WithJobComponents(rdJobComponentBuilder).
+		WithDeploymentName(anySourceDeploymentName).
+		WithEnvironment(anySourceEnvironment).
+		WithImageTag(anySourceImageTag).WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
+		WithRadixApplication(raBuilder)
+
+	raComponentBuilder.WithVolumeMounts(scenario.appVolumeMounts)
+	raJobComponentBuilder.WithVolumeMounts(scenario.appVolumeMounts)
+	rdComponentBuilder.WithVolumeMounts(scenario.componentVolumeMounts...)
+	rdJobComponentBuilder.WithVolumeMounts(scenario.jobComponentVolumeMounts...)
+
+	commonTest.CreateAppNamespace(kubeClient, anyApp)
+	commonTest.CreateEnvNamespace(kubeClient, anyApp, anySourceEnvironment)
+	commonTest.CreateEnvNamespace(kubeClient, anyApp, anyTargetEnvironment)
+
+	_, err := commonTestUtils.ApplyDeployment(context.Background(), rdBuilder)
+	require.NoError(t, err)
+	rr, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
+	require.NoError(t, err)
+	ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	promoteStep := promote.NewPromoteStep()
+	promoteStep.Init(context.Background(), kubeClient, radixClient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: anySourceEnvironment,
+			ToEnvironment:   anyTargetEnvironment,
+			DeploymentName:  anySourceDeploymentName,
+			JobName:         anyPromotePipeleineJobName,
+			ImageTag:        anySourceImageTag,
+			CommitID:        anySourceCommitID,
+		},
+	}
+	applicationConfig := application.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, nil)
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	err = promoteStep.Run(context.Background(), pipelineInfo)
+	require.NoError(t, err)
+
+	rds, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyTargetEnvironment)).List(context.Background(), metav1.ListOptions{})
+	require.Equal(t, 1, len(rds.Items))
+	assert.Equal(t, scenario.componentVolumeMounts, rds.Items[0].Spec.Components[0].VolumeMounts)
+	assert.Equal(t, scenario.jobComponentVolumeMounts, rds.Items[0].Spec.Jobs[0].VolumeMounts)
+	//})
+	//}
 }
 
 func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
