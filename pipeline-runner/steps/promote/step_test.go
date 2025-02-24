@@ -27,11 +27,11 @@ import (
 )
 
 const (
-	anyAppName  = "any-app"
-	anyJobName  = "any-job-name"
-	anyImageTag = "anytag"
-	anyCommitID = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
-	anyGitTags  = "some tags go here"
+	anyAppName        = "any-app"
+	anyJobName        = "any-job-name"
+	anyImageTag       = "anytag"
+	anySourceCommitID = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
+	anyGitTags        = "some tags go here"
 )
 
 func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils) {
@@ -162,7 +162,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 					DeploymentName:  scenario.deploymentName,
 					JobName:         scenario.jobName,
 					ImageTag:        scenario.imageTag,
-					CommitID:        anyCommitID,
+					CommitID:        anySourceCommitID,
 				},
 			}
 
@@ -321,7 +321,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 			DeploymentName:  anyDeploymentName,
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			CommitID:        anySourceCommitID,
 		},
 	}
 
@@ -446,7 +446,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 			DeploymentName:  anyDeploymentName,
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			CommitID:        anySourceCommitID,
 		},
 	}
 
@@ -540,7 +540,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 			DeploymentName:  anyDeploymentName,
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			CommitID:        anySourceCommitID,
 		},
 	}
 
@@ -657,7 +657,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 			DeploymentName:  anyDeploymentName,
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			CommitID:        anySourceCommitID,
 		},
 	}
 
@@ -718,7 +718,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 			DeploymentName:  anyDeploymentName,
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			CommitID:        anySourceCommitID,
 		},
 	}
 
@@ -837,7 +837,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 					DeploymentName:  anyDeploymentName,
 					JobName:         anyPromoteJobName,
 					ImageTag:        anyImageTag,
-					CommitID:        anyCommitID,
+					CommitID:        anySourceCommitID,
 				},
 			}
 
@@ -850,6 +850,104 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 			require.Equal(t, 1, len(rds.Items))
 			assert.Equal(t, scenario.expected, rds.Items[0].Spec.Components[0].Identity)
 			assert.Equal(t, scenario.expected, rds.Items[0].Spec.Jobs[0].Identity)
+		})
+
+	}
+}
+
+func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
+	const (
+		anyApp                     = "any-app"
+		anySourceDeploymentName    = "deployment-1"
+		anySourceImageTag          = "abcdef"
+		anyBuildDeployJobName      = "any-build-deploy-job"
+		anyPromotePipeleineJobName = "any-promote-job"
+		anyTargetEnvironment       = "prod"
+		anySourceEnvironment       = "dev"
+		anyComponentName           = "any-component"
+		anyJobComponentName        = "any-job-component"
+	)
+
+	type scenarioSpec struct {
+		name                             string
+		configureEnvironment             bool
+		expectedComponentVolumeMounts    []v1.RadixVolumeMount
+		expectedJobComponentVolumeMounts []v1.RadixVolumeMount
+	}
+
+	scenarios := []scenarioSpec{
+		{name: "No source volume mounts", configureEnvironment: true, expectedComponentVolumeMounts: nil},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			kubeClient, kubeUtil, radixClient, commonTestUtils := setupTest(t)
+			var componentEnvironmentConfigs []utils.RadixEnvironmentConfigBuilder
+			var jobEnvironmentConfigs []utils.RadixJobComponentEnvironmentConfigBuilder
+
+			if scenario.configureEnvironment {
+				componentEnvironmentConfigs = append(componentEnvironmentConfigs, utils.AnEnvironmentConfig().WithEnvironment(anyTargetEnvironment))
+			}
+
+			raBuilder := utils.NewRadixApplicationBuilder().
+				WithRadixRegistration(utils.ARadixRegistration().WithName(anyApp)).
+				WithAppName(anyApp).
+				WithEnvironment(anySourceEnvironment, "").
+				WithEnvironment(anyTargetEnvironment, "").
+				WithComponents(
+					utils.AnApplicationComponent().WithName(anyComponentName).
+						WithEnvironmentConfigs(componentEnvironmentConfigs...)).
+				WithJobComponents(
+					utils.AnApplicationJobComponent().WithName(anyJobComponentName).WithSchedulerPort(numbers.Int32Ptr(8888)).WithPayloadPath(utils.StringPtr("/path")).
+						WithEnvironmentConfigs(jobEnvironmentConfigs...),
+				)
+			rdBuilder := utils.NewDeploymentBuilder().
+				WithAppName(anyApp).
+				WithComponents(
+					utils.NewDeployComponentBuilder().WithName(anyComponentName),
+				).
+				WithJobComponents(
+					utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName),
+				).
+				WithDeploymentName(anySourceDeploymentName).
+				WithEnvironment(anySourceEnvironment).
+				WithImageTag(anySourceImageTag).WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
+				WithRadixApplication(raBuilder)
+			_, err := commonTestUtils.ApplyDeployment(
+				context.Background(),
+				rdBuilder,
+			)
+			require.NoError(t, err)
+
+			// Create prod environment without any deployments
+			commonTest.CreateEnvNamespace(kubeClient, anyApp, anyTargetEnvironment)
+
+			rr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
+			ra, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
+
+			promoteStep := promote.NewPromoteStep()
+			promoteStep.Init(context.Background(), kubeClient, radixClient, kubeUtil, &monitoring.Clientset{}, rr)
+
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					FromEnvironment: anySourceEnvironment,
+					ToEnvironment:   anyTargetEnvironment,
+					DeploymentName:  anySourceDeploymentName,
+					JobName:         anyPromotePipeleineJobName,
+					ImageTag:        anySourceImageTag,
+					CommitID:        anySourceCommitID,
+				},
+			}
+
+			applicationConfig := application.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, nil)
+			pipelineInfo.SetApplicationConfig(applicationConfig)
+			err = promoteStep.Run(context.Background(), pipelineInfo)
+			require.NoError(t, err)
+
+			rds, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyTargetEnvironment)).List(context.Background(), metav1.ListOptions{})
+			require.Equal(t, 1, len(rds.Items))
+			assert.Equal(t, scenario.expectedComponentVolumeMounts, rds.Items[0].Spec.Components[0].VolumeMounts)
+			assert.Equal(t, scenario.expectedJobComponentVolumeMounts, rds.Items[0].Spec.Jobs[0].VolumeMounts)
 		})
 
 	}
@@ -899,7 +997,7 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 			DeploymentName:  srcDeploymentName,
 			JobName:         anyPromoteJobName,
 			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			CommitID:        anySourceCommitID,
 		},
 	}
 
