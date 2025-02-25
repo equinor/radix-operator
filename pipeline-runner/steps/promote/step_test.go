@@ -905,7 +905,7 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 			componentVolumeMounts:    nil,
 			jobComponentVolumeMounts: nil,
 		},
-		{name: "Exists active RD, Exists app volume mounts, exists RD volume mounts",
+		{name: "Exists active RD without volume mounts, Exists app volume mounts, exists RD volume mounts",
 			appVolumeMounts:          []v1.RadixVolumeMount{targetRaVm},
 			existsActiveRdComponent:  true,
 			componentVolumeMounts:    []v1.RadixVolumeMount{sourceComponentVm},
@@ -916,12 +916,12 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 			componentVolumeMounts:         []v1.RadixVolumeMount{sourceComponentVm},
 			jobComponentVolumeMounts:      []v1.RadixVolumeMount{sourceJobComponentVm},
 		},
-		{name: "Exists active RD, No app volume mounts, exists RD volume mounts",
+		{name: "Exists active RD without volume mounts, No app volume mounts, exists RD volume mounts",
 			existsActiveRdComponent:  true,
 			componentVolumeMounts:    []v1.RadixVolumeMount{sourceComponentVm},
 			jobComponentVolumeMounts: []v1.RadixVolumeMount{sourceJobComponentVm},
 		},
-		{name: "Exists active RD, Exists app volume mounts, no RD volume mounts",
+		{name: "Exists active RD without volume mounts, Exists app volume mounts, no RD volume mounts",
 			appVolumeMounts:         []v1.RadixVolumeMount{targetRaVm},
 			existsActiveRdComponent: true,
 		},
@@ -931,7 +931,7 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 		},
 	}
 
-	scenario := scenarios[0]
+	scenario := scenarios[6]
 	//for _, scenario := range scenarios {
 	//	t.Run(scenario.name, func(t *testing.T) {
 	kubeClient, kubeUtil, radixClient, commonTestUtils := setupTest(t)
@@ -1016,10 +1016,19 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 	err = promoteStep.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
+	rds2, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anySourceEnvironment)).List(context.Background(), metav1.ListOptions{})
+	require.Equal(t, 1, len(rds2.Items))
 	rds, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyTargetEnvironment)).List(context.Background(), metav1.ListOptions{})
-	require.Equal(t, 1, len(rds.Items))
-	assert.Equal(t, scenario.componentVolumeMounts, rds.Items[0].Spec.Components[0].VolumeMounts)
-	assert.Equal(t, scenario.jobComponentVolumeMounts, rds.Items[0].Spec.Jobs[0].VolumeMounts)
+	var actualDeployment v1.RadixDeployment
+	if scenario.existsActiveRdComponent || len(scenario.activeRdComponentVolumeMounts) > 0 {
+		require.Equal(t, 2, len(rds.Items))
+		actualDeployment = rds.Items[1]
+	} else {
+		require.Equal(t, 1, len(rds.Items))
+		actualDeployment = rds.Items[0]
+	}
+	assert.Equal(t, scenario.componentVolumeMounts, actualDeployment.Spec.Components[0].VolumeMounts)
+	assert.Equal(t, scenario.jobComponentVolumeMounts, actualDeployment.Spec.Jobs[0].VolumeMounts)
 	//})
 	//}
 }
