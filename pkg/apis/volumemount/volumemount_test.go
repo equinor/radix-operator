@@ -694,7 +694,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
 					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-						vm.BlobFuse2.Streaming = &radixv1.RadixVolumeMountStreaming{
+						vm.BlobFuse2.StreamingOptions = &radixv1.BlobFuse2StreamingOptions{
 							StreamCache:      pointers.Ptr(uint64(101)),
 							BlockSize:        pointers.Ptr(uint64(102)),
 							BufferSize:       pointers.Ptr(uint64(103)),
@@ -734,7 +734,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
 					createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-						vm.BlobFuse2.Streaming = &radixv1.RadixVolumeMountStreaming{
+						vm.BlobFuse2.StreamingOptions = &radixv1.BlobFuse2StreamingOptions{
 							Enabled:          pointers.Ptr(false),
 							StreamCache:      pointers.Ptr(uint64(101)),
 							BlockSize:        pointers.Ptr(uint64(102)),
@@ -934,7 +934,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						vm.BlobFuse2.SubscriptionId = props.subscriptionId
 						vm.BlobFuse2.ResourceGroup = props.resourceGroup
 						vm.BlobFuse2.UseAdls = nil
-						vm.BlobFuse2.Streaming = &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false)}
+						vm.BlobFuse2.StreamingOptions = &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}
 					}),
 				},
 				volumes: []corev1.Volume{
@@ -1274,7 +1274,7 @@ func setVolumeMountPropsForBlob2Fuse2AzureIdentity(props expectedPvcPvProperties
 	vm.BlobFuse2.SubscriptionId = props.subscriptionId
 	vm.BlobFuse2.ResourceGroup = props.resourceGroup
 	vm.BlobFuse2.UseAdls = nil
-	vm.BlobFuse2.Streaming = &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false)}
+	vm.BlobFuse2.StreamingOptions = &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}
 }
 
 func setPropsForBlob2Fuse2AzureIdentity(props *expectedPvcPvProperties) {

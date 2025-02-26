@@ -1422,6 +1422,16 @@ spec:
                                       - ReadWriteMany
                                       - ""
                                       type: string
+                                    attributeCache:
+                                      description: Configure attribute cache settings.
+                                      properties:
+                                        timeout:
+                                          description: The timeout for the attribute
+                                            cache entries.
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                      type: object
                                     bindingMode:
                                       description: |-
                                         Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
@@ -1431,10 +1441,81 @@ spec:
                                       - WaitForFirstConsumer
                                       - ""
                                       type: string
+                                    blockCache:
+                                      description: Configure block cache settings.
+                                      properties:
+                                        blockSize:
+                                          description: Size (in MB) of a block to
+                                            be downloaded as a unit.
+                                          format: int32
+                                          minimum: 1
+                                          type: integer
+                                        diskSize:
+                                          description: |-
+                                            Size (in MB) of total disk capacity that block cache can use.
+                                            0 disables disk caching
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                        diskTimeout:
+                                          description: Timeout (in seconds) for which
+                                            persisted data remains in disk cache.
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                        parallelism:
+                                          description: Number of worker thread responsible
+                                            for upload/download jobs.
+                                          format: int32
+                                          minimum: 1
+                                          type: integer
+                                        poolSize:
+                                          description: |-
+                                            Size (in MB) of total memory preallocated for block-cache.
+                                            Minimum value:
+                                            - if prefetchCount is set: prefetchCount * blockSize
+                                            - if prefetchCount is not set: blockSize
+                                          format: int32
+                                          minimum: 1
+                                          type: integer
+                                        prefetchCount:
+                                          description: |-
+                                            Max number of blocks to prefetch. Prefetching is disabled by default.
+                                            Value must be 0 (prefetcing disabled) or greater or equal to 11.
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                        prefetchOnOpen:
+                                          description: Start prefetching on open or
+                                            wait for first read.
+                                          type: boolean
+                                      type: object
+                                    cacheMode:
+                                      description: |-
+                                        Defines how files shoud be cached.
+
+                                        File: Reads and caches the entire file
+                                        Block: Blocks of fixed size are downloaded and cached
+                                        DirectIO: Caching is disabled. All IO is passed directly to the storage account.
+                                      enum:
+                                      - File
+                                      - Block
+                                      - DirectIO
+                                      type: string
                                     container:
                                       description: Container. Name of the container
                                         in the external storage resource.
                                       type: string
+                                    fileCache:
+                                      description: Configure file cache settings.
+                                      properties:
+                                        timeout:
+                                          description: The timeout for which file
+                                            cache is valid.
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                      type: object
                                     gid:
                                       description: GID defines the group ID (number)
                                         which will be set as owner of the mounted
@@ -1476,7 +1557,7 @@ spec:
                                       type: string
                                     streaming:
                                       description: |-
-                                        Configure Streaming mode. Used for blobfuse2.
+                                        Configure streaming settings.
                                         More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                       properties:
                                         blockSize:
@@ -2635,6 +2716,16 @@ spec:
                                 - ReadWriteMany
                                 - ""
                                 type: string
+                              attributeCache:
+                                description: Configure attribute cache settings.
+                                properties:
+                                  timeout:
+                                    description: The timeout for the attribute cache
+                                      entries.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                type: object
                               bindingMode:
                                 description: |-
                                   Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
@@ -2644,10 +2735,81 @@ spec:
                                 - WaitForFirstConsumer
                                 - ""
                                 type: string
+                              blockCache:
+                                description: Configure block cache settings.
+                                properties:
+                                  blockSize:
+                                    description: Size (in MB) of a block to be downloaded
+                                      as a unit.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  diskSize:
+                                    description: |-
+                                      Size (in MB) of total disk capacity that block cache can use.
+                                      0 disables disk caching
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  diskTimeout:
+                                    description: Timeout (in seconds) for which persisted
+                                      data remains in disk cache.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  parallelism:
+                                    description: Number of worker thread responsible
+                                      for upload/download jobs.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  poolSize:
+                                    description: |-
+                                      Size (in MB) of total memory preallocated for block-cache.
+                                      Minimum value:
+                                      - if prefetchCount is set: prefetchCount * blockSize
+                                      - if prefetchCount is not set: blockSize
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  prefetchCount:
+                                    description: |-
+                                      Max number of blocks to prefetch. Prefetching is disabled by default.
+                                      Value must be 0 (prefetcing disabled) or greater or equal to 11.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  prefetchOnOpen:
+                                    description: Start prefetching on open or wait
+                                      for first read.
+                                    type: boolean
+                                type: object
+                              cacheMode:
+                                description: |-
+                                  Defines how files shoud be cached.
+
+                                  File: Reads and caches the entire file
+                                  Block: Blocks of fixed size are downloaded and cached
+                                  DirectIO: Caching is disabled. All IO is passed directly to the storage account.
+                                enum:
+                                - File
+                                - Block
+                                - DirectIO
+                                type: string
                               container:
                                 description: Container. Name of the container in the
                                   external storage resource.
                                 type: string
+                              fileCache:
+                                description: Configure file cache settings.
+                                properties:
+                                  timeout:
+                                    description: The timeout for which file cache
+                                      is valid.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                type: object
                               gid:
                                 description: GID defines the group ID (number) which
                                   will be set as owner of the mounted volume.
@@ -2687,7 +2849,7 @@ spec:
                                 type: string
                               streaming:
                                 description: |-
-                                  Configure Streaming mode. Used for blobfuse2.
+                                  Configure streaming settings.
                                   More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                 properties:
                                   blockSize:
@@ -3532,6 +3694,16 @@ spec:
                                       - ReadWriteMany
                                       - ""
                                       type: string
+                                    attributeCache:
+                                      description: Configure attribute cache settings.
+                                      properties:
+                                        timeout:
+                                          description: The timeout for the attribute
+                                            cache entries.
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                      type: object
                                     bindingMode:
                                       description: |-
                                         Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
@@ -3541,10 +3713,81 @@ spec:
                                       - WaitForFirstConsumer
                                       - ""
                                       type: string
+                                    blockCache:
+                                      description: Configure block cache settings.
+                                      properties:
+                                        blockSize:
+                                          description: Size (in MB) of a block to
+                                            be downloaded as a unit.
+                                          format: int32
+                                          minimum: 1
+                                          type: integer
+                                        diskSize:
+                                          description: |-
+                                            Size (in MB) of total disk capacity that block cache can use.
+                                            0 disables disk caching
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                        diskTimeout:
+                                          description: Timeout (in seconds) for which
+                                            persisted data remains in disk cache.
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                        parallelism:
+                                          description: Number of worker thread responsible
+                                            for upload/download jobs.
+                                          format: int32
+                                          minimum: 1
+                                          type: integer
+                                        poolSize:
+                                          description: |-
+                                            Size (in MB) of total memory preallocated for block-cache.
+                                            Minimum value:
+                                            - if prefetchCount is set: prefetchCount * blockSize
+                                            - if prefetchCount is not set: blockSize
+                                          format: int32
+                                          minimum: 1
+                                          type: integer
+                                        prefetchCount:
+                                          description: |-
+                                            Max number of blocks to prefetch. Prefetching is disabled by default.
+                                            Value must be 0 (prefetcing disabled) or greater or equal to 11.
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                        prefetchOnOpen:
+                                          description: Start prefetching on open or
+                                            wait for first read.
+                                          type: boolean
+                                      type: object
+                                    cacheMode:
+                                      description: |-
+                                        Defines how files shoud be cached.
+
+                                        File: Reads and caches the entire file
+                                        Block: Blocks of fixed size are downloaded and cached
+                                        DirectIO: Caching is disabled. All IO is passed directly to the storage account.
+                                      enum:
+                                      - File
+                                      - Block
+                                      - DirectIO
+                                      type: string
                                     container:
                                       description: Container. Name of the container
                                         in the external storage resource.
                                       type: string
+                                    fileCache:
+                                      description: Configure file cache settings.
+                                      properties:
+                                        timeout:
+                                          description: The timeout for which file
+                                            cache is valid.
+                                          format: int32
+                                          minimum: 0
+                                          type: integer
+                                      type: object
                                     gid:
                                       description: GID defines the group ID (number)
                                         which will be set as owner of the mounted
@@ -3586,7 +3829,7 @@ spec:
                                       type: string
                                     streaming:
                                       description: |-
-                                        Configure Streaming mode. Used for blobfuse2.
+                                        Configure streaming settings.
                                         More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                       properties:
                                         blockSize:
@@ -4125,6 +4368,16 @@ spec:
                                 - ReadWriteMany
                                 - ""
                                 type: string
+                              attributeCache:
+                                description: Configure attribute cache settings.
+                                properties:
+                                  timeout:
+                                    description: The timeout for the attribute cache
+                                      entries.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                type: object
                               bindingMode:
                                 description: |-
                                   Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
@@ -4134,10 +4387,81 @@ spec:
                                 - WaitForFirstConsumer
                                 - ""
                                 type: string
+                              blockCache:
+                                description: Configure block cache settings.
+                                properties:
+                                  blockSize:
+                                    description: Size (in MB) of a block to be downloaded
+                                      as a unit.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  diskSize:
+                                    description: |-
+                                      Size (in MB) of total disk capacity that block cache can use.
+                                      0 disables disk caching
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  diskTimeout:
+                                    description: Timeout (in seconds) for which persisted
+                                      data remains in disk cache.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  parallelism:
+                                    description: Number of worker thread responsible
+                                      for upload/download jobs.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  poolSize:
+                                    description: |-
+                                      Size (in MB) of total memory preallocated for block-cache.
+                                      Minimum value:
+                                      - if prefetchCount is set: prefetchCount * blockSize
+                                      - if prefetchCount is not set: blockSize
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  prefetchCount:
+                                    description: |-
+                                      Max number of blocks to prefetch. Prefetching is disabled by default.
+                                      Value must be 0 (prefetcing disabled) or greater or equal to 11.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  prefetchOnOpen:
+                                    description: Start prefetching on open or wait
+                                      for first read.
+                                    type: boolean
+                                type: object
+                              cacheMode:
+                                description: |-
+                                  Defines how files shoud be cached.
+
+                                  File: Reads and caches the entire file
+                                  Block: Blocks of fixed size are downloaded and cached
+                                  DirectIO: Caching is disabled. All IO is passed directly to the storage account.
+                                enum:
+                                - File
+                                - Block
+                                - DirectIO
+                                type: string
                               container:
                                 description: Container. Name of the container in the
                                   external storage resource.
                                 type: string
+                              fileCache:
+                                description: Configure file cache settings.
+                                properties:
+                                  timeout:
+                                    description: The timeout for which file cache
+                                      is valid.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                type: object
                               gid:
                                 description: GID defines the group ID (number) which
                                   will be set as owner of the mounted volume.
@@ -4177,7 +4501,7 @@ spec:
                                 type: string
                               streaming:
                                 description: |-
-                                  Configure Streaming mode. Used for blobfuse2.
+                                  Configure streaming settings.
                                   More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                 properties:
                                   blockSize:

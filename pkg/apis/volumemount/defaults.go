@@ -5,8 +5,6 @@ const (
 	CsiVolumeSourceDriverSecretStore = "secrets-store.csi.k8s.io"
 	// CsiVolumeSourceVolumeAttributeSecretProviderClass Secret provider class volume attribute
 	CsiVolumeSourceVolumeAttributeSecretProviderClass = "secretProviderClass"
-	// ReadOnlyMountOption The readonly volume mount option for CSI fuse driver
-	ReadOnlyMountOption = "-o ro"
 
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<randomstring5>
 	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-<guid>

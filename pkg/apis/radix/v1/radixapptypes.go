@@ -1077,10 +1077,30 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	UseAdls *bool `json:"useAdls,omitempty"`
 
-	// Configure Streaming mode. Used for blobfuse2.
+	// Configure attribute cache settings.
+	// +optional
+	AttributeCacheOptions *BlobFuse2AttributeCacheOptions `json:"attributeCache,omitempty"`
+
+	// Defines how files shoud be cached.
+	//
+	// File: Reads and caches the entire file
+	// Block: Blocks of fixed size are downloaded and cached
+	// DirectIO: Caching is disabled. All IO is passed directly to the storage account.
+	// +optional
+	CacheMode *BlobFuse2CacheMode `json:"cacheMode,omitempty"`
+
+	// Configure file cache settings.
+	// +optional
+	FileCacheOptions *BlobFuse2FileCacheOptions `json:"fileCache,omitempty"`
+
+	// Configure block cache settings.
+	// +optional
+	BlockCacheOptions *BlobFuse2BlockCacheOptions `json:"blockCache,omitempty"`
+
+	// Configure streaming settings.
 	// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
 	// +optional
-	Streaming *RadixVolumeMountStreaming `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
+	StreamingOptions *BlobFuse2StreamingOptions `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
 
 	// UseAzureIdentity defines that credentials for accessing Azure Storage will be acquired using Azure Workload Identity instead of using a ClientID and Secret.
 	// +optional
@@ -1103,9 +1123,76 @@ type RadixBlobFuse2VolumeMount struct {
 	TenantId string `json:"tenantId,omitempty"`
 }
 
-// RadixVolumeMountStreaming configure streaming to read and write large files that will not fit in the file cache on the local disk. Used for blobfuse2.
+// +kubebuilder:validation:Enum=File;Block;DirectIO
+type BlobFuse2CacheMode string
+
+const (
+	BlobFuse2CacheModeFile     BlobFuse2CacheMode = "File"
+	BlobFuse2CacheModeBlock    BlobFuse2CacheMode = "Block"
+	BlobFuse2CacheModeDirectIO BlobFuse2CacheMode = "DirectIO"
+)
+
+// BlobFuse2AttributeCacheOptions defines options for attribute cache
+type BlobFuse2AttributeCacheOptions struct {
+	// The timeout for the attribute cache entries.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	Timeout *uint32 `json:"timeout,omitempty"`
+}
+
+// BlobFuse2BlockCacheOptions defines options for block cache
+type BlobFuse2BlockCacheOptions struct {
+	// Size (in MB) of a block to be downloaded as a unit.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BlockSize *uint32 `json:"blockSize,omitempty"`
+
+	// Size (in MB) of total memory preallocated for block-cache.
+	// Minimum value:
+	// - if prefetchCount is set: prefetchCount * blockSize
+	// - if prefetchCount is not set: blockSize
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	PoolSize *uint32 `json:"poolSize,omitempty"`
+
+	// Size (in MB) of total disk capacity that block cache can use.
+	// 0 disables disk caching
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	DiskSize *uint32 `json:"diskSize,omitempty"`
+
+	// Timeout (in seconds) for which persisted data remains in disk cache.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	DiskTimeout *uint32 `json:"diskTimeout,omitempty"`
+
+	// Max number of blocks to prefetch. Prefetching is disabled by default.
+	// Value must be 0 (prefetcing disabled) or greater or equal to 11.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	PrefetchCount *uint32 `json:"prefetchCount,omitempty"`
+
+	// Start prefetching on open or wait for first read.
+	// +optional
+	PrefetchOnOpen *bool `json:"prefetchOnOpen,omitempty"`
+
+	// Number of worker thread responsible for upload/download jobs.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Parallelism *uint32 `json:"parallelism,omitempty"`
+}
+
+// BlobFuse2FileCacheOptions defines options for file cache
+type BlobFuse2FileCacheOptions struct {
+	// The timeout for which file cache is valid.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	Timeout *uint32 `json:"timeout,omitempty"`
+}
+
+// BlobFuse2StreamingOptions configure streaming to read and write large files that will not fit in the file cache on the local disk. Used for blobfuse2.
 // More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
-type RadixVolumeMountStreaming struct {
+type BlobFuse2StreamingOptions struct {
 	// Enable streaming mode. Default true.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`

@@ -23,7 +23,7 @@ import (
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -497,7 +497,7 @@ func getMountOptions(props expectedPvcPvProperties, extraOptions ...string) []st
 		"-o negative_timeout=120",
 	}
 	if props.readOnly {
-		options = append(options, ReadOnlyMountOption)
+		options = append(options, "--read-only=true")
 	}
 	idOption := getPersistentVolumeIdMountOption(props)
 	if len(idOption) > 0 {
@@ -524,7 +524,7 @@ func getMountOptionsInRandomOrder(props expectedPvcPvProperties, extraOptions ..
 		options = append(options, idOption)
 	}
 	if props.readOnly {
-		options = append(options, ReadOnlyMountOption)
+		options = append(options, "--read-only=true")
 	}
 	return append(options, extraOptions...)
 }

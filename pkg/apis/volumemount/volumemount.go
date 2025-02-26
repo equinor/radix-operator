@@ -85,17 +85,6 @@ func GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Con
 	return garbageCollectSecrets(ctx, kubeUtil, namespace, secrets, excludeSecretNames)
 }
 
-// CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent Create or update CSI Azure volume resources for a DeployComponent - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
-// Returns actual volumes, with existing relevant PersistentVolumeClaimName and PersistentVolumeName
-func CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string, deployComponent radixv1.RadixCommonDeployComponent, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
-	componentName := deployComponent.GetName()
-	actualVolumes, err := createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx, kubeClient, radixDeployment, namespace, componentName, deployComponent.GetIdentity(), desiredVolumes)
-	if err != nil {
-		return nil, err
-	}
-	return actualVolumes, nil
-}
-
 // GarbageCollectCsiAzureVolumeResourcesForDeployComponent Garbage collect CSI Azure volume resources - PersistentVolumes, PersistentVolumeClaims
 func GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string) error {
 	currentlyUsedPvcNames, err := getCurrentlyUsedPvcNames(ctx, kubeClient, radixDeployment)
@@ -146,6 +135,24 @@ func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radi
 	default:
 		return "unsupported"
 	}
+}
+
+// CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent Create or update CSI Azure volume resources for a DeployComponent - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
+// Returns actual volumes, with existing relevant PersistentVolumeClaimName and PersistentVolumeName
+func CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string, deployComponent radixv1.RadixCommonDeployComponent, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
+	componentName := deployComponent.GetName()
+	actualVolumes, err := createOrUpdateCsiAzureVolumeResourcesForVolumes(ctx, kubeClient, radixDeployment, namespace, componentName, deployComponent.GetIdentity(), desiredVolumes)
+	if err != nil {
+		return nil, err
+	}
+	return actualVolumes, nil
+}
+
+type blobfuse2VolumeResourceHandler struct {
+	kubeClient      kubernetes.Interface
+	radixDeployment *radixv1.RadixDeployment
+	deployComponent radixv1.RadixCommonDeployComponent
+	desiredVolumes  []corev1.Volume
 }
 
 func getCsiAzurePvsForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string, onlyFunctional bool) ([]corev1.PersistentVolume, error) {
@@ -606,16 +613,16 @@ func getCsiAzurePvMountOptionsForAzureBlob(radixVolumeMount *radixv1.RadixVolume
 		}
 	}
 	if getVolumeMountAccessMode(radixVolumeMount) == corev1.ReadOnlyMany {
-		mountOptions = append(mountOptions, ReadOnlyMountOption)
+		mountOptions = append(mountOptions, "--read-only=true")
 	}
 	if radixVolumeMount.BlobFuse2 != nil {
-		mountOptions = append(mountOptions, getStreamingMountOptions(radixVolumeMount.BlobFuse2.Streaming)...)
+		mountOptions = append(mountOptions, getStreamingMountOptions(radixVolumeMount.BlobFuse2.StreamingOptions)...)
 		mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiMountOptionUseAdls, radixVolumeMount.BlobFuse2.UseAdls != nil && *radixVolumeMount.BlobFuse2.UseAdls))
 	}
 	return mountOptions
 }
 
-func getStreamingMountOptions(streaming *radixv1.RadixVolumeMountStreaming) []string {
+func getStreamingMountOptions(streaming *radixv1.BlobFuse2StreamingOptions) []string {
 	var mountOptions []string
 	if streaming != nil && streaming.Enabled != nil && !*streaming.Enabled {
 		return nil
