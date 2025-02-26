@@ -2,7 +2,6 @@ package labels
 
 import (
 	maputils "github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
@@ -131,35 +130,10 @@ func ForOAuthProxyComponentServiceAccount(component v1.RadixCommonDeployComponen
 	return Merge(
 		kubelabels.Set{
 			kube.RadixAuxiliaryComponentLabel:       component.GetName(),
-			kube.RadixAuxiliaryComponentTypeLabel:   defaults.OAuthProxyAuxiliaryComponentType,
+			kube.RadixAuxiliaryComponentTypeLabel:   v1.OAuthProxyAuxiliaryComponentType,
 			kube.IsServiceAccountForOAuthProxyLabel: "true",
 		},
 	)
-}
-
-// ForServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
-// e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
-func ForServiceAccountWithRadixIdentity(identity *v1.Identity) kubelabels.Set {
-	if identity == nil {
-		return nil
-	}
-
-	var labels kubelabels.Set
-
-	if identity.Azure != nil {
-		labels = Merge(labels, forAzureWorkloadUseIdentity())
-	}
-
-	return labels
-}
-
-// ForOauthProxyServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
-// e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
-func ForOauthProxyServiceAccountWithRadixIdentity(oauth2 *v1.OAuth2) kubelabels.Set {
-	if !oauth2.GetUseAzureIdentity() {
-		return nil
-	}
-	return forAzureWorkloadUseIdentity()
 }
 
 // ForPodWithRadixIdentity returns labels for configuring a Pod with external identities,
@@ -175,6 +149,19 @@ func ForPodWithRadixIdentity(identity *v1.Identity) kubelabels.Set {
 		labels = Merge(labels, forAzureWorkloadUseIdentity())
 	}
 
+	return labels
+}
+
+// ForOAuthProxyPodWithRadixIdentity returns labels for configuring a OAuth Proxy Pod with external identities,
+// e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
+func ForOAuthProxyPodWithRadixIdentity(oauth2 *v1.OAuth2) kubelabels.Set {
+	if oauth2 == nil {
+		return nil
+	}
+	var labels kubelabels.Set
+	if oauth2.GetUseAzureIdentity() {
+		labels = Merge(labels, forAzureWorkloadUseIdentity())
+	}
 	return labels
 }
 
@@ -262,7 +249,7 @@ func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) ma
 	return map[string]string{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType,
 	}
 }
 
@@ -295,7 +282,7 @@ func forAuxComponentIngress(appName string, component v1.RadixCommonDeployCompon
 	return kubelabels.Set{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType,
 		aliasLabel:                            aliasLabelValue,
 	}
 }
