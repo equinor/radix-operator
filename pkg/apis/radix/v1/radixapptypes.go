@@ -1,11 +1,19 @@
 package v1
 
 import (
+	"fmt"
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	// OAuthProxyAuxiliaryComponentType component type
+	OAuthProxyAuxiliaryComponentType = "oauth"
+	// OAuthProxyAuxiliaryComponentSuffix component suffix
+	OAuthProxyAuxiliaryComponentSuffix = "aux-oauth"
 )
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
@@ -1916,6 +1924,14 @@ func (oauth2 *OAuth2) GetUseAzureIdentity() bool {
 		return false
 	}
 	return oauth2.Credentials == AzureWorkloadIdentity
+}
+
+// GetServiceAccountName Returns the service account name for the OAuth2 proxy
+func (oauth2 *OAuth2) GetServiceAccountName(componentName string) string {
+	if oauth2.GetUseAzureIdentity() {
+		return fmt.Sprintf("%s-%s-sa", componentName, OAuthProxyAuxiliaryComponentSuffix)
+	}
+	return "default"
 }
 
 // GetSessionStoreType Returns the session store type
