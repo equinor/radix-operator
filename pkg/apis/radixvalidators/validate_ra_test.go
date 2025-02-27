@@ -10,7 +10,6 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -89,8 +88,8 @@ func Test_invalid_ra(t *testing.T) {
 	tooLongPortName := "abcdefghijklmnop"
 	invalidBranchName := "/master"
 	invalidResourceName := "invalid,char.re"
-	oauthAuxSuffixComponentName := fmt.Sprintf("app-%s", defaults.OAuthProxyAuxiliaryComponentSuffix)
-	oauthAuxSuffixJobName := fmt.Sprintf("job-%s", defaults.OAuthProxyAuxiliaryComponentSuffix)
+	oauthAuxSuffixComponentName := fmt.Sprintf("app-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix)
+	oauthAuxSuffixJobName := fmt.Sprintf("job-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	invalidVariableName := "invalid:variable"
 	noReleatedRRAppName := "no related rr"
 	noExistingEnvironment := "nonexistingenv"
@@ -136,7 +135,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"duplicate component name", radixvalidators.DuplicateComponentOrJobNameErrorWithMessage([]string{validRAFirstComponentName}), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components = append(ra.Spec.Components, *ra.Spec.Components[0].DeepCopy())
 		}},
-		{"component name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixComponentName, "component", defaults.OAuthProxyAuxiliaryComponentSuffix), func(ra *radixv1.RadixApplication) {
+		{"component name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixComponentName, "component", radixv1.OAuthProxyAuxiliaryComponentSuffix), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Name = oauthAuxSuffixComponentName
 		}},
 		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("port name", invalidResourceName), func(ra *radixv1.RadixApplication) {
@@ -384,7 +383,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"duplicate job name", radixvalidators.DuplicateComponentOrJobNameErrorWithMessage([]string{validRAFirstJobName}), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs = append(ra.Spec.Jobs, *ra.Spec.Jobs[0].DeepCopy())
 		}},
-		{"job name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixJobName, "job", defaults.OAuthProxyAuxiliaryComponentSuffix), func(ra *radixv1.RadixApplication) {
+		{"job name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixJobName, "job", radixv1.OAuthProxyAuxiliaryComponentSuffix), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Name = oauthAuxSuffixJobName
 		}},
 		{"invalid job secret name", radixvalidators.InvalidResourceNameErrorWithMessage("secret name", invalidVariableName), func(ra *radixv1.RadixApplication) {

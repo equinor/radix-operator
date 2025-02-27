@@ -12,7 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -234,7 +234,7 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 	if appName := object.GetLabels()[kube.RadixAppLabel]; appName != o.rd.Spec.AppName {
 		return false
 	}
-	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != defaults.OAuthProxyAuxiliaryComponentType {
+	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != v1.OAuthProxyAuxiliaryComponentType {
 		return false
 	}
 	auxTargetComponentName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
@@ -466,7 +466,7 @@ func (o *oauthProxyResourceManager) createOrUpdateService(ctx context.Context, c
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 	existingSecret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
@@ -501,7 +501,7 @@ func (o *oauthProxyResourceManager) createOrUpdateRbac(ctx context.Context, comp
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-adm", component.GetName())
 	namespace := o.rd.Namespace
 
@@ -528,7 +528,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-reader", component.GetName())
 	namespace := o.rd.Namespace
 
@@ -552,12 +552,12 @@ func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Cont
 }
 
 func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(prefix, componentName string) string {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
 	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
 func buildOAuthProxySecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 
 	secret := &corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
@@ -576,7 +576,7 @@ func buildOAuthProxySecret(appName string, component v1.RadixCommonDeployCompone
 }
 
 func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
-	serviceName := utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	serviceName := utils.GetAuxiliaryComponentServiceName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -624,7 +624,7 @@ func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context
 }
 
 func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 
 	currentDeployment, err := o.kubeutil.GetDeployment(ctx, o.rd.Namespace, deploymentName)
 	if err != nil && !kubeerrors.IsNotFound(err) {
@@ -639,7 +639,9 @@ func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(ctx context.C
 }
 
 func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	componentName := component.GetName()
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
+	oauth2 := component.GetAuthentication().GetOAuth2()
 	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(defaults.OAuthProxyPortNumber)
 	if err != nil {
 		return nil, err
@@ -664,12 +666,15 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+					Labels: radixlabels.Merge(
+						radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+						radixlabels.ForOAuthProxyPodWithRadixIdentity(oauth2),
+					),
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:            component.GetName(),
+							Name:            componentName,
 							Image:           o.oauth2ProxyDockerImage,
 							ImagePullPolicy: corev1.PullAlways,
 							Env:             o.getEnvVars(component),
@@ -687,18 +692,12 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
 						},
 					},
-					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
-					Affinity:        utils.GetAffinityForOAuthAuxComponent(),
+					SecurityContext:    securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
+					Affinity:           utils.GetAffinityForOAuthAuxComponent(),
+					ServiceAccountName: oauth2.GetServiceAccountName(componentName),
 				},
 			},
 		},
-	}
-	if component.GetAuthentication().GetOAuth2().GetUseAzureIdentity() {
-		desiredDeployment.Spec.Template.Labels = radixlabels.Merge(
-			desiredDeployment.Spec.Template.GetLabels(),
-			radixlabels.ForPodWithRadixIdentity(component.GetIdentity()),
-		)
-		desiredDeployment.Spec.Template.Spec.ServiceAccountName = utils.GetOAuthProxyServiceAccountName(component.GetName())
 	}
 	oauthutil.MergeAuxComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
 	return desiredDeployment, nil
@@ -734,7 +733,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 	envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyCookieSecretEnvironmentVariable, secretName, defaults.OAuthCookieSecretKeyName))
 
 	if oauth.GetUseAzureIdentity() {
