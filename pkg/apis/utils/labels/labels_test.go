@@ -42,29 +42,17 @@ func Test_ForPodIsJobScheduler(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func Test_ForServiceAccountWithRadixIdentity(t *testing.T) {
-	actual := ForServiceAccountWithRadixIdentity(nil)
-	assert.Equal(t, kubelabels.Set(nil), actual)
-
-	actual = ForServiceAccountWithRadixIdentity(&v1.Identity{})
-	assert.Equal(t, kubelabels.Set(nil), actual)
-
-	actual = ForServiceAccountWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "any"}})
-	expected := kubelabels.Set{"azure.workload.identity/use": "true"}
-	assert.Equal(t, expected, actual)
-}
-
-func Test_ForOAuthProxyServiceAccountWithWorkloadIdentity(t *testing.T) {
-	actual := ForOauthProxyServiceAccountWithRadixIdentity(nil)
+func Test_ForOAuthProxyPodWithRadixIdentityWithWorkloadIdentity(t *testing.T) {
+	actual := ForOAuthProxyPodWithRadixIdentity(nil)
 	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when there is no OAuth2")
 
-	actual = ForOauthProxyServiceAccountWithRadixIdentity(&v1.OAuth2{})
+	actual = ForOAuthProxyPodWithRadixIdentity(&v1.OAuth2{})
 	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when there is no Credentials")
 
-	actual = ForOauthProxyServiceAccountWithRadixIdentity(&v1.OAuth2{Credentials: v1.Secret, ClientID: "any-client-id"})
+	actual = ForOAuthProxyPodWithRadixIdentity(&v1.OAuth2{Credentials: v1.Secret, ClientID: "any-client-id"})
 	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when Credentials is Secret")
 
-	actual = ForOauthProxyServiceAccountWithRadixIdentity(&v1.OAuth2{Credentials: v1.AzureWorkloadIdentity, ClientID: "any-client-id"})
+	actual = ForOAuthProxyPodWithRadixIdentity(&v1.OAuth2{Credentials: v1.AzureWorkloadIdentity, ClientID: "any-client-id"})
 	expected := kubelabels.Set{"azure.workload.identity/use": "true"}
 	assert.Equal(t, expected, actual, "Expected labels when Credentials is AzureWorkloadIdentity")
 }

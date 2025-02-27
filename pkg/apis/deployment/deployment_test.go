@@ -1048,7 +1048,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		sa := serviceAccounts.Items[0]
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
 		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
-		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true"}, sa.Labels)
 
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
@@ -1072,7 +1072,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		sa = serviceAccounts.Items[0]
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
 		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": newClientId}, sa.Annotations)
-		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true"}, sa.Labels)
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
@@ -1141,7 +1141,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		sa := serviceAccounts.Items[0]
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
 		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
-		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true"}, sa.Labels)
 	})
 
 	t.Run("component removed, custom SA is garbage collected", func(t *testing.T) {
