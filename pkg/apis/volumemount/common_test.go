@@ -504,7 +504,7 @@ func getMountOptions(props expectedPvcPvProperties, extraOptions ...string) []st
 		options = append(options, idOption)
 	}
 	if props.radixVolumeMountType == radixv1.MountTypeBlobFuse2Fuse2CsiAzure {
-		options = append(options, fmt.Sprintf("--%s=%v", csiMountOptionUseAdls, false))
+		options = append(options, fmt.Sprintf("--use-adls=%v", false))
 	}
 	return append(options, extraOptions...)
 }

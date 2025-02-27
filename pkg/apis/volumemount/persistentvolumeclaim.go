@@ -6,16 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// GetPersistentVolumeClaimMap Get map from PersistentVolumeClaim with name as key
-func GetPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim) map[string]*corev1.PersistentVolumeClaim {
-	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
-	for _, pvc := range *pvcList {
-		pvc := pvc
-		pvcMap[pvc.Name] = &pvc
-	}
-	return pvcMap
-}
-
 // EqualPersistentVolumeClaims Compare two PersistentVolumeClaims
 func EqualPersistentVolumeClaims(pvc1, pvc2 *corev1.PersistentVolumeClaim) bool {
 	if pvc1 == nil || pvc2 == nil {

@@ -9,10 +9,6 @@ const (
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<randomstring5>
 	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-<guid>
 
-	csiMountOptionGid     = "gid"      // Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
-	csiMountOptionUid     = "uid"      // Volume mount owner UserID. Used instead of GroupID
-	csiMountOptionUseAdls = "use-adls" // Use ADLS or Block Blob
-
 	csiVolumeAttributeProtocolParameterFuse  = "fuse"  // Protocol "blobfuse"
 	csiVolumeAttributeProtocolParameterFuse2 = "fuse2" // Protocol "blobfuse2"
 	csiVolumeAttributeStorageAccount         = "storageAccount"

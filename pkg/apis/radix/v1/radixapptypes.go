@@ -1003,6 +1003,59 @@ type RadixVolumeMount struct {
 	EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
 }
 
+func (v *RadixVolumeMount) GetStorageContainerName() string {
+	switch {
+	case v.HasDeprecatedVolume():
+		//nolint:staticcheck
+		return v.Storage
+	case v.HasBlobFuse2():
+		return v.BlobFuse2.Container
+	default:
+		return ""
+	}
+}
+
+func (v *RadixVolumeMount) GetGID() string {
+	switch {
+	case v.HasDeprecatedVolume():
+		return v.GID
+	case v.HasBlobFuse2():
+		return v.BlobFuse2.GID
+	default:
+		return ""
+	}
+}
+
+func (v *RadixVolumeMount) GetUID() string {
+	switch {
+	case v.HasDeprecatedVolume():
+		return v.UID
+	case v.HasBlobFuse2():
+		return v.BlobFuse2.UID
+	default:
+		return ""
+	}
+}
+
+func (v *RadixVolumeMount) GetVolumeMountType() MountType {
+	if v == nil {
+		return ""
+	}
+
+	if v.HasDeprecatedVolume() {
+		//nolint:staticcheck
+		return v.Type
+	}
+
+	if v.HasBlobFuse2() {
+		if v.BlobFuse2.Protocol == BlobFuse2ProtocolFuse2 || v.BlobFuse2.Protocol == "" {
+			return MountTypeBlobFuse2Fuse2CsiAzure
+		}
+	}
+
+	return "unsupported"
+}
+
 // HasDeprecatedVolume returns true if the volume mount is configured to use the deprecated volume type
 func (v *RadixVolumeMount) HasDeprecatedVolume() bool {
 	return len(v.Type) > 0
@@ -1074,6 +1127,7 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
+	// Deprecated: HAs no effect anymore.
 	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""

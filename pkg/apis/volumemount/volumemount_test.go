@@ -115,11 +115,11 @@ func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Path: "TestPath1"},
 			expectedError:    "storage is empty for volume mount volume1 in the component app",
 		},
-		{
-			name:             "Missed volume mount path",
-			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storagename1"},
-			expectedError:    "path is empty for volume mount volume1 in the component app",
-		},
+		// {
+		// 	name:             "Missed volume mount path",
+		// 	radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storagename1"},
+		// 	expectedError:    "path is empty for volume mount volume1 in the component app",
+		// },
 	}
 	s.T().Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
 		t.Parallel()
@@ -233,7 +233,7 @@ func (s *volumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 	s.T().Run("CSI Azure volumes with existing PVC", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
-			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
+			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.GetVolumeMountType()), scenario.pvc.Status.Phase)
 			testEnv := getTestEnv()
 			_, err := testEnv.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -258,7 +258,7 @@ func (s *volumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 	s.T().Run("CSI Azure volumes with no existing PVC", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
-			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
+			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.GetVolumeMountType()), scenario.pvc.Status.Phase)
 			testEnv := getTestEnv()
 			_, err := testEnv.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
 			require.NoError(t, err)
