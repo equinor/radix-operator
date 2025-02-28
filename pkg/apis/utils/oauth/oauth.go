@@ -6,7 +6,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -31,7 +30,7 @@ func SanitizePathPrefix(prefix string) string {
 
 // GetAuxAuthProxyIngressName Get an ingress name for the auxiliary OAuth proxy component
 func GetAuxAuthProxyIngressName(sourceIngressName string) string {
-	return fmt.Sprintf("%s-%s", sourceIngressName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	return fmt.Sprintf("%s-%s", sourceIngressName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 }
 
 // MergeAuxComponentResourceLabels  Merge labels for object and aux OAuth proxy

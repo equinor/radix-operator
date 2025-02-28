@@ -291,9 +291,9 @@ func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
 				"alias1.custom-alias": {appName: appName1, envName: envName1,
 					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
 					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				fmt.Sprintf("alias1.custom-alias-%s", defaults.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1,
+				fmt.Sprintf("alias1.custom-alias-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1,
 					labels: getLabelsForAuxComponentDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, defaults.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, radixv1.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
 			},
 		},
 		{
@@ -304,9 +304,9 @@ func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
 				"alias1.custom-alias": {appName: appName1, envName: envName1,
 					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
 					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				fmt.Sprintf("alias1.custom-alias-%s", defaults.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1,
+				fmt.Sprintf("alias1.custom-alias-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1,
 					labels: getLabelsForAuxComponentDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, defaults.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
+					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, radixv1.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
 			},
 			expectedIngress: map[string]testIngress{
 				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
@@ -769,7 +769,7 @@ func getLabelsForAuxComponentDNSAliasIngress(appName, componentName, alias strin
 	return kubelabels.Set{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     componentName,
-		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
 		kube.RadixAliasLabel:                  alias,
 	}
 }

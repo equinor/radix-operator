@@ -678,7 +678,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				existingPvs: []corev1.PersistentVolume{},
 				expectedPvs: []corev1.PersistentVolume{
 					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-						pv.Spec.MountOptions = getMountOptions(props, "--streaming=true", "--block-cache-pool-size=250", "--use-adls=false")
+						pv.Spec.MountOptions = getMountOptions(props, "--streaming=true", "--block-cache-pool-size=750", "--use-adls=false")
 					}),
 				},
 			}

@@ -89,15 +89,15 @@ func verifyServiceAccountForOAuthProxyComponentCanBeApplied(ctx context.Context,
 }
 
 func buildServiceAccountForComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
-	labels := getComponentServiceAccountLabels(component)
+	labels := getComponentServiceAccountLabels(component.GetName())
 	name := utils.GetComponentServiceAccountName(component.GetName())
 	return buildServiceAccount(namespace, name, labels, component.GetIdentity().GetAzure().GetClientId())
 }
 
 func buildServiceAccountForOAuthProxyComponent(namespace string, component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
-	labels := getOAuthProxyComponentServiceAccountLabels(component)
-	name := utils.GetOAuthProxyServiceAccountName(component.GetName())
-	return buildServiceAccount(namespace, name, labels, component.GetAuthentication().GetOAuth2().GetClientID())
+	labels := radixlabels.ForOAuthProxyComponentServiceAccount(component)
+	oauth2 := component.GetAuthentication().GetOAuth2()
+	return buildServiceAccount(namespace, oauth2.GetServiceAccountName(component.GetName()), labels, oauth2.GetClientID())
 }
 
 func buildServiceAccount(namespace, name string, labels kubelabels.Set, identityClientId string) *corev1.ServiceAccount {
@@ -120,7 +120,7 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 		return nil
 	}
 
-	serviceAccountList, err := deploy.kubeutil.ListServiceAccountsWithSelector(ctx, deploy.radixDeployment.Namespace, getComponentServiceAccountIdentifier(component.GetName()).AsSelector().String())
+	serviceAccountList, err := deploy.kubeutil.ListServiceAccountsWithSelector(ctx, deploy.radixDeployment.Namespace, getComponentServiceAccountLabels(component.GetName()).AsSelector().String())
 	if err != nil {
 		return err
 	}
@@ -202,21 +202,7 @@ func componentRequiresServiceAccount(component radixv1.RadixCommonDeployComponen
 	return identity != nil && identity.Azure != nil
 }
 
-func getComponentServiceAccountLabels(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return radixlabels.Merge(
-		getComponentServiceAccountIdentifier(component.GetName()),
-		radixlabels.ForServiceAccountWithRadixIdentity(component.GetIdentity()),
-	)
-}
-
-func getOAuthProxyComponentServiceAccountLabels(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return radixlabels.Merge(
-		radixlabels.ForOAuthProxyComponentServiceAccount(component),
-		radixlabels.ForOauthProxyServiceAccountWithRadixIdentity(component.GetAuthentication().GetOAuth2()),
-	)
-}
-
-func getComponentServiceAccountIdentifier(componentName string) kubelabels.Set {
+func getComponentServiceAccountLabels(componentName string) kubelabels.Set {
 	return radixlabels.Merge(
 		radixlabels.ForComponentName(componentName),
 		radixlabels.ForServiceAccountIsForComponent(),
@@ -228,7 +214,7 @@ func getComponentServiceAccountAnnotations(identityClientId string) map[string]s
 }
 
 func isServiceAccountForComponent(sa *corev1.ServiceAccount, componentName string) bool {
-	return getComponentServiceAccountIdentifier(componentName).AsSelector().Matches(kubelabels.Set(sa.Labels))
+	return getComponentServiceAccountLabels(componentName).AsSelector().Matches(kubelabels.Set(sa.Labels))
 }
 
 func isServiceAccountForOAuthProxyComponent(sa *corev1.ServiceAccount, component radixv1.RadixCommonDeployComponent) bool {
