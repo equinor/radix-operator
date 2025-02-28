@@ -1399,7 +1399,7 @@
                                 "type": "object"
                               },
                               "bindingMode": {
-                                "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                                "description": "Deprecated: HAs no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                                 "enum": [
                                   "Immediate",
                                   "WaitForFirstConsumer",
@@ -1411,7 +1411,7 @@
                                 "description": "Configure block cache settings.",
                                 "properties": {
                                   "blockSize": {
-                                    "description": "Size (in MB) of a block to be downloaded as a unit.",
+                                    "description": "Size (in MB) of a block to be downloaded as a unit. Default is 16.",
                                     "format": "int32",
                                     "minimum": 1,
                                     "type": "integer"
@@ -1491,8 +1491,17 @@
                                 "type": "string"
                               },
                               "requestsStorage": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ],
                                 "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
-                                "type": "string"
+                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                "x-kubernetes-int-or-string": true
                               },
                               "resourceGroup": {
                                 "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
@@ -1621,8 +1630,17 @@
                             "type": "string"
                           },
                           "requestsStorage": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ],
                             "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "type": "string"
+                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                            "x-kubernetes-int-or-string": true
                           },
                           "skuName": {
                             "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -2718,7 +2736,7 @@
                           "type": "object"
                         },
                         "bindingMode": {
-                          "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                          "description": "Deprecated: HAs no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                           "enum": [
                             "Immediate",
                             "WaitForFirstConsumer",
@@ -2730,7 +2748,7 @@
                           "description": "Configure block cache settings.",
                           "properties": {
                             "blockSize": {
-                              "description": "Size (in MB) of a block to be downloaded as a unit.",
+                              "description": "Size (in MB) of a block to be downloaded as a unit. Default is 16.",
                               "format": "int32",
                               "minimum": 1,
                               "type": "integer"
@@ -2810,8 +2828,17 @@
                           "type": "string"
                         },
                         "requestsStorage": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "string"
+                            }
+                          ],
                           "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
-                          "type": "string"
+                          "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                          "x-kubernetes-int-or-string": true
                         },
                         "resourceGroup": {
                           "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
@@ -2940,8 +2967,17 @@
                       "type": "string"
                     },
                     "requestsStorage": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "type": "string"
+                      "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                      "x-kubernetes-int-or-string": true
                     },
                     "skuName": {
                       "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -3724,7 +3760,7 @@
                                 "type": "object"
                               },
                               "bindingMode": {
-                                "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                                "description": "Deprecated: HAs no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                                 "enum": [
                                   "Immediate",
                                   "WaitForFirstConsumer",
@@ -3736,7 +3772,7 @@
                                 "description": "Configure block cache settings.",
                                 "properties": {
                                   "blockSize": {
-                                    "description": "Size (in MB) of a block to be downloaded as a unit.",
+                                    "description": "Size (in MB) of a block to be downloaded as a unit. Default is 16.",
                                     "format": "int32",
                                     "minimum": 1,
                                     "type": "integer"
@@ -3816,8 +3852,17 @@
                                 "type": "string"
                               },
                               "requestsStorage": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ],
                                 "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
-                                "type": "string"
+                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                "x-kubernetes-int-or-string": true
                               },
                               "resourceGroup": {
                                 "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
@@ -3946,8 +3991,17 @@
                             "type": "string"
                           },
                           "requestsStorage": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ],
                             "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "type": "string"
+                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                            "x-kubernetes-int-or-string": true
                           },
                           "skuName": {
                             "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -4399,7 +4453,7 @@
                           "type": "object"
                         },
                         "bindingMode": {
-                          "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                          "description": "Deprecated: HAs no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                           "enum": [
                             "Immediate",
                             "WaitForFirstConsumer",
@@ -4411,7 +4465,7 @@
                           "description": "Configure block cache settings.",
                           "properties": {
                             "blockSize": {
-                              "description": "Size (in MB) of a block to be downloaded as a unit.",
+                              "description": "Size (in MB) of a block to be downloaded as a unit. Default is 16.",
                               "format": "int32",
                               "minimum": 1,
                               "type": "integer"
@@ -4491,8 +4545,17 @@
                           "type": "string"
                         },
                         "requestsStorage": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "string"
+                            }
+                          ],
                           "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
-                          "type": "string"
+                          "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                          "x-kubernetes-int-or-string": true
                         },
                         "resourceGroup": {
                           "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
@@ -4621,8 +4684,17 @@
                       "type": "string"
                     },
                     "requestsStorage": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
                       "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "type": "string"
+                      "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                      "x-kubernetes-int-or-string": true
                     },
                     "skuName": {
                       "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",

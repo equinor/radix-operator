@@ -1421,24 +1421,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: nil,
 		},
-		"blobfuse2: valid requestsStorage": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-							Container:       "any-container",
-							RequestsStorage: "50Mi",
-						},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
-		},
 		"blobfuse2: invalid protocol": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
@@ -1471,24 +1453,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
-		},
-		"blobfuse2: invalid requestsStorage": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-							Container:       "any-container",
-							RequestsStorage: "100x",
-						},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountInvalidRequestsStorage,
 		},
 		"blobfuse2: has optional storage account": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -2441,7 +2405,10 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 }
 
 func createValidRA() *radixv1.RadixApplication {
-	validRA, _ := utils.GetRadixApplicationFromFile("testdata/radixconfig.yaml")
+	validRA, err := utils.GetRadixApplicationFromFile("testdata/radixconfig.yaml")
+	if err != nil {
+		panic(err)
+	}
 
 	return validRA
 }

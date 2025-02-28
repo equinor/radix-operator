@@ -6,8 +6,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// EqualPersistentVolumeClaims Compare two PersistentVolumeClaims
-func EqualPersistentVolumeClaims(pvc1, pvc2 *corev1.PersistentVolumeClaim) bool {
+// ComparePersistentVolumeClaims Compare two PersistentVolumeClaims
+func ComparePersistentVolumeClaims(pvc1, pvc2 *corev1.PersistentVolumeClaim) bool {
 	if pvc1 == nil || pvc2 == nil {
 		return false
 	}
@@ -17,6 +17,7 @@ func EqualPersistentVolumeClaims(pvc1, pvc2 *corev1.PersistentVolumeClaim) bool 
 	if !utils.EqualStringMaps(pvc1.GetLabels(), pvc2.GetLabels()) {
 		return false
 	}
+
 	pvc1StorageCapacity, existsPvc1StorageCapacity := pvc1.Spec.Resources.Requests[corev1.ResourceStorage]
 	pvc2StorageCapacity, existsPvc2StorageCapacity := pvc2.Spec.Resources.Requests[corev1.ResourceStorage]
 	if (existsPvc1StorageCapacity != existsPvc2StorageCapacity) ||

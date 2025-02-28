@@ -233,7 +233,7 @@ func (s *pvTestSuite) Test_EqualPersistentVolumes() {
 
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
-			if got := EqualPersistentVolumes(tt.pv1, tt.pv2); got != tt.expected {
+			if got := ComparePersistentVolumes(tt.pv1, tt.pv2); got != tt.expected {
 				s.T().Errorf("EqualPersistentVolumes() = %v, want %v", got, tt.expected)
 			}
 		})

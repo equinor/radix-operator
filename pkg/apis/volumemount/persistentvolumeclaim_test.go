@@ -157,7 +157,7 @@ func (s *pvcTestSuite) Test_EqualPersistentVolumeClaims() {
 
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
-			if got := EqualPersistentVolumeClaims(tt.pvc1, tt.pvc2); got != tt.expected {
+			if got := ComparePersistentVolumeClaims(tt.pvc1, tt.pvc2); got != tt.expected {
 				s.T().Errorf("EqualPersistentVolumeClaims() = %v, want %v", got, tt.expected)
 			}
 		})

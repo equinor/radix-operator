@@ -980,7 +980,7 @@ type RadixVolumeMount struct {
 	// Deprecated: use BlobFuse2 instead.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +optional
-	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+	RequestsStorage resource.Quantity `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
 	// Deprecated: use BlobFuse2 instead.
 	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
@@ -1001,6 +1001,18 @@ type RadixVolumeMount struct {
 
 	// EmptyDir settings for EmptyDir volume
 	EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
+}
+
+func (v *RadixVolumeMount) GetRequestsStorage() resource.Quantity {
+	switch {
+	case v.HasDeprecatedVolume():
+		//nolint:staticcheck
+		return v.RequestsStorage
+	case v.HasBlobFuse2():
+		return v.BlobFuse2.RequestsStorage
+	default:
+		return resource.Quantity{}
+	}
 }
 
 func (v *RadixVolumeMount) GetStorageContainerName() string {
@@ -1119,7 +1131,7 @@ type RadixBlobFuse2VolumeMount struct {
 	// Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
 	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 	// +optional
-	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+	RequestsStorage resource.Quantity `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
 	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
@@ -1204,7 +1216,7 @@ type BlobFuse2AttributeCacheOptions struct {
 
 // BlobFuse2BlockCacheOptions defines options for block cache
 type BlobFuse2BlockCacheOptions struct {
-	// Size (in MB) of a block to be downloaded as a unit.
+	// Size (in MB) of a block to be downloaded as a unit. Default is 16.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	BlockSize *uint32 `json:"blockSize,omitempty"`

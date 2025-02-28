@@ -670,7 +670,7 @@ func equalPersistentVolumes(expectedPvs, actualPvs *[]v1.PersistentVolume) bool 
 	}
 	for _, expectedPv := range *expectedPvs {
 		for _, actualPv := range *actualPvs {
-			if EqualPersistentVolumes(&expectedPv, &actualPv) {
+			if ComparePersistentVolumes(&expectedPv, &actualPv) {
 				return true
 			}
 		}
@@ -686,7 +686,7 @@ func equalPersistentVolumeClaims(list1, list2 *[]v1.PersistentVolumeClaim) bool 
 		var hasEqualPvc bool
 		for _, pvc2 := range *list2 {
 			if internal.EqualTillPostfix(pvc1.GetName(), pvc2.GetName(), nameRandPartLength) &&
-				EqualPersistentVolumeClaims(&pvc1, &pvc2) {
+				ComparePersistentVolumeClaims(&pvc1, &pvc2) {
 				hasEqualPvc = true
 				break
 			}

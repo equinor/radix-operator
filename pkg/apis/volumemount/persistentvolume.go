@@ -9,8 +9,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// EqualPersistentVolumes Compare two PersistentVolumes
-func EqualPersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
+// ComparePersistentVolumes Compare two PersistentVolumes
+func ComparePersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	if pv1 == nil || pv2 == nil || pv1.Spec.CSI == nil || pv2.Spec.CSI == nil {
 		return false
 	}

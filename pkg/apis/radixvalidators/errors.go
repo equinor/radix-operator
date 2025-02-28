@@ -50,7 +50,6 @@ var (
 	ErrVolumeMountMissingStorage                                           = errors.New("storage not set")
 	ErrVolumeMountMissingContainer                                         = errors.New("container not set")
 	ErrVolumeMountInvalidProtocol                                          = errors.New("invalid protocol")
-	ErrVolumeMountInvalidRequestsStorage                                   = errors.New("requestsStorage is invalid")
 	ErrVolumeMountInvalidStorageAccount                                    = errors.New("storage account is invalid")
 	ErrVolumeMountMissingAzureIdentity                                     = errors.New("missing component Azure identity")
 	ErrVolumeMountMissingSizeLimit                                         = errors.New("sizeLimit is not set")
