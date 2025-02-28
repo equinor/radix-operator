@@ -17,6 +17,7 @@ var (
 	booleanPointerTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
+// GetRadixComponentsForEnv Get Radix app components for the environment
 func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	var deployComponents []radixv1.RadixDeployComponent
@@ -249,6 +250,7 @@ func getRadixComponentAuthentication(radixComponent *radixv1.RadixComponent, env
 	return GetAuthenticationForComponent(radixComponent.Authentication, environmentAuthentication)
 }
 
+// GetAuthenticationForComponent Gets the authentication for the component in the environment
 func GetAuthenticationForComponent(componentAuthentication *radixv1.Authentication, environmentAuthentication *radixv1.Authentication) (auth *radixv1.Authentication, err error) {
 	// mergo uses the reflect package, and reflect use panic() when errors are detected
 	// We handle panics to prevent process termination even if the RD will be re-queued forever (until a new RD is built)

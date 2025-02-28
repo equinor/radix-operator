@@ -931,106 +931,105 @@ func TestPromote_PromoteToOtherEnvironment_VolumeMounts(t *testing.T) {
 		},
 	}
 
-	scenario := scenarios[6]
-	//for _, scenario := range scenarios {
-	//	t.Run(scenario.name, func(t *testing.T) {
-	kubeClient, kubeUtil, radixClient, commonTestUtils := setupTest(t)
-	var componentEnvironmentConfigs []utils.RadixEnvironmentConfigBuilder
-	var jobEnvironmentConfigs []utils.RadixJobComponentEnvironmentConfigBuilder
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			kubeClient, kubeUtil, radixClient, commonTestUtils := setupTest(t)
+			var componentEnvironmentConfigs []utils.RadixEnvironmentConfigBuilder
+			var jobEnvironmentConfigs []utils.RadixJobComponentEnvironmentConfigBuilder
 
-	if scenario.configureEnvironment {
-		componentEnvironmentConfigs = append(componentEnvironmentConfigs, utils.AnEnvironmentConfig().WithEnvironment(anyTargetEnvironment))
+			if scenario.configureEnvironment {
+				componentEnvironmentConfigs = append(componentEnvironmentConfigs, utils.AnEnvironmentConfig().WithEnvironment(anyTargetEnvironment))
+			}
+
+			raComponentBuilder := utils.AnApplicationComponent().WithName(anyComponentName).
+				WithEnvironmentConfigs(componentEnvironmentConfigs...)
+			raJobComponentBuilder := utils.AnApplicationJobComponent().WithName(anyJobComponentName).WithSchedulerPort(numbers.Int32Ptr(8888)).WithPayloadPath(utils.StringPtr("/path")).
+				WithEnvironmentConfigs(jobEnvironmentConfigs...)
+			raBuilder := utils.NewRadixApplicationBuilder().
+				WithRadixRegistration(utils.ARadixRegistration().WithName(anyApp)).
+				WithAppName(anyApp).
+				WithEnvironment(anySourceEnvironment, "").
+				WithEnvironment(anyTargetEnvironment, "").
+				WithComponents(raComponentBuilder).
+				WithJobComponents(raJobComponentBuilder)
+
+			rdComponentBuilder := utils.NewDeployComponentBuilder().WithName(anyComponentName)
+			rdJobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName)
+			sourceRdBuilder := utils.NewDeploymentBuilder().
+				WithAppName(anyApp).
+				WithComponents(rdComponentBuilder).
+				WithJobComponents(rdJobComponentBuilder).
+				WithDeploymentName(anySourceDeploymentName).
+				WithEnvironment(anySourceEnvironment).
+				WithImageTag(anySourceImageTag).WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
+				WithRadixApplication(raBuilder)
+
+			targetRdComponentBuilder := utils.NewDeployComponentBuilder().WithName(anyComponentName)
+			targetRdJobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName)
+			targetActiveRdBuilder := utils.NewDeploymentBuilder().
+				WithAppName(anyApp).
+				WithComponents(targetRdComponentBuilder).
+				WithJobComponents(targetRdJobComponentBuilder).
+				WithDeploymentName(utils.RandString(10)).
+				WithEnvironment(anyTargetEnvironment).
+				WithImageTag(utils.RandString(5)).WithLabel(kube.RadixJobNameLabel, utils.RandString(10)).
+				WithRadixApplication(raBuilder)
+
+			raComponentBuilder.WithVolumeMounts(scenario.appVolumeMounts)
+			raJobComponentBuilder.WithVolumeMounts(scenario.appVolumeMounts)
+			rdComponentBuilder.WithVolumeMounts(scenario.componentVolumeMounts...)
+			rdJobComponentBuilder.WithVolumeMounts(scenario.jobComponentVolumeMounts...)
+			targetRdComponentBuilder.WithVolumeMounts(scenario.activeRdComponentVolumeMounts...)
+			targetRdJobComponentBuilder.WithVolumeMounts(scenario.activeRdComponentVolumeMounts...)
+
+			commonTest.CreateAppNamespace(kubeClient, anyApp)
+			commonTest.CreateEnvNamespace(kubeClient, anyApp, anySourceEnvironment)
+			commonTest.CreateEnvNamespace(kubeClient, anyApp, anyTargetEnvironment)
+
+			if scenario.existsActiveRdComponent || len(scenario.activeRdComponentVolumeMounts) > 0 {
+				_, err := commonTestUtils.ApplyDeployment(context.Background(), targetActiveRdBuilder)
+				require.NoError(t, err)
+			}
+			_, err := commonTestUtils.ApplyDeployment(context.Background(), sourceRdBuilder)
+			require.NoError(t, err)
+			rr, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
+			require.NoError(t, err)
+			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
+			require.NoError(t, err)
+
+			promoteStep := promote.NewPromoteStep()
+			promoteStep.Init(context.Background(), kubeClient, radixClient, kubeUtil, &monitoring.Clientset{}, rr)
+
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					FromEnvironment: anySourceEnvironment,
+					ToEnvironment:   anyTargetEnvironment,
+					DeploymentName:  anySourceDeploymentName,
+					JobName:         anyPromotePipelineJobName,
+					ImageTag:        anySourceImageTag,
+					CommitID:        anySourceCommitID,
+				},
+			}
+			applicationConfig := application.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, nil)
+			pipelineInfo.SetApplicationConfig(applicationConfig)
+			err = promoteStep.Run(context.Background(), pipelineInfo)
+			require.NoError(t, err)
+
+			rds2, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anySourceEnvironment)).List(context.Background(), metav1.ListOptions{})
+			require.Equal(t, 1, len(rds2.Items))
+			rds, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyTargetEnvironment)).List(context.Background(), metav1.ListOptions{})
+			var actualDeployment v1.RadixDeployment
+			if scenario.existsActiveRdComponent || len(scenario.activeRdComponentVolumeMounts) > 0 {
+				require.Equal(t, 2, len(rds.Items))
+				actualDeployment = rds.Items[1]
+			} else {
+				require.Equal(t, 1, len(rds.Items))
+				actualDeployment = rds.Items[0]
+			}
+			assert.Equal(t, scenario.componentVolumeMounts, actualDeployment.Spec.Components[0].VolumeMounts)
+			assert.Equal(t, scenario.jobComponentVolumeMounts, actualDeployment.Spec.Jobs[0].VolumeMounts)
+		})
 	}
-
-	raComponentBuilder := utils.AnApplicationComponent().WithName(anyComponentName).
-		WithEnvironmentConfigs(componentEnvironmentConfigs...)
-	raJobComponentBuilder := utils.AnApplicationJobComponent().WithName(anyJobComponentName).WithSchedulerPort(numbers.Int32Ptr(8888)).WithPayloadPath(utils.StringPtr("/path")).
-		WithEnvironmentConfigs(jobEnvironmentConfigs...)
-	raBuilder := utils.NewRadixApplicationBuilder().
-		WithRadixRegistration(utils.ARadixRegistration().WithName(anyApp)).
-		WithAppName(anyApp).
-		WithEnvironment(anySourceEnvironment, "").
-		WithEnvironment(anyTargetEnvironment, "").
-		WithComponents(raComponentBuilder).
-		WithJobComponents(raJobComponentBuilder)
-
-	rdComponentBuilder := utils.NewDeployComponentBuilder().WithName(anyComponentName)
-	rdJobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName)
-	sourceRdBuilder := utils.NewDeploymentBuilder().
-		WithAppName(anyApp).
-		WithComponents(rdComponentBuilder).
-		WithJobComponents(rdJobComponentBuilder).
-		WithDeploymentName(anySourceDeploymentName).
-		WithEnvironment(anySourceEnvironment).
-		WithImageTag(anySourceImageTag).WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
-		WithRadixApplication(raBuilder)
-
-	targetRdComponentBuilder := utils.NewDeployComponentBuilder().WithName(anyComponentName)
-	targetRdJobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(anyJobComponentName)
-	targetActiveRdBuilder := utils.NewDeploymentBuilder().
-		WithAppName(anyApp).
-		WithComponents(targetRdComponentBuilder).
-		WithJobComponents(targetRdJobComponentBuilder).
-		WithDeploymentName(utils.RandString(10)).
-		WithEnvironment(anyTargetEnvironment).
-		WithImageTag(utils.RandString(5)).WithLabel(kube.RadixJobNameLabel, utils.RandString(10)).
-		WithRadixApplication(raBuilder)
-
-	raComponentBuilder.WithVolumeMounts(scenario.appVolumeMounts)
-	raJobComponentBuilder.WithVolumeMounts(scenario.appVolumeMounts)
-	rdComponentBuilder.WithVolumeMounts(scenario.componentVolumeMounts...)
-	rdJobComponentBuilder.WithVolumeMounts(scenario.jobComponentVolumeMounts...)
-	targetRdComponentBuilder.WithVolumeMounts(scenario.activeRdComponentVolumeMounts...)
-	targetRdJobComponentBuilder.WithVolumeMounts(scenario.activeRdComponentVolumeMounts...)
-
-	commonTest.CreateAppNamespace(kubeClient, anyApp)
-	commonTest.CreateEnvNamespace(kubeClient, anyApp, anySourceEnvironment)
-	commonTest.CreateEnvNamespace(kubeClient, anyApp, anyTargetEnvironment)
-
-	if scenario.existsActiveRdComponent || len(scenario.activeRdComponentVolumeMounts) > 0 {
-		_, err := commonTestUtils.ApplyDeployment(context.Background(), targetActiveRdBuilder)
-		require.NoError(t, err)
-	}
-	_, err := commonTestUtils.ApplyDeployment(context.Background(), sourceRdBuilder)
-	require.NoError(t, err)
-	rr, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), anyApp, metav1.GetOptions{})
-	require.NoError(t, err)
-	ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
-	require.NoError(t, err)
-
-	promoteStep := promote.NewPromoteStep()
-	promoteStep.Init(context.Background(), kubeClient, radixClient, kubeUtil, &monitoring.Clientset{}, rr)
-
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anySourceEnvironment,
-			ToEnvironment:   anyTargetEnvironment,
-			DeploymentName:  anySourceDeploymentName,
-			JobName:         anyPromotePipelineJobName,
-			ImageTag:        anySourceImageTag,
-			CommitID:        anySourceCommitID,
-		},
-	}
-	applicationConfig := application.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, nil)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
-	err = promoteStep.Run(context.Background(), pipelineInfo)
-	require.NoError(t, err)
-
-	rds2, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anySourceEnvironment)).List(context.Background(), metav1.ListOptions{})
-	require.Equal(t, 1, len(rds2.Items))
-	rds, _ := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyTargetEnvironment)).List(context.Background(), metav1.ListOptions{})
-	var actualDeployment v1.RadixDeployment
-	if scenario.existsActiveRdComponent || len(scenario.activeRdComponentVolumeMounts) > 0 {
-		require.Equal(t, 2, len(rds.Items))
-		actualDeployment = rds.Items[1]
-	} else {
-		require.Equal(t, 1, len(rds.Items))
-		actualDeployment = rds.Items[0]
-	}
-	assert.Equal(t, scenario.componentVolumeMounts, actualDeployment.Spec.Components[0].VolumeMounts)
-	assert.Equal(t, scenario.jobComponentVolumeMounts, actualDeployment.Spec.Jobs[0].VolumeMounts)
-	//})
-	//}
 }
 
 func getTargetRaVm() v1.RadixVolumeMount {

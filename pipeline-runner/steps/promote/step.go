@@ -58,21 +58,18 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	}
 
 	log.Ctx(ctx).Info().Msgf("Promoting %s for application %s from %s to %s", pipelineInfo.PipelineArguments.DeploymentName, cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
-	err = areArgumentsValid(pipelineInfo.PipelineArguments)
-	if err != nil {
+	if err = areArgumentsValid(pipelineInfo.PipelineArguments); err != nil {
 		return err
 	}
 
 	fromNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
 	toNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
 
-	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(ctx, fromNs, metav1.GetOptions{})
-	if err != nil {
+	if _, err = cli.GetKubeclient().CoreV1().Namespaces().Get(ctx, fromNs, metav1.GetOptions{}); err != nil {
 		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
 	}
 
-	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(ctx, toNs, metav1.GetOptions{})
-	if err != nil {
+	if _, err = cli.GetKubeclient().CoreV1().Namespaces().Get(ctx, toNs, metav1.GetOptions{}); err != nil {
 		return NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
 	}
 
@@ -105,21 +102,14 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
-	if err != nil {
+	if err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment]); err != nil {
 		return err
 	}
-
-	err = radixvalidators.CanRadixDeploymentBeInserted(radixDeployment)
-	if err != nil {
+	if err = radixvalidators.CanRadixDeploymentBeInserted(radixDeployment); err != nil {
 		return err
 	}
-
-	if _, err := cli.GetRadixclient().RadixV1().RadixDeployments(toNs).Create(ctx, radixDeployment, metav1.CreateOptions{}); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = cli.GetRadixclient().RadixV1().RadixDeployments(toNs).Create(ctx, radixDeployment, metav1.CreateOptions{})
+	return err
 }
 
 func areArgumentsValid(arguments model.PipelineArguments) error {
