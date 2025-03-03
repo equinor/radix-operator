@@ -67,7 +67,8 @@ type radixApplicationComponentBuilder struct {
 	horizontalScaling    *radixv1.RadixHorizontalScaling
 	runtime              *radixv1.Runtime
 	network              *radixv1.Network
-	healtChecks          *radixv1.RadixHealthChecks
+	healthChecks         *radixv1.RadixHealthChecks
+	replicas             *int
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -81,7 +82,7 @@ func (rcb *radixApplicationComponentBuilder) WithAlwaysPullImageOnDeploy(val boo
 }
 
 func (rcb *radixApplicationComponentBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *radixv1.RadixProbe) RadixApplicationComponentBuilder {
-	rcb.healtChecks = &radixv1.RadixHealthChecks{
+	rcb.healthChecks = &radixv1.RadixHealthChecks{
 		LivenessProbe:  livenessProbe,
 		ReadinessProbe: readynessProbe,
 		StartupProbe:   startupProbe,
@@ -233,6 +234,11 @@ func (rcb *radixApplicationComponentBuilder) WithNetwork(network *radixv1.Networ
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithReplicas(replicas *int) RadixApplicationComponentBuilder {
+	rcb.replicas = replicas
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixComponent {
 	var environmentConfig = make([]radixv1.RadixEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -243,7 +249,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixCompo
 		Name:                    rcb.name,
 		SourceFolder:            rcb.sourceFolder,
 		DockerfileName:          rcb.dockerfileName,
-		HealthChecks:            rcb.healtChecks,
+		HealthChecks:            rcb.healthChecks,
 		Image:                   rcb.image,
 		Ports:                   rcb.ports,
 		Secrets:                 rcb.secrets,
@@ -267,6 +273,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixCompo
 		VolumeMounts:            rcb.volumeMounts,
 		Runtime:                 rcb.runtime,
 		Network:                 rcb.network,
+		Replicas:                rcb.replicas,
 	}
 }
 

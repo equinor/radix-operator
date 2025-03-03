@@ -353,6 +353,10 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 		errs = append(errs, EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, component.Name))
 	}
 
+	if err := validateReplica(component.Replicas, "component replicas"); err != nil {
+		errs = append(errs, err)
+	}
+
 	if err := validateReplica(environment.Replicas, "environment replicas"); err != nil {
 		errs = append(errs, err)
 	}
