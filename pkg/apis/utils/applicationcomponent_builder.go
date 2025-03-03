@@ -36,6 +36,7 @@ type RadixApplicationComponentBuilder interface {
 	WithHorizontalScaling(scaling *radixv1.RadixHorizontalScaling) RadixApplicationComponentBuilder
 	WithRuntime(runtime *radixv1.Runtime) RadixApplicationComponentBuilder
 	WithNetwork(network *radixv1.Network) RadixApplicationComponentBuilder
+	WithReplicas(replicas *int) RadixApplicationComponentBuilder
 	BuildComponent() radixv1.RadixComponent
 }
 
