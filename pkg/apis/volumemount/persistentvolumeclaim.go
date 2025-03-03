@@ -1,8 +1,9 @@
 package volumemount
 
 import (
-	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -14,7 +15,8 @@ func ComparePersistentVolumeClaims(pvc1, pvc2 *corev1.PersistentVolumeClaim) boo
 	if pvc1.GetNamespace() != pvc2.GetNamespace() {
 		return false
 	}
-	if !utils.EqualStringMaps(pvc1.GetLabels(), pvc2.GetLabels()) {
+
+	if !cmp.Equal(pvc1.GetLabels(), pvc2.GetLabels(), cmpopts.EquateEmpty()) {
 		return false
 	}
 

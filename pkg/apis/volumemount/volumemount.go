@@ -447,12 +447,6 @@ func getCsiAzurePvcs(ctx context.Context, kubeClient kubernetes.Interface, names
 	return kubeClient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 }
 
-func getVolumeHandle(namespace, componentName, pvName, storageName string) string {
-	// Specify a value the driver can use to uniquely identify the share in the cluster.
-	// https://github.com/kubernetes-csi/csi-driver-smb/blob/master/docs/driver-parameters.md#pvpvc-usage
-	return fmt.Sprintf("%s#%s#%s#%s", namespace, componentName, pvName, storageName)
-}
-
 func deletePvc(ctx context.Context, kubeClient kubernetes.Interface, namespace, pvcName string) error {
 	if len(namespace) == 0 || len(pvcName) == 0 {
 		log.Ctx(ctx).Debug().Msgf("Skip deleting PVC - namespace %s or name %s is empty", namespace, pvcName)

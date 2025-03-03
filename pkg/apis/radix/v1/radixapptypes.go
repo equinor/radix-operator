@@ -1027,28 +1027,6 @@ func (v *RadixVolumeMount) GetStorageContainerName() string {
 	}
 }
 
-func (v *RadixVolumeMount) GetGID() string {
-	switch {
-	case v.HasDeprecatedVolume():
-		return v.GID
-	case v.HasBlobFuse2():
-		return v.BlobFuse2.GID
-	default:
-		return ""
-	}
-}
-
-func (v *RadixVolumeMount) GetUID() string {
-	switch {
-	case v.HasDeprecatedVolume():
-		return v.UID
-	case v.HasBlobFuse2():
-		return v.BlobFuse2.UID
-	default:
-		return ""
-	}
-}
-
 func (v *RadixVolumeMount) GetVolumeMountType() MountType {
 	if v == nil {
 		return ""

@@ -413,7 +413,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Create new volume",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, nil),
@@ -448,7 +448,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Update storage in existing volume name and storage",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
 						vm.Name = scenarioProps.changedNewRadixVolumeName
 						vm.Storage = scenarioProps.changedNewRadixVolumeStorageName
 					}),
@@ -507,7 +507,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Set readonly volume",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, func(v *corev1.Volume) {}),
@@ -550,7 +550,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Set ReadWriteOnce volume",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteOnce) }),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteOnce) }),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, func(v *corev1.Volume) {}),
@@ -584,7 +584,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Set ReadWriteMany volume",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, func(v *corev1.Volume) {}),
@@ -630,7 +630,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Set ReadOnlyMany volume",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, func(v *corev1.Volume) {}),
@@ -678,7 +678,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				existingPvs: []corev1.PersistentVolume{},
 				expectedPvs: []corev1.PersistentVolume{
 					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-						pv.Spec.MountOptions = getMountOptions(props, "--streaming=true", "--block-cache-pool-size=750", "--use-adls=false")
+						pv.Spec.MountOptions = getMountOptions(props, "--streaming=true", "--block-cache-pool-size=750")
 					}),
 				},
 			}
@@ -716,7 +716,6 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 						pv.Spec.MountOptions = getMountOptions(props,
 							"--streaming=true",
 							"--block-cache-pool-size=101",
-							"--use-adls=false",
 						)
 					}),
 				},
@@ -754,8 +753,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				existingPvs: []corev1.PersistentVolume{},
 				expectedPvs: []corev1.PersistentVolume{
 					createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-						pv.Spec.MountOptions = getMountOptions(props,
-							"--use-adls=false")
+						pv.Spec.MountOptions = getMountOptions(props)
 					}),
 				},
 			}
@@ -780,7 +778,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
 					createRandomVolumeMount(func(vm *radixv1.RadixVolumeMount) { vm.Name = anotherVolumeMountName }),
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
 				},
 				volumes: []corev1.Volume{
 					volume,
@@ -817,7 +815,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Do not change existing PersistentVolume without class name, when creating new PVC",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, func(v *corev1.Volume) {}),
@@ -856,7 +854,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Do not change existing PVC with class name, when creating new PersistentVolume",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, func(v *corev1.Volume) {}),
@@ -893,7 +891,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				name:  "Create PV for existing PVC without PV name",
 				props: props,
 				radixVolumeMounts: []radixv1.RadixVolumeMount{
-					createRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
+					createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
 				},
 				volumes: []corev1.Volume{
 					createTestVolume(props, func(v *corev1.Volume) {

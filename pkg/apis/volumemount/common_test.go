@@ -415,7 +415,7 @@ func createPv(props expectedPvcPvProperties) *v1.PersistentVolume {
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				CSI: &v1.CSIPersistentVolumeSource{
 					Driver:       props.pvProvisioner,
-					VolumeHandle: getVolumeHandle(props.namespace, props.componentName, props.persistentVolumeName, props.blobStorageName),
+					VolumeHandle: uuid.New().String(), // Any value is valid
 					VolumeAttributes: map[string]string{
 						csiVolumeMountAttributeContainerName: props.blobStorageName,
 						csiVolumeMountAttributeProtocol:      csiVolumeAttributeProtocolParameterFuse2,
@@ -506,6 +506,7 @@ func getMountOptions(props expectedPvcPvProperties, extraOptions ...string) []st
 	if props.radixVolumeMountType == radixv1.MountTypeBlobFuse2Fuse2CsiAzure {
 		options = append(options, fmt.Sprintf("--use-adls=%v", false))
 	}
+
 	return append(options, extraOptions...)
 }
 
@@ -635,7 +636,7 @@ func createTestVolume(pvcProps expectedPvcPvProperties, modify func(v *v1.Volume
 	return volume
 }
 
-func createRadixVolumeMount(props expectedPvcPvProperties, modify func(mount *radixv1.RadixVolumeMount)) radixv1.RadixVolumeMount {
+func createDeprecatedRadixVolumeMount(props expectedPvcPvProperties, modify func(mount *radixv1.RadixVolumeMount)) radixv1.RadixVolumeMount {
 	volumeMount := radixv1.RadixVolumeMount{
 		Type:    props.radixVolumeMountType,
 		Name:    props.radixVolumeMountName,
