@@ -1402,6 +1402,10 @@ type OAuth2 struct {
 	// +kubebuilder:default:=secret
 	// +optional
 	Credentials CredentialsType `json:"credentials,omitempty"`
+
+	// SkipAuthRoutes defines routes that should not be authenticated.
+	// +optional
+	SkipAuthRoutes []string `json:"skipAuthRoutes,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie.
