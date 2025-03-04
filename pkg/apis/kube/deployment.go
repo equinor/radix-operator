@@ -33,7 +33,7 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 		log.Ctx(ctx).Debug().Msgf("No need to patch deployment: %s ", currentDeployment.GetName())
 		return nil
 	}
-	log.Ctx(ctx).Debug().Msgf("Patch: %s", string(patchBytes))
+	log.Ctx(ctx).Info().Msgf("Patch: %s", string(patchBytes))
 	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(ctx, currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to patch deployment object: %v", err)

@@ -405,6 +405,29 @@ func (s *volumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	})
 }
 
+func (s *volumeMountTestSuite) Test_DeprectaedVolumeMount_PersistentVolume_MountOptions() {
+	tests := map[string]struct {
+		volumeMount          radixv1.RadixVolumeMount
+		expectedMountOptions []string
+	}{
+		"": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Type: radixv1.MountTypeBlobFuse2FuseCsiAzure,
+			},
+			expectedMountOptions: []string{
+				"",
+			},
+		},
+	}
+
+	for testName, _ := range tests {
+		s.Run(testName, func() {
+
+		})
+	}
+
+}
+
 func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	var scenarios []deploymentVolumesTestScenario
 	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
@@ -1251,7 +1274,7 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				desiredVolumes := getDesiredDeployment(componentName1, scenario.volumes).Spec.Template.Spec.Volumes
 
 				deployComponent := radixDeployment.Spec.Components[0]
-				actualVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, utils.GetEnvironmentNamespace(appName1, envName1), &deployComponent, desiredVolumes)
+				actualVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, &deployComponent, desiredVolumes)
 				require.NoError(t, err)
 				assert.Equal(t, len(scenario.volumes), len(actualVolumes), "Number of volumes is not equal")
 

@@ -39,7 +39,7 @@ func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployCo
 			return err
 		}
 	}
-	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace(), deployComponent, desiredDeployment.Spec.Template.Spec.Volumes)
+	actualVolumes, err := volumemount.CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deployComponent, desiredDeployment.Spec.Template.Spec.Volumes)
 	if err != nil {
 		return err
 	}

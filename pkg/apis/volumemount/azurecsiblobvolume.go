@@ -25,7 +25,7 @@ var (
 
 // CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent Create or update CSI Azure volume resources for a DeployComponent - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
 // Returns actual volumes, with existing relevant PersistentVolumeClaimName and PersistentVolumeName
-func CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string, deployComponent radixv1.RadixCommonDeployComponent, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
+func CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	handler := azureCSIBlobResourceHandler{
 		kubeClient:      kubeClient,
 		radixDeployment: radixDeployment,
@@ -232,9 +232,9 @@ func (h *azureCSIBlobResourceHandler) buildPv(pvName, pvcName string, radixVolum
 	var specBuilder persistentVolumeSpecBuilder
 	switch {
 	case radixVolumeMount.HasBlobFuse2():
-		specBuilder = newBlobfuse2PersistentVolumeBuilder(h.radixDeployment.Spec.AppName, h.deployComponent, radixVolumeMount)
+		specBuilder = newBlobfuse2PersistentVolumeBuilder(h.radixDeployment.Spec.AppName, h.radixDeployment.Spec.Environment, h.deployComponent, radixVolumeMount)
 	case radixVolumeMount.HasDeprecatedVolume():
-		specBuilder = newDeprecatedPersistentVolumeSpecBuilder(h.radixDeployment.Spec.AppName, componentName, radixVolumeMount)
+		specBuilder = newDeprecatedPersistentVolumeSpecBuilder(h.radixDeployment.Spec.AppName, h.radixDeployment.Spec.Environment, h.deployComponent, radixVolumeMount)
 	}
 
 	pv := corev1.PersistentVolume{
@@ -242,7 +242,7 @@ func (h *azureCSIBlobResourceHandler) buildPv(pvName, pvcName string, radixVolum
 			Name:   pvName,
 			Labels: radixlabels.ForBlobCSIAzurePersistentVolume(h.radixDeployment.Spec.AppName, namespace, componentName, radixVolumeMount),
 		},
-		Spec: specBuilder.BuildSpec(pvName, pvcName, namespace),
+		Spec: specBuilder.BuildSpec(pvcName, namespace),
 	}
 
 	return &pv

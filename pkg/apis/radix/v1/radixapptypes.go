@@ -1186,7 +1186,7 @@ const (
 
 // BlobFuse2AttributeCacheOptions defines options for attribute cache
 type BlobFuse2AttributeCacheOptions struct {
-	// The timeout for the attribute cache entries.
+	// The timeout for the attribute cache entries. Default 0.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Timeout *uint32 `json:"timeout,omitempty"`
@@ -1208,7 +1208,7 @@ type BlobFuse2BlockCacheOptions struct {
 	PoolSize *uint32 `json:"poolSize,omitempty"`
 
 	// Size (in MB) of total disk capacity that block cache can use.
-	// 0 disables disk caching
+	// 0 (default) disables disk caching
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	DiskSize *uint32 `json:"diskSize,omitempty"`
@@ -1218,17 +1218,17 @@ type BlobFuse2BlockCacheOptions struct {
 	// +optional
 	DiskTimeout *uint32 `json:"diskTimeout,omitempty"`
 
-	// Max number of blocks to prefetch. Prefetching is disabled by default.
+	// Max number of blocks to prefetch. Default 0.
 	// Value must be 0 (prefetcing disabled) or greater or equal to 11.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	PrefetchCount *uint32 `json:"prefetchCount,omitempty"`
 
-	// Start prefetching on open or wait for first read.
+	// Start prefetching on open or wait for first read. Default false.
 	// +optional
 	PrefetchOnOpen *bool `json:"prefetchOnOpen,omitempty"`
 
-	// Number of worker thread responsible for upload/download jobs.
+	// Number of worker thread responsible for upload/download jobs. Default 8.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	Parallelism *uint32 `json:"parallelism,omitempty"`
