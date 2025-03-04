@@ -354,6 +354,12 @@ type RadixComponent struct {
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
+	// Number of desired replicas.
+	// More info: https://www.radix.equinor.com/radix-config#replicas
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	Replicas *int `json:"replicas,omitempty"`
+
 	// HealthChecks can tell Radix if your application is ready to receive traffic.
 	// Defaults to a TCP check against your first listed port.
 	// If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
@@ -1608,6 +1614,8 @@ type RadixCommonComponent interface {
 	GetName() string
 	// GetDockerfileName Gets component docker file name
 	GetDockerfileName() string
+	// GetReplicas Gets component replicas
+	GetReplicas() *int
 	// GetSourceFolder Gets component source folder
 	GetSourceFolder() string
 	// GetImage Gets component image
@@ -1664,6 +1672,10 @@ func (component *RadixComponent) GetName() string {
 
 func (component *RadixComponent) GetDockerfileName() string {
 	return component.DockerfileName
+}
+
+func (component *RadixComponent) GetReplicas() *int {
+	return component.Replicas
 }
 
 func (component *RadixComponent) GetSourceFolder() string {
@@ -1793,6 +1805,10 @@ func (component *RadixJobComponent) GetName() string {
 
 func (component *RadixJobComponent) GetDockerfileName() string {
 	return component.DockerfileName
+}
+
+func (component *RadixJobComponent) GetReplicas() *int {
+	return nil
 }
 
 func (component *RadixJobComponent) GetSourceFolder() string {

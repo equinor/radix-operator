@@ -107,6 +107,55 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 
 }
 
+func TestConstructForTargetEnvironments_PicksTheCorrectReplicas(t *testing.T) {
+	const (
+		envName1       = "env1"
+		envName2       = "env2"
+		componentName1 = "component1"
+	)
+	type scenario struct {
+		name                         string
+		componentReplicas            *int
+		environment1Replicas         *int
+		environment2Replicas         *int
+		expectedEnvironment1Replicas *int
+		expectedEnvironment2Replicas *int
+	}
+	scenarios := []scenario{
+		{name: "No replicas defined", componentReplicas: nil, environment1Replicas: nil, environment2Replicas: nil, expectedEnvironment1Replicas: nil, expectedEnvironment2Replicas: nil},
+		{name: "Env1 replica set", componentReplicas: nil, environment1Replicas: pointers.Ptr(2), environment2Replicas: nil, expectedEnvironment1Replicas: pointers.Ptr(2), expectedEnvironment2Replicas: nil},
+		{name: "Two environments replicas set", componentReplicas: nil, environment1Replicas: pointers.Ptr(2), environment2Replicas: pointers.Ptr(3), expectedEnvironment1Replicas: pointers.Ptr(2), expectedEnvironment2Replicas: pointers.Ptr(3)},
+		{name: "One environment gets replicas from a component", componentReplicas: pointers.Ptr(4), environment1Replicas: nil, environment2Replicas: pointers.Ptr(3), expectedEnvironment1Replicas: pointers.Ptr(4), expectedEnvironment2Replicas: pointers.Ptr(3)},
+	}
+	for _, ts := range scenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			ra := utils.ARadixApplication().
+				WithEnvironment(envName1, "main").
+				WithEnvironment(envName2, "dev").
+				WithComponents(
+					utils.AnApplicationComponent().
+						WithName(componentName1).
+						WithReplicas(ts.componentReplicas).
+						WithEnvironmentConfigs(
+							utils.AnEnvironmentConfig().
+								WithEnvironment(envName1).
+								WithReplicas(ts.environment1Replicas),
+							utils.AnEnvironmentConfig().
+								WithEnvironment(envName2).
+								WithReplicas(ts.environment2Replicas))).
+				BuildRA()
+
+			rdEnv1, err := ConstructForTargetEnvironment(context.Background(), ra, nil, "anyjob", "anyimageTag", "anybranch", "anycommit", "anytag", make(pipeline.DeployComponentImages), envName1, "anyhash", "anybuildsecrethash", nil, nil)
+			require.NoError(t, err)
+			assert.Equal(t, ts.expectedEnvironment1Replicas, rdEnv1.Spec.Components[0].Replicas, "Environment 1 Number of replicas wasn't as expected")
+
+			rdEnv2, err := ConstructForTargetEnvironment(context.Background(), ra, nil, "anyjob", "anyimageTag", "anybranch", "anycommit", "anytag", make(pipeline.DeployComponentImages), envName1, "anyhash", "anybuildsecrethash", nil, nil)
+			require.NoError(t, err)
+			assert.Equal(t, ts.expectedEnvironment1Replicas, rdEnv2.Spec.Components[0].Replicas, "Environment 2 Number of replicas wasn't as expected")
+		})
+	}
+}
+
 func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testing.T) {
 	ra := utils.ARadixApplication().
 		WithEnvironment("dev", "master").

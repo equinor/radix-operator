@@ -2442,6 +2442,12 @@ spec:
                     readOnlyFileSystem:
                       description: Controls if the filesystem shall be read-only.
                       type: boolean
+                    replicas:
+                      description: |-
+                        Number of desired replicas.
+                        More info: https://www.radix.equinor.com/radix-config#replicas
+                      minimum: 0
+                      type: integer
                     resources:
                       description: |-
                         Configures CPU and memory resources for the component.
