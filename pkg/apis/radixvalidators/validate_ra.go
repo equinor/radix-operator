@@ -1820,6 +1820,9 @@ func validateIPOrCIDR(ipOrCidr radixv1.IPOrCIDR) error {
 func validateSkipAuthRoutes(skipAuthRoutes []string) error {
 	var invalidRegexes []string
 	for _, route := range skipAuthRoutes {
+		if strings.Contains(route, ",") {
+			return fmt.Errorf("failed to compile OAuth2 proxy skipAuthRoutes regex /%s/: comma is not allowed", route)
+		}
 		var regex string
 		parts := strings.SplitN(route, "=", 2)
 		if len(parts) == 1 {

@@ -622,6 +622,9 @@ func Test_invalid_ra(t *testing.T) {
 				"GET=^]/foo/bar[$",
 			}
 		}},
+		{"oauth SkipAuthRoutes failed because has comma", errors.New("invalid configuration for component app: SkipAuthRoutes in oauth2 configuration are invalid in the component app in environment prod: failed to compile OAuth2 proxy skipAuthRoutes regex /POST=^/api/public,entity/?$/: comma is not allowed"), func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{"POST=^/api/public,entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"}
+		}},
 		{"invalid healthchecks are invalid", radixvalidators.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
