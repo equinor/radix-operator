@@ -1194,15 +1194,15 @@ type BlobFuse2AttributeCacheOptions struct {
 
 // BlobFuse2BlockCacheOptions defines options for block cache
 type BlobFuse2BlockCacheOptions struct {
-	// Size (in MB) of a block to be downloaded as a unit. Default is 16.
+	// Size (in MB) of a block to be downloaded as a unit. Default is 4.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	BlockSize *uint32 `json:"blockSize,omitempty"`
 
 	// Size (in MB) of total memory preallocated for block-cache.
 	// Minimum value:
-	// - if prefetchCount is set: prefetchCount * blockSize
-	// - if prefetchCount is not set: blockSize
+	// - if prefetchCount > 0: prefetchCount * blockSize
+	// - if prefetchCount = 0: blockSize
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	PoolSize *uint32 `json:"poolSize,omitempty"`
@@ -1213,12 +1213,12 @@ type BlobFuse2BlockCacheOptions struct {
 	// +optional
 	DiskSize *uint32 `json:"diskSize,omitempty"`
 
-	// Timeout (in seconds) for which persisted data remains in disk cache.
+	// Timeout (in seconds) for which persisted data remains in disk cache. Default 120.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	DiskTimeout *uint32 `json:"diskTimeout,omitempty"`
 
-	// Max number of blocks to prefetch. Default 0.
+	// Max number of blocks to prefetch. Default 11.
 	// Value must be 0 (prefetcing disabled) or greater or equal to 11.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
@@ -1236,7 +1236,7 @@ type BlobFuse2BlockCacheOptions struct {
 
 // BlobFuse2FileCacheOptions defines options for file cache
 type BlobFuse2FileCacheOptions struct {
-	// The timeout for which file cache is valid.
+	// The timeout for which file cache is valid. Default 120.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Timeout *uint32 `json:"timeout,omitempty"`

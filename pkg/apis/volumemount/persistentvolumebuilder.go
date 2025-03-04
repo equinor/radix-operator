@@ -16,10 +16,10 @@ import (
 const (
 	defaultAttributeCacheTimeout    uint32 = 0
 	defaultFileCacheTimeout         uint32 = 120
-	defaultBlockCacheBlockSize      uint32 = 16
+	defaultBlockCacheBlockSize      uint32 = 4
 	defaultBlockCacheDiskSize       uint32 = 0
 	defaultBlockCacheDiskTimeout    uint32 = 120
-	defaultBlockCachePrefetchCount  uint32 = 0
+	defaultBlockCachePrefetchCount  uint32 = 11
 	defaultBlockCachePrefetchOnOpen bool   = false
 	defaultBlockCacheParallelism    uint32 = 8
 )
@@ -91,12 +91,12 @@ func (b *deprecatedPersistentVolumeSpecBuilder) getVolumeAttributes(secretNamesp
 func (b *deprecatedPersistentVolumeSpecBuilder) getMountOptions() []string {
 	mountOptions := []string{
 		"--file-cache-timeout-in-seconds=120",
-		"--use-attr-cache=true",
 		"--cancel-list-on-mount-seconds=0",
-		"-o allow_other",
-		"-o attr_timeout=120",
-		"-o entry_timeout=120",
-		"-o negative_timeout=120",
+		"--attr-cache-timeout=0",
+		"--allow-other",
+		"--attr-timeout=0",
+		"--entry-timeout=0",
+		"--negative-timeout=0",
 	}
 
 	if gid := b.radixVolumeMount.GID; len(gid) > 0 {
@@ -235,10 +235,10 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) mountOptions() []string {
 	mountOptions := []string{
 		"--disable-writeback-cache=true",
 		"--cancel-list-on-mount-seconds=0",
-		"-o allow_other",
-		"-o attr_timeout=0",
-		"-o entry_timeout=0",
-		"-o negative_timeout=0",
+		"--allow-other",
+		"--attr-timeout=0",
+		"--entry-timeout=0",
+		"--negative-timeout=0",
 	}
 	mountOptions = append(mountOptions, fmt.Sprintf("--use-adls=%v", b.radixVolumeMount.BlobFuse2.UseAdls != nil && *b.radixVolumeMount.BlobFuse2.UseAdls))
 
@@ -254,7 +254,6 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) mountOptions() []string {
 		mountOptions = append(mountOptions, fmt.Sprintf("-o uid=%s", uid))
 	}
 
-	mountOptions = append(mountOptions, b.getStreamingMountOptions()...)
 	mountOptions = append(mountOptions, b.attributeCacheMountOptions()...)
 	mountOptions = append(mountOptions, b.cacheMountOptions()...)
 	return mountOptions
@@ -268,8 +267,9 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) cacheMountOptions() []string {
 		return b.fileCacheMountOptions()
 	case radixv1.BlobFuse2CacheModeDirectIO:
 		return b.directIOMountOptions()
+	default:
+		return b.blockCacheMountOptions() // Fallback to block cache in case of unknown cache mode
 	}
-	return nil
 }
 
 func (b *blobfuse2PersistentVolumeSpecBuilder) blockCacheMountOptions() []string {
@@ -294,6 +294,9 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) blockCacheMountOptions() []string
 		}
 		if v := blockCache.DiskSize; v != nil {
 			diskSize = *v
+		}
+		if v := blockCache.DiskTimeout; v != nil {
+			diskTimeout = *v
 		}
 		if v := blockCache.PrefetchCount; v != nil {
 			prefetchCount = *v
@@ -339,9 +342,12 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) resolveCacheMode() radixv1.BlobFu
 	if b.radixVolumeMount.BlobFuse2.CacheMode != nil {
 		return *b.radixVolumeMount.BlobFuse2.CacheMode
 	}
+
+	// Use file cache if streaming.enabled is explicitly set to false
 	if streaming := b.radixVolumeMount.BlobFuse2.StreamingOptions; streaming != nil && streaming.Enabled != nil && !*streaming.Enabled {
 		return radixv1.BlobFuse2CacheModeFile
 	}
+
 	return radixv1.BlobFuse2CacheModeBlock
 }
 
@@ -355,19 +361,19 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) attributeCacheMountOptions() []st
 	}
 }
 
-func (b *blobfuse2PersistentVolumeSpecBuilder) getStreamingMountOptions() []string {
-	var mountOptions []string
-	streaming := b.radixVolumeMount.BlobFuse2.StreamingOptions
-	if streaming != nil && streaming.Enabled != nil && !*streaming.Enabled {
-		return nil
-	}
-	mountOptions = append(mountOptions, "--streaming=true")
+// func (b *blobfuse2PersistentVolumeSpecBuilder) getStreamingMountOptions() []string {
+// 	var mountOptions []string
+// 	streaming := b.radixVolumeMount.BlobFuse2.StreamingOptions
+// 	if streaming != nil && streaming.Enabled != nil && !*streaming.Enabled {
+// 		return nil
+// 	}
+// 	mountOptions = append(mountOptions, "--streaming=true")
 
-	var streamCache uint64 = 750
-	if streaming != nil && streaming.StreamCache != nil {
-		streamCache = *streaming.StreamCache
-	}
-	mountOptions = append(mountOptions, fmt.Sprintf("--block-cache-pool-size=%v", streamCache))
+// 	var streamCache uint64 = 750
+// 	if streaming != nil && streaming.StreamCache != nil {
+// 		streamCache = *streaming.StreamCache
+// 	}
+// 	mountOptions = append(mountOptions, fmt.Sprintf("--block-cache-pool-size=%v", streamCache))
 
-	return mountOptions
-}
+// 	return mountOptions
+// }
