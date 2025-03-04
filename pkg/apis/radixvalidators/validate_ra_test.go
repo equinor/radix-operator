@@ -3,6 +3,7 @@ package radixvalidators_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -608,6 +609,18 @@ func Test_invalid_ra(t *testing.T) {
 		{"oauth cookie expire less than refresh", radixvalidators.OAuthCookieRefreshMustBeLessThanExpireErrorWithMessage(validRAFirstComponentName, "prod"), func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
+		}},
+		{"oauth SkipAuthRoutes are correct", nil, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{"POST=^/api/public-entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"}
+		}},
+		{"oauth SkipAuthRoutes are invalid", errors.New("invalid configuration for component app: SkipAuthRoutes in oauth2 configuration are invalid in the component app in environment prod: failed to compile OAuth2 proxy skipAuthRoutes regex(es) //(foo,/foo/bar),^]/foo/bar[$,^]/foo/bar[$/"), func(rr *radixv1.RadixApplication) {
+			// Bad regexes do not compile
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{
+				"POST=/(foo",
+				"OPTIONS=/foo/bar)",
+				"GET=^]/foo/bar[$",
+				"GET=^]/foo/bar[$",
+			}
 		}},
 		{"invalid healthchecks are invalid", radixvalidators.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
