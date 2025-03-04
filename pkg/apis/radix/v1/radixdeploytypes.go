@@ -512,3 +512,8 @@ func (factory RadixDeployJobComponentFactory) Create() RadixCommonDeployComponen
 func (factory RadixDeployJobComponentFactory) GetTargetType() reflect.Type {
 	return reflect.TypeOf(&RadixDeployJobComponentFactory{}).Elem()
 }
+
+// IsActive The RadixDeployment is active
+func (rd *RadixDeployment) IsActive() bool {
+	return rd.Status.Condition == DeploymentActive
+}

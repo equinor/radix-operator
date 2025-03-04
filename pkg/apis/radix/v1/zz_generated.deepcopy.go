@@ -588,6 +588,11 @@ func (in *OAuth2) DeepCopyInto(out *OAuth2) {
 		*out = new(OAuth2RedisStore)
 		**out = **in
 	}
+	if in.SkipAuthRoutes != nil {
+		in, out := &in.SkipAuthRoutes, &out.SkipAuthRoutes
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

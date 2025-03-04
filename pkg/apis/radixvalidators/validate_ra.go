@@ -695,6 +695,9 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 		}
 	}
 
+	if err = validateSkipAuthRoutes(oauthWithDefaults.SkipAuthRoutes); err != nil {
+		errors = append(errors, OAuthSkipAuthRoutesErrorWithMessage(err, componentName, environmentName))
+	}
 	return
 }
 
@@ -1811,5 +1814,29 @@ func validateIPOrCIDR(ipOrCidr radixv1.IPOrCIDR) error {
 		return ErrInvalidIPv4OrCIDR
 	}
 
+	return nil
+}
+
+func validateSkipAuthRoutes(skipAuthRoutes []string) error {
+	var invalidRegexes []string
+	for _, route := range skipAuthRoutes {
+		if strings.Contains(route, ",") {
+			return fmt.Errorf("failed to compile OAuth2 proxy skipAuthRoutes regex /%s/: comma is not allowed", route)
+		}
+		var regex string
+		parts := strings.SplitN(route, "=", 2)
+		if len(parts) == 1 {
+			regex = parts[0]
+		} else {
+			regex = parts[1]
+		}
+		_, err := regexp.Compile(regex)
+		if err != nil {
+			invalidRegexes = append(invalidRegexes, regex)
+		}
+	}
+	if len(invalidRegexes) > 0 {
+		return fmt.Errorf("failed to compile OAuth2 proxy skipAuthRoutes regex(es) /%s/", strings.Join(invalidRegexes, ","))
+	}
 	return nil
 }
