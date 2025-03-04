@@ -650,7 +650,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 
 	var replicas int32 = 1
-	if isComponentStopped(component) {
+	if isComponentStopped(component) || componentHasZeroReplicas(component) {
 		replicas = 0
 	}
 
@@ -703,6 +703,10 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 	oauthutil.MergeAuxComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
 	return desiredDeployment, nil
+}
+
+func componentHasZeroReplicas(component v1.RadixCommonDeployComponent) bool {
+	return component.GetReplicas() != nil && *component.GetReplicas() == 0
 }
 
 func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {

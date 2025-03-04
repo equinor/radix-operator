@@ -330,6 +330,13 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 		{
 			name: "component replicas set to 0",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(0))).
+				BuildRD(),
+			expectedReplicas: 0,
+		},
+		{
+			name: "component replicas set override to 0",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
 				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(0))).
 				BuildRD(),
 			expectedReplicas: 0,
