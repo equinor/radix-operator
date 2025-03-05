@@ -361,6 +361,10 @@ func InvalidConfigBranchNameWithMessage(configBranch string) error {
 
 // *********** OAuth2 config errors ***********
 
+func oauthSkipAuthRoutesErrorWithMessage(err error, componentName, environmentName, propertyName string) error {
+	return errors.WithMessagef(err, "SkipAuthRoutes in oauth2 configuration are invalid in the component %s in environment %s", componentName, environmentName)
+}
+
 func oauthRequiredPropertyEmptyErrorWithMessage(err error, componentName, environmentName, propertyName string) error {
 	return errors.WithMessagef(err, "component %s in environment %s: required property %s in oauth2 configuration not set", componentName, environmentName, propertyName)
 }
@@ -387,6 +391,10 @@ func oauthCookieStoreMinimalIncorrectPropertyValueErrorWithMessage(err error, co
 
 func OAuthClientIdEmptyErrorWithMessage(componentName, environmentName string) error {
 	return oauthRequiredPropertyEmptyErrorWithMessage(ErrOAuthClientIdEmpty, componentName, environmentName, "clientId")
+}
+
+func OAuthSkipAuthRoutesErrorWithMessage(err error, componentName, environmentName string) error {
+	return oauthSkipAuthRoutesErrorWithMessage(err, componentName, environmentName, "skipAuthRoutes")
 }
 
 func OAuthRequiresPublicPortErrorWithMessage(componentName, environmentName string) error {

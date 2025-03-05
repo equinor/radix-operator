@@ -253,6 +253,13 @@ spec:
                                 X-Auth-Request-Email and X-Auth-Request-Preferred-Username request headers.
                                 The access token is passed in the X-Auth-Request-Access-Token header.
                               type: boolean
+                            skipAuthRoutes:
+                              description: |-
+                                SkipAuthRoutes defines regex pattern of routes that should not be authenticated. Notice the ^ prefix and $ suffix to make sure the whole path is matched
+                                example: GET=^/healthz$
+                              items:
+                                type: string
+                              type: array
                           type: object
                       type: object
                     dockerfileName:
@@ -422,6 +429,13 @@ spec:
                                       X-Auth-Request-Email and X-Auth-Request-Preferred-Username request headers.
                                       The access token is passed in the X-Auth-Request-Access-Token header.
                                     type: boolean
+                                  skipAuthRoutes:
+                                    description: |-
+                                      SkipAuthRoutes defines regex pattern of routes that should not be authenticated. Notice the ^ prefix and $ suffix to make sure the whole path is matched
+                                      example: GET=^/healthz$
+                                    items:
+                                      type: string
+                                    type: array
                                 type: object
                             type: object
                           dockerfileName:
