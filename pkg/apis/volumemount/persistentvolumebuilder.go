@@ -79,6 +79,7 @@ func (b *deprecatedPersistentVolumeSpecBuilder) getVolumeHandle() string {
 	return fmt.Sprintf("radixvolumemount#%s#%s#%s#%s#%s", b.appName, b.envName, b.deployComponent.GetName(), b.radixVolumeMount.Name, uuid.New().String())
 }
 
+//nolint:staticcheck
 func (b *deprecatedPersistentVolumeSpecBuilder) getVolumeAttributes(secretNamespace string) map[string]string {
 	// Ref https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md#static-provisioningbring-your-own-storage-container
 	return map[string]string{
@@ -88,6 +89,7 @@ func (b *deprecatedPersistentVolumeSpecBuilder) getVolumeAttributes(secretNamesp
 	}
 }
 
+//nolint:staticcheck
 func (b *deprecatedPersistentVolumeSpecBuilder) getMountOptions() []string {
 	mountOptions := []string{
 		"--file-cache-timeout-in-seconds=120",
@@ -113,6 +115,7 @@ func (b *deprecatedPersistentVolumeSpecBuilder) getMountOptions() []string {
 	return mountOptions
 }
 
+//nolint:staticcheck
 func (b *deprecatedPersistentVolumeSpecBuilder) getResourceStorage() resource.Quantity {
 	qty := b.radixVolumeMount.RequestsStorage
 	if qty.IsZero() {
@@ -121,6 +124,7 @@ func (b *deprecatedPersistentVolumeSpecBuilder) getResourceStorage() resource.Qu
 	return qty
 }
 
+//nolint:staticcheck
 func (b *deprecatedPersistentVolumeSpecBuilder) getAccessMode() corev1.PersistentVolumeAccessMode {
 	switch strings.ToLower(b.radixVolumeMount.AccessMode) {
 	case strings.ToLower(string(corev1.ReadWriteOnce)):
@@ -360,20 +364,3 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) attributeCacheMountOptions() []st
 		fmt.Sprintf("--attr-cache-timeout=%d", timeout),
 	}
 }
-
-// func (b *blobfuse2PersistentVolumeSpecBuilder) getStreamingMountOptions() []string {
-// 	var mountOptions []string
-// 	streaming := b.radixVolumeMount.BlobFuse2.StreamingOptions
-// 	if streaming != nil && streaming.Enabled != nil && !*streaming.Enabled {
-// 		return nil
-// 	}
-// 	mountOptions = append(mountOptions, "--streaming=true")
-
-// 	var streamCache uint64 = 750
-// 	if streaming != nil && streaming.StreamCache != nil {
-// 		streamCache = *streaming.StreamCache
-// 	}
-// 	mountOptions = append(mountOptions, fmt.Sprintf("--block-cache-pool-size=%v", streamCache))
-
-// 	return mountOptions
-// }

@@ -23,7 +23,7 @@ var (
 	defaultStorageCapacity resource.Quantity = resource.MustParse("1Mi")
 )
 
-// CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent Create or update CSI Azure volume resources for a DeployComponent - PersistentVolumes, PersistentVolumeClaims, PersistentVolume
+// CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent Create or update CSI Azure volume resources for a DeployComponent - PersistentVolumes, PersistentVolumeClaims
 // Returns actual volumes, with existing relevant PersistentVolumeClaimName and PersistentVolumeName
 func CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	handler := azureCSIBlobResourceHandler{

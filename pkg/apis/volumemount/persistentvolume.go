@@ -2,7 +2,6 @@ package volumemount
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/internal"
@@ -74,29 +73,6 @@ func cloneMap(original map[string]string, ignoreKeys ...string) map[string]strin
 func convertToSet(ignoreKeys []string) map[string]struct{} {
 	return slice.Reduce(ignoreKeys, make(map[string]struct{}), func(acc map[string]struct{}, item string) map[string]struct{} {
 		acc[item] = struct{}{}
-		return acc
-	})
-}
-
-func getMountOptionsMap(mountOptions []string) map[string]string {
-	return slice.Reduce(mountOptions, make(map[string]string), func(acc map[string]string, item string) map[string]string {
-		if len(item) == 0 {
-			return acc
-		}
-		itemParts := strings.Split(item, "=")
-		key, value := "", ""
-		if len(itemParts) > 0 {
-			key = itemParts[0]
-		}
-		if key == "--tmp-path" {
-			return acc // ignore tmp-path, which eventually can be introduced
-		}
-		if len(itemParts) > 1 {
-			value = itemParts[1]
-		}
-		if len(key) > 0 {
-			acc[key] = value
-		}
 		return acc
 	})
 }

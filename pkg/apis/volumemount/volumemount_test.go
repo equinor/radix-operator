@@ -420,7 +420,7 @@ func (s *volumeMountTestSuite) Test_DeprectaedVolumeMount_PersistentVolume_Mount
 		},
 	}
 
-	for testName, _ := range tests {
+	for testName := range tests {
 		s.Run(testName, func() {
 
 		})
@@ -430,7 +430,7 @@ func (s *volumeMountTestSuite) Test_DeprectaedVolumeMount_PersistentVolume_Mount
 
 func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	var scenarios []deploymentVolumesTestScenario
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			return deploymentVolumesTestScenario{
 				name:  "Create new volume",
@@ -451,11 +451,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		type scenarioProperties struct {
 			changedNewRadixVolumeName        string
 			changedNewRadixVolumeStorageName string
@@ -507,18 +505,17 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil), scenarioProperties{
-				changedNewRadixVolumeName:        "volume101",
-				changedNewRadixVolumeStorageName: "storage101",
-				expectedVolumeName:               "csi-az-blob-some-component-volume101-storage101",
-				expectedNewSecretName:            "some-component-volume101-csiazurecreds",
-				expectedNewPvcName:               "pvc-csi-az-blob-some-component-volume101-storage101-12345",
-				expectedNewPvName:                "pv-radixvolumemount-some-uuid",
-			}),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil), scenarioProperties{
+			changedNewRadixVolumeName:        "volume101",
+			changedNewRadixVolumeStorageName: "storage101",
+			expectedVolumeName:               "csi-az-blob-some-component-volume101-storage101",
+			expectedNewSecretName:            "some-component-volume101-csiazurecreds",
+			expectedNewPvcName:               "pvc-csi-az-blob-some-component-volume101-storage101-12345",
+			expectedNewPvName:                "pv-radixvolumemount-some-uuid",
+		})
+
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createRandomPvc(props, props.namespace, props.componentName)
 			expectedPvc := createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
@@ -551,13 +548,11 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-				props.readOnly = false
-			})),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+			props.readOnly = false
+		}))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createExpectedPvc(props, nil)
 			existingPv := createExpectedPv(props, nil)
@@ -594,11 +589,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createExpectedPvc(props, nil)
 			existingPv := createExpectedPv(props, nil)
@@ -633,11 +626,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createExpectedPvc(props, nil)
 			existingPv := createExpectedPv(props, nil)
@@ -679,11 +670,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			return deploymentVolumesTestScenario{
 				name:  "Create new BlobFuse2 volume has streaming by default and streaming options not set",
@@ -706,11 +695,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			return deploymentVolumesTestScenario{
 				name:  "Create new BlobFuse2 volume has implicit streaming by default and streaming options set",
@@ -744,12 +731,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
-		}
-	}()...)
-
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			return deploymentVolumesTestScenario{
 				name:  "Create new BlobFuse2 volume has disabled streaming",
@@ -781,12 +765,10 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil)),
-		}
-	}()...)
+		return getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil))
+	}())
 
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			pvForAnotherComponent := createRandomAutoProvisionedPvWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
 			pvcForAnotherComponent := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
@@ -824,11 +806,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			pvForAnotherComponent := createRandomPv(props, props.namespace, anotherComponentName)
 			pvcForAnotherComponent := createRandomPvc(props, props.namespace, anotherComponentName)
@@ -860,11 +840,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			pvForAnotherComponent := createRandomAutoProvisionedPvWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
 			pvcForAnotherComponent := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
@@ -899,11 +877,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, props.componentName, props.radixVolumeMountName)
 			existingPvc.Spec.VolumeName = "" //auto-provisioned PVCs have empty volume name
@@ -936,11 +912,9 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(nil))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			expectedPvc := createRandomPvc(props, props.namespace, componentName1)
 			expectedPv := createExpectedPvWithIdentity(props, nil)
@@ -971,13 +945,11 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-				setPropsForBlob2Fuse2AzureIdentity(props)
-			})),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+			setPropsForBlob2Fuse2AzureIdentity(props)
+		}))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createRandomPvc(props, props.namespace, componentName1)
 			existingPv := createExpectedPvWithIdentity(props, nil)
@@ -1014,13 +986,11 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-				setPropsForBlob2Fuse2AzureIdentity(props)
-			})),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+			setPropsForBlob2Fuse2AzureIdentity(props)
+		}))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createRandomPvc(props, props.namespace, componentName1)
 			existingPv := createExpectedPvWithIdentity(props, nil)
@@ -1063,13 +1033,11 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-				setPropsForBlob2Fuse2AzureIdentity(props)
-			})),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+			setPropsForBlob2Fuse2AzureIdentity(props)
+		}))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createRandomPvc(props, props.namespace, componentName1)
 			existingPv := createExpectedPvWithIdentity(props, nil)
@@ -1112,13 +1080,11 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-				setPropsForBlob2Fuse2AzureIdentity(props)
-			})),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+			setPropsForBlob2Fuse2AzureIdentity(props)
+		}))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createRandomPvc(props, props.namespace, componentName1)
 			existingPv := createExpectedPvWithIdentity(props, nil)
@@ -1161,13 +1127,11 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-				setPropsForBlob2Fuse2AzureIdentity(props)
-			})),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+			setPropsForBlob2Fuse2AzureIdentity(props)
+		}))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createRandomPvc(props, props.namespace, componentName1)
 			existingPv := createExpectedPvWithIdentity(props, nil)
@@ -1210,14 +1174,12 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-				setPropsForBlob2Fuse2AzureIdentity(props)
-				props.tenantId = testTenantId
-			})),
-		}
-	}()...)
-	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+			setPropsForBlob2Fuse2AzureIdentity(props)
+			props.tenantId = testTenantId
+		}))
+	}())
+	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
 			existingPvc := createRandomPvc(props, props.namespace, componentName1)
 			existingPv := createExpectedPvWithIdentity(props, nil)
@@ -1257,12 +1219,10 @@ func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				},
 			}
 		}
-		return []deploymentVolumesTestScenario{
-			getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-				setPropsForBlob2Fuse2AzureIdentity(props)
-			})),
-		}
-	}()...)
+		return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
+			setPropsForBlob2Fuse2AzureIdentity(props)
+		}))
+	}())
 
 	s.T().Run("CSI Azure volume PVCs and PersistentVolume", func(t *testing.T) {
 		for _, factory := range s.radixCommonDeployComponentFactories {
