@@ -4,6 +4,7 @@ package volumemount
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -18,6 +19,33 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type deployCommonComponentBuilder struct {
+	name         string
+	volumeMounts []radixv1.RadixVolumeMount
+	factory      radixCommonDeployComponentFactory
+}
+
+func (dcb *deployCommonComponentBuilder) WithName(name string) *deployCommonComponentBuilder {
+	dcb.name = name
+	return dcb
+}
+
+func (dcb *deployCommonComponentBuilder) WithVolumeMounts(volumeMounts ...radixv1.RadixVolumeMount) *deployCommonComponentBuilder {
+	dcb.volumeMounts = volumeMounts
+	return dcb
+}
+
+func (dcb *deployCommonComponentBuilder) BuildComponent() radixv1.RadixCommonDeployComponent {
+	component := dcb.factory.Create()
+	component.SetName(dcb.name)
+	component.SetVolumeMounts(dcb.volumeMounts)
+	return component
+}
+
+func newDeployCommonComponentBuilder(factory radixCommonDeployComponentFactory) *deployCommonComponentBuilder {
+	return &deployCommonComponentBuilder{factory: factory}
+}
+
 type volumeMountTestSuite struct {
 	testSuite
 }
@@ -31,7 +59,7 @@ func (s *volumeMountTestSuite) Test_NoVolumeMounts() {
 		t.Parallel()
 		for _, factory := range s.radixCommonDeployComponentFactories {
 
-			component := utils.NewDeployCommonComponentBuilder(factory).
+			component := newDeployCommonComponentBuilder(factory).
 				WithName("app").
 				BuildComponent()
 
@@ -60,7 +88,7 @@ func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 		t.Parallel()
 		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
-			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
+			component := newDeployCommonComponentBuilder(factory).WithName("app").
 				WithVolumeMounts(scenarios[0].radixVolumeMount).
 				BuildComponent()
 
@@ -79,7 +107,7 @@ func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 		t.Parallel()
 		for _, factory := range s.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
-			component := utils.NewDeployCommonComponentBuilder(factory).
+			component := newDeployCommonComponentBuilder(factory).
 				WithName("app").
 				WithVolumeMounts(scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount, scenarios[2].radixVolumeMount).
 				BuildComponent()
@@ -115,18 +143,13 @@ func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Path: "TestPath1"},
 			expectedError:    "storage is empty for volume mount volume1 in the component app",
 		},
-		// {
-		// 	name:             "Missed volume mount path",
-		// 	radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storagename1"},
-		// 	expectedError:    "path is empty for volume mount volume1 in the component app",
-		// },
 	}
 	s.T().Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range s.radixCommonDeployComponentFactories {
 			for _, testCase := range scenarios {
 				t.Logf("Test case %s for component %s", testCase.name, factory.GetTargetType())
-				component := utils.NewDeployCommonComponentBuilder(factory).
+				component := newDeployCommonComponentBuilder(factory).
 					WithName("app").
 					WithVolumeMounts(testCase.radixVolumeMount).
 					BuildComponent()
@@ -405,30 +428,35 @@ func (s *volumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	})
 }
 
-func (s *volumeMountTestSuite) Test_DeprectaedVolumeMount_PersistentVolume_MountOptions() {
-	tests := map[string]struct {
-		volumeMount          radixv1.RadixVolumeMount
-		expectedMountOptions []string
-	}{
-		"": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type: radixv1.MountTypeBlobFuse2FuseCsiAzure,
-			},
-			expectedMountOptions: []string{
-				"",
-			},
-		},
-	}
+// func (s *volumeMountTestSuite) Test_DeprectaedVolumeMount_PersistentVolume_MountOptions() {
+// 	tests := map[string]struct {
+// 		volumeMount          radixv1.RadixVolumeMount
+// 		expectedMountOptions []string
+// 	}{
+// 		"": {
+// 			volumeMount: radixv1.RadixVolumeMount{
+// 				Type: radixv1.MountTypeBlobFuse2FuseCsiAzure,
+// 			},
+// 			expectedMountOptions: []string{
+// 				"",
+// 			},
+// 		},
+// 	}
 
-	for testName := range tests {
-		s.Run(testName, func() {
+// 	for testName := range tests {
+// 		s.Run(testName, func() {
 
-		})
-	}
+// 		})
+// 	}
 
-}
+// }
 
 func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
+	var (
+		anotherComponentName   = strings.ToLower(utils.RandString(10))
+		anotherVolumeMountName = strings.ToLower(utils.RandString(10))
+	)
+
 	var scenarios []deploymentVolumesTestScenario
 	scenarios = append(scenarios, func() deploymentVolumesTestScenario {
 		getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {

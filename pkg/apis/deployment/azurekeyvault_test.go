@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/stretchr/testify/assert"
@@ -27,12 +27,11 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 		expectedVolumeAttributePrefixes  map[string]string
 	}
 	scenarios := []struct {
-		name                    string
-		deployComponentBuilders []utils.DeployCommonComponentBuilder
-		componentName           string
-		azureKeyVaults          []v1.RadixAzureKeyVault
-		expectedVolumeProps     []expectedVolumeProps
-		radixVolumeMounts       []v1.RadixVolumeMount
+		name                string
+		componentName       string
+		azureKeyVaults      []v1.RadixAzureKeyVault
+		expectedVolumeProps []expectedVolumeProps
+		radixVolumeMounts   []v1.RadixVolumeMount
 	}{
 		{
 			name:                "No Azure Key volumes as no RadixAzureKeyVault-s",

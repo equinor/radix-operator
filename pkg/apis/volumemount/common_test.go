@@ -3,6 +3,7 @@ package volumemount
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -38,9 +39,34 @@ func modifyPvc(pvc v1.PersistentVolumeClaim, modify func(pvc *v1.PersistentVolum
 	return pvc
 }
 
+// radixCommonDeployComponentFactory defines a common component factory
+type radixCommonDeployComponentFactory interface {
+	Create() radixv1.RadixCommonDeployComponent
+	GetTargetType() reflect.Type
+}
+
+type radixDeployComponentFactory struct{}
+type radixDeployJobComponentFactory struct{}
+
+func (factory radixDeployComponentFactory) Create() radixv1.RadixCommonDeployComponent {
+	return &radixv1.RadixDeployComponent{}
+}
+
+func (factory radixDeployComponentFactory) GetTargetType() reflect.Type {
+	return reflect.TypeOf(&radixv1.RadixDeployComponent{}).Elem()
+}
+
+func (factory radixDeployJobComponentFactory) Create() radixv1.RadixCommonDeployComponent {
+	return &radixv1.RadixDeployJobComponent{}
+}
+
+func (factory radixDeployJobComponentFactory) GetTargetType() reflect.Type {
+	return reflect.TypeOf(&radixv1.RadixDeployJobComponent{}).Elem()
+}
+
 type testSuite struct {
 	suite.Suite
-	radixCommonDeployComponentFactories []radixv1.RadixCommonDeployComponentFactory
+	radixCommonDeployComponentFactories []radixCommonDeployComponentFactory
 }
 
 type TestEnv struct {
@@ -92,15 +118,10 @@ const (
 	testChangedTenantId           = "changed-tenant-id"
 )
 
-var (
-	anotherComponentName   = strings.ToLower(utils.RandString(10))
-	anotherVolumeMountName = strings.ToLower(utils.RandString(10))
-)
-
 func (s *testSuite) SetupSuite() {
-	s.radixCommonDeployComponentFactories = []radixv1.RadixCommonDeployComponentFactory{
-		radixv1.RadixDeployComponentFactory{},
-		radixv1.RadixDeployJobComponentFactory{},
+	s.radixCommonDeployComponentFactories = []radixCommonDeployComponentFactory{
+		radixDeployComponentFactory{},
+		radixDeployJobComponentFactory{},
 	}
 }
 
@@ -142,88 +163,9 @@ type expectedPvcPvProperties struct {
 	storageAccountName      string
 }
 
-func modifyPv(pv v1.PersistentVolume, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
-	modify(&pv)
-	return pv
-}
-
-func createRandomVolumeMount(modify func(mount *radixv1.RadixVolumeMount)) radixv1.RadixVolumeMount {
-	vm := radixv1.RadixVolumeMount{
-		Name: strings.ToLower(operatorUtils.RandString(10)),
-		Path: "/tmp/" + strings.ToLower(operatorUtils.RandString(10)),
-		BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-			Protocol:  radixv1.BlobFuse2ProtocolFuse2,
-			Container: strings.ToLower(operatorUtils.RandString(10)),
-		},
-	}
-	modify(&vm)
-	return vm
-}
-
-func matchPvAndPvc(pv *v1.PersistentVolume, pvc *v1.PersistentVolumeClaim) {
-	pv.Spec.ClaimRef = &v1.ObjectReference{
-		APIVersion: "radixv1",
-		Kind:       k8s.KindPersistentVolumeClaim,
-		Name:       pvc.GetName(),
-		Namespace:  pvc.GetNamespace(),
-	}
-	pvc.Spec.VolumeName = pv.Name
-}
-
 func modifyProps(props expectedPvcPvProperties, modify func(props *expectedPvcPvProperties)) expectedPvcPvProperties {
 	modify(&props)
 	return props
-}
-
-func createRandomPv(props expectedPvcPvProperties, namespace, componentName string) v1.PersistentVolume {
-	return createExpectedPv(props, func(pv *v1.PersistentVolume) {
-		pvName := getCsiAzurePvName()
-		pv.ObjectMeta.Name = pvName
-		pv.ObjectMeta.Labels[kube.RadixNamespace] = namespace
-		pv.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-	})
-}
-
-func createRandomPvc(props expectedPvcPvProperties, namespace, componentName string) v1.PersistentVolumeClaim {
-	return createExpectedPvc(props, func(pvc *v1.PersistentVolumeClaim) {
-		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
-		if err != nil {
-			panic(err)
-		}
-		pvName := getCsiAzurePvName()
-		pvc.ObjectMeta.Name = pvcName
-		pvc.ObjectMeta.Namespace = namespace
-		pvc.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-		pvc.Spec.VolumeName = pvName
-	})
-}
-
-func createRandomAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, namespace, componentName, anotherVolumeMountName string) v1.PersistentVolume {
-	return createAutoProvisionedPvWithStorageClass(props, func(pv *v1.PersistentVolume) {
-		pvName := "pvc-" + uuid.NewString()
-		pv.ObjectMeta.Name = pvName
-		if pv.ObjectMeta.Labels == nil {
-			pv.ObjectMeta.Labels = make(map[string]string)
-		}
-		pv.ObjectMeta.Labels[kube.RadixNamespace] = namespace
-		pv.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-		pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = anotherVolumeMountName
-	})
-}
-
-func createRandomAutoProvisionedPvcWithStorageClass(props expectedPvcPvProperties, namespace, componentName, anotherVolumeMountName string) v1.PersistentVolumeClaim {
-	return createExpectedAutoProvisionedPvcWithStorageClass(props, func(pvc *v1.PersistentVolumeClaim) {
-		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
-		if err != nil {
-			panic(err)
-		}
-		pvName := getCsiAzurePvName()
-		pvc.ObjectMeta.Name = pvcName
-		pvc.ObjectMeta.Namespace = namespace
-		pvc.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-		pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = anotherVolumeMountName
-		pvc.Spec.VolumeName = pvName
-	})
 }
 
 func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcPvProperties)) expectedPvcPvProperties {
@@ -276,6 +218,85 @@ func getPropsCsiBlobFuse2Volume1Storage1(modify func(*expectedPvcPvProperties)) 
 		modify(&props)
 	}
 	return props
+}
+
+func modifyPv(pv v1.PersistentVolume, modify func(pv *v1.PersistentVolume)) v1.PersistentVolume {
+	modify(&pv)
+	return pv
+}
+
+func createRandomVolumeMount(modify func(mount *radixv1.RadixVolumeMount)) radixv1.RadixVolumeMount {
+	vm := radixv1.RadixVolumeMount{
+		Name: strings.ToLower(operatorUtils.RandString(10)),
+		Path: "/tmp/" + strings.ToLower(operatorUtils.RandString(10)),
+		BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+			Protocol:  radixv1.BlobFuse2ProtocolFuse2,
+			Container: strings.ToLower(operatorUtils.RandString(10)),
+		},
+	}
+	modify(&vm)
+	return vm
+}
+
+func matchPvAndPvc(pv *v1.PersistentVolume, pvc *v1.PersistentVolumeClaim) {
+	pv.Spec.ClaimRef = &v1.ObjectReference{
+		APIVersion: "radixv1",
+		Kind:       k8s.KindPersistentVolumeClaim,
+		Name:       pvc.GetName(),
+		Namespace:  pvc.GetNamespace(),
+	}
+	pvc.Spec.VolumeName = pv.Name
+}
+
+func createRandomPv(props expectedPvcPvProperties, namespace, componentName string) v1.PersistentVolume {
+	return createExpectedPv(props, func(pv *v1.PersistentVolume) {
+		pvName := getCsiAzurePvName()
+		pv.ObjectMeta.Name = pvName
+		pv.ObjectMeta.Labels[kube.RadixNamespace] = namespace
+		pv.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+	})
+}
+
+func createRandomPvc(props expectedPvcPvProperties, namespace, componentName string) v1.PersistentVolumeClaim {
+	return createExpectedPvc(props, func(pvc *v1.PersistentVolumeClaim) {
+		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
+		if err != nil {
+			panic(err)
+		}
+		pvName := getCsiAzurePvName()
+		pvc.ObjectMeta.Name = pvcName
+		pvc.ObjectMeta.Namespace = namespace
+		pvc.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+		pvc.Spec.VolumeName = pvName
+	})
+}
+
+func createRandomAutoProvisionedPvWithStorageClass(props expectedPvcPvProperties, namespace, componentName, anotherVolumeMountName string) v1.PersistentVolume {
+	return createAutoProvisionedPvWithStorageClass(props, func(pv *v1.PersistentVolume) {
+		pvName := "pvc-" + uuid.NewString()
+		pv.ObjectMeta.Name = pvName
+		if pv.ObjectMeta.Labels == nil {
+			pv.ObjectMeta.Labels = make(map[string]string)
+		}
+		pv.ObjectMeta.Labels[kube.RadixNamespace] = namespace
+		pv.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+		pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = anotherVolumeMountName
+	})
+}
+
+func createRandomAutoProvisionedPvcWithStorageClass(props expectedPvcPvProperties, namespace, componentName, anotherVolumeMountName string) v1.PersistentVolumeClaim {
+	return createExpectedAutoProvisionedPvcWithStorageClass(props, func(pvc *v1.PersistentVolumeClaim) {
+		pvcName, err := getCsiAzurePvcName(componentName, &radixv1.RadixVolumeMount{Name: props.radixVolumeMountName, Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: props.blobStorageName, Path: "/tmp"})
+		if err != nil {
+			panic(err)
+		}
+		pvName := getCsiAzurePvName()
+		pvc.ObjectMeta.Name = pvcName
+		pvc.ObjectMeta.Namespace = namespace
+		pvc.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+		pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = anotherVolumeMountName
+		pvc.Spec.VolumeName = pvName
+	})
 }
 
 func putExistingDeploymentVolumesScenarioDataToFakeCluster(kubeClient kubernetes.Interface, scenario *deploymentVolumesTestScenario) {
