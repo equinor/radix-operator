@@ -1658,6 +1658,23 @@ func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount, hasI
 			return volumeMountBlobFuse2ValidationError(ErrVolumeMountWithUseAzureIdentityMissingStorageAccount)
 		}
 	}
+
+	if err := validateBlobFuse2BlockCache(fuse2.BlockCacheOptions); err != nil {
+		return fmt.Errorf("invalid blockCache configuration: %w", err)
+	}
+
+	return nil
+}
+
+func validateBlobFuse2BlockCache(blockCache *radixv1.BlobFuse2BlockCacheOptions) error {
+	if blockCache == nil {
+		return nil
+	}
+
+	if prefetchCount := blockCache.PrefetchCount; prefetchCount != nil && !(*prefetchCount == 0 || *prefetchCount > 10) {
+		return ErrInvalidBlobFuse2BlockCachePrefetchCount
+	}
+
 	return nil
 }
 

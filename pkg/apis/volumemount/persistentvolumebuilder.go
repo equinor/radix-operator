@@ -236,6 +236,11 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) getVolumeAttributes(secretNamespa
 }
 
 func (b *blobfuse2PersistentVolumeSpecBuilder) mountOptions() []string {
+	// --disable-writeback-cache must be set to true, otherwise changes in source will not be propagated to mounts
+	// Documentation (https://github.com/Azure/azure-storage-fuse/blob/main/doc/blobfuse2_mount.md) doesn't explain much about this flag,
+	// but seems to cause sync issues (stale data) if omitted,
+	// ref https://github.com/Azure/azure-storage-fuse/issues/1195, https://techcommunity.microsoft.com/blog/azurepaasblog/how-to-troubleshoot-blobfuse2-issues/4110844
+
 	mountOptions := []string{
 		"--disable-writeback-cache=true",
 		"--cancel-list-on-mount-seconds=0",

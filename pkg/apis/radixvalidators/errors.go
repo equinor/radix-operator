@@ -111,6 +111,7 @@ var (
 	ErrInvalidRuntimeArchitecture                                          = errors.New("invalid runtime architecture")
 	ErrInvalidIPv4OrCIDR                                                   = errors.New("invalid IPv4 or CIDR")
 	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator                = errors.New("value 0 cannot be used for the In operator")
+	ErrInvalidBlobFuse2BlockCachePrefetchCount                             = errors.New("prefetchCount must be 0 or greater than 10")
 )
 
 // DuplicateAliasForDNSAliasError Error when aliases are duplicate

@@ -1638,6 +1638,70 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			expectedError: radixvalidators.ErrVolumeMountMissingAzureIdentity,
 		},
+		"blobfuse2.blockCache prefetchCount 0 is valid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](0),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2.blockCache prefetchCount 11 is valid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](11),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2.blockCache prefetchCount 1 is invalid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](1),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrInvalidBlobFuse2BlockCachePrefetchCount,
+		},
+		"blobfuse2.blockCache prefetchCount 10 is invalid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](10),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrInvalidBlobFuse2BlockCachePrefetchCount,
+		},
 		"emptyDir: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
