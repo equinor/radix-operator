@@ -87,8 +87,6 @@ type volumeMountTestScenario struct {
 }
 
 type deploymentVolumesTestScenario struct {
-	name              string
-	props             expectedPvcPvProperties
 	radixVolumeMounts []radixv1.RadixVolumeMount
 	volumes           []v1.Volume
 	existingPvs       []v1.PersistentVolume

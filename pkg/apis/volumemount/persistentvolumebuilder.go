@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -64,7 +63,7 @@ func (b *deprecatedPersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace 
 				VolumeAttributes: b.getVolumeAttributes(pvcNamespace),
 				NodeStageSecretRef: &corev1.SecretReference{
 					Name:      defaults.GetCsiAzureVolumeMountCredsSecretName(b.deployComponent.GetName(), b.radixVolumeMount.Name),
-					Namespace: utils.GetEnvironmentNamespace(b.appName, b.envName),
+					Namespace: pvcNamespace,
 				},
 			},
 		},
@@ -85,7 +84,7 @@ func (b *deprecatedPersistentVolumeSpecBuilder) getVolumeAttributes(secretNamesp
 	return map[string]string{
 		csiVolumeMountAttributeContainerName:   b.radixVolumeMount.Storage,
 		csiVolumeMountAttributeProtocol:        "fuse",
-		csiVolumeMountAttributeSecretNamespace: secretNamespace,
+		csiVolumeMountAttributeSecretNamespace: secretNamespace, // TODO: Do we need it? Works fine without
 	}
 }
 
@@ -131,8 +130,6 @@ func (b *deprecatedPersistentVolumeSpecBuilder) getAccessMode() corev1.Persisten
 		return corev1.ReadWriteOnce
 	case strings.ToLower(string(corev1.ReadWriteMany)):
 		return corev1.ReadWriteMany
-	case strings.ToLower(string(corev1.ReadWriteOncePod)):
-		return corev1.ReadWriteOncePod
 	default:
 		return corev1.ReadOnlyMany
 	}
@@ -190,8 +187,6 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) getAccessMode() corev1.Persistent
 		return corev1.ReadWriteOnce
 	case strings.ToLower(string(corev1.ReadWriteMany)):
 		return corev1.ReadWriteMany
-	case strings.ToLower(string(corev1.ReadWriteOncePod)):
-		return corev1.ReadWriteOncePod
 	default:
 		return corev1.ReadOnlyMany
 	}
@@ -230,7 +225,7 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) getVolumeAttributes(secretNamespa
 			attributes[csiVolumeAttributeTenantId] = b.radixVolumeMount.BlobFuse2.TenantId
 		}
 	} else {
-		attributes[csiVolumeMountAttributeSecretNamespace] = secretNamespace
+		attributes[csiVolumeMountAttributeSecretNamespace] = secretNamespace // TODO: Do we need it? Works fine without
 	}
 	return attributes
 }

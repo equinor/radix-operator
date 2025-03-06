@@ -365,7 +365,7 @@ func ForBlobCSIAzurePersistentVolumeClaim(appName, componentName string, radixVo
 	return kubelabels.Set{
 		kube.RadixAppLabel:             appName,
 		kube.RadixComponentLabel:       componentName,
-		kube.RadixMountTypeLabel:       string(radixVolumeMount.GetVolumeMountType()),
+		kube.RadixMountTypeLabel:       string(radixVolumeMount.GetVolumeMountType()), // TODO: Discuss if we really need this. It is not used anywhere, and I don't see a reason why we would need it.
 		kube.RadixVolumeMountNameLabel: radixVolumeMount.Name,
 	}
 }
