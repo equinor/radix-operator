@@ -114,7 +114,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	}
 	app.rateLimitConfig = utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
 	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
-	app.client, app.radixClient, app.kedaClient, app.prometheusOperatorClient, app.secretProviderClient, app.certClient = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
+	app.client, app.radixClient, app.kedaClient, app.prometheusOperatorClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
 
 	app.eventRecorder = common.NewEventRecorder("Radix controller", app.client.CoreV1().Events(""), log.Logger)
 

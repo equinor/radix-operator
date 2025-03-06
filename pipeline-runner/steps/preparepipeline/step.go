@@ -3,10 +3,12 @@ package preparepipeline
 import (
 	"context"
 	"fmt"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
 	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
+	pipeline2 "github.com/equinor/radix-operator/pipeline-runner/internal/pipeline"
 	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -25,7 +27,6 @@ import (
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -45,10 +46,10 @@ func NewPreparePipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.S
 	}
 }
 
-func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *radixv1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
 	}
 }
 
@@ -87,7 +88,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, cli.GetRadixClient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
 			return err
 		}
@@ -95,13 +96,8 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		job.OwnerReferences = ownerReference
 	}
 
-	log.Ctx(ctx).Info().Msgf("Apply job (%s) to copy radixconfig to configmap for app %s and prepare Tekton pipeline", job.Name, appName)
-	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return cli.jobWaiter.Wait(job)
+	pipelineContext := pipeline2.NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
+	return pipelineContext.ProcessRadixAppConfig()
 }
 
 func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
@@ -213,7 +209,7 @@ func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
 
 func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx context.Context, appName, sourceEnvName, sourceDeploymentName string) (string, string, error) {
 	ns := utils.GetEnvironmentNamespace(appName, sourceEnvName)
-	rd, err := cli.GetKubeutil().GetRadixDeployment(ctx, ns, sourceDeploymentName)
+	rd, err := cli.GetKubeUtil().GetRadixDeployment(ctx, ns, sourceDeploymentName)
 	if err != nil {
 		return "", "", err
 	}

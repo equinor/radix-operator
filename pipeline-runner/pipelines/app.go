@@ -2,6 +2,7 @@ package pipelines
 
 import (
 	"context"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -26,29 +27,32 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	secretsstorevclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
+	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"sigs.k8s.io/yaml"
 )
 
 // PipelineRunner Instance variables
 type PipelineRunner struct {
 	definition               *pipeline.Definition
-	kubeclient               kubernetes.Interface
+	kubeClient               kubernetes.Interface
 	kubeUtil                 *kube.Kube
-	radixclient              radixclient.Interface
+	radixClient              radixclient.Interface
+	tektonClient             tektonclient.Interface
 	prometheusOperatorClient monitoring.Interface
 	appName                  string
 	pipelineInfo             *model.PipelineInfo
 }
 
 // NewRunner constructor
-func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kedaClient kedav2.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
-	kubeUtil, _ := kube.New(kubeclient, radixclient, kedaClient, secretsstorevclient)
+func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, prometheusOperatorClient monitoring.Interface, secretsStoreClient secretsstoreclient.Interface, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretsStoreClient)
+
 	handler := PipelineRunner{
 		definition:               definition,
-		kubeclient:               kubeclient,
+		kubeClient:               kubeClient,
 		kubeUtil:                 kubeUtil,
-		radixclient:              radixclient,
+		radixClient:              radixClient,
+		tektonClient:             tektonClient,
 		prometheusOperatorClient: prometheusOperatorClient,
 		appName:                  appName,
 	}
@@ -58,7 +62,7 @@ func NewRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfac
 
 // PrepareRun Runs preparations before build
 func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.PipelineArguments) error {
-	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(ctx, cli.appName, metav1.GetOptions{})
+	radixRegistration, err := cli.radixClient.RadixV1().RadixRegistrations().Get(ctx, cli.appName, metav1.GetOptions{})
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Failed to get RR for app %s. Error: %v", cli.appName, err)
 		return err
@@ -125,13 +129,13 @@ func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registra
 	stepImplementations = append(stepImplementations, applyconfig.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, build.NewBuildStep(nil))
 	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep(nil))
-	stepImplementations = append(stepImplementations, deploy.NewDeployStep(watcher.NewNamespaceWatcherImpl(cli.kubeclient), watcher.NewRadixDeploymentWatcher(cli.radixclient, time.Minute*5)))
-	stepImplementations = append(stepImplementations, deployconfig.NewDeployConfigStep(watcher.NewRadixDeploymentWatcher(cli.radixclient, time.Minute*5)))
+	stepImplementations = append(stepImplementations, deploy.NewDeployStep(watcher.NewNamespaceWatcherImpl(cli.kubeClient), watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
+	stepImplementations = append(stepImplementations, deployconfig.NewDeployConfigStep(watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, promote.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(ctx, cli.kubeclient, cli.radixclient, cli.kubeUtil, cli.prometheusOperatorClient, registration)
+			Init(ctx, cli.kubeClient, cli.radixClient, cli.kubeUtil, cli.prometheusOperatorClient, cli.tektonClient, registration)
 	}
 
 	return stepImplementations

@@ -3,6 +3,7 @@ package runpipeline
 import (
 	"context"
 	"fmt"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
@@ -41,10 +42,10 @@ func NewRunPipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.Step 
 	}
 }
 
-func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
 	}
 }
 
@@ -79,7 +80,7 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, step.GetRadixClient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
 			return err
 		}
@@ -88,7 +89,7 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 	}
 
 	log.Ctx(ctx).Info().Msgf("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
-	job, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
+	job, err := step.GetKubeClient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

@@ -33,7 +33,7 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, *kedafake
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	kubeclient, radixclient, kedaClient, secretproviderclient, _ := setupTest(t)
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	cli := pipelines.NewRunner(kubeclient, radixclient, kedaClient, &monitoring.Clientset{}, secretproviderclient, pipelineDefinition, "any-app")
+	cli := pipelines.NewRunner(kubeclient, radixclient, kedaClient, &monitoring.Clientset{}, secretproviderclient, nil, pipelineDefinition, "any-app")
 
 	err := cli.PrepareRun(context.Background(), &model.PipelineArguments{})
 	assert.Error(t, err)

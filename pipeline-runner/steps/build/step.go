@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"slices"
 	"strings"
 
@@ -68,10 +69,10 @@ func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter, options ...Option)
 	return step
 }
 
-func (step *BuildStepImplementation) Init(ctx context.Context, kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+func (step *BuildStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
 	}
 }
 
@@ -148,7 +149,7 @@ func (step *BuildStepImplementation) applyBuildJobs(ctx context.Context, pipelin
 			job.OwnerReferences = ownerReference
 			jobDescription := step.getJobDescription(&job)
 			logger.Info().Msgf("Apply %s", jobDescription)
-			createdJob, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(context.Background(), &job, metav1.CreateOptions{})
+			createdJob, err := step.GetKubeClient().BatchV1().Jobs(namespace).Create(context.Background(), &job, metav1.CreateOptions{})
 			if err != nil {
 				logger.Error().Err(err).Msgf("failed %s", jobDescription)
 				return err
@@ -164,7 +165,7 @@ func (step *BuildStepImplementation) getJobOwnerReferences(ctx context.Context, 
 	if pipelineInfo.PipelineArguments.Debug {
 		return nil, nil
 	}
-	ownerReference, err := jobutil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	ownerReference, err := jobutil.GetOwnerReferenceOfJob(ctx, step.GetRadixClient(), namespace, pipelineInfo.PipelineArguments.JobName)
 	if err != nil {
 		return nil, err
 	}

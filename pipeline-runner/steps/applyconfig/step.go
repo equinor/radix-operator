@@ -62,7 +62,7 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	appName := cli.GetAppName()
 	// Get pipeline info from configmap created by prepare pipeline step
 	namespace := operatorutils.GetAppNamespace(appName)
-	configMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.RadixConfigMapName)
+	configMap, err := cli.GetKubeUtil().GetConfigMap(ctx, namespace, pipelineInfo.RadixConfigMapName)
 	if err != nil {
 		return err
 	}
@@ -78,14 +78,14 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
-	ra, err := pipelineApplication.CreateRadixApplication(ctx, cli.GetRadixclient(), appName, pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
+	ra, err := pipelineApplication.CreateRadixApplication(ctx, cli.GetRadixClient(), appName, pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
 	if err != nil {
 		return err
 	}
 
 	// Apply RA to cluster
-	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
-		cli.GetRadixclient(), cli.GetRegistration(), ra,
+	applicationConfig := application.NewApplicationConfig(cli.GetKubeClient(), cli.GetKubeUtil(),
+		cli.GetRadixClient(), cli.GetRegistration(), ra,
 		pipelineInfo.PipelineArguments.DNSConfig)
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -119,7 +119,7 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 		return nil
 	}
 
-	secret, err := cli.GetKubeclient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
+	secret, err := cli.GetKubeClient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
 	if err != nil {
 		// For new applications, or when buildsecrets is first added to radixconfig, the secret
 		// or role bindings may not be synced yet by radix-operator
@@ -265,7 +265,7 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx
 	environmentComponentImageSources := make(environmentComponentImageSourceMap)
 	for _, envName := range pipelineInfo.TargetEnvironments {
 		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
-		activeRadixDeployment, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeutil(), envNamespace)
+		activeRadixDeployment, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeUtil(), envNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -534,7 +534,7 @@ func printPrepareBuildContext(ctx context.Context, prepareBuildContext *model.Pr
 }
 
 func (cli *ApplyConfigStepImplementation) getHashAndTags(ctx context.Context, namespace string, pipelineInfo *model.PipelineInfo) (string, string) {
-	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.GitConfigMapName)
+	gitConfigMap, err := cli.GetKubeUtil().GetConfigMap(ctx, namespace, pipelineInfo.GitConfigMapName)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
 		return "", ""
