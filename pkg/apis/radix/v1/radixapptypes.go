@@ -1408,6 +1408,11 @@ type OAuth2 struct {
 	// +kubebuilder:default:=secret
 	// +optional
 	Credentials CredentialsType `json:"credentials,omitempty"`
+
+        // SkipAuthRoutes defines regex pattern of routes that should not be authenticated. Notice the ^ prefix and $ suffix to make sure the whole path is matched 
+	// +optional
+	// example: GET=^/healthz$
+	SkipAuthRoutes []string `json:"skipAuthRoutes,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie.
