@@ -46,7 +46,7 @@ type azureCSIBlobResourceHandler struct {
 
 func (h *azureCSIBlobResourceHandler) ReconcileVolumeResources(ctx context.Context, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	namespace := h.radixDeployment.GetNamespace()
-	functionalPvList, err := getCsiAzurePvsForNamespace(ctx, h.kubeClient, namespace, true)
+	functionalPvList, err := getCsiAzurePvsForNamespace(ctx, h.kubeClient, namespace)
 	if err != nil {
 		return nil, err
 	}

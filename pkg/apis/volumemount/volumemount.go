@@ -32,7 +32,6 @@ const (
 
 var (
 	csiVolumeProvisioners = map[string]any{provisionerBlobCsiAzure: struct{}{}}
-	functionalPvPhases    = []corev1.PersistentVolumePhase{corev1.VolumePending, corev1.VolumeBound, corev1.VolumeAvailable}
 )
 
 // GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
@@ -135,13 +134,13 @@ func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, 
 	return volumeMountSecretsToManage, nil
 }
 
-func getCsiAzurePvsForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string, onlyFunctional bool) ([]corev1.PersistentVolume, error) {
+func getCsiAzurePvsForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string) ([]corev1.PersistentVolume, error) {
 	pvList, err := kubeClient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return slice.FindAll(pvList.Items, func(pv corev1.PersistentVolume) bool {
-		return pvIsForCsiDriver(pv) && pvIsForNamespace(pv, namespace) && (!onlyFunctional || pvIsFunctional(pv))
+		return pvIsForCsiDriver(pv) && pvIsForNamespace(pv, namespace)
 	}), nil
 }
 
@@ -368,6 +367,7 @@ func getComponentVolumeMountEmptyDirVolumeSource(spec *radixv1.RadixEmptyDirVolu
 
 // GetVolumeMountVolumeName Gets the volume name for a volume mount
 func GetVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
+	// TODO: Why does the name of the volume include info about the driver, external container etc? Can we make a static name instead, like done in the last line?
 	switch {
 	case volumeMount.HasDeprecatedVolume():
 		return getVolumeMountDeprecatedVolumeName(volumeMount, componentName)
@@ -436,11 +436,6 @@ func pvIsForCsiDriver(pv corev1.PersistentVolume) bool {
 
 func pvIsForNamespace(pv corev1.PersistentVolume, namespace string) bool {
 	return pv.Spec.ClaimRef != nil && pv.Spec.ClaimRef.Namespace == namespace
-}
-
-func pvIsFunctional(pv corev1.PersistentVolume) bool {
-	// not Terminating or Released
-	return slice.Any(functionalPvPhases, func(phase corev1.PersistentVolumePhase) bool { return pv.Status.Phase == phase })
 }
 
 func getCsiAzurePvcs(ctx context.Context, kubeClient kubernetes.Interface, namespace string) (*corev1.PersistentVolumeClaimList, error) {
@@ -531,7 +526,7 @@ func appendPvcNamesFromVolumes(pvcMap map[string]any, volumes []corev1.Volume) m
 }
 
 func garbageCollectCsiAzurePvs(ctx context.Context, kubeClient kubernetes.Interface, namespace string, excludePvcNames map[string]any) error {
-	pvs, err := getCsiAzurePvsForNamespace(ctx, kubeClient, namespace, false)
+	pvs, err := getCsiAzurePvsForNamespace(ctx, kubeClient, namespace)
 	if err != nil {
 		return err
 	}
