@@ -448,7 +448,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCAndPVBinding() {
 				Name: "anyname",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:  radixv1.BlobFuse2ProtocolFuse2,
 					Container: "anycontainer",
 				},
 			},
@@ -720,7 +719,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCLabels() {
 				Name: "vol2",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:  radixv1.BlobFuse2ProtocolFuse2,
 					Container: "anycontainer",
 				},
 			},
@@ -765,6 +763,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 		appName        string
 		envName        string
 		componentName  string
+		clientId       string
 		volumeMount    radixv1.RadixVolumeMount
 		expectedPVSpec corev1.PersistentVolumeSpec
 	}{
@@ -930,7 +929,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Name: "vol2",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:  radixv1.BlobFuse2ProtocolFuse2,
 					Container: "container2",
 				},
 			},
@@ -962,7 +960,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Name: "vol2",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:   radixv1.BlobFuse2ProtocolFuse2,
 					Container:  "container2",
 					AccessMode: "ReadOnlyMany",
 				},
@@ -995,7 +992,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Name: "vol2",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:   radixv1.BlobFuse2ProtocolFuse2,
 					Container:  "container2",
 					AccessMode: "ReadWriteOnce",
 				},
@@ -1028,7 +1024,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Name: "vol2",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:   radixv1.BlobFuse2ProtocolFuse2,
 					Container:  "container2",
 					AccessMode: "ReadWriteMany",
 				},
@@ -1061,7 +1056,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Name: "vol2",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:        radixv1.BlobFuse2ProtocolFuse2,
 					Container:       "container2",
 					RequestsStorage: resource.MustParse("123G"),
 				},
@@ -1094,7 +1088,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Name: "vol2",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:       radixv1.BlobFuse2ProtocolFuse2,
 					Container:      "container2",
 					StorageAccount: "storage2",
 				},
@@ -1120,7 +1113,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
 			},
 		},
-		"blofuse2: UseAzureIdentity": {
+		"blofuse2: UseAzureIdentity - credentials secret not set": {
 			appName:       "app2",
 			envName:       "env2",
 			componentName: "comp2",
@@ -1128,9 +1121,76 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Name: "vol2",
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Protocol:         radixv1.BlobFuse2ProtocolFuse2,
 					Container:        "container2",
 					UseAzureIdentity: pointers.Ptr(true),
+				},
+			},
+			expectedPVSpec: corev1.PersistentVolumeSpec{
+				Capacity:    corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")},
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+				PersistentVolumeSource: corev1.PersistentVolumeSource{
+					CSI: &corev1.CSIPersistentVolumeSource{
+						Driver: "blob.csi.azure.com",
+						VolumeAttributes: map[string]string{
+							"protocol":      "fuse2",
+							"containerName": "container2",
+							"clientID":      "",
+							"resourcegroup": "",
+						},
+					},
+				},
+				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+			},
+		},
+		"blofuse2: UseAzureIdentity specific volume attributes": {
+			appName:       "app2",
+			envName:       "env2",
+			componentName: "comp2",
+			clientId:      "anyclientid",
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "vol2",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "container2",
+					UseAzureIdentity: pointers.Ptr(true),
+					ResourceGroup:    "anyresourcegroup",
+					SubscriptionId:   "anysubscription",
+					TenantId:         "anytenant",
+				},
+			},
+			expectedPVSpec: corev1.PersistentVolumeSpec{
+				Capacity:    corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")},
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+				PersistentVolumeSource: corev1.PersistentVolumeSource{
+					CSI: &corev1.CSIPersistentVolumeSource{
+						Driver: "blob.csi.azure.com",
+						VolumeAttributes: map[string]string{
+							"protocol":       "fuse2",
+							"containerName":  "container2",
+							"clientID":       "anyclientid",
+							"resourcegroup":  "anyresourcegroup",
+							"subscriptionid": "anysubscription",
+							"tenantID":       "anytenant",
+						},
+					},
+				},
+				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+			},
+		},
+		"blofuse2: UseAzureIdentity specific volume attributes ignored when false": {
+			appName:       "app2",
+			envName:       "env2",
+			componentName: "comp2",
+			clientId:      "anyclientid",
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "vol2",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "container2",
+					UseAzureIdentity: pointers.Ptr(false),
+					ResourceGroup:    "anyresourcegroup",
+					SubscriptionId:   "anysubscription",
+					TenantId:         "anytenant",
 				},
 			},
 			expectedPVSpec: corev1.PersistentVolumeSpec{
@@ -1143,7 +1203,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 							"protocol":        "fuse2",
 							"containerName":   "container2",
 							"secretnamespace": "app2-env2",
-							"storageAccount":  "storage2",
+						},
+						NodeStageSecretRef: &corev1.SecretReference{
+							Namespace: "app2-env2",
+							Name:      defaults.GetCsiAzureVolumeMountCredsSecretName("comp2", "vol2"),
 						},
 					},
 				},
@@ -1158,13 +1221,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				pvcName = "anypvc"
 			)
 			namespace := utils.GetEnvironmentNamespace(test.appName, test.envName)
-
 			kubeClient := kubefake.NewClientset()
 			rd := &radixv1.RadixDeployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
 				Spec:       radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: test.envName},
 			}
-			component := &radixv1.RadixDeployComponent{Name: test.componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount}}
+			component := &radixv1.RadixDeployComponent{
+				Name:         test.componentName,
+				VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount},
+				Identity:     &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: test.clientId}},
+			}
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
@@ -1217,6 +1283,519 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				s.Equal(expectedCSI.ControllerExpandSecretRef, actualCSI.ControllerExpandSecretRef)
 				s.Equal(expectedCSI.NodeExpandSecretRef, actualCSI.NodeExpandSecretRef)
 			}
+		})
+	}
+}
+
+func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
+	tests := map[string]struct {
+		volumeMount          radixv1.RadixVolumeMount
+		expectedMountOptions []string
+	}{
+		"deprecated volume: default settings": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "anyvol",
+				Path:    "anypath",
+				Storage: "anystorage",
+			},
+			expectedMountOptions: []string{
+				"--file-cache-timeout-in-seconds=120",
+				"--cancel-list-on-mount-seconds=0",
+				"--attr-cache-timeout=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--read-only=true",
+			},
+		},
+		"deprecated volume: AccessMode=ReadOnlyMany": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "anyvol",
+				Path:       "anypath",
+				Storage:    "anystorage",
+				AccessMode: "ReadOnlyMany",
+			},
+			expectedMountOptions: []string{
+				"--file-cache-timeout-in-seconds=120",
+				"--cancel-list-on-mount-seconds=0",
+				"--attr-cache-timeout=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--read-only=true",
+			},
+		},
+		"deprecated volume: AccessMode=ReadWriteOnce": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "anyvol",
+				Path:       "anypath",
+				Storage:    "anystorage",
+				AccessMode: "ReadWriteOnce",
+			},
+			expectedMountOptions: []string{
+				"--file-cache-timeout-in-seconds=120",
+				"--cancel-list-on-mount-seconds=0",
+				"--attr-cache-timeout=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+			},
+		},
+		"deprecated volume: AccessMode=ReadWriteMany": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "anyvol",
+				Path:       "anypath",
+				Storage:    "anystorage",
+				AccessMode: "ReadWriteOnce",
+			},
+			expectedMountOptions: []string{
+				"--file-cache-timeout-in-seconds=120",
+				"--cancel-list-on-mount-seconds=0",
+				"--attr-cache-timeout=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+			},
+		},
+		"deprecated volume: GID set": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "anyvol",
+				Path:    "anypath",
+				Storage: "anystorage",
+				GID:     "1337",
+			},
+			expectedMountOptions: []string{
+				"--file-cache-timeout-in-seconds=120",
+				"--cancel-list-on-mount-seconds=0",
+				"--attr-cache-timeout=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--read-only=true",
+				"-o gid=1337",
+			},
+		},
+		"deprecated volume: UID set": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "anyvol",
+				Path:    "anypath",
+				Storage: "anystorage",
+				UID:     "1337",
+			},
+			expectedMountOptions: []string{
+				"--file-cache-timeout-in-seconds=120",
+				"--cancel-list-on-mount-seconds=0",
+				"--attr-cache-timeout=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--read-only=true",
+				"-o uid=1337",
+			},
+		},
+		"blobfuse2: default settings": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-block-size=4",
+				"--block-cache-pool-size=44",
+				"--block-cache-prefetch=11",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+			},
+		},
+		"blobfuse2: AttributeCacheOptions": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--block-cache",
+				"--block-cache-block-size=4",
+				"--block-cache-pool-size=44",
+				"--block-cache-prefetch=11",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+				"--attr-cache-timeout=1337",
+			},
+		},
+		"blobfuse2: streaming enabled=false should use file cache": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					StreamingOptions: &radixv1.BlobFuse2StreamingOptions{
+						Enabled: pointers.Ptr(false),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--file-cache-timeout=120",
+			},
+		},
+		"blobfuse2: CacheMode=DirectIO": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"-o direct_io",
+			},
+		},
+		"blobfuse2: CacheMode=File": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--file-cache-timeout=120",
+			},
+		},
+		"blobfuse2: CacheMode=File, set Timeout": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--file-cache-timeout=1337",
+			},
+		},
+		"blobfuse2: CacheMode=Block default settings": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-block-size=4",
+				"--block-cache-pool-size=44",
+				"--block-cache-prefetch=11",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+			},
+		},
+		"blobfuse2: CacheMode=Block, set BlockSize and PrefetchCount affects default block-cache-pool-size": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](16),
+						PrefetchCount: pointers.Ptr[uint32](20),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+				"--block-cache-block-size=16",
+				"--block-cache-pool-size=320",
+				"--block-cache-prefetch=20",
+			},
+		},
+		"blobfuse2: CacheMode=Block, setting PoolSize below minimum required should use calclated min value": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](16),
+						PoolSize:      pointers.Ptr[uint32](319),
+						PrefetchCount: pointers.Ptr[uint32](20),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+				"--block-cache-block-size=16",
+				"--block-cache-pool-size=320",
+				"--block-cache-prefetch=20",
+			},
+		},
+		"blobfuse2: CacheMode=Block, setting PoolSize above minimum required": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](16),
+						PoolSize:      pointers.Ptr[uint32](321),
+						PrefetchCount: pointers.Ptr[uint32](20),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+				"--block-cache-block-size=16",
+				"--block-cache-pool-size=321",
+				"--block-cache-prefetch=20",
+			},
+		},
+		"blobfuse2: CacheMode=Block, setting PrefetchCount to 0 should set pool size=block size": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](16),
+						PrefetchCount: pointers.Ptr[uint32](0),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+				"--block-cache-block-size=16",
+				"--block-cache-pool-size=16",
+				"--block-cache-prefetch=0",
+			},
+		},
+		"blobfuse2: CacheMode=Block, set PrefetchOnOpen": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchOnOpen: pointers.Ptr(true),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-block-size=4",
+				"--block-cache-pool-size=44",
+				"--block-cache-prefetch=11",
+				"--block-cache-parallelism=8",
+				"--block-cache-prefetch-on-open=true",
+			},
+		},
+		"blobfuse2: CacheMode=Block, set PrefetchOnOpenx": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						Parallelism: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-block-size=4",
+				"--block-cache-pool-size=44",
+				"--block-cache-prefetch=11",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=1337",
+			},
+		},
+	}
+
+	for testName, test := range tests {
+		s.Run(testName, func() {
+			const (
+				appName       = "anyapp"
+				envName       = "anyenv"
+				componentName = "anycomp"
+				namespace     = "anyns"
+				pvcName       = "anypvc"
+			)
+			kubeClient := kubefake.NewClientset()
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
+				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
+			}
+			component := &radixv1.RadixDeployComponent{
+				Name:         componentName,
+				VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount},
+			}
+			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
+			s.Require().NoError(err)
+			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
+			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, component, desiredVolumes)
+			s.Require().NoError(err)
+			pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			s.Require().NoError(err)
+			actualPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
+			s.Require().NoError(err)
+			s.ElementsMatch(test.expectedMountOptions, actualPV.Spec.MountOptions)
 		})
 	}
 }
