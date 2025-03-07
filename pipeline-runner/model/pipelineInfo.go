@@ -208,7 +208,7 @@ func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
 
 // IsPipelineType Check pipeline type
 func (info *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
-	return info.PipelineArguments.PipelineType == string(pipelineType)
+	return info.GetRadixPipelineType() == pipelineType
 }
 
 func (info *PipelineInfo) IsUsingBuildKit() bool {
@@ -228,8 +228,8 @@ func (info *PipelineInfo) IsUsingBuildCache() bool {
 	return useBuildCache
 }
 
-// GetConfigBranch Get config branch
-func (info *PipelineInfo) GetConfigBranch() string {
+// GetRadixConfigBranch Get config branch
+func (info *PipelineInfo) GetRadixConfigBranch() string {
 	return info.RadixRegistration.Spec.ConfigBranch
 }
 
@@ -246,4 +246,25 @@ func (info *PipelineInfo) GetGitWorkspace() string {
 // GetAppName Get app name
 func (info *PipelineInfo) GetAppName() string {
 	return info.PipelineArguments.AppName
+}
+
+// GetRadixPipelineType Get radix pipeline type
+func (info *PipelineInfo) GetRadixPipelineType() radixv1.RadixPipelineType {
+	return radixv1.RadixPipelineType(info.PipelineArguments.PipelineType)
+}
+
+// GetRadixApplication Get radix application
+func (info *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
+	return info.RadixApplication
+}
+
+// SetRadixApplication Set radix application
+func (info *PipelineInfo) SetRadixApplication(radixApplication *radixv1.RadixApplication) *PipelineInfo {
+	info.RadixApplication = radixApplication
+	return info
+}
+
+// GetBranch Get branch
+func (info *PipelineInfo) GetBranch() string {
+	return info.PipelineArguments.Branch
 }

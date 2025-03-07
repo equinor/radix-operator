@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,6 +24,8 @@ import (
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -43,7 +43,7 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 		return err
 	}
 
-	pipelineType := radixv1.RadixPipelineType(ctx.pipelineInfo.PipelineArguments.PipelineType)
+	pipelineType := ctx.GetPipelineInfo().GetRadixPipelineType()
 	if gitHash == "" && pipelineType != radixv1.BuildDeploy {
 		// if no git hash, don't run sub-pipelines
 		return nil
@@ -138,7 +138,7 @@ func (ctx *pipelineContext) analyseSourceRepositoryChanges(pipelineTargetCommitH
 	}
 
 	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(ctx.pipelineInfo.GetGitWorkspace(),
-		ctx.pipelineInfo.GetConfigBranch(),
+		ctx.pipelineInfo.GetRadixConfigBranch(),
 		ctx.pipelineInfo.GetRadixConfigFile(),
 		pipelineTargetCommitHash,
 		lastCommitHashesForEnvs)
@@ -429,7 +429,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 	}
 	log.Info().Msgf("creates %d tasks for the environment %s", len(taskMap), envName)
 
-	_, err = ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Create(context.Background(), pipeline, metav1.CreateOptions{})
+	_, err = ctx.tektonClient.TektonV1().Pipelines(utils.GetAppNamespace(ctx.pipelineInfo.GetAppName())).Create(context.Background(), pipeline, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("pipeline %s has not been created. Error: %w", pipeline.Name, err)
 	}

@@ -40,11 +40,6 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return nil
 	}
 
-	radixApplication, err := ctx.createRadixApplicationFromConfigMap()
-	if err != nil {
-		return err
-	}
-	ctx.radixApplication = radixApplication
 	err = ctx.setTargetEnvironments()
 	if err != nil {
 		return err
@@ -52,7 +47,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 
 	tektonPipelineBranch := ctx.pipelineInfo.PipelineArguments.Branch
 	if ctx.GetPipelineInfo().GetRadixPipelineType() == radixv1.Deploy {
-		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
+		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.GetPipelineInfo().GetRadixApplication(), ctx.env.GetRadixDeployToEnvironment())
 		if re != nil && len(re.Build.From) > 0 {
 			tektonPipelineBranch = re.Build.From
 		} else {
@@ -160,7 +155,8 @@ func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
 		},
 	}
 
-	if ctx.radixApplication != nil && len(ctx.radixApplication.Spec.PrivateImageHubs) > 0 {
+	ra := ctx.GetPipelineInfo().GetRadixApplication()
+	if ra != nil && len(ra.Spec.PrivateImageHubs) > 0 {
 		podTemplate.ImagePullSecrets = []corev1.LocalObjectReference{{Name: operatorDefaults.PrivateImageHubSecretName}}
 	}
 

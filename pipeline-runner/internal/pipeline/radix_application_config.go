@@ -4,91 +4,48 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/configmap"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline/application"
 	"strings"
 
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/configmap"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline/application"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 )
 
 // ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 func (ctx *pipelineContext) ProcessRadixAppConfig() error {
-	configFileContent, err := configmap.CreateFromRadixConfigFile(ctx.env)
+	configFileContent, err := configmap.ReadFromRadixConfigFile(ctx.GetPipelineInfo().GetRadixConfigFile())
 	if err != nil {
-		return fmt.Errorf("error reading the Radix config file %s: %v", ctx.GetPipelineInfo().GetRadixConfigFileName(), err)
+		return fmt.Errorf("error reading the Radix config file %s: %v", ctx.GetPipelineInfo().GetRadixConfigFile(), err)
 	}
-	log.Debug().Msgf("Radix config file %s has been loaded", ctx.GetPipelineInfo().GetRadixConfigFileName())
+	log.Debug().Msgf("Radix config file %s has been loaded", ctx.GetPipelineInfo().GetRadixConfigFile())
 
-	ctx.radixApplication, err = application.CreateRadixApplication(context.TODO(), ctx.radixClient, ctx.env.GetAppName(), ctx.env.GetDNSConfig(), configFileContent)
+	radixApplication, err := application.CreateRadixApplication(context.Background(), ctx.radixClient, ctx.GetPipelineInfo().GetAppName(), ctx.env.GetDNSConfig(), configFileContent)
 	if err != nil {
 		return err
 	}
+	ctx.pipelineInfo.SetRadixApplication(radixApplication)
 	log.Debug().Msg("Radix Application has been loaded")
 
-	err = ctx.setTargetEnvironments()
-	if err != nil {
+	if err = ctx.setTargetEnvironments(); err != nil {
 		return err
-	}
-	err := ctx.preparePipelinesJob()
-	if err != nil {
-		return err
-	}
-	return ctx.createConfigMap(configFileContent, prepareBuildContext)
-}
-
-func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBuildContext *model.PrepareBuildContext) error {
-	env := ctx.GetPipelineInfo()
-	if prepareBuildContext == nil {
-		prepareBuildContext = &model.PrepareBuildContext{}
-	}
-	buildContext, err := yaml.Marshal(prepareBuildContext)
-	if err != nil {
-		return err
-	}
-	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      env.GetRadixConfigMapName(),
-			Namespace: env.GetAppNamespace(),
-			Labels:    map[string]string{kube.RadixJobNameLabel: ctx.GetPipelineInfo().GetRadixPipelineJobName()},
-		},
-		Data: map[string]string{
-			pipelineDefaults.PipelineConfigMapContent:      configFileContent,
-			pipelineDefaults.PipelineConfigMapBuildContext: string(buildContext),
-		},
-	}
-	if ctx.ownerReference != nil {
-		cm.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 	}
 
-	_, err = ctx.kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(context.Background(), &cm, metav1.CreateOptions{})
-
-	if err != nil {
-		return err
-	}
-	log.Debug().Msgf("Created ConfigMap %s", env.GetRadixConfigMapName())
-	return nil
+	return ctx.preparePipelinesJob()
 }
 
 func (ctx *pipelineContext) setTargetEnvironments() error {
-	if ctx.GetPipelineInfo().GetRadixPipelineType() == v1.ApplyConfig {
-		return nil
-	}
 	log.Debug().Msg("Set target environment")
-	if ctx.GetPipelineInfo().GetRadixPipelineType() == v1.Promote {
+	switch ctx.GetPipelineInfo().GetRadixPipelineType() {
+	case radixv1.ApplyConfig:
+		return nil
+	case radixv1.Promote:
 		return ctx.setTargetEnvironmentsForPromote()
-	}
-	if ctx.GetPipelineInfo().GetRadixPipelineType() == v1.Deploy {
+	case radixv1.Deploy:
 		return ctx.setTargetEnvironmentsForDeploy()
 	}
-	targetEnvironments := applicationconfig.GetTargetEnvironments(ctx.pipelineInfo.PipelineArguments.Branch, ctx.radixApplication)
+	targetEnvironments := applicationconfig.GetTargetEnvironments(ctx.pipelineInfo.GetBranch(), ctx.GetPipelineInfo().GetRadixApplication())
 	ctx.targetEnvironments = make(map[string]bool)
 	deployToEnvironment := ctx.env.GetRadixDeployToEnvironment()
 	for _, envName := range targetEnvironments {

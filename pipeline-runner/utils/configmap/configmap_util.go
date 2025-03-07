@@ -6,17 +6,16 @@ import (
 	"os"
 
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	"github.com/equinor/radix-tekton/pkg/models/env"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// CreateFromRadixConfigFile Creates a configmap by name from file and returns as content
-func CreateFromRadixConfigFile(env env.Env) (string, error) {
-	content, err := os.ReadFile(env.GetRadixConfigFileName())
+// ReadFromRadixConfigFile Reads radixconfig content from a file
+func ReadFromRadixConfigFile(radixConfigFileName string) (string, error) {
+	content, err := os.ReadFile(radixConfigFileName)
 	if err != nil {
-		return "", fmt.Errorf("could not find or read config yaml file \"%s\"", env.GetRadixConfigFileName())
+		return "", fmt.Errorf("could not find or read config yaml file \"%s\"", radixConfigFileName)
 	}
 	return string(content), nil
 }
