@@ -18,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	pipelineApplication "github.com/equinor/radix-operator/pkg/apis/pipeline/application"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
@@ -98,12 +97,6 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	}
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		gitCommitHash, gitTags := cli.getHashAndTags(ctx, namespace, pipelineInfo)
-		err = validate.GitTagsContainIllegalChars(gitTags)
-		if err != nil {
-			return err
-		}
-		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.PrepareBuildContext)
 	}
 
@@ -531,30 +524,6 @@ func printPrepareBuildContext(ctx context.Context, prepareBuildContext *model.Pr
 			log.Ctx(ctx).Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
 		}
 	}
-}
-
-func (cli *ApplyConfigStepImplementation) getHashAndTags(ctx context.Context, namespace string, pipelineInfo *model.PipelineInfo) (string, string) {
-	gitConfigMap, err := cli.GetKubeUtil().GetConfigMap(ctx, namespace, pipelineInfo.GitConfigMapName)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("Could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
-		return "", ""
-	}
-	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
-	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
-	err = errors.Join(commitErr, tagsErr)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
-		return "", ""
-	}
-	return gitCommitHash, gitTags
-}
-
-func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {
-	value, ok := configMap.Data[key]
-	if !ok {
-		return "", fmt.Errorf("failed to get %s from configMap %s", key, configMap.Name)
-	}
-	return value, nil
 }
 
 func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironmentComponentImages, ra *radixv1.RadixApplication) error {

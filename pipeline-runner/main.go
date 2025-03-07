@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	gitutils "github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 	"os/signal"
 	"strconv"
@@ -31,7 +32,10 @@ var overrideUseBuildCache model.BoolPtr
 // - a secret radix-snyk-service-account with access token to SNYK service account
 
 func main() {
-	pipelineArgs := &model.PipelineArguments{DNSConfig: &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)}}
+	pipelineArgs := &model.PipelineArguments{
+		DNSConfig:    &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)},
+		GitWorkspace: gitutils.Workspace,
+	}
 	initLogger(pipelineArgs.LogLevel)
 
 	cmd := &cobra.Command{

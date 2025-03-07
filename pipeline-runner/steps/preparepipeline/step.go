@@ -8,7 +8,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/maps"
 	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
-	pipeline2 "github.com/equinor/radix-operator/pipeline-runner/internal/pipeline"
+	pipelineInternal "github.com/equinor/radix-operator/pipeline-runner/internal/pipeline"
 	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -96,7 +96,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		job.OwnerReferences = ownerReference
 	}
 
-	pipelineContext := pipeline2.NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
+	pipelineContext := pipelineInternal.NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
 	return pipelineContext.ProcessRadixAppConfig()
 }
 
@@ -185,7 +185,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		},
 		{
 			Name:  defaults.RadixGithubWebhookCommitId,
-			Value: getWebhookCommitID(pipelineInfo),
+			Value: pipelineInfo.PipelineArguments.CommitID,
 		},
 		{
 			Name:  defaults.RadixReservedAppDNSAliasesEnvironmentVariable,
@@ -198,13 +198,6 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 	}
 	initContainers := git.CloneInitContainersWithContainerName(registration.Spec.CloneURL, configBranch, git.CloneConfigContainerName, internalgit.CloneConfigFromPipelineArgs(pipelineInfo.PipelineArguments), false)
 	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
-}
-
-func getWebhookCommitID(pipelineInfo *model.PipelineInfo) string {
-	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		return pipelineInfo.PipelineArguments.CommitID
-	}
-	return ""
 }
 
 func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx context.Context, appName, sourceEnvName, sourceDeploymentName string) (string, string, error) {

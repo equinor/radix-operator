@@ -92,6 +92,7 @@ func getActionPipelineJobTypeLabelByPipelinesAction(action string) string {
 
 func getJobVolumes() []corev1.Volume {
 	defaultMode := int32(256)
+
 	volumes := []corev1.Volume{
 		{
 			Name: git.BuildContextVolumeName,

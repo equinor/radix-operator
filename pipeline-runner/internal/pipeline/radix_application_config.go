@@ -37,7 +37,7 @@ func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 	if err != nil {
 		return err
 	}
-	prepareBuildContext, err := ctx.preparePipelinesJob()
+	err := ctx.preparePipelinesJob()
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (ctx *pipelineContext) setTargetEnvironments() error {
 	if ctx.GetPipelineInfo().GetRadixPipelineType() == v1.Deploy {
 		return ctx.setTargetEnvironmentsForDeploy()
 	}
-	targetEnvironments := applicationconfig.GetTargetEnvironments(ctx.env.GetBranch(), ctx.radixApplication)
+	targetEnvironments := applicationconfig.GetTargetEnvironments(ctx.pipelineInfo.PipelineArguments.Branch, ctx.radixApplication)
 	ctx.targetEnvironments = make(map[string]bool)
 	deployToEnvironment := ctx.env.GetRadixDeployToEnvironment()
 	for _, envName := range targetEnvironments {
@@ -97,9 +97,9 @@ func (ctx *pipelineContext) setTargetEnvironments() error {
 		}
 	}
 	if len(ctx.targetEnvironments) > 0 {
-		log.Info().Msgf("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
+		log.Info().Msgf("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.pipelineInfo.PipelineArguments.Branch)
 	} else {
-		log.Info().Msgf("No environments are mapped to the branch %s.", ctx.env.GetBranch())
+		log.Info().Msgf("No environments are mapped to the branch %s.", ctx.pipelineInfo.PipelineArguments.Branch)
 	}
 	log.Info().Msgf("Pipeline type: %s", ctx.env.GetRadixPipelineType())
 	return nil

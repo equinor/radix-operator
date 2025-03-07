@@ -17,6 +17,7 @@ import (
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
 	Definition        *pipeline.Definition
+	RadixRegistration *radixv1.RadixRegistration
 	RadixApplication  *radixv1.RadixApplication
 	BuildSecret       *corev1.Secret
 	PipelineArguments PipelineArguments
@@ -46,6 +47,9 @@ type PipelineInfo struct {
 	// Promotion job git info
 	SourceDeploymentGitCommitHash string
 	SourceDeploymentGitBranch     string
+
+	// BuildContext pipeline build context
+	BuildContext PrepareBuildContext
 }
 
 // Builder Holds info about the builder arguments
@@ -121,12 +125,11 @@ type PipelineArguments struct {
 	ExternalContainerRegistryDefaultAuthSecret string
 
 	ApplyConfigOptions ApplyConfigOptions
+	GitWorkspace       string
 }
 
 // InitPipeline Initialize pipeline with step implementations
-func InitPipeline(pipelineType *pipeline.Definition,
-	pipelineArguments *PipelineArguments,
-	stepImplementations ...Step) (*PipelineInfo, error) {
+func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *PipelineArguments, stepImplementations ...Step) (*PipelineInfo, error) {
 
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
@@ -223,4 +226,24 @@ func (info *PipelineInfo) IsUsingBuildCache() bool {
 	}
 
 	return useBuildCache
+}
+
+// GetConfigBranch Get config branch
+func (info *PipelineInfo) GetConfigBranch() string {
+	return info.RadixRegistration.Spec.ConfigBranch
+}
+
+// GetRadixConfigFile Get radix config file
+func (info *PipelineInfo) GetRadixConfigFile() string {
+	return info.PipelineArguments.RadixConfigFile
+}
+
+// GetGitWorkspace Get git workspace
+func (info *PipelineInfo) GetGitWorkspace() string {
+	return info.PipelineArguments.GitWorkspace
+}
+
+// GetAppName Get app name
+func (info *PipelineInfo) GetAppName() string {
+	return info.PipelineArguments.AppName
 }

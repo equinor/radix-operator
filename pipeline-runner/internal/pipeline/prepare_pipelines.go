@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,15 +18,14 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/pipeline/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/configmap"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,42 +35,41 @@ import (
 
 var privateSshFolderMode int32 = 0444
 
-func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, error) {
-	buildContext := model.PrepareBuildContext{}
+func (ctx *pipelineContext) preparePipelinesJob() error {
+	ctx.pipelineInfo.BuildContext = model.PrepareBuildContext{}
 
 	gitHash, err := ctx.getGitHash()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if gitHash == "" && ctx.env.GetRadixPipelineType() != v1.BuildDeploy {
+
+	pipelineType := radixv1.RadixPipelineType(ctx.pipelineInfo.PipelineArguments.PipelineType)
+	if gitHash == "" && pipelineType != radixv1.BuildDeploy {
 		// if no git hash, don't run sub-pipelines
-		return &buildContext, nil
+		return nil
 	}
 
-	err = git.ResetGitHead(ctx.env.GetGitRepositoryWorkspace(), gitHash)
+	err = git.ResetGitHead(ctx.pipelineInfo.PipelineArguments.GitWorkspace, gitHash)
 	if err != nil {
-		if ctx.env.GetRadixPipelineType() == v1.Promote {
+		if pipelineType == radixv1.Promote {
 			log.Error().Msgf("Failed to find Git CommitID %s. Error: %v. Ignore the error for the Promote pipeline. If Sub-pipeline exists it is skipped.", gitHash, err)
-			return &buildContext, nil
+			return nil
 		}
-		return nil, err
+		return err
 	}
 
-	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
-		changedComponents, changedRadixConfig, err := ctx.prepareBuildDeployPipeline()
-		if err != nil {
-			return nil, err
+	if pipelineType == radixv1.BuildDeploy {
+		if err = ctx.prepareBuildDeployPipeline(); err != nil {
+			return err
 		}
-		buildContext.EnvironmentsToBuild = changedComponents
-		buildContext.ChangedRadixConfig = changedRadixConfig
 	}
 
 	environmentSubPipelinesToRun, err := ctx.getEnvironmentSubPipelinesToRun()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	buildContext.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
-	return &buildContext, err
+	ctx.pipelineInfo.BuildContext.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
+	return err
 }
 
 func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error) {
@@ -104,39 +104,50 @@ func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.Environme
 	return nil, nil
 }
 
-func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToBuild, bool, error) {
+func (ctx *pipelineContext) prepareBuildDeployPipeline() error {
+	pipelineArgs := ctx.GetPipelineInfo().PipelineArguments
+	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
+	if err != nil {
+		return err
+	}
+	if err = validate.GitTagsContainIllegalChars(commitTags); err != nil {
+		return err
+	}
+	ctx.GetPipelineInfo().SetGitAttributes(pipelineTargetCommitHash, commitTags)
+
+	if len(pipelineArgs.CommitID) > 0 {
+		return nil
+	}
+
+	radixConfigWasChanged, environmentsToBuild, err := ctx.analyseSourceRepositoryChanges(pipelineTargetCommitHash)
+	if err != nil {
+		return err
+	}
+	ctx.pipelineInfo.BuildContext.EnvironmentsToBuild = environmentsToBuild
+	ctx.pipelineInfo.BuildContext.ChangedRadixConfig = radixConfigWasChanged
+	return nil
+}
+
+func (ctx *pipelineContext) analyseSourceRepositoryChanges(pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {
 	targetEnvs := maps.GetKeysFromMap(ctx.targetEnvironments)
-	env := ctx.GetPipelineInfo()
-	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(ctx.env)
-	if err != nil {
-		return nil, false, err
-	}
-	err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags, ctx.ownerReference)
-	if err != nil {
-		return nil, false, err
-	}
 
-	if !ctx.isPipelineStartedByWebhook() {
-		return nil, false, err
-	}
-
-	radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.kubeClient, ctx.radixClient, env.GetAppName(), targetEnvs)
+	radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.kubeClient, ctx.radixClient, ctx.pipelineInfo.GetAppName(), targetEnvs)
 	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
 	if err != nil {
-		return nil, false, err
+		return false, nil, err
 	}
 
-	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), env.GetRadixConfigFileName(), pipelineTargetCommitHash, lastCommitHashesForEnvs)
+	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(ctx.pipelineInfo.GetGitWorkspace(),
+		ctx.pipelineInfo.GetConfigBranch(),
+		ctx.pipelineInfo.GetRadixConfigFile(),
+		pipelineTargetCommitHash,
+		lastCommitHashesForEnvs)
 	if err != nil {
-		return nil, false, err
+		return false, nil, err
 	}
 
 	environmentsToBuild := ctx.getEnvironmentsToBuild(changesFromGitRepository)
-	return environmentsToBuild, radixConfigWasChanged, nil
-}
-
-func (ctx *pipelineContext) isPipelineStartedByWebhook() bool {
-	return len(ctx.GetPipelineInfo().GetWebhookCommitId()) > 0
+	return radixConfigWasChanged, environmentsToBuild, nil
 }
 
 func (ctx *pipelineContext) getEnvironmentsToBuild(changesFromGitRepository map[string][]string) []model.EnvironmentToBuild {
@@ -161,7 +172,7 @@ func (ctx *pipelineContext) getEnvironmentsToBuild(changesFromGitRepository map[
 	return environmentsToBuild
 }
 
-func componentHasChangedSource(envName string, component v1.RadixCommonComponent, changedFolders []string) bool {
+func componentHasChangedSource(envName string, component radixv1.RadixCommonComponent, changedFolders []string) bool {
 	image := component.GetImageForEnvironment(envName)
 	if len(image) > 0 {
 		return false
@@ -262,7 +273,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 			}
 		}
 
-		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
+		task.ObjectMeta.Annotations[pipelineDefaults.PipelineTaskNameAnnotation] = originalTaskName
 		if ctx.ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 		}
@@ -366,11 +377,11 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 
 func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, error) {
 	if len(pipelineFile) == 0 {
-		pipelineFile = defaults.DefaultPipelineFileName
-		log.Debug().Msgf("Tekton pipeline file name is not specified, using the default file name %s", defaults.DefaultPipelineFileName)
+		pipelineFile = pipelineDefaults.DefaultPipelineFileName
+		log.Debug().Msgf("Tekton pipeline file name is not specified, using the default file name %s", pipelineDefaults.DefaultPipelineFileName)
 	}
 	pipelineFile = strings.TrimPrefix(pipelineFile, "/") // Tekton pipeline folder currently is relative to the Radix config file repository folder
-	configFolder := filepath.Dir(ctx.env.GetRadixConfigFileName())
+	configFolder := filepath.Dir(ctx.pipelineInfo.PipelineArguments.RadixConfigFile)
 	return filepath.Join(configFolder, pipelineFile), nil
 }
 
@@ -383,7 +394,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
 	}
 
-	_, azureClientIdPipelineParamExist := ctx.GetEnvVars(envName)[defaults.AzureClientIdEnvironmentVariable]
+	_, azureClientIdPipelineParamExist := ctx.GetEnvVars(envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
 	if azureClientIdPipelineParamExist {
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
 	}
@@ -406,8 +417,8 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
-		kube.RadixBranchAnnotation:      ctx.env.GetBranch(),
-		defaults.PipelineNameAnnotation: originalPipelineName,
+		kube.RadixBranchAnnotation:              ctx.pipelineInfo.PipelineArguments.Branch,
+		pipelineDefaults.PipelineNameAnnotation: originalPipelineName,
 	}
 	if ctx.ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
@@ -427,7 +438,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 }
 
 func (ctx *pipelineContext) createTasks(taskMap map[string]pipelinev1.Task) error {
-	namespace := ctx.env.GetAppNamespace()
+	namespace := utils.GetAppNamespace(ctx.pipelineInfo.PipelineArguments.AppName)
 	var errs []error
 	for _, task := range taskMap {
 		_, err := ctx.tektonClient.TektonV1().Tasks(namespace).Create(context.Background(), &task,
@@ -513,8 +524,8 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read the file %s: %v", fileName, err)
 		}
-		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
-		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixGitDeployKeySource, defaults.SubstitutionRadixGitDeployKeyTarget))
+		fileData = []byte(strings.ReplaceAll(string(fileData), pipelineDefaults.SubstitutionRadixBuildSecretsSource, pipelineDefaults.SubstitutionRadixBuildSecretsTarget))
+		fileData = []byte(strings.ReplaceAll(string(fileData), pipelineDefaults.SubstitutionRadixGitDeployKeySource, pipelineDefaults.SubstitutionRadixGitDeployKeyTarget))
 
 		task := pipelinev1.Task{}
 		err = yaml.Unmarshal(fileData, &task)
@@ -533,7 +544,7 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 
 func addGitDeployKeyVolume(task *pipelinev1.Task) {
 	task.Spec.Volumes = append(task.Spec.Volumes, corev1.Volume{
-		Name: defaults.SubstitutionRadixGitDeployKeyTarget,
+		Name: pipelineDefaults.SubstitutionRadixGitDeployKeyTarget,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  operatorDefaults.GitPrivateKeySecretName,
@@ -560,29 +571,31 @@ func ensureAzureClientIdParamExistInTaskParams(pipeline *pipelinev1.Pipeline, pi
 }
 
 func addAzureIdentityClientIdParamToPipeline(pipeline *pipelinev1.Pipeline) {
-	pipeline.Spec.Params = append(pipeline.Spec.Params, pipelinev1.ParamSpec{Name: defaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Description: "Defines the Client ID for a user defined managed identity or application ID for an application registration"})
+	pipeline.Spec.Params = append(pipeline.Spec.Params, pipelinev1.ParamSpec{Name: pipelineDefaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Description: "Defines the Client ID for a user defined managed identity or application ID for an application registration"})
 }
 
 func pipelineHasAzureIdentityClientIdParam(pipeline *pipelinev1.Pipeline) bool {
 	return slice.Any(pipeline.Spec.Params, func(paramSpec pipelinev1.ParamSpec) bool {
-		return paramSpec.Name == defaults.AzureClientIdEnvironmentVariable
+		return paramSpec.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
 	})
 }
 
 func addAzureIdentityClientIdParamToPipelineTask(pipeline *pipelinev1.Pipeline, taskIndex int) {
 	pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params,
 		pipelinev1.Param{
-			Name:  defaults.AzureClientIdEnvironmentVariable,
-			Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: fmt.Sprintf("$(params.%s)", defaults.AzureClientIdEnvironmentVariable)},
+			Name:  pipelineDefaults.AzureClientIdEnvironmentVariable,
+			Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: fmt.Sprintf("$(params.%s)", pipelineDefaults.AzureClientIdEnvironmentVariable)},
 		})
 }
 
 func taskHasAzureIdentityClientIdParam(task pipelinev1.Task) bool {
 	return slice.Any(task.Spec.Params, func(paramSpec pipelinev1.ParamSpec) bool {
-		return paramSpec.Name == defaults.AzureClientIdEnvironmentVariable
+		return paramSpec.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
 	})
 }
 
 func pipelineTaskHasAzureIdentityClientIdParam(pipeline *pipelinev1.Pipeline, taskIndex int) bool {
-	return slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(param pipelinev1.Param) bool { return param.Name == defaults.AzureClientIdEnvironmentVariable })
+	return slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(param pipelinev1.Param) bool {
+		return param.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
+	})
 }

@@ -127,7 +127,6 @@ func (s *applyConfigTestSuite) Test_GitConfigMap_Processed() {
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	expectedRa := utils.ARadixApplication().WithAppName(appName).BuildRA()
 	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, radixConfigMapName, appName, expectedRa, nil))
-	s.Require().NoError(internaltest.CreateGitInfoConfigMapResponse(s.kubeClient, gitConfigMapName, appName, expectedGitHash, expectedGitTags))
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			AppName:      appName,

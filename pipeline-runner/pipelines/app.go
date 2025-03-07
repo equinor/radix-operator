@@ -69,10 +69,8 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 	}
 
 	stepImplementations := cli.initStepImplementations(ctx, radixRegistration)
-	cli.pipelineInfo, err = model.InitPipeline(
-		cli.definition,
-		pipelineArgs,
-		stepImplementations...)
+	cli.pipelineInfo, err = model.InitPipeline(cli.definition, pipelineArgs, stepImplementations...)
+	cli.pipelineInfo.RadixRegistration = radixRegistration
 
 	if err != nil {
 		return err

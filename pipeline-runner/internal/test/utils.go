@@ -40,18 +40,6 @@ func CreatePreparePipelineConfigMapResponse(kubeClient kubernetes.Interface, con
 	return err
 }
 
-func CreateGitInfoConfigMapResponse(kubeClient kubernetes.Interface, configMapName, appName, gitHash, gitTags string) error {
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-		Data: map[string]string{
-			defaults.RadixGitCommitHashKey: gitHash,
-			defaults.RadixGitTagsKey:       gitTags,
-		},
-	}
-	_, err := kubeClient.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Create(context.Background(), cm, metav1.CreateOptions{})
-	return err
-}
-
 func CreateBuildSecret(kubeClient kubernetes.Interface, appName string, data map[string][]byte) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName},

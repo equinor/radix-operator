@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
@@ -47,9 +46,8 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 }
 
 // GetCommitHashAndTags gets target commit hash and tags from GitHub repository
-func GetCommitHashAndTags(env env.Env) (string, string, error) {
-	gitWorkspace := env.GetGitRepositoryWorkspace()
-	targetCommitHash, err := GetGitCommitHash(gitWorkspace, env)
+func GetCommitHashAndTags(gitWorkspace, webhookCommitId, branchName string) (string, string, error) {
+	targetCommitHash, err := GetGitCommitHash(gitWorkspace, webhookCommitId, branchName)
 	if err != nil {
 		return "", "", err
 	}
@@ -306,15 +304,13 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 // GetGitCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
 // build branch
-func GetGitCommitHash(workspace string, e env.Env) (string, error) {
-	webhookCommitId := e.GetWebhookCommitId()
+func GetGitCommitHash(gitWorkspace, webhookCommitId, branchName string) (string, error) {
 	if webhookCommitId != "" {
 		log.Debug().Msgf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)
 		return webhookCommitId, nil
 	}
-	branchName := e.GetBranch()
 	log.Debug().Msgf("determining git commit hash of HEAD of branch %s", branchName)
-	gitCommitHash, err := GetGitCommitHashFromHead(workspace, branchName)
+	gitCommitHash, err := GetGitCommitHashFromHead(gitWorkspace, branchName)
 	log.Debug().Msgf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
 	return gitCommitHash, err
 }

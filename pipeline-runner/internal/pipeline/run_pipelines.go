@@ -50,7 +50,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return err
 	}
 
-	tektonPipelineBranch := ctx.env.GetBranch()
+	tektonPipelineBranch := ctx.pipelineInfo.PipelineArguments.Branch
 	if ctx.GetPipelineInfo().GetRadixPipelineType() == radixv1.Deploy {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
 		if re != nil && len(re.Build.From) > 0 {
@@ -125,7 +125,7 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 			Name:   pipelineRunName,
 			Labels: labels.GetLabelsForEnvironment(ctx, targetEnv),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:      ctx.env.GetBranch(),
+				kube.RadixBranchAnnotation:      ctx.pipelineInfo.PipelineArguments.Branch,
 				defaults.PipelineNameAnnotation: originalPipelineName,
 			},
 		},
