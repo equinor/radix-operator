@@ -1766,6 +1766,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--block-cache-parallelism=1337",
 			},
 		},
+		// TODO: Add test for blobfuse2, blockcache disk setting. Testing of disk path (random value) must be performed some other way
 	}
 
 	for testName, test := range tests {
@@ -1796,6 +1797,292 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 			actualPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			s.ElementsMatch(test.expectedMountOptions, actualPV.Spec.MountOptions)
+		})
+	}
+}
+
+func (s *volumeMountTestSuite) Test_RadixVolumeMountPVLabels() {
+	tests := map[string]struct {
+		volumeMount    radixv1.RadixVolumeMount
+		appName        string
+		componentName  string
+		namespace      string
+		expectedLabels map[string]string
+	}{
+		"deprecated volume": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "vol1",
+				Path:    "anypath",
+				Storage: "anystorage",
+			},
+			appName:       "app1",
+			componentName: "comp1",
+			namespace:     "ns1",
+			expectedLabels: map[string]string{
+				kube.RadixAppLabel:             "app1",
+				kube.RadixComponentLabel:       "comp1",
+				kube.RadixNamespace:            "ns1",
+				kube.RadixVolumeMountNameLabel: "vol1",
+			},
+		},
+		"blofuse2": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "vol2",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+				},
+			},
+			appName:       "app2",
+			componentName: "comp2",
+			namespace:     "ns2",
+			expectedLabels: map[string]string{
+				kube.RadixAppLabel:             "app2",
+				kube.RadixComponentLabel:       "comp2",
+				kube.RadixNamespace:            "ns2",
+				kube.RadixVolumeMountNameLabel: "vol2",
+			},
+		},
+	}
+
+	for testName, test := range tests {
+		s.Run(testName, func() {
+			const (
+				pvcName = "anypvc"
+			)
+			kubeClient := kubefake.NewClientset()
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: test.namespace},
+				Spec:       radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: "anyenv"},
+			}
+			component := &radixv1.RadixDeployComponent{Name: test.componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount}}
+			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
+			s.Require().NoError(err)
+			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
+			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, component, desiredVolumes)
+			s.Require().NoError(err)
+			pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(test.namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			s.Require().NoError(err)
+			actualPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
+			s.Require().NoError(err)
+			s.Equal(test.expectedLabels, actualPV.GetLabels())
+		})
+	}
+}
+
+func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
+	tests := map[string]struct {
+		initialVolumeMount radixv1.RadixVolumeMount
+		changedVolumeMount radixv1.RadixVolumeMount
+		expectRecreate     bool
+	}{
+		"deprecated volume: same spec should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+			},
+			expectRecreate: false,
+		},
+		"deprecated volume: change Storage should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "initial",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "changed",
+			},
+			expectRecreate: true,
+		},
+		"deprecated volume: change GID recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				GID:     "1337",
+			},
+
+			expectRecreate: true,
+		},
+		"deprecated volume: change UID recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				UID:     "1337",
+			},
+			expectRecreate: true,
+		},
+		"deprecated volume: change RequestsStorage recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:            "any",
+				Storage:         "any",
+				RequestsStorage: resource.MustParse("1337M"),
+			},
+			expectRecreate: true,
+		},
+		"deprecated volume: setting AccessMode to the defined default should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "any",
+				Storage:    "any",
+				AccessMode: "ReadOnlyMany",
+			},
+			expectRecreate: false,
+		},
+		"deprecated volume: setting AccessMode to a non-default value should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "any",
+				Storage:    "any",
+				AccessMode: "ReadWriteMany",
+			},
+			expectRecreate: true,
+		},
+		"change from deprecated volume to blobfuse2 to recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: same spec should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change Container recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "initial",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "change",
+				},
+			},
+			expectRecreate: true,
+		},
+	}
+
+	for testName, test := range tests {
+		s.Run(testName, func() {
+			const (
+				appName       = "anyapp"
+				componentName = "anycomp"
+				namespace     = "anyns"
+				pvcName       = "anypvc"
+			)
+			kubeClient := kubefake.NewClientset()
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
+				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Environment: "anyenv"},
+			}
+
+			// Run sync with initialVolumeMount to create initial PV and PVC
+			initialComponent := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.initialVolumeMount}}
+			initialVolumeName, err := GetVolumeMountVolumeName(&test.initialVolumeMount, componentName)
+			s.Require().NoError(err)
+			initialVolumes := []corev1.Volume{{
+				Name:         initialVolumeName,
+				VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}},
+			}}
+			initialVolumes, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, initialComponent, initialVolumes)
+			s.Require().NoError(err)
+			initialPVC, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), initialVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
+			s.Require().NoError(err)
+			initialPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), initialPVC.Spec.VolumeName, metav1.GetOptions{})
+			s.Require().NoError(err)
+			s.NotNil(initialPV)
+
+			// Run sync with changedVolumeMount to verify recreation of new PV and PVC
+			changedComponent := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.changedVolumeMount}}
+
+			// The next four lines is a HACK because the generated volume name includes info from the RadixVolumeMount that relates to the driver and external storage container. Why? Don't know
+			changedVolumeName, err := GetVolumeMountVolumeName(&test.changedVolumeMount, componentName)
+			s.Require().NoError(err)
+			initialVolumeModified := initialVolumes[0].DeepCopy()
+			initialVolumeModified.Name = changedVolumeName
+
+			changedVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, changedComponent, []corev1.Volume{*initialVolumeModified})
+			s.Require().NoError(err)
+			changedPVC, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), changedVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
+			s.Require().NoError(err)
+			changedPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), changedPVC.Spec.VolumeName, metav1.GetOptions{})
+			s.Require().NoError(err)
+
+			// Perform tests
+			pvcList, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{})
+			s.Require().NoError(err)
+			pvList, err := kubeClient.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
+			s.Require().NoError(err)
+
+			if test.expectRecreate {
+				s.NotEqual(initialPVC.Name, changedPVC.Name)
+				s.NotEqual(initialPV.Name, changedPV.Name)
+				s.Len(pvcList.Items, 2)
+				s.Len(pvList.Items, 2)
+			} else {
+				s.Equal(initialPVC.Name, changedPVC.Name)
+				s.Equal(initialPV.Name, changedPV.Name)
+				s.Len(pvcList.Items, 1)
+				s.Len(pvList.Items, 1)
+			}
 		})
 	}
 }
