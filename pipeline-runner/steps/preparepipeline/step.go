@@ -3,7 +3,6 @@ package preparepipeline
 import (
 	"context"
 	"fmt"
-	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
@@ -24,6 +23,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -95,7 +95,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		job.OwnerReferences = ownerReference
 	}
 
-	pipelineContext := internal.NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
+	pipelineContext := NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
 	return pipelineContext.ProcessRadixAppConfig()
 }
 

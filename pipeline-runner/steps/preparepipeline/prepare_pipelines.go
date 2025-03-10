@@ -1,10 +1,10 @@
-package internal
+package preparepipeline
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
@@ -247,7 +248,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 	taskMap := make(map[string]pipelinev1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
-		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
+		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalTaskName), timestamp, ctx.hash)
 		if task.ObjectMeta.Labels == nil {
 			task.ObjectMeta.Labels = map[string]string{}
 		}
@@ -255,7 +256,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 			task.ObjectMeta.Annotations = map[string]string{}
 		}
 
-		for k, v := range labels.GetLabelsForEnvironment(ctx, envName) {
+		for k, v := range labels.GetLabelsForEnvironment(ctx.GetPipelineInfo(), envName) {
 			task.ObjectMeta.Labels[k] = v
 		}
 
@@ -410,9 +411,9 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
-	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", getShortName(envName), getShortName(originalPipelineName), timestamp, ctx.hash)
+	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, ctx.hash)
 	pipeline.ObjectMeta.Name = pipelineName
-	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
+	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx.GetPipelineInfo(), envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
 		kube.RadixBranchAnnotation:              ctx.pipelineInfo.PipelineArguments.Branch,
 		pipelineDefaults.PipelineNameAnnotation: originalPipelineName,
@@ -445,13 +446,6 @@ func (ctx *pipelineContext) createTasks(taskMap map[string]pipelinev1.Task) erro
 		}
 	}
 	return errors.Join(errs...)
-}
-
-func getShortName(name string) string {
-	if len(name) > 4 {
-		name = name[:4]
-	}
-	return fmt.Sprintf("%s-%s", name, strings.ToLower(commonUtils.RandStringStrSeed(5, name)))
 }
 
 func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {

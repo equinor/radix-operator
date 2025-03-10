@@ -1,8 +1,9 @@
-package internal
+package preparepipeline
 
 import (
 	"context"
 	"errors"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/wait"

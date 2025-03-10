@@ -1,4 +1,4 @@
-package internal
+package preparepipeline
 
 import (
 	"context"
@@ -399,7 +399,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 		{
 			name: "one default task",
 			fields: fields{
-				targetEnvironments: map[string]bool{envDev: true},
+				targetEnvironments: []string{envDev},
 				hash:               hash,
 				ownerReference:     &metav1.OwnerReference{Kind: "RadixApplication", Name: appName},
 			},
@@ -442,7 +442,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 		{
 			name: "set SecurityContexts in task step",
 			fields: fields{
-				targetEnvironments: map[string]bool{envDev: true},
+				targetEnvironments: []string{envDev},
 			},
 			args: args{
 				envName: envDev,
@@ -497,7 +497,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 		{
 			name: "set SecurityContexts in task sidecar",
 			fields: fields{
-				targetEnvironments: map[string]bool{envDev: true},
+				targetEnvironments: []string{envDev},
 			},
 			args: args{
 				envName: envDev,
@@ -556,7 +556,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 		{
 			name: "set SecurityContexts in task stepTemplate",
 			fields: fields{
-				targetEnvironments: map[string]bool{envDev: true},
+				targetEnvironments: []string{envDev},
 			},
 			args: args{
 				envName: envDev,
@@ -611,7 +611,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 		{
 			name: "allow in the SecurityContext in task step non-root RunAsUser and RunAsGroup",
 			fields: fields{
-				targetEnvironments: map[string]bool{envDev: true},
+				targetEnvironments: []string{envDev},
 			},
 			args: args{
 				envName: envDev,
@@ -653,7 +653,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 		{
 			name: "allow set SecurityContexts in task sidecar non-root RunAsUser and RunAsGroup",
 			fields: fields{
-				targetEnvironments: map[string]bool{envDev: true},
+				targetEnvironments: []string{envDev},
 			},
 			args: args{
 				envName: envDev,
@@ -696,7 +696,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 		{
 			name: "allow set SecurityContexts in task stepTemplate non-root RunAsUser and RunAsGroup",
 			fields: fields{
-				targetEnvironments: map[string]bool{envDev: true},
+				targetEnvironments: []string{envDev},
 			},
 			args: args{
 				envName: envDev,

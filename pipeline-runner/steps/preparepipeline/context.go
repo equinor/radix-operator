@@ -1,4 +1,4 @@
-package internal
+package preparepipeline
 
 import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/wait"
@@ -12,8 +12,6 @@ import (
 type Context interface {
 	// ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 	ProcessRadixAppConfig() error
-	// RunPipelinesJob un the job, which creates Tekton PipelineRun-s
-	RunPipelinesJob() error
 	// GetPipelineInfo Get pipeline info
 	GetPipelineInfo() *model.PipelineInfo
 	// GetHash Hash, common for all pipeline Kubernetes object names

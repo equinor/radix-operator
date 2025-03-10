@@ -1,8 +1,9 @@
-package internal_test
+package runpipeline_test
 
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -11,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/test"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
@@ -45,7 +45,7 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 	pipelineInfo := model.PipelineInfo{}
-	pipelineContext := internal.NewPipelineContext(kubeClient, rxClient, tknClient, &pipelineInfo, internal.WithPipelineRunsWaiter(completionWaiter))
+	pipelineContext := NewPipelineContext(kubeClient, rxClient, tknClient, &pipelineInfo, WithPipelineRunsWaiter(completionWaiter))
 
 	//_, err := kubeClient.CoreV1().ConfigMaps(pipelineContext.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
 	//	ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixConfigMapName},
@@ -250,7 +250,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
 			}
-			ctx := internal.NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, internal.WithPipelineRunsWaiter(completionWaiter))
+			ctx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, WithPipelineRunsWaiter(completionWaiter))
 
 			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(internalTest.AppName).
 				WithBuildVariables(ts.buildVariables).
@@ -401,7 +401,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
 			}
-			ctx := internal.NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, internal.WithPipelineRunsWaiter(completionWaiter))
+			ctx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, WithPipelineRunsWaiter(completionWaiter))
 
 			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(internalTest.AppName).
 				WithBuildVariables(ts.buildVariables).

@@ -1,15 +1,16 @@
-package internal
+package runpipeline
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-common/utils/slice"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -42,7 +43,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return nil
 	}
 
-	err = ctx.setTargetEnvironments()
+	ctx.targetEnvironments, err = internal.SetTargetEnvironments(ctx.GetPipelineInfo())
 	if err != nil {
 		return err
 	}
@@ -76,7 +77,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 
 func (ctx *pipelineContext) getTargetEnvsAsString() string {
 	var envs []string
-	for envName := range ctx.targetEnvironments {
+	for _, envName := range ctx.targetEnvironments {
 		envs = append(envs, envName)
 	}
 	return strings.Join(envs, ", ")
@@ -115,7 +116,7 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *pipeli
 
 func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string) pipelinev1.PipelineRun {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[pipelineDefaults.PipelineNameAnnotation]
-	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", getShortName(targetEnv), timestamp, ctx.hash)
+	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", internal.GetShortName(targetEnv), timestamp, ctx.hash)
 	pipelineParams := ctx.getPipelineParams(pipeline, targetEnv)
 	pipelineInfo := ctx.GetPipelineInfo()
 	pipelineRun := pipelinev1.PipelineRun{
