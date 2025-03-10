@@ -14,40 +14,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 )
-
-type deployCommonComponentBuilder struct {
-	name         string
-	volumeMounts []radixv1.RadixVolumeMount
-	factory      radixCommonDeployComponentFactory
-}
-
-func (dcb *deployCommonComponentBuilder) WithName(name string) *deployCommonComponentBuilder {
-	dcb.name = name
-	return dcb
-}
-
-func (dcb *deployCommonComponentBuilder) WithVolumeMounts(volumeMounts ...radixv1.RadixVolumeMount) *deployCommonComponentBuilder {
-	dcb.volumeMounts = volumeMounts
-	return dcb
-}
-
-func (dcb *deployCommonComponentBuilder) BuildComponent() radixv1.RadixCommonDeployComponent {
-	component := dcb.factory.Create()
-	component.SetName(dcb.name)
-	component.SetVolumeMounts(dcb.volumeMounts)
-	return component
-}
-
-func newDeployCommonComponentBuilder(factory radixCommonDeployComponentFactory) *deployCommonComponentBuilder {
-	return &deployCommonComponentBuilder{factory: factory}
-}
 
 type volumeMountTestSuite struct {
 	testSuite
@@ -77,50 +48,45 @@ func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			expectedVolumeName: "csi-az-blob-app-volume-with-long-name-blobstoragename-wit-12345",
 		},
 	}
-	s.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
-		t.Parallel()
-		for _, factory := range s.radixCommonDeployComponentFactories {
-			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
-			component := newDeployCommonComponentBuilder(factory).WithName("app").
-				WithVolumeMounts(scenarios[0].radixVolumeMount).
-				BuildComponent()
+	s.Run("One Blob CSI Azure volume mount ", func() {
+		s.T().Parallel()
+		s.T().Logf("Test case %s", scenarios[0].name)
+		component := &radixv1.RadixDeployComponent{Name: "app", VolumeMounts: []radixv1.RadixVolumeMount{scenarios[0].radixVolumeMount}}
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
-			assert.Nil(t, err)
-			assert.Equal(t, 1, len(volumeMounts), "Unexpected volume count")
-			if len(volumeMounts) > 0 {
-				mount := volumeMounts[0]
-				assert.Less(t, len(volumeMounts[0].Name), 64, "Volume name is too long")
-				assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name, "Mismatching volume names")
-				assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath, "Mismatching volume paths")
-			}
+		volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+		s.Nil(err)
+		s.Equal(1, len(volumeMounts), "Unexpected volume count")
+		if len(volumeMounts) > 0 {
+			mount := volumeMounts[0]
+			s.Less(len(volumeMounts[0].Name), 64, "Volume name is too long")
+			s.Equal(scenarios[0].expectedVolumeName, mount.Name, "Mismatching volume names")
+			s.Equal(scenarios[0].radixVolumeMount.Path, mount.MountPath, "Mismatching volume paths")
 		}
+
 	})
-	s.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
-		t.Parallel()
-		for _, factory := range s.radixCommonDeployComponentFactories {
-			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
-			component := newDeployCommonComponentBuilder(factory).
-				WithName("app").
-				WithVolumeMounts(scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount, scenarios[2].radixVolumeMount).
-				BuildComponent()
-
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
-			assert.Equal(t, 3, len(volumeMounts), "Unexpected volume count")
-			assert.Nil(t, err)
-			for idx, testCase := range scenarios {
-				if len(volumeMounts) > 0 {
-					volumeMountName := volumeMounts[idx].Name
-					assert.Less(t, len(volumeMountName), 64)
-					if len(volumeMountName) > 60 {
-						assert.True(t, internal.EqualTillPostfix(testCase.expectedVolumeName, volumeMountName, nameRandPartLength), "Mismatching volume name prefixes %s and %s", volumeMountName, testCase.expectedVolumeName)
-					} else {
-						assert.Equal(t, testCase.expectedVolumeName, volumeMountName, "Mismatching volume names")
-					}
-					assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath, "Mismatching volume paths")
+	s.Run("Multiple Blob CSI Azure volume mount ", func() {
+		s.T().Parallel()
+		s.T().Logf("Test case %s", scenarios[0].name)
+		component := &radixv1.RadixDeployComponent{
+			Name:         "app",
+			VolumeMounts: []radixv1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount, scenarios[2].radixVolumeMount},
+		}
+		volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+		s.Equal(3, len(volumeMounts), "Unexpected volume count")
+		s.Nil(err)
+		for idx, testCase := range scenarios {
+			if len(volumeMounts) > 0 {
+				volumeMountName := volumeMounts[idx].Name
+				s.Less(len(volumeMountName), 64)
+				if len(volumeMountName) > 60 {
+					s.True(internal.EqualTillPostfix(testCase.expectedVolumeName, volumeMountName, nameRandPartLength), "Mismatching volume name prefixes %s and %s", volumeMountName, testCase.expectedVolumeName)
+				} else {
+					s.Equal(testCase.expectedVolumeName, volumeMountName, "Mismatching volume names")
 				}
+				s.Equal(testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath, "Mismatching volume paths")
 			}
 		}
+
 	})
 }
 
@@ -137,20 +103,15 @@ func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 			expectedError:    "storage is empty for volume mount volume1 in the component app",
 		},
 	}
-	s.T().Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
-		t.Parallel()
-		for _, factory := range s.radixCommonDeployComponentFactories {
-			for _, testCase := range scenarios {
-				t.Logf("Test case %s for component %s", testCase.name, factory.GetTargetType())
-				component := newDeployCommonComponentBuilder(factory).
-					WithName("app").
-					WithVolumeMounts(testCase.radixVolumeMount).
-					BuildComponent()
+	s.Run("Failing Blob CSI Azure volume mount", func() {
+		s.T().Parallel()
+		for _, testCase := range scenarios {
+			s.T().Logf("Test case %s", testCase.name)
+			component := &radixv1.RadixDeployComponent{Name: "app", VolumeMounts: []radixv1.RadixVolumeMount{testCase.radixVolumeMount}}
 
-				_, err := GetRadixDeployComponentVolumeMounts(component, "")
-				assert.NotNil(t, err)
-				assert.Equal(t, testCase.expectedError, err.Error())
-			}
+			_, err := GetRadixDeployComponentVolumeMounts(component, "")
+			s.NotNil(err)
+			s.Equal(testCase.expectedError, err.Error())
 		}
 	})
 }
@@ -158,13 +119,12 @@ func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 func (s *volumeMountTestSuite) Test_GetNewVolumes() {
 	namespace := "some-namespace"
 	componentName := "some-component"
-	s.T().Run("No volumes in component", func(t *testing.T) {
-		t.Parallel()
-		testEnv := getTestEnv()
+	s.Run("No volumes in component", func() {
+		s.T().Parallel()
 		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts().BuildComponent()
-		volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
-		assert.Nil(t, err)
-		assert.Len(t, volumes, 0)
+		volumes, err := GetVolumes(context.Background(), s.kubeUtil, namespace, &component, "", nil)
+		s.Nil(err)
+		s.Len(volumes, 0)
 	})
 	scenarios := []volumeMountTestScenario{
 		{
@@ -180,37 +140,37 @@ func (s *volumeMountTestSuite) Test_GetNewVolumes() {
 			expectedPvcName:    "pvc-csi-az-blob-some-component-volume-with-long-name-blobstor-einhp-12345",
 		},
 	}
-	s.T().Run("CSI Azure volumes", func(t *testing.T) {
-		t.Parallel()
-		testEnv := getTestEnv()
+	s.Run("CSI Azure volumes", func() {
+		s.T().Parallel()
+
 		for _, scenario := range scenarios {
-			t.Logf("Scenario %s", scenario.name)
+			s.T().Logf("Scenario %s", scenario.name)
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
-			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
-			assert.Nil(t, err)
-			assert.Len(t, volumes, 1, "Unexpected volume count")
+			volumes, err := GetVolumes(context.Background(), s.kubeUtil, namespace, &component, "", nil)
+			s.Nil(err)
+			s.Len(volumes, 1, "Unexpected volume count")
 			volume := volumes[0]
 			if len(volume.Name) > 60 {
-				assert.True(t, internal.EqualTillPostfix(scenario.expectedVolumeName, volume.Name, nameRandPartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volume.Name)
+				s.True(internal.EqualTillPostfix(scenario.expectedVolumeName, volume.Name, nameRandPartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volume.Name)
 			} else {
-				assert.Equal(t, scenario.expectedVolumeName, volume.Name, "Mismatching volume names")
+				s.Equal(scenario.expectedVolumeName, volume.Name, "Mismatching volume names")
 			}
-			assert.Less(t, len(volume.Name), 64, "Volume name is too long")
-			assert.NotNil(t, volume.PersistentVolumeClaim, "PVC is nil")
-			assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
+			s.Less(len(volume.Name), 64, "Volume name is too long")
+			s.NotNil(volume.PersistentVolumeClaim, "PVC is nil")
+			s.True(internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
 		}
 	})
-	s.T().Run("Unsupported volume type", func(t *testing.T) {
-		t.Parallel()
-		testEnv := getTestEnv()
+	s.Run("Unsupported volume type", func() {
+		s.T().Parallel()
+
 		mounts := []radixv1.RadixVolumeMount{
 			{Type: "unsupported-type", Name: "volume1", Container: "storage1", Path: "path1"},
 		}
 		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(mounts...).BuildComponent()
-		volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
-		assert.Len(t, volumes, 0, "Unexpected volume count")
-		assert.NotNil(t, err)
-		assert.Equal(t, "unsupported volume type unsupported-type", err.Error())
+		volumes, err := GetVolumes(context.Background(), s.kubeUtil, namespace, &component, "", nil)
+		s.Len(volumes, 0, "Unexpected volume count")
+		s.NotNil(err)
+		s.Equal("unsupported volume type unsupported-type", err.Error())
 	})
 }
 
@@ -236,40 +196,35 @@ func (s *volumeMountTestSuite) Test_GetVolumesForComponent() {
 		},
 	}
 
-	s.T().Run("No volumes", func(t *testing.T) {
-		t.Parallel()
-		testEnv := getTestEnv()
-		for _, factory := range s.radixCommonDeployComponentFactories {
-			t.Logf("Test case for component %s", factory.GetTargetType())
+	s.Run("No volumes", func() {
+		s.T().Parallel()
 
-			radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{})
+		radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{})
+		deployComponent := radixDeployment.Spec.Components[0]
+
+		volumes, err := GetVolumes(context.Background(), s.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
+
+		s.Nil(err)
+		s.Len(volumes, 0, "No volumes should be returned")
+
+	})
+	s.Run("Exists volume", func() {
+		s.T().Parallel()
+		for _, scenario := range scenarios {
+			s.T().Logf("Test case %s", scenario.name)
+
+			radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
 			deployComponent := radixDeployment.Spec.Components[0]
 
-			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
+			volumes, err := GetVolumes(context.Background(), s.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
 
-			assert.Nil(t, err)
-			assert.Len(t, volumes, 0, "No volumes should be returned")
+			s.Nil(err)
+			s.Len(volumes, 1, "Unexpected volume count")
+			s.Equal(scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
+			s.NotNil(volumes[0].PersistentVolumeClaim, "PVC is nil")
+			s.True(internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName)
 		}
-	})
-	s.T().Run("Exists volume", func(t *testing.T) {
-		t.Parallel()
-		testEnv := getTestEnv()
-		for _, factory := range s.radixCommonDeployComponentFactories {
-			for _, scenario := range scenarios {
-				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
 
-				radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
-				deployComponent := radixDeployment.Spec.Components[0]
-
-				volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
-
-				assert.Nil(t, err)
-				assert.Len(t, volumes, 1, "Unexpected volume count")
-				assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
-				assert.NotNil(t, volumes[0].PersistentVolumeClaim, "PVC is nil")
-				assert.True(t, internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName)
-			}
-		}
 	})
 }
 
@@ -300,42 +255,36 @@ func (s *volumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 		},
 	}
 
-	s.T().Run("No volumes", func(t *testing.T) {
-		t.Parallel()
-		for _, factory := range s.radixCommonDeployComponentFactories {
-			t.Logf("Test case for component %s", factory.GetTargetType())
+	s.Run("No volumes", func() {
+		s.T().Parallel()
+		radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{})
+		deployComponent := radixDeployment.Spec.Components[0]
 
-			radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{})
+		volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
+
+		s.Nil(err)
+		s.Len(volumes, 0, "No volumes should be returned")
+	})
+	s.Run("Exists volume", func() {
+		s.T().Parallel()
+		for _, scenario := range scenarios {
+			s.T().Logf("Test case %s", scenario.name)
+
+			radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
 			deployComponent := radixDeployment.Spec.Components[0]
 
-			volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
 
-			assert.Nil(t, err)
-			assert.Len(t, volumes, 0, "No volumes should be returned")
-		}
-	})
-	s.T().Run("Exists volume", func(t *testing.T) {
-		t.Parallel()
-		for _, factory := range s.radixCommonDeployComponentFactories {
-			for _, scenario := range scenarios {
-				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
-
-				radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
-				deployComponent := radixDeployment.Spec.Components[0]
-
-				volumeMounts, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
-
-				assert.Nil(t, err)
-				assert.Len(t, volumeMounts, 1)
-				volumeMountName := volumeMounts[0].Name
-				if len(volumeMountName) > 60 {
-					assert.True(t, internal.EqualTillPostfix(scenario.expectedVolumeName, volumeMountName, nameRandPartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volumeMountName)
-				} else {
-					assert.Equal(t, scenario.expectedVolumeName, volumeMountName)
-				}
-				assert.Less(t, len(volumeMountName), 64, "Volume name is too long")
-				assert.Equal(t, scenario.radixVolumeMount.Path, volumeMounts[0].MountPath, "Mismatching volume paths")
+			s.Nil(err)
+			s.Len(volumeMounts, 1)
+			volumeMountName := volumeMounts[0].Name
+			if len(volumeMountName) > 60 {
+				s.True(internal.EqualTillPostfix(scenario.expectedVolumeName, volumeMountName, nameRandPartLength), "Mismatching volume name prefixes %s and %s", scenario.expectedVolumeName, volumeMountName)
+			} else {
+				s.Equal(scenario.expectedVolumeName, volumeMountName)
 			}
+			s.Less(len(volumeMountName), 64, "Volume name is too long")
+			s.Equal(scenario.radixVolumeMount.Path, volumeMounts[0].MountPath, "Mismatching volume paths")
 		}
 	})
 }
@@ -372,7 +321,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCAndPVBinding() {
 				componentName = "anycomp"
 				pvcName       = "anypvc"
 			)
-			kubeClient := kubefake.NewClientset()
+
 			rd := &radixv1.RadixDeployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
 				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
@@ -381,13 +330,13 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCAndPVBinding() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			actualVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, component, desiredVolumes)
+			actualVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
 			s.Require().Len(actualVolumes, 1)
 			s.Equal(pvcName, actualVolumes[0].VolumeSource.PersistentVolumeClaim.ClaimName)
-			pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			_, err = kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
+			_, err = s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
 		})
 	}
@@ -562,7 +511,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 				componentName = "anycomp"
 				pvcName       = "anypvc"
 			)
-			kubeClient := kubefake.NewClientset()
 			rd := &radixv1.RadixDeployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
 				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
@@ -571,9 +519,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
-			actualPVC, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			actualPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
 
 			compareResourceList := func(expected, actual corev1.ResourceList) bool {
@@ -649,7 +597,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCLabels() {
 				namespace = "anyns"
 				pvcName   = "anypvc"
 			)
-			kubeClient := kubefake.NewClientset()
 			rd := &radixv1.RadixDeployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
 				Spec:       radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: envName},
@@ -658,9 +605,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCLabels() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
-			pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			s.Equal(test.expectedLabels, pvc.GetLabels())
 		})
@@ -1130,7 +1077,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				pvcName = "anypvc"
 			)
 			namespace := utils.GetEnvironmentNamespace(test.appName, test.envName)
-			kubeClient := kubefake.NewClientset()
 			rd := &radixv1.RadixDeployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
 				Spec:       radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: test.envName},
@@ -1143,11 +1089,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
-			pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			actualPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
+			actualPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
 
 			compareResourceList := func(expected, actual corev1.ResourceList) bool {
@@ -1795,7 +1741,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				namespace     = "anyns"
 				pvcName       = "anypvc"
 			)
-			kubeClient := kubefake.NewClientset()
 			rd := &radixv1.RadixDeployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
 				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
@@ -1807,11 +1752,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
-			pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			actualPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
+			actualPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			s.Subset(actualPV.Spec.MountOptions, test.expectedMountOptions)
 			actualMountOptionArgNames := slice.Map(actualPV.Spec.MountOptions, func(o string) string {
@@ -1873,7 +1818,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVLabels() {
 			const (
 				pvcName = "anypvc"
 			)
-			kubeClient := kubefake.NewClientset()
 			rd := &radixv1.RadixDeployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: test.namespace},
 				Spec:       radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: "anyenv"},
@@ -1882,11 +1826,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVLabels() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
-			pvc, err := kubeClient.CoreV1().PersistentVolumeClaims(test.namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(test.namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			actualPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
+			actualPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			s.Equal(test.expectedLabels, actualPV.GetLabels())
 		})
@@ -3554,7 +3498,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				namespace     = "anyns"
 				pvcName       = "anypvc"
 			)
-			kubeClient := kubefake.NewClientset()
 			rd := &radixv1.RadixDeployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: namespace},
 				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Environment: "anyenv"},
@@ -3568,11 +3511,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name:         initialVolumeName,
 				VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}},
 			}}
-			initialVolumes, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, initialComponent, initialVolumes)
+			initialVolumes, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, initialComponent, initialVolumes)
 			s.Require().NoError(err)
-			initialPVC, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), initialVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
+			initialPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), initialVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			initialPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), initialPVC.Spec.VolumeName, metav1.GetOptions{})
+			initialPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), initialPVC.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			s.NotNil(initialPV)
 
@@ -3585,17 +3528,17 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			initialVolumeModified := initialVolumes[0].DeepCopy()
 			initialVolumeModified.Name = changedVolumeName
 
-			changedVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), kubeClient, rd, changedComponent, []corev1.Volume{*initialVolumeModified})
+			changedVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, changedComponent, []corev1.Volume{*initialVolumeModified})
 			s.Require().NoError(err)
-			changedPVC, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), changedVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
+			changedPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), changedVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			changedPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), changedPVC.Spec.VolumeName, metav1.GetOptions{})
+			changedPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), changedPVC.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
 
 			// Perform tests
-			pvcList, err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{})
+			pvcList, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{})
 			s.Require().NoError(err)
-			pvList, err := kubeClient.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
+			pvList, err := s.kubeClient.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 			s.Require().NoError(err)
 
 			if test.expectRecreate {
