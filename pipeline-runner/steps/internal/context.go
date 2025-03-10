@@ -1,7 +1,8 @@
-package model
+package internal
 
 import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/wait"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
@@ -14,7 +15,7 @@ type Context interface {
 	// RunPipelinesJob un the job, which creates Tekton PipelineRun-s
 	RunPipelinesJob() error
 	// GetPipelineInfo Get pipeline info
-	GetPipelineInfo() *PipelineInfo
+	GetPipelineInfo() *model.PipelineInfo
 	// GetHash Hash, common for all pipeline Kubernetes object names
 	GetHash() string
 	// GetKubeClient Kubernetes client

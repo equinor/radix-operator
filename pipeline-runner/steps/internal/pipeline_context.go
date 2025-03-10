@@ -1,4 +1,4 @@
-package pipeline
+package internal
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ type pipelineContext struct {
 	radixClient        radixclient.Interface
 	kubeClient         kubernetes.Interface
 	tektonClient       tektonclient.Interface
-	targetEnvironments map[string]bool
+	targetEnvironments []string
 	hash               string
 	ownerReference     *metav1.OwnerReference
 	waiter             wait.PipelineRunsCompletionWaiter
@@ -171,7 +171,7 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 type NewPipelineContextOption func(ctx *pipelineContext)
 
 // NewPipelineContext Create new NewPipelineContext instance
-func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, options ...NewPipelineContextOption) model.Context {
+func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, options ...NewPipelineContextOption) Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
 	ctx := &pipelineContext{
 		kubeClient:     kubeClient,

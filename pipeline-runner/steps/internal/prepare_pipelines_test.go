@@ -1,15 +1,15 @@
-package pipeline
+package internal
 
 import (
 	"context"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"strings"
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pipeline-runner/internal/pipeline/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
@@ -370,7 +370,7 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 func Test_pipelineContext_createPipeline(t *testing.T) {
 	type fields struct {
 		radixApplicationBuilder utils.ApplicationBuilder
-		targetEnvironments      map[string]bool
+		targetEnvironments      []string
 		hash                    string
 		ownerReference          *metav1.OwnerReference
 	}

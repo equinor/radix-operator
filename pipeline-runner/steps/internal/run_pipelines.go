@@ -1,9 +1,10 @@
-package pipeline
+package internal
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-common/utils/slice"
 	"strings"
 	"time"
 
@@ -103,7 +104,7 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *pipeli
 	}
 
 	log.Debug().Msgf("run pipelinerun for the target environment %s", targetEnv)
-	if _, ok := ctx.targetEnvironments[targetEnv]; !ok {
+	if !slice.Any(ctx.targetEnvironments, func(envName string) bool { return envName == targetEnv }) {
 		return nil, fmt.Errorf("missing target environment %s for the pipeline %s", targetEnv, pipeline.Name)
 	}
 

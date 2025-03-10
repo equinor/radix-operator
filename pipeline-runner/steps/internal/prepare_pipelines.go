@@ -1,9 +1,10 @@
-package pipeline
+package internal
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,9 +13,7 @@ import (
 	"time"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pipeline-runner/internal/pipeline/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
@@ -76,7 +75,7 @@ func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.Environme
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	var errs []error
 	timestamp := time.Now().Format("20060102150405")
-	for targetEnv := range ctx.targetEnvironments {
+	for _, targetEnv := range ctx.targetEnvironments {
 		log.Debug().Msgf("create a sub-pipeline for the environment %s", targetEnv)
 		runSubPipeline, pipelineFilePath, err := ctx.preparePipelinesJobForTargetEnv(targetEnv, timestamp)
 		if err != nil {
@@ -129,9 +128,7 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() error {
 }
 
 func (ctx *pipelineContext) analyseSourceRepositoryChanges(pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {
-	targetEnvs := maps.GetKeysFromMap(ctx.targetEnvironments)
-
-	radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.kubeClient, ctx.radixClient, ctx.pipelineInfo.GetAppName(), targetEnvs)
+	radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.kubeClient, ctx.radixClient, ctx.pipelineInfo.GetAppName(), ctx.targetEnvironments)
 	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
 	if err != nil {
 		return false, nil, err

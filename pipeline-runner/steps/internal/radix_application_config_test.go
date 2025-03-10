@@ -1,4 +1,4 @@
-package pipeline
+package internal
 
 import (
 	"context"

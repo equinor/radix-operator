@@ -1,9 +1,9 @@
 package validation_test
 
 import (
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"testing"
 
-	"github.com/equinor/radix-operator/pipeline-runner/internal/pipeline/validation"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/stretchr/testify/assert"

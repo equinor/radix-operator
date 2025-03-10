@@ -1,4 +1,4 @@
-package pipeline
+package internal
 
 import (
 	"context"
@@ -46,17 +46,17 @@ func (ctx *pipelineContext) setTargetEnvironments() error {
 		return ctx.setTargetEnvironmentsForDeploy()
 	}
 	targetEnvironments := applicationconfig.GetTargetEnvironments(ctx.pipelineInfo.GetBranch(), ctx.GetPipelineInfo().GetRadixApplication())
-	ctx.targetEnvironments = make(map[string]bool)
+	ctx.targetEnvironments = []string{}
 	deployToEnvironment := ctx.GetPipelineInfo().GetRadixDeployToEnvironment()
 	for _, envName := range targetEnvironments {
 		if len(deployToEnvironment) == 0 || deployToEnvironment == envName {
-			ctx.targetEnvironments[envName] = true
+			ctx.targetEnvironments = append(ctx.targetEnvironments, envName)
 		}
 	}
 	if len(ctx.targetEnvironments) > 0 {
-		log.Info().Msgf("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.pipelineInfo.PipelineArguments.Branch)
+		log.Info().Msgf("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.GetPipelineInfo().GetBranch())
 	} else {
-		log.Info().Msgf("No environments are mapped to the branch %s.", ctx.pipelineInfo.PipelineArguments.Branch)
+		log.Info().Msgf("No environments are mapped to the branch %s.", ctx.GetPipelineInfo().GetBranch())
 	}
 	log.Info().Msgf("Pipeline type: %s", ctx.GetPipelineInfo().GetRadixPipelineType())
 	return nil
@@ -78,7 +78,7 @@ func (ctx *pipelineContext) setTargetEnvironmentsForPromote() error {
 		log.Info().Msg("Pipeline type: promote")
 		return errors.Join(errs...)
 	}
-	ctx.targetEnvironments = map[string]bool{pipelineInfo.GetRadixDeployToEnvironment(): true} // run Tekton pipelines for the promote target environment
+	ctx.targetEnvironments = []string{pipelineInfo.GetRadixDeployToEnvironment()} // run Tekton pipelines for the promote target environment
 	log.Info().Msgf("promote the deployment %s from the environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
 	return nil
 }
@@ -88,16 +88,12 @@ func (ctx *pipelineContext) setTargetEnvironmentsForDeploy() error {
 	if len(targetEnvironment) == 0 {
 		return fmt.Errorf("no target environment is specified for the deploy pipeline")
 	}
-	ctx.targetEnvironments = map[string]bool{targetEnvironment: true}
+	ctx.targetEnvironments = []string{targetEnvironment}
 	log.Info().Msgf("Target environment: %v", targetEnvironment)
 	log.Info().Msgf("Pipeline type: %s", ctx.GetPipelineInfo().GetRadixPipelineType())
 	return nil
 }
 
-func getEnvironmentList(environmentNameMap map[string]bool) string {
-	var envNames []string
-	for envName := range environmentNameMap {
-		envNames = append(envNames, envName)
-	}
-	return strings.Join(envNames, ", ")
+func getEnvironmentList(environmentNames []string) string {
+	return strings.Join(environmentNames, ", ")
 }

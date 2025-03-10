@@ -8,7 +8,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/maps"
 	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
-	pipelineInternal "github.com/equinor/radix-operator/pipeline-runner/internal/pipeline"
 	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -96,7 +95,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		job.OwnerReferences = ownerReference
 	}
 
-	pipelineContext := pipelineInternal.NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
+	pipelineContext := internal.NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
 	return pipelineContext.ProcessRadixAppConfig()
 }
 
