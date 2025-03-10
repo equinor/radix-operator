@@ -43,6 +43,7 @@ func (ctx *pipelineContext) GetBuildContext() (*model.PrepareBuildContext, error
 	}
 
 	pipelineType := ctx.GetPipelineInfo().GetRadixPipelineType()
+	buildContext := model.PrepareBuildContext{}
 
 	if gitHash == "" && ctx.GetPipelineInfo().GetRadixPipelineType() != v1.BuildDeploy {
 		// if no git hash, don't run sub-pipelines
@@ -53,8 +54,6 @@ func (ctx *pipelineContext) GetBuildContext() (*model.PrepareBuildContext, error
 		log.Error().Msgf("Failed to find Git CommitID %s. Error: %v. Ignore the error for the Promote pipeline. If Sub-pipeline exists it is skipped.", gitHash, err)
 		return nil, nil
 	}
-
-	buildContext := model.PrepareBuildContext{}
 
 	if pipelineType == radixv1.BuildDeploy {
 		buildContext.EnvironmentsToBuild, buildContext.ChangedRadixConfig, err = ctx.prepareBuildDeployPipeline()
