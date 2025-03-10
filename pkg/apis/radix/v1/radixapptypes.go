@@ -354,6 +354,12 @@ type RadixComponent struct {
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
+	// Number of desired replicas.
+	// More info: https://www.radix.equinor.com/radix-config#replicas
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	Replicas *int `json:"replicas,omitempty"`
+
 	// HealthChecks can tell Radix if your application is ready to receive traffic.
 	// Defaults to a TCP check against your first listed port.
 	// If any healthchecks are defined, no defaults will be added and you should add your own readinessProbe.
@@ -1533,6 +1539,11 @@ type OAuth2 struct {
 	// +kubebuilder:default:=secret
 	// +optional
 	Credentials CredentialsType `json:"credentials,omitempty"`
+
+        // SkipAuthRoutes defines regex pattern of routes that should not be authenticated. Notice the ^ prefix and $ suffix to make sure the whole path is matched 
+	// +optional
+	// example: GET=^/healthz$
+	SkipAuthRoutes []string `json:"skipAuthRoutes,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie.
@@ -1739,6 +1750,8 @@ type RadixCommonComponent interface {
 	GetName() string
 	// GetDockerfileName Gets component docker file name
 	GetDockerfileName() string
+	// GetReplicas Gets component replicas
+	GetReplicas() *int
 	// GetSourceFolder Gets component source folder
 	GetSourceFolder() string
 	// GetImage Gets component image
@@ -1795,6 +1808,10 @@ func (component *RadixComponent) GetName() string {
 
 func (component *RadixComponent) GetDockerfileName() string {
 	return component.DockerfileName
+}
+
+func (component *RadixComponent) GetReplicas() *int {
+	return component.Replicas
 }
 
 func (component *RadixComponent) GetSourceFolder() string {
@@ -1924,6 +1941,10 @@ func (component *RadixJobComponent) GetName() string {
 
 func (component *RadixJobComponent) GetDockerfileName() string {
 	return component.DockerfileName
+}
+
+func (component *RadixJobComponent) GetReplicas() *int {
+	return nil
 }
 
 func (component *RadixJobComponent) GetSourceFolder() string {

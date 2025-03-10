@@ -486,3 +486,8 @@ type RadixCommonDeployComponent interface {
 	GetNetwork() *Network
 	GetHealthChecks() *RadixHealthChecks
 }
+
+// IsActive The RadixDeployment is active
+func (rd *RadixDeployment) IsActive() bool {
+	return rd.Status.Condition == DeploymentActive
+}

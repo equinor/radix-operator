@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
@@ -36,6 +37,7 @@ const (
 	oauth2ProxyCookieSecretEnvironmentVariable              = "OAUTH2_PROXY_COOKIE_SECRET"
 	oauth2ProxyRedisPasswordEnvironmentVariable             = "OAUTH2_PROXY_REDIS_PASSWORD"
 	oauth2ProxyEntraIdFederatedTokenAuthEnvironmentVariable = "OAUTH2_PROXY_ENTRA_ID_FEDERATED_TOKEN_AUTH"
+	oauth2ProxySkipAuthRoutesEnvironmentVariable            = "OAUTH2_PROXY_SKIP_AUTH_ROUTES"
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
@@ -648,7 +650,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 
 	var replicas int32 = 1
-	if isComponentStopped(component) {
+	if isComponentStopped(component) || componentHasZeroReplicas(component) {
 		replicas = 0
 	}
 
@@ -701,6 +703,10 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 	oauthutil.MergeAuxComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
 	return desiredDeployment, nil
+}
+
+func componentHasZeroReplicas(component v1.RadixCommonDeployComponent) bool {
+	return component.GetReplicas() != nil && *component.GetReplicas() == 0
 }
 
 func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
@@ -777,7 +783,9 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	if redisStore := oauth.RedisStore; redisStore != nil {
 		addEnvVarIfSet("OAUTH2_PROXY_REDIS_CONNECTION_URL", redisStore.ConnectionURL)
 	}
-
+	if len(oauth.SkipAuthRoutes) > 0 {
+		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
+	}
 	return envVars
 }
 

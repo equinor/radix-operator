@@ -43,9 +43,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 			Secrets:              radixComponent.Secrets,
 			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
 		}
-		if environmentSpecificConfig != nil {
-			deployComponent.Replicas = environmentSpecificConfig.Replicas
-		}
+		deployComponent.Replicas = getRadixCommonComponentReplicas(&radixComponent, environmentSpecificConfig)
 
 		if currentRadixDeployment != nil {
 			if currentComponent := currentRadixDeployment.GetComponentByName(componentName); currentComponent != nil {
@@ -92,6 +90,13 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 	}
 
 	return deployComponents, nil
+}
+
+func getRadixCommonComponentReplicas(r *radixv1.RadixComponent, environmentSpecificConfig *radixv1.RadixEnvironmentConfig) *int {
+	if environmentSpecificConfig != nil && environmentSpecificConfig.Replicas != nil {
+		return environmentSpecificConfig.Replicas
+	}
+	return r.Replicas
 }
 
 func getRadixCommonComponentHealthChecks(r *radixv1.RadixComponent, config *radixv1.RadixEnvironmentConfig) *radixv1.RadixHealthChecks {
