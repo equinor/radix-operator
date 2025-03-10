@@ -1139,10 +1139,10 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	AttributeCacheOptions *BlobFuse2AttributeCacheOptions `json:"attributeCache,omitempty"`
 
-	// Defines how files shoud be cached.
+	// Defines how files should be cached.
 	//
 	// File: Reads and caches the entire file
-	// Block: Blocks of fixed size are downloaded and cached
+	// Block (default): Blocks of fixed size are downloaded and cached
 	// DirectIO: Caching is disabled. All IO is passed directly to the storage account.
 	// +optional
 	CacheMode *BlobFuse2CacheMode `json:"cacheMode,omitempty"`
@@ -1155,6 +1155,7 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	BlockCacheOptions *BlobFuse2BlockCacheOptions `json:"blockCache,omitempty"`
 
+	// Deprecated: Configure caching with cacheMode.
 	// Configure streaming settings.
 	// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
 	// +optional
@@ -1251,7 +1252,9 @@ type BlobFuse2FileCacheOptions struct {
 // BlobFuse2StreamingOptions configure streaming to read and write large files that will not fit in the file cache on the local disk. Used for blobfuse2.
 // More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
 type BlobFuse2StreamingOptions struct {
+	// Deprecated: Configure caching with cacheMode in blobFuse2 section.
 	// Enable streaming mode. Default true.
+	// For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 	// Optional. The size of each block to be cached in memory (in MB).

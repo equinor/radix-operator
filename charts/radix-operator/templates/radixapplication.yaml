@@ -1508,10 +1508,10 @@ spec:
                                       type: object
                                     cacheMode:
                                       description: |-
-                                        Defines how files shoud be cached.
+                                        Defines how files should be cached.
 
                                         File: Reads and caches the entire file
-                                        Block: Blocks of fixed size are downloaded and cached
+                                        Block (default): Blocks of fixed size are downloaded and cached
                                         DirectIO: Caching is disabled. All IO is passed directly to the storage account.
                                       enum:
                                       - File
@@ -1577,6 +1577,7 @@ spec:
                                       type: string
                                     streaming:
                                       description: |-
+                                        Deprecated: Configure caching with cacheMode.
                                         Configure streaming settings.
                                         More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                       properties:
@@ -1593,8 +1594,10 @@ spec:
                                           minimum: 1
                                           type: integer
                                         enabled:
-                                          description: Enable streaming mode. Default
-                                            true.
+                                          description: |-
+                                            Deprecated: Configure caching with cacheMode in blobFuse2 section.
+                                            Enable streaming mode. Default true.
+                                            For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                           type: boolean
                                         maxBlocksPerFile:
                                           description: Optional. The maximum number
@@ -2817,10 +2820,10 @@ spec:
                                 type: object
                               cacheMode:
                                 description: |-
-                                  Defines how files shoud be cached.
+                                  Defines how files should be cached.
 
                                   File: Reads and caches the entire file
-                                  Block: Blocks of fixed size are downloaded and cached
+                                  Block (default): Blocks of fixed size are downloaded and cached
                                   DirectIO: Caching is disabled. All IO is passed directly to the storage account.
                                 enum:
                                 - File
@@ -2884,6 +2887,7 @@ spec:
                                 type: string
                               streaming:
                                 description: |-
+                                  Deprecated: Configure caching with cacheMode.
                                   Configure streaming settings.
                                   More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                 properties:
@@ -2900,7 +2904,10 @@ spec:
                                     minimum: 1
                                     type: integer
                                   enabled:
-                                    description: Enable streaming mode. Default true.
+                                    description: |-
+                                      Deprecated: Configure caching with cacheMode in blobFuse2 section.
+                                      Enable streaming mode. Default true.
+                                      For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                     type: boolean
                                   maxBlocksPerFile:
                                     description: Optional. The maximum number of blocks
@@ -3805,10 +3812,10 @@ spec:
                                       type: object
                                     cacheMode:
                                       description: |-
-                                        Defines how files shoud be cached.
+                                        Defines how files should be cached.
 
                                         File: Reads and caches the entire file
-                                        Block: Blocks of fixed size are downloaded and cached
+                                        Block (default): Blocks of fixed size are downloaded and cached
                                         DirectIO: Caching is disabled. All IO is passed directly to the storage account.
                                       enum:
                                       - File
@@ -3874,6 +3881,7 @@ spec:
                                       type: string
                                     streaming:
                                       description: |-
+                                        Deprecated: Configure caching with cacheMode.
                                         Configure streaming settings.
                                         More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                       properties:
@@ -3890,8 +3898,10 @@ spec:
                                           minimum: 1
                                           type: integer
                                         enabled:
-                                          description: Enable streaming mode. Default
-                                            true.
+                                          description: |-
+                                            Deprecated: Configure caching with cacheMode in blobFuse2 section.
+                                            Enable streaming mode. Default true.
+                                            For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                           type: boolean
                                         maxBlocksPerFile:
                                           description: Optional. The maximum number
@@ -4488,10 +4498,10 @@ spec:
                                 type: object
                               cacheMode:
                                 description: |-
-                                  Defines how files shoud be cached.
+                                  Defines how files should be cached.
 
                                   File: Reads and caches the entire file
-                                  Block: Blocks of fixed size are downloaded and cached
+                                  Block (default): Blocks of fixed size are downloaded and cached
                                   DirectIO: Caching is disabled. All IO is passed directly to the storage account.
                                 enum:
                                 - File
@@ -4555,6 +4565,7 @@ spec:
                                 type: string
                               streaming:
                                 description: |-
+                                  Deprecated: Configure caching with cacheMode.
                                   Configure streaming settings.
                                   More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                 properties:
@@ -4571,7 +4582,10 @@ spec:
                                     minimum: 1
                                     type: integer
                                   enabled:
-                                    description: Enable streaming mode. Default true.
+                                    description: |-
+                                      Deprecated: Configure caching with cacheMode in blobFuse2 section.
+                                      Enable streaming mode. Default true.
+                                      For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                     type: boolean
                                   maxBlocksPerFile:
                                     description: Optional. The maximum number of blocks

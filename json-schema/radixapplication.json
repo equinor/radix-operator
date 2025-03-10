@@ -1468,7 +1468,7 @@
                                 "type": "object"
                               },
                               "cacheMode": {
-                                "description": "Defines how files shoud be cached.\n\nFile: Reads and caches the entire file\nBlock: Blocks of fixed size are downloaded and cached\nDirectIO: Caching is disabled. All IO is passed directly to the storage account.",
+                                "description": "Defines how files should be cached.\n\nFile: Reads and caches the entire file\nBlock (default): Blocks of fixed size are downloaded and cached\nDirectIO: Caching is disabled. All IO is passed directly to the storage account.",
                                 "enum": [
                                   "File",
                                   "Block",
@@ -1537,7 +1537,7 @@
                                 "type": "string"
                               },
                               "streaming": {
-                                "description": "Configure streaming settings.\nMore info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md",
+                                "description": "Deprecated: Configure caching with cacheMode.\nConfigure streaming settings.\nMore info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md",
                                 "properties": {
                                   "blockSize": {
                                     "description": "Optional. The size of each block to be cached in memory (in MB).",
@@ -1552,7 +1552,7 @@
                                     "type": "integer"
                                   },
                                   "enabled": {
-                                    "description": "Enable streaming mode. Default true.",
+                                    "description": "Deprecated: Configure caching with cacheMode in blobFuse2 section.\nEnable streaming mode. Default true.\nFor backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.",
                                     "type": "boolean"
                                   },
                                   "maxBlocksPerFile": {
@@ -2810,7 +2810,7 @@
                           "type": "object"
                         },
                         "cacheMode": {
-                          "description": "Defines how files shoud be cached.\n\nFile: Reads and caches the entire file\nBlock: Blocks of fixed size are downloaded and cached\nDirectIO: Caching is disabled. All IO is passed directly to the storage account.",
+                          "description": "Defines how files should be cached.\n\nFile: Reads and caches the entire file\nBlock (default): Blocks of fixed size are downloaded and cached\nDirectIO: Caching is disabled. All IO is passed directly to the storage account.",
                           "enum": [
                             "File",
                             "Block",
@@ -2879,7 +2879,7 @@
                           "type": "string"
                         },
                         "streaming": {
-                          "description": "Configure streaming settings.\nMore info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md",
+                          "description": "Deprecated: Configure caching with cacheMode.\nConfigure streaming settings.\nMore info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md",
                           "properties": {
                             "blockSize": {
                               "description": "Optional. The size of each block to be cached in memory (in MB).",
@@ -2894,7 +2894,7 @@
                               "type": "integer"
                             },
                             "enabled": {
-                              "description": "Enable streaming mode. Default true.",
+                              "description": "Deprecated: Configure caching with cacheMode in blobFuse2 section.\nEnable streaming mode. Default true.\nFor backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.",
                               "type": "boolean"
                             },
                             "maxBlocksPerFile": {
@@ -3834,7 +3834,7 @@
                                 "type": "object"
                               },
                               "cacheMode": {
-                                "description": "Defines how files shoud be cached.\n\nFile: Reads and caches the entire file\nBlock: Blocks of fixed size are downloaded and cached\nDirectIO: Caching is disabled. All IO is passed directly to the storage account.",
+                                "description": "Defines how files should be cached.\n\nFile: Reads and caches the entire file\nBlock (default): Blocks of fixed size are downloaded and cached\nDirectIO: Caching is disabled. All IO is passed directly to the storage account.",
                                 "enum": [
                                   "File",
                                   "Block",
@@ -3903,7 +3903,7 @@
                                 "type": "string"
                               },
                               "streaming": {
-                                "description": "Configure streaming settings.\nMore info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md",
+                                "description": "Deprecated: Configure caching with cacheMode.\nConfigure streaming settings.\nMore info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md",
                                 "properties": {
                                   "blockSize": {
                                     "description": "Optional. The size of each block to be cached in memory (in MB).",
@@ -3918,7 +3918,7 @@
                                     "type": "integer"
                                   },
                                   "enabled": {
-                                    "description": "Enable streaming mode. Default true.",
+                                    "description": "Deprecated: Configure caching with cacheMode in blobFuse2 section.\nEnable streaming mode. Default true.\nFor backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.",
                                     "type": "boolean"
                                   },
                                   "maxBlocksPerFile": {
@@ -4527,7 +4527,7 @@
                           "type": "object"
                         },
                         "cacheMode": {
-                          "description": "Defines how files shoud be cached.\n\nFile: Reads and caches the entire file\nBlock: Blocks of fixed size are downloaded and cached\nDirectIO: Caching is disabled. All IO is passed directly to the storage account.",
+                          "description": "Defines how files should be cached.\n\nFile: Reads and caches the entire file\nBlock (default): Blocks of fixed size are downloaded and cached\nDirectIO: Caching is disabled. All IO is passed directly to the storage account.",
                           "enum": [
                             "File",
                             "Block",
@@ -4596,7 +4596,7 @@
                           "type": "string"
                         },
                         "streaming": {
-                          "description": "Configure streaming settings.\nMore info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md",
+                          "description": "Deprecated: Configure caching with cacheMode.\nConfigure streaming settings.\nMore info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md",
                           "properties": {
                             "blockSize": {
                               "description": "Optional. The size of each block to be cached in memory (in MB).",
@@ -4611,7 +4611,7 @@
                               "type": "integer"
                             },
                             "enabled": {
-                              "description": "Enable streaming mode. Default true.",
+                              "description": "Deprecated: Configure caching with cacheMode in blobFuse2 section.\nEnable streaming mode. Default true.\nFor backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.",
                               "type": "boolean"
                             },
                             "maxBlocksPerFile": {
