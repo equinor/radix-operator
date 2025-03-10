@@ -118,10 +118,6 @@ func (step *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipel
 			Value: pipelineInfo.PipelineArguments.JobName,
 		},
 		{
-			Name:  defaults.RadixConfigConfigMapEnvironmentVariable,
-			Value: pipelineInfo.RadixConfigMapName,
-		},
-		{
 			Name:  defaults.RadixPipelineTypeEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.PipelineType,
 		},

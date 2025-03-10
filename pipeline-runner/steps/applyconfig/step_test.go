@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	internaltest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"testing"
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
-	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -1410,10 +1410,11 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
 				_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), test.existingRd, metav1.CreateOptions{})
 			}
-			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, test.prepareBuildCtx))
+			//TODO ? s.Require().NoError(test.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, test.prepareBuildCtx))
 			pipelineInfo := model.PipelineInfo{
 				PipelineArguments:  piplineArgs,
 				RadixConfigMapName: prepareConfigMapName,
+				RadixApplication:   ra,
 			}
 			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
@@ -1466,19 +1467,20 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 				WithAppName(appName).
 				WithEnvironment("dev", "anybranch").
 				WithComponents(componentBuilder).BuildRA()
-			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+			//TODO ? s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
-			pipeline := model.PipelineInfo{
+			pipelineInfo := model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
 					PipelineType:  string(radixv1.Deploy),
 					ToEnvironment: "dev",
 				},
 				RadixConfigMapName: prepareConfigMapName,
+				RadixApplication:   ra,
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-			err := applyStep.Run(context.Background(), &pipeline)
+			err := applyStep.Run(context.Background(), &pipelineInfo)
 			if ts.expectedError == nil {
 				s.NoError(err)
 			} else {
@@ -1838,7 +1840,7 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 				WithComponents(test.components...).
 				WithJobComponents(test.jobs...).
 				BuildRA()
-			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+			//TODO ? s.Require().NoError(test.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 			pipeline := model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
@@ -1846,6 +1848,7 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 					Branch:       branchName,
 				},
 				RadixConfigMapName: prepareConfigMapName,
+				RadixApplication:   ra,
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()

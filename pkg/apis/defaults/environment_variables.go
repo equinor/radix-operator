@@ -135,12 +135,6 @@ const (
 	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
 	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
 
-	// RadixConfigConfigMapEnvironmentVariable Name of a ConfigMap with loaded radixconfig.yaml
-	RadixConfigConfigMapEnvironmentVariable = "RADIX_CONFIG_CONFIGMAP"
-
-	// RadixGitConfigMapEnvironmentVariable Name of a ConfigMap with git commit hash and git tags
-	RadixGitConfigMapEnvironmentVariable = "GIT_CONFIGMAP"
-
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
 

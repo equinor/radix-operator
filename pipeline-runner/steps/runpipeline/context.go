@@ -1,8 +1,8 @@
 package runpipeline
 
 import (
-	"github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"

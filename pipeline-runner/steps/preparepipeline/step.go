@@ -95,8 +95,26 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		job.OwnerReferences = ownerReference
 	}
 
-	pipelineContext := NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
-	return pipelineContext.ProcessRadixAppConfig()
+	pipelineCtx := NewPipelineContext(cli.GetKubeClient(), cli.GetRadixClient(), cli.GetTektonClient(), pipelineInfo)
+
+	radixApplication, err := pipelineCtx.LoadRadixAppConfig()
+	if err != nil {
+		return err
+	}
+
+	pipelineCtx.GetPipelineInfo().SetRadixApplication(radixApplication)
+
+	buildContext, err := pipelineCtx.GetBuildContext()
+	if err != nil {
+		return err
+	}
+	pipelineCtx.GetPipelineInfo().SetBuildContext(buildContext)
+
+	buildContext.EnvironmentSubPipelinesToRun, err = pipelineCtx.GetEnvironmentSubPipelinesToRun()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
@@ -125,14 +143,6 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		{
 			Name:  defaults.RadixAppEnvironmentVariable,
 			Value: appName,
-		},
-		{
-			Name:  defaults.RadixConfigConfigMapEnvironmentVariable,
-			Value: pipelineInfo.RadixConfigMapName,
-		},
-		{
-			Name:  defaults.RadixGitConfigMapEnvironmentVariable,
-			Value: pipelineInfo.GitConfigMapName,
 		},
 		{
 			Name:  defaults.RadixPipelineJobEnvironmentVariable,

@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	internaltest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"strings"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deploy"

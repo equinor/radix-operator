@@ -24,8 +24,6 @@ type PipelineInfo struct {
 	Steps             []Step
 
 	// Temporary data
-	RadixConfigMapName string
-	GitConfigMapName   string
 	TargetEnvironments []string
 
 	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.
@@ -49,7 +47,7 @@ type PipelineInfo struct {
 	SourceDeploymentGitBranch     string
 
 	// BuildContext pipeline build context
-	BuildContext PrepareBuildContext
+	BuildContext *PrepareBuildContext
 }
 
 // Builder Holds info about the builder arguments
@@ -302,4 +300,10 @@ func (p *PipelineInfo) GetRadixPromoteDeployment() string {
 // GetRadixPromoteFromEnvironment Get radix promote from environment
 func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 	return p.PipelineArguments.FromEnvironment
+}
+
+// SetBuildContext Set build context
+func (p *PipelineInfo) SetBuildContext(context *PrepareBuildContext) *PipelineInfo {
+	p.BuildContext = context
+	return p
 }

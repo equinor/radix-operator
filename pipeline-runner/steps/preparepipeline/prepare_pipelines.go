@@ -35,44 +35,38 @@ import (
 
 var privateSshFolderMode int32 = 0444
 
-func (ctx *pipelineContext) preparePipelinesJob() error {
-	ctx.pipelineInfo.BuildContext = model.PrepareBuildContext{}
-
+// GetBuildContext Prepare build context
+func (ctx *pipelineContext) GetBuildContext() (*model.PrepareBuildContext, error) {
 	gitHash, err := ctx.getGitHash()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	pipelineType := ctx.GetPipelineInfo().GetRadixPipelineType()
-	if gitHash == "" && pipelineType != radixv1.BuildDeploy {
+
+	if gitHash == "" && ctx.GetPipelineInfo().GetRadixPipelineType() != v1.BuildDeploy {
 		// if no git hash, don't run sub-pipelines
-		return nil
+		return &buildContext, nil
 	}
 
-	err = git.ResetGitHead(ctx.pipelineInfo.PipelineArguments.GitWorkspace, gitHash)
-	if err != nil {
-		if pipelineType == radixv1.Promote {
-			log.Error().Msgf("Failed to find Git CommitID %s. Error: %v. Ignore the error for the Promote pipeline. If Sub-pipeline exists it is skipped.", gitHash, err)
-			return nil
-		}
-		return err
+	if err = git.ResetGitHead(ctx.GetPipelineInfo().GetGitWorkspace(), gitHash); err != nil && pipelineType == radixv1.Promote {
+		log.Error().Msgf("Failed to find Git CommitID %s. Error: %v. Ignore the error for the Promote pipeline. If Sub-pipeline exists it is skipped.", gitHash, err)
+		return nil, nil
 	}
+
+	buildContext := model.PrepareBuildContext{}
 
 	if pipelineType == radixv1.BuildDeploy {
-		if err = ctx.prepareBuildDeployPipeline(); err != nil {
-			return err
+		buildContext.EnvironmentsToBuild, buildContext.ChangedRadixConfig, err = ctx.prepareBuildDeployPipeline()
+		if err != nil {
+			return nil, err
 		}
 	}
-
-	environmentSubPipelinesToRun, err := ctx.getEnvironmentSubPipelinesToRun()
-	if err != nil {
-		return err
-	}
-	ctx.pipelineInfo.BuildContext.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
-	return err
+	return &buildContext, nil
 }
 
-func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error) {
+// GetEnvironmentSubPipelinesToRun Prepare sub-pipelines for the target environments
+func (ctx *pipelineContext) GetEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error) {
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	var errs []error
 	timestamp := time.Now().Format("20060102150405")
@@ -104,28 +98,26 @@ func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.Environme
 	return nil, nil
 }
 
-func (ctx *pipelineContext) prepareBuildDeployPipeline() error {
+func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToBuild, bool, error) {
 	pipelineArgs := ctx.GetPipelineInfo().PipelineArguments
 	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	if err = validate.GitTagsContainIllegalChars(commitTags); err != nil {
-		return err
+		return nil, false, err
 	}
 	ctx.GetPipelineInfo().SetGitAttributes(pipelineTargetCommitHash, commitTags)
 
 	if len(pipelineArgs.CommitID) > 0 {
-		return nil
+		return nil, false, nil
 	}
 
 	radixConfigWasChanged, environmentsToBuild, err := ctx.analyseSourceRepositoryChanges(pipelineTargetCommitHash)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
-	ctx.pipelineInfo.BuildContext.EnvironmentsToBuild = environmentsToBuild
-	ctx.pipelineInfo.BuildContext.ChangedRadixConfig = radixConfigWasChanged
-	return nil
+	return environmentsToBuild, radixConfigWasChanged, nil
 }
 
 func (ctx *pipelineContext) analyseSourceRepositoryChanges(pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {

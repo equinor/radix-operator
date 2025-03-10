@@ -2,11 +2,11 @@ package runpipeline
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	"regexp"
 	"strings"
 
 	"github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"

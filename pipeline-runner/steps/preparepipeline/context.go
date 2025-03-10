@@ -1,8 +1,8 @@
 package preparepipeline
 
 import (
-	"github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
@@ -10,8 +10,12 @@ import (
 
 // Context of the pipeline
 type Context interface {
-	// ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
-	ProcessRadixAppConfig() error
+	// LoadRadixAppConfig Load Radix config file and create RadixApplication
+	LoadRadixAppConfig() (*radixv1.RadixApplication, error)
+	// GetBuildContext Get build context
+	GetBuildContext() (*model.PrepareBuildContext, error)
+	// GetEnvironmentSubPipelinesToRun Get environment sub-pipelines to run
+	GetEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error)
 	// GetPipelineInfo Get pipeline info
 	GetPipelineInfo() *model.PipelineInfo
 	// GetHash Hash, common for all pipeline Kubernetes object names

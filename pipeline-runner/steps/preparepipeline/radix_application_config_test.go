@@ -3,10 +3,9 @@ package preparepipeline
 import (
 	"context"
 	"errors"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	"testing"
 
-	"github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/test"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -50,12 +49,13 @@ func Test_LoadRadixApplication(t *testing.T) {
 			require.NoError(t, err)
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					AppName: sampleApp,
+					AppName:         sampleApp,
+					RadixConfigFile: sampleApp,
 				},
 			}
 			ctx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, WithPipelineRunsWaiter(completionWaiter))
 
-			err = ctx.ProcessRadixAppConfig()
+			_, err = ctx.LoadRadixAppConfig()
 			if ts.expectedError == nil {
 				require.NoError(t, err)
 			} else {

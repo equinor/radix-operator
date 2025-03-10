@@ -2,7 +2,7 @@ package preparepipeline
 
 import (
 	"context"
-	internalTest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
+	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"strings"

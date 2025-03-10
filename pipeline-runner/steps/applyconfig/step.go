@@ -16,7 +16,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	pipelineApplication "github.com/equinor/radix-operator/pkg/apis/pipeline/application"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
@@ -58,33 +57,9 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	appName := cli.GetAppName()
-	// Get pipeline info from configmap created by prepare pipeline step
-	namespace := operatorutils.GetAppNamespace(appName)
-	configMap, err := cli.GetKubeUtil().GetConfigMap(ctx, namespace, pipelineInfo.RadixConfigMapName)
-	if err != nil {
-		return err
-	}
-
-	// Read build context info from configmap
-	pipelineInfo.PrepareBuildContext, err = getPrepareBuildContext(ctx, configMap)
-	if err != nil {
-		return err
-	}
-
-	// Read radixconfig from configmap
-	configFileContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapContent]
-	if !ok {
-		return fmt.Errorf("failed load RadixApplication from ConfigMap")
-	}
-	ra, err := pipelineApplication.CreateRadixApplication(ctx, cli.GetRadixClient(), appName, pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
-	if err != nil {
-		return err
-	}
-
 	// Apply RA to cluster
 	applicationConfig := application.NewApplicationConfig(cli.GetKubeClient(), cli.GetKubeUtil(),
-		cli.GetRadixClient(), cli.GetRegistration(), ra,
+		cli.GetRadixClient(), cli.GetRegistration(), pipelineInfo.RadixApplication,
 		pipelineInfo.PipelineArguments.DNSConfig)
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
