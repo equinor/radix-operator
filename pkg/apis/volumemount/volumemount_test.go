@@ -3,18 +3,18 @@ package volumemount
 
 import (
 	"context"
-	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -58,18 +58,8 @@ func TestVolumeMountTestSuite(t *testing.T) {
 }
 
 func (s *volumeMountTestSuite) Test_NoVolumeMounts() {
-	s.T().Run("app", func(t *testing.T) {
-		t.Parallel()
-		for _, factory := range s.radixCommonDeployComponentFactories {
-
-			component := newDeployCommonComponentBuilder(factory).
-				WithName("app").
-				BuildComponent()
-
-			volumeMounts, _ := GetRadixDeployComponentVolumeMounts(component, "")
-			assert.Equal(t, 0, len(volumeMounts))
-		}
-	})
+	volumeMounts, _ := GetRadixDeployComponentVolumeMounts(&radixv1.RadixDeployComponent{}, "")
+	s.Equal(0, len(volumeMounts))
 }
 
 func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
@@ -224,106 +214,25 @@ func (s *volumeMountTestSuite) Test_GetNewVolumes() {
 	})
 }
 
-func (s *volumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
-	const (
-		namespace     = "any-app-some-env"
-		componentName = "some-component"
-	)
-	props := getPropsCsiBlobFuse2Volume1Storage1(nil)
-	scenarios := []pvcTestScenario{
-		{
-			volumeMountTestScenario: volumeMountTestScenario{
-				name:               "Blob CSI Azure BlobFuse2 Fuse2 volume",
-				radixVolumeMount:   radixv1.RadixVolumeMount{Name: "volume1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage1", GID: "1000"}, Path: "path1"},
-				expectedVolumeName: "csi-blobfuse2-fuse2-some-component-volume1-storage1",
-			},
-			pvc: createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-			pv:  createExpectedPv(props, func(pv *corev1.PersistentVolume) {}),
-		},
-		{
-			volumeMountTestScenario: volumeMountTestScenario{
-				name:               "Changed container name",
-				radixVolumeMount:   radixv1.RadixVolumeMount{Name: "volume1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage2", GID: "1000"}, Path: "path1"},
-				expectedVolumeName: "csi-blobfuse2-fuse2-some-component-volume1-storage2",
-			},
-			pvc: createExpectedPvc(modifyProps(props, func(props *expectedPvcPvProperties) {
-				props.blobStorageName = "storage2"
-				props.pvcName = "pvc-csi-blobfuse2-fuse2-some-component-volume1-storage2-12345"
-			}), func(pvc *corev1.PersistentVolumeClaim) {}),
-			pv: createExpectedPv(modifyProps(props, func(props *expectedPvcPvProperties) {
-				props.blobStorageName = "storage2"
-			}), func(pv *corev1.PersistentVolume) {}),
-		},
-	}
-
-	s.T().Run("CSI Azure volumes with existing PVC", func(t *testing.T) {
-		t.Parallel()
-		for _, scenario := range scenarios {
-			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.GetVolumeMountType()), scenario.pvc.Status.Phase)
-			testEnv := getTestEnv()
-			_, err := testEnv.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
-			require.NoError(t, err)
-			_, err = testEnv.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), &scenario.pvc, metav1.CreateOptions{})
-			require.NoError(t, err)
-			_, err = testEnv.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), &scenario.pv, metav1.CreateOptions{})
-			require.NoError(t, err)
-
-			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
-			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", []corev1.Volume{{
-				Name:         props.volumeName,
-				VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: scenario.pvc.Name}},
-			}})
-			assert.Nil(t, err)
-			assert.Len(t, volumes, 1)
-			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
-			assert.NotNil(t, volumes[0].PersistentVolumeClaim, "PVC is nil")
-			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
-		}
-	})
-
-	s.T().Run("CSI Azure volumes with no existing PVC", func(t *testing.T) {
-		t.Parallel()
-		for _, scenario := range scenarios {
-			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.GetVolumeMountType()), scenario.pvc.Status.Phase)
-			testEnv := getTestEnv()
-			_, err := testEnv.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
-			require.NoError(t, err)
-			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
-			volumes, err := GetVolumes(context.Background(), testEnv.kubeUtil, namespace, &component, "", nil)
-			assert.Nil(t, err)
-			assert.Len(t, volumes, 1, "Unexpected volume count")
-			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
-			assert.NotNil(t, volumes[0].PersistentVolumeClaim, "Unexpected PVC")
-			assert.True(t, internal.EqualTillPostfix(scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName, nameRandPartLength), "Matching PVC name prefixes %s and %s", scenario.pvc.Name, volumes[0].PersistentVolumeClaim.ClaimName)
-		}
-	})
-}
-
 func (s *volumeMountTestSuite) Test_GetVolumesForComponent() {
 	const (
 		appName       = "any-app"
 		environment   = "some-env"
 		componentName = "some-component"
 	)
-	namespace := fmt.Sprintf("%s-%s", appName, environment)
-	scenarios := []pvcTestScenario{
+	// namespace := fmt.Sprintf("%s-%s", appName, environment)
+	scenarios := []volumeMountTestScenario{
 		{
-			volumeMountTestScenario: volumeMountTestScenario{
-				name:               "Blob CSI Azure volume, Status phase: Bound",
-				radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-				expectedVolumeName: "csi-az-blob-some-component-blob-volume1-storage1",
-				expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume1-storage1-12345",
-			},
-			pvc: createPvc(namespace, componentName, radixv1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimBound }),
+			name:               "Blob CSI Azure volume, Status phase: Bound",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+			expectedVolumeName: "csi-az-blob-some-component-blob-volume1-storage1",
+			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume1-storage1-12345",
 		},
 		{
-			volumeMountTestScenario: volumeMountTestScenario{
-				name:               "Blob CSI Azure volume, Status phase: Pending",
-				radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-				expectedVolumeName: "csi-az-blob-some-component-blob-volume2-storage2",
-				expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume2-storage2-12345",
-			},
-			pvc: createPvc(namespace, componentName, radixv1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimPending }),
+			name:               "Blob CSI Azure volume, Status phase: Pending",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
+			expectedVolumeName: "csi-az-blob-some-component-blob-volume2-storage2",
+			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume2-storage2-12345",
 		},
 	}
 
@@ -1289,8 +1198,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 
 func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 	tests := map[string]struct {
-		volumeMount          radixv1.RadixVolumeMount
-		expectedMountOptions []string
+		volumeMount                     radixv1.RadixVolumeMount
+		expectedMountOptions            []string
+		expectedMountOptionsArgNameOnly []string
 	}{
 		"deprecated volume: default settings": {
 			volumeMount: radixv1.RadixVolumeMount{
@@ -1611,7 +1521,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--block-cache-prefetch=20",
 			},
 		},
-		"blobfuse2: CacheMode=Block, setting PoolSize below minimum required should use calclated min value": {
+		"blobfuse2: CacheMode=Block, setting PoolSize below minimum required should use calculated min value": {
 			volumeMount: radixv1.RadixVolumeMount{
 				Name: "anyvol",
 				Path: "anypath",
@@ -1736,7 +1646,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--block-cache-prefetch-on-open=true",
 			},
 		},
-		"blobfuse2: CacheMode=Block, set PrefetchOnOpenx": {
+		"blobfuse2: CacheMode=Block, set Parallelism": {
 			volumeMount: radixv1.RadixVolumeMount{
 				Name: "anyvol",
 				Path: "anypath",
@@ -1766,7 +1676,114 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--block-cache-parallelism=1337",
 			},
 		},
-		// TODO: Add test for blobfuse2, blockcache disk setting. Testing of disk path (random value) must be performed some other way
+		"blobfuse2: CacheMode=Block, enable disk cache with default values": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						DiskSize: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-block-size=4",
+				"--block-cache-pool-size=44",
+				"--block-cache-prefetch=11",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+				"--block-cache-disk-size=1337",
+				"--block-cache-disk-timeout=120",
+			},
+			expectedMountOptionsArgNameOnly: []string{
+				"--block-cache-path",
+			},
+		},
+		"blobfuse2: CacheMode=Block, disk cache with custom timeout": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						DiskSize:    pointers.Ptr[uint32](1337),
+						DiskTimeout: pointers.Ptr[uint32](99),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-block-size=4",
+				"--block-cache-pool-size=44",
+				"--block-cache-prefetch=11",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+				"--block-cache-disk-size=1337",
+				"--block-cache-disk-timeout=99",
+			},
+			expectedMountOptionsArgNameOnly: []string{
+				"--block-cache-path",
+			},
+		},
+		"blobfuse2: CacheMode=Block, set disk size below minimum should use calculated min value": {
+			volumeMount: radixv1.RadixVolumeMount{
+				Name: "anyvol",
+				Path: "anypath",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "anycontainer",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](16),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](319),
+					},
+				},
+			},
+			expectedMountOptions: []string{
+				"--disable-writeback-cache=true",
+				"--cancel-list-on-mount-seconds=0",
+				"--allow-other",
+				"--attr-timeout=0",
+				"--entry-timeout=0",
+				"--negative-timeout=0",
+				"--use-adls=false",
+				"--read-only=true",
+				"--attr-cache-timeout=0",
+				"--block-cache",
+				"--block-cache-block-size=16",
+				"--block-cache-pool-size=320",
+				"--block-cache-prefetch=20",
+				"--block-cache-prefetch-on-open=false",
+				"--block-cache-parallelism=8",
+				"--block-cache-disk-size=320",
+				"--block-cache-disk-timeout=120",
+			},
+			expectedMountOptionsArgNameOnly: []string{
+				"--block-cache-path",
+			},
+		},
 	}
 
 	for testName, test := range tests {
@@ -1796,7 +1813,12 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 			s.Require().NoError(err)
 			actualPV, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			s.ElementsMatch(test.expectedMountOptions, actualPV.Spec.MountOptions)
+			s.Subset(actualPV.Spec.MountOptions, test.expectedMountOptions)
+			actualMountOptionArgNames := slice.Map(actualPV.Spec.MountOptions, func(o string) string {
+				return strings.Split(o, "=")[0]
+			})
+			s.Subset(actualMountOptionArgNames, test.expectedMountOptionsArgNameOnly)
+			s.Equal(len(test.expectedMountOptions)+len(test.expectedMountOptionsArgNameOnly), len(actualPV.Spec.MountOptions))
 		})
 	}
 }
@@ -1874,7 +1896,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVLabels() {
 func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 	tests := map[string]struct {
 		initialVolumeMount radixv1.RadixVolumeMount
+		initialIdentity    *radixv1.Identity
 		changedVolumeMount radixv1.RadixVolumeMount
+		changedIdentity    *radixv1.Identity
 		expectRecreate     bool
 	}{
 		"deprecated volume: same spec should not recreate PV and PVC": {
@@ -1903,7 +1927,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"deprecated volume: change GID recreate PV and PVC": {
+		"deprecated volume: set GID should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 				Name:    "any",
@@ -1918,7 +1942,39 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 
 			expectRecreate: true,
 		},
-		"deprecated volume: change UID recreate PV and PVC": {
+		"deprecated volume: change GID should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				GID:     "1000",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				GID:     "1337",
+			},
+
+			expectRecreate: true,
+		},
+		"deprecated volume: keep GID should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				GID:     "1337",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				GID:     "1337",
+			},
+
+			expectRecreate: false,
+		},
+		"deprecated volume: set UID should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 				Name:    "any",
@@ -1932,7 +1988,37 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"deprecated volume: change RequestsStorage recreate PV and PVC": {
+		"deprecated volume: change UID should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				UID:     "1000",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				UID:     "1337",
+			},
+			expectRecreate: true,
+		},
+		"deprecated volume: keep UID should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				UID:     "1337",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:    "any",
+				Storage: "any",
+				UID:     "1337",
+			},
+			expectRecreate: false,
+		},
+		"deprecated volume: set RequestsStorage should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
 				Name:    "any",
@@ -1945,6 +2031,36 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				RequestsStorage: resource.MustParse("1337M"),
 			},
 			expectRecreate: true,
+		},
+		"deprecated volume: change RequestsStorage should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:            "any",
+				Storage:         "any",
+				RequestsStorage: resource.MustParse("100M"),
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:            "any",
+				Storage:         "any",
+				RequestsStorage: resource.MustParse("1337M"),
+			},
+			expectRecreate: true,
+		},
+		"deprecated volume: keep RequestsStorage should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:            "any",
+				Storage:         "any",
+				RequestsStorage: resource.MustParse("1337M"),
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:            "any",
+				Storage:         "any",
+				RequestsStorage: resource.MustParse("1337M"),
+			},
+			expectRecreate: false,
 		},
 		"deprecated volume: setting AccessMode to the defined default should not recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
@@ -1974,6 +2090,36 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
+		"deprecated volume: change AccessMode should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "any",
+				Storage:    "any",
+				AccessMode: "ReadWriteOnce",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "any",
+				Storage:    "any",
+				AccessMode: "ReadWriteMany",
+			},
+			expectRecreate: true,
+		},
+		"deprecated volume: keep AccessMode should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "any",
+				Storage:    "any",
+				AccessMode: "ReadWriteOnce",
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
+				Name:       "any",
+				Storage:    "any",
+				AccessMode: "ReadWriteOnce",
+			},
+			expectRecreate: false,
+		},
 		"change from deprecated volume to blobfuse2 to recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
@@ -1988,7 +2134,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"blobfuse2: same spec should not recreate PV and PVC": {
+		"blobfuse2: same default spec should not recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2003,7 +2149,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: false,
 		},
-		"blobfuse2: change Container recreate PV and PVC": {
+		"blobfuse2: change Container should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2017,6 +2163,1386 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				},
 			},
 			expectRecreate: true,
+		},
+		"blobfuse2: set GID should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					GID:       "1337",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change GID should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					GID:       "1000",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					GID:       "1337",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep GID should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					GID:       "1337",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					GID:       "1337",
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set UID should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					UID:       "1337",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change UID should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					UID:       "1000",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					UID:       "1337",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep UID should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					UID:       "1337",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					UID:       "1337",
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set RequestsStorage should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:       "any",
+					RequestsStorage: resource.MustParse("1337M"),
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change RequestsStorage should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:       "any",
+					RequestsStorage: resource.MustParse("1000M"),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:       "any",
+					RequestsStorage: resource.MustParse("1337M"),
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep RequestsStorage should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:       "any",
+					RequestsStorage: resource.MustParse("1337M"),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:       "any",
+					RequestsStorage: resource.MustParse("1337M"),
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: setting AccessMode to the defined default should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:  "any",
+					AccessMode: "ReadOnlyMany",
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change AccessMode should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:  "any",
+					AccessMode: "ReadWriteMany",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:  "any",
+					AccessMode: "ReadWriteOnce",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep AccessMode should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:  "any",
+					AccessMode: "ReadWriteMany",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:  "any",
+					AccessMode: "ReadWriteMany",
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: setting UseAdls to the defined default should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					UseAdls:   pointers.Ptr(false),
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change UseAdls should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					UseAdls:   pointers.Ptr(false),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					UseAdls:   pointers.Ptr(true),
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: set StorageAccount should recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:      "any",
+					StorageAccount: "changed",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change StorageAccount should recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:      "any",
+					StorageAccount: "initial",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:      "any",
+					StorageAccount: "changed",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: set UseAzureIdentity to the defined default should not recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set UseAzureIdentity to non-default should recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: set ResourceGroup when UseAzureIdentity=false should not recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+					ResourceGroup:    "initial",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+					ResourceGroup:    "change",
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change ResourceGroup when UseAzureIdentity=true should recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+					ResourceGroup:    "initial",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+					ResourceGroup:    "change",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change SubscriptionId when UseAzureIdentity=false should not recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+					SubscriptionId:   "initial",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+					SubscriptionId:   "change",
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change SubscriptionId when UseAzureIdentity=true should recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+					SubscriptionId:   "initial",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+					SubscriptionId:   "change",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change TenantId when UseAzureIdentity=false should not recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+					TenantId:         "initial",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+					TenantId:         "change",
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change TenantId when UseAzureIdentity=true should recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+					SubscriptionId:   "initial",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+					SubscriptionId:   "change",
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change Identity.Azure.ClientID when UseAzureIdentity=false should not recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(false),
+				},
+			},
+			initialIdentity: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "initial"}},
+			changedIdentity: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "change"}},
+			expectRecreate:  false,
+		},
+		"blobfuse2: change Identity.Azure.ClientID when UseAzureIdentity=true should recreate PV and PVCx": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container:        "any",
+					UseAzureIdentity: pointers.Ptr(true),
+				},
+			},
+			initialIdentity: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "initial"}},
+			changedIdentity: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "change"}},
+			expectRecreate:  true,
+		},
+		"blobfuse2: set AttributeCacheOptions.Timeout to the defined default should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
+						Timeout: pointers.Ptr[uint32](0),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set AttributeCacheOptions.Timeout to a non-default value should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change AttributeCacheOptions.Timeout should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
+						Timeout: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep AttributeCacheOptions.Timeout should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set FileCacheOptions.Timeout to the defined default should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](120),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set FileCacheOptions.Timeout to a non-default value should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change FileCacheOptions.Timeout should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep FileCacheOptions.Timeout should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.BlockSize to the defined default should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize: pointers.Ptr[uint32](4),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.BlockSize to a non-default value should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize: pointers.Ptr[uint32](8),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change BlockCacheOptions.BlockSize should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize: pointers.Ptr[uint32](16),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize: pointers.Ptr[uint32](8),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep BlockCacheOptions.BlockSize should non recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize: pointers.Ptr[uint32](8),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize: pointers.Ptr[uint32](8),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.PrefetchCount to the defined default should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchCount: pointers.Ptr[uint32](11),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.PrefetchCount to a non-default value should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchCount: pointers.Ptr[uint32](12),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change BlockCacheOptions.PrefetchCount should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchCount: pointers.Ptr[uint32](0),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchCount: pointers.Ptr[uint32](12),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep BlockCacheOptions.PrefetchCount should non recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchCount: pointers.Ptr[uint32](12),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchCount: pointers.Ptr[uint32](12),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.Parallelism to the defined default should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						Parallelism: pointers.Ptr[uint32](8),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.Parallelism to a non-default value should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						Parallelism: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change BlockCacheOptions.Parallelism should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						Parallelism: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						Parallelism: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep BlockCacheOptions.Parallelism should non recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						Parallelism: pointers.Ptr[uint32](12),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						Parallelism: pointers.Ptr[uint32](12),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.PrefetchOnOpen to the defined default should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchOnOpen: pointers.Ptr(false),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.PrefetchOnOpen to a non-default value should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchOnOpen: pointers.Ptr(true),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change BlockCacheOptions.PrefetchOnOpen should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchOnOpen: pointers.Ptr(true),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchOnOpen: pointers.Ptr(false),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep BlockCacheOptions.PrefetchOnOpen should non recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchOnOpen: pointers.Ptr(true),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PrefetchOnOpen: pointers.Ptr(true),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.PoolSize to the calculated minumum should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						PoolSize:      pointers.Ptr[uint32](160),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.PoolSize to higher than calculated minumum should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						PoolSize:      pointers.Ptr[uint32](161),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: set BlockCacheOptions.PoolSize to lower than calculated minumum should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						PoolSize:      pointers.Ptr[uint32](159),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change BlockCacheOptions.PoolSize should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						PoolSize:      pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						PoolSize:      pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep BlockCacheOptions.PoolSize should non recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						PoolSize:      pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						PoolSize:      pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+
+		"blobfuse2: set BlockCacheOptions.DiskTimeout when DiskSize not set should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						DiskTimeout: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.DiskTimeout when DiskSize=0 should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						DiskSize:    pointers.Ptr[uint32](0),
+						DiskTimeout: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.DiskTimeout to default value when DiskSize set should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						DiskSize: pointers.Ptr[uint32](1),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						DiskSize:    pointers.Ptr[uint32](1),
+						DiskTimeout: pointers.Ptr[uint32](120),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.DiskTimeout to non-default value when DiskSize set should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						DiskSize: pointers.Ptr[uint32](1),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						DiskSize:    pointers.Ptr[uint32](1),
+						DiskTimeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: set BlockCacheOptions.DiskSize lower than calculated minimum value should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](1),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](2),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: set BlockCacheOptions.DiskSize higher than calculated minimum value should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](160),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](161),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: change BlockCacheOptions.DiskSize should recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: true,
+		},
+		"blobfuse2: keep BlockCacheOptions.DiskSize should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						BlockSize:     pointers.Ptr[uint32](8),
+						PrefetchCount: pointers.Ptr[uint32](20),
+						DiskSize:      pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change FileCacheOptions when CacheMode=Block should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change BlockCacheOptions when CacheMode=File should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PoolSize: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PoolSize: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change FileCacheOptions when CacheMode=DirectIO should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
+						Timeout: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: false,
+		},
+		"blobfuse2: change BlockCacheOptions when CacheMode=DirectIO should not recreate PV and PVC": {
+			initialVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PoolSize: pointers.Ptr[uint32](1000),
+					},
+				},
+			},
+			changedVolumeMount: radixv1.RadixVolumeMount{
+				Name: "any",
+				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+					Container: "any",
+					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+						PoolSize: pointers.Ptr[uint32](1337),
+					},
+				},
+			},
+			expectRecreate: false,
 		},
 	}
 
@@ -2035,7 +3561,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			}
 
 			// Run sync with initialVolumeMount to create initial PV and PVC
-			initialComponent := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.initialVolumeMount}}
+			initialComponent := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.initialVolumeMount}, Identity: test.initialIdentity}
 			initialVolumeName, err := GetVolumeMountVolumeName(&test.initialVolumeMount, componentName)
 			s.Require().NoError(err)
 			initialVolumes := []corev1.Volume{{
@@ -2051,9 +3577,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			s.NotNil(initialPV)
 
 			// Run sync with changedVolumeMount to verify recreation of new PV and PVC
-			changedComponent := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.changedVolumeMount}}
+			changedComponent := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.changedVolumeMount}, Identity: test.changedIdentity}
 
-			// The next four lines is a HACK because the generated volume name includes info from the RadixVolumeMount that relates to the driver and external storage container. Why? Don't know
+			// The next four lines is a hack because the generated volume name includes info from the RadixVolumeMount that relates to the driver and external storage container.
 			changedVolumeName, err := GetVolumeMountVolumeName(&test.changedVolumeMount, componentName)
 			s.Require().NoError(err)
 			initialVolumeModified := initialVolumes[0].DeepCopy()
@@ -2085,804 +3611,4 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			}
 		})
 	}
-}
-
-// func (s *volumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
-// 	var (
-// 		anotherComponentName   = strings.ToLower(utils.RandString(10))
-// 		anotherVolumeMountName = strings.ToLower(utils.RandString(10))
-// 	)
-
-// 	tests := map[string]deploymentVolumesTestScenario{
-// 		"Create new volume": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, nil),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						createExpectedPv(props, func(pv *corev1.PersistentVolume) {}),
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil))
-// 		}(),
-// 		"Update storage in existing volume name and storage": func() deploymentVolumesTestScenario {
-// 			type scenarioProperties struct {
-// 				changedNewRadixVolumeName        string
-// 				changedNewRadixVolumeStorageName string
-// 				expectedVolumeName               string
-// 				expectedNewSecretName            string
-// 				expectedNewPvcName               string
-// 				expectedNewPvName                string
-// 			}
-// 			getScenario := func(props expectedPvcPvProperties, scenarioProps scenarioProperties) deploymentVolumesTestScenario {
-// 				existingPv := createExpectedPv(props, func(pv *corev1.PersistentVolume) {})
-// 				existingPvc := createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {})
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							vm.Name = scenarioProps.changedNewRadixVolumeName
-// 							vm.Storage = scenarioProps.changedNewRadixVolumeStorageName
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {
-// 							v.Name = scenarioProps.expectedVolumeName
-// 						}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-// 							pvc.ObjectMeta.Name = scenarioProps.expectedNewPvcName
-// 							pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
-// 							pvc.Spec.VolumeName = scenarioProps.expectedNewPvName
-// 						}),
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-// 							pv.ObjectMeta.Name = scenarioProps.expectedNewPvName
-// 							pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
-// 							setVolumeMountAttribute(pv, props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName)
-// 							pv.Spec.ClaimRef.Name = scenarioProps.expectedNewPvcName
-// 							pv.Spec.CSI.NodeStageSecretRef.Name = scenarioProps.expectedNewSecretName
-// 						}),
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil), scenarioProperties{
-// 				changedNewRadixVolumeName:        "volume101",
-// 				changedNewRadixVolumeStorageName: "storage101",
-// 				expectedVolumeName:               "csi-az-blob-some-component-volume101-storage101",
-// 				expectedNewSecretName:            "some-component-volume101-csiazurecreds",
-// 				expectedNewPvcName:               "pvc-csi-az-blob-some-component-volume101-storage101-12345",
-// 				expectedNewPvName:                "pv-radixvolumemount-some-uuid",
-// 			})
-
-// 		}(),
-// 		"Set readonly volume": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createRandomPvc(props, props.namespace, props.componentName)
-// 				expectedPvc := createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
-// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
-// 				})
-// 				existingPv := createRandomPv(props, props.namespace, props.componentName)
-// 				expectedPv := createExpectedPv(props, nil)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-// 				props.readOnly = false
-// 			}))
-// 		}(),
-// 		"Set ReadWriteOnce volume": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createExpectedPvc(props, nil)
-// 				existingPv := createExpectedPv(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				expectedPv := modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
-// 					pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-// 					pv.Spec.MountOptions = getMountOptions(modifyProps(props, func(props *expectedPvcPvProperties) { props.readOnly = false }))
-// 				})
-// 				expectedPvc := modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
-// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-// 				})
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteOnce) }),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil))
-// 		}(),
-// 		"Set ReadWriteMany volume": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createExpectedPvc(props, nil)
-// 				existingPv := createExpectedPv(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
-// 							pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
-// 						}),
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
-// 							pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
-// 							pv.Spec.MountOptions = getMountOptions(modifyProps(props, func(props *expectedPvcPvProperties) { props.readOnly = false }))
-// 						}),
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil))
-// 		}(),
-// 		"Set ReadOnlyMany volume": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createExpectedPvc(props, nil)
-// 				existingPv := createExpectedPv(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				existingPv = modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
-// 					pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
-// 					pv.Spec.MountOptions = getMountOptions(modifyProps(props, func(props *expectedPvcPvProperties) { props.readOnly = false }))
-// 				})
-// 				existingPvc = modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
-// 					pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
-// 				})
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						modifyPvc(existingPvc, func(pvc *corev1.PersistentVolumeClaim) {
-// 							pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
-// 						}),
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						modifyPv(existingPv, func(pv *corev1.PersistentVolume) {
-// 							pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
-// 							pv.Spec.MountOptions = getMountOptions(modifyProps(props, func(props *expectedPvcPvProperties) { props.readOnly = true }))
-// 						}),
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil))
-// 		}(),
-// 		"Create new BlobFuse2 volume has streaming by default and streaming options not set": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-// 							pv.Spec.MountOptions = getMountOptions(props, "--streaming=true", "--block-cache-pool-size=750")
-// 						}),
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil))
-// 		}(),
-// 		"Create new BlobFuse2 volume has implicit streaming by default and streaming options set": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							vm.BlobFuse2.StreamingOptions = &radixv1.BlobFuse2StreamingOptions{
-// 								StreamCache:      pointers.Ptr(uint64(101)),
-// 								BlockSize:        pointers.Ptr(uint64(102)),
-// 								BufferSize:       pointers.Ptr(uint64(103)),
-// 								MaxBuffers:       pointers.Ptr(uint64(104)),
-// 								MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-// 							}
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-// 							pv.Spec.MountOptions = getMountOptions(props,
-// 								"--streaming=true",
-// 								"--block-cache-pool-size=101",
-// 							)
-// 						}),
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil))
-// 		}(),
-// 		"Create new BlobFuse2 volume has disabled streaming": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							vm.BlobFuse2.StreamingOptions = &radixv1.BlobFuse2StreamingOptions{
-// 								Enabled:          pointers.Ptr(false),
-// 								StreamCache:      pointers.Ptr(uint64(101)),
-// 								BlockSize:        pointers.Ptr(uint64(102)),
-// 								BufferSize:       pointers.Ptr(uint64(103)),
-// 								MaxBuffers:       pointers.Ptr(uint64(104)),
-// 								MaxBlocksPerFile: pointers.Ptr(uint64(105)),
-// 							}
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						createExpectedPv(props, func(pv *corev1.PersistentVolume) {
-// 							pv.Spec.MountOptions = getMountOptions(props)
-// 						}),
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobFuse2Volume1Storage1(nil))
-// 		}(),
-// 		"Do not change existing PersistentVolume with class name, when creating new PVC": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				pvForAnotherComponent := createRandomAutoProvisionedPvWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
-// 				pvcForAnotherComponent := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
-// 				matchPvAndPvc(&pvForAnotherComponent, &pvcForAnotherComponent)
-// 				volume := createTestVolume(props, func(v *corev1.Volume) {})
-// 				existingPv := createAutoProvisionedPvWithStorageClass(props, func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Name = volume.PersistentVolumeClaim.ClaimName })
-// 				expectedPvc := createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {})
-// 				expectedPv := createExpectedPv(props, func(pv *corev1.PersistentVolume) {})
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createRandomVolumeMount(func(vm *radixv1.RadixVolumeMount) { vm.Name = anotherVolumeMountName }),
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						volume,
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						pvcForAnotherComponent,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						expectedPvc,
-// 						pvcForAnotherComponent,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						pvForAnotherComponent,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						expectedPv,
-// 						existingPv,
-// 						pvForAnotherComponent,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil))
-// 		}(),
-// 		"Do not change existing PersistentVolume without class name, when creating new PVC": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				pvForAnotherComponent := createRandomPv(props, props.namespace, anotherComponentName)
-// 				pvcForAnotherComponent := createRandomPvc(props, props.namespace, anotherComponentName)
-// 				matchPvAndPvc(&pvForAnotherComponent, &pvcForAnotherComponent)
-// 				existingPv := createExpectedPv(props, func(pv *corev1.PersistentVolume) {})
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						pvcForAnotherComponent,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {}),
-// 						pvcForAnotherComponent,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						pvForAnotherComponent,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						pvForAnotherComponent,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil))
-// 		}(),
-// 		"Do not change existing PVC with class name, when creating new PersistentVolume": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				pvForAnotherComponent := createRandomAutoProvisionedPvWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
-// 				pvcForAnotherComponent := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, anotherComponentName, anotherVolumeMountName)
-// 				matchPvAndPvc(&pvForAnotherComponent, &pvcForAnotherComponent)
-// 				existingPvc := createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {})
-// 				expectedPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				expectedPv := createRandomPv(props, props.namespace, componentName1)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						pvcForAnotherComponent,
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						pvcForAnotherComponent,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						pvForAnotherComponent,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						pvForAnotherComponent,
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil))
-// 		}(),
-// 		"Create PV for existing PVC without PV name": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createRandomAutoProvisionedPvcWithStorageClass(props, props.namespace, props.componentName, props.radixVolumeMountName)
-// 				existingPvc.Spec.VolumeName = "" //auto-provisioned PVCs have empty volume name
-// 				expectedPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				expectedPv := createRandomPv(props, props.namespace, componentName1)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createDeprecatedRadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {
-// 							v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-// 								ClaimName: existingPvc.Name,
-// 							}
-// 						}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(nil))
-// 		}(),
-// 		"Create PV and PVC with useAzureIdentity": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				expectedPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				expectedPv := createExpectedPvWithIdentity(props, nil)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							vm.BlobFuse2.UseAzureIdentity = pointers.Ptr(true)
-// 							vm.BlobFuse2.StorageAccount = props.storageAccountName
-// 							vm.BlobFuse2.SubscriptionId = props.subscriptionId
-// 							vm.BlobFuse2.ResourceGroup = props.resourceGroup
-// 							vm.BlobFuse2.UseAdls = nil
-// 							vm.BlobFuse2.StreamingOptions = &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-// 				setPropsForBlob2Fuse2AzureIdentity(props)
-// 			}))
-// 		}(),
-// 		"Not changed PV and PVC with useAzureIdentity": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				existingPv := createExpectedPvWithIdentity(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				expectedPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				expectedPv := createExpectedPvWithIdentity(props, nil)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {
-// 							v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-// 								ClaimName: existingPvc.Name,
-// 							}
-// 						}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-// 				setPropsForBlob2Fuse2AzureIdentity(props)
-// 			}))
-// 		}(),
-// 		"Created PV and PVC with useAzureIdentity on changed storage account": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				existingPv := createExpectedPvWithIdentity(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
-// 					props.storageAccountName = testChangedStorageAccountName
-// 				})
-// 				expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
-// 				expectedPv := createExpectedPvWithIdentity(changedProps, nil)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
-// 							vm.BlobFuse2.StorageAccount = testChangedStorageAccountName
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {
-// 							v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-// 								ClaimName: existingPvc.Name,
-// 							}
-// 						}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-// 				setPropsForBlob2Fuse2AzureIdentity(props)
-// 			}))
-// 		}(),
-// 		"Created PV and PVC with useAzureIdentity on changed resource group": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				existingPv := createExpectedPvWithIdentity(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
-// 					props.resourceGroup = testChangedResourceGroup
-// 				})
-// 				expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
-// 				expectedPv := createExpectedPvWithIdentity(changedProps, nil)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
-// 							vm.BlobFuse2.ResourceGroup = testChangedResourceGroup
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {
-// 							v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-// 								ClaimName: existingPvc.Name,
-// 							}
-// 						}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-// 				setPropsForBlob2Fuse2AzureIdentity(props)
-// 			}))
-// 		}(),
-// 		"Created PV and PVC with useAzureIdentity on changed subscription id": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				existingPv := createExpectedPvWithIdentity(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
-// 					props.subscriptionId = testChangedSubscriptionId
-// 				})
-// 				expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
-// 				expectedPv := createExpectedPvWithIdentity(changedProps, nil)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
-// 							vm.BlobFuse2.SubscriptionId = testChangedSubscriptionId
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {
-// 							v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-// 								ClaimName: existingPvc.Name,
-// 							}
-// 						}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-// 				setPropsForBlob2Fuse2AzureIdentity(props)
-// 			}))
-// 		}(),
-// 		"Created PV and PVC with useAzureIdentity on changed tenant id": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				existingPv := createExpectedPvWithIdentity(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
-// 					props.tenantId = testChangedTenantId
-// 				})
-// 				expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
-// 				expectedPv := createExpectedPvWithIdentity(changedProps, nil)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {
-// 							setVolumeMountPropsForBlob2Fuse2AzureIdentity(props, vm)
-// 							vm.BlobFuse2.TenantId = testChangedTenantId
-// 						}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {
-// 							v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-// 								ClaimName: existingPvc.Name,
-// 							}
-// 						}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-// 				setPropsForBlob2Fuse2AzureIdentity(props)
-// 				props.tenantId = testTenantId
-// 			}))
-// 		}(),
-// 		"Changed PV and PVC from useAzureIdentity to use a Client Secret": func() deploymentVolumesTestScenario {
-// 			getScenario := func(props expectedPvcPvProperties) deploymentVolumesTestScenario {
-// 				existingPvc := createRandomPvc(props, props.namespace, componentName1)
-// 				existingPv := createExpectedPvWithIdentity(props, nil)
-// 				matchPvAndPvc(&existingPv, &existingPvc)
-// 				changedProps := modifyProps(props, func(props *expectedPvcPvProperties) {
-// 					props.tenantId = testChangedTenantId
-// 				})
-// 				expectedPvc := createRandomPvc(changedProps, props.namespace, componentName1)
-// 				expectedPv := createExpectedPv(changedProps, nil)
-// 				matchPvAndPvc(&expectedPv, &expectedPvc)
-// 				return deploymentVolumesTestScenario{
-// 					radixVolumeMounts: []radixv1.RadixVolumeMount{
-// 						createBlobFuse2RadixVolumeMount(props, func(vm *radixv1.RadixVolumeMount) {}),
-// 					},
-// 					volumes: []corev1.Volume{
-// 						createTestVolume(props, func(v *corev1.Volume) {
-// 							v.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-// 								ClaimName: existingPvc.Name,
-// 							}
-// 						}),
-// 					},
-// 					existingPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 					},
-// 					expectedPvcs: []corev1.PersistentVolumeClaim{
-// 						existingPvc,
-// 						expectedPvc,
-// 					},
-// 					existingPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 					},
-// 					expectedPvs: []corev1.PersistentVolume{
-// 						existingPv,
-// 						expectedPv,
-// 					},
-// 				}
-// 			}
-// 			return getScenario(getPropsCsiBlobVolume1Storage1(func(props *expectedPvcPvProperties) {
-// 				setPropsForBlob2Fuse2AzureIdentity(props)
-// 			}))
-// 		}(),
-// 	}
-// 	for testName, test := range tests {
-// 		s.Run(testName, func() {
-// 			testEnv := getTestEnv()
-// 			radixDeployment := buildRd(appName1, envName1, componentName1, testClientId, test.radixVolumeMounts)
-// 			putExistingDeploymentVolumesScenarioDataToFakeCluster(testEnv.kubeUtil.KubeClient(), &test)
-// 			desiredVolumes := getDesiredDeployment(componentName1, test.volumes).Spec.Template.Spec.Volumes
-
-// 			deployComponent := radixDeployment.Spec.Components[0]
-// 			actualVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), testEnv.kubeUtil.KubeClient(), radixDeployment, &deployComponent, desiredVolumes)
-// 			s.Require().NoError(err)
-// 			s.Equal(len(test.volumes), len(actualVolumes), "Number of volumes is not equal")
-
-// 			existingPvcs, existingPvs, err := getExistingPvcsAndPersistentVolumeFromFakeCluster(testEnv.kubeUtil.KubeClient())
-// 			s.Require().NoError(err)
-// 			s.Len(existingPvcs, len(test.expectedPvcs), "PVC-s count is not equal")
-// 			s.True(equalPersistentVolumeClaims(&test.expectedPvcs, &existingPvcs), "PVC-s are not equal")
-// 			s.Len(existingPvs, len(test.expectedPvs), "PV-s count is not equal")
-// 			s.True(equalPersistentVolumes(&test.expectedPvs, &existingPvs), "PV-s are not equal")
-// 		})
-// 	}
-// }
-
-func setVolumeMountPropsForBlob2Fuse2AzureIdentity(props expectedPvcPvProperties, vm *radixv1.RadixVolumeMount) {
-	vm.BlobFuse2.UseAzureIdentity = pointers.Ptr(true)
-	vm.BlobFuse2.StorageAccount = props.storageAccountName
-	vm.BlobFuse2.SubscriptionId = props.subscriptionId
-	vm.BlobFuse2.ResourceGroup = props.resourceGroup
-	vm.BlobFuse2.UseAdls = nil
-	vm.BlobFuse2.StreamingOptions = &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}
-}
-
-func setPropsForBlob2Fuse2AzureIdentity(props *expectedPvcPvProperties) {
-	props.radixVolumeMountType = radixv1.MountTypeBlobFuse2Fuse2CsiAzure
-	props.volumeName = "csi-blobfuse2-fuse2-some-component-volume1-storage1"
-	props.clientId = testClientId
-	props.subscriptionId = testSubscriptionId
-	props.resourceGroup = testResourceGroup
-	props.storageAccountName = testStorageAccountName
 }

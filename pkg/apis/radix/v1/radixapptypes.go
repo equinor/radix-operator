@@ -1123,7 +1123,7 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
-	// Deprecated: HAs no effect anymore.
+	// Deprecated: Has no effect anymore.
 	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
@@ -1540,7 +1540,7 @@ type OAuth2 struct {
 	// +optional
 	Credentials CredentialsType `json:"credentials,omitempty"`
 
-        // SkipAuthRoutes defines regex pattern of routes that should not be authenticated. Notice the ^ prefix and $ suffix to make sure the whole path is matched 
+	// SkipAuthRoutes defines regex pattern of routes that should not be authenticated. Notice the ^ prefix and $ suffix to make sure the whole path is matched
 	// +optional
 	// example: GET=^/healthz$
 	SkipAuthRoutes []string `json:"skipAuthRoutes,omitempty"`

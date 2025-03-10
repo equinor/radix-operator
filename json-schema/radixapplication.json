@@ -1413,7 +1413,7 @@
                                 "type": "object"
                               },
                               "bindingMode": {
-                                "description": "Deprecated: HAs no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                                "description": "Deprecated: Has no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                                 "enum": [
                                   "Immediate",
                                   "WaitForFirstConsumer",
@@ -2755,7 +2755,7 @@
                           "type": "object"
                         },
                         "bindingMode": {
-                          "description": "Deprecated: HAs no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                          "description": "Deprecated: Has no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                           "enum": [
                             "Immediate",
                             "WaitForFirstConsumer",
@@ -3779,7 +3779,7 @@
                                 "type": "object"
                               },
                               "bindingMode": {
-                                "description": "Deprecated: HAs no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                                "description": "Deprecated: Has no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                                 "enum": [
                                   "Immediate",
                                   "WaitForFirstConsumer",
@@ -4472,7 +4472,7 @@
                           "type": "object"
                         },
                         "bindingMode": {
-                          "description": "Deprecated: HAs no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                          "description": "Deprecated: Has no effect anymore.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                           "enum": [
                             "Immediate",
                             "WaitForFirstConsumer",

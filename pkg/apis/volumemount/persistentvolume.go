@@ -2,6 +2,7 @@ package volumemount
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/internal"
@@ -20,13 +21,27 @@ func ComparePersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	//if !cmp.Equal(pv1.GetLabels(), pv2.GetLabels(), cmpopts.EquateEmpty()) {
 	//	return false
 	//}
-	expectedClonedVolumeAttrs := cloneMap(pv1.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributePvcNamespace, csiVolumeMountAttributeProvisionerIdentity)
-	actualClonedVolumeAttrs := cloneMap(pv2.Spec.CSI.VolumeAttributes, csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributePvcNamespace, csiVolumeMountAttributeProvisionerIdentity)
-	if !cmp.Equal(expectedClonedVolumeAttrs, actualClonedVolumeAttrs, cmpopts.EquateEmpty()) {
+	ignoreMapKeys := func(keys ...string) cmp.Option {
+		return cmpopts.IgnoreMapEntries(func(k, _ string) bool {
+			return slices.Contains(keys, k)
+		})
+	}
+	if !cmp.Equal(pv1.Spec.CSI.VolumeAttributes, pv2.Spec.CSI.VolumeAttributes, cmpopts.EquateEmpty(), ignoreMapKeys(csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributePvcNamespace, csiVolumeMountAttributeProvisionerIdentity)) {
 		return false
 	}
 
-	if !cmp.Equal(slices.Sorted(slices.Values(pv1.Spec.MountOptions)), slices.Sorted(slices.Values(pv2.Spec.MountOptions)), cmpopts.EquateEmpty()) {
+	compareNameOnlyForArgs := func(argNames ...string) cmp.Option {
+		return cmp.Comparer(func(val1, val2 string) bool {
+			if v, found := slice.FindFirst(argNames, func(argName string) bool { return strings.Split(val1, "=")[0] == argName }); found {
+				val1 = v
+			}
+			if v, found := slice.FindFirst(argNames, func(argName string) bool { return strings.Split(val2, "=")[0] == argName }); found {
+				val2 = v
+			}
+			return val1 == val2
+		})
+	}
+	if !cmp.Equal(slices.Sorted(slices.Values(pv1.Spec.MountOptions)), slices.Sorted(slices.Values(pv2.Spec.MountOptions)), cmpopts.EquateEmpty(), compareNameOnlyForArgs("--block-cache-path")) {
 		return false
 	}
 
@@ -57,22 +72,4 @@ func ComparePersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 		return false
 	}
 	return true
-}
-
-func cloneMap(original map[string]string, ignoreKeys ...string) map[string]string {
-	clonedMap := make(map[string]string, len(original))
-	ignoreKeysMap := convertToSet(ignoreKeys)
-	for key, value := range original {
-		if _, ok := ignoreKeysMap[key]; !ok {
-			clonedMap[key] = value
-		}
-	}
-	return clonedMap
-}
-
-func convertToSet(ignoreKeys []string) map[string]struct{} {
-	return slice.Reduce(ignoreKeys, make(map[string]struct{}), func(acc map[string]struct{}, item string) map[string]struct{} {
-		acc[item] = struct{}{}
-		return acc
-	})
 }
