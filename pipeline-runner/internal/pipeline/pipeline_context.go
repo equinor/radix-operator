@@ -14,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +24,6 @@ type pipelineContext struct {
 	radixClient        radixclient.Interface
 	kubeClient         kubernetes.Interface
 	tektonClient       tektonclient.Interface
-	env                env.Env
 	targetEnvironments map[string]bool
 	hash               string
 	ownerReference     *metav1.OwnerReference
@@ -182,7 +180,6 @@ func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient
 		pipelineInfo:   pipelineInfo,
 		hash:           strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName)),
 		ownerReference: ownerReference,
-		waiter:         wait.NewPipelineRunsCompletionWaiter(tektonClient),
 	}
 
 	for _, option := range options {
@@ -192,6 +189,7 @@ func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient
 	return ctx
 }
 
+// WithPipelineRunsWaiter Set pipeline runs waiter
 func WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) NewPipelineContextOption {
 	return func(ctx *pipelineContext) {
 		ctx.waiter = waiter

@@ -3,9 +3,9 @@ package validation_test
 import (
 	"testing"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/pipeline/validation"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-tekton/pkg/defaults"
-	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
 	"github.com/stretchr/testify/assert"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -63,7 +63,7 @@ func TestValidateTask(t *testing.T) {
 				Spec: pipelinev1.TaskSpec{
 					Steps: []pipelinev1.Step{{}},
 					Volumes: []corev1.Volume{{
-						Name: defaults.SubstitutionRadixGitDeployKeyTarget,
+						Name: pipelineDefaults.SubstitutionRadixGitDeployKeyTarget,
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: operatorDefaults.GitPrivateKeySecretName,

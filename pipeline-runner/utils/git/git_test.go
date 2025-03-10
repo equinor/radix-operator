@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-tekton/pkg/utils/logger"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -396,5 +396,5 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 }
 
 func setupLog() {
-	logger.InitializeLogger(zerolog.DebugLevel, true)
+	logger.InitLogger(string(zerolog.DebugLevel))
 }

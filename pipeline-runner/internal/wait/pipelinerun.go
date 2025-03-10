@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
@@ -17,23 +17,23 @@ import (
 )
 
 type PipelineRunsCompletionWaiter interface {
-	Wait(pipelineRuns map[string]*pipelinev1.PipelineRun, env env.Env) error
+	Wait(pipelineRuns map[string]*pipelinev1.PipelineRun, pipelineInfo *model.PipelineInfo) error
 }
 
 func NewPipelineRunsCompletionWaiter(tektonClient tektonclient.Interface) PipelineRunsCompletionWaiter {
-	return PipelineRunsCompletionWaiterFunc(func(pipelineRuns map[string]*pipelinev1.PipelineRun, env env.Env) error {
-		return waitForCompletionOf(pipelineRuns, tektonClient, env)
+	return PipelineRunsCompletionWaiterFunc(func(pipelineRuns map[string]*pipelinev1.PipelineRun, pipelineInfo *model.PipelineInfo) error {
+		return waitForCompletionOfPipelineRuns(pipelineRuns, tektonClient, pipelineInfo)
 	})
 }
 
-type PipelineRunsCompletionWaiterFunc func(pipelineRuns map[string]*pipelinev1.PipelineRun, env env.Env) error
+type PipelineRunsCompletionWaiterFunc func(pipelineRuns map[string]*pipelinev1.PipelineRun, pipelineInfo *model.PipelineInfo) error
 
-func (f PipelineRunsCompletionWaiterFunc) Wait(pipelineRuns map[string]*pipelinev1.PipelineRun, env env.Env) error {
-	return f(pipelineRuns, env)
+func (f PipelineRunsCompletionWaiterFunc) Wait(pipelineRuns map[string]*pipelinev1.PipelineRun, pipelineInfo *model.PipelineInfo) error {
+	return f(pipelineRuns, pipelineInfo)
 }
 
 // WaitForCompletionOf Will wait for job to complete
-func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tektonClient tektonclient.Interface, env env.Env) error {
+func waitForCompletionOfPipelineRuns(pipelineRuns map[string]*pipelinev1.PipelineRun, tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo) error {
 	stop := make(chan struct{})
 	defer close(stop)
 
@@ -43,10 +43,10 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 
 	errChan := make(chan error)
 
-	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactoryWithOptions(tektonClient, time.Second*5, tektonInformerFactory.WithNamespace(env.GetAppNamespace()))
+	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactoryWithOptions(tektonClient, time.Second*5, tektonInformerFactory.WithNamespace(pipelineInfo.GetAppNamespace()))
 	genericInformer, err := kubeInformerFactory.ForResource(pipelinev1.SchemeGroupVersion.WithResource("pipelineruns"))
 	if err != nil {
-		return fmt.Errorf("waitForCompletionOf failed to create informer: %w", err)
+		return fmt.Errorf("waitForCompletionOfPipelineRuns failed to create informer: %w", err)
 	}
 	informer := genericInformer.Informer()
 	_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -101,7 +101,7 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("waitForCompletionOf failed to create event handler: %w", err)
+		return fmt.Errorf("waitForCompletionOfPipelineRuns failed to create event handler: %w", err)
 	}
 
 	go informer.Run(stop)
@@ -111,7 +111,7 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 
 	err = <-errChan
 	if err != nil {
-		return fmt.Errorf("waitForCompletionOf failed during wait: %w", err)
+		return fmt.Errorf("waitForCompletionOfPipelineRuns failed during wait: %w", err)
 	}
 	return nil
 }

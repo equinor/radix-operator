@@ -8,13 +8,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func InitializeLogger(logLevel zerolog.Level, prettyPrint bool) {
-	zerolog.SetGlobalLevel(logLevel)
-	zerolog.DurationFieldUnit = time.Millisecond
-	if prettyPrint {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+func InitLogger(logLevelStr string) {
+	if len(logLevelStr) == 0 {
+		logLevelStr = zerolog.LevelInfoValue
 	}
 
+	logLevel, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		logLevel = zerolog.InfoLevel
+	}
+	zerolog.SetGlobalLevel(logLevel)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
 	zerolog.DefaultContextLogger = &log.Logger
-	log.Debug().Msgf("log-level '%v'", logLevel.String())
 }

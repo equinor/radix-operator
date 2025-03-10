@@ -26,7 +26,7 @@ type JobCompletionWaiter interface {
 
 func NewJobCompletionWaiter(ctx context.Context, kubeClient kubernetes.Interface) JobCompletionWaiter {
 	return JobCompletionWaiterFunc(func(job *batchv1.Job) error {
-		return waitForCompletionOf(ctx, kubeClient, job)
+		return waitForCompletionOfJob(ctx, kubeClient, job)
 	})
 }
 
@@ -37,7 +37,7 @@ func (f JobCompletionWaiterFunc) Wait(job *batchv1.Job) error {
 }
 
 // WaitForCompletionOf Will wait for job to complete
-func waitForCompletionOf(ctx context.Context, kubeClient kubernetes.Interface, job *batchv1.Job) error {
+func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface, job *batchv1.Job) error {
 	errChan := make(chan error)
 	stop := make(chan struct{})
 	defer close(stop)

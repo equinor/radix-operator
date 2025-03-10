@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-tekton/pkg/defaults"
-	"github.com/equinor/radix-tekton/pkg/utils/labels"
-	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
 	"github.com/rs/zerolog/log"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -24,13 +24,14 @@ import (
 
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (ctx *pipelineContext) RunPipelinesJob() error {
-	if ctx.GetPipelineInfo().GetRadixPipelineType() == radixv1.Build {
+	pipelineInfo := ctx.GetPipelineInfo()
+	if pipelineInfo.GetRadixPipelineType() == radixv1.Build {
 		log.Info().Msg("Pipeline type is build, skip Tekton pipeline run.")
 		return nil
 	}
-	namespace := ctx.env.GetAppNamespace()
+	namespace := pipelineInfo.GetAppNamespace()
 	pipelineList, err := ctx.tektonClient.TektonV1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, ctx.env.GetRadixPipelineJobName()),
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, pipelineInfo.GetRadixPipelineJobName()),
 	})
 	if err != nil {
 		return err
@@ -46,12 +47,12 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 	}
 
 	tektonPipelineBranch := ctx.pipelineInfo.PipelineArguments.Branch
-	if ctx.GetPipelineInfo().GetRadixPipelineType() == radixv1.Deploy {
-		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.GetPipelineInfo().GetRadixApplication(), ctx.env.GetRadixDeployToEnvironment())
+	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
+		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineInfo.GetRadixDeployToEnvironment())
 		if re != nil && len(re.Build.From) > 0 {
 			tektonPipelineBranch = re.Build.From
 		} else {
-			tektonPipelineBranch = ctx.GetPipelineInfo().GetRadixConfigBranch() // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
+			tektonPipelineBranch = pipelineInfo.GetRadixConfigBranch() // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
 		}
 	}
 	log.Info().Msgf("Run tekton pipelines for the branch %s", tektonPipelineBranch)
@@ -62,10 +63,10 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return fmt.Errorf("failed to run pipelines: %w", err)
 	}
 
-	err = ctx.GetPipelineRunsWaiter().Wait(pipelineRunMap, ctx.env)
+	err = ctx.GetPipelineRunsWaiter().Wait(pipelineRunMap, ctx.GetPipelineInfo())
 	if err != nil {
 		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
-			ctx.env.GetAppName(),
+			ctx.GetPipelineInfo().GetAppName(),
 			ctx.getTargetEnvsAsString(),
 			err)
 	}
@@ -112,16 +113,17 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *pipeli
 }
 
 func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string) pipelinev1.PipelineRun {
-	originalPipelineName := pipeline.ObjectMeta.Annotations[defaults.PipelineNameAnnotation]
+	originalPipelineName := pipeline.ObjectMeta.Annotations[pipelineDefaults.PipelineNameAnnotation]
 	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", getShortName(targetEnv), timestamp, ctx.hash)
 	pipelineParams := ctx.getPipelineParams(pipeline, targetEnv)
+	pipelineInfo := ctx.GetPipelineInfo()
 	pipelineRun := pipelinev1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pipelineRunName,
-			Labels: labels.GetLabelsForEnvironment(ctx, targetEnv),
+			Labels: labels.GetLabelsForEnvironment(pipelineInfo, targetEnv),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:      ctx.pipelineInfo.PipelineArguments.Branch,
-				defaults.PipelineNameAnnotation: originalPipelineName,
+				kube.RadixBranchAnnotation:              ctx.pipelineInfo.PipelineArguments.Branch,
+				pipelineDefaults.PipelineNameAnnotation: originalPipelineName,
 			},
 		},
 		Spec: pipelinev1.PipelineRunSpec{
@@ -182,7 +184,7 @@ func (ctx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, tar
 		delete(pipelineParamsMap, envVarName)
 	}
 	for paramName, paramSpec := range pipelineParamsMap {
-		if paramName == defaults.AzureClientIdEnvironmentVariable && len(envVars[defaults.AzureClientIdEnvironmentVariable]) > 0 {
+		if paramName == pipelineDefaults.AzureClientIdEnvironmentVariable && len(envVars[pipelineDefaults.AzureClientIdEnvironmentVariable]) > 0 {
 			continue // Azure identity clientId was set by radixconfig build env-var or identity
 		}
 		param := pipelinev1.Param{Name: paramName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
@@ -197,7 +199,7 @@ func (ctx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, tar
 }
 
 func getPipelineParamSpec(pipelineParamsMap map[string]pipelinev1.ParamSpec, envVarName string) (pipelinev1.ParamSpec, bool) {
-	if envVarName == defaults.AzureClientIdEnvironmentVariable {
+	if envVarName == pipelineDefaults.AzureClientIdEnvironmentVariable {
 		return pipelinev1.ParamSpec{Name: envVarName, Type: pipelinev1.ParamTypeString}, true
 	}
 	paramSpec, ok := pipelineParamsMap[envVarName]

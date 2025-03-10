@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/wait"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/test"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-tekton/pkg/internal/wait"
-	internalTest "github.com/equinor/radix-tekton/pkg/pipeline/internal/test"
-	"github.com/equinor/radix-tekton/pkg/utils/test"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +27,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 	scenarios := []scenario{
 		{
 			name:              "RadixApplication loaded",
-			registeredAppName: internalTest.AppName,
+			registeredAppName: sampleApp,
 			expectedError:     nil,
 		},
 		{
@@ -40,17 +40,19 @@ func Test_LoadRadixApplication(t *testing.T) {
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
-			envMock := internalTest.MockEnv(mockCtrl, ts.registeredAppName)
-			envMock.EXPECT().GetRadixConfigFileName().Return(sampleApp).AnyTimes()
 			kubeClient, rxClient, tknClient := test.Setup()
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-				ObjectMeta: metav1.ObjectMeta{Name: internalTest.AppName},
+				ObjectMeta: metav1.ObjectMeta{Name: sampleApp},
 			}, metav1.CreateOptions{})
 			require.NoError(t, err)
-
-			ctx := NewPipelineContext(kubeClient, rxClient, tknClient, envMock, WithPipelineRunsWaiter(completionWaiter))
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					AppName: sampleApp,
+				},
+			}
+			ctx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, WithPipelineRunsWaiter(completionWaiter))
 
 			err = ctx.ProcessRadixAppConfig()
 			if ts.expectedError == nil {

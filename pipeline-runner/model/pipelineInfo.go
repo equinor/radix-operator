@@ -179,92 +179,127 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 
 // SetApplicationConfig Set radixconfig to be used later by other steps, as well
 // as deriving info from the config
-func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
-	info.RadixApplication = applicationConfig.GetRadixApplicationConfig()
+func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
+	p.RadixApplication = applicationConfig.GetRadixApplicationConfig()
 
 	// Obtain metadata for rest of pipeline
-	targetEnvironments := application.GetTargetEnvironments(info.PipelineArguments.Branch, info.RadixApplication)
+	targetEnvironments := application.GetTargetEnvironments(p.PipelineArguments.Branch, p.RadixApplication)
 
 	// For deploy-only pipeline
-	if info.IsPipelineType(radixv1.Deploy) &&
-		!slice.Any(targetEnvironments, func(s string) bool { return s == info.PipelineArguments.ToEnvironment }) {
-		targetEnvironments = append(targetEnvironments, info.PipelineArguments.ToEnvironment)
+	if p.IsPipelineType(radixv1.Deploy) &&
+		!slice.Any(targetEnvironments, func(s string) bool { return s == p.PipelineArguments.ToEnvironment }) {
+		targetEnvironments = append(targetEnvironments, p.PipelineArguments.ToEnvironment)
 	}
 
 	// For build and build-deploy pipeline
-	if (info.IsPipelineType(radixv1.Build) || info.IsPipelineType(radixv1.BuildDeploy)) &&
-		len(info.PipelineArguments.ToEnvironment) > 0 {
-		targetEnvironments = []string{info.PipelineArguments.ToEnvironment}
+	if (p.IsPipelineType(radixv1.Build) || p.IsPipelineType(radixv1.BuildDeploy)) &&
+		len(p.PipelineArguments.ToEnvironment) > 0 {
+		targetEnvironments = []string{p.PipelineArguments.ToEnvironment}
 	}
 
-	info.TargetEnvironments = targetEnvironments
+	p.TargetEnvironments = targetEnvironments
 }
 
 // SetGitAttributes Set git attributes to be used later by other steps
-func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
-	info.GitCommitHash = gitCommitHash
-	info.GitTags = gitTags
+func (p *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
+	p.GitCommitHash = gitCommitHash
+	p.GitTags = gitTags
 }
 
 // IsPipelineType Check pipeline type
-func (info *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
-	return info.GetRadixPipelineType() == pipelineType
+func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
+	return p.GetRadixPipelineType() == pipelineType
 }
 
-func (info *PipelineInfo) IsUsingBuildKit() bool {
-	return info.RadixApplication.Spec.Build != nil && info.RadixApplication.Spec.Build.UseBuildKit != nil && *info.RadixApplication.Spec.Build.UseBuildKit
+func (p *PipelineInfo) IsUsingBuildKit() bool {
+	return p.RadixApplication.Spec.Build != nil && p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
 }
 
-func (info *PipelineInfo) IsUsingBuildCache() bool {
-	if !info.IsUsingBuildKit() {
+func (p *PipelineInfo) IsUsingBuildCache() bool {
+	if !p.IsUsingBuildKit() {
 		return false
 	}
 
-	useBuildCache := info.RadixApplication.Spec.Build == nil || info.RadixApplication.Spec.Build.UseBuildCache == nil || *info.RadixApplication.Spec.Build.UseBuildCache
-	if info.PipelineArguments.OverrideUseBuildCache != nil {
-		useBuildCache = *info.PipelineArguments.OverrideUseBuildCache
+	useBuildCache := p.RadixApplication.Spec.Build == nil || p.RadixApplication.Spec.Build.UseBuildCache == nil || *p.RadixApplication.Spec.Build.UseBuildCache
+	if p.PipelineArguments.OverrideUseBuildCache != nil {
+		useBuildCache = *p.PipelineArguments.OverrideUseBuildCache
 	}
 
 	return useBuildCache
 }
 
 // GetRadixConfigBranch Get config branch
-func (info *PipelineInfo) GetRadixConfigBranch() string {
-	return info.RadixRegistration.Spec.ConfigBranch
+func (p *PipelineInfo) GetRadixConfigBranch() string {
+	return p.RadixRegistration.Spec.ConfigBranch
 }
 
 // GetRadixConfigFile Get radix config file
-func (info *PipelineInfo) GetRadixConfigFile() string {
-	return info.PipelineArguments.RadixConfigFile
+func (p *PipelineInfo) GetRadixConfigFile() string {
+	return p.PipelineArguments.RadixConfigFile
 }
 
 // GetGitWorkspace Get git workspace
-func (info *PipelineInfo) GetGitWorkspace() string {
-	return info.PipelineArguments.GitWorkspace
+func (p *PipelineInfo) GetGitWorkspace() string {
+	return p.PipelineArguments.GitWorkspace
 }
 
 // GetAppName Get app name
-func (info *PipelineInfo) GetAppName() string {
-	return info.PipelineArguments.AppName
+func (p *PipelineInfo) GetAppName() string {
+	return p.PipelineArguments.AppName
 }
 
 // GetRadixPipelineType Get radix pipeline type
-func (info *PipelineInfo) GetRadixPipelineType() radixv1.RadixPipelineType {
-	return radixv1.RadixPipelineType(info.PipelineArguments.PipelineType)
+func (p *PipelineInfo) GetRadixPipelineType() radixv1.RadixPipelineType {
+	return radixv1.RadixPipelineType(p.PipelineArguments.PipelineType)
 }
 
 // GetRadixApplication Get radix application
-func (info *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
-	return info.RadixApplication
+func (p *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
+	return p.RadixApplication
 }
 
 // SetRadixApplication Set radix application
-func (info *PipelineInfo) SetRadixApplication(radixApplication *radixv1.RadixApplication) *PipelineInfo {
-	info.RadixApplication = radixApplication
-	return info
+func (p *PipelineInfo) SetRadixApplication(radixApplication *radixv1.RadixApplication) *PipelineInfo {
+	p.RadixApplication = radixApplication
+	return p
 }
 
 // GetBranch Get branch
-func (info *PipelineInfo) GetBranch() string {
-	return info.PipelineArguments.Branch
+func (p *PipelineInfo) GetBranch() string {
+	return p.PipelineArguments.Branch
+}
+
+// GetAppNamespace Get app namespace
+func (p *PipelineInfo) GetAppNamespace() string {
+	return utils.GetAppNamespace(p.PipelineArguments.AppName)
+}
+
+// GetRadixImageTag Get radix image tag
+func (p *PipelineInfo) GetRadixImageTag() string {
+	return p.PipelineArguments.ImageTag
+}
+
+// GetRadixPipelineJobName Get radix pipeline job name
+func (p *PipelineInfo) GetRadixPipelineJobName() string {
+	return p.PipelineArguments.JobName
+}
+
+// GetDNSConfig Get DNS config
+func (p *PipelineInfo) GetDNSConfig() *dnsaliasconfig.DNSConfig {
+	return p.PipelineArguments.DNSConfig
+}
+
+// GetRadixDeployToEnvironment Get radix deploy to environment
+func (p *PipelineInfo) GetRadixDeployToEnvironment() string {
+	return p.PipelineArguments.ToEnvironment
+}
+
+// GetRadixPromoteDeployment Get radix promote deployment
+func (p *PipelineInfo) GetRadixPromoteDeployment() string {
+	return p.PipelineArguments.DeploymentName
+}
+
+// GetRadixPromoteFromEnvironment Get radix promote from environment
+func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
+	return p.PipelineArguments.FromEnvironment
 }

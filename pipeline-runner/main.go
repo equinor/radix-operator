@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
 	gitutils "github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 	"os/signal"
@@ -17,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +36,7 @@ func main() {
 		DNSConfig:    &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)},
 		GitWorkspace: gitutils.Workspace,
 	}
-	initLogger(pipelineArgs.LogLevel)
+	logger.InitLogger(pipelineArgs.LogLevel)
 
 	cmd := &cobra.Command{
 		Use: "run",
@@ -162,19 +162,4 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 		}
 	}
 	return nil
-}
-
-func initLogger(logLevelStr string) {
-	if len(logLevelStr) == 0 {
-		logLevelStr = zerolog.LevelInfoValue
-	}
-
-	logLevel, err := zerolog.ParseLevel(logLevelStr)
-	if err != nil {
-		logLevel = zerolog.InfoLevel
-	}
-
-	zerolog.SetGlobalLevel(logLevel)
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
-	zerolog.DefaultContextLogger = &log.Logger
 }

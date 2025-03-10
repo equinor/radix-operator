@@ -91,6 +91,7 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/internal/watcher/radix_deployment_watcher.go -destination ./pipeline-runner/internal/watcher/radix_deployment_watcher_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/watcher/namespace.go -destination ./pipeline-runner/internal/watcher/namespace_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/jobs/build/interface.go -destination ./pipeline-runner/internal/jobs/build/mock/job.go -package mock
+	mockgen -source ./pipeline-runner/internal/wait/pipelinerun.go -destination ./pipeline-runner/internal/wait/pipelinerun_mock.go -package wait
 
 
 .PHONY: build-pipeline

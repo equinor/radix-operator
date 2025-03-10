@@ -6,10 +6,10 @@ import (
 	"slices"
 	"strings"
 
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-tekton/pkg/defaults"
-	"github.com/equinor/radix-tekton/pkg/utils/annotations"
-	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -158,7 +158,7 @@ func containerEnvVarHasNonRadixSecretRef(envVars []corev1.EnvVar) bool {
 }
 
 func isRadixBuildSecret(secretName string) bool {
-	return strings.EqualFold(secretName, defaults.SubstitutionRadixBuildSecretsTarget)
+	return strings.EqualFold(secretName, pipelineDefaults.SubstitutionRadixBuildSecretsTarget)
 }
 func isRadixGitDeployKeySecret(secretName string) bool {
 	return strings.EqualFold(secretName, operatorDefaults.GitPrivateKeySecretName)

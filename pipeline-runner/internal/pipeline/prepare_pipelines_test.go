@@ -2,20 +2,20 @@ package pipeline
 
 import (
 	"context"
+	internalTest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"strings"
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/pipeline/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-tekton/pkg/defaults"
-	"github.com/equinor/radix-tekton/pkg/models/env"
-	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
-	"github.com/equinor/radix-tekton/pkg/utils/labels"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -368,9 +368,7 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 }
 
 func Test_pipelineContext_createPipeline(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
 	type fields struct {
-		env                     env.Env
 		radixApplicationBuilder utils.ApplicationBuilder
 		targetEnvironments      map[string]bool
 		hash                    string
@@ -430,7 +428,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				require.Len(t, task.Spec.Steps, 1)
 				require.Len(t, task.Spec.Sidecars, 1)
 
-				assert.Equal(t, "task1", task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation])
+				assert.Equal(t, "task1", task.ObjectMeta.Annotations[pipelineDefaults.PipelineTaskNameAnnotation])
 				assert.Equal(t, "step1", task.Spec.Steps[0].Name)
 				assert.Equal(t, "sidecar1", task.Spec.Sidecars[0].Name)
 				assert.Equal(t, "image1", task.Spec.StepTemplate.Image)
@@ -821,25 +819,33 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			if applicationBuilder == nil {
 				applicationBuilder = getRadixApplicationBuilder(appName, envDev, branchMain)
 			}
-			pipelineInfo := &model.PipelineInfo{}
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					AppName:       appName,
+					ImageTag:      radixImageTag,
+					JobName:       radixPipelineJobName,
+					Branch:        branchMain,
+					PipelineType:  string(v1.Deploy),
+					ToEnvironment: internalTest.Env1,
+					DNSConfig:     &dnsalias.DNSConfig{},
+				},
+			}
+			/*
+
+				mockEnv.EXPECT().GetRadixPipelineType().Return(v1.Deploy).AnyTimes()
+				mockEnv.EXPECT().GetRadixConfigMapName().Return(RadixConfigMapName).AnyTimes()
+				mockEnv.EXPECT().GetRadixDeployToEnvironment().Return(Env1).AnyTimes()
+				mockEnv.EXPECT().GetDNSConfig().Return(&dnsalias.DNSConfig{}).AnyTimes()
+				mockEnv.EXPECT().GetRadixConfigBranch().Return(Env1).AnyTimes()
+			*/
 			ctx := &pipelineContext{
 				radixClient:        radixclientfake.NewSimpleClientset(),
 				kubeClient:         kubeclientfake.NewSimpleClientset(),
 				tektonClient:       tektonclientfake.NewSimpleClientset(),
-				env:                scenario.fields.env,
 				targetEnvironments: scenario.fields.targetEnvironments,
 				hash:               scenario.fields.hash,
 				ownerReference:     scenario.fields.ownerReference,
 				pipelineInfo:       pipelineInfo.SetRadixApplication(applicationBuilder.BuildRA()),
-			}
-			if ctx.env == nil {
-				ctx.env = getEnvMock(mockCtrl, func(mockEnv *env.MockEnv) {
-					mockEnv.EXPECT().GetAppName().Return(appName).AnyTimes()
-					mockEnv.EXPECT().GetRadixImageTag().Return(radixImageTag).AnyTimes()
-					mockEnv.EXPECT().GetRadixPipelineJobName().Return(radixPipelineJobName).AnyTimes()
-					mockEnv.EXPECT().GetBranch().Return(branchMain).AnyTimes()
-					mockEnv.EXPECT().GetAppNamespace().Return(utils.GetAppNamespace(appName)).AnyTimes()
-				})
 			}
 			if ctx.ownerReference == nil {
 				ctx.ownerReference = &metav1.OwnerReference{
@@ -856,14 +862,6 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			scenario.assertScenario(t, ctx, scenario.args.pipeline.ObjectMeta.Name)
 		})
 	}
-}
-
-func getEnvMock(mockCtrl *gomock.Controller, modify func(mockEnv *env.MockEnv)) *env.MockEnv {
-	mockEnv := env.NewMockEnv(mockCtrl)
-	if modify != nil {
-		modify(mockEnv)
-	}
-	return mockEnv
 }
 
 func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pipeline {

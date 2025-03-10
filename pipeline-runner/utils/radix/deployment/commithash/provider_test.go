@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/test"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-tekton/pkg/utils/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
