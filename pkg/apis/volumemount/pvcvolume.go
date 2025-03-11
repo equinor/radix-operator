@@ -23,10 +23,10 @@ var (
 	defaultStorageCapacity resource.Quantity = resource.MustParse("1Mi")
 )
 
-// CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent Create or update CSI Azure volume resources for a DeployComponent - PersistentVolumes, PersistentVolumeClaims
+// CreateOrUpdatePVCVolumeResourcesForDeployComponent Create or update CSI Azure volume resources for a DeployComponent - PersistentVolumes, PersistentVolumeClaims
 // Returns actual volumes, with existing relevant PersistentVolumeClaimName and PersistentVolumeName
-func CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
-	handler := azureCSIBlobResourceHandler{
+func CreateOrUpdatePVCVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
+	handler := pvcVolumeResourceHandler{
 		kubeClient:      kubeClient,
 		radixDeployment: radixDeployment,
 		deployComponent: deployComponent,
@@ -38,13 +38,13 @@ func CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(ctx context.Context
 	return actualVolumes, nil
 }
 
-type azureCSIBlobResourceHandler struct {
+type pvcVolumeResourceHandler struct {
 	kubeClient      kubernetes.Interface
 	radixDeployment *radixv1.RadixDeployment
 	deployComponent radixv1.RadixCommonDeployComponent
 }
 
-func (h *azureCSIBlobResourceHandler) ReconcileVolumeResources(ctx context.Context, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
+func (h *pvcVolumeResourceHandler) ReconcileVolumeResources(ctx context.Context, desiredVolumes []corev1.Volume) ([]corev1.Volume, error) {
 	namespace := h.radixDeployment.GetNamespace()
 	functionalPvList, err := getCsiAzurePvsForNamespace(ctx, h.kubeClient, namespace)
 	if err != nil {
@@ -80,7 +80,7 @@ func (h *azureCSIBlobResourceHandler) ReconcileVolumeResources(ctx context.Conte
 	return volumes, nil
 }
 
-func (h *azureCSIBlobResourceHandler) createOrUpdateResourcesForVolume(ctx context.Context, volume corev1.Volume, radixVolumeMount radixv1.RadixVolumeMount, persistentVolumes []corev1.PersistentVolume, pvcByNameMap map[string]*corev1.PersistentVolumeClaim) (*corev1.Volume, error) {
+func (h *pvcVolumeResourceHandler) createOrUpdateResourcesForVolume(ctx context.Context, volume corev1.Volume, radixVolumeMount radixv1.RadixVolumeMount, persistentVolumes []corev1.PersistentVolume, pvcByNameMap map[string]*corev1.PersistentVolumeClaim) (*corev1.Volume, error) {
 	namespace := h.radixDeployment.Namespace
 	componentName := h.deployComponent.GetName()
 	pvcName := volume.PersistentVolumeClaim.ClaimName
@@ -149,7 +149,7 @@ func (h *azureCSIBlobResourceHandler) createOrUpdateResourcesForVolume(ctx conte
 	return &volume, nil
 }
 
-func (h *azureCSIBlobResourceHandler) isRadixVolumeMountForVolume(volume corev1.Volume) func(vm radixv1.RadixVolumeMount) bool {
+func (h *pvcVolumeResourceHandler) isRadixVolumeMountForVolume(volume corev1.Volume) func(vm radixv1.RadixVolumeMount) bool {
 	return func(vm radixv1.RadixVolumeMount) bool {
 		if !vm.HasBlobFuse2() && !vm.HasDeprecatedVolume() {
 			return false
@@ -162,7 +162,7 @@ func (h *azureCSIBlobResourceHandler) isRadixVolumeMountForVolume(volume corev1.
 	}
 }
 
-func (h *azureCSIBlobResourceHandler) getComponentPvcByNameMap(ctx context.Context) (map[string]*corev1.PersistentVolumeClaim, error) {
+func (h *pvcVolumeResourceHandler) getComponentPvcByNameMap(ctx context.Context) (map[string]*corev1.PersistentVolumeClaim, error) {
 	pvcList, err := h.kubeClient.CoreV1().PersistentVolumeClaims(h.radixDeployment.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func (h *azureCSIBlobResourceHandler) getComponentPvcByNameMap(ctx context.Conte
 	return pvcMap, nil
 }
 
-func (h *azureCSIBlobResourceHandler) matchComponentVolumeMountLabels(radixVolumeMount radixv1.RadixVolumeMount, pv corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) bool {
+func (h *pvcVolumeResourceHandler) matchComponentVolumeMountLabels(radixVolumeMount radixv1.RadixVolumeMount, pv corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) bool {
 	appName := h.radixDeployment.Spec.AppName
 	namespace := h.radixDeployment.Namespace
 	componentName := h.deployComponent.GetName()
@@ -193,7 +193,7 @@ func (h *azureCSIBlobResourceHandler) matchComponentVolumeMountLabels(radixVolum
 	return false
 }
 
-func (h *azureCSIBlobResourceHandler) findExistingPvForRadixVolumeMount(radixVolumeMount radixv1.RadixVolumeMount, persistentVolumes []corev1.PersistentVolume, pvcName string, pvc *corev1.PersistentVolumeClaim) (corev1.PersistentVolume, bool) {
+func (h *pvcVolumeResourceHandler) findExistingPvForRadixVolumeMount(radixVolumeMount radixv1.RadixVolumeMount, persistentVolumes []corev1.PersistentVolume, pvcName string, pvc *corev1.PersistentVolumeClaim) (corev1.PersistentVolume, bool) {
 	for _, pv := range persistentVolumes {
 		if pv.Spec.PersistentVolumeSource.CSI == nil || pv.Spec.ClaimRef == nil || !h.matchComponentVolumeMountLabels(radixVolumeMount, pv, pvc) {
 			continue
@@ -206,7 +206,7 @@ func (h *azureCSIBlobResourceHandler) findExistingPvForRadixVolumeMount(radixVol
 	return corev1.PersistentVolume{}, false
 }
 
-func (h *azureCSIBlobResourceHandler) buildPvc(pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount) *corev1.PersistentVolumeClaim {
+func (h *pvcVolumeResourceHandler) buildPvc(pvName, pvcName string, radixVolumeMount *radixv1.RadixVolumeMount) *corev1.PersistentVolumeClaim {
 	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pvcName,
@@ -225,7 +225,7 @@ func (h *azureCSIBlobResourceHandler) buildPvc(pvName, pvcName string, radixVolu
 	}
 }
 
-func (h *azureCSIBlobResourceHandler) buildPv(pvName, pvcName string, radixVolumeMount radixv1.RadixVolumeMount) *corev1.PersistentVolume {
+func (h *pvcVolumeResourceHandler) buildPv(pvName, pvcName string, radixVolumeMount radixv1.RadixVolumeMount) *corev1.PersistentVolume {
 	namespace := h.radixDeployment.Namespace
 	componentName := h.deployComponent.GetName()
 
@@ -248,13 +248,13 @@ func (h *azureCSIBlobResourceHandler) buildPv(pvName, pvcName string, radixVolum
 	return &pv
 }
 
-func (h *azureCSIBlobResourceHandler) isPersistentVolumeWithClaimRefName(claimRefName string) func(pv corev1.PersistentVolume) bool {
+func (h *pvcVolumeResourceHandler) isPersistentVolumeWithClaimRefName(claimRefName string) func(pv corev1.PersistentVolume) bool {
 	return func(pv corev1.PersistentVolume) bool {
 		return pv.Spec.PersistentVolumeSource.CSI != nil && pv.Spec.ClaimRef != nil && pv.Spec.ClaimRef.Name == claimRefName
 	}
 }
 
-func (h *azureCSIBlobResourceHandler) getVolumeMountAccessMode(radixVolumeMount *radixv1.RadixVolumeMount) corev1.PersistentVolumeAccessMode {
+func (h *pvcVolumeResourceHandler) getVolumeMountAccessMode(radixVolumeMount *radixv1.RadixVolumeMount) corev1.PersistentVolumeAccessMode {
 	//nolint:staticcheck
 	accessMode := radixVolumeMount.AccessMode
 	if radixVolumeMount.BlobFuse2 != nil {
@@ -271,7 +271,7 @@ func (h *azureCSIBlobResourceHandler) getVolumeMountAccessMode(radixVolumeMount 
 	return corev1.ReadOnlyMany // default access mode
 }
 
-func (h *azureCSIBlobResourceHandler) getVolumeCapacityOrDefault(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quantity {
+func (h *pvcVolumeResourceHandler) getVolumeCapacityOrDefault(radixVolumeMount *radixv1.RadixVolumeMount) resource.Quantity {
 	qty := radixVolumeMount.GetRequestsStorage()
 	if qty.IsZero() {
 		return defaultStorageCapacity

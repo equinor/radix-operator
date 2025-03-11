@@ -330,7 +330,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCAndPVBinding() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			actualVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
+			actualVolumes, err := CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
 			s.Require().Len(actualVolumes, 1)
 			s.Equal(pvcName, actualVolumes[0].VolumeSource.PersistentVolumeClaim.ClaimName)
@@ -519,7 +519,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
 			actualPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -605,7 +605,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCLabels() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
 			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -1089,7 +1089,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
 			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -1752,7 +1752,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
 			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -1826,7 +1826,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVLabels() {
 			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
 			desiredVolumes := []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}}
-			_, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
+			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
 			s.Require().NoError(err)
 			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(test.namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -3511,7 +3511,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name:         initialVolumeName,
 				VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}},
 			}}
-			initialVolumes, err = CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, initialComponent, initialVolumes)
+			initialVolumes, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, initialComponent, initialVolumes)
 			s.Require().NoError(err)
 			initialPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), initialVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -3528,7 +3528,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			initialVolumeModified := initialVolumes[0].DeepCopy()
 			initialVolumeModified.Name = changedVolumeName
 
-			changedVolumes, err := CreateOrUpdateCsiAzureVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, changedComponent, []corev1.Volume{*initialVolumeModified})
+			changedVolumes, err := CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, changedComponent, []corev1.Volume{*initialVolumeModified})
 			s.Require().NoError(err)
 			changedPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), changedVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
 			s.Require().NoError(err)

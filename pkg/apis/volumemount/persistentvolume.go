@@ -21,27 +21,26 @@ func ComparePersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 	//if !cmp.Equal(pv1.GetLabels(), pv2.GetLabels(), cmpopts.EquateEmpty()) {
 	//	return false
 	//}
-	ignoreMapKeys := func(keys ...string) cmp.Option {
-		return cmpopts.IgnoreMapEntries(func(k, _ string) bool {
-			return slices.Contains(keys, k)
-		})
-	}
-	if !cmp.Equal(pv1.Spec.CSI.VolumeAttributes, pv2.Spec.CSI.VolumeAttributes, cmpopts.EquateEmpty(), ignoreMapKeys(csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributePvcNamespace, csiVolumeMountAttributeProvisionerIdentity)) {
+
+	ignoreMapKeys := cmpopts.IgnoreMapEntries(func(k, _ string) bool {
+		keys := []string{csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributePvcNamespace, csiVolumeMountAttributeProvisionerIdentity}
+		return slices.Contains(keys, k)
+	})
+	if !cmp.Equal(pv1.Spec.CSI.VolumeAttributes, pv2.Spec.CSI.VolumeAttributes, cmpopts.EquateEmpty(), ignoreMapKeys) {
 		return false
 	}
 
-	compareNameOnlyForArgs := func(argNames ...string) cmp.Option {
-		return cmp.Comparer(func(val1, val2 string) bool {
-			if v, found := slice.FindFirst(argNames, func(argName string) bool { return strings.Split(val1, "=")[0] == argName }); found {
-				val1 = v
-			}
-			if v, found := slice.FindFirst(argNames, func(argName string) bool { return strings.Split(val2, "=")[0] == argName }); found {
-				val2 = v
-			}
-			return val1 == val2
-		})
-	}
-	if !cmp.Equal(slices.Sorted(slices.Values(pv1.Spec.MountOptions)), slices.Sorted(slices.Values(pv2.Spec.MountOptions)), cmpopts.EquateEmpty(), compareNameOnlyForArgs("--block-cache-path")) {
+	argNamesOnly := cmp.Comparer(func(val1, val2 string) bool {
+		argNames := []string{"--block-cache-path"}
+		if v, found := slice.FindFirst(argNames, func(argName string) bool { return strings.Split(val1, "=")[0] == argName }); found {
+			val1 = v
+		}
+		if v, found := slice.FindFirst(argNames, func(argName string) bool { return strings.Split(val2, "=")[0] == argName }); found {
+			val2 = v
+		}
+		return val1 == val2
+	})
+	if !cmp.Equal(slices.Sorted(slices.Values(pv1.Spec.MountOptions)), slices.Sorted(slices.Values(pv2.Spec.MountOptions)), cmpopts.EquateEmpty(), argNamesOnly) {
 		return false
 	}
 
