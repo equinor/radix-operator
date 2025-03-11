@@ -787,7 +787,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 		BuildRD()
 	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetAppNamespace(appName)}}, metav1.CreateOptions{})
 	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
-	_, _ = s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Create(context.Background(), ra, metav1.CreateOptions{})
 	_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), currentRd, metav1.CreateOptions{})
 	buildCtx := &model.PrepareBuildContext{
 		EnvironmentsToBuild: []model.EnvironmentToBuild{
