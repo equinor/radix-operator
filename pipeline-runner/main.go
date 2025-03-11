@@ -55,7 +55,6 @@ func main() {
 			teardownCtx, cancelTeardownCtx := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancelTeardownCtx()
 
-			runner.TearDown(teardownCtx)
 			if err != nil {
 				os.Exit(2)
 			}

@@ -15,10 +15,13 @@ import (
 )
 
 const (
-	sampleApp = "./testdata/radixconfig.yaml"
+	sampleApp = "../test/testdata/radixconfig.yaml"
 )
 
 func Test_LoadRadixApplication(t *testing.T) {
+	const (
+		appName = "test-app"
+	)
 	type scenario struct {
 		name              string
 		registeredAppName string
@@ -49,7 +52,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 			require.NoError(t, err)
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					AppName:         sampleApp,
+					AppName:         appName,
 					RadixConfigFile: sampleApp,
 				},
 			}

@@ -24,7 +24,6 @@ import (
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
@@ -102,23 +101,6 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-// TearDown performs any needed cleanup
-func (cli *PipelineRunner) TearDown(ctx context.Context) {
-	namespace := utils.GetAppNamespace(cli.appName)
-
-	err := cli.kubeUtil.DeleteConfigMap(ctx, namespace, cli.pipelineInfo.RadixConfigMapName)
-	if err != nil && !k8sErrors.IsNotFound(err) {
-		log.Ctx(ctx).Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.RadixConfigMapName, namespace)
-	}
-
-	if cli.pipelineInfo.IsPipelineType(v1.BuildDeploy) {
-		err = cli.kubeUtil.DeleteConfigMap(ctx, namespace, cli.pipelineInfo.GitConfigMapName)
-		if err != nil && !k8sErrors.IsNotFound(err) {
-			log.Ctx(ctx).Error().Err(err).Msgf("failed on tear-down deleting the config-map %s, ns: %s", cli.pipelineInfo.GitConfigMapName, namespace)
-		}
-	}
 }
 
 func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registration *v1.RadixRegistration) []model.Step {

@@ -793,9 +793,9 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			{Environment: envName, Components: []string{"comp-changed", "comp-common1-changed", "comp-common3-changed", "job-changed", "job-common2-changed", "job-common3-changed"}},
 		},
 	}
-	fmt.Println(buildCtx)
 
 	pipelineInfo := model.PipelineInfo{
+		RadixApplication: ra,
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      "build-deploy",
 			Branch:            buildBranch,
@@ -804,7 +804,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			Clustername:       "clustername",
 			ContainerRegistry: "registry",
 		},
-		RadixApplication: ra,
+		PrepareBuildContext: buildCtx,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()

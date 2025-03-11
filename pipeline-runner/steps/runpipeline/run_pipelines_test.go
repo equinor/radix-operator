@@ -2,7 +2,6 @@ package runpipeline_test
 
 import (
 	"context"
-	"fmt"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
@@ -243,6 +242,10 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			kubeClient, rxClient, tknClient := test.Setup()
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+			ra := utils.NewRadixApplicationBuilder().WithAppName(internalTest.AppName).
+				WithBuildVariables(ts.buildVariables).
+				WithSubPipeline(ts.buildSubPipeline).
+				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...).BuildRA()
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
 					AppName:       internalTest.AppName,
@@ -253,26 +256,13 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 					ToEnvironment: internalTest.Env1,
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
+				RadixApplication: ra,
 			}
 			ctx := runpipeline.NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
-			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(internalTest.AppName).
-				WithBuildVariables(ts.buildVariables).
-				WithSubPipeline(ts.buildSubPipeline).
-				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...)
-			raContent, err := yaml.Marshal(raBuilder.BuildRA())
-			require.NoError(t, err)
-			fmt.Print(string(raContent))
-			_, err = rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
+			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{Name: internalTest.AppName}, Spec: radixv1.RadixRegistrationSpec{}}, metav1.CreateOptions{})
 			require.NoError(t, err)
-			//_, err = kubeClient.CoreV1().ConfigMaps(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
-			//	ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixConfigMapName},
-			//	Data: map[string]string{
-			//		pipelineDefaults.PipelineConfigMapContent: string(raContent),
-			//	},
-			//}, metav1.CreateOptions{})
-			//require.NoError(t, err)
 
 			_, err = tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetLabelsForEnvironment(pipelineInfo, internalTest.Env1)},
