@@ -342,6 +342,7 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) fileCacheMountOptions() []string 
 	}
 }
 
+//nolint:staticcheck
 func (b *blobfuse2PersistentVolumeSpecBuilder) resolveCacheMode() radixv1.BlobFuse2CacheMode {
 	if b.radixVolumeMount.BlobFuse2.CacheMode != nil {
 		return *b.radixVolumeMount.BlobFuse2.CacheMode
