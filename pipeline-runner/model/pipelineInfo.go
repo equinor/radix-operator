@@ -2,9 +2,6 @@ package model
 
 import (
 	"fmt"
-	"strings"
-	"time"
-
 	"github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
@@ -128,23 +125,15 @@ type PipelineArguments struct {
 
 // InitPipeline Initialize pipeline with step implementations
 func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *PipelineArguments, stepImplementations ...Step) (*PipelineInfo, error) {
-
-	timestamp := time.Now().Format("20060102150405")
-	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
-	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
-	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
-
 	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &PipelineInfo{
-		Definition:         pipelineType,
-		PipelineArguments:  *pipelineArguments,
-		Steps:              stepImplementationsForType,
-		RadixConfigMapName: radixConfigMapName,
-		GitConfigMapName:   gitConfigFileName,
+		Definition:        pipelineType,
+		PipelineArguments: *pipelineArguments,
+		Steps:             stepImplementationsForType,
 	}, nil
 }
 

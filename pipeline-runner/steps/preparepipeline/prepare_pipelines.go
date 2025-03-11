@@ -45,7 +45,7 @@ func (ctx *pipelineContext) GetBuildContext() (*model.PrepareBuildContext, error
 	pipelineType := ctx.GetPipelineInfo().GetRadixPipelineType()
 	buildContext := model.PrepareBuildContext{}
 
-	if gitHash == "" && ctx.GetPipelineInfo().GetRadixPipelineType() != v1.BuildDeploy {
+	if gitHash == "" && ctx.GetPipelineInfo().GetRadixPipelineType() != radixv1.BuildDeploy {
 		// if no git hash, don't run sub-pipelines
 		return &buildContext, nil
 	}
