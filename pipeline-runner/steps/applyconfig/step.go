@@ -248,7 +248,6 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx
 			environmentComponentImageSources[envName] = componentImageSources
 		}
 	}
-
 	return environmentComponentImageSources, nil
 }
 
