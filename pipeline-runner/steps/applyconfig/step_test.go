@@ -2,9 +2,7 @@ package applyconfig_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	internaltest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"testing"
 	"time"
 
@@ -12,6 +10,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
+	internaltest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -23,7 +22,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
@@ -53,52 +51,6 @@ func (s *applyConfigTestSuite) SetupSubTest() {
 	s.SetupTest()
 }
 
-func (s *applyConfigTestSuite) Test_RadixConfigMap_Missing() {
-	appName := "anyapp"
-	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
-	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			AppName: appName,
-		},
-	}
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
-	s.True(k8sErrors.IsNotFound(err))
-}
-
-func (s *applyConfigTestSuite) Test_RadixConfigMap_WithPrepareBuildCtx_Processed() {
-	appName, radixConfigMapName := "anyapp", "preparecm"
-	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
-	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	expectedRa := utils.ARadixApplication().WithAppName(appName).BuildRA()
-	expectedPrepareBuildCtx := &model.PrepareBuildContext{
-		EnvironmentsToBuild:          []model.EnvironmentToBuild{{Environment: "any", Components: []string{"comp1", "comp2"}}},
-		ChangedRadixConfig:           true,
-		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "file1"}},
-	}
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, radixConfigMapName, appName, expectedRa, expectedPrepareBuildCtx))
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			AppName: appName,
-		},
-	}
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
-	s.Require().NoError(err)
-	s.Equal(expectedPrepareBuildCtx, pipelineInfo.PrepareBuildContext)
-	// We need marshal expected and actual to JSON and compare, since Equal asserts an empty array is different for a nil array
-	expectedRaJson, _ := json.Marshal(expectedRa)
-	pipelineRaJson, _ := json.Marshal(pipelineInfo.RadixApplication)
-	s.Equal(expectedRaJson, pipelineRaJson)
-	actualRa, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Get(context.Background(), appName, metav1.GetOptions{})
-	s.Require().NoError(err)
-	actualRaJson, _ := json.Marshal(actualRa)
-	s.Equal(expectedRaJson, actualRaJson)
-}
-
 func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Processed() {
 	appName, radixConfigMapName := "anyapp", "preparecm"
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
@@ -109,6 +61,7 @@ func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Proces
 		PipelineArguments: model.PipelineArguments{
 			AppName: appName,
 		},
+		RadixApplication: expectedRa,
 	}
 	cli := applyconfig.NewApplyConfigStep()
 	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
@@ -117,41 +70,15 @@ func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Proces
 	s.Nil(pipelineInfo.PrepareBuildContext)
 }
 
-func (s *applyConfigTestSuite) Test_GitAttributes_Retrieved() {
-	appName := "anyapp"
-	expectedGitHash, expectedGitTags := "anygithash", "anygittags"
-	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
-	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			AppName:      appName,
-			PipelineType: string(radixv1.BuildDeploy),
-		},
-	}
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
-	s.Require().NoError(err)
-	s.Equal(expectedGitHash, pipelineInfo.GitCommitHash)
-	s.Equal(expectedGitTags, pipelineInfo.GitTags)
-}
-
 func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsNotMapped() {
 	const (
 		anyAppName      = "any-app"
-		mappedBranch    = "master"
 		nonMappedBranch = "feature"
 	)
 
 	rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
+	expectedRa := utils.ARadixApplication().WithAppName(anyAppName).BuildRA()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	ra := utils.NewRadixApplicationBuilder().
-		WithAppName(anyAppName).
-		WithEnvironment("anyenv", mappedBranch).
-		WithComponents(
-			utils.AnApplicationComponent().
-				WithName("anyname")).
-		BuildRA()
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -159,6 +86,7 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsNotMapped() {
 			PipelineType: string(radixv1.BuildDeploy),
 			Branch:       nonMappedBranch,
 		},
+		RadixApplication: expectedRa,
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
@@ -170,10 +98,9 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsNotMapped() {
 
 func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsMapped() {
 	const (
-		anyAppName           = "any-app"
-		mappedBranch         = "master"
-		nonMappedBranch      = "release"
-		prepareConfigMapName = "preparecm"
+		anyAppName      = "any-app"
+		mappedBranch    = "master"
+		nonMappedBranch = "release"
 	)
 
 	rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
@@ -188,7 +115,6 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsMapped() {
 			utils.AnApplicationComponent().
 				WithName("anyname")).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, anyAppName, ra, nil))
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -196,6 +122,7 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsMapped() {
 			PipelineType: string(radixv1.BuildDeploy),
 			Branch:       mappedBranch,
 		},
+		RadixApplication: ra,
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
@@ -207,15 +134,13 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsMapped() {
 
 func (s *applyConfigTestSuite) Test_TargetEnvironments_DeployOnly() {
 	const (
-		anyAppName           = "any-app"
-		prepareConfigMapName = "preparecm"
-		toEnvironment        = "anyenv"
+		anyAppName    = "any-app"
+		toEnvironment = "anyenv"
 	)
 
 	rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().WithAppName(anyAppName).BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, anyAppName, ra, nil))
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -223,6 +148,7 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_DeployOnly() {
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: toEnvironment,
 		},
+		RadixApplication: ra,
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
@@ -234,17 +160,14 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_DeployOnly() {
 
 func (s *applyConfigTestSuite) Test_BuildSecrets_SecretMissing() {
 	const (
-		anyAppName           = "any-app"
-		mappedBranch         = "master"
-		nonMappedBranch      = "release"
-		prepareConfigMapName = "preparecm"
+		anyAppName   = "any-app"
+		mappedBranch = "master"
 	)
 
 	rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 
 	ra := utils.NewRadixApplicationBuilder().WithAppName(anyAppName).WithBuildSecrets("secret1", "secret2").BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, anyAppName, ra, nil))
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -252,6 +175,7 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretMissing() {
 			PipelineType: string(radixv1.BuildDeploy),
 			Branch:       mappedBranch,
 		},
+		RadixApplication: ra,
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
@@ -263,10 +187,8 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretMissing() {
 
 func (s *applyConfigTestSuite) Test_BuildSecrets_SecretExist() {
 	const (
-		anyAppName           = "any-app"
-		mappedBranch         = "master"
-		nonMappedBranch      = "release"
-		prepareConfigMapName = "preparecm"
+		anyAppName   = "any-app"
+		mappedBranch = "master"
 	)
 
 	rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
@@ -284,6 +206,7 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretExist() {
 			PipelineType: string(radixv1.BuildDeploy),
 			Branch:       mappedBranch,
 		},
+		RadixApplication: ra,
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
@@ -295,7 +218,6 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretExist() {
 
 func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFail() {
 	appName := "anyapp"
-	prepareConfigMapName := "preparecm"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
@@ -306,13 +228,13 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFa
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("deploycomp").WithImage("any:latest"),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -323,7 +245,6 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFa
 
 func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
 	appName := "anyapp"
-	prepareConfigMapName := "preparecm"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
@@ -334,13 +255,13 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
 		).
 		WithEnvironment("dev", "anybranch").
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -351,7 +272,6 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
 
 func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 	appName, envName1, envName2, envName3, envName4, rjName, buildBranch, jobPort := "anyapp", "dev1", "dev2", "dev3", "dev4", "anyrj", "anybranch", pointers.Ptr[int32](9999)
-	prepareConfigMapName := "preparecm"
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -422,7 +342,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 				),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      string(radixv1.BuildDeploy),
@@ -433,6 +353,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -545,7 +466,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 
 func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntime() {
 	appName, envName, buildBranch, jobPort := "anyapp", "dev", "anybranch", pointers.Ptr[int32](9999)
-	prepareConfigMapName := "preparecm"
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -599,7 +519,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      string(radixv1.BuildDeploy),
@@ -609,6 +529,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 			Clustertype:       "anyclustertype",
 			Clustername:       "anyclustername",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -700,7 +621,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 
 func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled() {
 	appName, envName, buildBranch, jobPort := "anyapp", "dev", "anybranch", pointers.Ptr[int32](9999)
-	prepareConfigMapName := "preparecm"
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -740,7 +660,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      string(radixv1.BuildDeploy),
@@ -750,6 +670,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -820,7 +741,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 
 func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedComponents() {
 	appName, envName, buildBranch, jobPort := "anyapp", "dev", "anybranch", pointers.Ptr[int32](9999)
-	prepareConfigMapName := "preparecm"
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -865,14 +785,17 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			utils.NewDeployJobComponentBuilder().WithName("job-common2-changed").WithImage("dev-job-common2-changed:anytag"),
 		).
 		BuildRD()
-	_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), currentRd, metav1.CreateOptions{})
+	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetAppNamespace(appName)}}, metav1.CreateOptions{})
 	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
+	_, _ = s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Create(context.Background(), ra, metav1.CreateOptions{})
+	_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), currentRd, metav1.CreateOptions{})
 	buildCtx := &model.PrepareBuildContext{
 		EnvironmentsToBuild: []model.EnvironmentToBuild{
 			{Environment: envName, Components: []string{"comp-changed", "comp-common1-changed", "comp-common3-changed", "job-changed", "job-common2-changed", "job-common3-changed"}},
 		},
 	}
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, buildCtx))
+	fmt.Println(buildCtx)
+
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:      "build-deploy",
@@ -882,6 +805,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			Clustername:       "clustername",
 			ContainerRegistry: "registry",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -955,7 +879,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 
 func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponentsToBuild() {
 	appName, envName, buildBranch, jobPort, buildSecretName := "anyapp", "dev", "anybranch", pointers.Ptr[int32](9999), "SECRET1"
-	prepareConfigMapName := "preparecm"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	raBuilder := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
@@ -990,7 +913,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 
 		return builder.BuildRD()
 	}
-	piplineArgs := model.PipelineArguments{
+	pipelineArgs := model.PipelineArguments{
 		PipelineType:      string(radixv1.BuildDeploy),
 		Branch:            buildBranch,
 		ImageTag:          "imgtag",
@@ -1010,13 +933,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", piplineArgs.ContainerRegistry, appName, imageNameFunc(comp), piplineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", piplineArgs.ContainerRegistry, appName, imageNameFunc(comp), piplineArgs.Clustertype, piplineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.Clustertype, pipelineArgs.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", piplineArgs.ContainerRegistry, appName, imageNameFunc(comp), piplineArgs.Clustername, piplineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.Clustername, pipelineArgs.ImageTag)
 	}
 	buildComponentImageFunc := func(component string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -1391,7 +1314,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 			}
 			//TODO ? s.Require().NoError(test.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, test.prepareBuildCtx))
 			pipelineInfo := model.PipelineInfo{
-				PipelineArguments: piplineArgs,
+				PipelineArguments: pipelineArgs,
 				RadixApplication:  ra,
 			}
 			applyStep := applyconfig.NewApplyConfigStep()
@@ -1416,7 +1339,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 	appName := "anyapp"
-	prepareConfigMapName := "preparecm"
 	type scenario struct {
 		name                 string
 		componentTagName     string
@@ -1445,7 +1367,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 				WithAppName(appName).
 				WithEnvironment("dev", "anybranch").
 				WithComponents(componentBuilder).BuildRA()
-			//TODO ? s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+			//TODO ?
 
 			pipelineInfo := model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
@@ -1469,7 +1391,6 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSucceed() {
 	appName := "anyapp"
-	prepareConfigMapName := "preparecm"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
@@ -1480,13 +1401,13 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSu
 				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("dev").WithImageTagName("anytag")),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1496,7 +1417,6 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSu
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineArgShouldSucceed() {
 	appName := "anyapp"
-	prepareConfigMapName := "preparecm"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
@@ -1506,7 +1426,6 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("deploycomp").WithImage("any:{imageTagName}"),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -1514,6 +1433,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 			ToEnvironment: "dev",
 			ImageTagNames: map[string]string{"deploycomp": "tag"},
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1523,7 +1443,6 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 
 func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail() {
 	appName := "anyapp"
-	prepareConfigMapName := "preparecm"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
@@ -1533,13 +1452,13 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(pointers.Ptr[int32](9999)).WithName("deployjob").WithImage("any:{imageTagName}"),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1552,7 +1471,6 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 
 func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed() {
 	appName := "anyapp"
-	prepareConfigMapName := "preparecm"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
@@ -1563,13 +1481,13 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("dev").WithImageTagName("anytag")),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1579,7 +1497,6 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 
 func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgShouldSucceed() {
 	appName := "anyapp"
-	prepareConfigMapName := "preparecm"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
@@ -1589,7 +1506,6 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(pointers.Ptr[int32](9999)).WithName("deployjob").WithImage("any:{imageTagName}"),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
 
 	pipeline := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -1597,6 +1513,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 			ToEnvironment: "dev",
 			ImageTagNames: map[string]string{"deployjob": "anytag"},
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1627,7 +1544,6 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 	activeRadixDeployment := rdBuilder.BuildRD()
 	ra := raBuilder.BuildRA()
 	rr := raBuilder.GetRegistrationBuilder().BuildRR()
-	const prepareConfigMapName = "preparecm"
 
 	scenarios := []struct {
 		name               string
@@ -1655,7 +1571,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 			s.Require().NoError(err)
 			_, err = s.radixClient.RadixV1().RadixDeployments("anyapp-dev").Create(context.Background(), activeRadixDeployment, metav1.CreateOptions{})
 			s.Require().NoError(err)
-			s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+
 			for _, env := range []string{"anyapp-app", "anyapp-dev"} {
 				_, err = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: env}}, metav1.CreateOptions{})
 				s.Require().NoError(err, "create env %s", env)
@@ -1666,6 +1582,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 					PipelineType:       string(ts.pipelineType),
 					ComponentsToDeploy: ts.componentsToDeploy,
 				},
+				RadixApplication: ra,
 			}
 			switch ts.pipelineType {
 			case radixv1.Deploy:
@@ -1692,7 +1609,6 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 
 func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 	appName, envName, rjName, buildBranch, jobPort := "anyapp", "dev", "anyrj", "anybranch", pointers.Ptr[int32](9999)
-	prepareConfigMapName := "preparecm"
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -1714,7 +1630,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job2envtag")),
 		).
 		BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
+
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  "deploy",
@@ -1722,6 +1638,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 			JobName:       rjName,
 			ImageTagNames: map[string]string{"comp1": "comp1customtag", "job1": "job1customtag"},
 		},
+		RadixApplication: ra,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1743,7 +1660,6 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 
 func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 	appName, branchName, schedulerPort := "anyapp", "anybranch", int32(9999)
-	prepareConfigMapName := "preparecm"
 
 	tests := map[string]struct {
 		useBuildKit bool
