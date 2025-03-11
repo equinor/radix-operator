@@ -44,10 +44,15 @@ func ComparePersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 		return false
 	}
 
-	if pv1.Spec.Capacity[corev1.ResourceStorage] != pv2.Spec.Capacity[corev1.ResourceStorage] ||
-		len(pv1.Spec.AccessModes) != len(pv2.Spec.AccessModes) ||
-		(len(pv1.Spec.AccessModes) == 1 && pv1.Spec.AccessModes[0] != pv2.Spec.AccessModes[0]) ||
-		pv1.Spec.CSI.Driver != pv2.Spec.CSI.Driver {
+	if !cmp.Equal(pv1.Spec.Capacity, pv2.Spec.Capacity, cmpopts.EquateEmpty()) {
+		return false
+	}
+
+	if !cmp.Equal(slices.Sorted(slices.Values(pv1.Spec.AccessModes)), slices.Sorted(slices.Values(pv2.Spec.AccessModes)), cmpopts.EquateEmpty()) {
+		return false
+	}
+
+	if pv1.Spec.CSI.Driver != pv2.Spec.CSI.Driver {
 		return false
 	}
 
@@ -59,16 +64,16 @@ func ComparePersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 		return false
 	}
 
-	if pv1.Spec.ClaimRef != nil {
-		if pv2.Spec.ClaimRef == nil ||
-			!internal.EqualTillPostfix(pv1.Spec.ClaimRef.Name, pv2.Spec.ClaimRef.Name, nameRandPartLength) ||
-			!internal.EqualTillPostfix(pv1.Spec.ClaimRef.Name, pv2.Spec.ClaimRef.Name, nameRandPartLength) ||
-			pv1.Spec.ClaimRef.Namespace != pv2.Spec.ClaimRef.Namespace ||
-			pv1.Spec.ClaimRef.Kind != pv2.Spec.ClaimRef.Kind {
-			return false
-		}
-	} else if pv2.Spec.ClaimRef != nil {
-		return false
-	}
-	return true
+	claimRefNameComparer := cmp.FilterPath(
+		func(p cmp.Path) bool {
+			return p.String() == "Name"
+		},
+		cmp.Comparer(
+			func(claimName1, claimName2 string) bool {
+				return internal.EqualTillPostfix(claimName1, claimName2, nameRandPartLength)
+			},
+		),
+	)
+	ignoreClaimRefFields := cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID", "ResourceVersion")
+	return cmp.Equal(pv1.Spec.ClaimRef, pv2.Spec.ClaimRef, claimRefNameComparer, ignoreClaimRefFields)
 }
