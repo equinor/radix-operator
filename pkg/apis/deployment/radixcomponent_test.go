@@ -1396,24 +1396,6 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 				{Name: "vol-env", GID: "env2"},
 			},
 		},
-		"Deprecated: SkuName": {
-			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", SkuName: "comp1"},
-				{Name: "vol-common-override", SkuName: "comp2"},
-				{Name: "vol-comp", SkuName: "comp3"},
-			},
-			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override"},
-				{Name: "vol-common-override", SkuName: "env1"},
-				{Name: "vol-env", SkuName: "env2"},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", SkuName: "comp1"},
-				{Name: "vol-common-override", SkuName: "env1"},
-				{Name: "vol-comp", SkuName: "comp3"},
-				{Name: "vol-env", SkuName: "env2"},
-			},
-		},
 		"Deprecated: RequestsStorage": {
 			componentVolumeMounts: []radixv1.RadixVolumeMount{
 				{Name: "vol-common-no-override", RequestsStorage: resource.MustParse("1G")},
@@ -1448,24 +1430,6 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 				{Name: "vol-common-override", AccessMode: "env1"},
 				{Name: "vol-comp", AccessMode: "comp3"},
 				{Name: "vol-env", AccessMode: "env2"},
-			},
-		},
-		"Deprecated: BindingMode": {
-			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BindingMode: "comp1"},
-				{Name: "vol-common-override", BindingMode: "comp2"},
-				{Name: "vol-comp", BindingMode: "comp3"},
-			},
-			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override"},
-				{Name: "vol-common-override", BindingMode: "env1"},
-				{Name: "vol-env", BindingMode: "env2"},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BindingMode: "comp1"},
-				{Name: "vol-common-override", BindingMode: "env1"},
-				{Name: "vol-comp", BindingMode: "comp3"},
-				{Name: "vol-env", BindingMode: "env2"},
 			},
 		},
 		"Blobfuse2: nil handling": {
@@ -1556,24 +1520,6 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "env1"}},
 				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "comp3"}},
 				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "env2"}},
-			},
-		},
-		"Blobfuse2: SkuName": {
-			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "comp1"}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "comp2"}},
-				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "comp3"}},
-			},
-			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "env1"}},
-				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "env2"}},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "comp1"}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "env1"}},
-				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "comp3"}},
-				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SkuName: "env2"}},
 			},
 		},
 		"Blobfuse2: RequestsStorage": {

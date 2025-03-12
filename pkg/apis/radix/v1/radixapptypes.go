@@ -981,11 +981,6 @@ type RadixVolumeMount struct {
 	// Deprecated: use BlobFuse2 instead.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +optional
-	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-
-	// Deprecated: use BlobFuse2 instead.
-	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +optional
 	RequestsStorage resource.Quantity `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
 	// Deprecated: use BlobFuse2 instead.
@@ -994,13 +989,6 @@ type RadixVolumeMount struct {
 	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
-
-	// Deprecated: use BlobFuse2 instead.
-	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
-	// +optional
-	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 
 	// BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2
 	BlobFuse2 *RadixBlobFuse2VolumeMount `json:"blobFuse2,omitempty"`
@@ -1105,12 +1093,6 @@ type RadixBlobFuse2VolumeMount struct {
 	// UID defines the user ID (number) which will be set as owner of the mounted volume.
 	// +optional
 	UID string `json:"uid,omitempty"` // Optional. Volume mount owner UserID. Used instead of GID.
-
-	// SKU Type of Azure storage.
-	// More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-	// +kubebuilder:validation:Enum=Standard_LRS;Premium_LRS;Standard_GRS;Standard_RAGRS;""
-	// +optional
-	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 
 	// Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
 	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim

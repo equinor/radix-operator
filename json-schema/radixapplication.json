@@ -1378,15 +1378,6 @@
                             ],
                             "type": "string"
                           },
-                          "bindingMode": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "enum": [
-                              "Immediate",
-                              "WaitForFirstConsumer",
-                              ""
-                            ],
-                            "type": "string"
-                          },
                           "blobFuse2": {
                             "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                             "properties": {
@@ -1512,17 +1503,6 @@
                                 "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
                                 "type": "string"
                               },
-                              "skuName": {
-                                "description": "SKU Type of Azure storage.\nMore info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types",
-                                "enum": [
-                                  "Standard_LRS",
-                                  "Premium_LRS",
-                                  "Standard_GRS",
-                                  "Standard_RAGRS",
-                                  ""
-                                ],
-                                "type": "string"
-                              },
                               "storageAccount": {
                                 "description": "Name of a storage account. It is mandatory when using a workload identity. It is optional when using Access Key, if it is not defined, it will be configured in a secret.",
                                 "type": "string"
@@ -1646,10 +1626,6 @@
                             "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                             "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
                             "x-kubernetes-int-or-string": true
-                          },
-                          "skuName": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "type": "string"
                           },
                           "storage": {
                             "description": "Deprecated: use BlobFuse2 instead.\nStorage defines the name of the container in the external storage resource.",
@@ -2711,15 +2687,6 @@
                       ],
                       "type": "string"
                     },
-                    "bindingMode": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "enum": [
-                        "Immediate",
-                        "WaitForFirstConsumer",
-                        ""
-                      ],
-                      "type": "string"
-                    },
                     "blobFuse2": {
                       "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                       "properties": {
@@ -2845,17 +2812,6 @@
                           "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
                           "type": "string"
                         },
-                        "skuName": {
-                          "description": "SKU Type of Azure storage.\nMore info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types",
-                          "enum": [
-                            "Standard_LRS",
-                            "Premium_LRS",
-                            "Standard_GRS",
-                            "Standard_RAGRS",
-                            ""
-                          ],
-                          "type": "string"
-                        },
                         "storageAccount": {
                           "description": "Name of a storage account. It is mandatory when using a workload identity. It is optional when using Access Key, if it is not defined, it will be configured in a secret.",
                           "type": "string"
@@ -2979,10 +2935,6 @@
                       "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                       "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
                       "x-kubernetes-int-or-string": true
-                    },
-                    "skuName": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "type": "string"
                     },
                     "storage": {
                       "description": "Deprecated: use BlobFuse2 instead.\nStorage defines the name of the container in the external storage resource.",
@@ -3726,15 +3678,6 @@
                             ],
                             "type": "string"
                           },
-                          "bindingMode": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "enum": [
-                              "Immediate",
-                              "WaitForFirstConsumer",
-                              ""
-                            ],
-                            "type": "string"
-                          },
                           "blobFuse2": {
                             "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                             "properties": {
@@ -3860,17 +3803,6 @@
                                 "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
                                 "type": "string"
                               },
-                              "skuName": {
-                                "description": "SKU Type of Azure storage.\nMore info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types",
-                                "enum": [
-                                  "Standard_LRS",
-                                  "Premium_LRS",
-                                  "Standard_GRS",
-                                  "Standard_RAGRS",
-                                  ""
-                                ],
-                                "type": "string"
-                              },
                               "storageAccount": {
                                 "description": "Name of a storage account. It is mandatory when using a workload identity. It is optional when using Access Key, if it is not defined, it will be configured in a secret.",
                                 "type": "string"
@@ -3994,10 +3926,6 @@
                             "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                             "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
                             "x-kubernetes-int-or-string": true
-                          },
-                          "skuName": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "type": "string"
                           },
                           "storage": {
                             "description": "Deprecated: use BlobFuse2 instead.\nStorage defines the name of the container in the external storage resource.",
@@ -4410,15 +4338,6 @@
                       ],
                       "type": "string"
                     },
-                    "bindingMode": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nBinding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "enum": [
-                        "Immediate",
-                        "WaitForFirstConsumer",
-                        ""
-                      ],
-                      "type": "string"
-                    },
                     "blobFuse2": {
                       "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                       "properties": {
@@ -4544,17 +4463,6 @@
                           "description": "ResourceGroup of a storage account. Applicable when using a workload identity.",
                           "type": "string"
                         },
-                        "skuName": {
-                          "description": "SKU Type of Azure storage.\nMore info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types",
-                          "enum": [
-                            "Standard_LRS",
-                            "Premium_LRS",
-                            "Standard_GRS",
-                            "Standard_RAGRS",
-                            ""
-                          ],
-                          "type": "string"
-                        },
                         "storageAccount": {
                           "description": "Name of a storage account. It is mandatory when using a workload identity. It is optional when using Access Key, if it is not defined, it will be configured in a secret.",
                           "type": "string"
@@ -4678,10 +4586,6 @@
                       "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                       "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
                       "x-kubernetes-int-or-string": true
-                    },
-                    "skuName": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "type": "string"
                     },
                     "storage": {
                       "description": "Deprecated: use BlobFuse2 instead.\nStorage defines the name of the container in the external storage resource.",
