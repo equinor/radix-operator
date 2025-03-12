@@ -56,11 +56,7 @@ func ComparePersistentVolumes(pv1, pv2 *corev1.PersistentVolume) bool {
 		return false
 	}
 
-	if pv1.Spec.CSI.NodeStageSecretRef != nil {
-		if pv2.Spec.CSI.NodeStageSecretRef == nil || pv1.Spec.CSI.NodeStageSecretRef.Name != pv2.Spec.CSI.NodeStageSecretRef.Name {
-			return false
-		}
-	} else if pv2.Spec.CSI.NodeStageSecretRef != nil {
+	if !cmp.Equal(pv1.Spec.CSI.NodeStageSecretRef, pv2.Spec.CSI.NodeStageSecretRef) {
 		return false
 	}
 

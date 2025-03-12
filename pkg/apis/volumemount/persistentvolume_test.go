@@ -309,6 +309,51 @@ func Test_ComparePersistentVolumes(t *testing.T) {
 			}),
 			expectEqual: true,
 		},
+		"different nodestagesecretref name": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef.Name = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef.Name = "pv2"
+			}),
+			expectEqual: false,
+		},
+		"different nodestagesecretref namespace": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef.Namespace = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef.Namespace = "pv2"
+			}),
+			expectEqual: false,
+		},
+		"both nodestagesecretref is nil": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = nil
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = nil
+			}),
+			expectEqual: true,
+		},
+		"nodestagesecretref pv1 is nil and pv2 is empty": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = nil
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = &corev1.SecretReference{}
+			}),
+			expectEqual: false,
+		},
+		"nodestagesecretref pv1 is empty and pv2 is nil": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = &corev1.SecretReference{}
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = nil
+			}),
+			expectEqual: false,
+		},
 	}
 
 	for testName, test := range tests {
