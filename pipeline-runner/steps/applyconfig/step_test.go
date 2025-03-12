@@ -1315,6 +1315,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 			pipelineInfo := model.PipelineInfo{
 				PipelineArguments: pipelineArgs,
 				RadixApplication:  ra,
+				BuildContext:      test.prepareBuildCtx,
 			}
 			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
