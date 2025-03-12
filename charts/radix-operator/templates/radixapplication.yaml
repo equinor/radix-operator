@@ -1446,16 +1446,6 @@ spec:
                                           minimum: 0
                                           type: integer
                                       type: object
-                                    bindingMode:
-                                      description: |-
-                                        Deprecated: Has no effect anymore.
-                                        Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                        More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                      enum:
-                                      - Immediate
-                                      - WaitForFirstConsumer
-                                      - ""
-                                      type: string
                                     blockCache:
                                       description: Configure block cache settings.
                                       properties:
@@ -2759,16 +2749,6 @@ spec:
                                     minimum: 0
                                     type: integer
                                 type: object
-                              bindingMode:
-                                description: |-
-                                  Deprecated: Has no effect anymore.
-                                  Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - Immediate
-                                - WaitForFirstConsumer
-                                - ""
-                                type: string
                               blockCache:
                                 description: Configure block cache settings.
                                 properties:
@@ -3750,16 +3730,6 @@ spec:
                                           minimum: 0
                                           type: integer
                                       type: object
-                                    bindingMode:
-                                      description: |-
-                                        Deprecated: Has no effect anymore.
-                                        Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                        More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                      enum:
-                                      - Immediate
-                                      - WaitForFirstConsumer
-                                      - ""
-                                      type: string
                                     blockCache:
                                       description: Configure block cache settings.
                                       properties:
@@ -4437,16 +4407,6 @@ spec:
                                     minimum: 0
                                     type: integer
                                 type: object
-                              bindingMode:
-                                description: |-
-                                  Deprecated: Has no effect anymore.
-                                  Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                                enum:
-                                - Immediate
-                                - WaitForFirstConsumer
-                                - ""
-                                type: string
                               blockCache:
                                 description: Configure block cache settings.
                                 properties:

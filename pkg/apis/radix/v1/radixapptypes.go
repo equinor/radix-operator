@@ -1123,13 +1123,6 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
-	// Deprecated: Has no effect anymore.
-	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
-	// +optional
-	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
-
 	// Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
 	// Default false. This must be turned on when HNS enabled account is mounted.
 	// +optional

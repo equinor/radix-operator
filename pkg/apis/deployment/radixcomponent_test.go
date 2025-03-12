@@ -1612,24 +1612,6 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "env2"}},
 			},
 		},
-		"Blobfuse2: BindingMode": {
-			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "comp1"}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "comp2"}},
-				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "comp3"}},
-			},
-			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "env1"}},
-				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "env2"}},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "comp1"}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "env1"}},
-				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "comp3"}},
-				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BindingMode: "env2"}},
-			},
-		},
 		"Blobfuse2: UseAdls": {
 			componentVolumeMounts: []radixv1.RadixVolumeMount{
 				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(true)}},
