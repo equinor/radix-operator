@@ -1550,44 +1550,12 @@ spec:
                                         Configure streaming settings.
                                         More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                       properties:
-                                        blockSize:
-                                          description: Optional. The size of each
-                                            block to be cached in memory (in MB).
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
-                                        bufferSize:
-                                          description: Optional. The size of each
-                                            buffer to be cached in memory (in MB).
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
                                         enabled:
                                           description: |-
                                             Deprecated: Configure caching with cacheMode in blobFuse2 section.
                                             Enable streaming mode. Default true.
                                             For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                           type: boolean
-                                        maxBlocksPerFile:
-                                          description: Optional. The maximum number
-                                            of blocks to be cached in memory.
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
-                                        maxBuffers:
-                                          description: Optional. The total number
-                                            of buffers to be cached in memory (in
-                                            MB).
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
-                                        streamCache:
-                                          description: Optional. Limit total amount
-                                            of data being cached in memory to conserve
-                                            memory footprint of blobfuse (in MB).
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
                                       type: object
                                     subscriptionId:
                                       description: SubscriptionId of a storage account.
@@ -2824,43 +2792,12 @@ spec:
                                   Configure streaming settings.
                                   More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                 properties:
-                                  blockSize:
-                                    description: Optional. The size of each block
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  bufferSize:
-                                    description: Optional. The size of each buffer
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
                                   enabled:
                                     description: |-
                                       Deprecated: Configure caching with cacheMode in blobFuse2 section.
                                       Enable streaming mode. Default true.
                                       For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                     type: boolean
-                                  maxBlocksPerFile:
-                                    description: Optional. The maximum number of blocks
-                                      to be cached in memory.
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  maxBuffers:
-                                    description: Optional. The total number of buffers
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  streamCache:
-                                    description: Optional. Limit total amount of data
-                                      being cached in memory to conserve memory footprint
-                                      of blobfuse (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
                                 type: object
                               subscriptionId:
                                 description: SubscriptionId of a storage account.
@@ -3782,44 +3719,12 @@ spec:
                                         Configure streaming settings.
                                         More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                       properties:
-                                        blockSize:
-                                          description: Optional. The size of each
-                                            block to be cached in memory (in MB).
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
-                                        bufferSize:
-                                          description: Optional. The size of each
-                                            buffer to be cached in memory (in MB).
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
                                         enabled:
                                           description: |-
                                             Deprecated: Configure caching with cacheMode in blobFuse2 section.
                                             Enable streaming mode. Default true.
                                             For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                           type: boolean
-                                        maxBlocksPerFile:
-                                          description: Optional. The maximum number
-                                            of blocks to be cached in memory.
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
-                                        maxBuffers:
-                                          description: Optional. The total number
-                                            of buffers to be cached in memory (in
-                                            MB).
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
-                                        streamCache:
-                                          description: Optional. Limit total amount
-                                            of data being cached in memory to conserve
-                                            memory footprint of blobfuse (in MB).
-                                          format: int64
-                                          minimum: 1
-                                          type: integer
                                       type: object
                                     subscriptionId:
                                       description: SubscriptionId of a storage account.
@@ -4430,43 +4335,12 @@ spec:
                                   Configure streaming settings.
                                   More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                 properties:
-                                  blockSize:
-                                    description: Optional. The size of each block
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  bufferSize:
-                                    description: Optional. The size of each buffer
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
                                   enabled:
                                     description: |-
                                       Deprecated: Configure caching with cacheMode in blobFuse2 section.
                                       Enable streaming mode. Default true.
                                       For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                     type: boolean
-                                  maxBlocksPerFile:
-                                    description: Optional. The maximum number of blocks
-                                      to be cached in memory.
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  maxBuffers:
-                                    description: Optional. The total number of buffers
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  streamCache:
-                                    description: Optional. Limit total amount of data
-                                      being cached in memory to conserve memory footprint
-                                      of blobfuse (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
                                 type: object
                               subscriptionId:
                                 description: SubscriptionId of a storage account.

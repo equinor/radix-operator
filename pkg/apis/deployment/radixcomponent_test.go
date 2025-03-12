@@ -1810,24 +1810,6 @@ func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
 				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}}},
 			},
 		},
-		"Blobfuse2.StreamingOptions: StreamCache": {
-			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](1)}}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](2)}}},
-				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](3)}}},
-			},
-			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](10)}}},
-				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](20)}}},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](1)}}},
-				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](10)}}},
-				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](3)}}},
-				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{StreamCache: pointers.Ptr[uint64](20)}}},
-			},
-		},
 		"Blobfuse2.BlockCacheOptions: nil handling": {
 			componentVolumeMounts: []radixv1.RadixVolumeMount{
 				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},

@@ -1232,26 +1232,6 @@ type BlobFuse2StreamingOptions struct {
 	// For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
-	// Optional. The size of each block to be cached in memory (in MB).
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	BlockSize *uint64 `json:"blockSize,omitempty"`
-	// Optional. The total number of buffers to be cached in memory (in MB).
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	MaxBuffers *uint64 `json:"maxBuffers,omitempty"`
-	// Optional. The size of each buffer to be cached in memory (in MB).
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	BufferSize *uint64 `json:"bufferSize,omitempty"`
-	// Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse (in MB).
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	StreamCache *uint64 `json:"streamCache,omitempty"`
-	// Optional. The maximum number of blocks to be cached in memory.
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	MaxBlocksPerFile *uint64 `json:"maxBlocksPerFile,omitempty"`
 }
 
 // MountType Holds types of mount

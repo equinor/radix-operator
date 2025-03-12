@@ -229,31 +229,6 @@ func (in *BlobFuse2StreamingOptions) DeepCopyInto(out *BlobFuse2StreamingOptions
 		*out = new(bool)
 		**out = **in
 	}
-	if in.BlockSize != nil {
-		in, out := &in.BlockSize, &out.BlockSize
-		*out = new(uint64)
-		**out = **in
-	}
-	if in.MaxBuffers != nil {
-		in, out := &in.MaxBuffers, &out.MaxBuffers
-		*out = new(uint64)
-		**out = **in
-	}
-	if in.BufferSize != nil {
-		in, out := &in.BufferSize, &out.BufferSize
-		*out = new(uint64)
-		**out = **in
-	}
-	if in.StreamCache != nil {
-		in, out := &in.StreamCache, &out.StreamCache
-		*out = new(uint64)
-		**out = **in
-	}
-	if in.MaxBlocksPerFile != nil {
-		in, out := &in.MaxBlocksPerFile, &out.MaxBlocksPerFile
-		*out = new(uint64)
-		**out = **in
-	}
 	return
 }
 
