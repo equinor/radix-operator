@@ -8,14 +8,11 @@ const (
 
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<randomstring5>
 	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-<guid>
-
-	csiVolumeAttributeProtocolParameterFuse  = "fuse"  // Protocol "blobfuse"
-	csiVolumeAttributeProtocolParameterFuse2 = "fuse2" // Protocol "blobfuse2"
-	csiVolumeAttributeStorageAccount         = "storageAccount"
-	csiVolumeAttributeClientID               = "clientID"
-	csiVolumeAttributeResourceGroup          = "resourcegroup"
-	csiVolumeAttributeSubscriptionId         = "subscriptionid"
-	csiVolumeAttributeTenantId               = "tenantID"
+	csiVolumeAttributeStorageAccount     = "storageAccount"
+	csiVolumeAttributeClientID           = "clientID"
+	csiVolumeAttributeResourceGroup      = "resourcegroup"
+	csiVolumeAttributeSubscriptionId     = "subscriptionid"
+	csiVolumeAttributeTenantId           = "tenantID"
 
 	csiVolumeMountAttributePvName              = "csi.storage.k8s.io/pv/name"
 	csiVolumeMountAttributePvcName             = "csi.storage.k8s.io/pvc/name"
