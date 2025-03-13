@@ -1122,11 +1122,11 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	CacheMode *BlobFuse2CacheMode `json:"cacheMode,omitempty"`
 
-	// Configure file cache settings.
+	// Configure file cache settings. Applicable when cacheMode is File.
 	// +optional
 	FileCacheOptions *BlobFuse2FileCacheOptions `json:"fileCache,omitempty"`
 
-	// Configure block cache settings.
+	// Configure block cache settings. Applicable when cacheMode is Block.
 	// +optional
 	BlockCacheOptions *BlobFuse2BlockCacheOptions `json:"blockCache,omitempty"`
 

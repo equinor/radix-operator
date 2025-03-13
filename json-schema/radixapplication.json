@@ -1404,7 +1404,7 @@
                                 "type": "object"
                               },
                               "blockCache": {
-                                "description": "Configure block cache settings.",
+                                "description": "Configure block cache settings. Applicable when cacheMode is Block.",
                                 "properties": {
                                   "blockSize": {
                                     "description": "Size (in MB) of a block to be downloaded as a unit. Default is 4.",
@@ -1463,7 +1463,7 @@
                                 "type": "string"
                               },
                               "fileCache": {
-                                "description": "Configure file cache settings.",
+                                "description": "Configure file cache settings. Applicable when cacheMode is File.",
                                 "properties": {
                                   "timeout": {
                                     "description": "The timeout (in seconds) for which file cache is valid. Default 120.",
@@ -2683,7 +2683,7 @@
                           "type": "object"
                         },
                         "blockCache": {
-                          "description": "Configure block cache settings.",
+                          "description": "Configure block cache settings. Applicable when cacheMode is Block.",
                           "properties": {
                             "blockSize": {
                               "description": "Size (in MB) of a block to be downloaded as a unit. Default is 4.",
@@ -2742,7 +2742,7 @@
                           "type": "string"
                         },
                         "fileCache": {
-                          "description": "Configure file cache settings.",
+                          "description": "Configure file cache settings. Applicable when cacheMode is File.",
                           "properties": {
                             "timeout": {
                               "description": "The timeout (in seconds) for which file cache is valid. Default 120.",
@@ -3644,7 +3644,7 @@
                                 "type": "object"
                               },
                               "blockCache": {
-                                "description": "Configure block cache settings.",
+                                "description": "Configure block cache settings. Applicable when cacheMode is Block.",
                                 "properties": {
                                   "blockSize": {
                                     "description": "Size (in MB) of a block to be downloaded as a unit. Default is 4.",
@@ -3703,7 +3703,7 @@
                                 "type": "string"
                               },
                               "fileCache": {
-                                "description": "Configure file cache settings.",
+                                "description": "Configure file cache settings. Applicable when cacheMode is File.",
                                 "properties": {
                                   "timeout": {
                                     "description": "The timeout (in seconds) for which file cache is valid. Default 120.",
@@ -4274,7 +4274,7 @@
                           "type": "object"
                         },
                         "blockCache": {
-                          "description": "Configure block cache settings.",
+                          "description": "Configure block cache settings. Applicable when cacheMode is Block.",
                           "properties": {
                             "blockSize": {
                               "description": "Size (in MB) of a block to be downloaded as a unit. Default is 4.",
@@ -4333,7 +4333,7 @@
                           "type": "string"
                         },
                         "fileCache": {
-                          "description": "Configure file cache settings.",
+                          "description": "Configure file cache settings. Applicable when cacheMode is File.",
                           "properties": {
                             "timeout": {
                               "description": "The timeout (in seconds) for which file cache is valid. Default 120.",

@@ -1222,7 +1222,8 @@ spec:
                                     type: integer
                                 type: object
                               blockCache:
-                                description: Configure block cache settings.
+                                description: Configure block cache settings. Applicable
+                                  when cacheMode is Block.
                                 properties:
                                   blockSize:
                                     description: Size (in MB) of a block to be downloaded
@@ -1287,7 +1288,8 @@ spec:
                                   external storage resource.
                                 type: string
                               fileCache:
-                                description: Configure file cache settings.
+                                description: Configure file cache settings. Applicable
+                                  when cacheMode is File.
                                 properties:
                                   timeout:
                                     description: The timeout (in seconds) for which
@@ -1872,7 +1874,8 @@ spec:
                                     type: integer
                                 type: object
                               blockCache:
-                                description: Configure block cache settings.
+                                description: Configure block cache settings. Applicable
+                                  when cacheMode is Block.
                                 properties:
                                   blockSize:
                                     description: Size (in MB) of a block to be downloaded
@@ -1937,7 +1940,8 @@ spec:
                                   external storage resource.
                                 type: string
                               fileCache:
-                                description: Configure file cache settings.
+                                description: Configure file cache settings. Applicable
+                                  when cacheMode is File.
                                 properties:
                                   timeout:
                                     description: The timeout (in seconds) for which
