@@ -104,7 +104,7 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		envName,
 		radixApplicationHash,
 		buildSecretHash,
-		pipelineInfo.PrepareBuildContext,
+		pipelineInfo.BuildContext,
 		pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	if err != nil {

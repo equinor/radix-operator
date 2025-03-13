@@ -67,7 +67,7 @@ func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Proces
 	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
-	s.Nil(pipelineInfo.PrepareBuildContext)
+	s.Nil(pipelineInfo.BuildContext)
 }
 
 func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsNotMapped() {
@@ -788,7 +788,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetAppNamespace(appName)}}, metav1.CreateOptions{})
 	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
 	_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), currentRd, metav1.CreateOptions{})
-	buildCtx := &model.PrepareBuildContext{
+	buildCtx := &model.BuildContext{
 		EnvironmentsToBuild: []model.EnvironmentToBuild{
 			{Environment: envName, Components: []string{"comp-changed", "comp-common1-changed", "comp-common3-changed", "job-changed", "job-common2-changed", "job-common3-changed"}},
 		},
@@ -804,7 +804,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			Clustername:       "clustername",
 			ContainerRegistry: "registry",
 		},
-		PrepareBuildContext: buildCtx,
+		BuildContext: buildCtx,
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -924,7 +924,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		name                          string
 		existingRd                    *radixv1.RadixDeployment
 		customRa                      *radixv1.RadixApplication
-		prepareBuildCtx               *model.PrepareBuildContext
+		prepareBuildCtx               *model.BuildContext
 		expectedBuildComponentNames   []string
 		expectedDeployComponentImages pipeline.DeployComponentImages
 	}
@@ -962,7 +962,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-changed-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -984,7 +984,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1006,7 +1006,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1028,7 +1028,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1044,7 +1044,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		},
 		{
 			name: "radixconfig hash unchanged, buildsecret hash unchanged, component unchanged, job unchanged, existing RD missing - build all",
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1066,7 +1066,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: "otherenv",
@@ -1088,7 +1088,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1110,7 +1110,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1132,7 +1132,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1154,7 +1154,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1176,7 +1176,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1199,7 +1199,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
 			customRa: raWithoutSecret,
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1222,7 +1222,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
 			customRa: raWithoutSecret,
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1244,7 +1244,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1260,7 +1260,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		},
 		{
 			name: "missing current RD, component unchanged, job unchanged - build all",
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1282,7 +1282,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				[]utils.DeployComponentBuilder{utils.NewDeployComponentBuilder().WithName("comp").WithImage("comp-current:anytag")},
 				[]utils.DeployJobComponentBuilder{utils.NewDeployJobComponentBuilder().WithName("job").WithImage("job-current:anytag")},
 			),
-			prepareBuildCtx: &model.PrepareBuildContext{
+			prepareBuildCtx: &model.BuildContext{
 				EnvironmentsToBuild: []model.EnvironmentToBuild{
 					{
 						Environment: envName,
@@ -1313,9 +1313,9 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), test.existingRd, metav1.CreateOptions{})
 			}
 			pipelineInfo := model.PipelineInfo{
-				PipelineArguments:   pipelineArgs,
-				RadixApplication:    ra,
-				PrepareBuildContext: test.prepareBuildCtx,
+				PipelineArguments: pipelineArgs,
+				RadixApplication:  ra,
+				BuildContext:      test.prepareBuildCtx,
 			}
 			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)

@@ -52,13 +52,13 @@ func Test_LoadRadixApplication(t *testing.T) {
 			require.NoError(t, err)
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					AppName:         appName,
+					AppName:         ts.registeredAppName,
 					RadixConfigFile: sampleApp,
 				},
 			}
-			ctx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, WithPipelineRunsWaiter(completionWaiter))
+			pipelineCtx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, WithPipelineRunsWaiter(completionWaiter))
 
-			_, err = ctx.LoadRadixAppConfig()
+			_, err = pipelineCtx.LoadRadixAppConfig()
 			if ts.expectedError == nil {
 				require.NoError(t, err)
 			} else {

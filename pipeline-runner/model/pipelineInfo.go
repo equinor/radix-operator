@@ -34,8 +34,8 @@ type PipelineInfo struct {
 	// Hold information about components to be deployed
 	DeployEnvironmentComponentImages pipeline.DeployEnvironmentComponentImages
 
-	// Prepare pipeline job build context
-	PrepareBuildContext *PrepareBuildContext
+	// Pipeline job build context
+	BuildContext        *BuildContext
 	StopPipeline        bool
 	StopPipelineMessage string
 
@@ -289,7 +289,7 @@ func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 }
 
 // SetBuildContext Set build context
-func (p *PipelineInfo) SetBuildContext(context *PrepareBuildContext) *PipelineInfo {
-	p.PrepareBuildContext = context
+func (p *PipelineInfo) SetBuildContext(context *BuildContext) *PipelineInfo {
+	p.BuildContext = context
 	return p
 }

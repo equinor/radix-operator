@@ -47,7 +47,7 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 
 // GetCommitHashAndTags gets target commit hash and tags from GitHub repository
 func GetCommitHashAndTags(gitWorkspace, webhookCommitId, branchName string) (string, string, error) {
-	targetCommitHash, err := GetGitCommitHash(gitWorkspace, webhookCommitId, branchName)
+	targetCommitHash, err := GetCommitHash(gitWorkspace, webhookCommitId, branchName)
 	if err != nil {
 		return "", "", err
 	}
@@ -63,8 +63,8 @@ func getGitDir(gitWorkspace string) string {
 	return gitWorkspace + "/.git"
 }
 
-// GetGitCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
-func GetGitCommitHashFromHead(gitWorkspace string, branchName string) (string, error) {
+// GetCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
+func GetCommitHashFromHead(gitWorkspace string, branchName string) (string, error) {
 	gitDir := getGitDir(gitWorkspace)
 	r, err := git.PlainOpen(gitDir)
 	if err != nil {
@@ -302,15 +302,15 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 	return tagNamesString, nil
 }
 
-// GetGitCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
+// GetCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
 // build branch
-func GetGitCommitHash(gitWorkspace, webhookCommitId, branchName string) (string, error) {
+func GetCommitHash(gitWorkspace, webhookCommitId, branchName string) (string, error) {
 	if webhookCommitId != "" {
 		log.Debug().Msgf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)
 		return webhookCommitId, nil
 	}
 	log.Debug().Msgf("determining git commit hash of HEAD of branch %s", branchName)
-	gitCommitHash, err := GetGitCommitHashFromHead(gitWorkspace, branchName)
+	gitCommitHash, err := GetCommitHashFromHead(gitWorkspace, branchName)
 	log.Debug().Msgf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
 	return gitCommitHash, err
 }

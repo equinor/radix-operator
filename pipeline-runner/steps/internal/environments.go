@@ -11,8 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// SetTargetEnvironments Set target environments for the pipeline
-func SetTargetEnvironments(pipelineInfo *model.PipelineInfo) ([]string, error) {
+// GetPipelineTargetEnvironments Get target environments for the pipeline
+func GetPipelineTargetEnvironments(pipelineInfo *model.PipelineInfo) ([]string, error) {
 	log.Debug().Msg("Set target environment")
 	switch pipelineInfo.GetRadixPipelineType() {
 	case v1.ApplyConfig:

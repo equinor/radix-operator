@@ -25,14 +25,14 @@ import (
 )
 
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
-func (ctx *pipelineContext) RunPipelinesJob() error {
-	pipelineInfo := ctx.GetPipelineInfo()
+func (pipelineCtx *pipelineContext) RunPipelinesJob() error {
+	pipelineInfo := pipelineCtx.GetPipelineInfo()
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Build {
 		log.Info().Msg("Pipeline type is build, skip Tekton pipeline run.")
 		return nil
 	}
 	namespace := pipelineInfo.GetAppNamespace()
-	pipelineList, err := ctx.tektonClient.TektonV1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
+	pipelineList, err := pipelineCtx.tektonClient.TektonV1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, pipelineInfo.GetRadixPipelineJobName()),
 	})
 	if err != nil {
@@ -43,12 +43,13 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return nil
 	}
 
-	ctx.targetEnvironments, err = internal.SetTargetEnvironments(ctx.GetPipelineInfo())
+	pipelineTargetEnvironments, err := internal.GetPipelineTargetEnvironments(pipelineCtx.GetPipelineInfo())
 	if err != nil {
 		return err
 	}
+	pipelineCtx.SetPipelineTargetEnvironments(pipelineTargetEnvironments)
 
-	tektonPipelineBranch := ctx.pipelineInfo.PipelineArguments.Branch
+	tektonPipelineBranch := pipelineCtx.pipelineInfo.PipelineArguments.Branch
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineInfo.GetRadixDeployToEnvironment())
 		if re != nil && len(re.Build.From) > 0 {
@@ -59,36 +60,32 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 	}
 	log.Info().Msgf("Run tekton pipelines for the branch %s", tektonPipelineBranch)
 
-	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
+	pipelineRunMap, err := pipelineCtx.runPipelines(pipelineList.Items, namespace)
 
 	if err != nil {
 		return fmt.Errorf("failed to run pipelines: %w", err)
 	}
 
-	err = ctx.GetPipelineRunsWaiter().Wait(pipelineRunMap, ctx.GetPipelineInfo())
+	err = pipelineCtx.GetPipelineRunsWaiter().Wait(pipelineRunMap, pipelineCtx.GetPipelineInfo())
 	if err != nil {
 		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
-			ctx.GetPipelineInfo().GetAppName(),
-			ctx.getTargetEnvsAsString(),
+			pipelineCtx.GetPipelineInfo().GetAppName(),
+			pipelineCtx.getTargetEnvsAsString(),
 			err)
 	}
 	return nil
 }
 
-func (ctx *pipelineContext) getTargetEnvsAsString() string {
-	var envs []string
-	for _, envName := range ctx.targetEnvironments {
-		envs = append(envs, envName)
-	}
-	return strings.Join(envs, ", ")
+func (pipelineCtx *pipelineContext) getTargetEnvsAsString() string {
+	return strings.Join(pipelineCtx.targetEnvironments, ", ")
 }
 
-func (ctx *pipelineContext) runPipelines(pipelines []pipelinev1.Pipeline, namespace string) (map[string]*pipelinev1.PipelineRun, error) {
+func (pipelineCtx *pipelineContext) runPipelines(pipelines []pipelinev1.Pipeline, namespace string) (map[string]*pipelinev1.PipelineRun, error) {
 	timestamp := time.Now().Format("20060102150405")
 	pipelineRunMap := make(map[string]*pipelinev1.PipelineRun)
 	var errs []error
 	for _, pipeline := range pipelines {
-		createdPipelineRun, err := ctx.createPipelineRun(namespace, &pipeline, timestamp)
+		createdPipelineRun, err := pipelineCtx.createPipelineRun(namespace, &pipeline, timestamp)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -98,33 +95,33 @@ func (ctx *pipelineContext) runPipelines(pipelines []pipelinev1.Pipeline, namesp
 	return pipelineRunMap, errors.Join(errs...)
 }
 
-func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *pipelinev1.Pipeline, timestamp string) (*pipelinev1.PipelineRun, error) {
+func (pipelineCtx *pipelineContext) createPipelineRun(namespace string, pipeline *pipelinev1.Pipeline, timestamp string) (*pipelinev1.PipelineRun, error) {
 	targetEnv, pipelineTargetEnvDefined := pipeline.ObjectMeta.Labels[kube.RadixEnvLabel]
 	if !pipelineTargetEnvDefined {
 		return nil, fmt.Errorf("missing target environment in labels of the pipeline %s", pipeline.Name)
 	}
 
 	log.Debug().Msgf("run pipelinerun for the target environment %s", targetEnv)
-	if !slice.Any(ctx.targetEnvironments, func(envName string) bool { return envName == targetEnv }) {
+	if !slice.Any(pipelineCtx.targetEnvironments, func(envName string) bool { return envName == targetEnv }) {
 		return nil, fmt.Errorf("missing target environment %s for the pipeline %s", targetEnv, pipeline.Name)
 	}
 
-	pipelineRun := ctx.buildPipelineRun(pipeline, targetEnv, timestamp)
+	pipelineRun := pipelineCtx.buildPipelineRun(pipeline, targetEnv, timestamp)
 
-	return ctx.tektonClient.TektonV1().PipelineRuns(namespace).Create(context.Background(), &pipelineRun, metav1.CreateOptions{})
+	return pipelineCtx.tektonClient.TektonV1().PipelineRuns(namespace).Create(context.Background(), &pipelineRun, metav1.CreateOptions{})
 }
 
-func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string) pipelinev1.PipelineRun {
+func (pipelineCtx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string) pipelinev1.PipelineRun {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[pipelineDefaults.PipelineNameAnnotation]
-	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", internal.GetShortName(targetEnv), timestamp, ctx.hash)
-	pipelineParams := ctx.getPipelineParams(pipeline, targetEnv)
-	pipelineInfo := ctx.GetPipelineInfo()
+	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", internal.GetShortName(targetEnv), timestamp, pipelineCtx.hash)
+	pipelineParams := pipelineCtx.getPipelineParams(pipeline, targetEnv)
+	pipelineInfo := pipelineCtx.GetPipelineInfo()
 	pipelineRun := pipelinev1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pipelineRunName,
 			Labels: labels.GetLabelsForEnvironment(pipelineInfo, targetEnv),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:              ctx.pipelineInfo.PipelineArguments.Branch,
+				kube.RadixBranchAnnotation:              pipelineCtx.pipelineInfo.PipelineArguments.Branch,
 				pipelineDefaults.PipelineNameAnnotation: originalPipelineName,
 			},
 		},
@@ -132,13 +129,13 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 			PipelineRef: &pipelinev1.PipelineRef{Name: pipeline.GetName()},
 			Params:      pipelineParams,
 			TaskRunTemplate: pipelinev1.PipelineTaskRunTemplate{
-				PodTemplate:        ctx.buildPipelineRunPodTemplate(),
+				PodTemplate:        pipelineCtx.buildPipelineRunPodTemplate(),
 				ServiceAccountName: utils.GetSubPipelineServiceAccountName(targetEnv),
 			},
 		},
 	}
-	if ctx.ownerReference != nil {
-		pipelineRun.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
+	if pipelineCtx.ownerReference != nil {
+		pipelineRun.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*pipelineCtx.ownerReference}
 	}
 	var taskRunSpecs []pipelinev1.PipelineTaskRunSpec
 	for _, task := range pipeline.Spec.Tasks {
@@ -148,7 +145,7 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 	return pipelineRun
 }
 
-func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
+func (pipelineCtx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
 	podTemplate := pod.Template{
 		SecurityContext: &corev1.PodSecurityContext{
 			RunAsNonRoot: pointers.Ptr(true),
@@ -159,7 +156,7 @@ func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
 		},
 	}
 
-	ra := ctx.GetPipelineInfo().GetRadixApplication()
+	ra := pipelineCtx.GetPipelineInfo().GetRadixApplication()
 	if ra != nil && len(ra.Spec.PrivateImageHubs) > 0 {
 		podTemplate.ImagePullSecrets = []corev1.LocalObjectReference{{Name: operatorDefaults.PrivateImageHubSecretName}}
 	}
@@ -167,8 +164,8 @@ func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
 	return &podTemplate
 }
 
-func (ctx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string) []pipelinev1.Param {
-	envVars := ctx.GetEnvVars(targetEnv)
+func (pipelineCtx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string) []pipelinev1.Param {
+	envVars := pipelineCtx.GetEnvVars(targetEnv)
 	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
 	var pipelineParams []pipelinev1.Param
 	for envVarName, envVarValue := range envVars {

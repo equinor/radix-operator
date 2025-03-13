@@ -26,4 +26,6 @@ type Context interface {
 	GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter
 	// GetEnvVars Gets build env vars
 	GetEnvVars(envName string) radixv1.EnvVarsMap
+	// SetPipelineTargetEnvironments Set target environments for the pipeline job
+	SetPipelineTargetEnvironments(environments []string)
 }

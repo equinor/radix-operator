@@ -16,7 +16,7 @@ import (
 	yamlk8s "sigs.k8s.io/yaml"
 )
 
-func CreatePreparePipelineConfigMapResponse(kubeClient kubernetes.Interface, configMapName, appName string, ra *radixv1.RadixApplication, buildCtx *model.PrepareBuildContext) error {
+func CreatePreparePipelineConfigMapResponse(kubeClient kubernetes.Interface, configMapName, appName string, ra *radixv1.RadixApplication, buildCtx *model.BuildContext) error {
 	raBytes, err := yamlk8s.Marshal(ra)
 	if err != nil {
 		return err

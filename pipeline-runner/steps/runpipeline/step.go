@@ -56,7 +56,7 @@ func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.PrepareBuildContext != nil && len(pipelineInfo.PrepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
+	if pipelineInfo.BuildContext != nil && len(pipelineInfo.BuildContext.EnvironmentSubPipelinesToRun) == 0 {
 		log.Ctx(ctx).Info().Msg("There is no configured sub-pipelines. Skip the step.")
 		return nil
 	}

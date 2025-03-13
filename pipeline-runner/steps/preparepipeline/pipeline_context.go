@@ -31,44 +31,53 @@ type pipelineContext struct {
 	pipelineInfo       *model.PipelineInfo
 }
 
-func (ctx *pipelineContext) GetPipelineInfo() *model.PipelineInfo {
-	return ctx.pipelineInfo
+func (pipelineCtx *pipelineContext) GetPipelineInfo() *model.PipelineInfo {
+	return pipelineCtx.pipelineInfo
 }
 
-func (ctx *pipelineContext) GetHash() string {
-	return ctx.hash
+func (pipelineCtx *pipelineContext) GetHash() string {
+	return pipelineCtx.hash
 }
 
-func (ctx *pipelineContext) GetKubeClient() kubernetes.Interface {
-	return ctx.kubeClient
+func (pipelineCtx *pipelineContext) GetKubeClient() kubernetes.Interface {
+	return pipelineCtx.kubeClient
 }
 
-func (ctx *pipelineContext) GetTektonClient() tektonclient.Interface {
-	return ctx.tektonClient
+func (pipelineCtx *pipelineContext) GetTektonClient() tektonclient.Interface {
+	return pipelineCtx.tektonClient
 }
 
-func (ctx *pipelineContext) GetRadixApplication() *radixv1.RadixApplication {
-	return ctx.GetPipelineInfo().GetRadixApplication()
+func (pipelineCtx *pipelineContext) GetRadixApplication() *radixv1.RadixApplication {
+	return pipelineCtx.GetPipelineInfo().GetRadixApplication()
 }
 
-func (ctx *pipelineContext) GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter {
-	return ctx.waiter
+func (pipelineCtx *pipelineContext) GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter {
+	return pipelineCtx.waiter
 }
 
-func (ctx *pipelineContext) GetEnvVars(envName string) radixv1.EnvVarsMap {
+func (pipelineCtx *pipelineContext) GetEnvVars(envName string) radixv1.EnvVarsMap {
 	envVarsMap := make(radixv1.EnvVarsMap)
-	ctx.setPipelineRunParamsFromBuild(envVarsMap)
-	ctx.setPipelineRunParamsFromEnvironmentBuilds(envName, envVarsMap)
+	pipelineCtx.setPipelineRunParamsFromBuild(envVarsMap)
+	pipelineCtx.setPipelineRunParamsFromEnvironmentBuilds(envName, envVarsMap)
 	return envVarsMap
 }
 
-func (ctx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap radixv1.EnvVarsMap) {
-	ra := ctx.GetPipelineInfo().GetRadixApplication()
+func (pipelineCtx *pipelineContext) SetPipelineTargetEnvironments(environments []string) {
+	pipelineCtx.targetEnvironments = environments
+}
+
+func (pipelineCtx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap radixv1.EnvVarsMap) {
+	ra := pipelineCtx.GetPipelineInfo().GetRadixApplication()
 	if ra.Spec.Build == nil {
 		return
 	}
 	setBuildIdentity(envVarsMap, ra.Spec.Build.SubPipeline)
 	setBuildVariables(envVarsMap, ra.Spec.Build.SubPipeline, ra.Spec.Build.Variables)
+}
+
+// GetRadixClient Get radix client
+func (pipelineCtx *pipelineContext) GetRadixClient() radixclient.Interface {
+	return pipelineCtx.radixClient
 }
 
 func setBuildVariables(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline, variables radixv1.EnvVarsMap) {
@@ -102,8 +111,8 @@ func setIdentityToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, identity *radixv1.Id
 	}
 }
 
-func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap radixv1.EnvVarsMap) {
-	for _, buildEnv := range ctx.GetPipelineInfo().GetRadixApplication().Spec.Environments {
+func (pipelineCtx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap radixv1.EnvVarsMap) {
+	for _, buildEnv := range pipelineCtx.GetPipelineInfo().GetRadixApplication().Spec.Environments {
 		if strings.EqualFold(buildEnv.Name, targetEnv) {
 			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
 			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
@@ -112,17 +121,17 @@ func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv 
 }
 
 // getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
-func (ctx *pipelineContext) getGitHash() (string, error) {
-	pipelineArgs := ctx.pipelineInfo.PipelineArguments
-	pipelineType := ctx.pipelineInfo.GetRadixPipelineType()
+func (pipelineCtx *pipelineContext) getGitHash() (string, error) {
+	pipelineArgs := pipelineCtx.pipelineInfo.PipelineArguments
+	pipelineType := pipelineCtx.pipelineInfo.GetRadixPipelineType()
 	if pipelineType == radixv1.Build || pipelineType == radixv1.ApplyConfig {
 		log.Info().Msg("Skipping sub-pipelines.")
 		return "", nil
 	}
 
 	if pipelineType == radixv1.Promote {
-		sourceRdHashFromAnnotation := ctx.pipelineInfo.SourceDeploymentGitCommitHash
-		sourceDeploymentGitBranch := ctx.pipelineInfo.SourceDeploymentGitBranch
+		sourceRdHashFromAnnotation := pipelineCtx.pipelineInfo.SourceDeploymentGitCommitHash
+		sourceDeploymentGitBranch := pipelineCtx.pipelineInfo.SourceDeploymentGitBranch
 		if sourceRdHashFromAnnotation != "" {
 			return sourceRdHashFromAnnotation, nil
 		}
@@ -130,7 +139,7 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 			log.Info().Msg("source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
-		sourceRdHashFromBranchHead, err := git.GetGitCommitHashFromHead(ctx.GetPipelineInfo().GetGitWorkspace(), sourceDeploymentGitBranch)
+		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineCtx.GetPipelineInfo().GetGitWorkspace(), sourceDeploymentGitBranch)
 		if err != nil {
 			return "", nil
 		}
@@ -139,7 +148,7 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 
 	if pipelineType == radixv1.Deploy {
 		pipelineJobBranch := ""
-		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.GetPipelineInfo().GetRadixApplication(), pipelineArgs.ToEnvironment)
+		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineCtx.GetPipelineInfo().GetRadixApplication(), pipelineArgs.ToEnvironment)
 		if re != nil {
 			pipelineJobBranch = re.Build.From
 		}
@@ -151,7 +160,7 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 			log.Info().Msg("deploy job with build branch having regex pattern, skipping sub-pipelines.")
 			return "", nil
 		}
-		gitHash, err := git.GetGitCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch)
+		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch)
 		if err != nil {
 			return "", err
 		}
@@ -159,7 +168,7 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 	}
 
 	if pipelineType == radixv1.BuildDeploy {
-		gitHash, err := git.GetGitCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
+		gitHash, err := git.GetCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
 		if err != nil {
 			return "", err
 		}
@@ -168,12 +177,12 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 	return "", fmt.Errorf("unknown pipeline type %s", pipelineType)
 }
 
-type NewPipelineContextOption func(ctx *pipelineContext)
+type NewPipelineContextOption func(pipelineCtx *pipelineContext)
 
 // NewPipelineContext Create new NewPipelineContext instance
 func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, options ...NewPipelineContextOption) Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
-	ctx := &pipelineContext{
+	pipelineCtx := &pipelineContext{
 		kubeClient:     kubeClient,
 		radixClient:    radixClient,
 		tektonClient:   tektonClient,
@@ -183,16 +192,16 @@ func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient
 	}
 
 	for _, option := range options {
-		option(ctx)
+		option(pipelineCtx)
 	}
 
-	return ctx
+	return pipelineCtx
 }
 
 // WithPipelineRunsWaiter Set pipeline runs waiter
 func WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) NewPipelineContextOption {
-	return func(ctx *pipelineContext) {
-		ctx.waiter = waiter
+	return func(pipelineCtx *pipelineContext) {
+		pipelineCtx.waiter = waiter
 	}
 }
 

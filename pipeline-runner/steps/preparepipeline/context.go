@@ -13,7 +13,7 @@ type Context interface {
 	// LoadRadixAppConfig Load Radix config file and create RadixApplication
 	LoadRadixAppConfig() (*radixv1.RadixApplication, error)
 	// GetBuildContext Get build context
-	GetBuildContext() (*model.PrepareBuildContext, error)
+	GetBuildContext() (*model.BuildContext, error)
 	// GetEnvironmentSubPipelinesToRun Get environment sub-pipelines to run
 	GetEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error)
 	// GetPipelineInfo Get pipeline info
@@ -30,4 +30,6 @@ type Context interface {
 	GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter
 	// GetEnvVars Gets build env vars
 	GetEnvVars(envName string) radixv1.EnvVarsMap
+	// SetPipelineTargetEnvironments Set target environments for the pipeline job
+	SetPipelineTargetEnvironments(environments []string)
 }

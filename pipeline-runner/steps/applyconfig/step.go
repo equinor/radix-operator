@@ -10,7 +10,6 @@ import (
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -24,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 )
 
 // ApplyConfigStepImplementation Step to apply RA
@@ -57,7 +55,8 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	// Apply RA to cluster
+	printPrepareBuildContext(ctx, pipelineInfo.BuildContext)
+
 	applicationConfig := application.NewApplicationConfig(cli.GetKubeClient(), cli.GetKubeUtil(),
 		cli.GetRadixClient(), cli.GetRegistration(), pipelineInfo.RadixApplication,
 		pipelineInfo.PipelineArguments.DNSConfig)
@@ -72,7 +71,7 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	}
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.PrepareBuildContext)
+		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.BuildContext)
 	}
 
 	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
@@ -238,7 +237,7 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx
 			return nil, err
 		}
 
-		mustBuildComponent, err := mustBuildComponentForEnvironment(ctx, envName, pipelineInfo.PrepareBuildContext, activeRadixDeployment, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret)
+		mustBuildComponent, err := mustBuildComponentForEnvironment(ctx, envName, pipelineInfo.BuildContext, activeRadixDeployment, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -392,12 +391,12 @@ func isBuildSecretNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.
 	return !hashEqual, err
 }
 
-func mustBuildComponentForEnvironment(ctx context.Context, environmentName string, prepareBuildContext *model.PrepareBuildContext, currentRd *radixv1.RadixDeployment, ra *radixv1.RadixApplication, buildSecret *corev1.Secret) (func(comp radixv1.RadixCommonComponent) bool, error) {
+func mustBuildComponentForEnvironment(ctx context.Context, environmentName string, buildContext *model.BuildContext, currentRd *radixv1.RadixDeployment, ra *radixv1.RadixApplication, buildSecret *corev1.Secret) (func(comp radixv1.RadixCommonComponent) bool, error) {
 	alwaysBuild := func(comp radixv1.RadixCommonComponent) bool {
 		return true
 	}
 
-	if prepareBuildContext == nil || currentRd == nil {
+	if buildContext == nil || currentRd == nil {
 		return alwaysBuild, nil
 	}
 
@@ -413,7 +412,7 @@ func mustBuildComponentForEnvironment(ctx context.Context, environmentName strin
 		return alwaysBuild, nil
 	}
 
-	envBuildContext, found := slice.FindFirst(prepareBuildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == environmentName })
+	envBuildContext, found := slice.FindFirst(buildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == environmentName })
 	if !found {
 		return alwaysBuild, nil
 	}
@@ -442,31 +441,13 @@ func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComp
 	return commonComponents
 }
 
-func getPrepareBuildContext(ctx context.Context, configMap *corev1.ConfigMap) (*model.PrepareBuildContext, error) {
-	prepareBuildContextContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapBuildContext]
-	if !ok {
-		log.Ctx(ctx).Debug().Msg("Prepare Build Context does not exist in the ConfigMap")
-		return nil, nil
-	}
-	prepareBuildContext := &model.PrepareBuildContext{}
-	err := yaml.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
-	if err != nil {
-		return nil, err
-	}
-	if prepareBuildContext == nil {
-		return nil, nil
-	}
-	printPrepareBuildContext(ctx, prepareBuildContext)
-	return prepareBuildContext, nil
-}
-
-func getPipelineShouldBeStopped(ctx context.Context, prepareBuildContext *model.PrepareBuildContext) (bool, string) {
-	if prepareBuildContext == nil || prepareBuildContext.ChangedRadixConfig ||
-		len(prepareBuildContext.EnvironmentsToBuild) == 0 ||
-		len(prepareBuildContext.EnvironmentSubPipelinesToRun) > 0 {
+func getPipelineShouldBeStopped(ctx context.Context, buildContext *model.BuildContext) (bool, string) {
+	if buildContext == nil || buildContext.ChangedRadixConfig ||
+		len(buildContext.EnvironmentsToBuild) == 0 ||
+		len(buildContext.EnvironmentSubPipelinesToRun) > 0 {
 		return false, ""
 	}
-	for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
+	for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
 		if len(environmentToBuild.Components) > 0 {
 			return false, ""
 		}
@@ -476,13 +457,16 @@ func getPipelineShouldBeStopped(ctx context.Context, prepareBuildContext *model.
 	return true, message
 }
 
-func printPrepareBuildContext(ctx context.Context, prepareBuildContext *model.PrepareBuildContext) {
-	if prepareBuildContext.ChangedRadixConfig {
+func printPrepareBuildContext(ctx context.Context, buildContext *model.BuildContext) {
+	if buildContext == nil {
+		return
+	}
+	if buildContext.ChangedRadixConfig {
 		log.Ctx(ctx).Info().Msg("Radix config file was changed in the repository")
 	}
-	if len(prepareBuildContext.EnvironmentsToBuild) > 0 {
+	if len(buildContext.EnvironmentsToBuild) > 0 {
 		log.Ctx(ctx).Info().Msg("Components with changed source code in environments:")
-		for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
+		for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
 			if len(environmentToBuild.Components) == 0 {
 				log.Ctx(ctx).Info().Msgf(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
 			} else {
@@ -490,11 +474,11 @@ func printPrepareBuildContext(ctx context.Context, prepareBuildContext *model.Pr
 			}
 		}
 	}
-	if len(prepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
+	if len(buildContext.EnvironmentSubPipelinesToRun) == 0 {
 		log.Ctx(ctx).Info().Msg("No sub-pipelines to run")
 	} else {
 		log.Ctx(ctx).Info().Msg("Sub-pipelines to run")
-		for _, envSubPipeline := range prepareBuildContext.EnvironmentSubPipelinesToRun {
+		for _, envSubPipeline := range buildContext.EnvironmentSubPipelinesToRun {
 			log.Ctx(ctx).Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
 		}
 	}
