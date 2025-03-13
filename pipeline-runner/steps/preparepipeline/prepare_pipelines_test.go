@@ -854,7 +854,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 					Name:       appName,
 				}
 			}
-			if pipelineCtx.hash == "" {
+			if pipelineCtx.GetHash() == "" {
 				pipelineCtx.hash = hash
 			}
 			err := pipelineCtx.createPipeline(scenario.args.envName, scenario.args.pipeline, scenario.args.tasks, scenario.args.timestamp)

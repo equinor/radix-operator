@@ -69,7 +69,7 @@ func (pipelineCtx *pipelineContext) GetEnvironmentSubPipelinesToRun() ([]model.E
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	var errs []error
 	timestamp := time.Now().Format("20060102150405")
-	for _, targetEnv := range pipelineCtx.targetEnvironments {
+	for _, targetEnv := range pipelineCtx.GetPipelineTargetEnvironments() {
 		log.Debug().Msgf("create a sub-pipeline for the environment %s", targetEnv)
 		runSubPipeline, pipelineFilePath, err := pipelineCtx.preparePipelinesJobForTargetEnv(targetEnv, timestamp)
 		if err != nil {
@@ -120,7 +120,7 @@ func (pipelineCtx *pipelineContext) prepareBuildDeployPipeline() ([]model.Enviro
 }
 
 func (pipelineCtx *pipelineContext) analyseSourceRepositoryChanges(pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {
-	radixDeploymentCommitHashProvider := commithash.NewProvider(pipelineCtx.kubeClient, pipelineCtx.radixClient, pipelineCtx.pipelineInfo.GetAppName(), pipelineCtx.targetEnvironments)
+	radixDeploymentCommitHashProvider := commithash.NewProvider(pipelineCtx.GetKubeClient(), pipelineCtx.GetRadixClient(), pipelineCtx.pipelineInfo.GetAppName(), pipelineCtx.GetPipelineTargetEnvironments())
 	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
 	if err != nil {
 		return false, nil, err
@@ -239,7 +239,7 @@ func (pipelineCtx *pipelineContext) buildTasks(envName string, tasks []pipelinev
 	taskMap := make(map[string]pipelinev1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
-		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalTaskName), timestamp, pipelineCtx.hash)
+		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalTaskName), timestamp, pipelineCtx.GetHash())
 		if task.ObjectMeta.Labels == nil {
 			task.ObjectMeta.Labels = map[string]string{}
 		}
@@ -402,7 +402,7 @@ func (pipelineCtx *pipelineContext) createPipeline(envName string, pipeline *pip
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
-	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, pipelineCtx.hash)
+	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, pipelineCtx.GetHash())
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(pipelineCtx.GetPipelineInfo(), envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{

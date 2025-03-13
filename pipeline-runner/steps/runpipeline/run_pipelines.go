@@ -49,7 +49,7 @@ func (pipelineCtx *pipelineContext) RunPipelinesJob() error {
 	}
 	pipelineCtx.SetPipelineTargetEnvironments(pipelineTargetEnvironments)
 
-	tektonPipelineBranch := pipelineCtx.pipelineInfo.PipelineArguments.Branch
+	tektonPipelineBranch := pipelineCtx.GetPipelineInfo().GetBranch()
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineInfo.GetRadixDeployToEnvironment())
 		if re != nil && len(re.Build.From) > 0 {

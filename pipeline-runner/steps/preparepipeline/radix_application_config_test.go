@@ -3,13 +3,11 @@ package preparepipeline
 import (
 	"context"
 	"errors"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/test"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -42,10 +40,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			mockCtrl := gomock.NewController(t)
 			kubeClient, rxClient, tknClient := test.Setup()
-			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
-			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{Name: appName},
 			}, metav1.CreateOptions{})
@@ -56,7 +51,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 					RadixConfigFile: sampleApp,
 				},
 			}
-			pipelineCtx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, WithPipelineRunsWaiter(completionWaiter))
+			pipelineCtx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo)
 
 			_, err = pipelineCtx.LoadRadixAppConfig()
 			if ts.expectedError == nil {
