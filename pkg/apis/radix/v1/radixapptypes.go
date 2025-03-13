@@ -1218,7 +1218,7 @@ type BlobFuse2BlockCacheOptions struct {
 
 // BlobFuse2FileCacheOptions defines options for file cache
 type BlobFuse2FileCacheOptions struct {
-	// The timeout for which file cache is valid. Default 120.
+	// The timeout (in seconds) for which file cache is valid. Default 120.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Timeout *uint32 `json:"timeout,omitempty"`
