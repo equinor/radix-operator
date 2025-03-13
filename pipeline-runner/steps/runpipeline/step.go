@@ -65,6 +65,6 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 	appName := step.GetAppName()
 	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
-	pipelineCtx := NewPipelineContext(step.GetKubeClient(), step.GetRadixClient(), step.GetTektonClient(), pipelineInfo)
+	pipelineCtx := NewPipelineContext(step.GetTektonClient(), pipelineInfo)
 	return pipelineCtx.RunPipelinesJob()
 }

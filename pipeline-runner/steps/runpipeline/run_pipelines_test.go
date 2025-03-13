@@ -26,7 +26,7 @@ import (
 
 func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	kubeClient, rxClient, tknClient := test.Setup()
+	_, rxClient, tknClient := test.Setup()
 	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
@@ -44,7 +44,7 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 		RadixRegistration: rrBuilder.BuildRR(),
 		RadixApplication:  raBuilder.BuildRA(),
 	}
-	pipelineContext := runpipeline.NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	pipelineContext := runpipeline.NewPipelineContext(tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
 	_, err := rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), pipelineInfo.RadixRegistration, metav1.CreateOptions{})
 	require.NoError(t, err)
@@ -227,7 +227,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
-			kubeClient, rxClient, tknClient := test.Setup()
+			_, rxClient, tknClient := test.Setup()
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 			ra := utils.NewRadixApplicationBuilder().WithAppName(internalTest.AppName).
@@ -247,7 +247,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 				},
 				RadixApplication: ra,
 			}
-			pipelineCtx := runpipeline.NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
+			pipelineCtx := runpipeline.NewPipelineContext(tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{Name: internalTest.AppName}, Spec: radixv1.RadixRegistrationSpec{}}, metav1.CreateOptions{})
@@ -370,7 +370,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
-			kubeClient, rxClient, tknClient := test.Setup()
+			_, rxClient, tknClient := test.Setup()
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 
@@ -400,7 +400,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 				RadixRegistration: rr,
 				RadixApplication:  raBuilder.BuildRA(),
 			}
-			pipelineCtx := runpipeline.NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
+			pipelineCtx := runpipeline.NewPipelineContext(tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
 			_, err = tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetLabelsForEnvironment(pipelineInfo, internalTest.Env1)},

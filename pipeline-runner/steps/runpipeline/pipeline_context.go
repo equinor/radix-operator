@@ -9,15 +9,31 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	ownerreferences "github.com/equinor/radix-operator/pipeline-runner/utils/owner_references"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
+// Context of the pipeline
+type Context interface {
+	// RunPipelinesJob un the job, which creates Tekton PipelineRun-s
+	RunPipelinesJob() error
+	// GetPipelineInfo Get pipeline info
+	GetPipelineInfo() *model.PipelineInfo
+	// GetHash Hash, common for all pipeline Kubernetes object names
+	GetHash() string
+	// GetTektonClient Tekton client
+	GetTektonClient() tektonclient.Interface
+	// GetRadixApplication Gets the RadixApplication, loaded from the config-map
+	GetRadixApplication() *radixv1.RadixApplication
+	// GetPipelineRunsWaiter Returns a waiter that returns when all pipelineruns have completed
+	GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter
+	// GetEnvVars Gets build env vars
+	GetEnvVars(envName string) radixv1.EnvVarsMap
+	// SetPipelineTargetEnvironments Set target environments for the pipeline job
+	SetPipelineTargetEnvironments(environments []string)
+}
+
 type pipelineContext struct {
-	radixClient        radixclient.Interface
-	kubeClient         kubernetes.Interface
 	tektonClient       tektonclient.Interface
 	targetEnvironments []string
 	hash               string
@@ -32,10 +48,6 @@ func (pipelineCtx *pipelineContext) GetPipelineInfo() *model.PipelineInfo {
 
 func (pipelineCtx *pipelineContext) GetHash() string {
 	return pipelineCtx.hash
-}
-
-func (pipelineCtx *pipelineContext) GetKubeClient() kubernetes.Interface {
-	return pipelineCtx.kubeClient
 }
 
 func (pipelineCtx *pipelineContext) GetTektonClient() tektonclient.Interface {
@@ -113,11 +125,9 @@ func (pipelineCtx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(ta
 type NewPipelineContextOption func(pipelineCtx *pipelineContext)
 
 // NewPipelineContext Create new NewPipelineContext instance
-func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, options ...NewPipelineContextOption) Context {
+func NewPipelineContext(tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, options ...NewPipelineContextOption) Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
 	pipelineCtx := &pipelineContext{
-		kubeClient:     kubeClient,
-		radixClient:    radixClient,
 		tektonClient:   tektonClient,
 		pipelineInfo:   pipelineInfo,
 		hash:           strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName)),
