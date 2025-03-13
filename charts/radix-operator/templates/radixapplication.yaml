@@ -1430,8 +1430,8 @@ spec:
                                       description: Configure attribute cache settings.
                                       properties:
                                         timeout:
-                                          description: The timeout for the attribute
-                                            cache entries. Default 0.
+                                          description: The timeout (in seconds) for
+                                            the attribute cache entries. Default 0.
                                           format: int32
                                           minimum: 0
                                           type: integer
@@ -1477,7 +1477,7 @@ spec:
                                         prefetchCount:
                                           description: |-
                                             Max number of blocks to prefetch. Default 11.
-                                            Value must be 0 (prefetcing disabled) or greater or equal to 11.
+                                            Value must be 0 (prefetching disabled) or greater than 10.
                                           format: int32
                                           minimum: 0
                                           type: integer
@@ -1506,8 +1506,8 @@ spec:
                                       description: Configure file cache settings.
                                       properties:
                                         timeout:
-                                          description: The timeout for which file
-                                            cache is valid. Default 120.
+                                          description: The timeout (in seconds) for
+                                            which file cache is valid. Default 120.
                                           format: int32
                                           minimum: 0
                                           type: integer
@@ -2675,8 +2675,8 @@ spec:
                                 description: Configure attribute cache settings.
                                 properties:
                                   timeout:
-                                    description: The timeout for the attribute cache
-                                      entries. Default 0.
+                                    description: The timeout (in seconds) for the
+                                      attribute cache entries. Default 0.
                                     format: int32
                                     minimum: 0
                                     type: integer
@@ -2721,7 +2721,7 @@ spec:
                                   prefetchCount:
                                     description: |-
                                       Max number of blocks to prefetch. Default 11.
-                                      Value must be 0 (prefetcing disabled) or greater or equal to 11.
+                                      Value must be 0 (prefetching disabled) or greater than 10.
                                     format: int32
                                     minimum: 0
                                     type: integer
@@ -2750,8 +2750,8 @@ spec:
                                 description: Configure file cache settings.
                                 properties:
                                   timeout:
-                                    description: The timeout for which file cache
-                                      is valid. Default 120.
+                                    description: The timeout (in seconds) for which
+                                      file cache is valid. Default 120.
                                     format: int32
                                     minimum: 0
                                     type: integer
@@ -3599,8 +3599,8 @@ spec:
                                       description: Configure attribute cache settings.
                                       properties:
                                         timeout:
-                                          description: The timeout for the attribute
-                                            cache entries. Default 0.
+                                          description: The timeout (in seconds) for
+                                            the attribute cache entries. Default 0.
                                           format: int32
                                           minimum: 0
                                           type: integer
@@ -3646,7 +3646,7 @@ spec:
                                         prefetchCount:
                                           description: |-
                                             Max number of blocks to prefetch. Default 11.
-                                            Value must be 0 (prefetcing disabled) or greater or equal to 11.
+                                            Value must be 0 (prefetching disabled) or greater than 10.
                                           format: int32
                                           minimum: 0
                                           type: integer
@@ -3675,8 +3675,8 @@ spec:
                                       description: Configure file cache settings.
                                       properties:
                                         timeout:
-                                          description: The timeout for which file
-                                            cache is valid. Default 120.
+                                          description: The timeout (in seconds) for
+                                            which file cache is valid. Default 120.
                                           format: int32
                                           minimum: 0
                                           type: integer
@@ -4218,8 +4218,8 @@ spec:
                                 description: Configure attribute cache settings.
                                 properties:
                                   timeout:
-                                    description: The timeout for the attribute cache
-                                      entries. Default 0.
+                                    description: The timeout (in seconds) for the
+                                      attribute cache entries. Default 0.
                                     format: int32
                                     minimum: 0
                                     type: integer
@@ -4264,7 +4264,7 @@ spec:
                                   prefetchCount:
                                     description: |-
                                       Max number of blocks to prefetch. Default 11.
-                                      Value must be 0 (prefetcing disabled) or greater or equal to 11.
+                                      Value must be 0 (prefetching disabled) or greater than 10.
                                     format: int32
                                     minimum: 0
                                     type: integer
@@ -4293,8 +4293,8 @@ spec:
                                 description: Configure file cache settings.
                                 properties:
                                   timeout:
-                                    description: The timeout for which file cache
-                                      is valid. Default 120.
+                                    description: The timeout (in seconds) for which
+                                      file cache is valid. Default 120.
                                     format: int32
                                     minimum: 0
                                     type: integer

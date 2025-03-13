@@ -1161,8 +1161,13 @@ type RadixBlobFuse2VolumeMount struct {
 type BlobFuse2CacheMode string
 
 const (
-	BlobFuse2CacheModeFile     BlobFuse2CacheMode = "File"
-	BlobFuse2CacheModeBlock    BlobFuse2CacheMode = "Block"
+	// Reads and caches the entire file
+	BlobFuse2CacheModeFile BlobFuse2CacheMode = "File"
+
+	// Blocks of fixed size are downloaded and cached
+	BlobFuse2CacheModeBlock BlobFuse2CacheMode = "Block"
+
+	// Caching is disabled. All IO is passed directly to the storage account.
 	BlobFuse2CacheModeDirectIO BlobFuse2CacheMode = "DirectIO"
 )
 
@@ -1201,7 +1206,7 @@ type BlobFuse2BlockCacheOptions struct {
 	DiskTimeout *uint32 `json:"diskTimeout,omitempty"`
 
 	// Max number of blocks to prefetch. Default 11.
-	// Value must be 0 (prefetching disabled) or greater or equal to 11.
+	// Value must be 0 (prefetching disabled) or greater than 10.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	PrefetchCount *uint32 `json:"prefetchCount,omitempty"`
