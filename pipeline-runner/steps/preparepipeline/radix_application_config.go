@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// LoadRadixAppConfig Load Radix config file and create RadixApplication to the PipelineInfo.RadixApplication. Output is in the PipelineInfo.BuildContext
+// LoadRadixAppConfig Load Radix config file and create RadixApplication to the PipelineInfo.RadixApplication. Output is in the PipelineInfo.PrepareBuildContext
 func (ctx *pipelineContext) LoadRadixAppConfig() (*radixv1.RadixApplication, error) {
 	radixConfigFile := ctx.GetPipelineInfo().GetRadixConfigFile()
 	configFileContent, err := os.ReadFile(radixConfigFile)

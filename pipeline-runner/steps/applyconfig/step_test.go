@@ -1301,6 +1301,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 	for _, test := range tests {
 
 		s.Run(test.name, func() {
+			s.T().Logf("Test case: %s", test.name)
 			ra := defaultRa
 			if test.customRa != nil {
 				ra = test.customRa
@@ -1311,11 +1312,10 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
 				_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), test.existingRd, metav1.CreateOptions{})
 			}
-			//TODO ? s.Require().NoError(test.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, test.prepareBuildCtx))
 			pipelineInfo := model.PipelineInfo{
-				PipelineArguments: pipelineArgs,
-				RadixApplication:  ra,
-				BuildContext:      test.prepareBuildCtx,
+				PipelineArguments:   pipelineArgs,
+				RadixApplication:    ra,
+				PrepareBuildContext: test.prepareBuildCtx,
 			}
 			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
@@ -1329,10 +1329,10 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 			}
 			s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
 			for env, images := range pipelineInfo.BuildComponentImages {
-				s.ElementsMatch(expectedBuildComponentImages[env], images)
+				s.ElementsMatch(expectedBuildComponentImages[env], images, "not matching expectedBuildComponentImages")
 			}
 
-			s.Equal(pipeline.DeployEnvironmentComponentImages{envName: test.expectedDeployComponentImages}, pipelineInfo.DeployEnvironmentComponentImages)
+			s.Equal(pipeline.DeployEnvironmentComponentImages{envName: test.expectedDeployComponentImages}, pipelineInfo.DeployEnvironmentComponentImages, "not matching expectedDeployComponentImages")
 		})
 	}
 }

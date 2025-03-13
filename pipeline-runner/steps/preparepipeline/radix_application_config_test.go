@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	sampleApp = "../test/testdata/radixconfig.yaml"
+	sampleApp = "../internal/test/testdata/radixconfig.yaml"
 )
 
 func Test_LoadRadixApplication(t *testing.T) {
@@ -30,7 +30,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 	scenarios := []scenario{
 		{
 			name:              "RadixApplication loaded",
-			registeredAppName: sampleApp,
+			registeredAppName: appName,
 			expectedError:     nil,
 		},
 		{
@@ -47,7 +47,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-				ObjectMeta: metav1.ObjectMeta{Name: sampleApp},
+				ObjectMeta: metav1.ObjectMeta{Name: appName},
 			}, metav1.CreateOptions{})
 			require.NoError(t, err)
 			pipelineInfo := &model.PipelineInfo{

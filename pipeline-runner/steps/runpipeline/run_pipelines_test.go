@@ -26,23 +26,14 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	RadixApplication = `apiVersion: radix.equinor.com/v1
-kind: RadixApplication
-metadata: 
-  name: test-app
-spec:
-  environments:
-  - name: dev
-  - name: prod
-`
-)
-
 func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	kubeClient, rxClient, tknClient := test.Setup()
 	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
+	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+		WithEnvironment(internalTest.Env1, internalTest.BranchMain)
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			AppName:       internalTest.AppName,
@@ -52,9 +43,8 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 			PipelineType:  string(radixv1.BuildDeploy),
 			ToEnvironment: internalTest.Env1,
 			DNSConfig:     &dnsalias.DNSConfig{}},
-		RadixRegistration: &radixv1.RadixRegistration{
-			ObjectMeta: metav1.ObjectMeta{Name: internalTest.AppName}, Spec: radixv1.RadixRegistrationSpec{}},
-		RadixApplication: utils.ARadixApplication().WithBuildSecrets().BuildRA(),
+		RadixRegistration: rrBuilder.BuildRR(),
+		RadixApplication:  raBuilder.BuildRA(),
 	}
 	pipelineContext := runpipeline.NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
@@ -243,6 +233,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 			ra := utils.NewRadixApplicationBuilder().WithAppName(internalTest.AppName).
+				WithEnvironment(internalTest.Env1, internalTest.BranchMain).
 				WithBuildVariables(ts.buildVariables).
 				WithSubPipeline(ts.buildSubPipeline).
 				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...).BuildRA()

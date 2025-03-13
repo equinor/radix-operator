@@ -42,9 +42,6 @@ type PipelineInfo struct {
 	// Promotion job git info
 	SourceDeploymentGitCommitHash string
 	SourceDeploymentGitBranch     string
-
-	// BuildContext pipeline build context
-	BuildContext *PrepareBuildContext
 }
 
 // Builder Holds info about the builder arguments
@@ -293,6 +290,6 @@ func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 
 // SetBuildContext Set build context
 func (p *PipelineInfo) SetBuildContext(context *PrepareBuildContext) *PipelineInfo {
-	p.BuildContext = context
+	p.PrepareBuildContext = context
 	return p
 }
