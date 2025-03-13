@@ -7,7 +7,7 @@ toolchain go1.23.6
 require (
 	dario.cat/mergo v1.0.1
 	github.com/cert-manager/cert-manager v1.15.4
-	github.com/equinor/radix-common v1.9.7
+	github.com/equinor/radix-common v1.10.0
 	github.com/go-git/go-git/v5 v5.13.1
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0

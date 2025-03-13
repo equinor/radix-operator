@@ -1197,16 +1197,6 @@ spec:
                             - ReadWriteMany
                             - ""
                             type: string
-                          bindingMode:
-                            description: |-
-                              Deprecated: use BlobFuse2 instead.
-                              Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                              More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                            enum:
-                            - Immediate
-                            - WaitForFirstConsumer
-                            - ""
-                            type: string
                           blobFuse2:
                             description: BlobFuse2 settings for Azure Storage FUSE
                               CSI driver with the protocol fuse2
@@ -1221,19 +1211,93 @@ spec:
                                 - ReadWriteMany
                                 - ""
                                 type: string
-                              bindingMode:
+                              attributeCache:
+                                description: Configure attribute cache settings.
+                                properties:
+                                  timeout:
+                                    description: The timeout (in seconds) for the
+                                      attribute cache entries. Default 0.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                type: object
+                              blockCache:
+                                description: Configure block cache settings. Applicable
+                                  when cacheMode is Block.
+                                properties:
+                                  blockSize:
+                                    description: Size (in MB) of a block to be downloaded
+                                      as a unit. Default is 4.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  diskSize:
+                                    description: |-
+                                      Size (in MB) of total disk capacity that block cache can use.
+                                      0 (default) disables disk caching
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  diskTimeout:
+                                    description: Timeout (in seconds) for which persisted
+                                      data remains in disk cache. Default 120.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  parallelism:
+                                    description: Number of worker thread responsible
+                                      for upload/download jobs. Default 8.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  poolSize:
+                                    description: |-
+                                      Size (in MB) of total memory preallocated for block-cache.
+                                      Minimum value:
+                                      - if prefetchCount > 0: prefetchCount * blockSize
+                                      - if prefetchCount = 0: blockSize
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  prefetchCount:
+                                    description: |-
+                                      Max number of blocks to prefetch. Default 11.
+                                      Value must be 0 (prefetching disabled) or greater than 10.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  prefetchOnOpen:
+                                    description: Start prefetching on open or wait
+                                      for first read. Default false.
+                                    type: boolean
+                                type: object
+                              cacheMode:
                                 description: |-
-                                  Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
+                                  Defines how files should be cached.
+
+                                  File: Reads and caches the entire file
+                                  Block (default): Blocks of fixed size are downloaded and cached
+                                  DirectIO: Caching is disabled. All IO is passed directly to the storage account.
                                 enum:
-                                - Immediate
-                                - WaitForFirstConsumer
-                                - ""
+                                - File
+                                - Block
+                                - DirectIO
                                 type: string
                               container:
                                 description: Container. Name of the container in the
                                   external storage resource.
                                 type: string
+                              fileCache:
+                                description: Configure file cache settings. Applicable
+                                  when cacheMode is File.
+                                properties:
+                                  timeout:
+                                    description: The timeout (in seconds) for which
+                                      file cache is valid. Default 120.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                type: object
                               gid:
                                 description: GID defines the group ID (number) which
                                   will be set as owner of the mounted volume.
@@ -1246,24 +1310,17 @@ spec:
                                 - ""
                                 type: string
                               requestsStorage:
+                                anyOf:
+                                - type: integer
+                                - type: string
                                 description: |-
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-                                type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
                               resourceGroup:
                                 description: ResourceGroup of a storage account. Applicable
                                   when using a workload identity.
-                                type: string
-                              skuName:
-                                description: |-
-                                  SKU Type of Azure storage.
-                                  More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-                                enum:
-                                - Standard_LRS
-                                - Premium_LRS
-                                - Standard_GRS
-                                - Standard_RAGRS
-                                - ""
                                 type: string
                               storageAccount:
                                 description: Name of a storage account. It is mandatory
@@ -1273,43 +1330,16 @@ spec:
                                 type: string
                               streaming:
                                 description: |-
-                                  Configure Streaming mode. Used for blobfuse2.
+                                  Deprecated: Configure caching with cacheMode.
+                                  Configure streaming settings.
                                   More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                 properties:
-                                  blockSize:
-                                    description: Optional. The size of each block
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  bufferSize:
-                                    description: Optional. The size of each buffer
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
                                   enabled:
-                                    description: Enable streaming mode. Default true.
+                                    description: |-
+                                      Deprecated: Configure caching with cacheMode in blobFuse2 section.
+                                      Enable streaming mode. Default true.
+                                      For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                     type: boolean
-                                  maxBlocksPerFile:
-                                    description: Optional. The maximum number of blocks
-                                      to be cached in memory.
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  maxBuffers:
-                                    description: Optional. The total number of buffers
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  streamCache:
-                                    description: Optional. Limit total amount of data
-                                      being cached in memory to conserve memory footprint
-                                      of blobfuse (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
                                 type: object
                               subscriptionId:
                                 description: SubscriptionId of a storage account.
@@ -1373,15 +1403,14 @@ spec:
                             minLength: 1
                             type: string
                           requestsStorage:
+                            anyOf:
+                            - type: integer
+                            - type: string
                             description: |-
                               Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                            type: string
-                          skuName:
-                            description: |-
-                              Deprecated: use BlobFuse2 instead.
-                              More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                            type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           storage:
                             description: |-
                               Deprecated: use BlobFuse2 instead.
@@ -1820,16 +1849,6 @@ spec:
                             - ReadWriteMany
                             - ""
                             type: string
-                          bindingMode:
-                            description: |-
-                              Deprecated: use BlobFuse2 instead.
-                              Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                              More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                            enum:
-                            - Immediate
-                            - WaitForFirstConsumer
-                            - ""
-                            type: string
                           blobFuse2:
                             description: BlobFuse2 settings for Azure Storage FUSE
                               CSI driver with the protocol fuse2
@@ -1844,19 +1863,93 @@ spec:
                                 - ReadWriteMany
                                 - ""
                                 type: string
-                              bindingMode:
+                              attributeCache:
+                                description: Configure attribute cache settings.
+                                properties:
+                                  timeout:
+                                    description: The timeout (in seconds) for the
+                                      attribute cache entries. Default 0.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                type: object
+                              blockCache:
+                                description: Configure block cache settings. Applicable
+                                  when cacheMode is Block.
+                                properties:
+                                  blockSize:
+                                    description: Size (in MB) of a block to be downloaded
+                                      as a unit. Default is 4.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  diskSize:
+                                    description: |-
+                                      Size (in MB) of total disk capacity that block cache can use.
+                                      0 (default) disables disk caching
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  diskTimeout:
+                                    description: Timeout (in seconds) for which persisted
+                                      data remains in disk cache. Default 120.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  parallelism:
+                                    description: Number of worker thread responsible
+                                      for upload/download jobs. Default 8.
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  poolSize:
+                                    description: |-
+                                      Size (in MB) of total memory preallocated for block-cache.
+                                      Minimum value:
+                                      - if prefetchCount > 0: prefetchCount * blockSize
+                                      - if prefetchCount = 0: blockSize
+                                    format: int32
+                                    minimum: 1
+                                    type: integer
+                                  prefetchCount:
+                                    description: |-
+                                      Max number of blocks to prefetch. Default 11.
+                                      Value must be 0 (prefetching disabled) or greater than 10.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                  prefetchOnOpen:
+                                    description: Start prefetching on open or wait
+                                      for first read. Default false.
+                                    type: boolean
+                                type: object
+                              cacheMode:
                                 description: |-
-                                  Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-                                  More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
+                                  Defines how files should be cached.
+
+                                  File: Reads and caches the entire file
+                                  Block (default): Blocks of fixed size are downloaded and cached
+                                  DirectIO: Caching is disabled. All IO is passed directly to the storage account.
                                 enum:
-                                - Immediate
-                                - WaitForFirstConsumer
-                                - ""
+                                - File
+                                - Block
+                                - DirectIO
                                 type: string
                               container:
                                 description: Container. Name of the container in the
                                   external storage resource.
                                 type: string
+                              fileCache:
+                                description: Configure file cache settings. Applicable
+                                  when cacheMode is File.
+                                properties:
+                                  timeout:
+                                    description: The timeout (in seconds) for which
+                                      file cache is valid. Default 120.
+                                    format: int32
+                                    minimum: 0
+                                    type: integer
+                                type: object
                               gid:
                                 description: GID defines the group ID (number) which
                                   will be set as owner of the mounted volume.
@@ -1869,24 +1962,17 @@ spec:
                                 - ""
                                 type: string
                               requestsStorage:
+                                anyOf:
+                                - type: integer
+                                - type: string
                                 description: |-
                                   Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
                                   More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-                                type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
                               resourceGroup:
                                 description: ResourceGroup of a storage account. Applicable
                                   when using a workload identity.
-                                type: string
-                              skuName:
-                                description: |-
-                                  SKU Type of Azure storage.
-                                  More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-                                enum:
-                                - Standard_LRS
-                                - Premium_LRS
-                                - Standard_GRS
-                                - Standard_RAGRS
-                                - ""
                                 type: string
                               storageAccount:
                                 description: Name of a storage account. It is mandatory
@@ -1896,43 +1982,16 @@ spec:
                                 type: string
                               streaming:
                                 description: |-
-                                  Configure Streaming mode. Used for blobfuse2.
+                                  Deprecated: Configure caching with cacheMode.
+                                  Configure streaming settings.
                                   More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
                                 properties:
-                                  blockSize:
-                                    description: Optional. The size of each block
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  bufferSize:
-                                    description: Optional. The size of each buffer
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
                                   enabled:
-                                    description: Enable streaming mode. Default true.
+                                    description: |-
+                                      Deprecated: Configure caching with cacheMode in blobFuse2 section.
+                                      Enable streaming mode. Default true.
+                                      For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
                                     type: boolean
-                                  maxBlocksPerFile:
-                                    description: Optional. The maximum number of blocks
-                                      to be cached in memory.
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  maxBuffers:
-                                    description: Optional. The total number of buffers
-                                      to be cached in memory (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
-                                  streamCache:
-                                    description: Optional. Limit total amount of data
-                                      being cached in memory to conserve memory footprint
-                                      of blobfuse (in MB).
-                                    format: int64
-                                    minimum: 1
-                                    type: integer
                                 type: object
                               subscriptionId:
                                 description: SubscriptionId of a storage account.
@@ -1996,15 +2055,14 @@ spec:
                             minLength: 1
                             type: string
                           requestsStorage:
+                            anyOf:
+                            - type: integer
+                            - type: string
                             description: |-
                               Deprecated: use BlobFuse2 instead.
                               More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                            type: string
-                          skuName:
-                            description: |-
-                              Deprecated: use BlobFuse2 instead.
-                              More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-                            type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           storage:
                             description: |-
                               Deprecated: use BlobFuse2 instead.

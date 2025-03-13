@@ -351,3 +351,21 @@ func ForExternalDNSCertificate(appName string, externalDns v1.RadixDeployExterna
 		kube.RadixExternalAliasFQDNLabel: externalDns.FQDN,
 	}
 }
+
+func ForBlobCSIAzurePersistentVolume(appName, namespace, componentName string, radixVolumeMount v1.RadixVolumeMount) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:             appName,
+		kube.RadixNamespace:            namespace,
+		kube.RadixComponentLabel:       componentName,
+		kube.RadixVolumeMountNameLabel: radixVolumeMount.Name,
+	}
+}
+
+func ForBlobCSIAzurePersistentVolumeClaim(appName, componentName string, radixVolumeMount v1.RadixVolumeMount) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:             appName,
+		kube.RadixComponentLabel:       componentName,
+		kube.RadixMountTypeLabel:       string(radixVolumeMount.GetVolumeMountType()), // TODO: Discuss if we really need this. It is not used anywhere, and I don't see a reason why we would need it.
+		kube.RadixVolumeMountNameLabel: radixVolumeMount.Name,
+	}
+}

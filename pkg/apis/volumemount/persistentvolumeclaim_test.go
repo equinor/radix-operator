@@ -1,165 +1,169 @@
-package volumemount
+package volumemount_test
 
 import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/stretchr/testify/suite"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type pvcTestSuite struct {
-	testSuite
-}
-
-func TestPvcTestSuite(t *testing.T) {
-	suite.Run(t, new(pvcTestSuite))
-}
-
-func (s *pvcTestSuite) Test_EqualPersistentVolumeClaims() {
-	createPvc := func(modify func(pv *corev1.PersistentVolumeClaim)) *corev1.PersistentVolumeClaim {
-		pv := createExpectedPvc(getPropsCsiBlobVolume1Storage1(nil), modify)
-		return &pv
+func Test_ComparePersistentVolumeClaims(t *testing.T) {
+	validPVC := func(modify func(pvc *corev1.PersistentVolumeClaim)) *corev1.PersistentVolumeClaim {
+		pvc := &corev1.PersistentVolumeClaim{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: "any",
+				Labels: map[string]string{
+					"any": "any",
+				},
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				Resources: corev1.VolumeResourceRequirements{
+					Limits:   corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("2")},
+					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1")},
+				},
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+				VolumeMode:  pointers.Ptr(corev1.PersistentVolumeFilesystem),
+			},
+		}
+		if modify != nil {
+			modify(pvc)
+		}
+		return pvc
 	}
-	tests := []struct {
-		name     string
-		pvc1     *corev1.PersistentVolumeClaim
-		pvc2     *corev1.PersistentVolumeClaim
-		expected bool
+
+	tests := map[string]struct {
+		pvc1        *corev1.PersistentVolumeClaim
+		pvc2        *corev1.PersistentVolumeClaim
+		expectEqual bool
 	}{
-		{
-			name:     "both nil",
-			pvc1:     nil,
-			pvc2:     nil,
-			expected: false,
+		"base pvc1 and pvc2 are equal": {
+			pvc1:        validPVC(nil),
+			pvc2:        validPVC(nil),
+			expectEqual: true,
 		},
-		{
-			name:     "one nil",
-			pvc1:     createPvc(nil),
-			pvc2:     nil,
-			expected: false,
+		"pvc1 is nil": {
+			pvc1:        nil,
+			pvc2:        validPVC(nil),
+			expectEqual: false,
 		},
-		{
-			name:     "equal",
-			pvc1:     createPvc(nil),
-			pvc2:     createPvc(nil),
-			expected: true,
+		"pvc2 is nil": {
+			pvc1:        validPVC(nil),
+			pvc2:        nil,
+			expectEqual: false,
 		},
-		{
-			name: "different namespaces",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.ObjectMeta.Namespace = "namespace1"
+		"pvc1 and pvc2 are nil": {
+			pvc1:        nil,
+			pvc2:        nil,
+			expectEqual: false,
+		},
+		"different namespace": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Namespace = "pvc1"
 			}),
-			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.ObjectMeta.Namespace = "namespace2"
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Namespace = "pvc2"
 			}),
-			expected: false,
+			expectEqual: false,
 		},
-		{
-			name: "no storage resource",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.Resources.Requests = map[corev1.ResourceName]resource.Quantity{}
+		"different resource requests": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources = corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1M")},
+				}
 			}),
-			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("1M")
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources = corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("2M")},
+				}
 			}),
-			expected: false,
+			expectEqual: false,
 		},
-		{
-			name: "different storage resource",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("1M")
+		"different resource limits": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources = corev1.VolumeResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1M")},
+				}
 			}),
-			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("2M")
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources = corev1.VolumeResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("2M")},
+				}
 			}),
-			expected: false,
+			expectEqual: false,
 		},
-		{
-			name: "no access mode",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.Spec.AccessModes = nil }),
-			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+		"resource requests nil and empty should be equal": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources.Requests = nil
 			}),
-			expected: false,
-		},
-		{
-			name: "different access mode",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources.Requests = corev1.ResourceList{}
 			}),
-			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+			expectEqual: true,
+		},
+		"resource limits nil and empty should be equal": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources.Limits = nil
 			}),
-			expected: false,
-		},
-		{
-			name: "no volume mode",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.Spec.VolumeMode = nil }),
-			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeBlock)
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources.Limits = corev1.ResourceList{}
 			}),
-			expected: false,
+			expectEqual: true,
 		},
-		{
-			name: "different volume mode",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeFilesystem)
+		"different accessmodes": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany, corev1.ReadWriteMany}
 			}),
-			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeBlock)
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany, corev1.ReadWriteOnce}
 			}),
-			expected: false,
+			expectEqual: false,
 		},
-		{
-			name:     "different app name label",
-			pvc1:     createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.ObjectMeta.Labels[kube.RadixAppLabel] = "app1" }),
-			pvc2:     createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.ObjectMeta.Labels[kube.RadixAppLabel] = "app2" }),
-			expected: false,
-		},
-		{
-			name: "different radix component label",
-			pvc1: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.ObjectMeta.Labels[kube.RadixComponentLabel] = "componentName1"
+		"same accessmodes in different order should be equal": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany, corev1.ReadWriteMany}
 			}),
-			pvc2: createPvc(func(pv *corev1.PersistentVolumeClaim) {
-				pv.ObjectMeta.Labels[kube.RadixComponentLabel] = "componentName2"
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany, corev1.ReadOnlyMany}
 			}),
-			expected: false,
+			expectEqual: true,
 		},
-		{
-			name:     "different volume mount name label",
-			pvc1:     createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = "name1" }),
-			pvc2:     createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = "name2" }),
-			expected: false,
+		"accessmodes nil and empty should be equal": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.AccessModes = nil
+			}),
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{}
+			}),
+			expectEqual: true,
 		},
-		{
-			name:     "different volume mount type label",
-			pvc1:     createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.ObjectMeta.Labels[kube.RadixMountTypeLabel] = "type1" }),
-			pvc2:     createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.ObjectMeta.Labels[kube.RadixMountTypeLabel] = "type2" }),
-			expected: false,
+		"different volumemode": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeBlock)
+			}),
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeFilesystem)
+			}),
+			expectEqual: false,
 		},
-		{
-			name:     "extra label",
-			pvc1:     createPvc(func(pv *corev1.PersistentVolumeClaim) {}),
-			pvc2:     createPvc(func(pv *corev1.PersistentVolumeClaim) { pv.ObjectMeta.Labels["extra-label"] = "extra-value" }),
-			expected: false,
-		},
-		{
-			name:     "missing label",
-			pvc1:     createPvc(func(pv *corev1.PersistentVolumeClaim) {}),
-			pvc2:     createPvc(func(pv *corev1.PersistentVolumeClaim) { delete(pv.ObjectMeta.Labels, kube.RadixAppLabel) }),
-			expected: false,
+		"volumemode nil on pv1 and pv2 should be equal": {
+			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.VolumeMode = nil
+			}),
+			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.VolumeMode = nil
+			}),
+			expectEqual: true,
 		},
 	}
 
-	for _, tt := range tests {
-		s.T().Run(tt.name, func(t *testing.T) {
-			if got := EqualPersistentVolumeClaims(tt.pvc1, tt.pvc2); got != tt.expected {
-				s.T().Errorf("EqualPersistentVolumeClaims() = %v, want %v", got, tt.expected)
-			}
+	for testName, test := range tests {
+		t.Run(testName, func(t *testing.T) {
+			actualEqual := volumemount.ComparePersistentVolumeClaims(test.pvc1, test.pvc2)
+			assert.Equal(t, test.expectEqual, actualEqual)
 		})
 	}
 }
