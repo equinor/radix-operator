@@ -1201,7 +1201,7 @@ type BlobFuse2BlockCacheOptions struct {
 	DiskTimeout *uint32 `json:"diskTimeout,omitempty"`
 
 	// Max number of blocks to prefetch. Default 11.
-	// Value must be 0 (prefetcing disabled) or greater or equal to 11.
+	// Value must be 0 (prefetching disabled) or greater or equal to 11.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	PrefetchCount *uint32 `json:"prefetchCount,omitempty"`
