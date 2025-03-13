@@ -1168,7 +1168,7 @@ const (
 
 // BlobFuse2AttributeCacheOptions defines options for attribute cache
 type BlobFuse2AttributeCacheOptions struct {
-	// The timeout for the attribute cache entries. Default 0.
+	// The timeout (in seconds) for the attribute cache entries. Default 0.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Timeout *uint32 `json:"timeout,omitempty"`
