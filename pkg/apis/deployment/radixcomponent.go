@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	booleanPointerTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
+	mergoTranformers mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}, mergoutils.ResourceQuantityTransformer{}}}
 )
 
 func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
@@ -137,7 +137,7 @@ func getRadixComponentNetwork(component *radixv1.RadixComponent, environmentConf
 		if dst == nil {
 			dst = &radixv1.Network{}
 		}
-		if err := mergo.Merge(dst, environmentConfig.Network, mergo.WithOverride, mergo.WithOverrideEmptySlice, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
+		if err := mergo.Merge(dst, environmentConfig.Network, mergo.WithOverride, mergo.WithOverrideEmptySlice, mergo.WithTransformers(mergoTranformers)); err != nil {
 			return nil, err
 		}
 	}
@@ -214,7 +214,7 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 		finalVolumeMount := componentVolumeMount.DeepCopy()
 		volumeMountName := componentVolumeMount.Name
 		if envVolumeMount, ok := environmentVolumeMountMap[volumeMountName]; ok {
-			if err := mergo.Merge(finalVolumeMount, envVolumeMount, mergo.WithOverride, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
+			if err := mergo.Merge(finalVolumeMount, envVolumeMount, mergo.WithOverride, mergo.WithTransformers(mergoTranformers)); err != nil {
 				errs = append(errs, fmt.Errorf("failed to merge component and environment volume-mounts %s: %w", volumeMountName, err))
 			}
 			delete(environmentVolumeMountMap, volumeMountName)
@@ -280,7 +280,7 @@ func GetAuthenticationForComponent(componentAuthentication *radixv1.Authenticati
 		authEnv = environmentAuthentication.DeepCopy()
 	}
 
-	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
+	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(mergoTranformers)); err != nil {
 		return nil, err
 	}
 	return authBase, nil

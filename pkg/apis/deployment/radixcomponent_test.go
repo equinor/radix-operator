@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"strings"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -17,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type scenarioDef struct {
@@ -1320,245 +1319,683 @@ func Test_GetRadixComponents_HorizontalScalingMultipleEnvs(t *testing.T) {
 }
 
 func Test_GetRadixComponents_VolumeMounts(t *testing.T) {
-	componentName := "comp"
-	env := "dev"
-	anyImagePath := "imagepath"
-	componentImages := make(pipeline.DeployComponentImages)
-	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
-	envVarsMap := make(radixv1.EnvVarsMap)
-	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
-	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
-
-	const (
-		path1          = "/home/path1"
-		path2          = "/home/path2"
-		container1     = "container1"
-		container2     = "container2"
-		user1000       = "1000"
-		user2000       = "2000"
-		group1100      = "1100"
-		group2200      = "2200"
-		skuStandardLRS = "Standard_LRS"
-		skuStandardGRS = "Standard_GRS"
-	)
-	var (
-		accessModeReadWriteMany         = strings.ToLower(string(corev1.ReadWriteMany))
-		accessModeReadOnlyMany          = strings.ToLower(string(corev1.ReadOnlyMany))
-		bindingModeImmediate            = strings.ToLower(string(storagev1.VolumeBindingImmediate))
-		bindingModeWaitForFirstConsumer = strings.ToLower(string(storagev1.VolumeBindingWaitForFirstConsumer))
-	)
-	testCases := []struct {
-		description             string
+	testCases := map[string]struct {
 		componentVolumeMounts   []radixv1.RadixVolumeMount
 		environmentVolumeMounts []radixv1.RadixVolumeMount
 		expectedVolumeMounts    []radixv1.RadixVolumeMount
 	}{
-		{description: "No configuration set"},
-		{
-			description: "Component sets VolumeMounts for azure-blob",
+		"Path": {
 			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path1, Storage: container1, UID: user1000, GID: group1100, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path1, Storage: container1, UID: user1000, GID: group1100, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate},
-			},
-		},
-		{
-			description: "Component sets VolumeMounts for blobFuse2",
-			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
-				}},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
-				}},
-			},
-		},
-		{
-			description: "Env sets VolumeMounts for azure-blob",
-			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path2, Storage: container2, UID: user2000, GID: group2200, SkuName: skuStandardGRS, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path2, Storage: container2, UID: user2000, GID: group2200, SkuName: skuStandardGRS, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer},
-			},
-		},
-		{
-			description: "Env sets VolumeMounts for blobFuse2",
-			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
-				}},
-			},
-			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
-				}},
-			},
-		},
-		{
-			description: "Env overrides component VolumeMounts for azure-blob",
-			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path1, Storage: container1, UID: user1000, GID: group1100, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate},
+				{Name: "vol-common-no-override", Path: "comp1"},
+				{Name: "vol-common-override", Path: "comp2"},
+				{Name: "vol-comp", Path: "comp3"},
 			},
 			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path2, Storage: container2, UID: user2000, GID: group2200, SkuName: skuStandardGRS, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer},
+				{Name: "vol-common-no-override"},
+				{Name: "vol-common-override", Path: "env1"},
+				{Name: "vol-env", Path: "env2"},
 			},
 			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Path: path2, Storage: container2, UID: user2000, GID: group2200, SkuName: skuStandardGRS, AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer},
+				{Name: "vol-common-no-override", Path: "comp1"},
+				{Name: "vol-common-override", Path: "env1"},
+				{Name: "vol-comp", Path: "comp3"},
+				{Name: "vol-env", Path: "env2"},
 			},
 		},
-		{
-			description: "Env overrides component VolumeMounts for blobFuse2",
+		"Deprecated: Storage": {
 			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
-				}},
+				{Name: "vol-common-no-override", Storage: "comp1"},
+				{Name: "vol-common-override", Storage: "comp2"},
+				{Name: "vol-comp", Storage: "comp3"},
 			},
 			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
-				}},
+				{Name: "vol-common-no-override"},
+				{Name: "vol-common-override", Storage: "env1"},
+				{Name: "vol-env", Storage: "env2"},
 			},
 			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
-				}},
+				{Name: "vol-common-no-override", Storage: "comp1"},
+				{Name: "vol-common-override", Storage: "env1"},
+				{Name: "vol-comp", Storage: "comp3"},
+				{Name: "vol-env", Storage: "env2"},
 			},
 		},
-		{
-			description: "Env overrides and adds component VolumeMounts for blobFuse2",
+		"Deprecated: UID": {
 			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container1, UID: user1000, SkuName: skuStandardLRS, AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate,
-					Streaming: &radixv1.RadixVolumeMountStreaming{BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
-				}},
+				{Name: "vol-common-no-override", UID: "comp1"},
+				{Name: "vol-common-override", UID: "comp2"},
+				{Name: "vol-comp", UID: "comp3"},
 			},
 			environmentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container2, GID: group2200, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, UseAdls: pointers.Ptr(false),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), MaxBuffers: pointers.Ptr[uint64](22), StreamCache: pointers.Ptr[uint64](44)},
-				}},
+				{Name: "vol-common-no-override"},
+				{Name: "vol-common-override", UID: "env1"},
+				{Name: "vol-env", UID: "env2"},
 			},
 			expectedVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container2, GID: group2200, UID: user1000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(false),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
-				}},
+				{Name: "vol-common-no-override", UID: "comp1"},
+				{Name: "vol-common-override", UID: "env1"},
+				{Name: "vol-comp", UID: "comp3"},
+				{Name: "vol-env", UID: "env2"},
+			},
+		},
+		"Deprecated: GID": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", GID: "comp1"},
+				{Name: "vol-common-override", GID: "comp2"},
+				{Name: "vol-comp", GID: "comp3"},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override"},
+				{Name: "vol-common-override", GID: "env1"},
+				{Name: "vol-env", GID: "env2"},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", GID: "comp1"},
+				{Name: "vol-common-override", GID: "env1"},
+				{Name: "vol-comp", GID: "comp3"},
+				{Name: "vol-env", GID: "env2"},
+			},
+		},
+		"Deprecated: RequestsStorage": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", RequestsStorage: resource.MustParse("1G")},
+				{Name: "vol-common-override", RequestsStorage: resource.MustParse("2G")},
+				{Name: "vol-comp", RequestsStorage: resource.MustParse("3G")},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override"},
+				{Name: "vol-common-override", RequestsStorage: resource.MustParse("1M")},
+				{Name: "vol-env", RequestsStorage: resource.MustParse("2M")},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", RequestsStorage: resource.MustParse("1G")},
+				{Name: "vol-common-override", RequestsStorage: resource.MustParse("1M")},
+				{Name: "vol-comp", RequestsStorage: resource.MustParse("3G")},
+				{Name: "vol-env", RequestsStorage: resource.MustParse("2M")},
+			},
+		},
+		"Deprecated: AccessMode": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", AccessMode: "comp1"},
+				{Name: "vol-common-override", AccessMode: "comp2"},
+				{Name: "vol-comp", AccessMode: "comp3"},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override"},
+				{Name: "vol-common-override", AccessMode: "env1"},
+				{Name: "vol-env", AccessMode: "env2"},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", AccessMode: "comp1"},
+				{Name: "vol-common-override", AccessMode: "env1"},
+				{Name: "vol-comp", AccessMode: "comp3"},
+				{Name: "vol-env", AccessMode: "env2"},
+			},
+		},
+		"Blobfuse2: nil handling": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override"},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override"},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+			},
+		},
+		"Blobfuse2: Protocol": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: "env2"}},
+			},
+		},
+		"Blobfuse2: Container": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "env2"}},
+			},
+		},
+		"Blobfuse2: GID": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{GID: "env2"}},
+			},
+		},
+		"Blobfuse2: UID": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UID: "env2"}},
+			},
+		},
+		"Blobfuse2: RequestsStorage": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("1G")}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("2G")}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("3G")}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("1M")}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("2M")}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("1G")}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("1M")}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("3G")}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{RequestsStorage: resource.MustParse("2M")}},
+			},
+		},
+		"Blobfuse2: AccessMode": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AccessMode: "env2"}},
+			},
+		},
+		"Blobfuse2: UseAdls": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(true)}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(false)}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(true)}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(false)}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(true)}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(false)}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(true)}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(false)}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(true)}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(false)}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(false)}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(true)}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(true)}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAdls: pointers.Ptr(false)}},
+			},
+		},
+		"Blobfuse2: UseAzureIdentity": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(true)}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(false)}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(true)}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(false)}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(true)}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(false)}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(true)}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(false)}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(true)}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(false)}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(false)}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(true)}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(true)}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{UseAzureIdentity: pointers.Ptr(false)}},
+			},
+		},
+		"Blobfuse2: StorageAccount": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StorageAccount: "env2"}},
+			},
+		},
+		"Blobfuse2: ResourceGroup": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{ResourceGroup: "env2"}},
+			},
+		},
+		"Blobfuse2: SubscriptionId": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{SubscriptionId: "env2"}},
+			},
+		},
+		"Blobfuse2: TenantId": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "comp2"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "comp3"}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "env1"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "env2"}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "comp1"}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "env1"}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "comp3"}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{TenantId: "env2"}},
+			},
+		},
+		"Blobfuse2: CacheMode": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("comp1")}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("comp2")}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("comp3")}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("env1")}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("env2")}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("comp1")}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("env1")}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("comp3")}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{CacheMode: pointers.Ptr[radixv1.BlobFuse2CacheMode]("env2")}},
+			},
+		},
+		"Blobfuse2.AttributeCacheOptions: nil handling": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+			},
+		},
+		"Blobfuse2.AttributeCacheOptions: Timeout": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](2)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](3)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](20)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](3)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{Timeout: pointers.Ptr[uint32](20)}}},
+			},
+		},
+		"Blobfuse2.FileCacheOptions: nil handling": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+			},
+		},
+		"Blobfuse2.FileCacheOptions: Timeout": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](2)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](3)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](20)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](3)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{Timeout: pointers.Ptr[uint32](20)}}},
+			},
+		},
+		"Blobfuse2.StreamingOptions: nil handling": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+			},
+		},
+		"Blobfuse2.StreamingOptions: Enabled": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(true)}}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(true)}}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(true)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{}}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(true)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(true)}}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(true)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(true)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{StreamingOptions: &radixv1.BlobFuse2StreamingOptions{Enabled: pointers.Ptr(false)}}},
+			},
+		},
+		"Blobfuse2.BlockCacheOptions: nil handling": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+			},
+		},
+		"Blobfuse2.BlockCacheOptions: BlockSize": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](2)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](3)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](20)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](3)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{BlockSize: pointers.Ptr[uint32](20)}}},
+			},
+		},
+		"Blobfuse2.BlockCacheOptions: PoolSize": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](2)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](3)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](20)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](3)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PoolSize: pointers.Ptr[uint32](20)}}},
+			},
+		},
+		"Blobfuse2.BlockCacheOptions: DiskSize": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](2)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](3)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](20)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](3)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskSize: pointers.Ptr[uint32](20)}}},
+			},
+		},
+		"Blobfuse2.BlockCacheOptions: DiskTimeout": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](2)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](3)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](20)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](3)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{DiskTimeout: pointers.Ptr[uint32](20)}}},
+			},
+		},
+		"Blobfuse2.BlockCacheOptions: PrefetchCount": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](2)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](3)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](20)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](3)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchCount: pointers.Ptr[uint32](20)}}},
+			},
+		},
+		"Blobfuse2.BlockCacheOptions: Parallelism": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](2)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](3)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](20)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](1)}}},
+				{Name: "vol-common-override", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](10)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](3)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{Parallelism: pointers.Ptr[uint32](20)}}},
+			},
+		},
+		"Blobfuse2.BlockCacheOptions: PrefetchOnOpen": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(true)}}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(false)}}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(true)}}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(false)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(true)}}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{}}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(false)}}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(true)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(false)}}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "vol-common-no-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(true)}}},
+				{Name: "vol-common-no-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(false)}}},
+				{Name: "vol-common-override-true", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(false)}}},
+				{Name: "vol-common-override-false", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(true)}}},
+				{Name: "vol-comp", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(true)}}},
+				{Name: "vol-env", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{PrefetchOnOpen: pointers.Ptr(false)}}},
+			},
+		},
+		"EmptyDir": {
+			componentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage-common", EmptyDir: &radixv1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("1M")}},
+				{Name: "storage-comp", EmptyDir: &radixv1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("2M")}},
+			},
+			environmentVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage-common", EmptyDir: &radixv1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("3M")}},
+				{Name: "storage-env", EmptyDir: &radixv1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("4M")}},
+			},
+			expectedVolumeMounts: []radixv1.RadixVolumeMount{
+				{Name: "storage-common", EmptyDir: &radixv1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("3M")}},
+				{Name: "storage-comp", EmptyDir: &radixv1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("2M")}},
+				{Name: "storage-env", EmptyDir: &radixv1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("4M")}},
 			},
 		},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
+	for testName, testCase := range testCases {
+		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
+			const (
+				env           = "any-env"
+				componentName = "any-comp"
+			)
 			environmentConfigBuilder := utils.AnEnvironmentConfig().WithEnvironment(env).WithVolumeMounts(testCase.environmentVolumeMounts)
 			componentBuilder := utils.NewApplicationComponentBuilder().WithName(componentName).
 				WithEnvironmentConfigs(environmentConfigBuilder).WithVolumeMounts(testCase.componentVolumeMounts)
 
 			ra := utils.ARadixApplication().WithComponents(componentBuilder).BuildRA()
 
-			deployComponents, _ := GetRadixComponentsForEnv(context.Background(), ra, nil, env, componentImages, envVarsMap, nil)
+			deployComponents, _ := GetRadixComponentsForEnv(context.Background(), ra, nil, env, nil, nil, nil)
 			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
 				return component.Name == componentName
 			})
 			require.True(t, exists)
 			assert.Equal(t, testCase.expectedVolumeMounts, deployComponent.VolumeMounts)
-		})
-	}
-}
-
-func Test_GetRadixComponents_VolumeMounts_MultipleEnvs(t *testing.T) {
-	componentName := "comp"
-	anyImagePath := "imagepath"
-	componentImages := make(pipeline.DeployComponentImages)
-	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
-	envVarsMap := make(radixv1.EnvVarsMap)
-	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
-	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
-
-	const (
-		path1          = "/home/path1"
-		path2          = "/home/path2"
-		container1     = "container1"
-		container2     = "container2"
-		user1000       = "1000"
-		user2000       = "2000"
-		group1100      = "1100"
-		group2200      = "2200"
-		skuStandardLRS = "Standard_LRS"
-		skuStandardGRS = "Standard_GRS"
-		env1           = "env1"
-		env2           = "env2"
-	)
-	var (
-		accessModeReadWriteMany         = strings.ToLower(string(corev1.ReadWriteMany))
-		accessModeReadOnlyMany          = strings.ToLower(string(corev1.ReadOnlyMany))
-		bindingModeImmediate            = strings.ToLower(string(storagev1.VolumeBindingImmediate))
-		bindingModeWaitForFirstConsumer = strings.ToLower(string(storagev1.VolumeBindingWaitForFirstConsumer))
-	)
-	testCases := []struct {
-		description             string
-		componentVolumeMounts   []radixv1.RadixVolumeMount
-		environmentVolumeMounts map[string][]radixv1.RadixVolumeMount
-		expectedVolumeMounts    map[string][]radixv1.RadixVolumeMount
-	}{
-		{
-			description: "Env overrides component VolumeMounts for blobFuse2",
-			componentVolumeMounts: []radixv1.RadixVolumeMount{
-				{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
-					Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
-				}},
-			},
-			environmentVolumeMounts: map[string][]radixv1.RadixVolumeMount{
-				env1: {
-					{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-						Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
-						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
-					}}},
-			},
-			expectedVolumeMounts: map[string][]radixv1.RadixVolumeMount{
-				env1: {
-					{Name: "storage1", Path: path2, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-						Container: container2, GID: group2200, UID: user2000, SkuName: skuStandardGRS, RequestsStorage: "2M", AccessMode: accessModeReadOnlyMany, BindingMode: bindingModeWaitForFirstConsumer, UseAdls: pointers.Ptr(false),
-						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(false), BlockSize: pointers.Ptr[uint64](11), MaxBuffers: pointers.Ptr[uint64](22), BufferSize: pointers.Ptr[uint64](33), StreamCache: pointers.Ptr[uint64](44), MaxBlocksPerFile: pointers.Ptr[uint64](55)},
-					}}},
-				env2: {
-					{Name: "storage1", Path: path1, BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-						Container: container1, GID: group1100, UID: user1000, SkuName: skuStandardLRS, RequestsStorage: "1M", AccessMode: accessModeReadWriteMany, BindingMode: bindingModeImmediate, UseAdls: pointers.Ptr(true),
-						Streaming: &radixv1.RadixVolumeMountStreaming{Enabled: pointers.Ptr(true), BlockSize: pointers.Ptr[uint64](1), MaxBuffers: pointers.Ptr[uint64](2), BufferSize: pointers.Ptr[uint64](3), StreamCache: pointers.Ptr[uint64](4), MaxBlocksPerFile: pointers.Ptr[uint64](5)},
-					}}},
-			},
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
-			componentBuilder := utils.NewApplicationComponentBuilder().WithName(componentName).WithVolumeMounts(testCase.componentVolumeMounts)
-			for envName, volumeMounts := range testCase.environmentVolumeMounts {
-				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment(envName).WithVolumeMounts(volumeMounts))
-			}
-
-			ra := utils.ARadixApplication().WithEnvironment(env1, "").WithEnvironment(env2, "").
-				WithComponents(componentBuilder).BuildRA()
-
-			for _, envName := range []string{env1, env2} {
-				deployComponents, _ := GetRadixComponentsForEnv(context.Background(), ra, nil, envName, componentImages, envVarsMap, nil)
-				deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployComponent) bool {
-					return component.Name == componentName
-				})
-				require.True(t, exists)
-				assert.Equal(t, testCase.expectedVolumeMounts[envName], deployComponent.VolumeMounts)
-			}
 		})
 	}
 }

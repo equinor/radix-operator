@@ -143,7 +143,7 @@ func getRadixJobComponentFailurePolicy(job v1.RadixJobComponent, jobEnvConfig *v
 			dst = &v1.RadixJobComponentFailurePolicy{}
 		}
 
-		if err := mergo.Merge(dst, jobEnvConfig.FailurePolicy, mergo.WithOverride, mergo.WithOverrideEmptySlice, mergo.WithTransformers(booleanPointerTransformer)); err != nil {
+		if err := mergo.Merge(dst, jobEnvConfig.FailurePolicy, mergo.WithOverride, mergo.WithOverrideEmptySlice, mergo.WithTransformers(mergoTranformers)); err != nil {
 			return nil, fmt.Errorf("failed to merge failurePolicy from environment config: %w", err)
 		}
 	}
