@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"strconv"
 	"strings"
 	"time"
@@ -96,6 +97,12 @@ func NewConfig() *apiconfig.Config {
 			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
+			PipelineImageTag:                      viper.GetString(defaults.RadixPipelineImageTagEnvironmentVariable),
+			GitCloneConfig: &git.CloneConfig{
+				NSlookupImage: viper.GetString(defaults.RadixGitCloneNsLookupImageEnvironmentVariable),
+				GitImage:      viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),
+				BashImage:     viper.GetString(defaults.RadixGitCloneBashImageEnvironmentVariable),
+			},
 		},
 		CertificateAutomation: certificateconfig.AutomationConfig{
 			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),

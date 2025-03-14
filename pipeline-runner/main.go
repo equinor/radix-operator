@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
-	gitutils "github.com/equinor/radix-operator/pkg/apis/utils/git"
+	gitutils "github.com/equinor/radix-operator/pkg/apis/git"
 	"os"
 	"os/signal"
 	"strconv"

@@ -3,6 +3,7 @@ package build
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -11,7 +12,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -61,7 +61,7 @@ func getCommonPodTolerations() []corev1.Toleration {
 }
 
 func getCommonPodInitContainers(cloneURL, branch string, cloneConfig git.CloneConfig) []corev1.Container {
-	return git.CloneInitContainers(cloneURL, branch, cloneConfig)
+	return git.CloneInitContainersWithSourceCode(cloneURL, branch, cloneConfig)
 }
 
 func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {

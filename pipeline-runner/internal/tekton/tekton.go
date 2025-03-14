@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"strings"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

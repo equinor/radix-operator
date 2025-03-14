@@ -2,10 +2,10 @@ package git_test
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
@@ -16,7 +16,7 @@ func Test_CloneInitContainers_CustomImages(t *testing.T) {
 		image string
 	}
 	cfg := git.CloneConfig{NSlookupImage: "anynslookup:any", GitImage: "anygit:any", BashImage: "anybash:any"}
-	containers := git.CloneInitContainers("anysshurl", "anybranch", cfg)
+	containers := git.CloneInitContainersWithSourceCode("anysshurl", "anybranch", cfg)
 	actual := slice.Map(containers, func(c v1.Container) containerInfo { return containerInfo{name: c.Name, image: c.Image} })
 	expected := []containerInfo{
 		{name: fmt.Sprintf("%snslookup", git.InternalContainerPrefix), image: cfg.NSlookupImage},

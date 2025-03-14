@@ -173,6 +173,8 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
+            - name: RADIXOPERATOR_PIPELINE_IMAGE_TAG
+              value: {{ .Values.pipelineImageTag }}
           livenessProbe:
             httpGet:
               path: /healthz

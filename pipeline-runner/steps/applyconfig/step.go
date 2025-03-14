@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"path/filepath"
 	"strings"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"

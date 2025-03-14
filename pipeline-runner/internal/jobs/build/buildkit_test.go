@@ -3,6 +3,7 @@ package build_test
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"path"
 	"testing"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"

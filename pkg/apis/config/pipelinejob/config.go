@@ -1,6 +1,7 @@
 package pipelinejob
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -14,4 +15,8 @@ type Config struct {
 	AppBuilderResourcesLimitsMemory       *resource.Quantity
 	AppBuilderResourcesRequestsCPU        *resource.Quantity
 	AppBuilderResourcesRequestsMemory     *resource.Quantity
+	// GitCloneConfig Config for the git repo cloning
+	GitCloneConfig *git.CloneConfig
+	// PipelineImageTag Tag for the radix-pipeline image
+	PipelineImageTag string
 }
