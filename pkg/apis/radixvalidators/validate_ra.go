@@ -1633,13 +1633,6 @@ func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
 		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountInvalidType)
 	}
 	//nolint:staticcheck
-	if len(v.RequestsStorage) > 0 {
-		//nolint:staticcheck
-		if _, err := resource.ParseQuantity(v.RequestsStorage); err != nil {
-			return volumeMountDeprecatedSourceValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
-		}
-	}
-	//nolint:staticcheck
 	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Storage) == 0 {
 		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
 	}
@@ -1655,11 +1648,6 @@ func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount, hasI
 		return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingContainer)
 	}
 
-	if len(fuse2.RequestsStorage) > 0 {
-		if _, err := resource.ParseQuantity(fuse2.RequestsStorage); err != nil {
-			return volumeMountBlobFuse2ValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
-		}
-	}
 	if len(fuse2.StorageAccount) > 0 && !storageAccountNameRegExp.Match([]byte(fuse2.StorageAccount)) {
 		return volumeMountBlobFuse2ValidationError(ErrVolumeMountInvalidStorageAccount)
 	}
@@ -1677,6 +1665,23 @@ func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount, hasI
 			return volumeMountBlobFuse2ValidationError(ErrVolumeMountWithUseAzureIdentityMissingStorageAccount)
 		}
 	}
+
+	if err := validateBlobFuse2BlockCache(fuse2.BlockCacheOptions); err != nil {
+		return fmt.Errorf("invalid blockCache configuration: %w", err)
+	}
+
+	return nil
+}
+
+func validateBlobFuse2BlockCache(blockCache *radixv1.BlobFuse2BlockCacheOptions) error {
+	if blockCache == nil {
+		return nil
+	}
+
+	if prefetchCount := blockCache.PrefetchCount; prefetchCount != nil && !(*prefetchCount == 0 || *prefetchCount > 10) {
+		return ErrInvalidBlobFuse2BlockCachePrefetchCount
+	}
+
 	return nil
 }
 

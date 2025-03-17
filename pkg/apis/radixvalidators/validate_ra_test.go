@@ -1440,24 +1440,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: nil,
 		},
-		"blobfuse2: valid requestsStorage": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-							Container:       "any-container",
-							RequestsStorage: "50Mi",
-						},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
-		},
 		"blobfuse2: invalid protocol": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
@@ -1490,24 +1472,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
-		},
-		"blobfuse2: invalid requestsStorage": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-							Container:       "any-container",
-							RequestsStorage: "100x",
-						},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountInvalidRequestsStorage,
 		},
 		"blobfuse2: has optional storage account": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1692,6 +1656,70 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				},
 			},
 			expectedError: radixvalidators.ErrVolumeMountMissingAzureIdentity,
+		},
+		"blobfuse2.blockCache prefetchCount 0 is valid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](0),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2.blockCache prefetchCount 11 is valid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](11),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2.blockCache prefetchCount 1 is invalid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](1),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrInvalidBlobFuse2BlockCachePrefetchCount,
+		},
+		"blobfuse2.blockCache prefetchCount 10 is invalid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](10),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrInvalidBlobFuse2BlockCachePrefetchCount,
 		},
 		"emptyDir: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -2460,7 +2488,10 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 }
 
 func createValidRA() *radixv1.RadixApplication {
-	validRA, _ := utils.GetRadixApplicationFromFile("testdata/radixconfig.yaml")
+	validRA, err := utils.GetRadixApplicationFromFile("testdata/radixconfig.yaml")
+	if err != nil {
+		panic(err)
+	}
 
 	return validRA
 }

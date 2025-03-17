@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -486,31 +485,6 @@ type RadixCommonDeployComponent interface {
 	GetRuntime() *Runtime
 	GetNetwork() *Network
 	GetHealthChecks() *RadixHealthChecks
-}
-
-// RadixCommonDeployComponentFactory defines a common component factory
-type RadixCommonDeployComponentFactory interface {
-	Create() RadixCommonDeployComponent
-	GetTargetType() reflect.Type
-}
-
-type RadixDeployComponentFactory struct{}
-type RadixDeployJobComponentFactory struct{}
-
-func (factory RadixDeployComponentFactory) Create() RadixCommonDeployComponent {
-	return &RadixDeployComponent{}
-}
-
-func (factory RadixDeployComponentFactory) GetTargetType() reflect.Type {
-	return reflect.TypeOf(&RadixDeployComponent{}).Elem()
-}
-
-func (factory RadixDeployJobComponentFactory) Create() RadixCommonDeployComponent {
-	return &RadixDeployJobComponent{}
-}
-
-func (factory RadixDeployJobComponentFactory) GetTargetType() reflect.Type {
-	return reflect.TypeOf(&RadixDeployJobComponentFactory{}).Elem()
 }
 
 // IsActive The RadixDeployment is active

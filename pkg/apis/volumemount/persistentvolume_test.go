@@ -1,241 +1,366 @@
-package volumemount
+package volumemount_test
 
 import (
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/stretchr/testify/suite"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-type pvTestSuite struct {
-	testSuite
-}
-
-func TestPvTestSuite(t *testing.T) {
-	suite.Run(t, new(pvTestSuite))
-}
-
-func (s *pvTestSuite) Test_EqualPersistentVolumes() {
-	createPv := func(modify func(pv *corev1.PersistentVolume)) *corev1.PersistentVolume {
-		pv := createExpectedPv(getPropsCsiBlobVolume1Storage1(nil), modify)
-		return &pv
+func Test_ComparePersistentVolumes(t *testing.T) {
+	validPV := func(modify func(pv *corev1.PersistentVolume)) *corev1.PersistentVolume {
+		pv := &corev1.PersistentVolume{
+			Spec: corev1.PersistentVolumeSpec{
+				PersistentVolumeSource: corev1.PersistentVolumeSource{
+					CSI: &corev1.CSIPersistentVolumeSource{
+						Driver:           "anydriver",
+						VolumeAttributes: map[string]string{"any": "any"},
+						NodeStageSecretRef: &corev1.SecretReference{
+							Name:      "anysecret",
+							Namespace: "anysecretns",
+						},
+					},
+				},
+				MountOptions: []string{"--any=any"},
+				Capacity:     corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1")},
+				AccessModes:  []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+				ClaimRef: &corev1.ObjectReference{
+					APIVersion: "anyapi",
+					Kind:       "anykind",
+					Namespace:  "anypvcns",
+					Name:       "anypvc-abcde",
+				},
+			},
+		}
+		if modify != nil {
+			modify(pv)
+		}
+		return pv
 	}
-	createPvWithProps := func(modify func(*expectedPvcPvProperties)) *corev1.PersistentVolume {
-		pv := createExpectedPv(getPropsCsiBlobVolume1Storage1(modify), nil)
-		return &pv
-	}
-	tests := []struct {
-		name     string
-		pv1      *corev1.PersistentVolume
-		pv2      *corev1.PersistentVolume
-		expected bool
+
+	tests := map[string]struct {
+		pv1         *corev1.PersistentVolume
+		pv2         *corev1.PersistentVolume
+		expectEqual bool
 	}{
-		{
-			name:     "both nil",
-			pv1:      nil,
-			pv2:      nil,
-			expected: false,
+		"base pv1 and pv2 are equal": {
+			pv1:         validPV(nil),
+			pv2:         validPV(nil),
+			expectEqual: true,
 		},
-		{
-			name:     "one nil",
-			pv1:      createPv(nil),
-			pv2:      nil,
-			expected: false,
+		"pv1 is nil": {
+			pv1:         nil,
+			pv2:         validPV(nil),
+			expectEqual: false,
 		},
-		{
-			name:     "equal",
-			pv1:      createPv(nil),
-			pv2:      createPv(nil),
-			expected: true,
+		"pv1 and pv2 are nil": {
+			pv1:         nil,
+			pv2:         nil,
+			expectEqual: false,
 		},
-		{
-			name: "different access mode",
-			pv1: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+		"pv2 is nil": {
+			pv1:         validPV(nil),
+			pv2:         nil,
+			expectEqual: false,
+		},
+		"pv1.Spec.CSI is nil": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI = nil
 			}),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+			pv2:         validPV(nil),
+			expectEqual: false,
+		},
+		"pv2.Spec.CSI is nil": {
+			pv1: validPV(nil),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI = nil
 			}),
-			expected: false,
+			expectEqual: false,
 		},
-		{
-			name: "no access mode",
-			pv1:  createPv(func(pv *corev1.PersistentVolume) { pv.Spec.AccessModes = nil }),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+		"different volumeattribute value": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes = map[string]string{
+					"pv": "pv1",
+				}
 			}),
-			expected: false,
-		},
-		{
-			name:     "no ClaimRef",
-			pv1:      createPv(nil),
-			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef = nil }),
-			expected: false,
-		},
-		{
-			name:     "different ClaimRef name",
-			pv1:      createPv(nil),
-			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Name = utils.RandString(10) }),
-			expected: false,
-		},
-		{
-			name:     "different ClaimRef namespace",
-			pv1:      createPv(nil),
-			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Namespace = utils.RandString(10) }),
-			expected: false,
-		},
-		{
-			name:     "different ClaimRef kind",
-			pv1:      createPv(nil),
-			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Kind = "secret" }),
-			expected: false,
-		},
-		{
-			name:     "no CSI",
-			pv1:      createPv(nil),
-			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.CSI = nil }),
-			expected: false,
-		},
-		{
-			name:     "no CSI VolumeAttributes",
-			pv1:      createPv(nil),
-			pv2:      createPv(func(pv *corev1.PersistentVolume) { pv.Spec.CSI.VolumeAttributes = nil }),
-			expected: false,
-		},
-		{
-			name: "different CSI VolumeAttribute csiVolumeMountAttributeContainerName",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeContainerName] = utils.RandString(10)
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes = map[string]string{
+					"pv": "pv2",
+				}
 			}),
-			expected: false,
+			expectEqual: false,
 		},
-		{
-			name: "different CSI VolumeAttribute csiVolumeMountAttributeProtocol",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProtocol] = utils.RandString(10)
+		"different volumeattribute keys": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes = map[string]string{
+					"pv1": "any",
+				}
 			}),
-			expected: false,
-		},
-		{
-			name: "ignore different CSI VolumeAttribute csiVolumeMountAttributeProvisionerIdentity",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProvisionerIdentity] = utils.RandString(10)
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes = map[string]string{
+					"pv2": "any",
+				}
 			}),
-			expected: true,
+			expectEqual: false,
 		},
-		{
-			name: "different CSI VolumeAttribute csiVolumeMountAttributeSecretNamespace",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeSecretNamespace] = utils.RandString(10)
+		"ignore different obsolete sctorageclass volumeattributes": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes = map[string]string{
+					"csi.storage.k8s.io/pv/name":                   "pv1",
+					"csi.storage.k8s.io/pvc/name":                  "pv1",
+					"csi.storage.k8s.io/pvc/namespace":             "pv1",
+					"storage.kubernetes.io/csiProvisionerIdentity": "pv1",
+				}
 			}),
-			expected: false,
-		},
-		{
-			name: "extra CSI VolumeAttribute",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.VolumeAttributes["some-extra-attribute"] = utils.RandString(10)
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.VolumeAttributes = map[string]string{
+					"csi.storage.k8s.io/pv/name":                   "pv2",
+					"csi.storage.k8s.io/pvc/name":                  "pv2",
+					"csi.storage.k8s.io/pvc/namespace":             "pv2",
+					"storage.kubernetes.io/csiProvisionerIdentity": "pv2",
+				}
 			}),
-			expected: false,
+			expectEqual: true,
 		},
-		{
-			name: "different CSI Driver",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.Driver = utils.RandString(10)
+		"different mountoptions": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.MountOptions = []string{"--arg=pv1"}
 			}),
-			expected: false,
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.MountOptions = []string{"--arg=pv2"}
+			}),
+			expectEqual: false,
 		},
-		{
-			name: "no CSI NodeStageSecretRef",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
+		"mountoption --block-cache-path should ignore value": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.MountOptions = []string{"--block-cache-path=pv1"}
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.MountOptions = []string{"--block-cache-path=pv2"}
+			}),
+			expectEqual: true,
+		},
+		"order of mountoptions should not matter": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.MountOptions = []string{"--arg1", "--arg2"}
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.MountOptions = []string{"--arg2", "--arg1"}
+			}),
+			expectEqual: true,
+		},
+		"different capacity, both set": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.Capacity = corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1M")}
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.Capacity = corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("2M")}
+			}),
+			expectEqual: false,
+		},
+		"different capacity, pv1 not set": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.Capacity = nil
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.Capacity = corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("2M")}
+			}),
+			expectEqual: false,
+		},
+		"different capacity, pv2 not set": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.Capacity = corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("2M")}
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.Capacity = nil
+			}),
+			expectEqual: false,
+		},
+		"capacity nil and empty map should be equal": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.Capacity = corev1.ResourceList{}
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.Capacity = nil
+			}),
+			expectEqual: true,
+		},
+		"different accessmodes": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany, corev1.ReadWriteMany}
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany, corev1.ReadWriteOnce}
+			}),
+			expectEqual: false,
+		},
+		"same accessmodes in different order should be equal": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany, corev1.ReadWriteMany}
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany, corev1.ReadOnlyMany}
+			}),
+			expectEqual: true,
+		},
+		"accessmodes nil and empty shoul be equal": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = nil
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{}
+			}),
+			expectEqual: true,
+		},
+		"different CSI driver": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.Driver = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.Driver = "pv2"
+			}),
+			expectEqual: false,
+		},
+		"pv1 claimref is nil": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef = nil
+			}),
+			pv2:         validPV(nil),
+			expectEqual: false,
+		},
+		"pv2 claimref is nil": {
+			pv1: validPV(nil),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef = nil
+			}),
+			expectEqual: false,
+		},
+		"bloh claimref is nil": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef = nil
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef = nil
+			}),
+			expectEqual: true,
+		},
+		"different claimref name": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.Name = "pv1-12345"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.Name = "pv2-12345"
+			}),
+			expectEqual: false,
+		},
+		"different claimref suffix": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.Name = "pv-12345"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.Name = "pv-abcde"
+			}),
+			expectEqual: true,
+		},
+		"different claimref namespace": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.Namespace = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.Namespace = "pv2"
+			}),
+			expectEqual: false,
+		},
+		"different claimref kind": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.Kind = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.Kind = "pv2"
+			}),
+			expectEqual: false,
+		},
+		"different claimref apiversion": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.APIVersion = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.APIVersion = "pv2"
+			}),
+			expectEqual: false,
+		},
+		"different claimref UID should be ignored": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.UID = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.UID = "pv2"
+			}),
+			expectEqual: true,
+		},
+		"different claimref ResourceVersion should be ignored": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.ResourceVersion = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.ClaimRef.ResourceVersion = "pv2"
+			}),
+			expectEqual: true,
+		},
+		"different nodestagesecretref name": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef.Name = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef.Name = "pv2"
+			}),
+			expectEqual: false,
+		},
+		"different nodestagesecretref namespace": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef.Namespace = "pv1"
+			}),
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef.Namespace = "pv2"
+			}),
+			expectEqual: false,
+		},
+		"both nodestagesecretref is nil": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
 				pv.Spec.CSI.NodeStageSecretRef = nil
 			}),
-			expected: false,
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = nil
+			}),
+			expectEqual: true,
 		},
-		{
-			name: "different CSI NodeStageSecretRef",
-			pv1:  createPv(nil),
-			pv2: createPv(func(pv *corev1.PersistentVolume) {
-				pv.Spec.CSI.NodeStageSecretRef.Name = utils.RandString(10)
+		"nodestagesecretref pv1 is nil and pv2 is empty": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = nil
 			}),
-			expected: false,
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = &corev1.SecretReference{}
+			}),
+			expectEqual: false,
 		},
-		{
-			name: "different namespace",
-			pv1:  createPv(nil),
-			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.namespace = utils.RandString(10)
+		"nodestagesecretref pv1 is empty and pv2 is nil": {
+			pv1: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = &corev1.SecretReference{}
 			}),
-			expected: false,
-		},
-		{
-			name: "different blobStorageName",
-			pv1:  createPv(nil),
-			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.blobStorageName = utils.RandString(10)
+			pv2: validPV(func(pv *corev1.PersistentVolume) {
+				pv.Spec.CSI.NodeStageSecretRef = nil
 			}),
-			expected: false,
-		},
-		{
-			name: "different pvGid",
-			pv1:  createPv(nil),
-			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.pvGid = "7779"
-			}),
-			expected: false,
-		},
-		{
-			name: "different pvUid",
-			pv1: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.pvGid = ""
-				props.pvUid = "7779"
-			}),
-			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.pvGid = ""
-				props.pvUid = "8889"
-			}),
-			expected: false,
-		},
-		{
-			name: "different pvProvisioner",
-			pv1:  createPv(nil),
-			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.pvProvisioner = utils.RandString(10)
-			}),
-			expected: false,
-		},
-		{
-			name: "different pvSecretName",
-			pv1:  createPv(nil),
-			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.pvSecretName = utils.RandString(10)
-			}),
-			expected: false,
-		},
-		{
-			name: "different readOnly",
-			pv1: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.readOnly = true
-			}),
-			pv2: createPvWithProps(func(props *expectedPvcPvProperties) {
-				props.readOnly = false
-			}),
-			expected: false,
+			expectEqual: false,
 		},
 	}
 
-	for _, tt := range tests {
-		s.T().Run(tt.name, func(t *testing.T) {
-			if got := EqualPersistentVolumes(tt.pv1, tt.pv2); got != tt.expected {
-				s.T().Errorf("EqualPersistentVolumes() = %v, want %v", got, tt.expected)
-			}
+	for testName, test := range tests {
+		t.Run(testName, func(t *testing.T) {
+			actualEqual := volumemount.ComparePersistentVolumes(test.pv1, test.pv2)
+			assert.Equal(t, test.expectEqual, actualEqual)
 		})
 	}
+
 }

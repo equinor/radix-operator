@@ -981,12 +981,7 @@ type RadixVolumeMount struct {
 	// Deprecated: use BlobFuse2 instead.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +optional
-	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-
-	// Deprecated: use BlobFuse2 instead.
-	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +optional
-	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+	RequestsStorage resource.Quantity `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
 	// Deprecated: use BlobFuse2 instead.
 	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
@@ -995,18 +990,54 @@ type RadixVolumeMount struct {
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
-	// Deprecated: use BlobFuse2 instead.
-	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
-	// +optional
-	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
-
 	// BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2
 	BlobFuse2 *RadixBlobFuse2VolumeMount `json:"blobFuse2,omitempty"`
 
 	// EmptyDir settings for EmptyDir volume
 	EmptyDir *RadixEmptyDirVolumeMount `json:"emptyDir,omitempty"`
+}
+
+func (v *RadixVolumeMount) GetRequestsStorage() resource.Quantity {
+	switch {
+	case v.HasDeprecatedVolume():
+		//nolint:staticcheck
+		return v.RequestsStorage
+	case v.HasBlobFuse2():
+		return v.BlobFuse2.RequestsStorage
+	default:
+		return resource.Quantity{}
+	}
+}
+
+func (v *RadixVolumeMount) GetStorageContainerName() string {
+	switch {
+	case v.HasDeprecatedVolume():
+		//nolint:staticcheck
+		return v.Storage
+	case v.HasBlobFuse2():
+		return v.BlobFuse2.Container
+	default:
+		return ""
+	}
+}
+
+func (v *RadixVolumeMount) GetVolumeMountType() MountType {
+	if v == nil {
+		return ""
+	}
+
+	if v.HasDeprecatedVolume() {
+		//nolint:staticcheck
+		return v.Type
+	}
+
+	if v.HasBlobFuse2() {
+		if v.BlobFuse2.Protocol == BlobFuse2ProtocolFuse2 || v.BlobFuse2.Protocol == "" {
+			return MountTypeBlobFuse2Fuse2CsiAzure
+		}
+	}
+
+	return "unsupported"
 }
 
 // HasDeprecatedVolume returns true if the volume mount is configured to use the deprecated volume type
@@ -1063,16 +1094,10 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	UID string `json:"uid,omitempty"` // Optional. Volume mount owner UserID. Used instead of GID.
 
-	// SKU Type of Azure storage.
-	// More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-	// +kubebuilder:validation:Enum=Standard_LRS;Premium_LRS;Standard_GRS;Standard_RAGRS;""
-	// +optional
-	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-
 	// Requested size (opens new window)of allocated mounted volume. Default value is set to "1Mi" (1 megabyte). Current version of the driver does not affect mounted volume size
 	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 	// +optional
-	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+	RequestsStorage resource.Quantity `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
 	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
@@ -1080,21 +1105,36 @@ type RadixBlobFuse2VolumeMount struct {
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
-	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
-	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
-	// +optional
-	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
-
 	// Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
 	// Default false. This must be turned on when HNS enabled account is mounted.
 	// +optional
 	UseAdls *bool `json:"useAdls,omitempty"`
 
-	// Configure Streaming mode. Used for blobfuse2.
+	// Configure attribute cache settings.
+	// +optional
+	AttributeCacheOptions *BlobFuse2AttributeCacheOptions `json:"attributeCache,omitempty"`
+
+	// Defines how files should be cached.
+	//
+	// File: Reads and caches the entire file
+	// Block (default): Blocks of fixed size are downloaded and cached
+	// DirectIO: Caching is disabled. All IO is passed directly to the storage account.
+	// +optional
+	CacheMode *BlobFuse2CacheMode `json:"cacheMode,omitempty"`
+
+	// Configure file cache settings. Applicable when cacheMode is File.
+	// +optional
+	FileCacheOptions *BlobFuse2FileCacheOptions `json:"fileCache,omitempty"`
+
+	// Configure block cache settings. Applicable when cacheMode is Block.
+	// +optional
+	BlockCacheOptions *BlobFuse2BlockCacheOptions `json:"blockCache,omitempty"`
+
+	// Deprecated: Configure caching with cacheMode.
+	// Configure streaming settings.
 	// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
 	// +optional
-	Streaming *RadixVolumeMountStreaming `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
+	StreamingOptions *BlobFuse2StreamingOptions `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
 
 	// UseAzureIdentity defines that credentials for accessing Azure Storage will be acquired using Azure Workload Identity instead of using a ClientID and Secret.
 	// +optional
@@ -1117,32 +1157,86 @@ type RadixBlobFuse2VolumeMount struct {
 	TenantId string `json:"tenantId,omitempty"`
 }
 
-// RadixVolumeMountStreaming configure streaming to read and write large files that will not fit in the file cache on the local disk. Used for blobfuse2.
+// +kubebuilder:validation:Enum=File;Block;DirectIO
+type BlobFuse2CacheMode string
+
+const (
+	// Reads and caches the entire file
+	BlobFuse2CacheModeFile BlobFuse2CacheMode = "File"
+
+	// Blocks of fixed size are downloaded and cached
+	BlobFuse2CacheModeBlock BlobFuse2CacheMode = "Block"
+
+	// Caching is disabled. All IO is passed directly to the storage account.
+	BlobFuse2CacheModeDirectIO BlobFuse2CacheMode = "DirectIO"
+)
+
+// BlobFuse2AttributeCacheOptions defines options for attribute cache
+type BlobFuse2AttributeCacheOptions struct {
+	// The timeout (in seconds) for the attribute cache entries. Default 0.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	Timeout *uint32 `json:"timeout,omitempty"`
+}
+
+// BlobFuse2BlockCacheOptions defines options for block cache
+type BlobFuse2BlockCacheOptions struct {
+	// Size (in MB) of a block to be downloaded as a unit. Default is 4.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BlockSize *uint32 `json:"blockSize,omitempty"`
+
+	// Size (in MB) of total memory preallocated for block-cache.
+	// Minimum value:
+	// - if prefetchCount > 0: prefetchCount * blockSize
+	// - if prefetchCount = 0: blockSize
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	PoolSize *uint32 `json:"poolSize,omitempty"`
+
+	// Size (in MB) of total disk capacity that block cache can use.
+	// 0 (default) disables disk caching
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	DiskSize *uint32 `json:"diskSize,omitempty"`
+
+	// Timeout (in seconds) for which persisted data remains in disk cache. Default 120.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	DiskTimeout *uint32 `json:"diskTimeout,omitempty"`
+
+	// Max number of blocks to prefetch. Default 11.
+	// Value must be 0 (prefetching disabled) or greater than 10.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	PrefetchCount *uint32 `json:"prefetchCount,omitempty"`
+
+	// Start prefetching on open or wait for first read. Default false.
+	// +optional
+	PrefetchOnOpen *bool `json:"prefetchOnOpen,omitempty"`
+
+	// Number of worker thread responsible for upload/download jobs. Default 8.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Parallelism *uint32 `json:"parallelism,omitempty"`
+}
+
+// BlobFuse2FileCacheOptions defines options for file cache
+type BlobFuse2FileCacheOptions struct {
+	// The timeout (in seconds) for which file cache is valid. Default 120.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	Timeout *uint32 `json:"timeout,omitempty"`
+}
+
+// BlobFuse2StreamingOptions configure streaming to read and write large files that will not fit in the file cache on the local disk. Used for blobfuse2.
 // More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
-type RadixVolumeMountStreaming struct {
+type BlobFuse2StreamingOptions struct {
+	// Deprecated: Configure caching with cacheMode in blobFuse2 section.
 	// Enable streaming mode. Default true.
+	// For backward compatibility, Radix will use cachMode:File if this field is explicitly set to false.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
-	// Optional. The size of each block to be cached in memory (in MB).
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	BlockSize *uint64 `json:"blockSize,omitempty"`
-	// Optional. The total number of buffers to be cached in memory (in MB).
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	MaxBuffers *uint64 `json:"maxBuffers,omitempty"`
-	// Optional. The size of each buffer to be cached in memory (in MB).
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	BufferSize *uint64 `json:"bufferSize,omitempty"`
-	// Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse (in MB).
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	StreamCache *uint64 `json:"streamCache,omitempty"`
-	// Optional. The maximum number of blocks to be cached in memory.
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	MaxBlocksPerFile *uint64 `json:"maxBlocksPerFile,omitempty"`
 }
 
 // MountType Holds types of mount
@@ -1409,7 +1503,7 @@ type OAuth2 struct {
 	// +optional
 	Credentials CredentialsType `json:"credentials,omitempty"`
 
-        // SkipAuthRoutes defines regex pattern of routes that should not be authenticated. Notice the ^ prefix and $ suffix to make sure the whole path is matched 
+	// SkipAuthRoutes defines regex pattern of routes that should not be authenticated. Notice the ^ prefix and $ suffix to make sure the whole path is matched
 	// +optional
 	// example: GET=^/healthz$
 	SkipAuthRoutes []string `json:"skipAuthRoutes,omitempty"`

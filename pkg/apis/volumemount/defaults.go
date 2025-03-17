@@ -5,23 +5,14 @@ const (
 	CsiVolumeSourceDriverSecretStore = "secrets-store.csi.k8s.io"
 	// CsiVolumeSourceVolumeAttributeSecretProviderClass Secret provider class volume attribute
 	CsiVolumeSourceVolumeAttributeSecretProviderClass = "secretProviderClass"
-	// ReadOnlyMountOption The readonly volume mount option for CSI fuse driver
-	ReadOnlyMountOption = "-o ro"
 
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<randomstring5>
 	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-<guid>
-
-	csiMountOptionGid     = "gid"      // Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
-	csiMountOptionUid     = "uid"      // Volume mount owner UserID. Used instead of GroupID
-	csiMountOptionUseAdls = "use-adls" // Use ADLS or Block Blob
-
-	csiVolumeAttributeProtocolParameterFuse  = "fuse"  // Protocol "blobfuse"
-	csiVolumeAttributeProtocolParameterFuse2 = "fuse2" // Protocol "blobfuse2"
-	csiVolumeAttributeStorageAccount         = "storageAccount"
-	csiVolumeAttributeClientID               = "clientID"
-	csiVolumeAttributeResourceGroup          = "resourcegroup"
-	csiVolumeAttributeSubscriptionId         = "subscriptionid"
-	csiVolumeAttributeTenantId               = "tenantID"
+	csiVolumeAttributeStorageAccount     = "storageAccount"
+	csiVolumeAttributeClientID           = "clientID"
+	csiVolumeAttributeResourceGroup      = "resourcegroup"
+	csiVolumeAttributeSubscriptionId     = "subscriptionid"
+	csiVolumeAttributeTenantId           = "tenantID"
 
 	csiVolumeMountAttributePvName              = "csi.storage.k8s.io/pv/name"
 	csiVolumeMountAttributePvcName             = "csi.storage.k8s.io/pvc/name"
