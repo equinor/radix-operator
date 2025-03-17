@@ -106,6 +106,9 @@ const (
 	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
 	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"
 
+	// 	RadixPipelineTriggeredFromWebhook Radix pipeline triggered from gitHub webhook
+	RadixPipelineTriggeredFromWebhook = "RADIX_PIPELINE_TRIGGERED_FROM_WEBHOOK"
+
 	// RadixActiveClusterEgressIpsEnvironmentVariable IPs assigned to the cluster
 	RadixActiveClusterEgressIpsEnvironmentVariable = "RADIX_ACTIVE_CLUSTER_EGRESS_IPS"
 

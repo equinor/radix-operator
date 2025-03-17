@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -134,7 +135,7 @@ func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 		return err
 	}
 
-	pipelineJobName := fmt.Sprintf("%s-%s", cli.pipelineInfo.PipelineArguments.JobName, utils.RandString(5))
+	pipelineJobName := strings.ToLower(fmt.Sprintf("%s-%s", cli.pipelineInfo.PipelineArguments.JobName, utils.RandString(5)))
 	configMap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pipelineJobName,

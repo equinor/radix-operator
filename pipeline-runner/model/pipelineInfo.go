@@ -115,9 +115,12 @@ type PipelineArguments struct {
 	// Name of secret with .dockerconfigjson key containing docker auths. Optional.
 	// Used to authenticate external container registries when using buildkit to build dockerfiles.
 	ExternalContainerRegistryDefaultAuthSecret string
-
+	// ApplyConfigOptions holds options for applying radixconfig
 	ApplyConfigOptions ApplyConfigOptions
-	GitWorkspace       string
+	// GitWorkspace is the path to the git workspace
+	GitWorkspace string
+	// TriggeredFromWebhook indicates if the job was triggered from a webhook
+	TriggeredFromWebhook bool
 }
 
 // InitPipeline Initialize pipeline with step implementations
@@ -292,4 +295,9 @@ func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 func (p *PipelineInfo) SetBuildContext(context *BuildContext) *PipelineInfo {
 	p.BuildContext = context
 	return p
+}
+
+// GetTriggeredFromWebhook Get triggered from webhook
+func (p *PipelineInfo) GetTriggeredFromWebhook() bool {
+	return p.PipelineArguments.TriggeredFromWebhook
 }

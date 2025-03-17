@@ -200,6 +200,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, r
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, maps.ToString(job.config.DNSConfig.ReservedAppDNSAliases)),
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, strings.Join(job.config.DNSConfig.ReservedDNSAliases, ",")),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
+		fmt.Sprintf("--%s=%v", defaults.RadixPipelineTriggeredFromWebhook, job.radixJob.Spec.TriggeredFromWebhook),
 	}
 
 	// Pass git clone init container images

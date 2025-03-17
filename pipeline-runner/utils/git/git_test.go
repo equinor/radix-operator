@@ -381,7 +381,7 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			changedFolderList, changedConfigFile, err := getGitAffectedResourcesBetweenCommits(gitWorkspacePath, scenario.configBranch, scenario.configFile, scenario.targetCommit, scenario.beforeCommitExclusive)
+			changedFolderList, changedConfigFile, err := getGitAffectedResourcesBetweenCommits(gitWorkspacePath, scenario.configBranch, scenario.configFile, false, scenario.targetCommit, scenario.beforeCommitExclusive)
 			if scenario.expectedError == "" {
 				require.NoError(t, err)
 			} else {
