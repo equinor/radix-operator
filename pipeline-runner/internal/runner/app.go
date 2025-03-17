@@ -1,8 +1,8 @@
-package pipelines
+package runner
 
 import (
 	"context"
-	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	"fmt"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -23,6 +23,7 @@ import (
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -121,6 +122,7 @@ func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registra
 	return stepImplementations
 }
 
+// CreateResultConfigMap Creates a ConfigMap with the result of the pipeline job
 func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 	result := v1.RadixJobResult{}
 	if cli.pipelineInfo.StopPipeline {
@@ -131,8 +133,8 @@ func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	pipelineJobName := cli.pipelineInfo.PipelineArguments.JobName
 
+	pipelineJobName := fmt.Sprintf("%s-%s", cli.pipelineInfo.PipelineArguments.JobName, utils.RandString(5))
 	configMap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pipelineJobName,

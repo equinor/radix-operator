@@ -3,7 +3,6 @@ package build_test
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/git"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -11,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"

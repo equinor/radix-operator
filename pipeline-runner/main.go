@@ -3,8 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
-	gitutils "github.com/equinor/radix-operator/pkg/apis/git"
+	pipe "github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"os"
 	"os/signal"
 	"strconv"
@@ -12,11 +11,12 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -33,8 +33,7 @@ var overrideUseBuildCache model.BoolPtr
 
 func main() {
 	pipelineArgs := &model.PipelineArguments{
-		DNSConfig:    &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)},
-		GitWorkspace: gitutils.Workspace,
+		DNSConfig: &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)},
 	}
 	logger.InitLogger(pipelineArgs.LogLevel)
 
@@ -137,6 +136,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.GitCloneGitImage, defaults.RadixGitCloneGitImageEnvironmentVariable, "alpine/git:latest", "Container image with git used by git clone init containers")
 	cmd.Flags().StringVar(&pipelineArgs.GitCloneBashImage, defaults.RadixGitCloneBashImageEnvironmentVariable, "bash:latest", "Container image with bash used by git clone init containers")
 	cmd.Flags().BoolVar(&pipelineArgs.ApplyConfigOptions.DeployExternalDNS, defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, false, "Deploy changes to External DNS configuration with the 'apply-config' pipeline")
+	cmd.Flags().StringVar(&pipelineArgs.GitWorkspace, defaults.RadixGithubWorkspaceEnvironmentVariable, git.Workspace, fmt.Sprintf("(Optional) Workspace path to the cloned GitHub repository. Default %s", git.Workspace))
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
@@ -149,7 +149,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 		return fmt.Errorf("missing DNS aliases, reserved for Radix platform services")
 	}
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
-	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(v1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
+	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(radixv1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
 	pipelineArgs.OverrideUseBuildCache = overrideUseBuildCache.Get()
 	pipelineArgs.Debug, _ = strconv.ParseBool(debug)
 	if len(pipelineArgs.ImageTagNames) > 0 {

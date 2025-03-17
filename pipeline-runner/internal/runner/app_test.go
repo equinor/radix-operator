@@ -1,11 +1,11 @@
-package pipelines_test
+package runner_test
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/pipelines"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -33,7 +33,7 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, *kedafake
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	kubeclient, radixclient, kedaClient, secretproviderclient, _ := setupTest(t)
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	cli := pipelines.NewRunner(kubeclient, radixclient, kedaClient, &monitoring.Clientset{}, secretproviderclient, nil, pipelineDefinition, "any-app")
+	cli := runner.NewRunner(kubeclient, radixclient, kedaClient, &monitoring.Clientset{}, secretproviderclient, nil, pipelineDefinition, "any-app")
 
 	err := cli.PrepareRun(context.Background(), &model.PipelineArguments{})
 	assert.Error(t, err)

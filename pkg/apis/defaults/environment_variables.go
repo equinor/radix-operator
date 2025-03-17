@@ -231,4 +231,7 @@ const (
 
 	// RadixOrphanedEnvironmentsCleanupCronVariable The cron expression for cleaning up orphaned environments
 	RadixOrphanedEnvironmentsCleanupCronVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON"
+
+	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
+	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
 )

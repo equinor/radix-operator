@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"strings"
 	"testing"
 	"time"
@@ -1391,9 +1392,14 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          historyLimit,
+			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
 			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+			GitCloneConfig: &git.CloneConfig{
+				NSlookupImage: "some-lookup-image",
+				GitImage:      "some-git-image",
+				BashImage:     "some-bash-image",
+			},
 		},
 		ContainerRegistryConfig: containerregistry.Config{
 			ExternalRegistryAuthSecret: "an-external-registry-secret",
