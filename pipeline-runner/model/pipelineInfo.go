@@ -73,8 +73,6 @@ type PipelineArguments struct {
 
 	RadixConfigFile string
 
-	// Images used for copying radix config/building
-	TektonPipeline string
 	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
 	// BuildKitImageBuilder Points to the BuildKit compliant image builder (repository and tag only)

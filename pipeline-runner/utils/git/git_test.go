@@ -150,6 +150,7 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 		targetCommit              string
 		configFile                string
 		configBranch              string
+		triggeredFromWebhook      bool
 		expectedChangedFolders    []string
 		expectedChangedConfigFile bool
 		expectedError             string
@@ -191,12 +192,22 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			expectedChangedConfigFile: false,
 		},
 		{
-			name:                  "invalid the same target and before commit",
+			name:                  "invalid the same target and before commit when triggeredFromWebhook",
 			targetCommit:          "7d6309f7537baa2815bb631802e6d8d613150c52",
 			beforeCommitExclusive: "7d6309f7537baa2815bb631802e6d8d613150c52",
 			configFile:            "radixconfig.yaml",
 			configBranch:          "main",
+			triggeredFromWebhook:  true,
 			expectedError:         "beforeCommit cannot be equal to the targetCommit",
+		},
+		{
+			name:                      "valid the same target and before commit when not triggeredFromWebhook",
+			targetCommit:              "7d6309f7537baa2815bb631802e6d8d613150c52",
+			beforeCommitExclusive:     "7d6309f7537baa2815bb631802e6d8d613150c52",
+			configFile:                "radixconfig.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    []string{"."},
+			expectedChangedConfigFile: true,
 		},
 		{
 			name:                  "invalid target commit",
@@ -381,15 +392,15 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			changedFolderList, changedConfigFile, err := getGitAffectedResourcesBetweenCommits(gitWorkspacePath, scenario.configBranch, scenario.configFile, false, scenario.targetCommit, scenario.beforeCommitExclusive)
+			var changedFolderList, changedConfigFile, err = getGitAffectedResourcesBetweenCommits(gitWorkspacePath, scenario.configBranch, scenario.configFile, scenario.triggeredFromWebhook, scenario.targetCommit, scenario.beforeCommitExclusive)
 			if scenario.expectedError == "" {
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)
 				require.Equal(t, scenario.expectedError, err.Error())
 			}
-			assert.ElementsMatch(t, scenario.expectedChangedFolders, changedFolderList)
-			assert.Equal(t, scenario.expectedChangedConfigFile, changedConfigFile)
+			assert.ElementsMatch(t, scenario.expectedChangedFolders, changedFolderList, "Unexpected changed folder list")
+			assert.Equal(t, scenario.expectedChangedConfigFile, changedConfigFile, "Unexpected changed config file")
 		})
 	}
 	tearDownGitTest()

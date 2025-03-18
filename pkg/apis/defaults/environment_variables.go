@@ -118,10 +118,6 @@ const (
 	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
 
-	// RadixTektonPipelineImageEnvironmentVariable Points to the utility image for preparing radixconfig copying
-	// /config/file to/map and preparing Tekton resources
-	RadixTektonPipelineImageEnvironmentVariable = "RADIX_TEKTON_IMAGE"
-
 	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
 	// to be loaded from Radix application config branch
 	RadixConfigFileEnvironmentVariable = "RADIX_FILE_NAME"
