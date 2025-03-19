@@ -16,6 +16,7 @@ import (
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -116,7 +117,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
 	app.client, app.radixClient, app.kedaClient, app.prometheusOperatorClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
 
-	app.eventRecorder = common.NewEventRecorder("Radix controller", app.client.CoreV1().Events(""), log.Logger)
+	app.eventRecorder = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""), log.Logger)
 
 	app.kubeInformerFactory = kubeinformers.NewSharedInformerFactory(app.client, resyncPeriod)
 	app.radixInformerFactory = radixinformers.NewSharedInformerFactory(app.radixClient, resyncPeriod)
