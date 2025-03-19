@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,10 +15,11 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -248,7 +248,7 @@ func (pipelineCtx *pipelineContext) buildTasks(envName string, tasks []pipelinev
 			task.ObjectMeta.Annotations = map[string]string{}
 		}
 
-		for k, v := range labels.GetLabelsForEnvironment(pipelineCtx.GetPipelineInfo(), envName) {
+		for k, v := range labels.GetSubPipelineLabelsForEnvironment(pipelineCtx.GetPipelineInfo(), envName) {
 			task.ObjectMeta.Labels[k] = v
 		}
 
@@ -405,7 +405,7 @@ func (pipelineCtx *pipelineContext) createPipeline(envName string, pipeline *pip
 	}
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, pipelineCtx.GetHash())
 	pipeline.ObjectMeta.Name = pipelineName
-	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(pipelineCtx.GetPipelineInfo(), envName)
+	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineCtx.GetPipelineInfo(), envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
 		kube.RadixBranchAnnotation:              pipelineCtx.pipelineInfo.PipelineArguments.Branch,
 		pipelineDefaults.PipelineNameAnnotation: originalPipelineName,

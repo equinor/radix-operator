@@ -132,6 +132,7 @@ func NewPipelineContext(tektonClient tektonclient.Interface, pipelineInfo *model
 		pipelineInfo:   pipelineInfo,
 		hash:           strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName)),
 		ownerReference: ownerReference,
+		waiter:         wait.NewPipelineRunsCompletionWaiter(tektonClient),
 	}
 
 	for _, option := range options {

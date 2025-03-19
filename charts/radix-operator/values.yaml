@@ -18,7 +18,6 @@ imageBuilder: radix-image-builder:master-latest
 buildKitImageBuilder: radix-buildkit-builder:main-latest # TODO: Configure in radix-flux
 buildahImageBuilder: xx # TODO: Deprecated, remove
 jobScheduler: radix-job-scheduler:main-latest
-radixTekton: radix-tekton:main-latest
 
 # Images used by git clone init containers in pipeline
 gitCloneNsLookupImage: "" # Image containing nslookup, e.g. "alpine:3.20". Defaults to "alpine:latest" if not set

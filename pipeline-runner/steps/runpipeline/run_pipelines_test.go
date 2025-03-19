@@ -7,10 +7,10 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/test"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -52,7 +52,7 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 	_, err = tknClient.TektonV1().Pipelines(pipelineContext.GetPipelineInfo().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   internalTest.RadixPipelineJobName,
-			Labels: labels.GetLabelsForEnvironment(pipelineContext.GetPipelineInfo(), internalTest.Env1),
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineContext.GetPipelineInfo(), internalTest.Env1),
 		},
 		Spec: pipelinev1.PipelineSpec{},
 	}, metav1.CreateOptions{})
@@ -254,7 +254,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
-				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetLabelsForEnvironment(pipelineInfo, internalTest.Env1)},
+				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1)},
 				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
 			require.NoError(t, err)
 
@@ -403,7 +403,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 			pipelineCtx := runpipeline.NewPipelineContext(tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
 			_, err = tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
-				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetLabelsForEnvironment(pipelineInfo, internalTest.Env1)},
+				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1)},
 				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
 			require.NoError(t, err)
 

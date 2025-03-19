@@ -2,9 +2,6 @@ package preparepipeline
 
 import (
 	"context"
-	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"strings"
 	"testing"
 
@@ -12,7 +9,10 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
+	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -865,16 +865,16 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 }
 
 func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pipeline {
-	task := &pipelinev1.Pipeline{
+	pipeline := &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{Name: "pipeline1"},
 		Spec: pipelinev1.PipelineSpec{
 			Tasks: []pipelinev1.PipelineTask{},
 		},
 	}
 	if modify != nil {
-		modify(task)
+		modify(pipeline)
 	}
-	return task
+	return pipeline
 }
 
 func getRadixApplicationBuilder(appName, environment, buildFrom string) utils.ApplicationBuilder {

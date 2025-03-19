@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"

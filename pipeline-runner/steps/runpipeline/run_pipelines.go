@@ -11,7 +11,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/labels"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -119,7 +119,7 @@ func (pipelineCtx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeli
 	pipelineRun := pipelinev1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pipelineRunName,
-			Labels: labels.GetLabelsForEnvironment(pipelineInfo, targetEnv),
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv),
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation:              pipelineCtx.pipelineInfo.PipelineArguments.Branch,
 				pipelineDefaults.PipelineNameAnnotation: originalPipelineName,
