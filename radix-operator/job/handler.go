@@ -62,12 +62,16 @@ func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClien
 
 // Sync Is created on sync of resource
 func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
-	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	return t.SyncRadixJob(ctx, namespace, name, eventRecorder)
+}
+
+func (t *handler) SyncRadixJob(ctx context.Context, namespace string, jobName string, eventRecorder record.EventRecorder) error {
+	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
 		// The Job resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Ctx(ctx).Info().Msgf("RadixJob %s/%s in work queue no longer exists", namespace, name)
+			log.Ctx(ctx).Info().Msgf("RadixJob %s/%s in work queue no longer exists", namespace, jobName)
 			return nil
 		}
 

@@ -27,6 +27,15 @@ rules:
   - watch
   - create
 - apiGroups:
+  - events
+  resources:
+  - events
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+- apiGroups:
   - radix.equinor.com
   resources:
   - radixjobs

@@ -119,7 +119,7 @@ func (cli *PipelineRunner) getEventInvolvedObject(stepType pipeline.StepType) *c
 		Namespace:  utils.GetAppNamespace(cli.appName),
 		Name:       cli.pipelineInfo.GetRadixPipelineJobName(),
 		APIVersion: v1.SchemeGroupVersion.Identifier(),
-		FieldPath:  fmt.Sprintf("status.steps{name=%s}", stepType),
+		FieldPath:  fmt.Sprintf("status.steps{%s}", stepType),
 	}
 }
 

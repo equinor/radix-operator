@@ -2,7 +2,6 @@ package job
 
 import (
 	"context"
-
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -13,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -26,16 +26,11 @@ const (
 )
 
 // NewController creates a new controller that handles RadixJobs
-func NewController(ctx context.Context,
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	handler Handler,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
-	recorder record.EventRecorder) *common.Controller {
+func NewController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	radixJobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
+	kubernetesEventsInformer := kubeInformerFactory.Events().V1().Events()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	controller := &common.Controller{
@@ -52,6 +47,23 @@ func NewController(ctx context.Context,
 	}
 
 	logger.Info().Msg("Setting up event handlers")
+	informer := kubernetesEventsInformer.Informer()
+	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(cur interface{}) {
+			event, err := cur.(*eventsv1.Event)
+			if !err {
+				return // The event is not an event
+			}
+			if event.Regarding.Kind == v1.KindRadixJob {
+				if _, err := controller.Enqueue(cur); err != nil {
+					logger.Error().Err(err).Msg("Failed to enqueue object received from Events informer AddFunc")
+				}
+			}
+		},
+	}); err != nil {
+		panic(err)
+	}
+
 	if _, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
