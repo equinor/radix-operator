@@ -25,4 +25,20 @@ const (
 
 	// DeployConfigStep Step to deploy the RD for applied config
 	DeployConfigStep = "deploy-config"
+
+	// CreateRadixDeployment Step to create the active RD
+	CreateRadixDeployment = "create-deployment"
+
+	// ApplyRadixDeployment Step to apply the active RD to Kubernetes objects
+	ApplyRadixDeployment = "apply-deployment"
 )
+
+// GetStepType Get step type from a string
+func GetStepType(stepType string) (StepType, bool) {
+	switch StepType(stepType) {
+	case PreparePipelinesStep, ApplyConfigStep, BuildStep, DeployStep, PromoteStep, RunPipelinesStep, DeployConfigStep, CreateRadixDeployment, ApplyRadixDeployment:
+		return StepType(stepType), true
+	default:
+		return "", false
+	}
+}

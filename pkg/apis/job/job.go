@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/git"
+	eventsv1 "k8s.io/api/events/v1"
 	"sort"
 	"strings"
 	"time"
@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -30,6 +31,14 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+// Syncer of  RadixJob
+type Syncer interface {
+	// OnSync Syncs RadixJob
+	OnSync(ctx context.Context) error
+	// AddEvent Add stepEvents to syncer
+	AddStepEvent(*eventsv1.Event)
+}
+
 // Job Instance variables
 type Job struct {
 	kubeclient                kubernetes.Interface
@@ -38,22 +47,41 @@ type Job struct {
 	radixJob                  *v1.RadixJob
 	originalRadixJobCondition v1.RadixJobCondition
 	config                    *apiconfig.Config
+	stepEvents                []*StepEvent
+}
+
+// StepEvent Event about changes in a job step state
+type StepEvent struct {
+	Type      pipeline.StepType
+	Condition v1.RadixJobCondition
+	Started   *metav1.Time
+	Ended     *metav1.Time
+	Message   string
 }
 
 const jobNameLabel = "job-name"
 
+// SyncerOption Options to modify syncer
+type SyncerOption func(syncer *Job)
+
 // NewJob Constructor
-func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, radixJob *v1.RadixJob, config *apiconfig.Config) Job {
+func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixJob *v1.RadixJob, config *apiconfig.Config, options ...SyncerOption) *Job {
 	originalRadixJobStatus := radixJob.Status.Condition
 
-	return Job{
-		kubeclient:                kubeclient,
-		radixclient:               radixclient,
-		kubeutil:                  kubeutil,
+	syncer := &Job{
+		kubeclient:                kubeClient,
+		radixclient:               radixClient,
+		kubeutil:                  kubeUtil,
 		radixJob:                  radixJob,
 		originalRadixJobCondition: originalRadixJobStatus,
 		config:                    config,
 	}
+
+	for _, opt := range options {
+		opt(syncer)
+	}
+
+	return syncer
 }
 
 // OnSync compares the actual state with the desired, and attempts to
@@ -107,6 +135,10 @@ func (job *Job) OnSync(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (job *Job) AddStepEvent(stepEvent *StepEvent) {
+	job.stepEvents = append(job.stepEvents, stepEvent)
 }
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
@@ -472,7 +504,50 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 	}
 	steps = append(steps, pipelineSteps...)
 
+	stepsMap := convertStepsToMap(steps)
+	for i := 0; i < len(job.radixJob.Status.Steps); i++ {
+		if step, ok := stepsMap[job.radixJob.Status.Steps[i].Name]; ok {
+			job.radixJob.Status.Steps[i].Condition = step.Condition
+			delete(stepsMap, step.Name)
+		}
+		for _, step := range stepsMap {
+			job.radixJob.Status.Steps = append(job.radixJob.Status.Steps, *step)
+		}
+	}
+
+	stepsMap = convertStepsToMap(steps)
+	stepEvents := job.stepEvents
+	for _, stepEvent := range stepEvents {
+		stepType := string(stepEvent.Type)
+		step, ok := stepsMap[stepType]
+		if ok {
+			step.Condition = stepEvent.Condition
+		} else {
+			step = &v1.RadixJobStep{
+				Name:      string(stepEvent.Type),
+				Condition: stepEvent.Condition,
+			}
+			steps = append(steps, *step)
+		}
+		if stepEvent.Started != nil {
+			step.Started = stepEvent.Started
+		}
+		if stepEvent.Ended != nil {
+			step.Ended = stepEvent.Ended
+		}
+		if len(stepEvent.Message) > 0 {
+			step.Message = stepEvent.Message
+		}
+		job.stepEvents = job.stepEvents[1:] //TODO rework with tread safe queue
+	}
 	return steps, nil
+}
+
+func convertStepsToMap(steps []v1.RadixJobStep) map[string]*v1.RadixJobStep {
+	return slice.Reduce(steps, make(map[string]*v1.RadixJobStep), func(acc map[string]*v1.RadixJobStep, step v1.RadixJobStep) map[string]*v1.RadixJobStep {
+		acc[step.Name] = &step
+		return acc
+	})
 }
 
 func getOrchestratorStep(pod *corev1.Pod) v1.RadixJobStep {

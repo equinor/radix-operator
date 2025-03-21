@@ -90,21 +90,21 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		ctx := logger.WithContext(ctx)
 
 		eventInvolvedObject := cli.getEventInvolvedObject(step.ImplementationForType())
-		cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, "Started", "Started")
+		cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, string(v1.JobRunning), "Started")
 
 		err := step.Run(ctx, cli.pipelineInfo)
 		if err != nil {
 			logger.Error().Msg(step.ErrorMsg(err))
-			cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeWarning, "Failed", err.Error())
+			cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeWarning, string(v1.JobFailed), fmt.Sprintf("Failed: %s", err.Error()))
 			return err
 		}
 		logger.Info().Msg(step.SucceededMsg())
 		if cli.pipelineInfo.StopPipeline {
 			logger.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
-			cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, "Stopped", cli.pipelineInfo.StopPipelineMessage)
+			cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, string(v1.JobStopped), fmt.Sprintf("Stopped: %s", cli.pipelineInfo.StopPipelineMessage))
 			break
 		}
-		cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, "Completed", "Completed")
+		cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, string(v1.JobSucceeded), "Completed")
 
 		if ctx.Err() != nil {
 			return ctx.Err()
