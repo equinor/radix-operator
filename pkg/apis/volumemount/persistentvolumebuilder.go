@@ -313,15 +313,17 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) blockCacheMountOptions() []string
 		}
 	}
 
+	minPoolSize := (prefetchCount + 1) * blockSize // Memory pool must be set to fit at least the block we read + blocks read by prefetch
 	opts = append(opts, fmt.Sprintf("--block-cache-block-size=%d", blockSize))
-	opts = append(opts, fmt.Sprintf("--block-cache-pool-size=%d", max(poolSize, max(1, prefetchCount)*blockSize)))
+	opts = append(opts, fmt.Sprintf("--block-cache-pool-size=%d", max(poolSize, minPoolSize)))
 	opts = append(opts, fmt.Sprintf("--block-cache-prefetch=%d", prefetchCount))
 	opts = append(opts, fmt.Sprintf("--block-cache-prefetch-on-open=%t", prefetchOnOpen && prefetchCount > 0))
 	opts = append(opts, fmt.Sprintf("--block-cache-parallelism=%d", parallelism))
 
 	if diskSize > 0 {
+		minDiskSize := (prefetchCount + 1) * blockSize // Disk dize must be set to fit at least the block we read + blocks read by prefetch
 		opts = append(opts, fmt.Sprintf("--block-cache-path=%s", fmt.Sprintf("/mnt/%s#blockcache", b.getVolumeHandle())))
-		opts = append(opts, fmt.Sprintf("--block-cache-disk-size=%d", max(diskSize, max(1, prefetchCount)*blockSize)))
+		opts = append(opts, fmt.Sprintf("--block-cache-disk-size=%d", max(diskSize, minDiskSize)))
 		opts = append(opts, fmt.Sprintf("--block-cache-disk-timeout=%d", diskTimeout))
 	}
 
