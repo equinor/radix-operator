@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
@@ -35,7 +36,7 @@ import (
 type Syncer interface {
 	// OnSync Syncs RadixJob
 	OnSync(ctx context.Context) error
-	// AddEvent Add stepEvents to syncer
+	// AddStepEvent Add stepEvents to syncer
 	AddStepEvent(*eventsv1.Event)
 }
 
@@ -539,7 +540,7 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 		}
 	}
 	for _, step := range stepsMap {
-		job.radixJob.Status.Steps = append(job.radixJob.Status.Steps, *step)
+		steps = append(steps, *step)
 	}
 
 	return steps, nil
@@ -555,7 +556,9 @@ func convertStepsToMap(steps []v1.RadixJobStep) map[string]*v1.RadixJobStep {
 func getOrchestratorStep(pod *corev1.Pod) v1.RadixJobStep {
 	containerName := defaults.RadixPipelineJobPipelineContainerName
 	containerStatus := getContainerStatusForContainer(pod, containerName)
-	return getJobStep(pod.GetName(), containerName, containerStatus)
+	jobStep := getJobStep(pod.GetName(), containerName, containerStatus)
+	jobStep.Started = pointers.Ptr(pod.GetCreationTimestamp()) // Orchestration job step is started when the pod is created
+	return jobStep
 }
 
 func getPipelineSteps(ctx context.Context, jobs []batchv1.Job, jobPods []corev1.Pod, prepareStepsNames map[string]struct{}) ([]v1.RadixJobStep, error) {
