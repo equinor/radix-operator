@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	eventsv1 "k8s.io/api/events/v1"
 	"sort"
 	"strings"
 	"time"
@@ -24,6 +23,7 @@ import (
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -494,9 +494,11 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 	var steps []v1.RadixJobStep
 
 	steps = append(steps, getOrchestratorStep(pipelineOrchestratorPod))
+	prepareStepsNames := make(map[string]struct{})
 
-	preparePipelineSteps, prepareStepsNames := job.getPreparePipelineSteps(pipelineJobs, pipelineJobsPods)
-	steps = append(steps, preparePipelineSteps...)
+	cloneConfigStep := job.getPreparePipelineSteps(pipelineOrchestratorPod)
+	steps = append(steps, cloneConfigStep)
+	prepareStepsNames[cloneConfigStep.Name] = struct{}{}
 
 	pipelineSteps, err := getPipelineSteps(ctx, pipelineJobs, pipelineJobsPods, prepareStepsNames)
 	if err != nil {
@@ -505,17 +507,6 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 	steps = append(steps, pipelineSteps...)
 
 	stepsMap := convertStepsToMap(steps)
-	for i := 0; i < len(job.radixJob.Status.Steps); i++ {
-		if step, ok := stepsMap[job.radixJob.Status.Steps[i].Name]; ok {
-			job.radixJob.Status.Steps[i].Condition = step.Condition
-			delete(stepsMap, step.Name)
-		}
-		for _, step := range stepsMap {
-			job.radixJob.Status.Steps = append(job.radixJob.Status.Steps, *step)
-		}
-	}
-
-	stepsMap = convertStepsToMap(steps)
 	stepEvents := job.stepEvents
 	for _, stepEvent := range stepEvents {
 		stepType := string(stepEvent.Type)
@@ -527,7 +518,7 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 				Name:      string(stepEvent.Type),
 				Condition: stepEvent.Condition,
 			}
-			steps = append(steps, *step)
+			stepsMap[step.Name] = step
 		}
 		if stepEvent.Started != nil {
 			step.Started = stepEvent.Started
@@ -540,6 +531,17 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 		}
 		job.stepEvents = job.stepEvents[1:] //TODO rework with tread safe queue
 	}
+
+	for i := 0; i < len(job.radixJob.Status.Steps); i++ {
+		if step, ok := stepsMap[job.radixJob.Status.Steps[i].Name]; ok {
+			job.radixJob.Status.Steps[i].Condition = step.Condition
+			delete(stepsMap, step.Name)
+		}
+	}
+	for _, step := range stepsMap {
+		job.radixJob.Status.Steps = append(job.radixJob.Status.Steps, *step)
+	}
+
 	return steps, nil
 }
 
@@ -582,26 +584,16 @@ func getPipelineSteps(ctx context.Context, jobs []batchv1.Job, jobPods []corev1.
 		}
 
 		log.Ctx(ctx).Debug().Msgf("Add %d steps for the job %s", len(pod.Spec.Containers), jobStep.Name)
-		steps = append(steps, getJobStepsFromInitContainers(ctx, jobStep, pod, prepareStepsNames, buildComponentImagesMap, buildComponentImages)...)
+		steps = append(steps, getJobStepsFromInitContainers(pod, prepareStepsNames, buildComponentImagesMap, buildComponentImages)...)
 		steps = append(steps, getJobStepsFromContainers(ctx, jobStep, pod, buildComponentImagesMap, buildComponentImages, prepareStepsNames)...)
 	}
 	return steps, nil
 }
 
-func (job *Job) getPreparePipelineSteps(jobs []batchv1.Job, jobsPods []corev1.Pod) ([]v1.RadixJobStep, map[string]struct{}) {
-	var steps []v1.RadixJobStep
-	prepareStepsNames := make(map[string]struct{})
-
-	cloneConfigStep, applyConfigAndPreparePipelineStep := job.getCloneConfigApplyConfigAndPreparePipelineStep(jobs, jobsPods)
-	if cloneConfigStep != nil {
-		steps = append(steps, *cloneConfigStep)
-		prepareStepsNames[cloneConfigStep.Name] = struct{}{}
-	}
-	if applyConfigAndPreparePipelineStep != nil {
-		steps = append(steps, *applyConfigAndPreparePipelineStep)
-		prepareStepsNames[applyConfigAndPreparePipelineStep.Name] = struct{}{}
-	}
-	return steps, prepareStepsNames
+func (job *Job) getPreparePipelineSteps(jobPod *corev1.Pod) v1.RadixJobStep {
+	cloneContainerStatus := getContainerStatusByName(git.CloneConfigContainerName, jobPod.Status.InitContainerStatuses)
+	cloneConfigStep := getJobStep(jobPod.GetName(), git.CloneConfigContainerName, cloneContainerStatus)
+	return cloneConfigStep
 }
 
 func getBuildComponentImagesFromJobAnnotations(job *batchv1.Job) (pipeline.BuildComponentImages, []pipeline.BuildComponentImage, error) {
@@ -634,7 +626,7 @@ func getJobStepsFromContainers(ctx context.Context, jobStep batchv1.Job, pod cor
 	return steps
 }
 
-func getJobStepsFromInitContainers(ctx context.Context, jobStep batchv1.Job, pod corev1.Pod, prepareStepsNames map[string]struct{}, buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImages []pipeline.BuildComponentImage) []v1.RadixJobStep {
+func getJobStepsFromInitContainers(pod corev1.Pod, prepareStepsNames map[string]struct{}, buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImages []pipeline.BuildComponentImage) []v1.RadixJobStep {
 	containerStatuses := slice.Reduce(pod.Status.InitContainerStatuses, make(map[string]*corev1.ContainerStatus), func(acc map[string]*corev1.ContainerStatus, containerStatus corev1.ContainerStatus) map[string]*corev1.ContainerStatus {
 		acc[containerStatus.Name] = &containerStatus
 		return acc
@@ -649,7 +641,6 @@ func getJobStepsFromInitContainers(ctx context.Context, jobStep batchv1.Job, pod
 			componentNames = getContainerNames(buildComponentImagesMap, buildComponentImages)
 		}
 		steps = append(steps, getJobStep(pod.GetName(), container.Name, containerStatuses[container.Name], componentNames...))
-		log.Ctx(ctx).Debug().Msgf("Added step %s for the job %s", container.Name, jobStep.Name)
 	}
 	return steps
 }
@@ -706,28 +697,6 @@ func getContainerStatusForContainer(pipelinePod *corev1.Pod, containerName strin
 		return &containerStatus
 	}
 	return nil
-}
-
-func (job *Job) getCloneConfigApplyConfigAndPreparePipelineStep(pipelineJobs []batchv1.Job, pipelineJobsPods []corev1.Pod) (*v1.RadixJobStep, *v1.RadixJobStep) {
-	preparePipelineStepJob, jobExists := slice.FindFirst(pipelineJobs, func(job batchv1.Job) bool {
-		return job.GetLabels()[kube.RadixJobTypeLabel] == kube.RadixJobTypePreparePipelines
-	})
-	if !jobExists {
-		return nil, nil
-	}
-
-	jobPod, jobPodExists := slice.FindFirst(pipelineJobsPods, func(pod corev1.Pod) bool { return pod.GetLabels()[jobNameLabel] == preparePipelineStepJob.GetName() })
-	if !jobPodExists {
-		return nil, nil
-	}
-
-	cloneContainerStatus := getContainerStatusByName(git.CloneConfigContainerName, jobPod.Status.InitContainerStatuses)
-	cloneConfigContainerStep := getJobStep(jobPod.GetName(), git.CloneConfigContainerName, cloneContainerStatus)
-
-	preparePipelineContainerStatus := getContainerStatusByName(defaults.RadixPipelineJobPreparePipelinesContainerName, jobPod.Status.ContainerStatuses)
-	applyConfigAndPreparePipelineContainerJobStep := getJobStep(jobPod.GetName(), defaults.RadixPipelineJobPreparePipelinesContainerName, preparePipelineContainerStatus)
-
-	return &cloneConfigContainerStep, &applyConfigAndPreparePipelineContainerJobStep
 }
 
 func getContainerStatusByName(name string, containerStatuses []corev1.ContainerStatus) *corev1.ContainerStatus {

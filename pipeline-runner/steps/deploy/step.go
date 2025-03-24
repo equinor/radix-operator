@@ -49,8 +49,7 @@ func (cli *DeployStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *DeployStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	err := cli.deploy(ctx, pipelineInfo)
-	return err
+	return cli.deploy(ctx, pipelineInfo)
 }
 
 // Deploy Handles deploy step of the pipeline
