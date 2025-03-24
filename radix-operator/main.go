@@ -157,7 +157,6 @@ func (a *App) Run(ctx context.Context) error {
 
 	registrationController := a.createRegistrationController(ctx)
 	jobController := a.createJobController(ctx)
-	jobStepsController := a.createJobStepController(ctx)
 	applicationController := a.createApplicationController(ctx)
 	environmentController := a.createEnvironmentController(ctx)
 	deploymentController := a.createDeploymentController(ctx)
@@ -171,7 +170,6 @@ func (a *App) Run(ctx context.Context) error {
 	g.Go(func() error { return environmentController.Run(ctx, a.opts.environmentControllerThreads) })
 	g.Go(func() error { return deploymentController.Run(ctx, a.opts.deploymentControllerThreads) })
 	g.Go(func() error { return jobController.Run(ctx, a.opts.jobControllerThreads) })
-	g.Go(func() error { return jobStepsController.Run(ctx, a.opts.jobControllerThreads) })
 	g.Go(func() error { return alertController.Run(ctx, a.opts.alertControllerThreads) })
 	g.Go(func() error { return batchController.Run(ctx, 1) })
 	g.Go(func() error { return dnsAliasesController.Run(ctx, a.opts.environmentControllerThreads) })
@@ -346,17 +344,6 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced
 
 	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
-}
-
-func (a *App) createJobStepController(ctx context.Context) *common.Controller {
-	handler := job.NewStepHandler(
-		a.kubeUtil.KubeClient(),
-		a.kubeUtil,
-		a.kubeUtil.RadixClient(),
-		a.config,
-		func(syncedOk bool) {}) // Not interested in getting notifications of synced
-
-	return job.NewStepsController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
 }
 
 func (a *App) createAlertController(ctx context.Context) *common.Controller {

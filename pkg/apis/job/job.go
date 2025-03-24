@@ -48,16 +48,6 @@ type Job struct {
 	radixJob                  *v1.RadixJob
 	originalRadixJobCondition v1.RadixJobCondition
 	config                    *apiconfig.Config
-	stepEvents                []*StepEvent
-}
-
-// StepEvent Event about changes in a job step state
-type StepEvent struct {
-	Type      pipeline.StepType
-	Condition v1.RadixJobCondition
-	Started   *metav1.Time
-	Ended     *metav1.Time
-	Message   string
 }
 
 const jobNameLabel = "job-name"
@@ -99,7 +89,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 	job.restoreStatus(ctx)
 
 	appName := job.radixJob.Spec.AppName
-	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.GetNamespace()).Get(ctx, appName, metav1.GetOptions{})
+	ra, err := job.radixclient.v1().RadixApplications(job.radixJob.GetNamespace()).Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -136,10 +126,6 @@ func (job *Job) OnSync(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-func (job *Job) AddStepEvent(stepEvent *StepEvent) {
-	job.stepEvents = append(job.stepEvents, stepEvent)
 }
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
@@ -457,7 +443,7 @@ func (job *Job) setNextJobToRunning(ctx context.Context) error {
 }
 
 func (job *Job) getAllRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
-	jobList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(ctx, metav1.ListOptions{})
+	jobList, err := job.radixclient.v1().RadixJobs(job.radixJob.GetNamespace()).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -508,8 +494,41 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 	steps = append(steps, pipelineSteps...)
 
 	stepsMap := convertStepsToMap(steps)
-	stepEvents := job.stepEvents
-	for _, stepEvent := range stepEvents {
+	jobSteps, err := job.getRadixJobStepEvents(ctx, stepsMap)
+	// TODO!!!!!!!!
+	fmt.Println(jobSteps)
+	// TODO!!!!!!!!
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(job.radixJob.Status.Steps); i++ {
+		if step, ok := stepsMap[job.radixJob.Status.Steps[i].Name]; ok {
+			job.radixJob.Status.Steps[i].Condition = step.Condition
+			delete(stepsMap, step.Name)
+		}
+	}
+	for _, step := range stepsMap {
+		steps = append(steps, *step)
+	}
+
+	return steps, nil
+}
+
+func (job *Job) getRadixJobStepEvents(ctx context.Context, stepsMap map[string]*v1.RadixJobStep) ([]v1.RadixJobStep, error) {
+	stepEventsList, err := job.kubeclient.EventsV1().Events(job.radixJob.GetNamespace()).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	stepEvents := stepEventsList.Items
+	sort.Slice(stepEvents, func(i, j int) bool {
+		return stepEvents[i].CreationTimestamp.Before(&stepEvents[j].CreationTimestamp)
+	})
+	for _, event := range stepEvents {
+		stepEvent, ok := getStepEventProps(&event)
+		if !ok {
+			continue
+		}
 		stepType := string(stepEvent.Type)
 		step, ok := stepsMap[stepType]
 		if ok {
@@ -530,20 +549,44 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 		if len(stepEvent.Message) > 0 {
 			step.Message = stepEvent.Message
 		}
-		job.stepEvents = job.stepEvents[1:] //TODO rework with tread safe queue
+	}
+	return nil, nil
+}
+
+type stepEventProps struct {
+	Type      pipeline.StepType
+	Condition v1.RadixJobCondition
+	Started   *metav1.Time
+	Ended     *metav1.Time
+	Message   string
+}
+
+func getStepEventProps(event *eventsv1.Event) (*stepEventProps, bool) {
+	jobStepName, ok := pipeline.GetStepNameFromRadixJobEvent(event)
+	if !ok {
+		return nil, false
+	}
+	jobStepType, ok := pipeline.GetStepType(jobStepName)
+	if !ok {
+		return nil, false
 	}
 
-	for i := 0; i < len(job.radixJob.Status.Steps); i++ {
-		if step, ok := stepsMap[job.radixJob.Status.Steps[i].Name]; ok {
-			job.radixJob.Status.Steps[i].Condition = step.Condition
-			delete(stepsMap, step.Name)
+	stepEvent := &stepEventProps{
+		Type:    jobStepType,
+		Message: event.Note,
+	}
+	stepEvent.Condition, ok = v1.GetRadixJobCondition(event.Reason)
+	if !ok {
+		stepEvent.Condition = "Unknown"
+	} else {
+		switch stepEvent.Condition {
+		case v1.JobQueued, v1.JobWaiting, v1.JobRunning:
+			stepEvent.Started = &event.CreationTimestamp
+		case v1.JobSucceeded, v1.JobFailed, v1.JobStopped, v1.JobStoppedNoChanges:
+			stepEvent.Ended = &event.CreationTimestamp
 		}
 	}
-	for _, step := range stepsMap {
-		steps = append(steps, *step)
-	}
-
-	return steps, nil
+	return stepEvent, true
 }
 
 func convertStepsToMap(steps []v1.RadixJobStep) map[string]*v1.RadixJobStep {
@@ -761,7 +804,7 @@ func (job *Job) updateRadixJobStatusWithMetrics(ctx context.Context, savingRadix
 }
 
 func (job *Job) updateRadixJobStatus(ctx context.Context, rj *v1.RadixJob, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
-	rjInterface := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace())
+	rjInterface := job.radixclient.v1().RadixJobs(rj.GetNamespace())
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		log.Ctx(ctx).Debug().Msg("UpdateRadixJobStatus")
 		currentJob, err := rjInterface.Get(ctx, rj.Name, metav1.GetOptions{})
@@ -797,7 +840,7 @@ func (job *Job) getRadixJobNameLabelSelector() string {
 }
 
 func (job *Job) getRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
-	radixJobList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{})
+	radixJobList, err := job.radixclient.v1().RadixJobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

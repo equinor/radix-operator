@@ -1,5 +1,10 @@
 package pipeline
 
+import (
+	eventsv1 "k8s.io/api/events/v1"
+	"regexp"
+)
+
 // StepType Enumeration of the different steps a pipeline could contain
 type StepType string
 
@@ -31,6 +36,8 @@ const (
 
 	// ApplyRadixDeployment Step to apply the active RD to Kubernetes objects
 	ApplyRadixDeployment = "apply-deployment"
+
+	jobStepPathPattern = `^status\.steps\{(?:name=)?([^{}]+[^=])\}$`
 )
 
 // GetStepType Get step type from a string
@@ -41,4 +48,16 @@ func GetStepType(stepType string) (StepType, bool) {
 	default:
 		return "", false
 	}
+}
+
+// GetStepNameFromRadixJobEvent Get step name from Radix job event
+func GetStepNameFromRadixJobEvent(event *eventsv1.Event) (string, bool) {
+	if event == nil || len(event.Regarding.FieldPath) == 0 {
+		return "", false
+	}
+	re := regexp.MustCompile(jobStepPathPattern)
+	if match := re.FindStringSubmatch(event.Regarding.FieldPath); match != nil {
+		return match[1], true
+	}
+	return "", false
 }

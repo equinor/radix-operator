@@ -5,6 +5,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -50,14 +51,20 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 	informer := kubernetesEventsInformer.Informer()
 	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			event, err := cur.(*eventsv1.Event)
-			if !err {
+			event, ok := cur.(*eventsv1.Event)
+			if !ok {
 				return // The event is not an event
 			}
-			if event.Regarding.Kind == v1.KindRadixJob {
-				if _, err := controller.Enqueue(cur); err != nil {
-					logger.Error().Err(err).Msg("Failed to enqueue object received from Events informer AddFunc")
-				}
+			if !isEventForRadixJobStep(event) {
+				return
+			}
+			radixJob, err := getRadixJob(ctx, radixClient, event.Regarding.Namespace, event.Regarding.Name)
+			if err != nil {
+				logger.Error().Err(err).Msg("Failed to get RadixJob object from event")
+				return
+			}
+			if _, err = controller.Enqueue(radixJob); err != nil {
+				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob Event informer AddFunc")
 			}
 		},
 	}); err != nil {
@@ -119,7 +126,7 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 			if newJob.ResourceVersion == oldJob.ResourceVersion {
 				return
 			}
-			controller.HandleObject(ctx, cur, v1.KindRadixJob, getObject)
+			controller.HandleObject(ctx, cur, v1.KindRadixJob, getRadixJob)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixJob, converted := obj.(*batchv1.Job)
@@ -129,7 +136,7 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 			}
 			// If a kubernetes job gets deleted for a running job, the running radix job should
 			// take this into account. The running job will get restarted
-			controller.HandleObject(ctx, radixJob, v1.KindRadixJob, getObject)
+			controller.HandleObject(ctx, radixJob, v1.KindRadixJob, getRadixJob)
 		},
 	}); err != nil {
 		panic(err)
@@ -148,14 +155,14 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 					return
 				}
 
-				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(ctx, newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
+				kubeJob, err := client.BatchV1().Jobs(newPod.Namespace).Get(ctx, newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
 				if err != nil {
 					// This job may not be found because application is being deleted and resources are being deleted
 					logger.Debug().Msgf("Could not find owning job of pod %s due to %v", newPod.Name, err)
 					return
 				}
 
-				controller.HandleObject(ctx, job, v1.KindRadixJob, getObject)
+				controller.HandleObject(ctx, kubeJob, v1.KindRadixJob, getRadixJob)
 			}
 		},
 	}); err != nil {
@@ -165,6 +172,18 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 	return controller
 }
 
-func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func isEventForRadixJobStep(event *eventsv1.Event) bool {
+	if event.Regarding.Kind != v1.KindRadixJob {
+		return false
+	}
+	jobStepName, ok := pipeline.GetStepNameFromRadixJobEvent(event)
+	if !ok {
+		return false
+	}
+	_, ok = pipeline.GetStepType(jobStepName)
+	return ok
+}
+
+func getRadixJob(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 }
