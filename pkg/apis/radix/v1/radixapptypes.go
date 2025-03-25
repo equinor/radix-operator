@@ -1187,15 +1187,13 @@ type BlobFuse2BlockCacheOptions struct {
 	BlockSize *uint32 `json:"blockSize,omitempty"`
 
 	// Size (in MB) of total memory preallocated for block-cache.
-	// Minimum value:
-	// - if prefetchCount > 0: prefetchCount * blockSize
-	// - if prefetchCount = 0: blockSize
+	// Minimum value = (prefetchCount + 1) * blockSize
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	PoolSize *uint32 `json:"poolSize,omitempty"`
 
 	// Size (in MB) of total disk capacity that block cache can use.
-	// 0 (default) disables disk caching
+	// 0 (default) disables disk caching.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	DiskSize *uint32 `json:"diskSize,omitempty"`

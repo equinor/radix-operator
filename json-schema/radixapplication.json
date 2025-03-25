@@ -1413,7 +1413,7 @@
                                     "type": "integer"
                                   },
                                   "diskSize": {
-                                    "description": "Size (in MB) of total disk capacity that block cache can use.\n0 (default) disables disk caching",
+                                    "description": "Size (in MB) of total disk capacity that block cache can use.\n0 (default) disables disk caching.",
                                     "format": "int32",
                                     "minimum": 0,
                                     "type": "integer"
@@ -1431,7 +1431,7 @@
                                     "type": "integer"
                                   },
                                   "poolSize": {
-                                    "description": "Size (in MB) of total memory preallocated for block-cache.\nMinimum value:\n- if prefetchCount > 0: prefetchCount * blockSize\n- if prefetchCount = 0: blockSize",
+                                    "description": "Size (in MB) of total memory preallocated for block-cache.\nMinimum value = (prefetchCount + 1) * blockSize",
                                     "format": "int32",
                                     "minimum": 1,
                                     "type": "integer"
@@ -2692,7 +2692,7 @@
                               "type": "integer"
                             },
                             "diskSize": {
-                              "description": "Size (in MB) of total disk capacity that block cache can use.\n0 (default) disables disk caching",
+                              "description": "Size (in MB) of total disk capacity that block cache can use.\n0 (default) disables disk caching.",
                               "format": "int32",
                               "minimum": 0,
                               "type": "integer"
@@ -2710,7 +2710,7 @@
                               "type": "integer"
                             },
                             "poolSize": {
-                              "description": "Size (in MB) of total memory preallocated for block-cache.\nMinimum value:\n- if prefetchCount > 0: prefetchCount * blockSize\n- if prefetchCount = 0: blockSize",
+                              "description": "Size (in MB) of total memory preallocated for block-cache.\nMinimum value = (prefetchCount + 1) * blockSize",
                               "format": "int32",
                               "minimum": 1,
                               "type": "integer"
@@ -3653,7 +3653,7 @@
                                     "type": "integer"
                                   },
                                   "diskSize": {
-                                    "description": "Size (in MB) of total disk capacity that block cache can use.\n0 (default) disables disk caching",
+                                    "description": "Size (in MB) of total disk capacity that block cache can use.\n0 (default) disables disk caching.",
                                     "format": "int32",
                                     "minimum": 0,
                                     "type": "integer"
@@ -3671,7 +3671,7 @@
                                     "type": "integer"
                                   },
                                   "poolSize": {
-                                    "description": "Size (in MB) of total memory preallocated for block-cache.\nMinimum value:\n- if prefetchCount > 0: prefetchCount * blockSize\n- if prefetchCount = 0: blockSize",
+                                    "description": "Size (in MB) of total memory preallocated for block-cache.\nMinimum value = (prefetchCount + 1) * blockSize",
                                     "format": "int32",
                                     "minimum": 1,
                                     "type": "integer"
@@ -4283,7 +4283,7 @@
                               "type": "integer"
                             },
                             "diskSize": {
-                              "description": "Size (in MB) of total disk capacity that block cache can use.\n0 (default) disables disk caching",
+                              "description": "Size (in MB) of total disk capacity that block cache can use.\n0 (default) disables disk caching.",
                               "format": "int32",
                               "minimum": 0,
                               "type": "integer"
@@ -4301,7 +4301,7 @@
                               "type": "integer"
                             },
                             "poolSize": {
-                              "description": "Size (in MB) of total memory preallocated for block-cache.\nMinimum value:\n- if prefetchCount > 0: prefetchCount * blockSize\n- if prefetchCount = 0: blockSize",
+                              "description": "Size (in MB) of total memory preallocated for block-cache.\nMinimum value = (prefetchCount + 1) * blockSize",
                               "format": "int32",
                               "minimum": 1,
                               "type": "integer"
