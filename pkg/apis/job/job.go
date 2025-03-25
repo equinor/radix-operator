@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
@@ -89,7 +88,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 	job.restoreStatus(ctx)
 
 	appName := job.radixJob.Spec.AppName
-	ra, err := job.radixclient.v1().RadixApplications(job.radixJob.GetNamespace()).Get(ctx, appName, metav1.GetOptions{})
+	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.GetNamespace()).Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -443,7 +442,7 @@ func (job *Job) setNextJobToRunning(ctx context.Context) error {
 }
 
 func (job *Job) getAllRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
-	jobList, err := job.radixclient.v1().RadixJobs(job.radixJob.GetNamespace()).List(ctx, metav1.ListOptions{})
+	jobList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +478,6 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 	}
 
 	var steps []v1.RadixJobStep
-
 	steps = append(steps, getOrchestratorStep(pipelineOrchestratorPod))
 	prepareStepsNames := make(map[string]struct{})
 
@@ -492,115 +490,13 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 		return nil, err
 	}
 	steps = append(steps, pipelineSteps...)
-
-	stepsMap := convertStepsToMap(steps)
-	jobSteps, err := job.getRadixJobStepEvents(ctx, stepsMap)
-	// TODO!!!!!!!!
-	fmt.Println(jobSteps)
-	// TODO!!!!!!!!
-	if err != nil {
-		return nil, err
-	}
-
-	for i := 0; i < len(job.radixJob.Status.Steps); i++ {
-		if step, ok := stepsMap[job.radixJob.Status.Steps[i].Name]; ok {
-			job.radixJob.Status.Steps[i].Condition = step.Condition
-			delete(stepsMap, step.Name)
-		}
-	}
-	for _, step := range stepsMap {
-		steps = append(steps, *step)
-	}
-
 	return steps, nil
-}
-
-func (job *Job) getRadixJobStepEvents(ctx context.Context, stepsMap map[string]*v1.RadixJobStep) ([]v1.RadixJobStep, error) {
-	stepEventsList, err := job.kubeclient.EventsV1().Events(job.radixJob.GetNamespace()).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	stepEvents := stepEventsList.Items
-	sort.Slice(stepEvents, func(i, j int) bool {
-		return stepEvents[i].CreationTimestamp.Before(&stepEvents[j].CreationTimestamp)
-	})
-	for _, event := range stepEvents {
-		stepEvent, ok := getStepEventProps(&event)
-		if !ok {
-			continue
-		}
-		stepType := string(stepEvent.Type)
-		step, ok := stepsMap[stepType]
-		if ok {
-			step.Condition = stepEvent.Condition
-		} else {
-			step = &v1.RadixJobStep{
-				Name:      string(stepEvent.Type),
-				Condition: stepEvent.Condition,
-			}
-			stepsMap[step.Name] = step
-		}
-		if stepEvent.Started != nil {
-			step.Started = stepEvent.Started
-		}
-		if stepEvent.Ended != nil {
-			step.Ended = stepEvent.Ended
-		}
-		if len(stepEvent.Message) > 0 {
-			step.Message = stepEvent.Message
-		}
-	}
-	return nil, nil
-}
-
-type stepEventProps struct {
-	Type      pipeline.StepType
-	Condition v1.RadixJobCondition
-	Started   *metav1.Time
-	Ended     *metav1.Time
-	Message   string
-}
-
-func getStepEventProps(event *eventsv1.Event) (*stepEventProps, bool) {
-	jobStepName, ok := pipeline.GetStepNameFromRadixJobEvent(event)
-	if !ok {
-		return nil, false
-	}
-	jobStepType, ok := pipeline.GetStepType(jobStepName)
-	if !ok {
-		return nil, false
-	}
-
-	stepEvent := &stepEventProps{
-		Type:    jobStepType,
-		Message: event.Note,
-	}
-	stepEvent.Condition, ok = v1.GetRadixJobCondition(event.Reason)
-	if !ok {
-		stepEvent.Condition = "Unknown"
-	} else {
-		switch stepEvent.Condition {
-		case v1.JobQueued, v1.JobWaiting, v1.JobRunning:
-			stepEvent.Started = &event.CreationTimestamp
-		case v1.JobSucceeded, v1.JobFailed, v1.JobStopped, v1.JobStoppedNoChanges:
-			stepEvent.Ended = &event.CreationTimestamp
-		}
-	}
-	return stepEvent, true
-}
-
-func convertStepsToMap(steps []v1.RadixJobStep) map[string]*v1.RadixJobStep {
-	return slice.Reduce(steps, make(map[string]*v1.RadixJobStep), func(acc map[string]*v1.RadixJobStep, step v1.RadixJobStep) map[string]*v1.RadixJobStep {
-		acc[step.Name] = &step
-		return acc
-	})
 }
 
 func getOrchestratorStep(pod *corev1.Pod) v1.RadixJobStep {
 	containerName := defaults.RadixPipelineJobPipelineContainerName
 	containerStatus := getContainerStatusForContainer(pod, containerName)
 	jobStep := getJobStep(pod.GetName(), containerName, containerStatus)
-	jobStep.Started = pointers.Ptr(pod.GetCreationTimestamp()) // Orchestration job step is started when the pod is created
 	return jobStep
 }
 
@@ -610,12 +506,6 @@ func getPipelineSteps(ctx context.Context, jobs []batchv1.Job, jobPods []corev1.
 		return job.GetLabels()[kube.RadixJobTypeLabel] != kube.RadixJobTypeJob
 	})
 	for _, jobStep := range stepJobs {
-		jobType := jobStep.GetLabels()[kube.RadixJobTypeLabel]
-		if strings.EqualFold(jobType, kube.RadixJobTypePreparePipelines) {
-			// Prepare pipeline of radix config represented as an initial step
-			continue
-		}
-
 		pod, podExists := slice.FindFirst(jobPods, func(jobPod corev1.Pod) bool {
 			return jobPod.GetLabels()[jobNameLabel] == jobStep.Name
 		})
@@ -804,7 +694,7 @@ func (job *Job) updateRadixJobStatusWithMetrics(ctx context.Context, savingRadix
 }
 
 func (job *Job) updateRadixJobStatus(ctx context.Context, rj *v1.RadixJob, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
-	rjInterface := job.radixclient.v1().RadixJobs(rj.GetNamespace())
+	rjInterface := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace())
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		log.Ctx(ctx).Debug().Msg("UpdateRadixJobStatus")
 		currentJob, err := rjInterface.Get(ctx, rj.Name, metav1.GetOptions{})
@@ -840,7 +730,7 @@ func (job *Job) getRadixJobNameLabelSelector() string {
 }
 
 func (job *Job) getRadixJobs(ctx context.Context) ([]v1.RadixJob, error) {
-	radixJobList, err := job.radixclient.v1().RadixJobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{})
+	radixJobList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

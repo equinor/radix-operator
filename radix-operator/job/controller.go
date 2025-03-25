@@ -5,7 +5,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -13,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -31,7 +29,6 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	radixJobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
-	kubernetesEventsInformer := kubeInformerFactory.Events().V1().Events()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	controller := &common.Controller{
@@ -48,29 +45,6 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 	}
 
 	logger.Info().Msg("Setting up event handlers")
-	informer := kubernetesEventsInformer.Informer()
-	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
-			event, ok := cur.(*eventsv1.Event)
-			if !ok {
-				return // The event is not an event
-			}
-			if !isEventForRadixJobStep(event) {
-				return
-			}
-			radixJob, err := getRadixJob(ctx, radixClient, event.Regarding.Namespace, event.Regarding.Name)
-			if err != nil {
-				logger.Error().Err(err).Msg("Failed to get RadixJob object from event")
-				return
-			}
-			if _, err = controller.Enqueue(radixJob); err != nil {
-				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob Event informer AddFunc")
-			}
-		},
-	}); err != nil {
-		panic(err)
-	}
-
 	if _, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
@@ -170,18 +144,6 @@ func NewController(ctx context.Context, client kubernetes.Interface, radixClient
 	}
 
 	return controller
-}
-
-func isEventForRadixJobStep(event *eventsv1.Event) bool {
-	if event.Regarding.Kind != v1.KindRadixJob {
-		return false
-	}
-	jobStepName, ok := pipeline.GetStepNameFromRadixJobEvent(event)
-	if !ok {
-		return false
-	}
-	_, ok = pipeline.GetStepType(jobStepName)
-	return ok
 }
 
 func getRadixJob(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {

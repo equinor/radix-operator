@@ -28,9 +28,7 @@ import (
 )
 
 const (
-	podLabelsVolumeName = "pod-labels"
-	podLabelsFileName   = "labels"
-	workerImage         = "radix-pipeline"
+	workerImage = "radix-pipeline"
 	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
 	ResultContent = "ResultContent"
 	runAsUser     = 1000

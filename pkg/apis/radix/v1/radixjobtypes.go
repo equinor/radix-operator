@@ -45,16 +45,6 @@ const (
 	JobStoppedNoChanges RadixJobCondition = "StoppedNoChanges"
 )
 
-// GetRadixJobCondition returns the RadixJobCondition for the given string
-func GetRadixJobCondition(condition string) (RadixJobCondition, bool) {
-	switch RadixJobCondition(condition) {
-	case JobQueued, JobWaiting, JobRunning, JobSucceeded, JobFailed, JobStopped, JobStoppedNoChanges:
-		return RadixJobCondition(condition), true
-	default:
-		return "", false
-	}
-}
-
 // RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
 	// AppName Name of the Radix application
@@ -196,14 +186,12 @@ type RadixJobList struct {
 
 // RadixJobStep holds status for a single step
 type RadixJobStep struct {
-	Name         string            `json:"name"`
-	Condition    RadixJobCondition `json:"condition"`
-	Started      *metav1.Time      `json:"started"`
-	Ended        *metav1.Time      `json:"ended"`
-	PodName      string            `json:"podName"`
-	Components   []string          `json:"components,omitempty"`
-	Message      string            `json:"message,omitempty"`
-	Environments []string          `json:"environments,omitempty"`
+	Name       string            `json:"name"`
+	Condition  RadixJobCondition `json:"condition"`
+	Started    *metav1.Time      `json:"started"`
+	Ended      *metav1.Time      `json:"ended"`
+	PodName    string            `json:"podName"`
+	Components []string          `json:"components,omitempty"`
 }
 
 // RadixJobResultType Type of the Radix pipeline job result
