@@ -51,14 +51,10 @@ type Job struct {
 
 const jobNameLabel = "job-name"
 
-// SyncerOption Options to modify syncer
-type SyncerOption func(syncer *Job)
-
 // NewJob Constructor
-func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixJob *v1.RadixJob, config *apiconfig.Config, options ...SyncerOption) *Job {
+func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixJob *v1.RadixJob, config *apiconfig.Config) *Job {
 	originalRadixJobStatus := radixJob.Status.Condition
-
-	syncer := &Job{
+	return &Job{
 		kubeclient:                kubeClient,
 		radixclient:               radixClient,
 		kubeutil:                  kubeUtil,
@@ -66,12 +62,6 @@ func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient ra
 		originalRadixJobCondition: originalRadixJobStatus,
 		config:                    config,
 	}
-
-	for _, opt := range options {
-		opt(syncer)
-	}
-
-	return syncer
 }
 
 // OnSync compares the actual state with the desired, and attempts to

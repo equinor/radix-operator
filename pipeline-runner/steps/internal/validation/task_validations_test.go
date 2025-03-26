@@ -1,10 +1,10 @@
 package validation_test
 
 import (
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"testing"
 
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/stretchr/testify/assert"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -13,9 +13,9 @@ import (
 )
 
 type Spec struct {
-	name          string
-	task          pipelinev1.Task
-	expecedErrors []error
+	name           string
+	task           pipelinev1.Task
+	expectedErrors []error
 }
 
 func TestValidateTask(t *testing.T) {
@@ -26,7 +26,7 @@ func TestValidateTask(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{Name: "Test Task"},
 				Spec:       pipelinev1.TaskSpec{},
 			},
-			expecedErrors: []error{validation.ErrEmptyStepList},
+			expectedErrors: []error{validation.ErrEmptyStepList},
 		},
 		{
 			name: "valid task",
@@ -36,7 +36,7 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 				},
 			},
-			expecedErrors: []error{},
+			expectedErrors: []error{},
 		},
 		{
 			name: "no secrets allowed",
@@ -54,7 +54,7 @@ func TestValidateTask(t *testing.T) {
 					}},
 				},
 			},
-			expecedErrors: []error{validation.ErrSecretReferenceNotAllowed},
+			expectedErrors: []error{validation.ErrSecretReferenceNotAllowed},
 		},
 		{
 			name: "special radix volume allowed",
@@ -72,7 +72,7 @@ func TestValidateTask(t *testing.T) {
 					}},
 				},
 			},
-			expecedErrors: []error{},
+			expectedErrors: []error{},
 		},
 		{
 			name: "no radix volume allowed",
@@ -85,7 +85,7 @@ func TestValidateTask(t *testing.T) {
 					}},
 				},
 			},
-			expecedErrors: []error{validation.ErrRadixVolumeNameNotAllowed},
+			expectedErrors: []error{validation.ErrRadixVolumeNameNotAllowed},
 		},
 		{
 			name: "host path is not allowed",
@@ -103,7 +103,7 @@ func TestValidateTask(t *testing.T) {
 					}},
 				},
 			},
-			expecedErrors: []error{validation.ErrHostPathNotAllowed},
+			expectedErrors: []error{validation.ErrHostPathNotAllowed},
 		},
 		{
 			name: "Test allowed Pipeline labels and annotatoins",
@@ -121,7 +121,7 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 				},
 			},
-			expecedErrors: []error{},
+			expectedErrors: []error{},
 		},
 		{
 			name: "Test illegal Pipeline labels and annotatoins",
@@ -139,7 +139,7 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 				},
 			},
-			expecedErrors: []error{validation.ErrIllegalTaskLabel, validation.ErrIllegalTaskAnnotation},
+			expectedErrors: []error{validation.ErrIllegalTaskLabel, validation.ErrIllegalTaskAnnotation},
 		},
 		{
 			name: "collection of errors",
@@ -176,7 +176,7 @@ func TestValidateTask(t *testing.T) {
 					},
 				},
 			},
-			expecedErrors: []error{
+			expectedErrors: []error{
 				validation.ErrEmptyStepList,
 				validation.ErrHostPathNotAllowed,
 				validation.ErrRadixVolumeNameNotAllowed,
@@ -194,10 +194,10 @@ func TestValidateTask(t *testing.T) {
 
 			err := validation.ValidateTask(&spec.task)
 
-			if len(spec.expecedErrors) == 0 {
+			if len(spec.expectedErrors) == 0 {
 				assert.NoError(t, err)
 			} else {
-				for _, expected := range spec.expecedErrors {
+				for _, expected := range spec.expectedErrors {
 					assert.ErrorIs(t, err, expected)
 				}
 			}

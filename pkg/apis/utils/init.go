@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"net/http"
 	"os"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

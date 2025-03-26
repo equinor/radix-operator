@@ -2,7 +2,6 @@ package preparepipeline
 
 import (
 	"context"
-	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"strings"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"

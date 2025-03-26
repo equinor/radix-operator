@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+
 	"github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"

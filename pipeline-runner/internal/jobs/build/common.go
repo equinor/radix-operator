@@ -3,10 +3,10 @@ package build
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/git"
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"

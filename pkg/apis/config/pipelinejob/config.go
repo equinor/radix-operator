@@ -1,9 +1,9 @@
 package pipelinejob
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/git"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 

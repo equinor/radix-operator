@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// CreateBuildSecret Create a build secret
 func CreateBuildSecret(kubeClient kubernetes.Interface, appName string, data map[string][]byte) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName},
@@ -22,6 +23,7 @@ func CreateBuildSecret(kubeClient kubernetes.Interface, appName string, data map
 	return err
 }
 
+// GetRadixApplicationHash Get the hash of the radix application
 func GetRadixApplicationHash(ra *radixv1.RadixApplication) string {
 	if ra == nil {
 		hash, _ := hash.ToHashString(hash.SHA256, "0nXSg9l6EUepshGFmolpgV3elB0m8Mv7")
@@ -31,6 +33,7 @@ func GetRadixApplicationHash(ra *radixv1.RadixApplication) string {
 	return hash
 }
 
+// GetBuildSecretHash Get the build secret hash
 func GetBuildSecretHash(secret *corev1.Secret) string {
 	if secret == nil {
 		hash, _ := hash.ToHashString(hash.SHA256, "34Wd68DsJRUzrHp2f63o3U5hUD6zl8Tj")

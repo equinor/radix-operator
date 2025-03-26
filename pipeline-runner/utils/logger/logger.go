@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// InitLogger Initialize logger
 func InitLogger(logLevelStr string) {
 	if len(logLevelStr) == 0 {
 		logLevelStr = zerolog.LevelInfoValue

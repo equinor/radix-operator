@@ -26,13 +26,3 @@ const (
 	// DeployConfigStep Step to deploy the RD for applied config
 	DeployConfigStep = "deploy-config"
 )
-
-// GetStepType Get step type from a string
-func GetStepType(stepType string) (StepType, bool) {
-	switch StepType(stepType) {
-	case PreparePipelinesStep, ApplyConfigStep, BuildStep, DeployStep, PromoteStep, RunPipelinesStep, DeployConfigStep:
-		return StepType(stepType), true
-	default:
-		return "", false
-	}
-}

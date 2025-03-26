@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	pipe "github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
@@ -78,7 +78,7 @@ func main() {
 }
 
 // runs os.Exit(1) if error
-func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner, error) {
+func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*runner.PipelineRunner, error) {
 	client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, _, tektonClient := utils.GetKubernetesClient(ctx)
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
@@ -86,7 +86,7 @@ func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (
 		return nil, err
 	}
 
-	pipelineRunner := pipe.NewRunner(client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
+	pipelineRunner := runner.NewRunner(client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
 
 	err = pipelineRunner.PrepareRun(ctx, pipelineArgs)
 	if err != nil {

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/git"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/config/task"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )

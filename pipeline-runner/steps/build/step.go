@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"slices"
 	"strings"
 
@@ -20,6 +19,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 	batchv1 "k8s.io/api/batch/v1"

@@ -16,18 +16,22 @@ import (
 	knative "knative.dev/pkg/apis/duck/v1"
 )
 
+// PipelineRunsCompletionWaiter the pipeline runs completion waiter
 type PipelineRunsCompletionWaiter interface {
 	Wait(pipelineRuns map[string]*pipelinev1.PipelineRun, pipelineInfo *model.PipelineInfo) error
 }
 
+// NewPipelineRunsCompletionWaiter New instance of the pipeline runs completion waiter
 func NewPipelineRunsCompletionWaiter(tektonClient tektonclient.Interface) PipelineRunsCompletionWaiter {
 	return PipelineRunsCompletionWaiterFunc(func(pipelineRuns map[string]*pipelinev1.PipelineRun, pipelineInfo *model.PipelineInfo) error {
 		return waitForCompletionOfPipelineRuns(pipelineRuns, tektonClient, pipelineInfo)
 	})
 }
 
+// PipelineRunsCompletionWaiterFunc the pipeline runs completion waiter function
 type PipelineRunsCompletionWaiterFunc func(pipelineRuns map[string]*pipelinev1.PipelineRun, pipelineInfo *model.PipelineInfo) error
 
+// Wait Wait for the pipeline runs to complete
 func (f PipelineRunsCompletionWaiterFunc) Wait(pipelineRuns map[string]*pipelinev1.PipelineRun, pipelineInfo *model.PipelineInfo) error {
 	return f(pipelineRuns, pipelineInfo)
 }

@@ -1,8 +1,9 @@
 package applicationconfig
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"strings"
+
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 // GetEnvironmentFromRadixApplication Gets environment config with name envName from supplied RadixApplication

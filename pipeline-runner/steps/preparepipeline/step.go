@@ -35,10 +35,10 @@ func NewPreparePipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.S
 	}
 }
 
-func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
-	if step.jobWaiter == nil {
-		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
+func (cli *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+	cli.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
+	if cli.jobWaiter == nil {
+		cli.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
 	}
 }
 

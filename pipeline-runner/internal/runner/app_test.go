@@ -2,9 +2,9 @@ package runner_test
 
 import (
 	"context"
-	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"testing"
 
+	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
