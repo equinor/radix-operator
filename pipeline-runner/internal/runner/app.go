@@ -15,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
-	"github.com/equinor/radix-operator/pkg/apis/event"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -29,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/record"
 	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"sigs.k8s.io/yaml"
 )
@@ -44,13 +42,11 @@ type PipelineRunner struct {
 	prometheusOperatorClient monitoring.Interface
 	appName                  string
 	pipelineInfo             *model.PipelineInfo
-	eventRecorder            record.EventRecorder
 }
 
 // NewRunner constructor
 func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, prometheusOperatorClient monitoring.Interface, secretsStoreClient secretsstoreclient.Interface, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretsStoreClient)
-	eventRecorder := event.NewRecorder("Radix pipeline runner", kubeClient.CoreV1().Events(utils.GetAppNamespace(appName)), log.Logger)
 	handler := PipelineRunner{
 		definition:               definition,
 		kubeClient:               kubeClient,
@@ -59,9 +55,7 @@ func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interfac
 		tektonClient:             tektonClient,
 		prometheusOperatorClient: prometheusOperatorClient,
 		appName:                  appName,
-		eventRecorder:            eventRecorder,
 	}
-
 	return handler
 }
 
@@ -89,38 +83,22 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		logger := log.Ctx(ctx)
 		ctx := logger.WithContext(ctx)
 
-		eventInvolvedObject := cli.getEventInvolvedObject(step.ImplementationForType())
-		cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, string(v1.JobRunning), "Started")
-
 		err := step.Run(ctx, cli.pipelineInfo)
 		if err != nil {
 			logger.Error().Msg(step.ErrorMsg(err))
-			cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeWarning, string(v1.JobFailed), fmt.Sprintf("Failed: %s", err.Error()))
 			return err
 		}
 		logger.Info().Msg(step.SucceededMsg())
 		if cli.pipelineInfo.StopPipeline {
 			logger.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
-			cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, string(v1.JobStopped), fmt.Sprintf("Stopped: %s", cli.pipelineInfo.StopPipelineMessage))
 			break
 		}
-		cli.eventRecorder.Event(eventInvolvedObject, corev1.EventTypeNormal, string(v1.JobSucceeded), "Completed")
 
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 	}
 	return nil
-}
-
-func (cli *PipelineRunner) getEventInvolvedObject(stepType pipeline.StepType) *corev1.ObjectReference {
-	return &corev1.ObjectReference{
-		Kind:       v1.KindRadixJob,
-		Namespace:  utils.GetAppNamespace(cli.appName),
-		Name:       cli.pipelineInfo.GetRadixPipelineJobName(),
-		APIVersion: v1.SchemeGroupVersion.Identifier(),
-		FieldPath:  fmt.Sprintf("status.steps{%s}", stepType),
-	}
 }
 
 func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registration *v1.RadixRegistration) []model.Step {
